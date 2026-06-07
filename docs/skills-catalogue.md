@@ -13,17 +13,18 @@ A discoverable index of every skill in this repo, grouped by purpose. For *how* 
 
 | Group | What it covers | Skill count |
 |---|---|---|
-| [Feature workflow lifecycle](#feature-workflow-lifecycle) | Single-feature plan → implement → validate → cleanup | 9 |
-| [Roadmap & multi-feature orchestration](#roadmap--multi-feature-orchestration) | Decomposing roadmaps and running them autonomously | 4 |
-| [Quality & maintenance](#quality--maintenance) | Audit, simplify, fix, refresh — keeping the codebase healthy | 8 |
+| [Feature workflow lifecycle](#feature-workflow-lifecycle) | Single-feature plan → implement → validate → cleanup | 10 |
+| [Roadmap & multi-feature orchestration](#roadmap--multi-feature-orchestration) | Decomposing roadmaps and running them autonomously | 5 |
+| [Quality & maintenance](#quality--maintenance) | Audit, simplify, fix, refresh — keeping the codebase healthy | 11 |
 | [Engineering methodology](#engineering-methodology) | Per-topic disciplines: TDD, debugging, perf, frontend, API design, deprecation, ADRs | 7 |
 | [Orchestrator-loaded methodology](#orchestrator-loaded-methodology) | Knowledge skills loaded automatically by orchestrators | 3 |
-| [PR triage & ad-hoc tasks](#pr-triage--ad-hoc-tasks) | Cross-source PR merge + small one-off work | 4 |
+| [PR triage & ad-hoc tasks](#pr-triage--ad-hoc-tasks) | Cross-source PR merge + small one-off work | 7 |
+| [Content authoring (Obsidian)](#content-authoring-obsidian) | Notes, canvas, bases, and markdown authoring against Obsidian vaults | 4 |
 | [Vendor & service skills](#vendor--service-skills) | External-service authority docs (Postgres, observability, infra) | 5 |
-| [Infrastructure](#infrastructure-orchestrator-loaded) | Internal machinery used by other skills (locks, worktrees, validation) | 11 |
+| [Infrastructure](#infrastructure-orchestrator-loaded) | Internal machinery used by other skills (locks, worktrees, validation) | 12 |
 | [Frontends](#frontends) | Standalone web apps: observability surfaces for the coordinator | 1 |
 
-**51 skills total.** **42 user-invocable**, 9 orchestrator-only.
+**65 skills total.** **55 user-invocable**, 10 orchestrator-only.
 
 ---
 
@@ -41,7 +42,8 @@ The canonical single-feature flow. Operator drives each gate; orchestrators chai
 | ★ `iterate-on-implementation` | Iteratively refine a feature after implementation, before merge | `/iterate-on-implementation <change-id>` |
 | ★ `parallel-review-implementation` | Per-package implementation review (5-axis: correctness/readability/architecture/security/performance; 5-severity prefixes) | `/parallel-review-implementation <change-id>` |
 | ★ `validate-feature` | Deploy locally, run security scans + behavioral tests, check CI/CD, verify spec compliance | `/validate-feature <change-id>` |
-| ★ `cleanup-feature` | Merge approved PR, archive proposal, staged rollout (5%→25%→50%→100% with rollback triggers), pre-launch checklist | `/cleanup-feature <change-id>` |
+| ★ `prototype-feature` | Dispatch N parallel variant agents to produce competing working skeletons from an approved proposal, score them via cheap validation, pick a winner | `/prototype-feature <change-id>` |
+| ★ `cleanup-feature` | Merge approved PR, archive proposal, staged rollout (5%→25%→50%→100% with rollback triggers), pre-launch checklist. `--post-merge` for PRs already landed by `/merge-pull-requests`. | `/cleanup-feature <change-id>` |
 
 ## Roadmap & multi-feature orchestration
 
@@ -51,6 +53,7 @@ The canonical single-feature flow. Operator drives each gate; orchestrators chai
 | ★ `prioritize-proposals` | Analyze active OpenSpec proposals and produce a "what to do next" report | `/prioritize-proposals` |
 | ★ `autopilot` | Orchestrate the full plan-review-implement-validate-PR lifecycle with multi-vendor convergence | `/autopilot` |
 | ★ `autopilot-roadmap` | Execute roadmap items iteratively with policy-aware vendor routing and learning feedback | `/autopilot-roadmap <workspace-path>` |
+| ★ `archive-roadmap` | Archive a completed roadmap workspace to `openspec/roadmaps/archive/<date>-<id>/` with learning summary | `/archive-roadmap <workspace-path>` |
 
 ## Quality & maintenance
 
@@ -64,6 +67,9 @@ The canonical single-feature flow. Operator drives each gate; orchestrators chai
 | ★ `update-specs` | Sync OpenSpec specs with implementation reality after debugging/testing/review | `/update-specs <change-id>` |
 | ★ `refresh-architecture` | Refresh `docs/architecture-analysis/` artifacts from the codebase | `/refresh-architecture` |
 | ★ `changelog-version` | Generate changelog entries and suggest semantic version bumps from git history | `/changelog-version` |
+| ★ `agent-metrics` | Generate throughput and quality reports from coordinator audit data and episodic memory | `/agent-metrics` |
+| ★ `collect-transcripts` | Ingest raw session transcripts from coding-agent harnesses, normalize to common event schema, triage for replay/analysis | `/collect-transcripts` |
+| ★ `improve-harness` | Analyze capability-gap failure patterns from episodic memory; emit improvement reports with OpenSpec proposal stubs | `/improve-harness` |
 
 ## Engineering methodology
 
@@ -94,9 +100,23 @@ Knowledge skills designed to be loaded by other skills (not directly executed by
 | Skill | Summary | Invoke |
 |---|---|---|
 | ★ `merge-pull-requests` | Triage, review, and merge open PRs across multiple sources (OpenSpec, Codex, Dependabot, manual). Save Point Pattern + Change Summary template. | `/merge-pull-requests` |
+| ★ `expedite` | Readiness gate for sync-point operations — inspect validation, rework, and active-agent state before merge | `/expedite` |
+| ★ `review-artifacts` | Open/refresh the review artifact bundle (diffs, contracts, planning materials) at human-review gates | `/review-artifacts` |
 | ★ `quick-task` | Delegate small ad-hoc tasks to any configured vendor without OpenSpec ceremony | `/quick-task <description>` |
+| ★ `defuddle` | Extract clean markdown from web pages via Defuddle CLI — strips clutter/nav. Use instead of WebFetch when token budget matters. | `/defuddle <url>` |
 | ★ `gen-eval` | Run generator-evaluator testing against live services | `/gen-eval` |
 | ★ `gen-eval-scenario` | Create gen-eval scenario YAML files interactively | `/gen-eval-scenario` |
+
+## Content authoring (Obsidian)
+
+Skills for authoring and editing Obsidian vaults. Useful when the project's notes, plans, or knowledge base live in Obsidian-flavoured markdown.
+
+| Skill | Summary | Invoke |
+|---|---|---|
+| ★ `obsidian-cli` | Read, create, search, and manage Obsidian notes/tasks/properties via the Obsidian CLI | `/obsidian-cli` |
+| ★ `obsidian-markdown` | Author Obsidian Flavored Markdown: wikilinks, embeds, callouts, properties | `/obsidian-markdown` |
+| ★ `obsidian-bases` | Create and edit Obsidian Bases (`.base` files): views, filters, formulas, summaries | `/obsidian-bases` |
+| ★ `json-canvas` | Create and edit JSON Canvas (`.canvas`) files: nodes, edges, groups, connections | `/json-canvas` |
 
 ## Vendor & service skills
 
@@ -122,6 +142,7 @@ Internal machinery used by workflow and methodology skills. Most are `user_invoc
 | · `parallel-infrastructure` | Shared parallel execution: DAG scheduling, review dispatch, consensus synthesis, scope checking | Internal |
 | · `validate-packages` | Validation scripts for work packages, parallel zones, and work results | Internal |
 | · `validate-flows` | Architecture flow validation for cross-layer interactions | Internal |
+| · `playwright-validator` | Drive a deployed frontend via Playwright using OpenSpec WHEN/THEN scenarios; emit `behavioral_failure` findings | Loaded by `validate-feature` smoke phase |
 | · `bao-vault` | OpenBao/Vault credential seeding and management | Internal |
 | ★ `setup-coordinator` | Configure and verify coordinator access for CLI MCP and Web/Cloud HTTP runtimes | `/setup-coordinator` |
 | ★ `vendor-status` | Check all configured vendors' readiness in one shot | `/vendor-status` |
@@ -150,9 +171,9 @@ Not skills, but cited by many skills. Lives at `skills/references/` and is rsync
 | Reference | Cited by |
 |---|---|
 | [`skill-tail-template.md`](../skills/references/skill-tail-template.md) | All `user_invocable: true` skills (canonical tail block source) |
-| [`security-checklist.md`](../skills/references/security-checklist.md) | `security-review`, `api-and-interface-design`, `code-review-and-quality` |
-| [`performance-checklist.md`](../skills/references/performance-checklist.md) | `performance-optimization`, `code-review-and-quality` |
-| [`accessibility-checklist.md`](../skills/references/accessibility-checklist.md) | `frontend-ui-engineering`, `code-review-and-quality` |
+| [`security-checklist.md`](../skills/references/security-checklist.md) | `security-review`, `api-and-interface-design` |
+| [`performance-checklist.md`](../skills/references/performance-checklist.md) | `performance-optimization` |
+| [`accessibility-checklist.md`](../skills/references/accessibility-checklist.md) | `frontend-ui-engineering` |
 | [`testing-patterns.md`](../skills/references/testing-patterns.md) | `test-driven-development`, `debugging-and-error-recovery` |
 
 See [`docs/skills-workflow.md` § Shared References Library](skills-workflow.md#shared-references-library) for the contract.
