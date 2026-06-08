@@ -36,7 +36,7 @@ api = [
     "PyJWT>=2.13.0",
 ]
 postgres = [
-    "asyncpg>=0.30.0",
+    "asyncpg>=0.31.0",
 ]
 cedar = [
     "cedarpy>=4.0.0",
@@ -76,7 +76,7 @@ dev = [
     "ruff>=0.15.16",
     "mypy>=1.13.0",
     "types-PyYAML>=6.0",
-    "asyncpg>=0.30.0",
+    "asyncpg>=0.31.0",
     "cedarpy>=4.0.0",
 ]
 
