@@ -8,11 +8,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   ActiveWorktree,
-  Issue,
+  IssueCard,
+  RawIssueFromBackend,
   SnapshotPayload,
   TransitionPayload,
   AuditPayload,
 } from "../lib/coordinator-types";
+import { toIssueCard } from "../lib/coordinator-types";
 import type { AgentActivity } from "../components/VendorSwimlanes";
 
 export interface UseCoordinatorOptions {
@@ -27,7 +29,7 @@ export interface UseCoordinatorOptions {
 }
 
 export interface UseCoordinatorResult {
-  issues: Issue[];
+  issues: IssueCard[];
   loading: boolean;
   error: string | null;
   /** True while using SSE; false = polling fallback is active */
@@ -63,7 +65,7 @@ async function fetchIssuesForSingleChange(
   apiUrl: string,
   apiKey: string,
   changeId: string,
-): Promise<Issue[]> {
+): Promise<IssueCard[]> {
   const res = await fetch(`${apiUrl}/issues/list`, {
     method: "POST",
     headers: {
@@ -73,25 +75,34 @@ async function fetchIssuesForSingleChange(
     body: JSON.stringify({ labels: [`change:${changeId}`] }),
   });
   if (!res.ok) throw new Error(`fetchIssues: ${res.status}`);
-  const data = (await res.json()) as { issues?: Issue[]; items?: Issue[] };
-  return data.issues ?? data.items ?? [];
+  const data = (await res.json()) as {
+    issues?: RawIssueFromBackend[];
+    items?: RawIssueFromBackend[];
+  };
+  const raw = data.issues ?? data.items ?? [];
+  return raw.map(toIssueCard);
 }
 
-async function fetchIssues(
+/**
+ * Fetch issues for multiple change IDs in parallel, union client-side.
+ * Exported for use by useBoardCards.
+ *
+ * Multi-change boards require UNION semantics, but POST /issues/list applies
+ * AND across labels (issue_service.py:277-280). A single call with
+ * labels=[change:a, change:b] would return the intersection — empty for any
+ * issue labelled with only one change_id, which is the typical case.
+ * Iterate per-change-id, run in parallel, dedupe by id.
+ */
+export async function fetchIssuesUnioned(
   apiUrl: string,
   apiKey: string,
   changeIds: string[],
-): Promise<Issue[]> {
-  // Multi-change boards require UNION semantics, but POST /issues/list applies
-  // AND across labels (issue_service.py:277-280). A single call with
-  // labels=[change:a, change:b] would return the intersection — empty for any
-  // issue labelled with only one change_id, which is the typical case.
-  // Iterate per-change-id, run in parallel, dedupe by id.
+): Promise<IssueCard[]> {
   if (changeIds.length === 0) return [];
   const perChange = await Promise.all(
     changeIds.map((id) => fetchIssuesForSingleChange(apiUrl, apiKey, id)),
   );
-  const merged = new Map<string, Issue>();
+  const merged = new Map<string, IssueCard>();
   for (const batch of perChange) {
     for (const issue of batch) {
       if (!merged.has(issue.id)) merged.set(issue.id, issue);
@@ -137,7 +148,7 @@ export function useCoordinator({
     [changeIdsKey],
   );
 
-  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issues, setIssues] = useState<IssueCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [streamConnected, setStreamConnected] = useState(false);
@@ -150,7 +161,7 @@ export function useCoordinator({
 
   const applySnapshot = useCallback((payload: SnapshotPayload) => {
     if (mountedRef.current) {
-      setIssues(payload.work_queue);
+      setIssues(payload.work_queue.map(toIssueCard));
       setActiveAgents(payload.active_agents);
       setLoading(false);
     }
@@ -188,7 +199,7 @@ export function useCoordinator({
 
     const poll = async () => {
       try {
-        const fetched = await fetchIssues(apiUrl, apiKey, stableChangeIds);
+        const fetched = await fetchIssuesUnioned(apiUrl, apiKey, stableChangeIds);
         if (mountedRef.current) {
           setIssues(fetched);
           setLoading(false);
@@ -238,7 +249,7 @@ export function useCoordinator({
           setIssues((current) =>
             current.map((iss) =>
               iss.id === payload.work_queue_id
-                ? { ...iss, status: payload.to as Issue["status"] }
+                ? { ...iss, status: payload.to as IssueCard["status"] }
                 : iss,
             ),
           );
