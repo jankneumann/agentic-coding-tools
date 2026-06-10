@@ -508,16 +508,16 @@ describe("e2e integration: SourceSwimlanes with PR + Proposal rows (mocked)", ()
 
     render(<SourceSwimlanes cards={cards} />);
 
-    // Initially all 3 PRs visible (all in backlog since status=open)
-    // Count badge shows 3 in backlog
-    expect(screen.getByTestId("count-prs-backlog")).toHaveTextContent("3");
+    // Initially all 3 PRs visible (all in in-flight since status=open
+    // — per spec, only `draft` lands in backlog; `open` is active review)
+    expect(screen.getByTestId("count-prs-in-flight")).toHaveTextContent("3");
 
     // Deselect dependabot chip
     const dependabotChip = screen.getByTestId("origin-chip-dependabot");
     await user.click(dependabotChip);
 
     // Only 2 remain (openspec ones)
-    expect(screen.getByTestId("count-prs-backlog")).toHaveTextContent("2");
+    expect(screen.getByTestId("count-prs-in-flight")).toHaveTextContent("2");
 
     // No network request was made
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -581,8 +581,8 @@ describe("e2e integration: SourceSwimlanes with PR + Proposal rows (mocked)", ()
     render(<SourceSwimlanes cards={cards} />);
     // Issues: 2 pending → 2 in backlog
     expect(screen.getByTestId("count-issues-backlog")).toHaveTextContent("2");
-    // PRs: 2 open → 2 in backlog (open maps to backlog)
-    expect(screen.getByTestId("count-prs-backlog")).toHaveTextContent("2");
+    // PRs: 2 open → 2 in-flight (open is active review state per spec)
+    expect(screen.getByTestId("count-prs-in-flight")).toHaveTextContent("2");
     // Proposals: 1 drafted → 1 in backlog
     expect(screen.getByTestId("count-proposals-backlog")).toHaveTextContent("1");
   });
