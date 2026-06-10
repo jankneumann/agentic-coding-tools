@@ -14,6 +14,8 @@ The endpoint SHALL apply a 60-second in-memory cache shared across concurrent re
 
 The endpoint SHALL reuse the classification logic from `skills/merge-pull-requests/scripts/discover_prs.py` — that logic SHALL be extracted into a coordinator-importable module (`agent-coordinator/src/github_classifier.py` or equivalent) without duplicating its rules. The skill SHALL continue to import the same module so the classification stays single-sourced.
 
+The classifier's native return surface includes fine-grained Jules sub-types (`sentinel`, `bolt`, `palette`) and a generic `other` fallback. For the `PRCard.origin` field, the coordinator endpoint SHALL fold these to the six-value `Origin` enum exposed in the contract: `sentinel | bolt | palette | jules → "jules"`, `other → "manual"`. This mapping SHALL live in a single helper (`to_pr_card_origin`) co-located with `classify_pr` so the skill — which needs the fine-grained sub-types for merge-strategy decisions — keeps the raw values, while the kanban-viz surface stays UI-stable at six chips. Future change widening the enum SHALL update both ends in lockstep.
+
 The endpoint SHALL fail closed when the GitHub credential is absent: when `GITHUB_PAT` is unset (or no equivalent credential is available), `GET /github/prs` SHALL respond `503 Service Unavailable` with body `{error: "github_pat_missing", message: <string>}` and SHALL NOT shell out, NOT call the GitHub API, and NOT populate the cache.
 
 The endpoint SHALL respond `200 OK` with an empty `prs: []` array — not 404, not 500 — when there are zero open PRs across the configured repositories.
@@ -56,6 +58,17 @@ The endpoint SHALL respond `200 OK` with an empty `prs: []` array — not 404, n
 
 **WHEN** a PR has `head_branch = "dependabot/npm_and_yarn/lodash-4.17.21"`
 **THEN** the resulting `PRCard.change_id` SHALL be `null`
+
+#### Scenario: Jules sub-types fold to a single origin on the PR card
+
+**WHEN** the underlying classifier returns `origin = "sentinel"`, `origin = "bolt"`, or `origin = "palette"` (Jules sub-types from `JULES_PATTERNS`)
+**THEN** the resulting `PRCard.origin` SHALL equal `"jules"` for all three
+**AND** the skill's own `discover_prs.py` output SHALL still receive the fine-grained sub-type (kanban-viz fold is endpoint-local)
+
+#### Scenario: Unrecognized origin folds to manual
+
+**WHEN** the underlying classifier returns `origin = "other"`
+**THEN** the resulting `PRCard.origin` SHALL equal `"manual"`
 
 ---
 
@@ -116,7 +129,7 @@ Every consumer of card data in the SPA SHALL narrow on `kind` before accessing k
 Per-kind status enums and column mappings SHALL be separate:
 - `IssueCard.status: "pending" | "claimed" | "running" | "completed" | "failed" | "blocked"` — unchanged.
 - `PRCard.status: "draft" | "open" | "review" | "changes_requested" | "approved"`.
-- `ProposalCard.status: "drafted" | "in-impl" | "archived"`.
+- `ProposalCard.status: "drafted" | "in-impl"`. (Archived proposals are not returned by `GET /openspec/proposals`, so the SPA type does not need to model them.)
 
 Three column-mapping functions SHALL exist: `issueStatusToColumn`, `prStatusToColumn`, `proposalStatusToColumn`, each returning `ColumnId`. The existing single `statusToColumn` SHALL be renamed to `issueStatusToColumn` and its behavior preserved.
 
