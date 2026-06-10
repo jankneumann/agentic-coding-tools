@@ -53,8 +53,12 @@ The endpoint SHALL respond `200 OK` with an empty `prs: []` array — not 404, n
 **WHEN** a PR has `head_branch = "openspec/extend-kanban-viz-prs-proposals"`
 **THEN** the resulting `PRCard.change_id` SHALL equal `"extend-kanban-viz-prs-proposals"`
 
-**WHEN** a PR has `head_branch = "claude/fix-branch-mismatch-9P9o1"`
-**THEN** the resulting `PRCard.change_id` SHALL equal `"fix-branch-mismatch-9P9o1"` (claude/ branches classify as openspec per the existing memory note)
+**WHEN** a PR has `head_branch = "claude/fix-branch-mismatch-9P9o1"` AND PR body contains the line `Implements OpenSpec: fix-branch-mismatch`
+**THEN** the resulting `PRCard.change_id` SHALL equal `"fix-branch-mismatch"` (claude/ branches classify as `openspec` per `feedback_claude_branch_classification.md`, but `change_id` is sourced from the body marker because the branch slug carries a random suffix like `-9P9o1` per `discover_prs.py:_extract_change_id_from_body`)
+
+**WHEN** a PR has `head_branch = "claude/cloud-session-abc"` AND PR body has no `Implements OpenSpec:` line
+**THEN** the resulting `PRCard.origin` SHALL still equal `"openspec"` (classifier rule)
+**AND** the resulting `PRCard.change_id` SHALL be `null` (no body marker to source from)
 
 **WHEN** a PR has `head_branch = "dependabot/npm_and_yarn/lodash-4.17.21"`
 **THEN** the resulting `PRCard.change_id` SHALL be `null`
@@ -72,11 +76,94 @@ The endpoint SHALL respond `200 OK` with an empty `prs: []` array — not 404, n
 
 ---
 
+### Requirement: GitHub REST → Classifier-Shape Adapter
+
+The endpoint SHALL translate every GitHub REST PR payload through a dedicated `from_rest_pr(rest_payload: dict) -> dict` adapter BEFORE feeding it into the classifier. The classifier (`classify_pr` in `agent-coordinator/src/github_classifier.py`, extracted from `discover_prs.py`) reads `gh` CLI JSON field names (`headRefName`, `body`, `title`, `labels[].name`, `author.login`, `createdAt`, `isDraft`, `url`), but the `GET /github/prs` endpoint fetches PRs via the GitHub REST API (per design D1), which returns DIFFERENT field names (`head.ref`, `user.login`, `created_at`, `draft`, `html_url`). The endpoint SHALL NOT pass raw REST payloads into the classifier — doing so silently sets `headRefName = ""`, which causes every PR to fall through to `origin = "other"` and `change_id = null`, defeating the entire single-source-classifier design.
+
+The adapter SHALL live alongside the classifier in `agent-coordinator/src/github_classifier.py` (or a dedicated `github_rest_adapter.py` co-located there). The skill (`discover_prs.py`) SHALL continue to feed `gh`-CLI payloads directly to `classify_pr` without going through the adapter (gh-CLI shape is already canonical for the skill).
+
+The translation MUST cover: `headRefName ← head.ref`, `body ← body`, `title ← title`, `labels ← labels` (already a list of `{name, ...}` in both shapes), `author ← {"login": user.login}` (the classifier's `safe_author` reads `pr["author"]["login"]`), `isDraft ← draft`, `createdAt ← created_at`, `updatedAt ← updated_at`, `url ← html_url`, `number ← number`, `baseRefName ← base.ref`.
+
+#### Scenario: REST PR with openspec branch classifies correctly after adapter
+
+**WHEN** a REST payload `{"head": {"ref": "openspec/foo"}, "user": {"login": "alice"}, "labels": [], "body": "", "title": "foo", "draft": false, "html_url": "https://github.com/...", "number": 1, "base": {"ref": "main"}, "created_at": "2026-06-10T00:00:00Z", "updated_at": "2026-06-10T01:00:00Z"}` is processed
+**THEN** `from_rest_pr` SHALL produce `{"headRefName": "openspec/foo", "author": {"login": "alice"}, ...}`
+**AND** `classify_pr(adapted)` SHALL return `{"origin": "openspec", "change_id": "foo"}` (NOT `"other"`/`null`)
+
+#### Scenario: Adapter omission is detected by unit test
+
+**WHEN** the endpoint module imports `classify_pr` but does NOT import `from_rest_pr`
+**THEN** a static check (or dedicated unit test) SHALL fail with a clear message naming the missing adapter, preventing the silent-mis-classification regression
+
+---
+
+### Requirement: PRCard.status Derivation
+
+The endpoint SHALL derive `PRCard.status` from the GitHub REST `isDraft` field and the projected `review_summary.state` using these deterministic rules, evaluated in order:
+
+1. If `is_draft == true` → `status = "draft"`.
+2. Else if `review_summary.state == "changes_requested"` → `status = "changes_requested"`.
+3. Else if `review_summary.state == "approved"` AND every active reviewer's latest non-dismissed review is `APPROVED` → `status = "approved"`.
+4. Else if `review_summary.state == "commented"` OR there exists at least one non-dismissed review of any state → `status = "review"`.
+5. Else → `status = "open"`.
+
+The precedence (changes_requested > approved > review > open) reflects the operator's question "what's blocking merge?" — `changes_requested` is more urgent than `approved`, so it wins even if a later reviewer approved.
+
+#### Scenario: Draft PR with no reviews
+
+**WHEN** the REST payload has `draft: true` AND no reviews exist
+**THEN** `PRCard.status` SHALL equal `"draft"`
+
+#### Scenario: PR with changes_requested wins over a later approval
+
+**WHEN** the PR has reviews `[alice:approved@T-2h, bob:changes_requested@T-1h]` AND `is_draft = false`
+**THEN** `PRCard.status` SHALL equal `"changes_requested"` (NOT `"approved"`)
+
+#### Scenario: PR with all reviewers approved
+
+**WHEN** the PR has reviews `[alice:approved@T-2h, bob:approved@T-1h]` AND `is_draft = false`
+**THEN** `PRCard.status` SHALL equal `"approved"`
+
+#### Scenario: PR with one comment
+
+**WHEN** the PR has reviews `[alice:commented@T-1h]` AND `is_draft = false`
+**THEN** `PRCard.status` SHALL equal `"review"`
+
+#### Scenario: PR with no reviews and not draft
+
+**WHEN** the PR has zero reviews AND `is_draft = false`
+**THEN** `PRCard.status` SHALL equal `"open"`
+
+---
+
+### Requirement: GITHUB_REPOS Configuration
+
+The endpoint SHALL read its repository allow-list from the `GITHUB_REPOS` environment variable. The value SHALL be a comma-separated list of `<owner>/<repo>` strings (e.g. `jankn/agentic-coding-tools,jankn/another-repo`). When unset, the endpoint SHALL default to a single hardcoded repository: `jankn/agentic-coding-tools` (the canonical home of this codebase).
+
+The endpoint SHALL validate the env var on first request: each entry MUST match the regex `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`. An invalid entry SHALL cause the endpoint to respond `503` with body `{"error": "github_repos_invalid", "message": "<offending entry>"}` rather than partial results. Validation SHALL be cached alongside the PR cache.
+
+When multiple repos are configured, the endpoint SHALL fan out concurrent fetches (capped at the same 20-concurrent limit as the per-PR reviews fetch) and concatenate results before sort. The `repo` field on each `PRCard` SHALL distinguish them.
+
+#### Scenario: Default repo when GITHUB_REPOS unset
+
+**WHEN** the coordinator boots with `GITHUB_REPOS` unset AND `GITHUB_PAT` set
+**THEN** the endpoint SHALL fetch from `jankn/agentic-coding-tools` only
+**AND** all returned `PRCard.repo` values SHALL equal `"jankn/agentic-coding-tools"`
+
+#### Scenario: Invalid GITHUB_REPOS entry fails closed
+
+**WHEN** `GITHUB_REPOS = "valid/repo,not_a_valid_entry"` AND a client calls `GET /github/prs`
+**THEN** the response status SHALL be `503`
+**AND** the response body SHALL include `{"error": "github_repos_invalid"}`
+**AND** no outbound GitHub API call SHALL be made
+
+---
+
 ### Requirement: New Coordinator Endpoint — OpenSpec Proposals Projection
 
 The coordinator SHALL expose `GET /openspec/proposals` returning every change directory under `openspec/changes/` that is not under `archive/`, classified by implementation state derived from the corresponding git branch.
 
-The response SHALL be a JSON object with shape `{proposals: ProposalCard[], generated_at_iso: string, source: "live" | "cache", cache_age_seconds: integer}`. Each `ProposalCard` SHALL contain at minimum: `kind: "proposal"` (literal), `id` (string, equal to `proposal:<change-id>`), `change_id` (string), `title` (string — extracted from the first H1 of `proposal.md`), `status` (string, one of `drafted / in-impl / archived`), `created_at_iso` (string — `proposal.md` git first-commit time), `updated_at_iso` (string — most recent commit time touching the change directory), `proposal_path` (string), `has_tasks_md` (boolean), `has_design_md` (boolean), `has_spec_delta` (boolean), `has_branch` (boolean), `branch_name` (string or null), `code_changes_outside_proposal` (integer — number of commits on the branch whose diff touches paths outside `openspec/changes/<change-id>/`).
+The response SHALL be a JSON object with shape `{proposals: ProposalCard[], generated_at_iso: string, source: "live" | "cache", cache_age_seconds: integer}`. Each `ProposalCard` SHALL contain at minimum: `kind: "proposal"` (literal), `id` (string, equal to `proposal:<change-id>`), `change_id` (string), `title` (string — extracted from the first H1 of `proposal.md`), `status` (string, one of `drafted / in-impl` — archived proposals are excluded by definition and never returned), `created_at_iso` (string — `proposal.md` git first-commit time), `updated_at_iso` (string — most recent commit time touching the change directory), `proposal_path` (string), `has_tasks_md` (boolean), `has_design_md` (boolean), `has_spec_delta` (boolean), `has_branch` (boolean), `branch_name` (string or null), `code_changes_outside_proposal` (integer — number of commits on the branch whose diff touches paths outside `openspec/changes/<change-id>/`).
 
 A proposal SHALL be classified `in-impl` when ALL of the following are true: (1) a branch named `openspec/<change-id>` exists locally OR on the configured remote, AND (2) `code_changes_outside_proposal >= 1`. Otherwise the status SHALL be `drafted` (archive entries are excluded by definition).
 
@@ -134,7 +221,7 @@ Per-kind status enums and column mappings SHALL be separate:
 Three column-mapping functions SHALL exist: `issueStatusToColumn`, `prStatusToColumn`, `proposalStatusToColumn`, each returning `ColumnId`. The existing single `statusToColumn` SHALL be renamed to `issueStatusToColumn` and its behavior preserved.
 
 Column mapping:
-- Issues: `pending → backlog`, `claimed | running → in-flight`, `completed → done`, `failed | blocked → in-flight`. (Unchanged from existing spec.)
+- Issues: `pending | blocked → backlog`, `claimed | running → in-flight`, `completed | failed → done`. This MUST be byte-identical to the existing `statusToColumn` implementation at `apps/kanban-viz/src/lib/coordinator-types.ts:48` — `issueStatusToColumn` is a rename, NOT a behavior change. Any deviation regresses the board's current behavior for blocked (currently shown as "needs attention" in backlog) and failed (currently terminal in done).
 - PRs: `draft → backlog`, `open | review | changes_requested → in-flight`, `approved → done`. Merged PRs are not returned by `GET /github/prs` and therefore do not need a mapping.
 - Proposals: `drafted → backlog`, `in-impl → in-flight`. Archived proposals are not returned by `GET /openspec/proposals` and therefore do not need a column.
 
@@ -186,6 +273,8 @@ Row visibility SHALL be toggleable via a header chip per source. The default SHA
 
 The SPA header SHALL include a `RefreshButton` that triggers a parallel refetch of all three sources (`/issues/list`, `/github/prs?refresh=true`, `/openspec/proposals?refresh=true`).
 
+**Multi-change preservation**: The existing `useCoordinator` hook at `apps/kanban-viz/src/hooks/useCoordinator.ts` fetches issues for multi-change boards by POSTing `/issues/list` once per `changeId` and unioning the results (see `fetchIssuesUnioned`) — because the backend ANDs the labels filter, a single POST with multiple change_ids returns the empty intersection rather than the union. The new `useBoardCards` hook and the RefreshButton SHALL preserve this per-change parallel fetch + union semantics for issues. A single batched `/issues/list` call SHALL NOT replace the per-change fetch — doing so silently empties multi-change boards.
+
 While a refresh is in flight, the button SHALL show a spinner state and SHALL be disabled to prevent double-submits.
 
 Each source SHALL display its own last-refreshed-at timestamp (relative, e.g. `Issues · updated 12s ago`) in the row header. The timestamp SHALL update from the response's `generated_at_iso` field for PRs and proposals; for issues the timestamp SHALL be the wall-clock moment of the successful `/issues/list` response.
@@ -204,6 +293,33 @@ If any one source fails, the SPA SHALL surface a per-row error chip on that row 
 **THEN** the PR row SHALL display an error chip with a retry affordance
 **AND** the Issues and Proposals rows SHALL update with their fresh data
 **AND** the Refresh button SHALL return to idle (not stuck in spinner)
+
+#### Scenario: Multi-change board refresh unions per-change issues
+
+**WHEN** the board is configured with `changeIds = ["foo", "bar"]` AND the user clicks Refresh
+**THEN** the SPA SHALL issue two POSTs to `/issues/list`, one with `{change_ids: ["foo"]}` and one with `{change_ids: ["bar"]}` (preserving the existing per-change fetch + union)
+**AND** the resulting Issues row SHALL contain the union of issues from both change_ids
+**AND** a single batched POST with `{change_ids: ["foo", "bar"]}` SHALL NOT replace this — that pattern returns the empty intersection per the backend's AND-on-labels semantics
+
+---
+
+### Requirement: Saved-View Schema Extension for Card-Source Fields
+
+The coordinator's saved-view JSON schema at `agent-coordinator/src/schemas/kanban_viz/saved-view.json` SHALL be extended with two optional fields under `view`: `pr_origins` (array of origin strings, items matching the contract `Origin` enum) and `hidden_rows` (array, items one of `"issues" | "prs" | "proposals"`). Both fields SHALL be optional.
+
+The schema currently sets `additionalProperties: false` on the `view` object, which would silently reject saved views containing the new fields — failing the persistence path with no clear surface. The schema update SHALL be made in lockstep with the SPA writes. Saved views written prior to this change SHALL continue to validate (the new fields are optional, not required).
+
+#### Scenario: Saved view with pr_origins validates
+
+**WHEN** the SPA writes a saved view with `view.pr_origins = ["openspec", "codex"]` AND `view.hidden_rows = ["proposals"]`
+**THEN** the coordinator schema validator SHALL accept the document as valid
+**AND** the persisted JSON SHALL round-trip via `PUT /kanban-viz/saved-views/{slug}` then `GET /kanban-viz/saved-views/{slug}` with both new fields intact
+
+#### Scenario: Pre-existing saved view continues to validate
+
+**WHEN** a saved view written before this change (with no `pr_origins` or `hidden_rows`) is loaded
+**THEN** the schema validator SHALL accept it
+**AND** the SPA SHALL fall back to the default selection (all origins, no hidden rows)
 
 ---
 

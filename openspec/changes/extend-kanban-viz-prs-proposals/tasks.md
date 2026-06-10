@@ -6,11 +6,15 @@ Test-first ordering. Each task is sized S (≤ 1 hour) / M (≤ 4 hours) / L (�
 
 - [ ] 1.1 (S) Write failing unit test in `agent-coordinator/tests/test_github_classifier.py` asserting `classify_pr({"headRefName": "openspec/foo", ...}) == {"origin": "openspec", "change_id": "foo"}`, plus cases for `claude/`, `dependabot/`, `renovate/`, codex-author, jules-labels (and Jules sub-types `sentinel/bolt/palette`), and the `other` fallback. Reuse the `_pr()` helper shape from `skills/tests/merge-pull-requests/test_classify.py` so fixtures stay in sync.
 
-- [ ] 1.2 (M) Extract `classify_pr(pr: dict) -> dict` (returning `{"origin": str, "change_id": str | None}` — matching the existing surface in `discover_prs.py`), plus `JULES_PATTERNS`, `JULES_AUTHORS`, and helper rules from `skills/merge-pull-requests/scripts/discover_prs.py` into a new module `agent-coordinator/src/github_classifier.py`. Make 1.1 pass.
+- [ ] 1.2 (M) Extract `classify_pr(pr: dict) -> dict` (returning `{"origin": str, "change_id": str | None}` — matching the existing surface in `discover_prs.py`), plus `JULES_PATTERNS`, `JULES_AUTHORS`, `safe_author`, `is_jules_author`, and any other helpers `classify_pr` transitively depends on (from `skills/merge-pull-requests/scripts/_helpers.py`) into a new module `agent-coordinator/src/github_classifier.py`. The module MUST be self-contained — no imports from `skills/...`. Make 1.1 pass.
 
 - [ ] 1.3 (S) Add a thin mapper `to_pr_card_origin(classifier_origin: str) -> Origin` in the same module: folds `sentinel | bolt | palette | jules → "jules"` and `other → "manual"` to match the six-value `PRCard.origin` enum in the contract. Direct passthrough for `openspec`, `codex`, `dependabot`, `renovate`. Unit-tested against all 9 classifier outputs.
 
-- [ ] 1.4 (S) Update `skills/merge-pull-requests/scripts/discover_prs.py` to import `classify_pr`, `JULES_PATTERNS`, `JULES_AUTHORS` from `agent_coordinator.github_classifier` (via the existing skills-imports path) instead of redefining them. The skill SHALL continue to consume the raw `{"origin": ..., "change_id": ...}` dict (no `to_pr_card_origin` fold on the skill side — sub-types preserved for merge-strategy decisions). Existing skill tests SHALL still pass without modification.
+- [ ] 1.4 (S) Update `skills/merge-pull-requests/scripts/discover_prs.py` to import `classify_pr`, `JULES_PATTERNS`, `JULES_AUTHORS`, `safe_author`, `is_jules_author` from `src.github_classifier` (the coordinator publishes its package as `src` per `agent-coordinator/pyproject.toml` `packages=['src']` — NOT `agent_coordinator.github_classifier`). Use the existing skills-imports path that already lets skills reach into the coordinator. The skill SHALL continue to consume the raw `{"origin": ..., "change_id": ...}` dict (no `to_pr_card_origin` fold on the skill side — sub-types preserved for merge-strategy decisions). Existing skill tests SHALL still pass without modification.
+
+- [ ] 1.5 (M) Write failing unit test in `agent-coordinator/tests/test_github_rest_adapter.py` covering `from_rest_pr(rest_payload: dict) -> dict`: assert the REST payload `{"head": {"ref": "openspec/foo"}, "user": {"login": "alice"}, "labels": [], "body": "", "title": "x", "draft": false, "html_url": "https://...", "number": 1, "base": {"ref": "main"}, "created_at": "...", "updated_at": "..."}` produces a dict whose `headRefName == "openspec/foo"`, `author == {"login": "alice"}`, `isDraft == false`, etc. Include a round-trip assert: `classify_pr(from_rest_pr(rest_payload)) == {"origin": "openspec", "change_id": "foo"}`. WITHOUT the adapter, `classify_pr` on raw REST payload returns `{"origin": "other", "change_id": null}` — assert this too as a regression sentinel.
+
+- [ ] 1.6 (M) Implement `from_rest_pr` in `agent-coordinator/src/github_classifier.py` (alongside `classify_pr`). Translation table per spec: `head.ref → headRefName`, `user.login → author.login`, `draft → isDraft`, `created_at → createdAt`, `updated_at → updatedAt`, `html_url → url`, `base.ref → baseRefName`. Pass-through: `body`, `title`, `labels`, `number`. Make 1.5 pass.
 
 ✓ CHECKPOINT 1 — classifier is single-sourced (raw form for skill, folded form for kanban-viz endpoint) and exercised by both consumers.
 
@@ -22,7 +26,11 @@ Test-first ordering. Each task is sized S (≤ 1 hour) / M (≤ 4 hours) / L (�
 
 - [ ] 2.3 (M) Write failing pytest for the review-summary reducer in isolation (`reduce_reviews(reviews_payload) -> ReviewSummary`): covers the four scenarios from the spec (approve-then-changes-requested, no-reviews, dismissed-reviews-excluded, multi-reviewer).
 
-- [ ] 2.4 (L) Implement `agent-coordinator/src/github_prs_api.py` containing: PAT-gated GitHub REST client (`httpx.AsyncClient`), per-PR review fetch with `asyncio.gather` capped at 20 concurrent, classifier integration via `github_classifier.classify_pr` AND `to_pr_card_origin` for the `PRCard.origin` fold, the in-process TTL cache with mutex (single-flight), `?refresh=true` cache-bust, and the response shape from the spec. Make 2.1–2.3 pass.
+- [ ] 2.4 (L) Implement `agent-coordinator/src/github_prs_api.py` containing: PAT-gated GitHub REST client (`httpx.AsyncClient`), per-PR review fetch with `asyncio.gather` capped at 20 concurrent, classifier integration via the chain `classify_pr(from_rest_pr(rest_payload))` (CRITICAL: the REST→classifier adapter MUST be applied; raw REST payloads passed to `classify_pr` silently mis-classify every PR as `other`/`null`), `to_pr_card_origin` for the `PRCard.origin` fold, GITHUB_REPOS env-var parsing with validation regex `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$` and the multi-repo fan-out fetch, the in-process TTL cache with mutex (single-flight), `?refresh=true` cache-bust, and the response shape from the spec. Make 2.1–2.3 pass.
+
+- [ ] 2.6 (M) Write failing pytest in `test_github_prs_api.py` covering `PRCard.status` derivation (the precedence ladder from spec): four scenarios for `draft`, `changes_requested`, `approved`, `review`, `open`. Implement the reducer inline in `github_prs_api.py` (or in a sibling `pr_status.py` if it grows). Make the test pass.
+
+- [ ] 2.7 (S) Write failing pytest for GITHUB_REPOS handling: (a) unset → defaults to `jankn/agentic-coding-tools` (single-repo path), (b) `"valid/repo,not_a_valid_entry"` → 503 with `{"error": "github_repos_invalid"}`, (c) `"a/b,c/d"` → both repos fetched, results union-sorted. Make tests pass with the impl from 2.4.
 
 - [ ] 2.5 (S) Register the endpoint in `agent-coordinator/src/coordination_api.py` and add it to the existing kanban-viz auth dependency. Add minimal smoke pytest that the route is registered.
 
@@ -42,7 +50,11 @@ Test-first ordering. Each task is sized S (≤ 1 hour) / M (≤ 4 hours) / L (�
 
 - [ ] 3.6 (S) Register endpoint in `coordination_api.py` with the same auth dependency.
 
-✓ CHECKPOINT 3 — both new coordinator endpoints are merged, tested, and unblocked for SPA work.
+- [ ] 3.7 (S) Write failing pytest asserting `503 {"error": "git_unavailable"}` when the runtime checkout has no `.git` directory (simulate by setting `OPENSPEC_REPO_ROOT` to a non-git tmp dir). Implement the boot-time `.git` detection in `openspec_proposals_api.py` and fail closed. Document the Railway-deploy requirement (bundle `.git` or `git fetch openspec/*` on startup) in `docs/kanban-viz/README.md`.
+
+- [ ] 3.8 (S) Extend `agent-coordinator/src/schemas/kanban_viz/saved-view.json`: add optional `pr_origins: array<string>` (items match the contract `Origin` enum) and `hidden_rows: array<string>` (items one of `"issues" | "prs" | "proposals"`) under `view`. Add a pytest exercising (a) a saved-view with both new fields validates, (b) a pre-existing saved view without the new fields still validates, (c) a saved view with `pr_origins: ["bogus"]` fails validation with a clear error. Update `agent-coordinator/tests/test_kanban_viz_saved_views.py` (or create) to cover the round-trip via `PUT` then `GET`.
+
+✓ CHECKPOINT 3 — both new coordinator endpoints are merged, tested, deploy-aware (git availability), and the saved-view schema accepts the new SPA fields. SPA work is unblocked.
 
 ## Section 4 — Contracts: OpenAPI + TS types
 
@@ -76,7 +88,7 @@ whether to promote them to `agent-coordinator/contracts/` permanently
 
 - [ ] 6.1 (M) Write failing vitest for `clusterBoardCards(cards)` pure function: given mixed cards with overlapping and unique `change_id`s, returns a `Map<change_id, BoardCard[]>` and annotates each card with `cluster_count: number | null`. Cards with `change_id = null` SHALL receive `cluster_count = null` and SHALL NOT appear in any cluster.
 
-- [ ] 6.2 (L) Implement `useBoardCards` hook in `apps/kanban-viz/src/lib/useBoardCards.ts`: parallel fetch of `/issues/list`, `/github/prs`, `/openspec/proposals`, response shape narrowing, cluster computation, per-source `lastRefreshed` timestamps, refresh trigger that re-fetches with `?refresh=true`. Vitest unit tests for the parallel-fetch behavior (with one source erroring) and the refresh idempotency.
+- [ ] 6.2 (L) Implement `useBoardCards` hook at `apps/kanban-viz/src/hooks/useBoardCards.ts` (the existing `useCoordinator.ts` lives in `src/hooks/`, not `src/lib/` — corrected per PLAN_REVIEW; `src/lib/` is reserved for stateless utils). For issues, use the existing per-change-id `fetchIssuesUnioned` from `useCoordinator.ts` (extract it to a shared helper if needed) — a single batched `/issues/list` POST does NOT work because the backend ANDs the labels filter and returns the empty intersection. For PRs and proposals, single-shot GET. Add a `refreshGeneration` counter so SSE event handlers can fence stale events after a manual refresh. Vitest unit tests for: parallel-fetch behavior (one source erroring → other two succeed), refresh idempotency, multi-change `changeIds=["a","b"]` produces two separate POST calls and unions client-side, SSE-fence semantics.
 
 - [ ] 6.3 (S) Refactor existing `useCoordinator` to delegate the cards portion to `useBoardCards` while keeping the SSE subscription and sync-point polling intact.
 
