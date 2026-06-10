@@ -31,9 +31,11 @@ and a worktree running" view that makes the pipeline state legible at a glance.
   `archive/`, classified by implementation state derived from branch contents.
 - Caching: 60-second in-memory cache per endpoint, with explicit cache-bust on
   `?refresh=true` (the SPA refresh button passes this).
-- Configuration: `GITHUB_PAT` env var (existing convention in
-  `github_coordination.py`), `GITHUB_REPOS` list (defaults to the
-  agentic-coding-tools repo). Hosted on `coord.rotkohl.ai` only — local
+- Configuration: NEW `GITHUB_PAT` env var (this change introduces it;
+  `agent-coordinator/src/github_coordination.py` does not currently hold
+  GitHub credential logic — see spec for the env-var contract). NEW
+  `GITHUB_REPOS` env var (CSV, defaults to `jankneumann/agentic-coding-tools`
+  when unset, per spec). Hosted on `coord.rotkohl.ai` only — local
   coordinators get 503 unless `GITHUB_PAT` is set.
 
 ### SPA (`apps/kanban-viz/`)
@@ -153,8 +155,11 @@ at Gate 1. Load-bearing commitments derived from this selection:
 - Per-kind status enums stay native; three column-mapping functions
   (`issueStatusToColumn`, `prStatusToColumn`, `proposalStatusToColumn`)
   replace the single existing one.
-- `SourceSwimlanes` renders three rows × three columns, with same-`change_id`
-  collapse default-on.
+- `SourceSwimlanes` renders three rows × three columns. Cards sharing a
+  `change_id` render a cross-row cluster badge (NOT a collapsed merged
+  card — design D6 refined this from the initial proposal because the
+  whole point is seeing all three states at once). Click highlights
+  siblings across rows.
 - One unified refresh action triggers parallel refetch of all three
   sources. No per-source refresh.
 - Two new read-only coordinator endpoints (`GET /github/prs`,
@@ -182,8 +187,12 @@ unworkable during implementation, a new proposal is filed.
   `openspec/<change-id>` exists AND contains commits whose diff touches paths
   outside `openspec/changes/<change-id>/` (i.e., real code, not just planning
   artifacts). Confirmed by user.
-- **D6 (cross-source clustering):** Cards sharing `change_id` collapse into a
-  single cluster card by default; expandable. Single highest-value UX choice.
+- **D6 (cross-source clustering):** Cards sharing `change_id` render a
+  non-collapsing cross-row cluster badge; click highlights siblings.
+  Originally proposed as "collapse into single card" — refined to
+  non-collapsing badge during design because collapsing destroys the
+  side-by-side per-source visibility the change exists to create. See
+  design.md D6 for full rationale.
 
 ## Open Questions for Implementation
 

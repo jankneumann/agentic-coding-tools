@@ -71,6 +71,15 @@ paths:
                 $ref: "#/components/schemas/ProposalListResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Runtime checkout has no .git directory (Docker layer omitted it)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoordinatorError"
+              example:
+                error: git_unavailable
+                message: "This coordinator instance has no .git directory in its runtime checkout."
 
 components:
   securitySchemes:

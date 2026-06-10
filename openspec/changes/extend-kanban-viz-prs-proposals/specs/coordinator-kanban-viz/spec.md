@@ -138,7 +138,7 @@ The precedence (changes_requested > approved > review > open) reflects the opera
 
 ### Requirement: GITHUB_REPOS Configuration
 
-The endpoint SHALL read its repository allow-list from the `GITHUB_REPOS` environment variable. The value SHALL be a comma-separated list of `<owner>/<repo>` strings (e.g. `jankn/agentic-coding-tools,jankn/another-repo`). When unset, the endpoint SHALL default to a single hardcoded repository: `jankn/agentic-coding-tools` (the canonical home of this codebase).
+The endpoint SHALL read its repository allow-list from the `GITHUB_REPOS` environment variable. The value SHALL be a comma-separated list of `<owner>/<repo>` strings (e.g. `jankneumann/agentic-coding-tools,jankn/another-repo`). When unset, the endpoint SHALL default to a single hardcoded repository: `jankneumann/agentic-coding-tools` (the canonical home of this codebase).
 
 The endpoint SHALL validate the env var on first request: each entry MUST match the regex `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`. An invalid entry SHALL cause the endpoint to respond `503` with body `{"error": "github_repos_invalid", "message": "<offending entry>"}` rather than partial results. Validation SHALL be cached alongside the PR cache.
 
@@ -147,8 +147,8 @@ When multiple repos are configured, the endpoint SHALL fan out concurrent fetche
 #### Scenario: Default repo when GITHUB_REPOS unset
 
 **WHEN** the coordinator boots with `GITHUB_REPOS` unset AND `GITHUB_PAT` set
-**THEN** the endpoint SHALL fetch from `jankn/agentic-coding-tools` only
-**AND** all returned `PRCard.repo` values SHALL equal `"jankn/agentic-coding-tools"`
+**THEN** the endpoint SHALL fetch from `jankneumann/agentic-coding-tools` only
+**AND** all returned `PRCard.repo` values SHALL equal `"jankneumann/agentic-coding-tools"`
 
 #### Scenario: Invalid GITHUB_REPOS entry fails closed
 
@@ -174,6 +174,15 @@ The endpoint SHALL operate from the coordinator's local checkout of the reposito
 The endpoint SHALL respond `200 OK` with an empty `proposals: []` array when no change directories exist outside `archive/`.
 
 The endpoint SHALL be resilient to malformed change directories: a change directory missing `proposal.md` SHALL be omitted from the response (NOT cause a 500), and a warning SHALL be logged.
+
+The endpoint SHALL fail closed when `.git` is unavailable in the runtime checkout: `git rev-parse --git-dir` is invoked at request time; on non-zero exit (typical of Docker `COPY` layers that omit `.git`), the endpoint SHALL respond `503 Service Unavailable` with body `{"error": "git_unavailable", "message": <string>}` and SHALL NOT walk the changes tree. This matches the `GET /github/prs` fail-closed posture (missing `GITHUB_PAT` → 503) so the SPA can surface a single per-row "feature unavailable in this deployment" chip pattern.
+
+#### Scenario: Endpoint fails closed when .git is missing
+
+**WHEN** the coordinator's runtime checkout has no `.git` directory (e.g., Docker `COPY` omitted it) AND a client calls `GET /openspec/proposals`
+**THEN** the response status SHALL be `503`
+**AND** the response body SHALL include `{"error": "git_unavailable"}`
+**AND** the endpoint SHALL NOT walk `openspec/changes/`
 
 #### Scenario: Endpoint enumerates non-archive change directories
 
