@@ -76,8 +76,8 @@ export const statusToColumn = issueStatusToColumn;
 export function prStatusToColumn(status: PRStatus): ColumnId {
   switch (status) {
     case "draft":
-    case "open":
       return "backlog";
+    case "open":
     case "review":
     case "changes_requested":
       return "in-flight";

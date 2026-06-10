@@ -57,8 +57,8 @@ describe("prStatusToColumn", () => {
   it("draft → backlog", () => {
     expect(prStatusToColumn("draft")).toBe<ColumnId>("backlog");
   });
-  it("open → backlog", () => {
-    expect(prStatusToColumn("open")).toBe<ColumnId>("backlog");
+  it("open → in-flight", () => {
+    expect(prStatusToColumn("open")).toBe<ColumnId>("in-flight");
   });
   it("review → in-flight", () => {
     expect(prStatusToColumn("review")).toBe<ColumnId>("in-flight");

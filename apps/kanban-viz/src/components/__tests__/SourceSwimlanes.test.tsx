@@ -76,7 +76,7 @@ const mixedCards: BoardCard[] = [
   makeIssue("i1", "pending"),     // backlog
   makeIssue("i2", "running"),     // in-flight
   makeIssue("i3", "completed"),   // done
-  makePR("pr1", "open"),          // backlog
+  makePR("pr1", "draft"),         // backlog
   makePR("pr2", "review"),        // in-flight
   makeProposal("prop1", "drafted"),   // backlog
   makeProposal("prop2", "in-impl"),   // in-flight
@@ -120,7 +120,7 @@ describe("SourceSwimlanes — row totals", () => {
 
   it("PRs row shows correct counts per column", () => {
     render(<SourceSwimlanes cards={mixedCards} />);
-    // backlog: 1 open, in-flight: 1 review, done: 0
+    // backlog: 1 draft, in-flight: 1 review, done: 0
     expect(screen.getByTestId("count-prs-backlog")).toHaveTextContent("1");
     expect(screen.getByTestId("count-prs-in-flight")).toHaveTextContent("1");
     expect(screen.getByTestId("count-prs-done")).toHaveTextContent("0");
