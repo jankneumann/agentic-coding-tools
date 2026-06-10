@@ -3196,6 +3196,82 @@ def create_coordination_api() -> FastAPI:
         status = "ok" if db_status == "connected" else "degraded"
         return {"status": status, "db": db_status, "version": "0.2.0"}
 
+    # --------------------------------------------------------------------- #
+    # KANBAN-VIZ EXTENSIONS — open PRs + OpenSpec proposals
+    # --------------------------------------------------------------------- #
+
+    @app.get("/github/prs")
+    async def github_prs(
+        refresh: bool = False,
+        _principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> Any:
+        """List open pull requests across configured repos.
+
+        Requires GITHUB_PAT env var; returns 503 when unset.
+        60s in-memory cache; bust with ?refresh=true.
+        """
+        from fastapi.responses import JSONResponse
+
+        from .github_prs_api import get_prs
+
+        try:
+            result = await get_prs(refresh=refresh)
+        except RuntimeError as exc:
+            error_code = str(exc)
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "error": error_code,
+                    "message": (
+                        "This coordinator instance has no GitHub credential configured."
+                        if error_code == "github_pat_missing"
+                        else str(exc)
+                    ),
+                },
+            )
+        except ValueError as exc:
+            error_code = str(exc)
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "error": error_code,
+                    "message": "GITHUB_REPOS contains an invalid repository entry.",
+                },
+            )
+        return result
+
+    @app.get("/openspec/proposals")
+    async def openspec_proposals(
+        refresh: bool = False,
+        _principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> Any:
+        """List OpenSpec proposals (non-archive) with implementation state.
+
+        Requires a .git directory in the runtime checkout; returns 503 when absent.
+        60s in-memory cache; bust with ?refresh=true.
+        """
+        from fastapi.responses import JSONResponse
+
+        from .openspec_proposals_api import get_proposals
+
+        try:
+            result = await get_proposals(refresh=refresh)
+        except RuntimeError as exc:
+            error_code = str(exc)
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "error": error_code,
+                    "message": (
+                        "This coordinator instance has no .git directory in its "
+                        "runtime checkout."
+                        if error_code == "git_unavailable"
+                        else str(exc)
+                    ),
+                },
+            )
+        return result
+
     return app
 
 
