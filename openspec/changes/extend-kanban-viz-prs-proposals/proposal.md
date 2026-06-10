@@ -45,14 +45,17 @@ and a worktree running" view that makes the pipeline state legible at a glance.
 - **NEW** `RefreshButton` component in the header — triggers refetch of all
   three sources with `?refresh=true`. Shows last-refreshed-at timestamp.
 - **NEW** PR origin filter — chip-style multi-select in the PR swimlane
-  toolbar: `openspec / codex / jules / dependabot / manual`. Selected origins
-  persist via existing save-view mechanism.
+  toolbar: `openspec / codex / jules / dependabot / renovate / manual`
+  (six chips matching the contract `Origin` enum and the classifier's
+  emitted-then-folded values). Selected origins persist via existing
+  save-view mechanism.
 - **NEW** Review-findings projection on PR cards — surfaces the latest review
   state (`changes_requested / approved / commented`) and reviewer count from
-  `gh pr view --json reviews`.
+  the GitHub REST `/pulls/{n}/reviews` endpoint (server-side projection).
 - **NEW** Same-`change_id` clustering — issues, PRs, and proposals sharing a
-  `change_id` collapse into a single cluster card by default, with an expand
-  affordance.
+  `change_id` render a cross-row cluster badge (cards remain in their own
+  swimlane rows; the badge surfaces the linkage and a click highlights all
+  siblings). No card-collapse / single-merged-card behavior — see design D6.
 
 ### Documentation
 - `docs/kanban-viz/README.md` — document new endpoints, env vars, refresh

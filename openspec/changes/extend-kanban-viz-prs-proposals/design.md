@@ -92,7 +92,11 @@ Cards remain in their per-source rows; each card sharing a `change_id` renders a
 
 **New module: `agent-coordinator/src/github_classifier.py`**
 
-Extract the classification rules from `skills/merge-pull-requests/scripts/discover_prs.py` into a pure function `classify_pr(pr: dict) -> Origin`. The skill imports the new module instead of duplicating its logic. This is a refactor with zero behavioral change — covered by a unit test that runs the skill's existing test cases through the new entry point.
+Extract the classification rules from `skills/merge-pull-requests/scripts/discover_prs.py` into a pure function `classify_pr(pr: dict) -> dict` (returning `{"origin": str, "change_id": str | None}` — see PLAN_REVIEW R1 fix). Helper dependencies `safe_author` and `is_jules_author` are extracted from `_helpers.py` into the same module so the classifier is self-contained. The skill imports the new module instead of duplicating its logic. This is a refactor with zero behavioral change — covered by a unit test that runs the skill's existing test cases through the new entry point.
+
+**Import path**: The coordinator publishes under the `src` package per `agent-coordinator/pyproject.toml` (`[tool.hatch.build.targets.wheel] packages=['src']` and tests use `from src.config import ...`). The classifier import is `from src.github_classifier import classify_pr`, NOT `from agent_coordinator.github_classifier import ...`. The skill's existing imports path goes through the established `skills-imports` shim (same approach as `src.shared.active_agents`).
+
+**Critical adapter: `from_rest_pr(rest_payload: dict) -> dict`** (PLAN_REVIEW Round-1 CRITICAL finding). The classifier reads `gh`-CLI field names (`headRefName`, `body`, `title`, `labels[].name`, `author.login`, `createdAt`, `isDraft`, `url`), but the `GET /github/prs` endpoint fetches PRs via the REST API, which returns different field names (`head.ref`, `user.login`, `created_at`, `draft`, `html_url`). The adapter MUST be applied to every REST payload before `classify_pr` is called — without it, `headRefName` is empty and every PR falls through to `origin: "other"` / `change_id: null`. The adapter lives next to `classify_pr` (same module). The skill keeps feeding `gh`-CLI payloads directly because they're already in canonical shape.
 
 **New endpoint: `GET /github/prs`** in a new module `agent-coordinator/src/github_prs_api.py`
 
@@ -108,6 +112,8 @@ Extract the classification rules from `skills/merge-pull-requests/scripts/discov
 - Cache: same shape as `/github/prs`.
 - No external dependencies.
 
+**Deploy precondition (PLAN_REVIEW R2)**: This endpoint requires the coordinator's runtime checkout to contain (1) a `.git` directory with the `openspec/<id>` branches and an `origin/main` ref, AND (2) the `openspec/changes/` tree. Railway deploys built from Docker images typically `COPY` source without `.git`, which would silently make every proposal show as `drafted` (the branch-existence probe returns false). The Dockerfile for the coordinator MUST either bundle `.git` (via `COPY --from=git`) OR the deploy SHALL invoke `git fetch origin '+refs/heads/openspec/*:refs/remotes/origin/openspec/*'` on startup. The OpenSpec proposals endpoint SHALL detect missing `.git` at boot and fail closed with `503 {"error": "git_unavailable"}` — the SPA shows a clear "feature unavailable in this deployment" chip on the Proposals row, the same pattern as `GET /github/prs` on missing `GITHUB_PAT`.
+
 **Routing:** register both endpoints in `agent-coordinator/src/coordination_api.py` alongside the existing kanban-viz endpoints. They share the same Bearer auth dependency.
 
 ### SPA side
@@ -119,12 +125,18 @@ Extract the classification rules from `skills/merge-pull-requests/scripts/discov
 - Add `type BoardCard = IssueCard | PRCard | ProposalCard`.
 - Add `prStatusToColumn`, `proposalStatusToColumn`; rename `statusToColumn` → `issueStatusToColumn`.
 
-**New hook (`src/lib/useBoardCards.ts`):**
+**New hook (`apps/kanban-viz/src/hooks/useBoardCards.ts`):**
 
-- Fetches `/issues/list` + `/github/prs` + `/openspec/proposals` in parallel.
+The hook lives in `src/hooks/`, NOT `src/lib/` — `src/lib/` is reserved for stateless utilities (types, runtime detection, saveView IO), while `src/hooks/` is where React state hooks live (this is where the existing `useCoordinator.ts` is). Original draft incorrectly placed it under `src/lib/`; correction per PLAN_REVIEW.
+
+- Fetches the issue stream and the two new sources in parallel.
+- **Multi-change issue semantics**: issues are fetched per-change-id in parallel and unioned client-side, NOT as one batched POST. The existing `fetchIssuesUnioned` helper in `useCoordinator.ts` already implements this; `useBoardCards` SHALL call it (or extract it to a shared helper) rather than implementing a one-shot batched POST that breaks multi-change boards. PR and proposal fetches are single-shot (no per-change-id partitioning).
 - Returns `{cards: BoardCard[], byRow: {issues, prs, proposals}, clusters: Map<string, BoardCard[]>, lastRefreshed: {issues, prs, proposals}}`.
-- Holds the refresh trigger (parallel refetch with `?refresh=true`).
-- Replaces the existing `useCoordinator` hook (which becomes a thin wrapper that delegates to `useBoardCards` for the cards portion).
+- Holds the refresh trigger (parallel refetch with `?refresh=true` on PR + proposal endpoints; the issues refetch goes through the same per-change union path).
+
+**Issues stream coordination with existing SSE:** The existing `useCoordinator` keeps issues live via `GET /events/work` SSE — the initial `POST /issues/list` is followed by SSE-driven incremental updates (transition / audit / snapshot events). `useBoardCards.refresh()` triggers a fresh `POST /issues/list` (per-change union) that overwrites the in-memory issue array, then the SSE stream continues from that baseline. To avoid the SSE re-applying a stale event after refresh, the refresh action SHALL bump a `refreshGeneration` counter, and SSE event handlers SHALL ignore events whose generation predates the latest refresh. This is a classic "fence the stream" pattern; the SSE handshake doesn't need re-mint because the existing JWT remains valid.
+
+**SPA component organization sanity check** (PLAN_REVIEW low-priority but worth fixing now): the existing components live under `src/components/`. New components added by this change SHALL follow that location, not `src/lib/` or `src/hooks/`. Specifically: `SourceSwimlanes.tsx`, `RefreshButton.tsx`, `PROriginFilter.tsx`, `ClusterBadge.tsx`, `PRCardView.tsx`, `ProposalCardView.tsx` all live in `src/components/`. Hooks (`useBoardCards.ts`) live in `src/hooks/`. Types and utils (`coordinator-types.ts`) live in `src/lib/`.
 
 **New components:**
 

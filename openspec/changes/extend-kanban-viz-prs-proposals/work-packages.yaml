@@ -52,23 +52,29 @@ packages:
         - "agent-coordinator/src/github_prs_api.py"
         - "agent-coordinator/src/openspec_proposals_api.py"
         - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/schemas/kanban_viz/saved-view.json"
         - "agent-coordinator/tests/test_github_classifier.py"
+        - "agent-coordinator/tests/test_github_rest_adapter.py"
         - "agent-coordinator/tests/test_github_prs_api.py"
         - "agent-coordinator/tests/test_openspec_proposals_api.py"
+        - "agent-coordinator/tests/test_kanban_viz_saved_views.py"
         - "skills/merge-pull-requests/scripts/discover_prs.py"
       keys:
         - "feature:extend-kanban-viz-prs-proposals:endpoints"
       ttl_minutes: 180
-      reason: "Atomic backend slice — classifier + two endpoints + skill rewire share auth and routing."
+      reason: "Atomic backend slice — classifier + REST adapter + two endpoints + skill rewire + saved-view schema extension share auth and routing."
     scope:
       write_allow:
         - "agent-coordinator/src/github_classifier.py"
         - "agent-coordinator/src/github_prs_api.py"
         - "agent-coordinator/src/openspec_proposals_api.py"
         - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/schemas/kanban_viz/saved-view.json"
         - "agent-coordinator/tests/test_github_classifier.py"
+        - "agent-coordinator/tests/test_github_rest_adapter.py"
         - "agent-coordinator/tests/test_github_prs_api.py"
         - "agent-coordinator/tests/test_openspec_proposals_api.py"
+        - "agent-coordinator/tests/test_kanban_viz_saved_views.py"
         - "skills/merge-pull-requests/scripts/discover_prs.py"
       read_allow:
         - "agent-coordinator/src/**"
@@ -139,13 +145,13 @@ packages:
     locks:
       files:
         - "apps/kanban-viz/src/lib/coordinator-types.ts"
-        - "apps/kanban-viz/src/lib/useBoardCards.ts"
-        - "apps/kanban-viz/src/lib/useCoordinator.ts"
+        - "apps/kanban-viz/src/hooks/useBoardCards.ts"
+        - "apps/kanban-viz/src/hooks/useCoordinator.ts"
         - "apps/kanban-viz/src/components/SourceSwimlanes.tsx"
         - "apps/kanban-viz/src/components/RefreshButton.tsx"
         - "apps/kanban-viz/src/components/Board.tsx"
         - "apps/kanban-viz/src/lib/__tests__/column-mapping.test.ts"
-        - "apps/kanban-viz/src/lib/__tests__/useBoardCards.test.ts"
+        - "apps/kanban-viz/src/hooks/__tests__/useBoardCards.test.ts"
         - "apps/kanban-viz/src/components/__tests__/SourceSwimlanes.test.tsx"
         - "apps/kanban-viz/src/components/__tests__/RefreshButton.test.tsx"
       keys:
@@ -155,6 +161,7 @@ packages:
     scope:
       write_allow:
         - "apps/kanban-viz/src/lib/**"
+        - "apps/kanban-viz/src/hooks/**"
         - "apps/kanban-viz/src/components/**"
       read_allow:
         - "apps/kanban-viz/**"
