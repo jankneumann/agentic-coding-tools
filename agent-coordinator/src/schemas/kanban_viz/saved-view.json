@@ -44,6 +44,22 @@
             "key": {"type": "string"},
             "dir": {"type": "string", "enum": ["asc", "desc"]}
           }
+        },
+        "pr_origins": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["openspec", "codex", "jules", "dependabot", "renovate", "manual"]
+          },
+          "description": "Active PR origin filter chips. Persisted by the SPA. Added in extend-kanban-viz-prs-proposals."
+        },
+        "hidden_rows": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["issues", "prs", "proposals"]
+          },
+          "description": "Source rows hidden in the board. Persisted by the SPA. Added in extend-kanban-viz-prs-proposals."
         }
       },
       "additionalProperties": false
