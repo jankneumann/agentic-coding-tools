@@ -386,9 +386,9 @@ def converge(
 
         # 2aa. Durably checkpoint vendor findings BEFORE synthesis. This is
         # the load-bearing write of the proposal: if synthesizer.synthesize()
-        # below raises (e.g. the line_range parser bug), the data is already
-        # on disk and recoverable. The narrow try/except around the writes
-        # only logs and re-raises; it does not swallow.
+        # below raises, the data is already on disk and recoverable. The
+        # narrow try/except around the writes only logs and re-raises; it
+        # does not swallow.
         checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
         try:
             vendors_index: list[dict[str, Any]] = []
@@ -461,11 +461,11 @@ def converge(
 
         # 2c-e. Compute consensus. Narrow try/except covers the three steps
         # between checkpoint persistence and consensus availability: parsing
-        # vendor outputs into Finding objects (where the line_range parser
-        # bug fires), synthesize(), and to_dict(). On any exception, log a
-        # structured event with the checkpoint location so operators can
-        # locate the persisted findings, then re-raise the ORIGINAL exception
-        # unmodified. NOT a fallback — the caller still sees the failure.
+        # vendor outputs into Finding objects, synthesize(), and to_dict(). On
+        # any exception, log a structured event with the checkpoint location
+        # so operators can locate the persisted findings, then re-raise the
+        # ORIGINAL exception unmodified. NOT a fallback — the caller still
+        # sees the failure.
         try:
             vendor_results = _review_results_to_vendor_results(results)
             report = synthesizer.synthesize(

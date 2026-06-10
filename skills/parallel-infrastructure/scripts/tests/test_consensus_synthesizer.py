@@ -314,3 +314,33 @@ class TestConsensusSynthesizer:
         assert f.file_path == "src/views.py"
         assert f.line_start == 10
         assert f.line_end == 20
+
+    @pytest.mark.parametrize(
+        ("line_range", "expected_start", "expected_end"),
+        [
+            ({"start": 10, "end": 20}, 10, 20),
+            ("10-20", 10, 20),
+            (None, None, None),
+        ],
+    )
+    def test_finding_from_dict_accepts_vendor_line_range_shapes(
+        self,
+        line_range: object,
+        expected_start: int | None,
+        expected_end: int | None,
+    ) -> None:
+        """Finding.from_dict accepts line_range shapes emitted by vendors."""
+        data = {
+            "id": 3,
+            "type": "security",
+            "criticality": "high",
+            "description": "XSS vulnerability",
+            "disposition": "fix",
+            "file_path": "src/views.py",
+            "line_range": line_range,
+        }
+
+        f = Finding.from_dict(data, vendor="codex")
+
+        assert f.line_start == expected_start
+        assert f.line_end == expected_end

@@ -1,21 +1,11 @@
-"""Integration test: durable checkpoint survives the line_range parser bug.
+"""Integration test: durable checkpoint supports string line_range replay.
 
-Reproduces the original failure mode that motivated this proposal — vendor
-findings with ``line_range: "10-20"`` (the malformed string shape) cause
-the in-process synthesizer to raise (because consensus_synthesizer.py:59's
-``Finding.from_dict()`` does ``line_range.get("start")`` on what may be a
-str). Asserts:
-
-  (a) the original exception propagates to the caller
-  (b) the checkpoint files exist on disk and contain the original findings
-  (c) running ``consensus_synthesizer.py`` manually against the checkpoint
-      via subprocess STILL fails (the parser bug is intentionally unfixed
-      here — its fix is a separate Post-Merge Action proposal)
-  (d) the structured ``convergence.synthesis_failed_with_checkpoint`` log
-      entry was emitted with the correct fields
-
-This verifies durability and observability — NOT recovery. The proposal
-explicitly does not introduce automatic recovery.
+Reproduces the original failure mode that motivated the parser fix: vendor
+findings with ``line_range: "10-20"`` used to crash
+``Finding.from_dict()`` because the synthesizer assumed every non-empty
+``line_range`` was a dict. The parser now accepts that string shape, so the
+in-process convergence path and manual checkpoint replay both succeed while
+preserving the original vendor payload on disk.
 
 Spec scenarios: skill-workflow.R2.S2, skill-workflow.R4.S1.
 """
@@ -43,10 +33,8 @@ _SYNTHESIZER_PATH = (
 )
 
 
-class _BuggyVendorOrchestrator:
-    """Returns vendor results whose findings include the malformed
-    ``line_range: "10-20"`` shape — the exact bug this proposal makes
-    survivable."""
+class _StringLineRangeVendorOrchestrator:
+    """Returns vendor results whose findings include ``line_range: "10-20"``."""
 
     def dispatch_and_wait(self, **_kwargs: Any) -> list[ReviewResult]:
         # Two vendors, both with a finding using the malformed string shape.
@@ -97,29 +85,29 @@ class _BuggyVendorOrchestrator:
         ]
 
 
-def test_line_range_bug_propagates_with_durable_checkpoint(
+def test_string_line_range_replays_from_durable_checkpoint(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Full durability + observability contract under the real parser bug."""
+    """String line ranges no longer crash synthesis or checkpoint replay."""
 
-    # Use REAL ConsensusSynthesizer (no monkeypatch) so we hit the actual bug.
-    orch = _BuggyVendorOrchestrator()
+    orch = _StringLineRangeVendorOrchestrator()
 
     with caplog.at_level(logging.ERROR, logger="checkpoint_findings"):
-        # (a) Original exception propagates. The bug raises AttributeError
-        # because str.get() doesn't exist.
-        with pytest.raises(AttributeError, match="'str' object has no attribute"):
-            converge(
-                change_id="test-feature",
-                review_type="plan",
-                artifacts_dir=tmp_path,
-                worktree_path=tmp_path,
-                orchestrator=orch,  # type: ignore[arg-type]
-                max_rounds=1,
-                min_quorum=2,
-            )
+        result = converge(
+            change_id="test-feature",
+            review_type="plan",
+            artifacts_dir=tmp_path,
+            worktree_path=tmp_path,
+            orchestrator=orch,  # type: ignore[arg-type]
+            max_rounds=1,
+            min_quorum=2,
+        )
 
-    # (b) Checkpoint files exist on disk and contain the original findings.
+    assert result.converged is False
+    assert result.reason == "max_rounds"
+    assert result.consensus is not None
+    assert result.consensus["summary"]["confirmed_count"] == 1
+
     checkpoint_dir = tmp_path / ".review-cache" / "round-1"
     assert checkpoint_dir.exists()
 
@@ -135,13 +123,9 @@ def test_line_range_bug_propagates_with_durable_checkpoint(
     assert loaded["claude_code"][0]["line_range"] == "10-20"
     assert loaded["codex"][0]["line_range"] == "10-20"
 
-    # (c) Manual subprocess invocation of consensus_synthesizer.py against
-    # the checkpoint STILL fails — this verifies the parser bug is unfixed
-    # (out of scope; separate Post-Merge proposal). The point is durability:
-    # the data is on disk and re-runnable; recovery awaits the parser fix.
     findings_files = sorted(str(p) for p in checkpoint_dir.glob("findings-*-plan.json"))
     assert len(findings_files) == 2
-    output_path = tmp_path / "consensus-attempt.json"
+    output_path = tmp_path / "consensus-replay.json"
     proc = subprocess.run(
         [
             sys.executable,
@@ -156,28 +140,14 @@ def test_line_range_bug_propagates_with_durable_checkpoint(
         text=True,
         timeout=30,
     )
-    assert proc.returncode != 0, (
-        f"Expected synthesizer subprocess to fail (parser bug unfixed). "
-        f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
-    )
-    # The same AttributeError surface is what we expect in stderr.
-    assert "AttributeError" in proc.stderr or "'str' object has no attribute" in proc.stderr, (
-        f"Subprocess should fail with the line_range AttributeError. "
-        f"stderr={proc.stderr!r}"
-    )
+    assert proc.returncode == 0, proc.stderr
+    replayed = json.loads(output_path.read_text())
+    assert replayed["summary"]["confirmed_count"] == 1
 
-    # (d) Structured log entry was emitted with the correct fields.
-    events = [
+    assert not [
         r for r in caplog.records
         if getattr(r, "event", None) == "convergence.synthesis_failed_with_checkpoint"
     ]
-    assert len(events) == 1
-    rec = events[0]
-    assert rec.change_id == "test-feature"  # type: ignore[attr-defined]
-    assert rec.review_type == "plan"  # type: ignore[attr-defined]
-    assert rec.original_exception_class == "AttributeError"  # type: ignore[attr-defined]
-    # The checkpoint_dir field in the log payload points at the actual checkpoint.
-    assert "round-1" in str(rec.checkpoint_dir)  # type: ignore[attr-defined]
 
 
 def test_checkpoint_findings_round_trip_against_real_synthesizer_input_format(
@@ -187,18 +157,17 @@ def test_checkpoint_findings_round_trip_against_real_synthesizer_input_format(
     consensus_synthesizer.py's CLI consumes — no shape adaptation needed
     between the two paths. Any vendor that produces a wrapper-object the
     in-process path accepts can be replayed from the checkpoint."""
-    orch = _BuggyVendorOrchestrator()
+    orch = _StringLineRangeVendorOrchestrator()
 
-    with pytest.raises(AttributeError):
-        converge(
-            change_id="test-feature",
-            review_type="plan",
-            artifacts_dir=tmp_path,
-            worktree_path=tmp_path,
-            orchestrator=orch,  # type: ignore[arg-type]
-            max_rounds=1,
-            min_quorum=2,
-        )
+    converge(
+        change_id="test-feature",
+        review_type="plan",
+        artifacts_dir=tmp_path,
+        worktree_path=tmp_path,
+        orchestrator=orch,  # type: ignore[arg-type]
+        max_rounds=1,
+        min_quorum=2,
+    )
 
     # Verify the per-vendor file shape matches what consensus_synthesizer.py
     # main() reads at line ~467: ``data = json.loads(p.read_text())`` then
