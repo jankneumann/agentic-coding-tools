@@ -17,6 +17,7 @@ PRCard.origin enum (6 values, after to_pr_card_origin fold):
 from __future__ import annotations
 
 import re
+from typing import Any
 
 # =============================================================================
 # Jules automation heuristics
@@ -51,7 +52,7 @@ JULES_AUTHORS: set[str] = {"jules", "jules[bot]", "jules-bot"}
 # =============================================================================
 
 
-def safe_author(obj: dict, key: str = "author") -> str:
+def safe_author(obj: dict[str, Any], key: str = "author") -> str:
     """Extract author login from a dict, handling null/missing author."""
     author = obj.get(key)
     if author is None:
@@ -69,7 +70,7 @@ def is_jules_author(author: str) -> bool:
 # =============================================================================
 
 
-def classify_pr(pr: dict) -> dict:
+def classify_pr(pr: dict[str, Any]) -> dict[str, Any]:
     """Classify a PR dict (gh-CLI field names) into origin + change_id.
 
     Input field names expected: headRefName, body, title, labels[].name,
@@ -147,7 +148,7 @@ def classify_pr(pr: dict) -> dict:
 # =============================================================================
 
 
-def from_rest_pr(rest_payload: dict) -> dict:
+def from_rest_pr(rest_payload: dict[str, Any]) -> dict[str, Any]:
     """Adapt a GitHub REST API pull-request payload to gh-CLI field names.
 
     This adapter MUST be applied to every REST payload before calling
@@ -165,9 +166,9 @@ def from_rest_pr(rest_payload: dict) -> dict:
 
     Pass-through: body, title, labels, number.
     """
-    head: dict = rest_payload.get("head", {})
-    user: dict = rest_payload.get("user", {})
-    base: dict = rest_payload.get("base", {})
+    head: dict[str, Any] = rest_payload.get("head", {})
+    user: dict[str, Any] = rest_payload.get("user", {})
+    base: dict[str, Any] = rest_payload.get("base", {})
 
     return {
         "headRefName": head.get("ref", ""),

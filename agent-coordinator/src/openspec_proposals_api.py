@@ -15,7 +15,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import re
 import subprocess
 import time
 from datetime import UTC, datetime
@@ -196,7 +195,7 @@ def _git_log_iso(repo: Path, path: str, format_str: str) -> str | None:
     try:
         result = _run_git(repo, "log", "-1", f"--format={format_str}", "--", path)
         if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
+            return str(result.stdout.strip())
     except (subprocess.TimeoutExpired, OSError):
         pass
     return None
@@ -312,7 +311,7 @@ async def get_proposals(refresh: bool = False) -> dict[str, Any]:
                 }
 
         # Run the enumeration in a thread to avoid blocking the event loop
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         proposals = await loop.run_in_executor(None, _enumerate_proposals, repo)
 
         now = time.monotonic()

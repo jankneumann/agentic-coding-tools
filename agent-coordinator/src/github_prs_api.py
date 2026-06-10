@@ -140,7 +140,12 @@ async def _fetch_reviews(
         )
         if response.status_code == 200:
             return response.json()  # type: ignore[no-any-return]
-        logger.warning("Reviews fetch failed for %s#%d: HTTP %d", repo, pr_number, response.status_code)
+        logger.warning(
+            "Reviews fetch failed for %s#%d: HTTP %d",
+            repo,
+            pr_number,
+            response.status_code,
+        )
         return []
     except Exception:
         logger.exception("Error fetching reviews for %s#%d", repo, pr_number)
@@ -150,13 +155,16 @@ async def _fetch_reviews(
 async def _fetch_prs_for_repo(repo: str, pat: str) -> list[dict[str, Any]]:
     """Fetch all open PRs for a single repo from GitHub REST API."""
     url = f"https://api.github.com/repos/{repo}/pulls"
-    params = {"state": "open", "per_page": 100}
     prs: list[dict[str, Any]] = []
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         page = 1
         while True:
-            params["page"] = page  # type: ignore[assignment]
+            params: dict[str, int | str] = {
+                "state": "open",
+                "per_page": 100,
+                "page": page,
+            }
             resp = await client.get(
                 url,
                 params=params,
@@ -260,7 +268,7 @@ async def get_prs(refresh: bool = False) -> dict[str, Any]:
 
         all_prs: list[dict[str, Any]] = []
         for result in repo_results:
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 logger.warning("Failed to fetch PRs for a repo: %s", result)
                 continue
             all_prs.extend(result)
