@@ -17,17 +17,40 @@ export type IssueStatus =
 
 export type ColumnId = "backlog" | "in-flight" | "done";
 
+/**
+ * IssueCard is a superset of the existing `Issue` interface in
+ * `apps/kanban-viz/src/lib/coordinator-types.ts` plus the `kind: "issue"`
+ * discriminator. Every field of the previous `Issue` is preserved so the
+ * SPA-side rename is mechanical (no behavior change in Card.tsx).
+ *
+ * Fields added by this change: `kind`, `vendor` (derived from agent_id
+ * suffix; null when no vendor info). Fields preserved: `body`, `priority`,
+ * `assignee`, `claimed_by`, `claimed_at`, `completed_at`, `task_key`,
+ * `labels` — all consumed by the existing rendering surface.
+ */
 export interface IssueCard {
   readonly kind: "issue";
   readonly id: string;
-  readonly change_id: string | null;
   readonly title: string;
+  readonly body: string | null;
   readonly status: IssueStatus;
-  readonly agent_id: string | null;
-  readonly vendor: string | null;
-  readonly created_at_iso: string;
-  readonly updated_at_iso: string;
+  readonly priority: number;
   readonly labels: readonly string[];
+  readonly assignee: string | null;
+  readonly claimed_by: string | null;
+  readonly claimed_at: string | null;
+  readonly completed_at: string | null;
+  readonly created_at: string;
+  readonly updated_at: string | null;
+  readonly change_id: string | null;
+  readonly task_key: string | null;
+  /** Derived from agent_id suffix after `--`; null when no vendor info. */
+  readonly vendor: string | null;
+  /** Convenience aliases (ISO 8601) — present iff created_at / updated_at are. */
+  readonly created_at_iso: string;
+  readonly updated_at_iso: string | null;
+  /** Canonical agent identifier when claimed (mirrors claimed_by). */
+  readonly agent_id: string | null;
 }
 
 // --- New PR card ---

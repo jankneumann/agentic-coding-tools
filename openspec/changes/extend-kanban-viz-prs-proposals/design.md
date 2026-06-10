@@ -169,6 +169,14 @@ Click-to-highlight is a non-standard interaction; screen-reader users may not pe
 
 Operator opens a PR in GitHub UI, switches to the board, expects to see it. The cached endpoint returns up to 60s stale data. **Mitigation:** the refresh button is one click. Acceptable. If it becomes a complaint, drop the cache to 15s.
 
+### R6 — Per-PR `/reviews` fetch amplifies GitHub API consumption
+
+The naive implementation issues one PR-list call plus one `/reviews` call per open PR. At 50 open PRs that's 51 calls per cache miss. With 60s TTL that's up to 60 misses/hour × 51 = **~3060 calls/hour** — well within the 5000/hour authenticated quota but uncomfortably close if multiple operators / multiple deploys share the PAT. **Mitigations** (in order of preference): (1) skip the `/reviews` fetch entirely for `is_draft == true` PRs (drafts have no review state worth surfacing); (2) use the GraphQL `pullRequests { reviews }` query to fold list + reviews into a single round trip; (3) if neither is in scope for v1, document the rate-limit risk in the README and emit a structured warning when the GitHub `X-RateLimit-Remaining` header drops below 500. v1 ships with (1) implemented and the GraphQL migration noted as a follow-up.
+
+### R7 — `origin` enum mismatch between classifier and PRCard contract
+
+`classify_pr` returns 9 distinct origin values (`openspec, codex, dependabot, renovate, sentinel, bolt, palette, jules, other`) but `PRCard.origin` in the contract is a 6-value enum (`openspec, codex, jules, dependabot, renovate, manual`). **Mitigation:** the endpoint applies `to_pr_card_origin` (folds Jules sub-types → `jules`, `other` → `manual`) before serializing. The skill (`discover_prs.py`) deliberately bypasses the fold and keeps the raw sub-types — they drive merge-strategy decisions that need finer granularity. The single-source-of-truth invariant is preserved: only the kanban-viz endpoint applies the fold, and the fold lives in the same module as the classifier so future drift is caught at code review.
+
 ## Open Questions Carried Forward to Implementation
 
 - **GitHub PAT provisioning:** Does the deployed coordinator already have a PAT with `repo:status + pull_requests:read`, or do we provision one as part of merging this? Block the deploy step on confirming.
