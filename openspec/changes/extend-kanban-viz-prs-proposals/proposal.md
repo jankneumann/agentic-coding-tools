@@ -81,17 +81,20 @@ gains two more data sources fetched in parallel. The `Board` component renders
 a single `SourceSwimlanes` container with three rows (Issues / PRs /
 Proposals), each row showing the same three columns. Refresh button at the
 top-right triggers a parallel refetch of all three sources with
-`?refresh=true`. Same-`change_id` cards collapse into a single cluster card.
+`?refresh=true`. Same-`change_id` cards render a cross-row cluster
+badge (refined during design from the initial "collapse to one card"
+sketch — see Selected Approach below + design D6).
 
 **Pros**:
 - TypeScript narrows naturally on `kind` — each card component handles only
   its own type, no `any` or type assertions.
-- Per-kind status enums stay native (PR `open|review|approved|merged`,
-  Proposal `drafted|in-impl|archived`) — no awkward forced mapping into the
+- Per-kind status enums stay native (PR `draft|open|review|changes_requested|approved`,
+  Proposal `drafted|in-impl`) — no awkward forced mapping into the
   issue enum.
-- Cluster collapse is the highest-value UX win: at a glance you can see
-  "this change has a proposal, a PR open with changes requested, and a
-  worktree in flight."
+- Cross-source cluster linkage (badge) is the highest-value UX win: at a
+  glance you can see "this change has a proposal drafted, a PR open with
+  changes requested, and a worktree in flight" — all three states stay
+  visible side-by-side.
 - Filter chips and review-findings projection compose cleanly on `PRCard`
   without polluting the issue type.
 - Reuses the existing `VendorSwimlanes` visual pattern; no new layout
@@ -101,8 +104,8 @@ top-right triggers a parallel refetch of all three sources with
 - Larger type-system change than the alternatives — every consumer of `Issue`
   in the SPA either becomes `IssueCard` (renamed) or gets a narrowing guard.
 - Three different status enums means three column-mapping functions, not one.
-- Cluster collapse adds an interaction surface (expand/collapse, keyboard
-  affordances) that needs accessibility care.
+- The non-collapsing badge needs accessibility care (keyboard-reachable
+  cluster panel, `aria-label`).
 
 **Effort**: M (≈ 2 days SPA + ≈ 1 day coordinator endpoints + tests).
 
@@ -180,9 +183,10 @@ unworkable during implementation, a new proposal is filed.
 - **D3 (host):** `coord.rotkohl.ai` only. Local coordinators that don't have a
   PAT return 503 with a clear message. Confirmed by user.
 - **D4 (PR ordering and filter):** Newest-first (`updated_at` descending),
-  filterable by origin (`openspec / codex / jules / dependabot / manual`),
-  review findings (latest state + reviewer count) projected on the card.
-  Confirmed by user.
+  filterable by origin — six chips: `openspec / codex / jules / dependabot
+  / renovate / manual` (matching the contract `Origin` enum and the
+  classifier's folded outputs). Review findings (latest state + reviewer
+  count) projected on the card. Confirmed by user.
 - **D5 (proposal `in-impl` detection):** The git branch
   `openspec/<change-id>` exists AND contains commits whose diff touches paths
   outside `openspec/changes/<change-id>/` (i.e., real code, not just planning
@@ -196,14 +200,14 @@ unworkable during implementation, a new proposal is filed.
 
 ## Open Questions for Implementation
 
-- **GitHub PAT scope:** The PAT needs `repo:status` + `pull_requests:read`
-  at minimum. Does the deployed coordinator already have one with this scope,
-  or do we provision a new one as part of this change?
-- **Repo allow-list:** Default to the agentic-coding-tools repo only, or
-  read a `GITHUB_REPOS` env var so other Railway services can use the same
-  coordinator?
-- **Save-view shape evolution:** Existing saved views are issue-only. Do we
-  silently extend the schema (new optional fields) or version it
-  (`v1` / `v2`)?
+- **GitHub PAT scope:** Required scopes are: for a **classic token** —
+  `repo` (private) or `public_repo` (public) — these grant both
+  `/pulls` and `/pulls/{n}/reviews` access; for a **fine-grained
+  token** — `Pull requests: Read` + `Contents: Read`. The earlier draft
+  said `repo:status + pull_requests:read` — that mixes classic and
+  fine-grained names and `repo:status` does NOT include reviews access,
+  so a literally-provisioned `repo:status` PAT would silently degrade
+  every PRCard to `review_summary.state = "none"`. Verify the
+  deployed coordinator's PAT covers reviews access before merging.
 - **Stale-PR window:** "All unmerged" includes years-old PRs. Acceptable, or
   apply a default `updated_at > now() - 90d` cap with a "show all" toggle?

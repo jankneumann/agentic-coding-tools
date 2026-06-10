@@ -40,14 +40,29 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "503":
-          description: GITHUB_PAT not configured on this coordinator instance
+          description: |
+            Fail-closed. Two distinct error codes:
+            - `github_pat_missing` — coordinator has no GITHUB_PAT env var.
+            - `github_repos_invalid` — at least one entry in GITHUB_REPOS
+              env var fails the validation regex `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`.
+              The `message` field names the offending entry.
+            SPA clients SHALL branch on the `error` field to surface the
+            appropriate per-row error chip.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/CoordinatorError"
-              example:
-                error: github_pat_missing
-                message: "This coordinator instance has no GitHub credential configured."
+              examples:
+                pat_missing:
+                  summary: GITHUB_PAT unset
+                  value:
+                    error: github_pat_missing
+                    message: "This coordinator instance has no GitHub credential configured."
+                repos_invalid:
+                  summary: GITHUB_REPOS entry fails validation
+                  value:
+                    error: github_repos_invalid
+                    message: "not_a_valid_entry"
 
   /openspec/proposals:
     get:

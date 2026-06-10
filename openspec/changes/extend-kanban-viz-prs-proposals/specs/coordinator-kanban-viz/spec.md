@@ -360,7 +360,16 @@ Each `PRCard` SHALL render its `review_summary` inline on the card face. The ren
 
 The visual treatment SHALL distinguish `changes_requested` (warning chrome) from `approved` (success chrome) from `commented`/`none` (neutral chrome). The chrome SHALL meet the existing accessibility contrast standard used elsewhere in the SPA.
 
-The `review_summary.state` field SHALL be derived server-side in the coordinator from the GitHub reviews payload using the standard "last non-dismissed review per reviewer" reduction; this logic SHALL be unit-tested at the coordinator with at least the four scenarios below.
+The `review_summary.state` field SHALL be derived server-side in the coordinator from the GitHub reviews payload using the standard "last non-dismissed review per reviewer" reduction, with the following deterministic precedence (highest wins):
+
+1. `changes_requested` — if ANY active reviewer's latest non-dismissed review is `CHANGES_REQUESTED`.
+2. `approved` — if NO reviewer is at `changes_requested` AND at least one reviewer's latest is `APPROVED`.
+3. `commented` — if NO reviewer is at `changes_requested` or `approved` AND at least one reviewer's latest is `COMMENTED`.
+4. `none` — no non-dismissed reviews exist.
+
+**Coherence with `PRCard.status`**: The `PRCard.status` ladder (`draft > changes_requested > approved > review > open`) and the `review_summary.state` ladder are designed to NOT contradict each other in the operator's mental model. Specifically, when `review_summary.state = "approved"` but `PRCard.status = "review"` (e.g., one approval + one comment from distinct reviewers), the card SHALL show success-chrome on the review-summary chip AND in-flight column placement — both are correct: an approval was given, but the PR is still in active review because not every reviewer has approved. The two surfaces complement rather than contradict; this is documented behavior, not a bug.
+
+This logic SHALL be unit-tested at the coordinator with at least the five scenarios below.
 
 #### Scenario: PR with two approvals and one changes_requested → changes_requested wins
 
@@ -381,6 +390,13 @@ The `review_summary.state` field SHALL be derived server-side in the coordinator
 **WHEN** a PR has reviews `[alice:changes_requested@T-2h dismissed, alice:approved@T-1h]`
 **THEN** `review_summary.state` SHALL equal `"approved"`
 **AND** `reviewer_count` SHALL equal `1`
+
+#### Scenario: Approved + commented from distinct reviewers — approved wins
+
+**WHEN** a PR has reviews `[alice:approved@T-2h, bob:commented@T-1h]` AND `is_draft = false`
+**THEN** `review_summary.state` SHALL equal `"approved"` (approved beats commented in the precedence ladder)
+**AND** `reviewer_count` SHALL equal `2`
+**AND** the resulting `PRCard.status` SHALL equal `"review"` (NOT `"approved"`) — because the PRStatus ladder's "approved" rung requires EVERY reviewer's latest to be `APPROVED`, and bob's latest is `commented`. The review-summary chip shows success-chrome (state = approved); the column placement is in-flight (status = review). Both are correct per their respective ladders; the two surfaces complement rather than contradict.
 
 ---
 
