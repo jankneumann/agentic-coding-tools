@@ -1,0 +1,287 @@
+openapi: 3.0.3
+info:
+  title: agent-coordinator — extend-kanban-viz-prs-proposals additions
+  version: "1.0.0"
+  description: |
+    Additive surface for the kanban-viz extension covering open pull
+    requests and OpenSpec proposal projections. Merges into the
+    coordinator's existing v1 contract.
+
+servers:
+  - url: https://coord.rotkohl.ai
+    description: Hosted (default for this feature; local 503 unless GITHUB_PAT set)
+  - url: http://localhost:8000
+    description: Local dev
+
+security:
+  - bearerAuth: []
+
+paths:
+  /github/prs:
+    get:
+      summary: List open pull requests across configured repositories
+      operationId: listGithubPRs
+      tags: [kanban-viz]
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: When true, bust the 60s server-side cache and re-fetch from GitHub.
+      responses:
+        "200":
+          description: PR list, sorted updated_at descending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PRListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: GITHUB_PAT not configured on this coordinator instance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoordinatorError"
+              example:
+                error: github_pat_missing
+                message: "This coordinator instance has no GitHub credential configured."
+
+  /openspec/proposals:
+    get:
+      summary: List OpenSpec proposals (non-archive) with implementation state
+      operationId: listOpenspecProposals
+      tags: [kanban-viz]
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: When true, bust the 60s server-side cache and re-walk the repo.
+      responses:
+        "200":
+          description: Proposal projection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProposalListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API-Key
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid Authorization header
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CoordinatorError"
+
+  schemas:
+    CoordinatorError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Stable machine-readable error code
+        message:
+          type: string
+          description: Human-readable message for operator surface
+
+    CacheMeta:
+      type: object
+      required: [generated_at_iso, source, cache_age_seconds]
+      properties:
+        generated_at_iso:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of when the cache entry was minted
+        source:
+          type: string
+          enum: [live, cache]
+        cache_age_seconds:
+          type: integer
+          minimum: 0
+          description: Seconds since the cache entry was minted; 0 when source=live
+
+    Origin:
+      type: string
+      enum: [openspec, codex, jules, dependabot, renovate, manual]
+      description: PR classification per agent-coordinator/src/github_classifier.py
+
+    PRStatus:
+      type: string
+      enum: [draft, open, review, changes_requested, approved]
+
+    ProposalStatus:
+      type: string
+      enum: [drafted, in-impl]
+      description: archived proposals are not returned by this endpoint
+
+    ReviewSummary:
+      type: object
+      required: [state, reviewer_count, last_reviewed_at_iso]
+      properties:
+        state:
+          type: string
+          enum: [none, commented, changes_requested, approved]
+        reviewer_count:
+          type: integer
+          minimum: 0
+        last_reviewed_at_iso:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: "null"
+
+    PRCard:
+      type: object
+      required:
+        - kind
+        - id
+        - change_id
+        - repo
+        - number
+        - title
+        - author
+        - head_branch
+        - base_branch
+        - origin
+        - status
+        - review_summary
+        - is_draft
+        - url
+        - created_at_iso
+        - updated_at_iso
+      properties:
+        kind:
+          type: string
+          enum: [pr]
+        id:
+          type: string
+          description: "Stable composite id: pr:<repo>:<number>"
+        change_id:
+          oneOf:
+            - type: string
+            - type: "null"
+          description: Extracted from head branch when openspec/<id> or claude/<id>
+        repo:
+          type: string
+          description: "<owner>/<name>"
+        number:
+          type: integer
+        title:
+          type: string
+        author:
+          type: string
+        head_branch:
+          type: string
+        base_branch:
+          type: string
+        origin:
+          $ref: "#/components/schemas/Origin"
+        status:
+          $ref: "#/components/schemas/PRStatus"
+        review_summary:
+          $ref: "#/components/schemas/ReviewSummary"
+        is_draft:
+          type: boolean
+        url:
+          type: string
+          format: uri
+        created_at_iso:
+          type: string
+          format: date-time
+        updated_at_iso:
+          type: string
+          format: date-time
+
+    ProposalCard:
+      type: object
+      required:
+        - kind
+        - id
+        - change_id
+        - title
+        - status
+        - created_at_iso
+        - updated_at_iso
+        - proposal_path
+        - has_tasks_md
+        - has_design_md
+        - has_spec_delta
+        - has_branch
+        - branch_name
+        - code_changes_outside_proposal
+      properties:
+        kind:
+          type: string
+          enum: [proposal]
+        id:
+          type: string
+          description: "Stable composite id: proposal:<change-id>"
+        change_id:
+          type: string
+        title:
+          type: string
+          description: First H1 of proposal.md
+        status:
+          $ref: "#/components/schemas/ProposalStatus"
+        created_at_iso:
+          type: string
+          format: date-time
+        updated_at_iso:
+          type: string
+          format: date-time
+        proposal_path:
+          type: string
+          description: Repo-relative path to proposal.md
+        has_tasks_md:
+          type: boolean
+        has_design_md:
+          type: boolean
+        has_spec_delta:
+          type: boolean
+        has_branch:
+          type: boolean
+        branch_name:
+          oneOf:
+            - type: string
+            - type: "null"
+        code_changes_outside_proposal:
+          type: integer
+          minimum: 0
+          description: Count of commits on the branch whose diff touches paths outside the change dir
+
+    PRListResponse:
+      allOf:
+        - $ref: "#/components/schemas/CacheMeta"
+        - type: object
+          required: [prs]
+          properties:
+            prs:
+              type: array
+              items:
+                $ref: "#/components/schemas/PRCard"
+
+    ProposalListResponse:
+      allOf:
+        - $ref: "#/components/schemas/CacheMeta"
+        - type: object
+          required: [proposals]
+          properties:
+            proposals:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProposalCard"
