@@ -44,13 +44,19 @@ export interface IssueCard {
   readonly updated_at: string | null;
   readonly change_id: string | null;
   readonly task_key: string | null;
-  /** Derived from agent_id suffix after `--`; null when no vendor info. */
-  readonly vendor: string | null;
-  /** Convenience aliases (ISO 8601) — present iff created_at / updated_at are. */
-  readonly created_at_iso: string;
-  readonly updated_at_iso: string | null;
-  /** Canonical agent identifier when claimed (mirrors claimed_by). */
-  readonly agent_id: string | null;
+  /** Derived from agent_id suffix after `--`; null when no vendor info.
+   *  OPTIONAL — projected client-side in this change; the /issues/list
+   *  backend does not emit `vendor` today. SPA must compute it from
+   *  agent_id where available. */
+  readonly vendor?: string | null;
+  /** Convenience aliases (ISO 8601). OPTIONAL — projected client-side.
+   *  Identical content to created_at / updated_at; SPA may use either.
+   *  Backend changes to emit these natively are out of scope. */
+  readonly created_at_iso?: string;
+  readonly updated_at_iso?: string | null;
+  /** Canonical agent identifier when claimed (mirrors claimed_by).
+   *  OPTIONAL — present iff claimed_by is set. SPA-derived. */
+  readonly agent_id?: string | null;
 }
 
 // --- New PR card ---
