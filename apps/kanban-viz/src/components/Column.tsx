@@ -1,11 +1,11 @@
-import type { Issue, ColumnId } from "../lib/coordinator-types";
+import type { IssueCard, ColumnId } from "../lib/coordinator-types";
 import { Card } from "./Card";
 import type { AgentActivity } from "./VendorSwimlanes";
 
 interface Props {
   columnId: ColumnId;
   title: string;
-  issues: Issue[];
+  issues: IssueCard[];
   /** Per-issue agent activity (IMPL_REVIEW F2). Passed through to each Card. */
   agentsByIssueId?: Map<string, AgentActivity[]>;
   /** Coordinator API base URL (task 6.8 — Mark Ready button on cards). */
