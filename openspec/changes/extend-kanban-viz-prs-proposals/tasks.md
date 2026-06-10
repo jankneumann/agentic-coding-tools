@@ -139,7 +139,7 @@ multiple consumers need it.
 
 ## Section 10 — Deploy prerequisites (out of code scope; ops handoff)
 
-- [ ] 10.1 (S) Confirm a GitHub PAT with `repo:status + pull_requests:read` scopes is available for the coord.rotkohl.ai deploy. If not, file an issue to provision one — block deploy until resolved.
+- [ ] 10.1 (S) Confirm a GitHub PAT with the CORRECT scopes is available for coord.rotkohl.ai: classic token needs `repo` (private) or `public_repo` (public); fine-grained token needs `Pull requests: Read` + `Contents: Read`. The previously-documented `repo:status` scope is WRONG — it grants commit-status access only, NOT reviews access; a literal provisioning would silently degrade every PRCard to `review_summary.state = "none"`. Verify by hitting `GET /repos/<owner>/<repo>/pulls/<n>/reviews` with the PAT and confirming a non-empty response on a PR that has reviews. If not provisioned correctly, file an issue and block deploy until resolved.
 
 - [ ] 10.2 (S) Add `GITHUB_PAT` to the Railway/coord.rotkohl.ai env. Verify `/github/prs` returns 200 in the deployed environment, not 503.
 

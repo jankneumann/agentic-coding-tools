@@ -191,7 +191,7 @@ The naive implementation issues one PR-list call plus one `/reviews` call per op
 
 ## Open Questions Carried Forward to Implementation
 
-- **GitHub PAT provisioning:** Does the deployed coordinator already have a PAT with `repo:status + pull_requests:read`, or do we provision one as part of merging this? Block the deploy step on confirming.
+- **GitHub PAT provisioning:** Required scopes — classic token: `repo` (private) or `public_repo` (public), which grants BOTH `/pulls` and `/pulls/{n}/reviews` access in one bundle; fine-grained token: `Pull requests: Read` + `Contents: Read`. The earlier `repo:status + pull_requests:read` formulation is wrong on two counts (classic+fine-grained mix; `repo:status` excludes reviews). Block deploy until the coordinator's PAT is verified for reviews access — otherwise every PRCard silently degrades to `review_summary.state = "none"`.
 - **Repo allow-list:** Default to the agentic-coding-tools repo only. If we want multi-repo, read CSV from `GITHUB_REPOS` env var. Defer until a second repo asks.
 - **Stale-PR window:** "All unmerged" with no upper time bound. For v1 ship as-is; revisit if the list grows past ~50 entries and visual noise becomes a problem.
 - **Saved-view schema:** Extending with optional `pr_origins` and `hidden_rows` fields. Existing views silently default — no migration.

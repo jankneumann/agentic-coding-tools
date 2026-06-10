@@ -186,7 +186,7 @@ packages:
           command: "cd apps/kanban-viz && npm test -- --run"
           evidence:
             artifacts:
-              - "apps/kanban-viz/src/lib/useBoardCards.ts"
+              - "apps/kanban-viz/src/hooks/useBoardCards.ts"
               - "apps/kanban-viz/src/components/SourceSwimlanes.tsx"
             result_keys:
               - "vitest_exit_code"
