@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -32,6 +33,33 @@ logger = logging.getLogger(__name__)
 
 class ConsensusInputError(ValueError):
     """Raised when a per-vendor findings file fails schema validation."""
+
+
+def _coerce_line_number(value: Any) -> int | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_line_range(line_range: Any) -> tuple[int | None, int | None]:
+    if isinstance(line_range, dict):
+        return (
+            _coerce_line_number(line_range.get("start")),
+            _coerce_line_number(line_range.get("end")),
+        )
+
+    if isinstance(line_range, str):
+        match = re.fullmatch(r"\s*(\d+)(?:\s*-\s*(\d+))?\s*", line_range)
+        if not match:
+            return None, None
+        start = int(match.group(1))
+        end = int(match.group(2)) if match.group(2) is not None else start
+        return start, end
+
+    return None, None
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +83,7 @@ class Finding:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], vendor: str) -> "Finding":
-        line_range = data.get("line_range", {})
+        line_start, line_end = _parse_line_range(data.get("line_range"))
         return cls(
             id=data["id"],
             type=data["type"],
@@ -64,8 +92,8 @@ class Finding:
             disposition=data["disposition"],
             resolution=data.get("resolution", ""),
             file_path=data.get("file_path"),
-            line_start=line_range.get("start") if line_range else None,
-            line_end=line_range.get("end") if line_range else None,
+            line_start=line_start,
+            line_end=line_end,
             vendor=vendor,
         )
 

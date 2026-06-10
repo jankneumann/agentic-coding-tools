@@ -555,7 +555,7 @@ Conflict-free port blocks for parallel docker-compose stacks:
 
 **Implementation**: [`convergence_loop.py`](../skills/autopilot/scripts/convergence_loop.py), [`checkpoint_findings.py`](../skills/parallel-infrastructure/scripts/checkpoint_findings.py)
 
-The autopilot's `converge()` API drives multi-vendor review rounds with a durability contract: each round writes per-vendor findings AND a manifest to `<artifacts_dir>/.review-cache/round-N/` BEFORE invoking `synthesizer.synthesize()`. If synthesis raises (e.g., the `consensus_synthesizer.py:59` `line_range` parser bug), the original exception propagates to the caller and the persisted findings remain on disk for postmortem analysis. **This is durability, not automatic recovery** — the proposal does not introduce subprocess fallback; recovery awaits a separate parser-fix proposal.
+The autopilot's `converge()` API drives multi-vendor review rounds with a durability contract: each round writes per-vendor findings AND a manifest to `<artifacts_dir>/.review-cache/round-N/` BEFORE invoking `synthesizer.synthesize()`. If synthesis raises, the original exception propagates to the caller and the persisted findings remain on disk for postmortem analysis. **This is durability, not automatic recovery** — the proposal does not introduce subprocess fallback. The synthesizer accepts both dict and string `line_range` shapes when replaying checkpointed vendor findings.
 
 `ConvergenceResult.checkpoint_dir: Path | None` points at the most-recent round's checkpoint directory (e.g., `openspec/changes/<change-id>/.review-cache/round-2`). Recovery-aware callers read this field; existing callers ignore it (defaults to `None`).
 
@@ -568,7 +568,7 @@ python skills/parallel-infrastructure/scripts/consensus_synthesizer.py \
     --output consensus.json --quorum 2
 ```
 
-(Note: this currently still fails with the same parser bug; the workflow becomes useful once the bug fix lands.)
+This replay path now handles vendor `line_range` values emitted as dicts, strings such as `97-102`, or `null`.
 
 **Operator-monitored log entries** (Python `logging`, level ERROR, structured via `extra={"event": ..., ...}`):
 
