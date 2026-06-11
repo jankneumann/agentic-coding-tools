@@ -1,0 +1,114 @@
+schema_version: 1
+
+feature:
+  id: add-timestamped-priorities-tree
+  title: "Add timestamped priorities tree — relocate /prioritize-proposals output to dated event-artifact directories"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    # No OpenAPI surface in this change. README is the contracts entrypoint per repo convention.
+    primary: "openspec/changes/add-timestamped-priorities-tree/contracts/README.md"
+    files:
+      - "openspec/changes/add-timestamped-priorities-tree/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "Full scope — helpers, skill update, legacy migration, end-to-end verification"
+    task_type: implementation
+    description: |
+      Single-agent sequential implementation covering the full feature scope:
+      (a) helpers — priorities_paths.py (run-id + path construction), artifact_header.py (inline mandatory header), retention.py (archive-not-delete scan);
+      (b) skill update — rewrite skills/prioritize-proposals/SKILL.md to write the new dated-artifact + latest-flat-file layout, add --retain N flag;
+      (c) legacy migration — one-shot script to move openspec/changes/prioritized-proposals.md to openspec/priorities/2026-05-04-legacy/report.md;
+      (d) spec sync — verify the delta in specs/skill-workflow/spec.md matches what shipped;
+      (e) end-to-end smoke verifying dated path, latest pointer, JSON header block, and retention rollover;
+      (f) sync skill mirrors to .claude/skills/ and .agents/skills/ via skills/install.sh.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/prioritize-proposals/SKILL.md"
+        - "openspec/specs/skill-workflow/spec.md"
+      keys:
+        - "feature:add-timestamped-priorities-tree:skill"
+        - "feature:add-timestamped-priorities-tree:spec"
+      ttl_minutes: 120
+      reason: "Sequential implementation of skill output relocation, retention, and legacy migration"
+    scope:
+      write_allow:
+        - "skills/prioritize-proposals/**"
+        - "openspec/priorities/**"
+        - "openspec/changes/prioritized-proposals.md"
+        - "openspec/changes/prioritized-proposals.json"
+        - "openspec/specs/skill-workflow/spec.md"
+        - ".claude/skills/prioritize-proposals/**"
+        - ".agents/skills/prioritize-proposals/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: add-timestamped-priorities-tree-wp-main
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "openspec strict validation passes"
+          kind: command
+          command: "openspec validate add-timestamped-priorities-tree --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_valid"
+        - name: "Legacy file removed from openspec/changes/"
+          kind: command
+          command: "test ! -f openspec/changes/prioritized-proposals.md && test ! -f openspec/changes/prioritized-proposals.json"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "legacy_path_clear"
+        - name: "Legacy entry exists in priorities tree"
+          kind: command
+          command: "test -f openspec/priorities/2026-05-04-legacy/report.md"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/priorities/2026-05-04-legacy/report.md"
+            result_keys:
+              - "legacy_entry_present"
+    metadata:
+      loc_estimate: 350
+      complexity: low
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "openspec_valid"
+        - "legacy_path_clear"
+        - "legacy_entry_present"
+      artifacts:
+        - "skills/prioritize-proposals/SKILL.md"
+        - "skills/prioritize-proposals/scripts/priorities_paths.py"
+        - "skills/prioritize-proposals/scripts/artifact_header.py"
+        - "skills/prioritize-proposals/scripts/retention.py"
+        - "skills/prioritize-proposals/scripts/migrate_legacy.py"
+        - "openspec/priorities/2026-05-04-legacy/report.md"
+        - "openspec/specs/skill-workflow/spec.md"
