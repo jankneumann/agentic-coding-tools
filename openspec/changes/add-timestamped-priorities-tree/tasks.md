@@ -76,26 +76,26 @@
   **Dependencies**: 2.2
   **Size**: S
 
-- [ ] 2.4 Update `openspec/specs/skill-workflow/spec.md`: this is the live spec, and the delta in this change folder will be applied to it during archive — verify the delta matches what we actually shipped after Phase 1 completes.
+- [x] 2.4 Update `openspec/specs/skill-workflow/spec.md`: this is the live spec, and the delta in this change folder will be applied to it during archive — verify the delta matches what we actually shipped after Phase 1 completes.
   **Spec scenarios**: all in `specs/skill-workflow/spec.md`
   **Dependencies**: 1.8
 
-- [ ] 2.5 Checkpoint: run all tests, verify spec validation passes (`openspec validate add-timestamped-priorities-tree --strict`), verify the migration target file exists and the source is gone
+- [x] 2.5 Checkpoint: run all tests, verify spec validation passes (`openspec validate add-timestamped-priorities-tree --strict`), verify the migration target file exists and the source is gone
   **Dependencies**: 2.3, 2.4
 
 ## Phase 3 — End-to-end verification
 
-- [ ] 3.1 End-to-end smoke: run `/prioritize-proposals` (md only) in the worktree; verify `openspec/priorities/<today>-HHMMSS-<sha>/report.md` exists; verify `openspec/priorities/latest.md` exists and matches; verify NO write to `openspec/changes/prioritized-proposals.md`
+- [x] 3.1 End-to-end smoke: run `/prioritize-proposals` (md only) in the worktree; verify `openspec/priorities/<today>-HHMMSS-<sha>/report.md` exists; verify `openspec/priorities/latest.md` exists and matches; verify NO write to `openspec/changes/prioritized-proposals.md`
   **Spec scenarios**: skill-workflow "Per-run dated artifact written", "Latest pointer rewritten on each run", "Legacy write path is rejected"
   **Dependencies**: 2.5
   **Size**: S
 
-- [ ] 3.2 End-to-end smoke: run `/prioritize-proposals --format json`; verify `report.json` exists with the mandatory `_header` block carrying all six required fields; verify `latest.json` exists and is byte-identical to the dated `report.json`
+- [x] 3.2 End-to-end smoke: run `/prioritize-proposals --format json`; verify `report.json` exists with the mandatory `_header` block carrying all six required fields; verify `latest.json` exists and is byte-identical to the dated `report.json`
   **Spec scenarios**: skill-workflow "Header fields populated"
   **Dependencies**: 3.1
   **Size**: S
 
-- [ ] 3.3 End-to-end smoke: artificially create 31 dated directories via test fixture; run `/prioritize-proposals`; verify exactly 30 remain and one was moved to `archive/`
+- [x] 3.3 End-to-end smoke: artificially create 31 dated directories via test fixture; run `/prioritize-proposals`; verify exactly 30 remain and one was moved to `archive/`
   **Spec scenarios**: skill-workflow "Default retention preserves 30 most recent"
   **Dependencies**: 3.2
   **Size**: S
