@@ -2,19 +2,19 @@
 
 ## Phase 1 — Skill implementation
 
-- [ ] 1.1 Write tests for `priorities_paths.py`: run-id construction, dated-dir path, latest-path
+- [x] 1.1 Write tests for `priorities_paths.py`: run-id construction, dated-dir path, latest-path
   **Spec scenarios**: skill-workflow "Run-id construction", "Run-id stability under reruns"
   **Design decisions**: D2 (run-id format)
   **Dependencies**: None
   **Size**: S
 
-- [ ] 1.2a Implement `build_run_id()` in `skills/prioritize-proposals/scripts/priorities_paths.py` — pure helper returning `<YYYY-MM-DD>-HHMMSS-<short-git-sha>` from UTC now + git HEAD
+- [x] 1.2a Implement `build_run_id()` in `skills/prioritize-proposals/scripts/priorities_paths.py` — pure helper returning `<YYYY-MM-DD>-HHMMSS-<short-git-sha>` from UTC now + git HEAD
   **Spec scenarios**: skill-workflow "Run-id construction"
   **Design decisions**: D2 (run-id format)
   **Dependencies**: 1.1
   **Size**: S
 
-- [ ] 1.2b Implement `build_paths()` in `skills/prioritize-proposals/scripts/priorities_paths.py` — pure helper returning `(dated_dir, latest_md_path, latest_json_path)` from a run-id
+- [x] 1.2b Implement `build_paths()` in `skills/prioritize-proposals/scripts/priorities_paths.py` — pure helper returning `(dated_dir, latest_md_path, latest_json_path)` from a run-id
   **Spec scenarios**: skill-workflow "Per-run dated artifact written", "Latest pointer rewritten on each run"
   **Design decisions**: D1 (directory layout), D3 (flat-file latest)
   **Dependencies**: 1.2a
