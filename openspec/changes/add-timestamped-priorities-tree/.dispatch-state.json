@@ -1,0 +1,7 @@
+{
+  "change_id": "add-timestamped-priorities-tree",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}
