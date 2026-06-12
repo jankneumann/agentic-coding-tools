@@ -100,7 +100,7 @@
   **Dependencies**: 3.2
   **Size**: S
 
-- [ ] 3.4 Sync skill mirrors: run `bash skills/install.sh --mode rsync --deps none --python-tools none` to regenerate `.claude/skills/prioritize-proposals/` and `.agents/skills/prioritize-proposals/` from the canonical source
+- [x] 3.4 Sync skill mirrors: run `bash skills/install.sh --mode rsync --deps none --python-tools none` to regenerate `.claude/skills/prioritize-proposals/` and `.agents/skills/prioritize-proposals/` from the canonical source
   **Dependencies**: 3.3
   **Size**: XS
 

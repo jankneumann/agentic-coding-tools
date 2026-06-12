@@ -20,6 +20,7 @@ Analyze all active OpenSpec change proposals against recent code history and pro
 - `--change-id <id>[,<id>]` — limit analysis to specific change IDs (comma-separated)
 - `--since <git-ref>` — analyze commits since this ref (default: `HEAD~50`)
 - `--format <md|json>` — output format (default: `md`)
+- `--retain <N>` — keep the N most recent dated-run directories under `openspec/priorities/` (default: `30`). Older directories are moved to `openspec/priorities/archive/`, never deleted.
 
 ## Prerequisites
 
@@ -35,11 +36,13 @@ Analyze all active OpenSpec change proposals against recent code history and pro
 SINCE_REF="HEAD~50"
 FORMAT="md"
 CHANGE_IDS=""  # empty = all active proposals
+RETAIN_N=30    # keep 30 most recent dated-run dirs in openspec/priorities/; older to archive/
 
 # Parse flags from $ARGUMENTS
 # --change-id add-foo,update-bar → CHANGE_IDS="add-foo,update-bar"
 # --since HEAD~20 → SINCE_REF="HEAD~20"
 # --format json → FORMAT="json"
+# --retain 50 → RETAIN_N=50
 ```
 
 ### 2. Inventory Active Proposals
@@ -241,15 +244,50 @@ Output a JSON object with the same structure:
 
 ### 8. Persist Report
 
-Write the report to the standard location:
+Reports are persisted as **event-class artifacts** under `openspec/priorities/`. Each run creates a fresh dated-run directory; a flat-file `latest.{md,json}` is rewritten on every run for cheap "most recent" access. The legacy write path `openspec/changes/prioritized-proposals.{md,json}` is no longer used.
 
 ```bash
-REPORT_FILE="openspec/changes/prioritized-proposals.md"
+# 1. Compute run-id (UTC date + HHMMSS + short HEAD SHA)
+RUN_ID="$(skills/.venv/bin/python skills/prioritize-proposals/scripts/priorities_paths.py run-id)"
+# Example: 2026-06-10-143052-a93fe59
+
+DATED_DIR="openspec/priorities/${RUN_ID}"
+mkdir -p "${DATED_DIR}"
+
+# 2. Write the markdown report (always written, regardless of --format)
+#    Include a timestamp and analyzed git range in the report header.
+cat > "${DATED_DIR}/report.md" <<MD
+# Proposal Prioritization Report
+
+**Run ID**: ${RUN_ID}
+**Generated**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+**Analyzed Range**: \`${SINCE_REF}..HEAD\`
+
+…body of the report…
+MD
+
+# 3. If --format json, write report.json wrapped with the mandatory artifact header
+if [[ "${FORMAT}" == "json" ]]; then
+  # The report body JSON is built by the analysis steps above; pipe it through
+  # the header wrapper which adds the codeviz-aligned _header block.
+  echo "${REPORT_BODY_JSON}" \
+    | skills/.venv/bin/python skills/prioritize-proposals/scripts/artifact_header.py \
+        --run-id "${RUN_ID}" \
+        --out "${DATED_DIR}/report.json"
+fi
+
+# 4. Rewrite the latest flat-file pointer(s) — regular files, not symlinks.
+cp "${DATED_DIR}/report.md" openspec/priorities/latest.md
+if [[ -f "${DATED_DIR}/report.json" ]]; then
+  cp "${DATED_DIR}/report.json" openspec/priorities/latest.json
+fi
+
+# 5. Run retention: keep the N most recent dated dirs; move older to archive/.
+skills/.venv/bin/python skills/prioritize-proposals/scripts/retention.py \
+  --base openspec/priorities --retain "${RETAIN_N}"
 ```
 
-Write the markdown report to this file (even if `--format json` was used, always persist the markdown version). Include the timestamp and analyzed git range in the header.
-
-If `--format json` was requested, also write `openspec/changes/prioritized-proposals.json`.
+**Reject the legacy write path.** This skill MUST NOT write to `openspec/changes/prioritized-proposals.md` or `openspec/changes/prioritized-proposals.json`. Those paths belong to the openspec/changes/ namespace and were the wrong home for a meta-report; the new home is `openspec/priorities/`.
 
 ### 9. Present Results
 
@@ -260,14 +298,20 @@ Prioritization complete. <N> proposals analyzed.
 
 Top recommendation: /implement-feature <top-change-id>
 
-Full report: openspec/changes/prioritized-proposals.md
+Full report:   openspec/priorities/${RUN_ID}/report.md
+Latest mirror: openspec/priorities/latest.md
 ```
 
 ## Output
 
 - Prioritized list of proposals printed to console
-- Report persisted to `openspec/changes/prioritized-proposals.md`
-- JSON report at `openspec/changes/prioritized-proposals.json` (if `--format json`)
+- Dated event-artifact directory at `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<short-git-sha>/`
+  - `report.md` (always)
+  - `report.json` carrying the mandatory `_header` block (if `--format json`)
+- Flat-file pointer rewritten each run:
+  - `openspec/priorities/latest.md`
+  - `openspec/priorities/latest.json` (if `--format json` was ever used)
+- Retention: oldest entries past `--retain N` (default 30) moved to `openspec/priorities/archive/`, never deleted
 - Actionable next steps for the top-ranked proposal
 
 ## Next Step
