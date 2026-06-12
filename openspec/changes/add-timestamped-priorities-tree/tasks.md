@@ -35,13 +35,13 @@
 - [x] 1.5 Checkpoint: run tests, review diff, verify scope (`skills/prioritize-proposals/` only)
   **Dependencies**: 1.2a, 1.2b, 1.4
 
-- [ ] 1.6 Write tests for `retention.py`: 30-default keeps 30, custom `--retain 5` keeps 5, archive accumulates, archive never deletes, archive subdir excluded from count
+- [x] 1.6 Write tests for `retention.py`: 30-default keeps 30, custom `--retain 5` keeps 5, archive accumulates, archive never deletes, archive subdir excluded from count
   **Spec scenarios**: skill-workflow "Default retention preserves 30 most recent", "Custom retention", "Archive accumulates, never deletes"
   **Design decisions**: D5 (retention policy)
   **Dependencies**: 1.2b
   **Size**: M
 
-- [ ] 1.7 Implement `skills/prioritize-proposals/scripts/retention.py` — enumerate dated dirs, sort by name (lexically chronological), move oldest beyond Nth to `archive/`
+- [x] 1.7 Implement `skills/prioritize-proposals/scripts/retention.py` — enumerate dated dirs, sort by name (lexically chronological), move oldest beyond Nth to `archive/`
   **Spec scenarios**: skill-workflow "Default retention preserves 30 most recent", "Custom retention"
   **Design decisions**: D5
   **Dependencies**: 1.6
