@@ -44,3 +44,54 @@
 ### Context
 Planned a relocation of /prioritize-proposals output from openspec/changes/prioritized-proposals.{md,json} to a dated event-artifact tree at openspec/priorities/<YYYY-MM-DD>-HHMMSS-<short-git-sha>/ with rewritten flat-file latest.{md,json}, mandatory codeviz-aligned header on report.json, --retain N retention with archive-not-delete behavior, and one-time legacy file migration. Approach 1 + decisions A2 + B2 selected at Gate 1.
 
+---
+
+## Phase: Implementation (2026-06-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Pure-function helpers + bash orchestration** `architectural: skill-workflow` — Each helper module exposes pure functions for the testable logic (build_run_id, make_header, apply_retention, migrate_legacy) with a thin CLI entrypoint for shell invocation. SKILL.md stays bash-driven, calling the CLIs at the right points. Keeps tests fast and deterministic; keeps SKILL.md readable as a recipe.
+2. **UTC-aware datetime enforcement** `architectural: skill-workflow` — Both build_run_id() and make_header() raise ValueError on naive datetimes. Run-ids must be stable across timezones (operators in different zones must produce the same run-id given the same UTC instant), so naive datetimes are a foot-gun the type system can't catch.
+3. **Legacy migration refuses to clobber** `architectural: skill-workflow` — If openspec/priorities/2026-05-04-legacy/ already exists with content AND the source file also exists, migrate_legacy returns skipped_reason='already_migrated' rather than overwriting. The operator must resolve the collision manually. This trades automation for safety — a one-shot migration is the wrong place to silently overwrite history.
+4. **Independent CLI verification in smoke tests** `architectural: skill-workflow` — test_artifact_header_cli_produces_same_shape invokes the CLI as a subprocess (mimicking SKILL.md's shell flow), not just the Python imports. This catches any divergence between the importable API and the CLI behavior — a class of bug that would silently break runtime even when unit tests pass.
+5. **Mirror sync scope: only prioritize-proposals/, not other drift** `architectural: skill-workflow` — The bash skills/install.sh ran a full 132-skill rsync, but I only staged .claude/skills/prioritize-proposals/ and .agents/skills/prioritize-proposals/ for commit. Preexisting drift in other skills' mirrors is out of scope for this change (per Rule 0.5 Scope Discipline + work-packages.yaml write_allow).
+
+### Alternatives Considered
+- Single monolithic Python script doing the whole flow: rejected because Less testable (would need to mock filesystem + datetime + git for unit tests). Pure helpers + CLI separation made the test suite trivial.
+- Symlink for latest.{md,json} (revisited mid-implementation): rejected because D3 ruled it out; verified during implementation that `cp` is cleaner — no special-case in git status, works identically on Linux/macOS/Windows, no CI symlink-config concerns.
+- Inline retention logic inside SKILL.md bash: rejected because Would have required reimplementing the lexical-sort + archive-move + count logic in bash, much harder to test. The Python helper is ~50 LOC with 10 tests; the bash equivalent would be ~30 LOC with 0 tests and several edge-case footguns (path-with-spaces, archive-subdir filter).
+- Force-deletion safeguard if 'already_migrated' detected: rejected because Considered: detect identical content and silently dedupe. Rejected because content-comparison would be brittle (whitespace, line-endings) and the safer default for a one-shot is 'refuse + tell the operator'.
+
+### Trade-offs
+- Accepted 9 logical commits (one per task group) over Squash everything into one big commit because Branch uses rebase-merge by repo convention, so every commit lands individually on main. 9 logical commits keeps git-bisect useful and lets a reviewer see the TDD progression (test commit before implementation commit for each helper).
+- Accepted Each test file does its own sys.path manipulation over A shared conftest.py at skills/tests/prioritize-proposals/ because 4 test files, 3-line path setup each = 12 lines. A conftest.py would be ~10 lines saving 9 lines net, plus another import path. Not worth the indirection for the simplicity (Rule 0).
+
+### Open Questions
+- [ ] When skills/shared/artifact_header.py lands (codeviz Phase 0), the migration path is to delete skills/prioritize-proposals/scripts/artifact_header.py and update the SKILL.md cmd to call the shared helper. The on-disk schema is identical so no data migration is needed.
+
+### Completed Work
+- All 20 tasks (Phase 1: 10, Phase 2: 5, Phase 3: 5) — checkboxes flipped in-commit per discipline
+- 4 helper modules: priorities_paths.py, artifact_header.py, retention.py, migrate_legacy.py
+- Updated skills/prioritize-proposals/SKILL.md to use the new layout
+- Executed one-shot migration of openspec/changes/prioritized-proposals.md → openspec/priorities/2026-05-04-legacy/report.md (discrete commit)
+- Synced runtime mirrors at .claude/skills/prioritize-proposals/ and .agents/skills/prioritize-proposals/
+- 42 tests total (30 unit + 6 migration + 6 e2e smoke); openspec validate --strict passing
+
+### Next Steps
+- Push branch and open PR for review
+- /cleanup-feature will run the deploy/smoke/security/E2E validation phases pre-merge
+- Post-merge: regenerate docs/decisions/ (per project_derived_artifact_drift) — `make decisions`
+
+### Relevant Files
+- `skills/prioritize-proposals/SKILL.md` — rewritten Step 8/9 + --retain N flag added
+- `skills/prioritize-proposals/scripts/priorities_paths.py` — run-id + path helpers
+- `skills/prioritize-proposals/scripts/artifact_header.py` — mandatory _header constructor + CLI
+- `skills/prioritize-proposals/scripts/retention.py` — archive-not-delete retention scan
+- `skills/prioritize-proposals/scripts/migrate_legacy.py` — one-shot legacy migration
+- `openspec/priorities/2026-05-04-legacy/report.md` — first historical entry, pre-migration header allowance
+- `skills/tests/prioritize-proposals/` — 42 tests covering all helpers + e2e smoke
+
+### Context
+Implemented all 20 tasks across 3 phases in 9 logical commits. Four new helper modules (priorities_paths.py, artifact_header.py, retention.py, migrate_legacy.py) + SKILL.md rewrite + spec delta verified + one-shot legacy migration executed as a discrete commit + runtime mirrors synced. 42 tests pass; openspec validate --strict passes; scope discipline preserved (no out-of-scope edits).
+

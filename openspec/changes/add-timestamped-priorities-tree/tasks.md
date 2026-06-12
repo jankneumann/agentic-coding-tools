@@ -104,5 +104,5 @@
   **Dependencies**: 3.3
   **Size**: XS
 
-- [ ] 3.5 Final checkpoint: full test suite (`skills/.venv/bin/python -m pytest skills/tests/prioritize-proposals/` if that path is used, otherwise the agent-coordinator venv), `openspec validate add-timestamped-priorities-tree --strict`, review final diff
+- [x] 3.5 Final checkpoint: full test suite (`skills/.venv/bin/python -m pytest skills/tests/prioritize-proposals/` if that path is used, otherwise the agent-coordinator venv), `openspec validate add-timestamped-priorities-tree --strict`, review final diff
   **Dependencies**: 3.4
