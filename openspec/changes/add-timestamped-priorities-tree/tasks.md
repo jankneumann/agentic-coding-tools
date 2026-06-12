@@ -70,7 +70,7 @@
   **Dependencies**: 2.1
   **Size**: S
 
-- [ ] 2.3 Run `migrate_legacy.py` from the worktree (creates `openspec/priorities/2026-05-04-legacy/report.md`, deletes `openspec/changes/prioritized-proposals.md`). Commit the migration as a discrete commit.
+- [x] 2.3 Run `migrate_legacy.py` from the worktree (creates `openspec/priorities/2026-05-04-legacy/report.md`, deletes `openspec/changes/prioritized-proposals.md`). Commit the migration as a discrete commit.
   **Spec scenarios**: skill-workflow "Legacy entry is readable"
   **Design decisions**: D6
   **Dependencies**: 2.2
