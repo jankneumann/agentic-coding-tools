@@ -47,13 +47,13 @@
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 1.8 Update `skills/prioritize-proposals/SKILL.md`: replace `REPORT_FILE="openspec/changes/prioritized-proposals.md"` with the new write flow (dated dir + latest files + retention scan). Add `--retain N` argument documentation.
+- [x] 1.8 Update `skills/prioritize-proposals/SKILL.md`: replace `REPORT_FILE="openspec/changes/prioritized-proposals.md"` with the new write flow (dated dir + latest files + retention scan). Add `--retain N` argument documentation.
   **Spec scenarios**: skill-workflow "Per-run dated artifact written", "Latest pointer rewritten on each run", "Legacy write path is rejected"
   **Design decisions**: D1, D3 (flat-file latest), D5
   **Dependencies**: 1.2a, 1.2b, 1.4, 1.7
   **Size**: M
 
-- [ ] 1.9 Checkpoint: run all Phase 1 tests, review diff, verify only `skills/prioritize-proposals/` was touched
+- [x] 1.9 Checkpoint: run all Phase 1 tests, review diff, verify only `skills/prioritize-proposals/` was touched
   **Dependencies**: 1.7, 1.8
 
 ## Phase 2 — Migration and spec sync
