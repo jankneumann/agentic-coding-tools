@@ -58,13 +58,13 @@
 
 ## Phase 2 — Migration and spec sync
 
-- [ ] 2.1 Write test for `migrate_legacy.py`: idempotent move of `openspec/changes/prioritized-proposals.md` to `openspec/priorities/2026-05-04-legacy/report.md`; no-op if already migrated
+- [x] 2.1 Write test for `migrate_legacy.py`: idempotent move of `openspec/changes/prioritized-proposals.md` to `openspec/priorities/2026-05-04-legacy/report.md`; no-op if already migrated
   **Spec scenarios**: skill-workflow "Legacy entry is readable"
   **Design decisions**: D6 (legacy migration)
   **Dependencies**: None
   **Size**: S
 
-- [ ] 2.2 Implement `skills/prioritize-proposals/scripts/migrate_legacy.py` — one-shot migration script
+- [x] 2.2 Implement `skills/prioritize-proposals/scripts/migrate_legacy.py` — one-shot migration script
   **Spec scenarios**: skill-workflow "Legacy entry is readable"
   **Design decisions**: D6
   **Dependencies**: 2.1
