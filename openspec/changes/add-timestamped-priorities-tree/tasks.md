@@ -20,19 +20,19 @@
   **Dependencies**: 1.2a
   **Size**: S
 
-- [ ] 1.3 Write tests for `artifact_header.py`: header field population, ISO-8601 timestamp format, git_sha length
+- [x] 1.3 Write tests for `artifact_header.py`: header field population, ISO-8601 timestamp format, git_sha length
   **Spec scenarios**: skill-workflow "Header fields populated"
   **Design decisions**: D4 (artifact header schema)
   **Dependencies**: None
   **Size**: S
 
-- [ ] 1.4 Implement `skills/prioritize-proposals/scripts/artifact_header.py` — inline header constructor (~10 LOC); leave docstring noting future migration to `skills/shared/artifact_header.py`
+- [x] 1.4 Implement `skills/prioritize-proposals/scripts/artifact_header.py` — inline header constructor (~10 LOC); leave docstring noting future migration to `skills/shared/artifact_header.py`
   **Spec scenarios**: skill-workflow "Header fields populated", "Header migration to shared helper"
   **Design decisions**: D4
   **Dependencies**: 1.3
   **Size**: S
 
-- [ ] 1.5 Checkpoint: run tests, review diff, verify scope (`skills/prioritize-proposals/` only)
+- [x] 1.5 Checkpoint: run tests, review diff, verify scope (`skills/prioritize-proposals/` only)
   **Dependencies**: 1.2a, 1.2b, 1.4
 
 - [ ] 1.6 Write tests for `retention.py`: 30-default keeps 30, custom `--retain 5` keeps 5, archive accumulates, archive never deletes, archive subdir excluded from count
