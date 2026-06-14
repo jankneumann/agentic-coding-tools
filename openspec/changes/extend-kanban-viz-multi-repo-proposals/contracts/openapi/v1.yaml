@@ -1,0 +1,230 @@
+openapi: 3.0.3
+info:
+  title: agent-coordinator — extend-kanban-viz-multi-repo-proposals additions
+  version: "1.0.0"
+  description: |
+    Additive surface for the multi-repository extension. Builds on the
+    PR #211 (extend-kanban-viz-prs-proposals) contracts. The
+    GET /openspec/proposals endpoint gains multi-source fan-out;
+    ProposalCard gains repo + change_id_namespaced fields; the
+    response envelope gains a _warnings array and source: "mixed" value.
+
+servers:
+  - url: https://coord.rotkohl.ai
+    description: Hosted (personal coordinator, multiple owned repos)
+  - url: http://localhost:8000
+    description: Local dev
+
+security:
+  - bearerAuth: []
+
+paths:
+  /openspec/proposals:
+    get:
+      summary: List OpenSpec proposals across configured sources
+      description: |
+        Multi-source variant of the PR #211 endpoint. Sources are
+        configured via the OPENSPEC_SOURCES env var (CSV of
+        `local:<path>` and `github:<owner>/<repo>` entries). When the
+        env var is empty, the endpoint falls back to PR #211's
+        single-coordinator-checkout behavior.
+
+        Cache strategy is HYBRID: local sources are walked at boot;
+        github sources are cached lazily with 60s TTL per source.
+        `?refresh=true` busts both.
+
+        Per-source failures surface as `_warnings` entries; surviving
+        sources still serve. The endpoint fails closed (503) only when
+        ALL sources are misconfigured (invalid OPENSPEC_SOURCES entry,
+        or mixed-mode config with GITHUB_PAT unset).
+      operationId: listOpenspecProposals
+      tags: [kanban-viz]
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: When true, bust local re-walk cache AND every github source's TTL slot.
+      responses:
+        "200":
+          description: Proposals from configured sources (may include _warnings on partial failure)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MultiSourceProposalListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Configuration error — fails closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoordinatorError"
+              examples:
+                openspec_sources_invalid:
+                  summary: Malformed OPENSPEC_SOURCES entry
+                  value:
+                    error: openspec_sources_invalid
+                    message: "github:not_a_valid_entry"
+                github_pat_missing_mixed_mode:
+                  summary: Github sources configured but GITHUB_PAT unset
+                  value:
+                    error: github_pat_missing
+                    message: "OPENSPEC_SOURCES contains github: entries but GITHUB_PAT is unset"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API-Key
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid Authorization header
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CoordinatorError"
+
+  schemas:
+    CoordinatorError:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    SourceWarning:
+      type: object
+      required: [source, error]
+      properties:
+        source:
+          type: string
+          description: "Source string from OPENSPEC_SOURCES (e.g., github:owner/repo)"
+        error:
+          type: string
+          enum:
+            - local_path_missing
+            - local_walk_failed
+            - github_404
+            - github_pat_denied
+            - github_timeout
+            - github_5xx
+            - github_budget_exceeded
+        status:
+          type: integer
+          description: HTTP status code (when applicable)
+        message:
+          type: string
+          description: Human-readable detail (e.g., "30 changes truncated")
+
+    MultiSourceProposalListResponse:
+      type: object
+      required: [proposals, generated_at_iso, source, cache_age_seconds]
+      properties:
+        proposals:
+          type: array
+          items:
+            $ref: "#/components/schemas/MultiRepoProposalCard"
+        generated_at_iso:
+          type: string
+          format: date-time
+        source:
+          type: string
+          enum: [live, cache, mixed]
+          description: |
+            live = all contributing sources freshly fetched
+            cache = all from cache
+            mixed = combination (any local source is always live in this design)
+        cache_age_seconds:
+          type: integer
+          minimum: 0
+          description: Maximum age across contributing source caches (worst-case freshness signal)
+        _warnings:
+          type: array
+          description: Per-source failures encountered during this request
+          items:
+            $ref: "#/components/schemas/SourceWarning"
+
+    MultiRepoProposalCard:
+      allOf:
+        - $ref: "#/components/schemas/ProposalCardBase"
+        - type: object
+          properties:
+            repo:
+              oneOf:
+                - type: string
+                  pattern: "^[a-z0-9_.-]+/[a-z0-9_.-]+$"
+                  description: lowercase <owner>/<repo>
+                - type: "null"
+              description: Source repository attribution. Null when OPENSPEC_SOURCES is unset (PR #211 back-compat).
+            change_id_namespaced:
+              oneOf:
+                - type: string
+                  description: "<repo>/<change-id>"
+                - type: "null"
+              description: Canonical cluster key. Null when repo is null.
+
+    # Inherited from PR #211 — fields preserved unchanged
+    ProposalCardBase:
+      type: object
+      required:
+        - kind
+        - id
+        - change_id
+        - title
+        - status
+        - created_at_iso
+        - updated_at_iso
+        - proposal_path
+        - has_tasks_md
+        - has_design_md
+        - has_spec_delta
+        - has_branch
+        - branch_name
+        - code_changes_outside_proposal
+      properties:
+        kind:
+          type: string
+          enum: [proposal]
+        id:
+          type: string
+        change_id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [drafted, in-impl]
+        created_at_iso:
+          type: string
+          format: date-time
+        updated_at_iso:
+          type: string
+          format: date-time
+        proposal_path:
+          type: string
+          description: |
+            For local: sources, repo-relative path to proposal.md.
+            For github: sources, full https://github.com/... URL to the file
+            on the default branch.
+        has_tasks_md:
+          type: boolean
+        has_design_md:
+          type: boolean
+        has_spec_delta:
+          type: boolean
+        has_branch:
+          type: boolean
+        branch_name:
+          oneOf:
+            - type: string
+            - type: "null"
+        code_changes_outside_proposal:
+          type: integer
+          minimum: 0
