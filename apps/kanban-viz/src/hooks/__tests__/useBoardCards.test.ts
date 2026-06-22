@@ -57,7 +57,7 @@ function makePR(id: string, change_id: string | null = null): PRCard {
   };
 }
 
-function makeProposal(id: string, change_id: string): ProposalCard {
+function makeProposal(id: string, change_id: string, repo: string | null = null): ProposalCard {
   return {
     kind: "proposal",
     id,
@@ -73,6 +73,8 @@ function makeProposal(id: string, change_id: string): ProposalCard {
     has_branch: false,
     branch_name: null,
     code_changes_outside_proposal: 0,
+    repo,
+    change_id_namespaced: repo != null ? `${repo}/${change_id}` : null,
   };
 }
 
