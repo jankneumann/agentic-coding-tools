@@ -269,14 +269,14 @@ class TestHiddenReposField:
     ) -> None:
         """PUT a saved view with hidden_repos is accepted and field survives on disk."""
         from fastapi.testclient import TestClient
-        from src.coordination_api import create_coordination_api
-
-        _TEST_KEY_HR = "hidden-repos-test-key-001"
 
         from src.config import reset_config
+        from src.coordination_api import create_coordination_api
+
+        test_key_hr = "hidden-repos-test-key-001"
         monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
         monkeypatch.setenv("SUPABASE_SERVICE_KEY", "svc-key")
-        monkeypatch.setenv("COORDINATION_API_KEYS", _TEST_KEY_HR)
+        monkeypatch.setenv("COORDINATION_API_KEYS", test_key_hr)
         monkeypatch.setenv("COORDINATION_API_KEY_IDENTITIES", "{}")
         workdir = tmp_path / "workdir"
         workdir.mkdir()
@@ -301,7 +301,7 @@ class TestHiddenReposField:
             put_resp = client.put(
                 "/kanban-viz/saved-views/multi-repo",
                 json=payload,
-                headers={"Authorization": f"Bearer {_TEST_KEY_HR}"},
+                headers={"Authorization": f"Bearer {test_key_hr}"},
             )
             assert put_resp.status_code in (200, 201), put_resp.text
 

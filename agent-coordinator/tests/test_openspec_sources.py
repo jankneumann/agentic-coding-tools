@@ -13,10 +13,6 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Any
-
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -340,8 +336,7 @@ class TestWarmLocalSources:
         src = SourceDescriptor(kind="local", spec=str(repo_a), repo="owner/repo-d")
         warm_local_sources([src])
 
-        entry1, _ = get_or_walk_local(src)
-        minted_at_1 = entry1.minted_at
+        get_or_walk_local(src)
 
         # Brief sleep to ensure time difference is detectable
         time.sleep(0.01)
