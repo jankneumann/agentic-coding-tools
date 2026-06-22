@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SourceSwimlanes } from "../SourceSwimlanes";
-import type { BoardCard, IssueCard, PRCard, ProposalCard } from "../../lib/coordinator-types";
+import type { BoardCard, IssueCard, PRCard, ProposalCard, SourceWarning } from "../../lib/coordinator-types";
 
 function makeIssue(id: string, status: IssueCard["status"] = "pending"): IssueCard {
   return {
@@ -178,5 +178,61 @@ describe("SourceSwimlanes — empty state", () => {
     expect(screen.getByTestId("source-row-issues")).toBeInTheDocument();
     expect(screen.getByTestId("source-row-prs")).toBeInTheDocument();
     expect(screen.getByTestId("source-row-proposals")).toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests added in wp-spa-multi-repo-ux (task 9.3)
+
+describe("SourceSwimlanes — partial-result chip (_warnings)", () => {
+  const warnings: SourceWarning[] = [
+    { source: "github:owner/repo-b", error: "github_404" },
+  ];
+
+  it("does NOT render partial-result chip when _warnings is absent", () => {
+    render(<SourceSwimlanes cards={[]} />);
+    expect(screen.queryByTestId("proposals-partial-result-chip")).not.toBeInTheDocument();
+  });
+
+  it("does NOT render partial-result chip when _warnings is empty array", () => {
+    render(<SourceSwimlanes cards={[]} proposalsWarnings={[]} />);
+    expect(screen.queryByTestId("proposals-partial-result-chip")).not.toBeInTheDocument();
+  });
+
+  it("renders partial-result chip on Proposals row when _warnings.length > 0", () => {
+    render(<SourceSwimlanes cards={[]} proposalsWarnings={warnings} />);
+    expect(screen.getByTestId("proposals-partial-result-chip")).toBeInTheDocument();
+  });
+
+  it("partial-result chip mentions the word 'partial' or 'warning' in its text", () => {
+    render(<SourceSwimlanes cards={[]} proposalsWarnings={warnings} />);
+    const chip = screen.getByTestId("proposals-partial-result-chip");
+    const text = chip.textContent?.toLowerCase() ?? "";
+    expect(text.includes("partial") || text.includes("warning") || text.includes("source")).toBe(true);
+  });
+
+  it("clicking partial-result chip expands the list of failed sources", async () => {
+    const user = userEvent.setup();
+    render(<SourceSwimlanes cards={[]} proposalsWarnings={warnings} />);
+    const chip = screen.getByTestId("proposals-partial-result-chip");
+    await user.click(chip);
+    // After click, warning details should be visible
+    expect(screen.getByTestId("proposals-warnings-detail")).toBeInTheDocument();
+    expect(screen.getByTestId("proposals-warnings-detail").textContent).toContain(
+      "github:owner/repo-b",
+    );
+  });
+
+  it("warning detail shows error type from SourceWarning", async () => {
+    const user = userEvent.setup();
+    render(<SourceSwimlanes cards={[]} proposalsWarnings={warnings} />);
+    await user.click(screen.getByTestId("proposals-partial-result-chip"));
+    expect(screen.getByTestId("proposals-warnings-detail").textContent).toContain("github_404");
+  });
+
+  it("partial-result chip does NOT appear on Issues or PRs rows (proposals-only)", () => {
+    render(<SourceSwimlanes cards={[]} proposalsWarnings={warnings} />);
+    expect(screen.queryByTestId("issues-partial-result-chip")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("prs-partial-result-chip")).not.toBeInTheDocument();
   });
 });
