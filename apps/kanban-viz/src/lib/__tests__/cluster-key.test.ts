@@ -158,9 +158,8 @@ describe("clusterBoardCards — namespaced cluster key", () => {
   });
 
   it("all-null-repo cards fall back to bare change_id clustering (back-compat)", () => {
+    // PRCard.repo is required (non-null), so simulate all-null using issues only
     const issue = makeIssue("i1", "fix-auth", null);
-    const pr = makePR("pr1", "fix-auth", null as unknown as string); // Force null for test
-    // Actually PRCard.repo is string (non-null), so simulate with an issue
     const issue2 = makeIssue("i2", "fix-auth", null);
 
     const { clusters, annotated } = clusterBoardCards([issue, issue2]);
