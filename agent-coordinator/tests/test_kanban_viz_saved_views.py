@@ -201,3 +201,113 @@ class TestRoundTripAPI:
         written = json.loads(written_files[0].read_text())
         assert written["view"]["pr_origins"] == ["openspec", "codex"]
         assert written["view"]["hidden_rows"] == ["proposals"]
+
+
+# ---------------------------------------------------------------------------
+# Task 5.1 — hidden_repos field validation (extend-kanban-viz-multi-repo-proposals)
+# ---------------------------------------------------------------------------
+
+
+class TestHiddenReposField:
+    def test_hidden_repos_valid_entry_validates(self) -> None:
+        """view.hidden_repos with a valid owner/repo string must validate."""
+        instance = _minimal_view(hidden_repos=["jankneumann/scratch"])
+        _validate(instance)
+
+    def test_hidden_repos_multiple_valid_entries_validates(self) -> None:
+        """Multiple valid owner/repo strings in hidden_repos must validate."""
+        instance = _minimal_view(
+            hidden_repos=["jankneumann/agentic-coding-tools", "owner/newsletter-aggregator"]
+        )
+        _validate(instance)
+
+    def test_hidden_repos_empty_array_validates(self) -> None:
+        """Empty hidden_repos array must validate."""
+        instance = _minimal_view(hidden_repos=[])
+        _validate(instance)
+
+    def test_pre_existing_view_without_hidden_repos_validates(self) -> None:
+        """Saved view without hidden_repos (pre-existing) must still validate."""
+        instance = _minimal_view()
+        _validate(instance)
+
+    def test_hidden_repos_with_other_fields_validates(self) -> None:
+        """hidden_repos coexists with pr_origins and hidden_rows."""
+        instance = _minimal_view(
+            pr_origins=["openspec"],
+            hidden_rows=["issues"],
+            hidden_repos=["owner/repo"],
+        )
+        _validate(instance)
+
+    def test_hidden_repos_invalid_entry_fails(self) -> None:
+        """hidden_repos entry not matching ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ must fail."""
+        import jsonschema  # type: ignore[import]
+
+        instance = _minimal_view(hidden_repos=["not_a_valid_entry"])
+        with pytest.raises(jsonschema.ValidationError):
+            _validate(instance)
+
+    def test_hidden_repos_entry_missing_slash_fails(self) -> None:
+        """hidden_repos entry without a slash must fail validation."""
+        import jsonschema  # type: ignore[import]
+
+        instance = _minimal_view(hidden_repos=["owneronly"])
+        with pytest.raises(jsonschema.ValidationError):
+            _validate(instance)
+
+    def test_hidden_repos_not_array_fails(self) -> None:
+        """hidden_repos as a string (not array) must fail validation."""
+        import jsonschema  # type: ignore[import]
+
+        instance = _minimal_view(hidden_repos="jankneumann/scratch")  # type: ignore[arg-type]
+        with pytest.raises(jsonschema.ValidationError):
+            _validate(instance)
+
+    def test_hidden_repos_round_trip_via_api(
+        self, tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """PUT a saved view with hidden_repos is accepted and field survives on disk."""
+        from fastapi.testclient import TestClient
+        from src.coordination_api import create_coordination_api
+
+        _TEST_KEY_HR = "hidden-repos-test-key-001"
+
+        from src.config import reset_config
+        monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
+        monkeypatch.setenv("SUPABASE_SERVICE_KEY", "svc-key")
+        monkeypatch.setenv("COORDINATION_API_KEYS", _TEST_KEY_HR)
+        monkeypatch.setenv("COORDINATION_API_KEY_IDENTITIES", "{}")
+        workdir = tmp_path / "workdir"
+        workdir.mkdir()
+        monkeypatch.setenv("COORDINATOR_WORKDIR_ROOT", str(workdir))
+        monkeypatch.setenv("KANBAN_VIZ_DIR", str(tmp_path / "views"))
+        reset_config()
+
+        payload = {
+            "schema_version": 1,
+            "generated_at": "2026-01-01T00:00:00Z",
+            "git_sha": "abc1234",
+            "generator": "kanban-viz-spa",
+            "view": {
+                "name": "Multi-Repo Board",
+                "filters": {},
+                "hidden_repos": ["jankneumann/scratch-repo"],
+            },
+        }
+
+        app = create_coordination_api()
+        with TestClient(app, raise_server_exceptions=False) as client:
+            put_resp = client.put(
+                "/kanban-viz/saved-views/multi-repo",
+                json=payload,
+                headers={"Authorization": f"Bearer {_TEST_KEY_HR}"},
+            )
+            assert put_resp.status_code in (200, 201), put_resp.text
+
+        written_files = list(workdir.rglob("*.json"))
+        assert written_files, "No JSON file written"
+        written = json.loads(written_files[0].read_text())
+        assert written["view"]["hidden_repos"] == ["jankneumann/scratch-repo"]
+
+        reset_config()
