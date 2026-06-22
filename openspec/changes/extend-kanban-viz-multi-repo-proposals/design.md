@@ -45,7 +45,7 @@ Local sources walked eagerly at boot; GitHub sources cached lazily per-source wi
 **Cache structure:**
 - Local: single dict `{source: <walk-result>}`, written at boot and on `?refresh=true`.
 - GitHub: dict `{source: (mint_time, cache_entry)}`, per-source mutex for single-flight (mirrors `github_prs_api.py`).
-- Combined response field `source: "live" | "cache" | "mixed"` — `mixed` when local (always live in this model) and a cached github source contribute together; `cache_age_seconds` is the MAX age across contributing sources (worst-case freshness signal).
+- Combined response field `source: "live" | "cache" | "mixed"` — note: `live` for a local source means "as-of-last-walk" (boot warmup OR most-recent `?refresh=true`), NOT re-walked per request. `cache_age_seconds` for local sources reflects time-since-last-walk and contributes to the MAX-across-sources worst-case freshness signal alongside github TTL ages. `mixed` indicates at least one local + at least one cached github source. (R1-009 clarification — earlier draft said "always live", which understated local-source staleness between refreshes.)
 
 **Failure mode:** Local re-walks at boot run synchronously. If a `local:` path is unreachable at boot, the source is marked degraded in the source registry; subsequent requests skip it AND emit a `_warnings` entry — the boot doesn't crash. This matches D6's degraded-mode contract.
 
@@ -117,7 +117,15 @@ class SourceDescriptor:
 def parse_sources(env_val: str) -> tuple[list[SourceDescriptor], list[ParseWarning]]: ...
 def warm_local_sources(sources: list[SourceDescriptor]) -> dict[str, LocalSourceCache]: ...
 def derive_local_repo(path: Path) -> tuple[str, Optional[str]]:   # (repo, warning_if_any)
-    """Try `git remote get-url origin` first; fall back to basename."""
+    """Try `git remote get-url origin` first; fall back to `local/<basename>`.
+
+    The `local/` prefix on the basename fallback (R1-004) guarantees the
+    derived repo value has owner/repo shape — so it passes the same regex
+    used by GITHUB_REPOS, hidden_repos saved-view validation, and the
+    namespaced cluster key. Without the prefix, a basename like
+    'orphan-checkout' would fail downstream regex checks and produce
+    inconsistent cluster keys.
+    """
 ```
 
 **Changed module: `agent-coordinator/src/openspec_proposals_api.py`**
@@ -207,7 +215,7 @@ interface IssueCard {
 }
 ```
 
-The contract types live in `contracts/generated/types.ts` (in-change for now, per PR #211's deferred-promotion decision). The SPA re-exports from there.
+The contract types live in `contracts/generated/types.ts` (in-change for now, per PR #211's deferred-promotion decision). This file is a SPEC-ONLY artifact: the SPA's tsconfig has `"include": ["src"]` and cannot import from `openspec/changes/...`. The SPA's `apps/kanban-viz/src/lib/coordinator-types.ts` is a HAND-MAINTAINED runtime copy of the contract — the implementer keeps it in sync with the spec file as part of every contract change. (R1-006 fix — earlier draft said "re-exports from there", which was incompatible with the tsconfig include-path constraint stated elsewhere in this section.)
 
 **Client-side repo derivation:**
 
@@ -230,8 +238,13 @@ Called from `useBoardCards` after the `/issues/list` response is received, befor
 ```ts
 function getClusterKey(card: BoardCard): string | null {
   if (card.repo == null) return null;   // signals "use fallback"
-  const baseId = card.change_id ?? card.change_id_namespaced ?? null;
-  return baseId == null ? null : `${card.repo}/${baseId}`;
+
+  // Use the BARE change_id only. card.change_id_namespaced is ALREADY
+  // <repo>/<change-id> on ProposalCard — concatenating `${card.repo}/${namespaced}`
+  // would produce a doubled namespace `repo/repo/change-id` that won't match
+  // sibling cards keyed off bare change_id. R1-005 fix.
+  if (card.change_id == null) return null;
+  return `${card.repo}/${card.change_id}`;
 }
 
 function clusterBoardCards(cards: readonly BoardCard[]): ClusterResult {

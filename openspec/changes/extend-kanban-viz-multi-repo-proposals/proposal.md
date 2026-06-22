@@ -34,7 +34,12 @@ cross-repo cluster keying.
 - **NEW** `OPENSPEC_SOURCES` env var (CSV, parallel to `GITHUB_REPOS`).
   Each entry is either `local:/path/to/checkout` (filesystem walk) or
   `github:<owner>/<repo>` (GitHub REST API via the existing `GITHUB_PAT`).
-  Default: empty (current single-checkout behavior).
+  Default: empty. When empty, the coordinator's own checkout is treated as
+  an implicit `local:.` source so `ProposalCard.repo` is derived from the
+  coordinator's origin URL — this preserves PR #211 wire shape (a single
+  source) AND keeps `ProposalCard.repo` consistent with `PRCard.repo`,
+  enabling PR↔Proposal cross-row clustering by change_id in single-source
+  mode. See design.md D1 for full rationale.
 - **CHANGED** `GET /openspec/proposals` — fans out across all configured
   sources concurrently, merging results. Each `ProposalCard` now carries
   a `repo` field (`<owner>/<repo>` for github sources; basename of the
@@ -184,7 +189,9 @@ Load-bearing commitments derived from this selection plus implementation
 open-question defaults:
 
 - `OPENSPEC_SOURCES` env var CSV, `local:<path>` and `github:<owner>/<repo>`
-  source-type prefixes. Empty default = current single-source behavior.
+  source-type prefixes. Empty default = implicit `local:.` source for the
+  coordinator's own checkout, repo derived from origin URL (preserves PR
+  #211 wire shape AND keeps cross-row PR↔Proposal clustering working).
 - Hybrid cache: local sources at boot, github sources lazy with 60s TTL
   per source. `?refresh=true` busts both.
 - Cluster key = `<repo>/<change-id>` when present, bare `change_id`
@@ -222,7 +229,7 @@ asks for it.
 
 - **D1 (sources config):** `OPENSPEC_SOURCES` CSV env var, parallel to
   `GITHUB_REPOS`. Each entry is `local:<path>` or `github:<owner>/<repo>`.
-  Default empty (current single-checkout behavior preserved). User
+  Default empty (implicit `local:.` source — preserves PR #211 wire shape with derived repo). User
   scope: personal/small-team, single coordinator, multiple owned repos.
 
 - **D2 (cache strategy — Q1c):** Hybrid. Local sources walked eagerly
@@ -257,27 +264,19 @@ asks for it.
 
 ## Open Questions for Implementation
 
-- **`repo:` label canonicalization:** Should the SPA reject
-  `repo:Owner/Repo` (mixed case) or normalize it to lowercase? GitHub
-  itself is case-preserving but case-insensitive on lookup; we'd want
-  to match its behavior to avoid `repo:janKneumann/x` and
-  `repo:jankneumann/x` producing two visual clusters.
-- **Local-source `repo` derivation:** For `local:/path/to/checkout`,
-  do we read `git remote get-url origin` to get the canonical
-  `<owner>/<repo>`, or use the basename of the checkout directory?
-  Origin URL is more accurate but adds a subprocess call per source at
-  boot. Basename is simpler but fragile (rename the checkout, badge
-  breaks). Default proposal: try origin URL first, fall back to
-  basename with a warning.
-- **GitHub-source rate limits:** Each github source costs ≥ 1
-  `/contents/openspec/changes/` REST call per refresh, plus N calls
-  if we recurse into each change-id directory for the `in-impl`
-  detection. With multiple repos, this multiplies. Should we batch
-  via the GraphQL API (one query for N repos) or stay on REST? Default
-  proposal: REST for v1 with per-source request budget cap; GraphQL
-  is a follow-up.
-- **Cross-repo cluster registry shape:** Already deferred, but if we
-  build it later, what's the registry source? A YAML file checked into
-  the coordinator? A coordinator-table? A `change_id_aliases:` block
-  in `openspec/project.md`? Defer the decision; this proposal just
-  notes the override hook.
+The three open questions raised at Gate 1 (repo: label canonicalization,
+local-source repo derivation, GitHub rate-limit strategy) have been
+resolved in the design — see design.md D4 (lowercase normalization),
+design.md D1 + R2 (origin-first-then-`local/<basename>` fallback), and
+design.md D7 (REST with per-source budget cap, GraphQL deferred). They
+are no longer open.
+
+The remaining genuinely-open item:
+
+- **Cross-repo cluster registry shape:** Deferred. When we eventually
+  build it, the source-of-truth question (YAML in
+  `openspec/project.md`? coordinator table? per-repo
+  `change_id_aliases.yaml`?) needs its own discovery round. The
+  `clusterKeyOverride` callback hook in `clusterBoardCards` (design D3)
+  is the only thing this change builds toward that future — no
+  registry table exists in v1.
