@@ -63,8 +63,9 @@ cross-repo cluster keying.
   only when `repo` is null on all cluster members (back-compat for
   pre-multi-repo data).
 - **NEW** Per-card `RepoBadge` micro-component — small repo chip rendered
-  on `IssueCardView`, `PRCardView`, `ProposalCardView`. Hidden when
-  `repo: null`. Hover surfaces the full `<owner>/<repo>`.
+  on `Card` (the issue renderer; PR #211 has no separate `IssueCardView`),
+  `PRCardView`, `ProposalCardView`. Hidden when `repo: null`. Hover
+  surfaces the full `<owner>/<repo>`.
 - **NEW** Optional `hidden_repos: string[]` field in the saved-view
   schema, mirroring the `hidden_rows` + `pr_origins` pattern from
   PR #211. Hides all cards whose `repo` matches one of the listed repos.

@@ -16,17 +16,19 @@ The coordinator SHALL read an optional `OPENSPEC_SOURCES` environment variable a
 - `local:<path>` — filesystem-walk source. `<path>` is an absolute or coordinator-relative path to a checkout containing an `openspec/changes/` directory.
 - `github:<owner>/<repo>` — GitHub REST API source. The coordinator fetches `openspec/changes/` directory listings via the existing `GITHUB_PAT` (the same credential already used by `GET /github/prs`).
 
-When `OPENSPEC_SOURCES` is unset or empty, the coordinator SHALL fall back to the existing single-source behavior (the coordinator's own runtime checkout). This preserves the contract shipped in PR #211 for callers that have not yet adopted multi-repo.
+When `OPENSPEC_SOURCES` is unset or empty, the coordinator SHALL treat its own runtime checkout as an implicit `local:.` source — derive `repo` from the checkout's `git remote get-url origin` (lowercase-normalized to `<owner>/<repo>`), falling back to the checkout basename only when origin parsing fails. This preserves PR #211 wire shape (a single source) AND keeps `ProposalCard.repo` consistent with `PRCard.repo` (which PR #211 derives from `GITHUB_REPOS`), so cross-row clustering by change_id continues to work in single-source mode without forcing the all-null fallback path. `repo` SHALL be `null` only when origin parsing AND basename derivation both fail (an unreachable case in practice; covered by spec scenario "Repo derivation falls back to basename with warning").
 
 The entry parser SHALL validate that `<path>` resolves to an existing directory for `local:` entries, AND that `<owner>/<repo>` matches `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$` for `github:` entries (the same regex applied to `GITHUB_REPOS` in PR #211). An invalid entry SHALL cause the endpoint to respond `503` with body `{"error": "openspec_sources_invalid", "message": "<offending entry>"}` and NOT serve partial results from valid entries — failing closed matches the `github_repos_invalid` posture.
 
 The parser SHALL normalize the `<owner>/<repo>` portion to lowercase (matching GitHub's case-insensitive lookup) before storing it in the source registry; the `repo` field on response cards SHALL likewise be lowercase.
 
-#### Scenario: OPENSPEC_SOURCES unset falls back to single-source behavior
+#### Scenario: OPENSPEC_SOURCES unset uses implicit local source with derived repo
 
-**WHEN** the coordinator boots with `OPENSPEC_SOURCES` unset AND a client calls `GET /openspec/proposals`
-**THEN** the endpoint SHALL walk the coordinator's own `openspec/changes/` directory (the PR #211 behavior)
-**AND** every returned `ProposalCard` SHALL have `repo: null` (no source attribution)
+**WHEN** the coordinator boots with `OPENSPEC_SOURCES` unset AND its own checkout's `git remote get-url origin` returns `https://github.com/JanKneumann/agentic-coding-tools.git` AND a client calls `GET /openspec/proposals`
+**THEN** the endpoint SHALL walk the coordinator's own `openspec/changes/` directory (preserving PR #211 wire shape)
+**AND** every returned `ProposalCard` SHALL have `repo: "jankneumann/agentic-coding-tools"` (lowercase-normalized from origin)
+**AND** `change_id_namespaced` SHALL equal `"jankneumann/agentic-coding-tools/<change-id>"`
+**AND** PR #211 cross-row PR↔Proposal clustering by change_id SHALL continue to work because `PRCard.repo` (from `GITHUB_REPOS`) and `ProposalCard.repo` (from origin) lowercase-normalize to the same string for the coordinator's own repo
 
 #### Scenario: OPENSPEC_SOURCES mixes local and github sources
 
@@ -94,7 +96,7 @@ The response SHALL include `cache_age_seconds` as the MAXIMUM age across all sou
 
 The `ProposalCard` shape returned by `GET /openspec/proposals` SHALL be extended with the following fields:
 
-- `repo` (string or null) — the `<owner>/<repo>` identifier of the source this proposal came from. For `github:` sources, this is the lowercase-normalized github source entry. For `local:` sources, this is derived from `git remote get-url origin` (parsed for `owner/repo`), falling back to the checkout's basename if origin parsing fails (a warning is logged on fallback). When `OPENSPEC_SOURCES` is unset, `repo` SHALL be `null` (back-compat with PR #211 behavior).
+- `repo` (string or null) — the `<owner>/<repo>` identifier of the source this proposal came from. For `github:` sources, this is the lowercase-normalized github source entry. For `local:` sources, this is derived from `git remote get-url origin` (parsed for `owner/repo`), falling back to the checkout's basename if origin parsing fails (a warning is logged on fallback). When `OPENSPEC_SOURCES` is unset, the coordinator's own checkout is treated as an implicit `local:.` source, so `repo` is derived from its own `git remote get-url origin`. `repo` SHALL be `null` only when BOTH origin parsing AND basename derivation are unavailable (rare; e.g., container without git installed). This convergence keeps PR #211's cross-row clustering intact: `PRCard.repo` from `GITHUB_REPOS` and `ProposalCard.repo` from the same origin URL normalize to the same lowercase string.
 - `change_id_namespaced` (string or null) — equal to `<repo>/<change-id>` when `repo` is non-null, otherwise `null`. This is the canonical cluster key for cross-source linkage.
 
 All other `ProposalCard` fields from PR #211 SHALL be preserved unchanged: `kind`, `id`, `change_id`, `title`, `status`, `created_at_iso`, `updated_at_iso`, `proposal_path`, `has_tasks_md`, `has_design_md`, `has_spec_delta`, `has_branch`, `branch_name`, `code_changes_outside_proposal`.
@@ -102,6 +104,15 @@ All other `ProposalCard` fields from PR #211 SHALL be preserved unchanged: `kind
 For `github:` sources, the `proposal_path` SHALL be the github web URL to the `proposal.md` file (`https://github.com/<owner>/<repo>/blob/<branch>/openspec/changes/<change-id>/proposal.md`), NOT a local filesystem path. This lets the SPA render a "View on GitHub" link uniformly. For `local:` sources, `proposal_path` remains a repo-relative path as in PR #211.
 
 For `github:` sources, the `has_branch` + `branch_name` + `code_changes_outside_proposal` fields SHALL be derived by checking the GitHub REST `/repos/{owner}/{repo}/branches/openspec/{change-id}` endpoint (or `claude/{change-id}` if the former 404s) and counting commits via `/repos/{owner}/{repo}/compare/main...openspec/{change-id}` with a path filter. When the branch doesn't exist, `has_branch: false` AND `code_changes_outside_proposal: 0` SHALL be returned.
+
+**GitHub REST field-shape adapter contract:** The `/contents/openspec/changes` endpoint returns a JSON array of objects, each with at least `{name: string, path: string, sha: string, type: "file" | "dir", size: int, url: string, html_url: string, download_url: string | null}`. The fetcher SHALL:
+- Filter to entries with `type == "dir"` (skip `archive/` aggregation directory by NAME exclusion).
+- For each candidate change-id directory, issue a recursive `/contents/openspec/changes/{change_id}` call to detect `proposal.md`, `tasks.md`, `design.md`, and `specs/` presence — `/contents` does NOT return children-of-children in a single call.
+- Treat 404 on `proposal.md` as "skip this directory" (not a hard error — operator may have a stray dir).
+- Parse the H1 title from `proposal.md` by base64-decoding the `content` field (the `/contents` endpoint returns content base64-encoded when `Accept: application/vnd.github+json` is used; the `download_url` is an alternative but adds a second roundtrip).
+- Build `proposal_path` from the `html_url` of the `proposal.md` entry (NOT manually concatenated — `html_url` is GitHub's canonical anchor and survives default-branch renames).
+
+This adapter contract MUST be exercised by a fixture-driven pytest using a recorded `/contents` payload (analogous to PR #211's `test_github_rest_adapter.py`), to head off the `from_rest_pr`-style field-shape drift that surfaced in PR #211 CRITICAL review.
 
 #### Scenario: ProposalCard from local source has lowercase repo and namespaced id
 
@@ -173,7 +184,7 @@ The SPA SHALL display `IssueCard.repo === null` cards without a repo badge (they
 
 ### Requirement: Namespaced Cluster Key Resolution
 
-The SPA's cluster computation function `clusterBoardCards` SHALL key clusters by `change_id_namespaced` (the form `<repo>/<change-id>`) for the standard path, AND SHALL fall back to bare `change_id` ONLY when EVERY card in a candidate cluster has `repo: null` (back-compat with pre-multi-repo data — i.e., a single-source coordinator where `OPENSPEC_SOURCES` is unset).
+The SPA's cluster computation function `clusterBoardCards` SHALL key clusters by `change_id_namespaced` (the form `<repo>/<change-id>`) for the standard path, AND SHALL fall back to bare `change_id` ONLY when EVERY card in a candidate cluster has `repo: null` (this is rare in practice — the coordinator derives `repo` from the local checkout even when `OPENSPEC_SOURCES` is unset; the fallback exists for the edge case where derivation fails for every contributing source). Note: the function lives inside `apps/kanban-viz/src/hooks/useBoardCards.ts` (the PR #211 file layout — it is not a standalone `apps/kanban-viz/src/lib/clusterBoardCards.ts`).
 
 This means:
 
@@ -199,9 +210,10 @@ A future "cross-repo cluster registry" extension (deferred — see proposal Open
 
 #### Scenario: All-null-repo cluster falls back to bare change_id
 
-**WHEN** the board is populated from a single-source coordinator (`OPENSPEC_SOURCES` unset) AND contains an `IssueCard`, `PRCard`, `ProposalCard` all with `repo: null` and `change_id: "foo"`
+**WHEN** the board contains an `IssueCard`, `PRCard`, `ProposalCard` all with `repo: null` and `change_id: "foo"` (the rare degraded case where origin and basename derivation both failed on every contributing source — e.g., a minimal container without git, or a fixture-driven test)
 **THEN** they SHALL cluster together via the bare `change_id` fallback
 **AND** each card's `cluster_count` SHALL equal `3`
+**AND** this fallback is primarily exercised by test fixtures; in production, the implicit-local-source rule keeps `ProposalCard.repo` non-null
 
 #### Scenario: Mixed null and non-null repos split into separate clusters
 
@@ -214,7 +226,7 @@ A future "cross-repo cluster registry" extension (deferred — see proposal Open
 
 ### Requirement: Per-Card Repo Badge Component
 
-The SPA SHALL render a `RepoBadge` micro-component on `IssueCardView`, `PRCardView`, and `ProposalCardView` whenever the card's `repo` field is non-null. The badge SHALL:
+The SPA SHALL render a `RepoBadge` micro-component on `Card` (the existing `apps/kanban-viz/src/components/Card.tsx` issue renderer — PR #211 has no `IssueCardView`), `PRCardView`, and `ProposalCardView` whenever the card's `repo` field is non-null. The badge SHALL:
 
 - Display the short form of the repo (the `<repo>` portion after the `/`) by default.
 - On hover, show the full `<owner>/<repo>` as a tooltip.

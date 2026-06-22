@@ -6,6 +6,8 @@ PR #211 (extend-kanban-viz-prs-proposals) shipped a three-source kanban board (I
 
 The work is strictly additive on top of #211 — no breaking changes to the polymorphic card model, the `SourceSwimlanes` layout, the `useBoardCards` hook, the saved-view schema, or the `merge-pull-requests` skill's classifier import. The polymorphic `BoardCard` union already accommodates an optional `repo` field; we're adding it to the two card kinds that lacked it (`ProposalCard`, `IssueCard`), updating cluster keying to namespace, and adding a small `RepoBadge` component.
 
+**File layout note (from PR #211 inspection):** `clusterBoardCards` lives INSIDE `apps/kanban-viz/src/hooks/useBoardCards.ts` (lines ~47–77), NOT at a standalone `apps/kanban-viz/src/lib/clusterBoardCards.ts`. All design references below to "cluster function changes" target that file. `coordinator-types.ts` correctly lives at `apps/kanban-viz/src/lib/coordinator-types.ts` and is the SPA's runtime copy of the contract types (the `openspec/changes/.../contracts/generated/types.ts` file is the spec source of truth; the SPA does not import from outside `apps/kanban-viz/src/` because `tsconfig.json` has `"include": ["src"]`).
+
 ## Goals / Non-Goals
 
 ### Goals
@@ -28,7 +30,7 @@ The work is strictly additive on top of #211 — no breaking changes to the poly
 
 ### D1 — `OPENSPEC_SOURCES` env var, parallel to `GITHUB_REPOS`
 
-CSV with `local:<path>` and `github:<owner>/<repo>` entries. Empty default = PR #211 behavior.
+CSV with `local:<path>` and `github:<owner>/<repo>` entries. Empty default treats the coordinator's own checkout as an implicit `local:.` source — preserving PR #211 wire shape while ALSO deriving `ProposalCard.repo` from the coordinator's own `git remote get-url origin`. This keeps PR↔Proposal cross-row clustering working in single-source mode, because `PRCard.repo` (from `GITHUB_REPOS`) and `ProposalCard.repo` (from origin) lowercase-normalize to the same string.
 
 **Why:** Operators already understand `GITHUB_REPOS` from PR #211. A parallel-named env var lets them apply the same mental model to the second endpoint without learning new config shape.
 
@@ -223,7 +225,7 @@ function deriveIssueRepo(labels: readonly string[]): string | null {
 
 Called from `useBoardCards` after the `/issues/list` response is received, before clustering.
 
-**Cluster key resolution (`apps/kanban-viz/src/lib/clusterBoardCards.ts`):**
+**Cluster key resolution (in `apps/kanban-viz/src/hooks/useBoardCards.ts` — `clusterBoardCards` is co-located in the hook file, NOT a standalone module):**
 
 ```ts
 function getClusterKey(card: BoardCard): string | null {
@@ -247,7 +249,7 @@ function clusterBoardCards(cards: readonly BoardCard[]): ClusterResult {
 
 **Existing components updated:**
 
-- `IssueCardView`, `PRCardView`, `ProposalCardView` — render `<RepoBadge repo={card.repo} />` when `card.repo != null`.
+- `Card` (renders `IssueCard` — PR #211 file layout: there is no `IssueCardView`; `Card.tsx` is the issue renderer), `PRCardView`, `ProposalCardView` — render `<RepoBadge repo={card.repo} />` when `card.repo != null`.
 - `useBoardCards` — calls `deriveIssueRepo` on every issue post-fetch; threads `hidden_repos` from saved view through to the filter step.
 - `SourceSwimlanes` — renders the partial-result chip when `_warnings.length > 0`; renders `HiddenReposToggle` in the header.
 
@@ -290,3 +292,11 @@ Two repos producing the same hash → same color → visually ambiguous. **Mitig
 - **Saved-view `hidden_repos` UX:** Shift-click on RepoBadge to hide is one option; a separate "Visible repos" filter panel in the header is another. The spec leaves the UI affordance flexible; pick one during implementation.
 - **`_warnings` retention across requests:** Should a previous request's warnings persist as a sticky chip until explicitly dismissed, or only show when the LATEST refresh produced warnings? Default proposal: only latest-refresh warnings, no stickiness. Consistent with PR #211's per-row error chip.
 - **Cross-repo cluster registry shape:** Deferred. When we eventually build it, the source-of-truth question (YAML in `openspec/project.md`? coordinator table? per-repo `change_id_aliases.yaml`?) needs its own discovery round.
+
+## Residual Concerns (PLAN_ITERATE refinements)
+
+- **Implicit-local-source convergence with `GITHUB_REPOS`:** The implicit-local-source rule assumes the coordinator's `git remote get-url origin` parses to the SAME `<owner>/<repo>` that `GITHUB_REPOS` carries (so PR↔Proposal cross-row clustering survives the namespacing). Operators who set `GITHUB_REPOS` to an UPSTREAM repo while running from a FORK checkout will see PR cards with `repo: upstream/x` but ProposalCards with `repo: fork-owner/x` — and clustering breaks. Mitigation: document the assumption in `docs/kanban-viz/README.md`; the workaround is to add the upstream as an explicit `local:` source via `OPENSPEC_SOURCES`. Not blocking; surfaced for IMPL_REVIEW.
+- **Saved-view schema regex for hidden_repos:** The spec scenario for invalid `hidden_repos` entries names `"not_a_valid_entry"` — the schema regex `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$` rejects it. Consistent.
+- **PR #211 contract types.ts re-export `repo: string` on PRCard:** The contract types.ts uses `PRCard = PRCardBase` from PR #211, which carries `repo: string` (required, non-null). The cluster key resolution in this change treats `card.repo ?? null` — for PRCard, `??` is a no-op. Verified consistent.
+- **`MultiSourceProposalListResponse` is wire-compatible with PR #211's `ProposalListResponse`:** Both have `{proposals, generated_at_iso, source, cache_age_seconds}`. New shape adds optional `_warnings` and widens `source` enum from `"live"|"cache"` to `"live"|"cache"|"mixed"`. Consumers reading `source` as a plain string see no breakage; consumers asserting against the narrowed enum would need an update. PR #211 SPA consumes `source` as informational only — not a breaker.
+- **Field-shape adapter regression risk:** Mitigated via new task 3.1a (fixture-driven REST adapter test). The PR #211 CRITICAL finding pattern (`from_rest_pr` shape drift) is now headed off by an explicit `test_rest_field_shape_adapter` regression sentinel.

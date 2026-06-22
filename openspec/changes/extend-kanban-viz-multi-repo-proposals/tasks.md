@@ -32,7 +32,10 @@ Test-first ordering. Each task is sized XS (≤30min) / S (≤2hr) / M (≤4hr) 
 
 ## Section 3 — Coordinator: GitHub-source fetcher
 
-- [ ] 3.1 (M) Write failing pytest `agent-coordinator/tests/test_github_openspec_fetcher.py::test_fetch_proposals_basic` with mocked `httpx.AsyncClient`: source has 3 changes; assert 3 ProposalCards returned, all with `repo` set to lowercase source, `proposal_path` is the github web URL form, `has_branch` reflects the branches API result. Cover the "GitHub-source ProposalCard has github URL in proposal_path" and "GitHub-source branch-existence probe used for in-impl detection" spec scenarios.
+- [ ] 3.1 (M) Write failing pytest `agent-coordinator/tests/test_github_openspec_fetcher.py::test_fetch_proposals_basic` with mocked `httpx.AsyncClient`: source has 3 changes; assert 3 ProposalCards returned, all with `repo` set to lowercase source, `proposal_path` is the github web URL form (sourced from the `html_url` field, NOT manually concatenated), `has_branch` reflects the branches API result. Cover the "GitHub-source ProposalCard has github URL in proposal_path" and "GitHub-source branch-existence probe used for in-impl detection" spec scenarios.
+  **Dependencies:** 1.5
+
+- [ ] 3.1a (S) Write failing pytest `test_github_openspec_fetcher.py::test_rest_field_shape_adapter` using a recorded `/contents` fixture (file at `agent-coordinator/tests/fixtures/github_contents_openspec_changes.json`). Asserts: only `type == "dir"` entries are processed; `archive/` is excluded by name; the `proposal.md` title comes from base64-decoded `content`; `proposal_path` equals the `html_url`. This is the analogue of PR #211's `test_github_rest_adapter.py` field-shape regression sentinel — addresses the `from_rest_pr`-style gotcha called out in the spec.
   **Dependencies:** 1.5
 
 - [ ] 3.2 (M) Write failing pytest `test_github_openspec_fetcher.py::test_budget_cap` — fixture with 80 changes + default cap 50 → returns 50 + `github_budget_exceeded` warning naming "30 changes truncated"; with `OPENSPEC_SOURCES_GITHUB_CAP=100` → returns all 80, no warning. Covers spec scenarios "Source within budget", "Source exceeds budget", "Budget cap configurable via env var".
@@ -41,8 +44,8 @@ Test-first ordering. Each task is sized XS (≤30min) / S (≤2hr) / M (≤4hr) 
 - [ ] 3.3 (M) Write failing pytest `test_github_openspec_fetcher.py::test_degraded_modes` — 404 → `github_404` warning, no exception bubbles; 401/403 → `github_pat_denied` warning; timeout → `github_timeout` warning. Covers spec scenarios "Source timeout produces github_timeout warning".
   **Dependencies:** 3.1
 
-- [ ] 3.4 (L) Implement `agent-coordinator/src/github_openspec_fetcher.py` with `fetch_proposals_from_github(source, pat, budget)` async function. Reuses `httpx.AsyncClient`, same auth header pattern as `github_prs_api.py`. Per-source request counter. Per-source 10s timeout. Make 3.1–3.3 pass.
-  **Dependencies:** 3.2, 3.3
+- [ ] 3.4 (L) Implement `agent-coordinator/src/github_openspec_fetcher.py` with `fetch_proposals_from_github(source, pat, budget)` async function. Reuses `httpx.AsyncClient`, same auth header pattern as `github_prs_api.py`. Per-source request counter. Per-source 10s timeout. The fetcher MUST source `proposal_path` from the `html_url` field of the `/contents/openspec/changes/{change_id}/proposal.md` response (not concatenated by hand), MUST filter `/contents/openspec/changes` to `type == "dir"` entries excluding `archive/`, and MUST base64-decode `content` for H1 title extraction. Make 3.1–3.3 pass.
+  **Dependencies:** 3.1a, 3.2, 3.3
 
 - [ ] 3.5 ✓ CHECKPOINT — `test_github_openspec_fetcher.py` green; commit as `feat(github-openspec): REST fetcher with budget cap + degraded modes`.
   **Dependencies:** 3.4
@@ -58,8 +61,11 @@ Test-first ordering. Each task is sized XS (≤30min) / S (≤2hr) / M (≤4hr) 
 - [ ] 4.3 (S) Write failing pytest `test_openspec_proposals_api.py::test_github_pat_missing_mixed_mode` — mixed-mode config with `GITHUB_PAT` unset → 503 with `github_pat_missing`. Local-only config without PAT continues to serve.
   **Dependencies:** 4.1
 
-- [ ] 4.4 (L) Update `agent-coordinator/src/openspec_proposals_api.py` to drive the multi-source flow described in design.md. Boot hook calls `warm_local_sources` once; request handler combines local + github results + warnings. Make 4.1–4.3 pass.
+- [ ] 4.4 (L) Update `agent-coordinator/src/openspec_proposals_api.py` to drive the multi-source flow described in design.md. Boot hook calls `warm_local_sources` once; request handler combines local + github results + warnings. **CRITICAL — implicit-local-source rule:** when `OPENSPEC_SOURCES` is unset OR empty, synthesize a single implicit `local:.` source pointing at the coordinator's own checkout (i.e., the path returned by `_get_repo_root()` per PR #211). This MUST derive `ProposalCard.repo` via `derive_local_repo`, so single-source coordinators continue to cluster PR↔Proposal cross-row by namespaced key (PR cards always carry `repo`; without the implicit source, ProposalCard.repo would be null and the mixed-null splitting rule would break clustering). Make 4.1–4.3 pass.
   **Dependencies:** 4.2, 4.3
+
+- [ ] 4.4a (S) Add pytest `test_openspec_proposals_api.py::test_implicit_local_source_unset_env` covering: `OPENSPEC_SOURCES` unset → response proposals all have `repo` derived from the coordinator's own origin (NOT null); cross-row clustering with a PR sharing the same repo + change_id forms a cluster. Asserts the implicit-local-source rule explicitly so a regression cannot silently break PR #211 clustering.
+  **Dependencies:** 4.4
 
 - [ ] 4.5 ✓ CHECKPOINT — full coordinator test suite (including PR #211 tests, to verify no regression) green; commit as `feat(openspec-proposals): multi-source fan-out + degraded mode`.
   **Dependencies:** 4.4
@@ -91,13 +97,13 @@ Test-first ordering. Each task is sized XS (≤30min) / S (≤2hr) / M (≤4hr) 
 - [ ] 7.1 (S) Write failing vitest `apps/kanban-viz/src/lib/__tests__/derive-issue-repo.test.ts` with the 4 spec scenarios for `deriveIssueRepo(labels)`: matching label → derived value; no match → null; multiple matches → first wins + console.warn; mixed case → lowercased.
   **Dependencies:** 6.3
 
-- [ ] 7.2 (S) Implement `deriveIssueRepo` in `apps/kanban-viz/src/lib/coordinator-types.ts` (or a sibling utils file). Add `repo?: string | null` to the `IssueCard` interface. Make 7.1 pass.
+- [ ] 7.2 (S) Implement `deriveIssueRepo` in `apps/kanban-viz/src/lib/coordinator-types.ts` (or a sibling utils file under `src/lib/`; do NOT import from `openspec/changes/.../contracts/` — `tsconfig.json` has `"include": ["src"]` so the SPA cannot resolve files outside `apps/kanban-viz/src/`). The in-change `contracts/generated/types.ts` is the spec source of truth; the SPA's `coordinator-types.ts` is the runtime copy that gets edited. Add `repo?: string | null` to the `IssueCard` interface AND `repo: string | null`, `change_id_namespaced: string | null` to the `ProposalCard` interface. Make 7.1 pass.
   **Dependencies:** 7.1
 
 - [ ] 7.3 (S) Write failing vitest `apps/kanban-viz/src/lib/__tests__/cluster-key.test.ts` for the cluster key resolution: same-repo cluster uses namespaced key; cross-repo same change_id does NOT cluster; all-null-repo falls back to bare; mixed null/non-null splits. Covers spec scenarios under "Namespaced Cluster Key Resolution".
   **Dependencies:** 7.2
 
-- [ ] 7.4 (M) Refactor `apps/kanban-viz/src/lib/clusterBoardCards.ts` (or wherever cluster computation lives — verify location) to use `getClusterKey(card)` + the mixed-null splitting rule. Make 7.3 pass without regressing PR #211's `clusterBoardCards` tests.
+- [ ] 7.4 (M) Refactor `clusterBoardCards` inside `apps/kanban-viz/src/hooks/useBoardCards.ts` (CONFIRMED file location — PR #211 co-located the function in the hook, NOT a standalone `src/lib/clusterBoardCards.ts`) to use `getClusterKey(card)` + the mixed-null splitting rule. Update the existing PR #211 cluster tests at `apps/kanban-viz/src/hooks/__tests__/useBoardCards.test.ts` in lock-step (don't move them). Make 7.3 pass without regressing PR #211 cluster behavior — the all-null fallback path must still group cards as before.
   **Dependencies:** 7.3
 
 - [ ] 7.5 ✓ CHECKPOINT — vitest green for `derive-issue-repo`, `cluster-key`, AND the existing PR #211 cluster tests; commit as `feat(kanban-viz): repo derivation + namespaced cluster key`.
@@ -111,7 +117,7 @@ Test-first ordering. Each task is sized XS (≤30min) / S (≤2hr) / M (≤4hr) 
 - [ ] 8.2 (S) Implement `apps/kanban-viz/src/components/RepoBadge.tsx` with hash-to-HSL color derivation (deterministic, no randomization). Make 8.1 pass.
   **Dependencies:** 8.1
 
-- [ ] 8.3 (M) Wire `RepoBadge` into `IssueCardView`, `PRCardView`, `ProposalCardView`. Update `useBoardCards` to call `deriveIssueRepo` on each issue post-fetch (before clustering). Vitest assertion: a card with `repo: "x/y"` renders the badge; a card with `repo: null` does not.
+- [ ] 8.3 (M) Wire `RepoBadge` into `Card.tsx` (the PR #211 issue renderer at `apps/kanban-viz/src/components/Card.tsx` — there is no `IssueCardView`), `PRCardView.tsx`, and `ProposalCardView.tsx`. Update `useBoardCards` to call `deriveIssueRepo` on each issue post-fetch (before clustering, so the namespaced cluster key sees the derived value). Vitest assertion: a card with `repo: "x/y"` renders the badge; a card with `repo: null` does not.
   **Dependencies:** 8.2, 7.5
 
 - [ ] 8.4 ✓ CHECKPOINT — SPA test suite green (138 PR #211 tests + new tests); commit as `feat(kanban-viz): RepoBadge + multi-repo hook integration`.
