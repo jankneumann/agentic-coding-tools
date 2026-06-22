@@ -7,9 +7,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-import tempfile
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest

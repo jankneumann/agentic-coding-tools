@@ -26,7 +26,7 @@ def _rest_pr(
     return {
         "head": {"ref": head_ref},
         "user": {"login": author_login},
-        "labels": [{"name": l} for l in (labels or [])],
+        "labels": [{"name": name} for name in (labels or [])],
         "body": body,
         "title": title,
         "draft": draft,
@@ -39,7 +39,7 @@ def _rest_pr(
 
 
 class TestFromRestPr:
-    def test_head_ref_mapped_to_headRefName(self) -> None:
+    def test_head_ref_mapped_to_headRefName(self) -> None:  # noqa: N802
         adapted = from_rest_pr(_rest_pr(head_ref="openspec/bar"))
         assert adapted["headRefName"] == "openspec/bar"
 
@@ -47,7 +47,7 @@ class TestFromRestPr:
         adapted = from_rest_pr(_rest_pr(author_login="bob"))
         assert adapted["author"] == {"login": "bob"}
 
-    def test_draft_mapped_to_isDraft(self) -> None:
+    def test_draft_mapped_to_isDraft(self) -> None:  # noqa: N802
         adapted = from_rest_pr(_rest_pr(draft=True))
         assert adapted["isDraft"] is True
 
@@ -55,11 +55,11 @@ class TestFromRestPr:
         adapted = from_rest_pr(_rest_pr(draft=False))
         assert adapted["isDraft"] is False
 
-    def test_created_at_mapped_to_createdAt(self) -> None:
+    def test_created_at_mapped_to_createdAt(self) -> None:  # noqa: N802
         adapted = from_rest_pr(_rest_pr(created_at="2025-06-01T12:00:00Z"))
         assert adapted["createdAt"] == "2025-06-01T12:00:00Z"
 
-    def test_updated_at_mapped_to_updatedAt(self) -> None:
+    def test_updated_at_mapped_to_updatedAt(self) -> None:  # noqa: N802
         adapted = from_rest_pr(_rest_pr(updated_at="2025-06-01T13:00:00Z"))
         assert adapted["updatedAt"] == "2025-06-01T13:00:00Z"
 
@@ -67,7 +67,7 @@ class TestFromRestPr:
         adapted = from_rest_pr(_rest_pr(html_url="https://github.com/owner/repo/pull/42"))
         assert adapted["url"] == "https://github.com/owner/repo/pull/42"
 
-    def test_base_ref_mapped_to_baseRefName(self) -> None:
+    def test_base_ref_mapped_to_baseRefName(self) -> None:  # noqa: N802
         adapted = from_rest_pr(_rest_pr(base_ref="develop"))
         assert adapted["baseRefName"] == "develop"
 
