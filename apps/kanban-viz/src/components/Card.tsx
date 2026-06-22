@@ -3,6 +3,7 @@ import type { IssueCard } from "../lib/coordinator-types";
 import { classify } from "../lib/reversibility";
 import { VendorSwimlanes } from "./VendorSwimlanes";
 import type { AgentActivity } from "./VendorSwimlanes";
+import { RepoBadge } from "./RepoBadge";
 
 interface Props {
   issue: IssueCard;
@@ -110,6 +111,11 @@ export function Card({
       <div data-testid="card-title" style={{ fontWeight: 600, marginBottom: 4 }}>
         {issue.title}
       </div>
+      {issue.repo != null && (
+        <div style={{ marginBottom: 4 }}>
+          <RepoBadge repo={issue.repo} />
+        </div>
+      )}
       {issue.change_id && (
         <div
           data-testid="card-change-id"

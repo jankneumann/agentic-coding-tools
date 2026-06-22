@@ -527,10 +527,12 @@ describe("e2e integration: SourceSwimlanes with PR + Proposal rows (mocked)", ()
 
   it("cluster badge renders on cards sharing a change_id", () => {
     const sharedChangeId = "extend-kanban-viz-prs-proposals";
+    const REPO = "jankneumann/agentic-coding-tools"; // match PR fixture repo
     const cards: BoardCard[] = [
-      makeIssue("i1", sharedChangeId),
+      // Issue with repo label so it clusters with PR and Proposal
+      { ...makeIssue("i1", sharedChangeId), repo: REPO },
       makePR("pr1", "openspec", sharedChangeId),
-      makeProposal("prop1", sharedChangeId),
+      makeProposal("prop1", sharedChangeId, REPO),
     ];
     const { annotated } = clusterBoardCards(cards);
 
@@ -546,9 +548,10 @@ describe("e2e integration: SourceSwimlanes with PR + Proposal rows (mocked)", ()
   it("cluster badge highlights siblings on click", async () => {
     const user = userEvent.setup();
     const sharedChangeId = "cluster-test-change";
+    const REPO = "jankneumann/agentic-coding-tools"; // match PR fixture repo
     const cards: BoardCard[] = [
       makePR("pr1", "openspec", sharedChangeId),
-      makeProposal("prop1", sharedChangeId),
+      makeProposal("prop1", sharedChangeId, REPO),
     ];
     const { annotated } = clusterBoardCards(cards);
 
