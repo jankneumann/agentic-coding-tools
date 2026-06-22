@@ -15,7 +15,7 @@
  * - ClusterBadge on every card with cluster_count > 1
  */
 import { useState } from "react";
-import type { BoardCard, IssueCard, PRCard, ProposalCard, ColumnId, PROrigin } from "../lib/coordinator-types";
+import type { BoardCard, IssueCard, PRCard, ProposalCard, ColumnId, PROrigin, SourceWarning } from "../lib/coordinator-types";
 import {
   issueStatusToColumn,
   prStatusToColumn,
@@ -25,6 +25,7 @@ import { PROriginFilter, ALL_PR_ORIGINS, filterByOrigin } from "./PROriginFilter
 import { PRCardView } from "./PRCardView";
 import { ProposalCardView } from "./ProposalCardView";
 import { ClusterBadge, ClusterHighlightWrapper } from "./ClusterBadge";
+import { HiddenReposToggle } from "./HiddenReposToggle";
 import type { AnnotatedCard } from "../hooks/useBoardCards";
 
 type RowKey = "issues" | "prs" | "proposals";
@@ -39,6 +40,16 @@ interface Props {
   initialPrOrigins?: PROrigin[];
   /** Called when the PR origin selection changes (for saved-view sync). */
   onPrOriginsChange?: (origins: PROrigin[]) => void;
+  /**
+   * Source warnings from GET /openspec/proposals multi-source response
+   * (`_warnings` field). When non-empty, the Proposals row renders a
+   * partial-result chip (D6 degraded-mode UX).
+   */
+  proposalsWarnings?: readonly SourceWarning[];
+  /** Currently hidden repos (synced from saved-view hidden_repos). */
+  hiddenRepos?: readonly string[];
+  /** Called when the user toggles repo visibility. */
+  onHiddenReposChange?: (hiddenRepos: string[]) => void;
 }
 
 const ROW_LABELS: Record<RowKey, string> = {
@@ -375,9 +386,60 @@ interface ProposalRowProps {
   annotatedByKey: Map<string, AnnotatedCard>;
   visible: boolean;
   onToggle: () => void;
+  warnings?: readonly SourceWarning[];
 }
 
-function ProposalSourceRow({ rowKey, label, bucketed, annotatedByKey, visible, onToggle }: ProposalRowProps) {
+/** Inline partial-result chip for the Proposals row (D6 degraded mode). */
+function PartialResultChip({ warnings }: { warnings: readonly SourceWarning[] }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+      <button
+        type="button"
+        data-testid="proposals-partial-result-chip"
+        onClick={() => { setExpanded((v) => !v); }}
+        aria-expanded={expanded}
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          padding: "2px 8px",
+          borderRadius: 10,
+          border: "1px solid #ff8b00",
+          background: "#fffae6",
+          color: "#974f0c",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        ⚠ Partial results ({warnings.length} source{warnings.length !== 1 ? "s" : ""} failed)
+      </button>
+      {expanded && (
+        <div
+          data-testid="proposals-warnings-detail"
+          style={{
+            fontSize: 11,
+            background: "#fffae6",
+            border: "1px solid #ff8b00",
+            borderRadius: 4,
+            padding: "4px 8px",
+            maxWidth: 320,
+            wordBreak: "break-all",
+          }}
+        >
+          {warnings.map((w, i) => (
+            <div key={i} style={{ marginBottom: i < warnings.length - 1 ? 2 : 0 }}>
+              <strong>{w.source}</strong>: {w.error}
+              {w.message ? ` — ${w.message}` : ""}
+            </div>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
+function ProposalSourceRow({ rowKey, label, bucketed, annotatedByKey, visible, onToggle, warnings }: ProposalRowProps) {
   const countBucketed: Record<ColumnId, { title: string; id: string }[]> = {
     backlog: bucketed.backlog.map((c) => ({ id: c.id, title: c.title })),
     "in-flight": bucketed["in-flight"].map((c) => ({ id: c.id, title: c.title })),
@@ -405,6 +467,9 @@ function ProposalSourceRow({ rowKey, label, bucketed, annotatedByKey, visible, o
         }}
       >
         <span style={{ fontWeight: 600, fontSize: 13, flex: 1 }}>{label}</span>
+        {warnings && warnings.length > 0 && (
+          <PartialResultChip warnings={warnings} />
+        )}
         {COLUMNS.map((col) => (
           <span
             key={col}
@@ -492,6 +557,9 @@ export function SourceSwimlanes({
   initialHiddenRows = [],
   initialPrOrigins,
   onPrOriginsChange,
+  proposalsWarnings,
+  hiddenRepos = [],
+  onHiddenReposChange,
 }: Props) {
   const [hiddenRows, setHiddenRows] = useState<Set<RowKey>>(
     new Set(initialHiddenRows),
@@ -525,8 +593,26 @@ export function SourceSwimlanes({
   const issueBucketed = bucketIssues(issueCards);
   const proposalBucketed = bucketProposals(proposalCards);
 
+  // Derive unique repos across all cards for HiddenReposToggle
+  const allRepos = Array.from(
+    new Set(
+      cards
+        .map((c) => c.repo ?? null)
+        .filter((r): r is string => r != null),
+    ),
+  ).sort();
+
   return (
     <div data-testid="source-swimlanes">
+      {allRepos.length > 0 && onHiddenReposChange && (
+        <div style={{ padding: "4px 0 8px 0" }}>
+          <HiddenReposToggle
+            repos={allRepos}
+            hiddenRepos={hiddenRepos}
+            onHiddenReposChange={onHiddenReposChange}
+          />
+        </div>
+      )}
       <IssueSourceRow
         rowKey="issues"
         label={ROW_LABELS.issues}
@@ -552,6 +638,7 @@ export function SourceSwimlanes({
         annotatedByKey={annotatedByKey}
         visible={!hiddenRows.has("proposals")}
         onToggle={() => { toggleRow("proposals"); }}
+        warnings={proposalsWarnings}
       />
     </div>
   );
