@@ -102,36 +102,54 @@ describe("clusterBoardCards", () => {
     expect(annotated[0].cluster_count).toBeNull();
   });
 
-  it("two cards sharing change_id get cluster_count=2", () => {
+  it("two cards with same repo and change_id get cluster_count=2 (namespaced)", () => {
+    // Same repo → namespaced key → cluster
     const issue = makeIssue("i1", "change-a");
+    // Simulate issue with repo label derived
+    const issueWithRepo = { ...issue, repo: "owner/repo" as string | null };
     const pr = makePR("pr1", "change-a");
-    const { clusters, annotated } = clusterBoardCards([issue, pr]);
-    expect(clusters.get("change-a")).toHaveLength(2);
+    // PR has same repo "jankneumann/agentic-coding-tools" from fixture
+    const prSameRepo = { ...pr, repo: "owner/repo" };
+    const { clusters, annotated } = clusterBoardCards([issueWithRepo, prSameRepo]);
+    expect(clusters.get("owner/repo/change-a")).toHaveLength(2);
     const issueAnnotated = annotated.find((c) => c.kind === "issue" && c.id === "i1");
     const prAnnotated = annotated.find((c) => c.kind === "pr" && c.id === "pr1");
     expect(issueAnnotated?.cluster_count).toBe(2);
     expect(prAnnotated?.cluster_count).toBe(2);
   });
 
-  it("three cards sharing change_id get cluster_count=3", () => {
-    const issue = makeIssue("i1", "change-a");
-    const pr = makePR("pr1", "change-a");
-    const proposal = makeProposal("prop1", "change-a");
+  it("two null-repo cards sharing change_id fall back to bare key cluster (back-compat)", () => {
+    // All-null-repo group → bare change_id key (back-compat for pre-multi-repo data)
+    const issue1 = makeIssue("i1", "change-a");  // repo=null
+    const issue2 = makeIssue("i2", "change-a");  // repo=null
+    const { clusters, annotated } = clusterBoardCards([issue1, issue2]);
+    expect(clusters.get("change-a")).toHaveLength(2);
+    for (const c of annotated) {
+      expect(c.cluster_count).toBe(2);
+    }
+  });
+
+  it("three same-repo cards sharing change_id get cluster_count=3 (namespaced)", () => {
+    const REPO = "owner/repo";
+    const issue = { ...makeIssue("i1", "change-a"), repo: REPO as string | null };
+    const pr = { ...makePR("pr1", "change-a"), repo: REPO };
+    const proposal = makeProposal("prop1", "change-a", REPO);
     const { clusters, annotated } = clusterBoardCards([issue, pr, proposal]);
-    expect(clusters.get("change-a")).toHaveLength(3);
+    expect(clusters.get(`${REPO}/change-a`)).toHaveLength(3);
     for (const c of annotated) {
       expect(c.cluster_count).toBe(3);
     }
   });
 
   it("cards with different change_ids form independent clusters", () => {
-    const issueA = makeIssue("i1", "change-a");
-    const issueB = makeIssue("i2", "change-b");
-    const prA = makePR("pr1", "change-a");
+    const REPO = "owner/repo";
+    const issueA = { ...makeIssue("i1", "change-a"), repo: REPO as string | null };
+    const issueB = { ...makeIssue("i2", "change-b"), repo: REPO as string | null };
+    const prA = { ...makePR("pr1", "change-a"), repo: REPO };
     const { clusters, annotated } = clusterBoardCards([issueA, issueB, prA]);
-    expect(clusters.get("change-a")).toHaveLength(2);
+    expect(clusters.get(`${REPO}/change-a`)).toHaveLength(2);
     // change-b has only one card → no cluster entry for single-card change_id
-    expect(clusters.get("change-b")).toBeUndefined();
+    expect(clusters.get(`${REPO}/change-b`)).toBeUndefined();
     const issueAAnnotated = annotated.find((c) => c.kind === "issue" && c.id === "i1");
     const issueBAnnotated = annotated.find((c) => c.kind === "issue" && c.id === "i2");
     expect(issueAAnnotated?.cluster_count).toBe(2);
@@ -376,10 +394,13 @@ describe("useBoardCards — cluster computation", () => {
     unmount();
   });
 
-  it("clusters map links cards sharing change_id across rows", async () => {
-    const issue = makeIssue("i1", "change-a");
-    const pr = makePR("pr1", "change-a");
-    const proposal = makeProposal("prop1", "change-a");
+  it("clusters map links cards sharing change_id across rows (same repo)", async () => {
+    // Use consistent repos across all three card types for same-repo clustering.
+    // Issue gets repo via `repo:` label (deriveIssueRepo picks it up post-fetch).
+    const REPO = "jankneumann/agentic-coding-tools";
+    const issue = { ...makeIssue("i1", "change-a"), labels: [`repo:${REPO}`, "change:change-a"] };
+    const pr = makePR("pr1", "change-a"); // makePR already uses REPO
+    const proposal = makeProposal("prop1", "change-a", REPO);
 
     mockFetch({
       "/issues/list": { issues: [issue] },
@@ -393,7 +414,88 @@ describe("useBoardCards — cluster computation", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.clusters.get("change-a")).toHaveLength(3);
+    // All three cards share the same repo → namespaced cluster key
+    expect(result.current.clusters.get(`${REPO}/change-a`)).toHaveLength(3);
+
+    unmount();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Multi-repo cluster scenarios (task 7.4 additions)
+
+describe("useBoardCards — multi-repo cluster scenarios", () => {
+  it("cross-repo same change_id does NOT cluster (separate namespaced keys)", async () => {
+    // PR from repo-a, proposal from repo-b — same bare change_id but different repos
+    const pr = { ...makePR("pr1", "fix-auth"), repo: "owner/repo-a" };
+    const proposal = makeProposal("prop1", "fix-auth", "owner/repo-b");
+
+    mockFetch({
+      "/issues/list": { issues: [] },
+      "/github/prs": { prs: [pr] },
+      "/openspec/proposals": { proposals: [proposal] },
+    });
+
+    const { result, unmount } = renderHook(() =>
+      useBoardCards({ apiUrl: BASE_URL, apiKey: API_KEY, changeIds: ["fix-auth"] }),
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Should NOT cluster (different repos)
+    expect(result.current.clusters.size).toBe(0);
+
+    unmount();
+  });
+
+  it("issue with repo: label clusters with PR and proposal sharing same repo + change_id", async () => {
+    const REPO = "owner/myrepo";
+    // Issue carries repo via label — deriveIssueRepo picks it up
+    const issue = {
+      ...makeIssue("i1", "my-feature"),
+      labels: [`repo:${REPO}`, "change:my-feature"],
+    };
+    const pr = { ...makePR("pr1", "my-feature"), repo: REPO };
+    const proposal = makeProposal("prop1", "my-feature", REPO);
+
+    mockFetch({
+      "/issues/list": { issues: [issue] },
+      "/github/prs": { prs: [pr] },
+      "/openspec/proposals": { proposals: [proposal] },
+    });
+
+    const { result, unmount } = renderHook(() =>
+      useBoardCards({ apiUrl: BASE_URL, apiKey: API_KEY, changeIds: ["my-feature"] }),
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const clusterKey = `${REPO}/my-feature`;
+    expect(result.current.clusters.get(clusterKey)).toHaveLength(3);
+
+    unmount();
+  });
+
+  it("null-repo issues do not cluster with repo-set PRs (mixed-null split)", async () => {
+    // Issue has no repo: label → repo=null after deriveIssueRepo
+    // PR has non-null repo → namespaced key
+    const issue = makeIssue("i1", "fix-auth"); // repo=null, no label
+    const pr = makePR("pr1", "fix-auth"); // repo="jankneumann/agentic-coding-tools"
+
+    mockFetch({
+      "/issues/list": { issues: [issue] },
+      "/github/prs": { prs: [pr] },
+      "/openspec/proposals": { proposals: [] },
+    });
+
+    const { result, unmount } = renderHook(() =>
+      useBoardCards({ apiUrl: BASE_URL, apiKey: API_KEY, changeIds: ["fix-auth"] }),
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Mixed-null split: each in its own effective key group (size 1 each → no cluster)
+    expect(result.current.clusters.size).toBe(0);
 
     unmount();
   });

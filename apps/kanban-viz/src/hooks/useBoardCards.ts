@@ -21,6 +21,7 @@ import type {
   ProposalCard,
   ProposalListResponse,
 } from "../lib/coordinator-types";
+import { getClusterKey, deriveIssueRepo } from "../lib/coordinator-types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure utility: cluster computation
@@ -37,36 +38,87 @@ export interface ClusterResult {
 
 /**
  * clusterBoardCards — pure function that:
- * 1. Groups cards by change_id (excluding nulls).
+ * 1. Groups cards by a namespaced cluster key.
  * 2. Annotates each card with cluster_count (>1 means it has cross-row siblings).
  * 3. Returns the cluster Map and the annotated array.
  *
+ * Cluster key resolution (D3 + R1-005):
+ *   - When a card has repo != null: key = `<repo>/<change_id>` (namespaced)
+ *   - When ALL cards in a candidate change_id group have repo == null:
+ *     key = bare change_id (back-compat for pre-multi-repo data)
+ *   - Mixed-null groups SPLIT: repo-null cards form their own bare-key group
+ *     while repo-set cards form per-repo namespaced groups. The groups never
+ *     mix because a cluster cannot contain both repo=null and repo="x/y" cards.
+ *
  * Cards with change_id=null receive cluster_count=null and are excluded from clusters.
- * Cards that are the only card for a given change_id also receive cluster_count=null.
+ * Cards that are the only card for a given effective key also receive cluster_count=null.
  */
-export function clusterBoardCards(cards: readonly BoardCard[]): ClusterResult {
-  // Group by change_id
+export function clusterBoardCards(
+  cards: readonly BoardCard[],
+  clusterKeyOverride?: (card: BoardCard) => string | null,
+): ClusterResult {
+  const resolveKey = clusterKeyOverride ?? getClusterKey;
+
+  // First pass: for each bare change_id, collect all cards and determine
+  // whether ALL have null repo (i.e., the bare-fallback case).
   const byChangeId = new Map<string, BoardCard[]>();
   for (const card of cards) {
-    const cid = card.change_id;
-    if (cid == null) continue;
-    const list = byChangeId.get(cid) ?? [];
-    list.push(card);
-    byChangeId.set(cid, list);
+    if (card.change_id == null) continue;
+    const group = byChangeId.get(card.change_id) ?? [];
+    group.push(card);
+    byChangeId.set(card.change_id, group);
+  }
+
+  // Compute the effective cluster key for each card.
+  //
+  // Mixed-null split rule (D3, spec "Namespaced Cluster Key Resolution"):
+  //   - A cluster cannot mix repo=null and repo="x/y" members.
+  //   - If ALL members of a bare change_id group have repo=null → bare key (back-compat).
+  //   - If SOME members have repo=null (mixed group):
+  //       * The repo-null cards use the bare change_id as their key
+  //         (they cluster ONLY with other repo-null cards sharing the same change_id).
+  //       * The repo-set cards use their namespaced key (`<repo>/<change_id>`).
+  //   - If ALL members have repo set → namespaced keys (no bare fallback).
+  const effectiveKey = (card: BoardCard): string | null => {
+    if (card.change_id == null) return null;
+    const group = byChangeId.get(card.change_id) ?? [];
+    const allNull = group.every((c) => (c.repo ?? null) == null);
+    if (allNull) {
+      // Back-compat fallback: all members have null repo → use bare change_id
+      return card.change_id;
+    }
+    // Mixed or all-repo case:
+    if ((card.repo ?? null) == null) {
+      // This card has no repo — give it the bare change_id key so it can
+      // cluster with other null-repo cards (split from the namespaced group).
+      return card.change_id;
+    }
+    // Card has repo set → namespaced key
+    return resolveKey(card);
+  };
+
+  // Second pass: group by effective key
+  const byEffectiveKey = new Map<string, BoardCard[]>();
+  for (const card of cards) {
+    const key = effectiveKey(card);
+    if (key == null) continue;
+    const group = byEffectiveKey.get(key) ?? [];
+    group.push(card);
+    byEffectiveKey.set(key, group);
   }
 
   // Only include clusters with >1 card
   const clusters = new Map<string, BoardCard[]>();
-  for (const [cid, group] of byChangeId) {
+  for (const [key, group] of byEffectiveKey) {
     if (group.length > 1) {
-      clusters.set(cid, group);
+      clusters.set(key, group);
     }
   }
 
-  // Annotate
+  // Annotate: find which cluster (if any) a card belongs to
   const annotated: AnnotatedCard[] = cards.map((card) => {
-    const cid = card.change_id;
-    const clusterSize = cid != null ? (clusters.get(cid)?.length ?? null) : null;
+    const key = effectiveKey(card);
+    const clusterSize = key != null ? (clusters.get(key)?.length ?? null) : null;
     return { ...card, cluster_count: clusterSize } as AnnotatedCard;
   });
 
@@ -173,7 +225,12 @@ export function useBoardCards({
       if (!mountedRef.current || currentGenRef.current !== gen) return;
 
       if (issueResult.status === "fulfilled") {
-        setIssueRow({ cards: issueResult.value, loading: false, error: null });
+        // Derive repo from labels client-side (D4 — label convention)
+        const issuesWithRepo = issueResult.value.map((issue) => ({
+          ...issue,
+          repo: deriveIssueRepo(issue.labels),
+        }));
+        setIssueRow({ cards: issuesWithRepo, loading: false, error: null });
       } else {
         setIssueRow((prev) => ({
           ...prev,
