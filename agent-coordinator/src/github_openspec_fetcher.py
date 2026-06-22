@@ -134,12 +134,10 @@ async def _do_fetch(
     May raise httpx exceptions — the caller wraps them.
     """
     warnings: list[dict[str, Any]] = []
-    request_count = 0
 
     # Step 1: directory listing
     listing_url = f"{_GITHUB_API_BASE}/repos/{owner_repo}/contents/openspec/changes"
     resp = await client.get(listing_url, headers=_github_headers(pat))
-    request_count += 1
 
     if resp.status_code == 404:
         warnings.append(_make_warning(source, "github_404", status=404))
@@ -149,9 +147,16 @@ async def _do_fetch(
             _make_warning(source, "github_pat_denied", status=resp.status_code)
         )
         return [], warnings
-    if resp.status_code >= 400:
+    if resp.status_code >= 500:
+        # 5xx errors map to the spec error code "github_5xx"
         warnings.append(
-            _make_warning(source, f"github_http_{resp.status_code}", status=resp.status_code)
+            _make_warning(source, "github_5xx", status=resp.status_code)
+        )
+        return [], warnings
+    if resp.status_code >= 400:
+        # Unexpected 4xx (e.g. 429 rate-limit, 422 unprocessable)
+        warnings.append(
+            _make_warning(source, "github_5xx", status=resp.status_code)
         )
         return [], warnings
 
@@ -190,7 +195,6 @@ async def _do_fetch(
             f"{_GITHUB_API_BASE}/repos/{owner_repo}/contents/openspec/changes/{change_id}"
         )
         contents_resp = await client.get(contents_url, headers=_github_headers(pat))
-        request_count += 1
 
         if contents_resp.status_code != 200:
             # Skip this dir (stray directory without proposal.md)
@@ -250,7 +254,6 @@ async def _do_fetch(
         has_branch, branch_name, code_changes = await _probe_branch(
             client, owner_repo, change_id, pat
         )
-        request_count += 2  # conservative upper bound for branch probe calls
 
         status = "in-impl" if code_changes > 0 else "drafted"
 

@@ -16,10 +16,11 @@ import { fetchIssuesUnioned } from "./useCoordinator";
 import type {
   BoardCard,
   IssueCard,
+  MultiSourceProposalListResponse,
   PRCard,
   PRListResponse,
   ProposalCard,
-  ProposalListResponse,
+  SourceWarning,
 } from "../lib/coordinator-types";
 import { getClusterKey, deriveIssueRepo } from "../lib/coordinator-types";
 
@@ -155,6 +156,12 @@ export interface UseBoardCardsResult {
   refreshGeneration: number;
   /** Trigger a parallel refetch of all three sources with ?refresh=true. */
   refresh: () => Promise<void>;
+  /**
+   * Per-source failures from GET /openspec/proposals _warnings field.
+   * Non-empty when at least one configured source failed on the last fetch.
+   * Reset to [] on each refresh so warnings never persist across refreshes.
+   */
+  proposalsWarnings: readonly SourceWarning[];
 }
 
 async function fetchPRs(apiUrl: string, apiKey: string, bust = false): Promise<PRCard[]> {
@@ -168,15 +175,25 @@ async function fetchPRs(apiUrl: string, apiKey: string, bust = false): Promise<P
   return Array.from(data.prs);
 }
 
-async function fetchProposals(apiUrl: string, apiKey: string, bust = false): Promise<ProposalCard[]> {
+async function fetchProposals(
+  apiUrl: string,
+  apiKey: string,
+  bust = false,
+): Promise<{ proposals: ProposalCard[]; warnings: readonly SourceWarning[] }> {
   const url = new URL(`${apiUrl}/openspec/proposals`);
   if (bust) url.searchParams.set("refresh", "true");
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
   if (!res.ok) throw new Error(`GET /openspec/proposals: ${res.status}`);
-  const data = (await res.json()) as ProposalListResponse;
-  return Array.from(data.proposals);
+  // Cast to MultiSourceProposalListResponse so _warnings are preserved.
+  // Wire-compatible with PR #211's ProposalListResponse (adds optional _warnings,
+  // widens source enum to include "mixed").
+  const data = (await res.json()) as MultiSourceProposalListResponse;
+  return {
+    proposals: Array.from(data.proposals),
+    warnings: data._warnings ?? [],
+  };
 }
 
 export function useBoardCards({
@@ -206,6 +223,9 @@ export function useBoardCards({
     error: null,
   });
   const [refreshGeneration, setRefreshGeneration] = useState(0);
+  // Per-source warnings from the last /openspec/proposals response.
+  // Reset to [] on each refresh so warnings never persist across refreshes (D6).
+  const [proposalsWarnings, setProposalsWarnings] = useState<readonly SourceWarning[]>([]);
 
   const mountedRef = useRef(true);
   const currentGenRef = useRef(0);
@@ -250,13 +270,15 @@ export function useBoardCards({
       }
 
       if (proposalResult.status === "fulfilled") {
-        setProposalRow({ cards: proposalResult.value, loading: false, error: null });
+        setProposalRow({ cards: proposalResult.value.proposals, loading: false, error: null });
+        setProposalsWarnings(proposalResult.value.warnings);
       } else {
         setProposalRow((prev) => ({
           ...prev,
           loading: false,
           error: String(proposalResult.reason),
         }));
+        setProposalsWarnings([]);
       }
     },
     [apiUrl, apiKey, stableChangeIds],
@@ -275,10 +297,12 @@ export function useBoardCards({
   const refresh = useCallback(async () => {
     currentGenRef.current += 1;
     setRefreshGeneration(currentGenRef.current);
-    // Reset loading state
+    // Reset loading state and clear stale warnings so the chip disappears
+    // while the next refresh is in-flight (D6: only latest-refresh warnings shown).
     setIssueRow((prev) => ({ ...prev, loading: true }));
     setPrRow((prev) => ({ ...prev, loading: true }));
     setProposalRow((prev) => ({ ...prev, loading: true }));
+    setProposalsWarnings([]);
     await fetchAll(true);
   }, [fetchAll]);
 
@@ -303,5 +327,6 @@ export function useBoardCards({
     loading,
     refreshGeneration,
     refresh,
+    proposalsWarnings,
   };
 }
