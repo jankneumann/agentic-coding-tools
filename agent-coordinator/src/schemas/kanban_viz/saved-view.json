@@ -60,6 +60,14 @@
             "enum": ["issues", "prs", "proposals"]
           },
           "description": "Source rows hidden in the board. Persisted by the SPA. Added in extend-kanban-viz-prs-proposals."
+        },
+        "hidden_repos": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+          },
+          "description": "Repos to hide from the board (all three rows). Each entry is <owner>/<repo>. Added in extend-kanban-viz-multi-repo-proposals."
         }
       },
       "additionalProperties": false
