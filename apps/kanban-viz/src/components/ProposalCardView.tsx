@@ -8,6 +8,7 @@
 import type { ProposalCard } from "../lib/coordinator-types";
 import { ClusterBadge, ClusterHighlightWrapper } from "./ClusterBadge";
 import type { AnnotatedCard } from "../hooks/useBoardCards";
+import { RepoBadge } from "./RepoBadge";
 
 interface Props {
   card: ProposalCard & Partial<Pick<AnnotatedCard, "cluster_count">>;
@@ -75,6 +76,13 @@ export function ProposalCardView({ card }: Props) {
         >
           {card.change_id}
         </div>
+
+        {/* RepoBadge — shown when repo is non-null */}
+        {card.repo != null && (
+          <div style={{ marginBottom: 3 }}>
+            <RepoBadge repo={card.repo} />
+          </div>
+        )}
 
         {/* Branch indicator */}
         {card.has_branch && card.branch_name && (
