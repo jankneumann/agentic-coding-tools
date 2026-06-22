@@ -53,6 +53,7 @@ packages:
         - "agent-coordinator/tests/test_github_openspec_fetcher.py"
         - "agent-coordinator/tests/test_openspec_proposals_api.py"
         - "agent-coordinator/tests/test_kanban_viz_saved_views.py"
+        - "agent-coordinator/tests/fixtures/github_contents_openspec_changes.json"
       keys:
         - "feature:extend-kanban-viz-multi-repo-proposals:sources"
       ttl_minutes: 180
@@ -67,6 +68,7 @@ packages:
         - "agent-coordinator/tests/test_github_openspec_fetcher.py"
         - "agent-coordinator/tests/test_openspec_proposals_api.py"
         - "agent-coordinator/tests/test_kanban_viz_saved_views.py"
+        - "agent-coordinator/tests/fixtures/github_contents_openspec_changes.json"
       read_allow:
         - "agent-coordinator/src/**"
         - "agent-coordinator/tests/**"
@@ -130,15 +132,15 @@ packages:
         - "openspec/changes/extend-kanban-viz-multi-repo-proposals/contracts/openapi/v1.yaml"
         - "openspec/changes/extend-kanban-viz-multi-repo-proposals/contracts/generated/types.ts"
         - "apps/kanban-viz/src/lib/coordinator-types.ts"
-        - "apps/kanban-viz/src/lib/clusterBoardCards.ts"
         - "apps/kanban-viz/src/lib/__tests__/derive-issue-repo.test.ts"
         - "apps/kanban-viz/src/lib/__tests__/cluster-key.test.ts"
         - "apps/kanban-viz/src/components/RepoBadge.tsx"
         - "apps/kanban-viz/src/components/__tests__/RepoBadge.test.tsx"
-        - "apps/kanban-viz/src/components/IssueCardView.tsx"
+        - "apps/kanban-viz/src/components/Card.tsx"
         - "apps/kanban-viz/src/components/PRCardView.tsx"
         - "apps/kanban-viz/src/components/ProposalCardView.tsx"
         - "apps/kanban-viz/src/hooks/useBoardCards.ts"
+        - "apps/kanban-viz/src/hooks/__tests__/useBoardCards.test.ts"
       keys:
         - "feature:extend-kanban-viz-multi-repo-proposals:spa"
       ttl_minutes: 180
@@ -149,7 +151,7 @@ packages:
         - "apps/kanban-viz/src/lib/**"
         - "apps/kanban-viz/src/hooks/**"
         - "apps/kanban-viz/src/components/RepoBadge.tsx"
-        - "apps/kanban-viz/src/components/IssueCardView.tsx"
+        - "apps/kanban-viz/src/components/Card.tsx"
         - "apps/kanban-viz/src/components/PRCardView.tsx"
         - "apps/kanban-viz/src/components/ProposalCardView.tsx"
         - "apps/kanban-viz/src/components/__tests__/RepoBadge.test.tsx"
