@@ -1,0 +1,28 @@
+openapi: "3.1.0"
+info:
+  title: "<feature-title> API"
+  version: "0.1.0"
+  description: "Contract for <change-id>"
+paths: {}
+  # /v1/example:
+  #   get:
+  #     operationId: getExample
+  #     summary: Example endpoint
+  #     responses:
+  #       "200":
+  #         description: Success
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: "#/components/schemas/ExampleResponse"
+components:
+  schemas: {}
+    # ExampleResponse:
+    #   type: object
+    #   required: [id, name]
+    #   properties:
+    #     id:
+    #       type: string
+    #       format: uuid
+    #     name:
+    #       type: string

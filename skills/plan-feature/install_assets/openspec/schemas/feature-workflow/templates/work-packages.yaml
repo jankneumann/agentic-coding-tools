@@ -1,0 +1,120 @@
+schema_version: 1
+
+feature:
+  id: "<change-id>"
+  title: "<feature title>"
+  plan_revision: 1
+  # created_by: "<agent-id>"
+  # created_at: "<ISO 8601>"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/openapi/v1.yaml"
+    files:
+      - "contracts/openapi/v1.yaml"
+  # generated:
+  #   pydantic_dir: "contracts/generated/python"
+  #   typescript_dir: "contracts/generated/typescript"
+  # mocks:
+  #   prism:
+  #     enabled: true
+  #     command: "npx prism mock contracts/openapi/v1.yaml"
+  #     base_url: "http://localhost:4010"
+  # cdc:
+  #   pact:
+  #     enabled: false
+
+# defaults:
+#   priority: 5
+#   lock_ttl_minutes: 120
+#   timeout_minutes: 60
+#   retry_budget: 1
+#   verification_tier_required: "A"
+#   min_trust_level: 2
+
+packages:
+  # --- Example work package ---
+  # - package_id: "wp-backend"
+  #   title: "Backend API implementation"
+  #   task_type: "implement"
+  #   description: "Implement backend API endpoints per OpenAPI contract"
+  #   role: "backend-engineer"
+  #   priority: 3
+  #   depends_on: ["wp-contracts"]
+  #   locks:
+  #     files:
+  #       - "src/api/users.py"
+  #     keys:
+  #       - "api:GET /v1/users"
+  #       - "db:schema:users"
+  #     ttl_minutes: 120
+  #     reason: "Backend API implementation"
+  #   scope:
+  #     write_allow:
+  #       - "src/api/**"
+  #       - "tests/api/**"
+  #     read_allow:
+  #       - "src/**"
+  #       - "contracts/**"
+  #     deny:
+  #       - "src/frontend/**"
+  #   worktree:
+  #     name: "wp-backend"
+  #     mode: "isolated"
+  #   timeout_minutes: 60
+  #   retry_budget: 1
+  #   min_trust_level: 2
+  #   verification:
+  #     tier_required: "A"
+  #     steps:
+  #       - name: "unit-tests"
+  #         kind: "command"
+  #         command: "pytest tests/api/ -v"
+  #         expect_exit_code: 0
+  #         evidence:
+  #           artifacts:
+  #             - "artifacts/wp-backend/pytest.xml"
+  #           result_keys:
+  #             - "test_count"
+  #             - "pass_count"
+  #   outputs:
+  #     result_keys:
+  #       - "files_modified"
+  #       - "test_count"
+
+  # --- Integration package (always last) ---
+  # - package_id: "wp-integration"
+  #   title: "Integration merge and full test suite"
+  #   task_type: "integrate"
+  #   description: "Merge all worktrees, run full test suite and cross-package verification"
+  #   priority: 1
+  #   depends_on: ["wp-backend", "wp-frontend"]
+  #   locks:
+  #     files: []  # Claims union of all package file locks at runtime
+  #     keys: []
+  #   scope:
+  #     write_allow: ["**"]
+  #     read_allow: ["**"]
+  #   worktree:
+  #     name: "wp-integration"
+  #     mode: "shared"
+  #   timeout_minutes: 120
+  #   retry_budget: 0
+  #   min_trust_level: 2
+  #   verification:
+  #     tier_required: "A"
+  #     steps:
+  #       - name: "full-test-suite"
+  #         kind: "command"
+  #         command: "pytest --tb=short"
+  #         expect_exit_code: 0
+  #         evidence:
+  #           artifacts:
+  #             - "artifacts/wp-integration/pytest.xml"
+  #           result_keys:
+  #             - "test_count"
+  #   outputs:
+  #     result_keys:
+  #       - "merge_commit"
+  #       - "test_count"

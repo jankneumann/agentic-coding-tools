@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: ./install.sh [--target <directory>] [--agents <list>] [--mode <symlink|rsync|copy>] [--deps <none|print|apply>] [--python-tools <none|print|apply>] [--copy] [--force]
+Usage: ./install.sh [--target <directory>] [--agents <list>] [--mode <symlink|rsync|copy>] [--deps <none|print|apply>] [--openspec-assets <none|print|sync>] [--openspec-cli <none|print|apply|required>] [--python-tools <none|print|apply>] [--copy] [--force]
 
 Install skills into agent config directories using symlinks or synced copies.
 Any directory under skills/ with SKILL.md is installed automatically.
@@ -19,6 +19,13 @@ Options:
   --deps <mode>          Per-skill dependency hooks mode:
                          none (skip), print (show install commands), apply (execute)
                          Default: print
+  --openspec-assets <mode>
+                         Skill-owned OpenSpec asset mode:
+                         none (skip), print (show files), sync (install schemas/templates)
+                         Default: sync
+  --openspec-cli <mode>  OpenSpec CLI preflight mode:
+                         none (skip), print (show install command), apply (install with npm),
+                         required (fail if missing). Default follows --deps.
   --python-tools <mode>  Python tool bootstrap mode for pytest,mypy,ruff:
                          none (skip), print (show commands), apply (install into venv)
                          Default: print
@@ -49,6 +56,8 @@ AGENTS="claude,agents"
 MODE="rsync"
 FORCE=0
 DEPS_MODE="print"
+OPENSPEC_ASSETS_MODE="sync"
+OPENSPEC_CLI_MODE=""
 PYTHON_TOOLS_MODE="print"
 PYTHON_PACKAGES="pytest,mypy,ruff"
 PYTHON_VENV=".skills-venv"
@@ -73,6 +82,16 @@ while [[ $# -gt 0 ]]; do
     --deps)
       [[ $# -ge 2 ]] || { echo "Missing value for --deps" >&2; exit 1; }
       DEPS_MODE="$2"
+      shift 2
+      ;;
+    --openspec-assets)
+      [[ $# -ge 2 ]] || { echo "Missing value for --openspec-assets" >&2; exit 1; }
+      OPENSPEC_ASSETS_MODE="$2"
+      shift 2
+      ;;
+    --openspec-cli)
+      [[ $# -ge 2 ]] || { echo "Missing value for --openspec-cli" >&2; exit 1; }
+      OPENSPEC_CLI_MODE="$2"
       shift 2
       ;;
     --python-tools)
@@ -126,6 +145,26 @@ case "$DEPS_MODE" in
   none|print|apply) ;;
   *)
     echo "Invalid --deps: $DEPS_MODE (expected: none, print, or apply)" >&2
+    exit 1
+    ;;
+esac
+
+case "$OPENSPEC_ASSETS_MODE" in
+  none|print|sync) ;;
+  *)
+    echo "Invalid --openspec-assets: $OPENSPEC_ASSETS_MODE (expected: none, print, or sync)" >&2
+    exit 1
+    ;;
+esac
+
+if [[ -z "$OPENSPEC_CLI_MODE" ]]; then
+  OPENSPEC_CLI_MODE="$DEPS_MODE"
+fi
+
+case "$OPENSPEC_CLI_MODE" in
+  none|print|apply|required) ;;
+  *)
+    echo "Invalid --openspec-cli: $OPENSPEC_CLI_MODE (expected: none, print, apply, or required)" >&2
     exit 1
     ;;
 esac
@@ -295,6 +334,89 @@ install_python_tools() {
   echo "  export PATH=\"$venv_path/bin:\$PATH\""
 }
 
+sync_skill_openspec_assets() {
+  local mode="$1"
+  local assets_seen=0
+  local files_seen=0
+
+  if [[ "$mode" == "none" ]]; then
+    echo "OpenSpec skill assets: skipped (--openspec-assets none)"
+    return 0
+  fi
+
+  printf '\nSkill-owned OpenSpec assets (mode=%s)\n' "$mode"
+  for skill_path in "${skills[@]}"; do
+    local skill_name assets_dir
+    skill_name="$(basename "$skill_path")"
+    assets_dir="$skill_path/install_assets/openspec"
+    [[ -d "$assets_dir" ]] || continue
+
+    assets_seen=$((assets_seen + 1))
+
+    if [[ "$mode" == "print" ]]; then
+      echo "  openspec-assets  $skill_name (print)"
+      while IFS= read -r asset_file; do
+        local rel_asset
+        rel_asset="${asset_file#$assets_dir/}"
+        echo "    openspec/$rel_asset"
+        files_seen=$((files_seen + 1))
+      done < <(find "$assets_dir" -type f | sort)
+      continue
+    fi
+
+    if ! command -v rsync >/dev/null 2>&1; then
+      echo "OpenSpec asset sync requires rsync, but rsync was not found in PATH" >&2
+      return 1
+    fi
+
+    mkdir -p "$TARGET_ROOT/openspec"
+    rsync -a --checksum "$assets_dir/" "$TARGET_ROOT/openspec/"
+    files_seen=$((files_seen + $(find "$assets_dir" -type f | wc -l | tr -d ' ')))
+    echo "  openspec-assets  $skill_name -> openspec/"
+  done
+
+  if [[ $assets_seen -eq 0 ]]; then
+    echo "No skill-owned OpenSpec assets found (expected at <skill>/install_assets/openspec/)."
+    return 0
+  fi
+
+  echo "OpenSpec assets processed: $assets_seen skill(s), $files_seen file(s)"
+}
+
+check_openspec_cli() {
+  local mode="$1"
+
+  if [[ "$mode" == "none" ]]; then
+    echo "OpenSpec CLI preflight: skipped (--openspec-cli none)"
+    return 0
+  fi
+
+  printf '\nOpenSpec CLI preflight (mode=%s)\n' "$mode"
+  if command -v openspec >/dev/null 2>&1; then
+    echo "OpenSpec CLI: $(openspec --version 2>/dev/null || echo installed)"
+    return 0
+  fi
+
+  echo "OpenSpec CLI missing."
+  echo "Install with:"
+  echo "  npm install -g @fission-ai/openspec"
+
+  if [[ "$mode" == "required" ]]; then
+    return 1
+  fi
+
+  if [[ "$mode" != "apply" ]]; then
+    return 0
+  fi
+
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "npm not found; cannot install OpenSpec CLI." >&2
+    return 1
+  fi
+
+  npm install -g @fission-ai/openspec
+}
+
 # Top-level shared helper libraries that ship alongside skills. These are
 # directories directly under skills/ that lack a SKILL.md but contain Python
 # modules imported from skill scripts at runtime (e.g. worktree.py imports
@@ -435,6 +557,8 @@ echo "Installing ${#skills[@]} skill directorie(s) from: $SCRIPT_DIR"
 echo "Target root: $TARGET_ROOT"
 echo "Mode: $MODE"
 echo "Dependency hooks: $DEPS_MODE"
+echo "OpenSpec assets: $OPENSPEC_ASSETS_MODE"
+echo "OpenSpec CLI: $OPENSPEC_CLI_MODE"
 echo "Python tools: $PYTHON_TOOLS_MODE"
 
 printf '\nRemoving deprecated skills...\n'
@@ -588,6 +712,8 @@ done
 validate_related_keys
 
 python_venv_path="$(resolve_target_relative_path "$PYTHON_VENV")"
+sync_skill_openspec_assets "$OPENSPEC_ASSETS_MODE"
+check_openspec_cli "$OPENSPEC_CLI_MODE"
 run_skill_dependency_hooks "$DEPS_MODE"
 install_python_tools "$PYTHON_TOOLS_MODE" "$PYTHON_PACKAGES" "$python_venv_path"
 
