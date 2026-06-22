@@ -44,11 +44,13 @@ describe("RepoBadge", () => {
     expect(badge.getAttribute("title")).toBe("owner/myrepo");
   });
 
-  it("aria-label includes the full repo qualifier", () => {
-    render(<RepoBadge repo="owner/myrepo" />);
+  it("aria-label matches spec: 'Repository <owner>/<repo>'", () => {
+    render(<RepoBadge repo="jankneumann/agentic-coding-tools" />);
     const badge = screen.getByTestId("repo-badge");
-    const ariaLabel = badge.getAttribute("aria-label") ?? "";
-    expect(ariaLabel).toContain("owner/myrepo");
+    // Spec scenario: aria-label SHALL equal "Repository jankneumann/agentic-coding-tools"
+    expect(badge.getAttribute("aria-label")).toBe(
+      "Repository jankneumann/agentic-coding-tools",
+    );
   });
 
   it("same repo string always produces the same color (deterministic)", () => {

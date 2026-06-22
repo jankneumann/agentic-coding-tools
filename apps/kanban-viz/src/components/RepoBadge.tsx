@@ -60,7 +60,7 @@ export function RepoBadge({ repo }: Props) {
     <span
       data-testid="repo-badge"
       title={repo}
-      aria-label={`repository: ${repo}`}
+      aria-label={`Repository ${repo}`}
       style={{
         display: "inline-block",
         backgroundColor: bgColor,
