@@ -384,6 +384,199 @@ describe.skipIf(skip)(
   },
 );
 
+// ---------------------------------------------------------------------------
+// Section 10.1 — Multi-source board integration (mocked, no live coordinator)
+//
+// Covers the multi-repo shape from extend-kanban-viz-multi-repo-proposals:
+//   - Proposals from 2 distinct repos + _warnings array
+//   - Issues with repo:<owner>/<repo> labels → derive IssueCard.repo
+//   - Same-repo + same-change_id → cluster forms across rows
+//   - Cross-repo + same-change_id → NO cluster (D3 namespaced key)
+//   - Partial-result chip appears when proposalsWarnings.length > 0
+//   - hidden_repos filter excludes matching cards (HiddenReposToggle)
+// ---------------------------------------------------------------------------
+
+import { HiddenReposToggle } from "../components/HiddenReposToggle";
+import { deriveIssueRepo } from "../lib/coordinator-types";
+import type { SourceWarning } from "../lib/coordinator-types";
+
+// Build multi-source proposal response fixture
+const REPO_A = "owner/repo-a";
+const REPO_B = "owner/repo-b";
+const SHARED_CHANGE_ID = "multi-repo-shared-change";
+
+const multiSourceProposals: ProposalCard[] = [
+  makeProposal("prop-a1", SHARED_CHANGE_ID, REPO_A),
+  makeProposal("prop-b1", "repo-b-only-change", REPO_B),
+];
+
+const multiSourceWarnings: SourceWarning[] = [
+  { source: "github:owner/repo-c", error: "github_404" },
+];
+
+// Issues with repo: labels for repo-a (same repo as prop-a1)
+function makeIssueWithRepoLabel(
+  id: string,
+  changeId: string | null,
+  repoLabel: string | null,
+): IssueCard {
+  return {
+    kind: "issue",
+    id,
+    title: `Issue ${id}`,
+    body: null,
+    status: "pending",
+    priority: 1,
+    labels: repoLabel ? [`repo:${repoLabel}`, `change:${changeId ?? ""}`] : [],
+    assignee: null,
+    claimed_by: null,
+    claimed_at: null,
+    completed_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: null,
+    change_id: changeId,
+    task_key: null,
+    // repo is derived client-side from labels; not set on the raw backend shape
+  };
+}
+
+// PR for repo-a with same change_id (forms cluster with prop-a1)
+function makePRForRepo(id: string, repo: string, changeId: string | null): PRCard {
+  return {
+    kind: "pr",
+    id,
+    change_id: changeId,
+    repo,
+    number: Number(id.replace(/\D/g, "")) || 99,
+    title: `PR ${id}`,
+    author: "alice",
+    head_branch: `openspec/${changeId ?? "foo"}`,
+    base_branch: "main",
+    origin: "openspec",
+    status: "open",
+    review_summary: { state: "none", reviewer_count: 0, last_reviewed_at_iso: null },
+    is_draft: false,
+    url: `https://github.com/${repo}/pull/1`,
+    created_at_iso: new Date().toISOString(),
+    updated_at_iso: new Date().toISOString(),
+  };
+}
+
+describe("e2e integration: multi-source board (mocked, extend-kanban-viz-multi-repo-proposals)", () => {
+  it("renders all 3 rows with multi-repo proposals (2 distinct repos)", () => {
+    const cards: BoardCard[] = [
+      ...multiSourceProposals,
+      makeIssue("i1"),
+      makePR("pr1"),
+    ];
+    render(<SourceSwimlanes cards={cards} />);
+    expect(screen.getByTestId("source-row-issues")).toBeInTheDocument();
+    expect(screen.getByTestId("source-row-prs")).toBeInTheDocument();
+    expect(screen.getByTestId("source-row-proposals")).toBeInTheDocument();
+    // 2 proposals in backlog (both "drafted")
+    expect(screen.getByTestId("count-proposals-backlog")).toHaveTextContent("2");
+  });
+
+  it("same-repo + same-change_id clusters across Proposal and PR rows", () => {
+    // prop-a1: repo=owner/repo-a, change_id=SHARED_CHANGE_ID
+    // pr-a1: repo=owner/repo-a, change_id=SHARED_CHANGE_ID
+    // These MUST cluster (same repo, same change_id)
+    const prRepoA = makePRForRepo("pr-a1", REPO_A, SHARED_CHANGE_ID);
+    const cards: BoardCard[] = [
+      multiSourceProposals[0], // prop-a1: repo-a, SHARED_CHANGE_ID
+      prRepoA,
+    ];
+    const { annotated } = clusterBoardCards(cards);
+    // Both should have cluster_count = 2
+    const propAnnotated = annotated.find((c) => c.id === "prop-a1");
+    const prAnnotated = annotated.find((c) => c.id === "pr-a1");
+    expect(propAnnotated?.cluster_count).toBe(2);
+    expect(prAnnotated?.cluster_count).toBe(2);
+  });
+
+  it("cross-repo same-change_id does NOT cluster (D3 namespaced key)", () => {
+    // prop-b2: repo=owner/repo-b, change_id=SHARED_CHANGE_ID
+    // pr-a1: repo=owner/repo-a, change_id=SHARED_CHANGE_ID
+    // Same change_id but different repos → should NOT cluster
+    const propB2: ProposalCard = makeProposal("prop-b2", SHARED_CHANGE_ID, REPO_B);
+    const prRepoA = makePRForRepo("pr-a1", REPO_A, SHARED_CHANGE_ID);
+    const cards: BoardCard[] = [propB2, prRepoA];
+    const { clusters, annotated } = clusterBoardCards(cards);
+
+    // No cluster should form across the two different repos
+    // Each card should be in its own namespaced group (size 1 → no cluster badge)
+    const propAnnotated = annotated.find((c) => c.id === "prop-b2");
+    const prAnnotated = annotated.find((c) => c.id === "pr-a1");
+    expect(propAnnotated?.cluster_count).toBeNull();
+    expect(prAnnotated?.cluster_count).toBeNull();
+    // No cross-repo cluster
+    expect(clusters.size).toBe(0);
+  });
+
+  it("partial-result chip appears when proposalsWarnings is non-empty", () => {
+    render(
+      <SourceSwimlanes
+        cards={[]}
+        proposalsWarnings={multiSourceWarnings}
+      />,
+    );
+    expect(screen.getByTestId("proposals-partial-result-chip")).toBeInTheDocument();
+  });
+
+  it("partial-result chip does NOT appear when proposalsWarnings is empty", () => {
+    render(<SourceSwimlanes cards={[]} proposalsWarnings={[]} />);
+    expect(screen.queryByTestId("proposals-partial-result-chip")).not.toBeInTheDocument();
+  });
+
+  it("hidden_repos filter: HiddenReposToggle renders per-repo chips and toggles state", async () => {
+    const user = userEvent.setup();
+    const onchange = vi.fn();
+    const repos = [REPO_A, REPO_B];
+    render(
+      <HiddenReposToggle
+        repos={repos}
+        hiddenRepos={[]}
+        onHiddenReposChange={onchange}
+      />,
+    );
+    // Both repos visible
+    expect(screen.getByTestId(`repo-toggle-chip-${REPO_A}`).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId(`repo-toggle-chip-${REPO_B}`).getAttribute("aria-pressed")).toBe("true");
+    // Click repo-a chip → should hide it
+    await user.click(screen.getByTestId(`repo-toggle-chip-${REPO_A}`));
+    expect(onchange).toHaveBeenCalledWith([REPO_A]);
+  });
+
+  it("deriveIssueRepo extracts and lowercases repo from labels", () => {
+    // Issue with repo:Owner/Repo-A label (uppercase) → derived as lowercase
+    const labels = [`repo:${REPO_A}`, "change:some-change"];
+    const derived = deriveIssueRepo(labels);
+    expect(derived).toBe(REPO_A.toLowerCase());
+  });
+
+  it("deriveIssueRepo returns null when no repo: label present", () => {
+    const labels = ["change:some-change", "priority:1"];
+    expect(deriveIssueRepo(labels)).toBeNull();
+  });
+
+  it("issue with repo: label clusters with same-repo proposal via getClusterKey", () => {
+    // Simulate the post-fetch deriveIssueRepo step in useBoardCards
+    const rawIssue = makeIssueWithRepoLabel("i-labeled", SHARED_CHANGE_ID, REPO_A);
+    const derivedRepo = deriveIssueRepo(rawIssue.labels);
+    const issueWithRepo: IssueCard = { ...rawIssue, repo: derivedRepo };
+    const proposal = makeProposal("prop-match", SHARED_CHANGE_ID, REPO_A);
+
+    const cards: BoardCard[] = [issueWithRepo, proposal];
+    const { clusters, annotated } = clusterBoardCards(cards);
+
+    // Both cards share repo=owner/repo-a + change_id=SHARED_CHANGE_ID → cluster
+    expect(clusters.size).toBe(1);
+    expect(annotated.find((c) => c.id === "i-labeled")?.cluster_count).toBe(2);
+    expect(annotated.find((c) => c.id === "prop-match")?.cluster_count).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Smoke-test: the module loads without error when the coordinator is absent
 describe("e2e: module-level smoke (no coordinator needed)", () => {
   it("coordinator-types module loads", async () => {
