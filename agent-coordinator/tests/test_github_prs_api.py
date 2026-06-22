@@ -5,10 +5,8 @@ All tests are unit-level (no e2e/integration markers).
 """
 from __future__ import annotations
 
-import time
-from datetime import UTC, datetime, timezone
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -116,7 +114,9 @@ class TestCacheBehavior:
         # Reset cache before the test
         github_prs_api._cache.clear()  # type: ignore[attr-defined]
 
-        with patch.object(github_prs_api, "_fetch_prs_for_repo", side_effect=mock_fetch_prs_for_repo):
+        with patch.object(
+            github_prs_api, "_fetch_prs_for_repo", side_effect=mock_fetch_prs_for_repo
+        ):
             app = create_coordination_api()
             with TestClient(app, raise_server_exceptions=False) as test_client:
                 r1 = test_client.get("/github/prs", headers=_auth_headers())
@@ -147,7 +147,9 @@ class TestCacheBehavior:
         from src import github_prs_api
         github_prs_api._cache.clear()  # type: ignore[attr-defined]
 
-        with patch.object(github_prs_api, "_fetch_prs_for_repo", side_effect=mock_fetch_prs_for_repo):
+        with patch.object(
+            github_prs_api, "_fetch_prs_for_repo", side_effect=mock_fetch_prs_for_repo
+        ):
             app = create_coordination_api()
             with TestClient(app, raise_server_exceptions=False) as test_client:
                 r1 = test_client.get("/github/prs", headers=_auth_headers())
@@ -289,7 +291,9 @@ class TestGithubReposEnv:
         from src import github_prs_api
         github_prs_api._cache.clear()  # type: ignore[attr-defined]
 
-        with patch.object(github_prs_api, "_fetch_prs_for_repo", side_effect=mock_fetch_prs_for_repo):
+        with patch.object(
+            github_prs_api, "_fetch_prs_for_repo", side_effect=mock_fetch_prs_for_repo
+        ):
             app = create_coordination_api()
             with TestClient(app, raise_server_exceptions=False) as test_client:
                 r = test_client.get("/github/prs", headers=_auth_headers())
@@ -334,7 +338,11 @@ class TestGithubReposEnv:
                 "base_branch": "main",
                 "origin": "manual",
                 "status": "open",
-                "review_summary": {"state": "none", "reviewer_count": 0, "last_reviewed_at_iso": None},
+                "review_summary": {
+                    "state": "none",
+                    "reviewer_count": 0,
+                    "last_reviewed_at_iso": None,
+                },
                 "is_draft": False,
                 "url": f"https://github.com/{repo}/pull/{number}",
                 "created_at_iso": "2025-06-01T10:00:00Z",
@@ -350,7 +358,9 @@ class TestGithubReposEnv:
         from src import github_prs_api
         github_prs_api._cache.clear()  # type: ignore[attr-defined]
 
-        with patch.object(github_prs_api, "_fetch_prs_for_repo", side_effect=mock_fetch_prs_for_repo):
+        with patch.object(
+            github_prs_api, "_fetch_prs_for_repo", side_effect=mock_fetch_prs_for_repo
+        ):
             app = create_coordination_api()
             with TestClient(app, raise_server_exceptions=False) as test_client:
                 r = test_client.get("/github/prs", headers=_auth_headers())
