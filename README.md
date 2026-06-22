@@ -45,7 +45,7 @@ The coordinator pairs with **worktree isolation** (`.git-worktrees/<change-id>/<
 
 ### Skills Framework
 
-Structured feature development workflow distributed as **harness-agnostic skills**. Each skill is a `SKILL.md` file with YAML frontmatter (`name`, `description`, `triggers`, `user_invocable`, `related`) and Markdown body. `skills/install.sh` rsyncs the canonical sources at `skills/` into harness-specific runtime directories (`.claude/skills/`, `.agents/skills/` for Codex, plus per-vendor variants). The same skill drives the same workflow whether invoked via Claude Code's `/skill-name`, Codex's slash palette, or Gemini's tooling.
+Structured feature development workflow distributed as **harness-agnostic skills**. Each skill is a `SKILL.md` file with YAML frontmatter (`name`, `description`, `triggers`, `user_invocable`, `related`) and Markdown body. `skills/install.sh` rsyncs the canonical sources at `skills/` into harness-specific runtime directories (`.claude/skills/`, `.agents/skills/` for Codex, plus per-vendor variants), and syncs skill-owned OpenSpec schemas/templates from `skills/<skill>/install_assets/openspec/` into the target repo. The same skill drives the same workflow whether invoked via Claude Code's `/skill-name`, Codex's slash palette, or Gemini's tooling.
 
 - [Workflow Guide](docs/skills-workflow.md) — Stage-by-stage explanation and design principles
 - [Skills Catalogue](docs/skills-catalogue.md) — Discoverable index of every skill grouped by purpose
@@ -56,7 +56,7 @@ Structured feature development workflow distributed as **harness-agnostic skills
 
 **Agent Coordinator**: Follow the [Quick Start](agent-coordinator/README.md) to start PostgreSQL (ParadeDB via Docker Compose, or Supabase), install dependencies, and configure your harness's MCP integration.
 
-**Skills Framework**: Run `bash skills/install.sh --mode rsync --deps none --python-tools none` to sync skills into the harness directories present in your repo. Each skill is then invocable via your harness's slash-command palette. Start with [`/plan-feature`](skills/plan-feature/SKILL.md) to create a proposal for your next feature, or [`/explore-feature`](skills/explore-feature/SKILL.md) if you don't yet know what to build.
+**Skills Framework**: Run `bash skills/install.sh --mode rsync --deps none --python-tools none` to sync skills and skill-owned OpenSpec schemas/templates into the harness directories present in your repo. Add `--openspec-cli none` to skip the OpenSpec CLI preflight, or leave it unset to follow `--deps`. Each skill is then invocable via your harness's slash-command palette. Start with [`/plan-feature`](skills/plan-feature/SKILL.md) to create a proposal for your next feature, or [`/explore-feature`](skills/explore-feature/SKILL.md) if you don't yet know what to build.
 
 **Cross-repo usage**: To use these skills from a different repository, see [`docs/cross-repo-setup.md`](docs/cross-repo-setup.md).
 

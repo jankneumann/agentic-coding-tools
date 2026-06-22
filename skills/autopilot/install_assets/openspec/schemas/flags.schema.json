@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/flags.schema.json",
+  "title": "flags.yaml",
+  "description": "Lightweight feature flag registry for stacked-diff gating. Declared at repo root; resolved by agent-coordinator/src/feature_flags.py (see design.md D7).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "flags"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for flags.yaml"
+    },
+    "flags": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Flag" },
+      "description": "Registered flags. Order is informational only."
+    }
+  },
+  "$defs": {
+    "Flag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "owner", "status", "description", "created_at"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+          "description": "Upper snake-case flag identifier. Referenced by FF_<NAME> env var and is_enabled(name) calls."
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "OpenSpec change-id that owns this flag (creator)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["disabled", "enabled", "archived"],
+          "default": "disabled",
+          "description": "Current state. 'archived' is reserved for Phase 2; Phase 1 only uses 'disabled' and 'enabled'."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Human-readable explanation of what the flag gates."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the flag was first registered."
+        },
+        "archived_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the flag was archived (Phase 2 only)."
+        }
+      }
+    }
+  }
+}

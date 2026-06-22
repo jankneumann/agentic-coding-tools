@@ -1,0 +1,10 @@
+{
+  "failures": [],
+  "summary": {
+    "total_failures": 0,
+    "public_failures": 0,
+    "holdout_failures": 0,
+    "has_blocking_holdout": false,
+    "recommended_action": "none"
+  }
+}
