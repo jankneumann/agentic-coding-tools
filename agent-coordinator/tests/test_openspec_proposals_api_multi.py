@@ -90,8 +90,8 @@ def _make_test_repo(
 
 @pytest.fixture()
 def _api_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    from src.config import reset_config
     from src import openspec_proposals_api
+    from src.config import reset_config
 
     monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
     monkeypatch.setenv("SUPABASE_SERVICE_KEY", "svc-key")
