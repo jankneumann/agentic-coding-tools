@@ -151,6 +151,11 @@ export interface UseBoardCardsResult {
   };
   /** Cluster map keyed by change_id (only clusters with >1 card). */
   clusters: Map<string, BoardCard[]>;
+  /**
+   * Cards with cluster_count attached (>1 means cross-row siblings exist).
+   * Pass to SourceSwimlanes.annotatedCards to enable ClusterBadge rendering.
+   */
+  annotated: AnnotatedCard[];
   loading: boolean;
   /** Generation counter — bump on each manual refresh. SSE handlers fence on this. */
   refreshGeneration: number;
@@ -311,7 +316,7 @@ export function useBoardCards({
     [issueRow.cards, prRow.cards, proposalRow.cards],
   );
 
-  const { clusters } = useMemo(() => clusterBoardCards(cards), [cards]);
+  const { clusters, annotated } = useMemo(() => clusterBoardCards(cards), [cards]);
 
   const loading =
     issueRow.loading || prRow.loading || proposalRow.loading;
@@ -324,6 +329,7 @@ export function useBoardCards({
       proposals: proposalRow,
     },
     clusters,
+    annotated,
     loading,
     refreshGeneration,
     refresh,
