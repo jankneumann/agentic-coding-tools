@@ -27,7 +27,10 @@ import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.openspec_sources import SourceDescriptor
 
 logger = logging.getLogger(__name__)
 
@@ -381,12 +384,10 @@ async def _get_proposals_multi_source(
 ) -> dict[str, Any]:
     """Multi-source mode: fan-out across OPENSPEC_SOURCES entries."""
     from src.openspec_sources import (
-        SourceDescriptor,
         get_or_walk_local,
         invalidate_local_walk_cache,
         parse_sources,
     )
-    from src.github_openspec_fetcher import fetch_proposals_from_github
 
     descriptors, parse_warnings = parse_sources(sources_env)
 
@@ -468,18 +469,18 @@ async def _get_proposals_multi_source(
     }
 
 
-def _resolve_local_repo(src: SourceDescriptor) -> "SourceDescriptor":
+def _resolve_local_repo(src: SourceDescriptor) -> SourceDescriptor:
     """Ensure SourceDescriptor.repo is populated for a local source."""
-    from src.openspec_sources import SourceDescriptor as SD, derive_local_repo
+    from src.openspec_sources import SourceDescriptor, derive_local_repo
 
     if src.repo:
         return src
     repo_str, _ = derive_local_repo(Path(src.spec))
-    return SD(kind="local", spec=src.spec, repo=repo_str)
+    return SourceDescriptor(kind="local", spec=src.spec, repo=repo_str)
 
 
 async def _fetch_github_with_cache(
-    src: "SourceDescriptor",
+    src: SourceDescriptor,
     pat: str,
     refresh: bool,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str, int]:

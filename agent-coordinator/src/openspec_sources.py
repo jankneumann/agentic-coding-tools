@@ -16,7 +16,7 @@ import logging
 import re
 import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
@@ -224,7 +224,7 @@ def _walk_local_source(src: SourceDescriptor) -> LocalSourceCache:
 
     try:
         # Import here to avoid circular imports at module level
-        from src.openspec_proposals_api import _enumerate_proposals  # type: ignore[import]
+        from src.openspec_proposals_api import _enumerate_proposals
 
         raw_proposals = _enumerate_proposals(path)
     except Exception as exc:
