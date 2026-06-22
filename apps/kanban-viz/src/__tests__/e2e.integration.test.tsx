@@ -460,7 +460,7 @@ function makePR(id: string, origin: PRCard["origin"] = "openspec", changeId: str
   };
 }
 
-function makeProposal(id: string, changeId: string): ProposalCard {
+function makeProposal(id: string, changeId: string, repo: string | null = null): ProposalCard {
   return {
     kind: "proposal",
     id,
@@ -476,6 +476,8 @@ function makeProposal(id: string, changeId: string): ProposalCard {
     has_branch: false,
     branch_name: null,
     code_changes_outside_proposal: 0,
+    repo,
+    change_id_namespaced: repo != null ? `${repo}/${changeId}` : null,
   };
 }
 

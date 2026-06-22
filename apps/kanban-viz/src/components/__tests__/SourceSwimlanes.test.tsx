@@ -69,6 +69,8 @@ function makeProposal(id: string, status: ProposalCard["status"] = "drafted"): P
     has_branch: false,
     branch_name: null,
     code_changes_outside_proposal: 0,
+    repo: null,
+    change_id_namespaced: null,
   };
 }
 
