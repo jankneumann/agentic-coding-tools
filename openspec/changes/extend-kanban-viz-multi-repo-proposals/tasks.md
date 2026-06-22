@@ -10,7 +10,7 @@ Test-first ordering. Each task is sized XS (≤30min) / S (≤2hr) / M (≤4hr) 
 - [ ] 1.2 (M) Implement `agent-coordinator/src/openspec_sources.py` containing the `SourceDescriptor` dataclass and `parse_sources(env_val: str) -> tuple[list[SourceDescriptor], list[ParseWarning]]`. Make 1.1 pass.
   **Dependencies:** 1.1
 
-- [ ] 1.3 (S) Write failing pytest `test_openspec_sources.py::test_derive_local_repo` for `derive_local_repo(path: Path)`: (a) repo with `origin` set to `https://github.com/JanK/Repo.git` returns `("jank/repo", None)`; (b) repo with SSH-style remote `git@github.com:owner/repo.git` returns `("owner/repo", None)`; (c) repo with no origin returns `(<basename>, warning_str)`; (d) origin parse fails returns `(<basename>, warning_str)`. Reference spec scenario "Repo derivation falls back to basename with warning".
+- [ ] 1.3 (S) Write failing pytest `test_openspec_sources.py::test_derive_local_repo` for `derive_local_repo(path: Path)`: (a) repo with `origin` set to `https://github.com/JanK/Repo.git` returns `("jank/repo", None)`; (b) repo with SSH-style remote `git@github.com:owner/repo.git` returns `("owner/repo", None)`; (c) repo with no origin returns `("local/<basename>", warning_str)`; (d) origin parse fails returns `("local/<basename>", warning_str)`. The `local/` prefix on the basename fallback (R1-004) preserves owner/repo shape so the result passes the regex used by GITHUB_REPOS, hidden_repos saved-view validation, and the namespaced cluster key. Reference spec scenario "Repo derivation falls back to basename with warning".
   **Dependencies:** 1.2
 
 - [ ] 1.4 (S) Implement `derive_local_repo` in `openspec_sources.py` using `subprocess.run(["git", "remote", "get-url", "origin"], cwd=path, timeout=2)` + a regex parser for both HTTPS and SSH GitHub URL forms. Make 1.3 pass.
@@ -67,7 +67,7 @@ Test-first ordering. Each task is sized XS (≤30min) / S (≤2hr) / M (≤4hr) 
 - [ ] 4.4a (S) Add pytest `test_openspec_proposals_api.py::test_implicit_local_source_unset_env` covering: `OPENSPEC_SOURCES` unset → response proposals all have `repo` derived from the coordinator's own origin (NOT null); cross-row clustering with a PR sharing the same repo + change_id forms a cluster. Asserts the implicit-local-source rule explicitly so a regression cannot silently break PR #211 clustering.
   **Dependencies:** 4.4
 
-- [ ] 4.5 ✓ CHECKPOINT — full coordinator test suite (including PR #211 tests, to verify no regression) green; commit as `feat(openspec-proposals): multi-source fan-out + degraded mode`.
+- [ ] 4.5 ✓ CHECKPOINT — full coordinator test suite green (the PR #211 baseline — `test_github_classifier.py`, `test_github_rest_adapter.py`, `test_github_prs_api.py`, `test_openspec_proposals_api.py`, `test_kanban_viz_saved_views.py` — must remain green alongside the new multi-source tests). Capture the green test count at the START of this work-package's worktree and verify the same count + new tests pass at checkpoint; do NOT hardcode a count number in this checkpoint description. Commit as `feat(openspec-proposals): multi-source fan-out + degraded mode`.
   **Dependencies:** 4.4
 
 ## Section 5 — Coordinator: saved-view schema extension
@@ -120,7 +120,7 @@ Test-first ordering. Each task is sized XS (≤30min) / S (≤2hr) / M (≤4hr) 
 - [ ] 8.3 (M) Wire `RepoBadge` into `Card.tsx` (the PR #211 issue renderer at `apps/kanban-viz/src/components/Card.tsx` — there is no `IssueCardView`), `PRCardView.tsx`, and `ProposalCardView.tsx`. Update `useBoardCards` to call `deriveIssueRepo` on each issue post-fetch (before clustering, so the namespaced cluster key sees the derived value). Vitest assertion: a card with `repo: "x/y"` renders the badge; a card with `repo: null` does not.
   **Dependencies:** 8.2, 7.5
 
-- [ ] 8.4 ✓ CHECKPOINT — SPA test suite green (138 PR #211 tests + new tests); commit as `feat(kanban-viz): RepoBadge + multi-repo hook integration`.
+- [ ] 8.4 ✓ CHECKPOINT — SPA test suite green: the PR #211 baseline tests (Card / Board / useCoordinator / VendorSwimlanes / App / e2e.integration) must remain green alongside the new multi-repo tests. Capture the green test count at the START of this work-package's worktree and verify the same count + new tests pass at checkpoint; do NOT hardcode a count number in this checkpoint description (the post-rebase count may differ slightly from the count reported by PR #211's IMPL_REVIEW). Commit as `feat(kanban-viz): RepoBadge + multi-repo hook integration`.
   **Dependencies:** 8.3
 
 ## Section 9 — SPA: hidden_repos UX + partial-result chip
