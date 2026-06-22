@@ -114,10 +114,16 @@ async def fetch_proposals_from_github(
         elif status in (401, 403):
             warnings.append(_make_warning(source, "github_pat_denied", status=status))
         else:
-            warnings.append(_make_warning(source, f"github_http_{status}", status=status))
+            # R1-105 fix: off-contract f-string codes (github_http_<N>) would
+            # fail SPA SourceWarningError type narrowing. Map any unexpected
+            # status to the github_5xx catch-all (already in the enum).
+            warnings.append(_make_warning(source, "github_5xx", status=status))
     except Exception as exc:
         logger.warning("Unexpected error fetching from github:%s: %s", owner_repo, exc)
-        warnings.append(_make_warning(source, "github_error", message=str(exc)))
+        # R1-105 fix: "github_error" was off-contract. github_5xx is the
+        # broadest github-side-fault bucket in the contract enum. message
+        # preserves the underlying exception detail for the operator.
+        warnings.append(_make_warning(source, "github_5xx", message=str(exc)))
 
     return proposals, warnings
 
