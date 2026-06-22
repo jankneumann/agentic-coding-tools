@@ -1,0 +1,8 @@
+# Pact consumer-driven contract testing configuration
+enabled: false
+# broker_url: "http://localhost:9292"
+# consumer_dir: "contracts/pact/consumers"
+# Options:
+#   publish_verification: true
+#   provider_version: "${GIT_SHA}"
+#   provider_branch: "${GIT_BRANCH}"

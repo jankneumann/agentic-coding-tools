@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/convergence-state.schema.json",
+  "title": "Convergence Loop State",
+  "description": "Serializable state for the automated dev loop conductor. Written to loop-state.json after every state transition.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "change_id", "current_phase", "iteration",
+    "total_iterations", "max_phase_iterations", "findings_trend",
+    "blocking_findings", "vendor_availability", "packages_status",
+    "package_authors", "implementation_strategy", "memory_ids",
+    "handoff_ids", "started_at", "phase_started_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "change_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "current_phase": {
+      "type": "string",
+      "enum": [
+        "INIT", "PLAN", "PLAN_REVIEW", "PLAN_FIX",
+        "IMPLEMENT", "IMPL_REVIEW", "IMPL_FIX",
+        "VALIDATE", "VAL_REVIEW", "VAL_FIX",
+        "SUBMIT_PR", "DONE", "ESCALATE"
+      ]
+    },
+    "iteration": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Current iteration within the current phase"
+    },
+    "total_iterations": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total iterations across all phases"
+    },
+    "max_phase_iterations": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 3,
+      "description": "Maximum iterations per review phase before escalation"
+    },
+    "findings_trend": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0 },
+      "description": "Blocking finding count per review round (for stall detection)"
+    },
+    "blocking_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "description": "Current blocking findings from latest consensus"
+    },
+    "vendor_availability": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" },
+      "description": "Map of vendor name to availability status"
+    },
+    "packages_status": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["pending", "in_progress", "completed", "failed"]
+      },
+      "description": "Map of package_id to completion status"
+    },
+    "package_authors": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Map of package_id to vendor name that authored/implemented it"
+    },
+    "implementation_strategy": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["alternatives", "lead_review"]
+      },
+      "description": "Map of package_id to chosen implementation strategy"
+    },
+    "memory_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Coordinator episodic memory IDs written during this loop"
+    },
+    "handoff_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Coordinator handoff document IDs written during this loop"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "phase_started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "previous_phase": {
+      "type": ["string", "null"],
+      "enum": [
+        "INIT", "PLAN", "PLAN_REVIEW", "PLAN_FIX",
+        "IMPLEMENT", "IMPL_REVIEW", "IMPL_FIX",
+        "VALIDATE", "VAL_REVIEW", "VAL_FIX",
+        "SUBMIT_PR", "DONE", "ESCALATE", null
+      ],
+      "default": null,
+      "description": "Phase before ESCALATE was entered (for resume)"
+    },
+    "escalation_reason": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Diagnostic message explaining why ESCALATE was entered"
+    },
+    "val_review_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether VAL_REVIEW phase is enabled (set by complexity gate)"
+    },
+    "error": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Last error message if in ESCALATE state"
+    }
+  }
+}
