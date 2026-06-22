@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { SaveViewButton } from "./components/SaveViewButton";
 import { SourceSwimlanes } from "./components/SourceSwimlanes";
 import { SyncPointBanner } from "./components/SyncPointBanner";
@@ -12,6 +12,12 @@ const CHANGE_IDS = (import.meta.env["VITE_CHANGE_IDS"] ?? "")
   .filter(Boolean);
 
 export default function App() {
+  // R1-104 fix: hiddenRepos state lives at App level so it can be threaded
+  // into BOTH useBoardCards (for filtering BEFORE clustering) AND
+  // SourceSwimlanes (for the HiddenReposToggle UI gating). Local state
+  // only for v1; saved-view persistence is a follow-up.
+  const [hiddenRepos, setHiddenRepos] = useState<readonly string[]>([]);
+
   // Three-source board (PR #211 + multi-repo extension): Issues, PRs, Proposals
   // fetched in parallel via useBoardCards. SourceSwimlanes renders the
   // three-row layout with cluster badges, repo badges, and the partial-result
@@ -20,6 +26,7 @@ export default function App() {
     apiUrl: API_URL,
     apiKey: API_KEY,
     changeIds: CHANGE_IDS,
+    hiddenRepos,
   });
 
   // IMPL_REVIEW R2-id=16 (high observability): App.tsx mounts the banner but
@@ -92,6 +99,8 @@ export default function App() {
             cards={cards}
             annotatedCards={annotated}
             proposalsWarnings={proposalsWarnings}
+            hiddenRepos={hiddenRepos}
+            onHiddenReposChange={setHiddenRepos}
           />
         </div>
       )}

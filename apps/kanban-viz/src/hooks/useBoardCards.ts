@@ -139,6 +139,13 @@ export interface UseBoardCardsOptions {
   apiUrl?: string;
   apiKey: string;
   changeIds: string[];
+  /**
+   * Lowercase `<owner>/<repo>` strings whose cards should be excluded from
+   * the board. Filtering happens BEFORE clustering so cluster_count never
+   * reflects hidden siblings (per spec scenario "Hidden repo filters all
+   * three rows"). Default: no repos hidden.
+   */
+  hiddenRepos?: readonly string[];
 }
 
 export interface UseBoardCardsResult {
@@ -205,6 +212,7 @@ export function useBoardCards({
   apiUrl = "http://localhost:8081",
   apiKey,
   changeIds,
+  hiddenRepos,
 }: UseBoardCardsOptions): UseBoardCardsResult {
   const changeIdsKey = useMemo(() => [...changeIds].sort().join(","), [changeIds]);
   const stableChangeIds = useMemo(
@@ -311,9 +319,23 @@ export function useBoardCards({
     await fetchAll(true);
   }, [fetchAll]);
 
+  // R1-104 fix: filter hidden-repo cards BEFORE clustering so cluster_count
+  // never references hidden siblings (spec scenario "Hidden repo filters all
+  // three rows" requires hidden cards excluded from row totals AND cluster
+  // computation). Cards with null repo are always visible — hiding a repo
+  // doesn't hide unattributed cards.
+  const hiddenSet = useMemo(
+    () => new Set((hiddenRepos ?? []).map((r) => r.toLowerCase())),
+    [hiddenRepos],
+  );
+
   const cards = useMemo<BoardCard[]>(
-    () => [...issueRow.cards, ...prRow.cards, ...proposalRow.cards],
-    [issueRow.cards, prRow.cards, proposalRow.cards],
+    () => {
+      const all: BoardCard[] = [...issueRow.cards, ...prRow.cards, ...proposalRow.cards];
+      if (hiddenSet.size === 0) return all;
+      return all.filter((c) => c.repo == null || !hiddenSet.has(c.repo));
+    },
+    [issueRow.cards, prRow.cards, proposalRow.cards, hiddenSet],
   );
 
   const { clusters, annotated } = useMemo(() => clusterBoardCards(cards), [cards]);

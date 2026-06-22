@@ -56,7 +56,7 @@ The parser SHALL normalize the `<owner>/<repo>` portion to lowercase (matching G
 
 The endpoint SHALL apply a HYBRID cache strategy across local and github sources:
 
-- **Local sources** SHALL be walked EAGERLY at coordinator boot and re-walked on `?refresh=true`. The walk result is cached in-process until the next boot or refresh; no TTL applies (filesystem walks are sub-millisecond per source and deterministic).
+- **Local sources** SHALL be walked EAGERLY at coordinator boot and re-walked on `?refresh=true`. The walk result is cached in-process until the next boot or refresh; no TTL applies (filesystem walks are sub-millisecond per source and deterministic). EXCEPTION (R1-101): the implicit `local:.` source synthesized when `OPENSPEC_SOURCES` is unset retains PR #211's 60s TTL behavior for byte-identical observable behavior to single-source coordinators. Explicit `local:<path>` entries in `OPENSPEC_SOURCES` use the no-TTL rule above.
 - **GitHub sources** SHALL be cached LAZILY per source with a 60-second TTL — the same TTL the PR #211 `GET /github/prs` endpoint uses. The first request to any github source triggers the fetch; subsequent requests within 60s return the cached result.
 - **`?refresh=true`** SHALL bust BOTH the local re-walk cache (forcing a fresh filesystem walk for every local source) AND every github source's TTL slot (forcing fresh REST calls).
 
@@ -86,9 +86,9 @@ The response SHALL include `cache_age_seconds` as the MAXIMUM age across all sou
 
 #### Scenario: Mixed source freshness produces mixed source label
 
-**WHEN** the response is assembled from one local source (always live in this design) and one github source still within its 60s TTL
+**WHEN** the response is assembled from one local source (last walked at boot OR since the previous `?refresh=true`; serves cached otherwise) and one github source still within its 60s TTL
 **THEN** the response `source` SHALL equal `"mixed"`
-**AND** `cache_age_seconds` SHALL be the age of the github source's cache entry (the worst case)
+**AND** `cache_age_seconds` SHALL be the MAX age across all contributing source caches (per design D2 / R1-009 — both local-since-walk and github-since-fetch ages are included in the comparison, so the local source can be the worst-case when its last walk pre-dates the github fetch)
 
 ---
 
@@ -97,13 +97,13 @@ The response SHALL include `cache_age_seconds` as the MAXIMUM age across all sou
 The `ProposalCard` shape returned by `GET /openspec/proposals` SHALL be extended with the following fields:
 
 - `repo` (string or null) — the `<owner>/<repo>` identifier of the source this proposal came from. For `github:` sources, this is the lowercase-normalized github source entry. For `local:` sources, this is derived from `git remote get-url origin` (parsed for `owner/repo`), falling back to `local/<basename>` (the checkout's directory basename, prefixed with `local/` to preserve owner/repo shape) if origin parsing fails (a warning is logged on fallback). When `OPENSPEC_SOURCES` is unset, the coordinator's own checkout is treated as an implicit `local:.` source, so `repo` is derived from its own `git remote get-url origin`. `repo` SHALL be `null` only when BOTH origin parsing AND basename derivation are unavailable (rare; e.g., container without git installed AND `Path.name` returns empty string — practically unreachable). This convergence keeps PR #211's cross-row clustering intact: `PRCard.repo` from `GITHUB_REPOS` and `ProposalCard.repo` from the same origin URL normalize to the same lowercase string.
-- `change_id_namespaced` (string or null) — equal to `<repo>/<change-id>` when `repo` is non-null, otherwise `null`. This is the canonical cluster key for cross-source linkage.
+- `change_id_namespaced` (string or null) — equal to `<repo>/<change-id>` when `repo` is non-null, otherwise `null`. Display and debug convenience: the cluster key is computed by the SPA's `getClusterKey` from `<repo>/<bare change_id>` directly (R1-005 + R1-106), NOT by reading this field. The field is included in the response for operator-side debugging and future use cases that need the namespaced form pre-computed.
 
 All other `ProposalCard` fields from PR #211 SHALL be preserved unchanged: `kind`, `id`, `change_id`, `title`, `status`, `created_at_iso`, `updated_at_iso`, `proposal_path`, `has_tasks_md`, `has_design_md`, `has_spec_delta`, `has_branch`, `branch_name`, `code_changes_outside_proposal`.
 
 For `github:` sources, the `proposal_path` SHALL be the github web URL to the `proposal.md` file (`https://github.com/<owner>/<repo>/blob/<branch>/openspec/changes/<change-id>/proposal.md`), NOT a local filesystem path. This lets the SPA render a "View on GitHub" link uniformly. For `local:` sources, `proposal_path` remains a repo-relative path as in PR #211.
 
-For `github:` sources, the `has_branch` + `branch_name` + `code_changes_outside_proposal` fields SHALL be derived by checking the GitHub REST `/repos/{owner}/{repo}/branches/openspec/{change-id}` endpoint (or `claude/{change-id}` if the former 404s) and counting commits via `/repos/{owner}/{repo}/compare/main...openspec/{change-id}` with a path filter. When the branch doesn't exist, `has_branch: false` AND `code_changes_outside_proposal: 0` SHALL be returned.
+For `github:` sources, the `has_branch` + `branch_name` + `code_changes_outside_proposal` fields SHALL be derived by checking the GitHub REST `/repos/{owner}/{repo}/branches/openspec/{change-id}` endpoint (or `claude/{change-id}` if the former 404s) and counting commits via `/repos/{owner}/{repo}/compare/<default_branch>...openspec/{change-id}` with a path filter. The default branch SHALL be resolved per-source by querying `GET /repos/{owner}/{repo}` and reading `default_branch` (R1-107); hardcoding `main` is rejected because configured sources may use `master` or a renamed default. When the branch doesn't exist, `has_branch: false` AND `code_changes_outside_proposal: 0` SHALL be returned.
 
 **GitHub REST field-shape adapter contract:** The `/contents/openspec/changes` endpoint returns a JSON array of objects, each with at least `{name: string, path: string, sha: string, type: "file" | "dir", size: int, url: string, html_url: string, download_url: string | null}`. The fetcher SHALL:
 - Filter to entries with `type == "dir"` (skip `archive/` aggregation directory by NAME exclusion).
@@ -296,7 +296,7 @@ When `GET /openspec/proposals` fans out across multiple sources, the endpoint SH
 - If a `github:` source returns 404 (repo not found), 401/403 (PAT lacks access), 5xx (GitHub outage), or times out (per-source timeout 10s): skip it, emit a `_warnings` entry, return `200 OK` with the surviving sources' proposals.
 - If ALL configured sources fail: return `200 OK` with `proposals: []` AND a `_warnings` array listing all failures. The SPA renders the Proposals row with an empty state + partial-result chip.
 
-The `_warnings` array SHALL be top-level in the response (sibling to `proposals`), shaped as `Array<{source: string, error: string, status?: integer}>`. Each entry SHALL name the source string (e.g., `"github:jankneumann/repo-x"`), an error code (e.g., `"github_404"`, `"local_path_missing"`, `"github_timeout"`, `"github_403"`), and the HTTP status code where applicable.
+The `_warnings` array SHALL be top-level in the response (sibling to `proposals`), shaped as `Array<{source: string, error: string, status?: integer}>`. Each entry SHALL name the source string (e.g., `"github:jankneumann/repo-x"`) and an error code from the canonical `SourceWarningError` enum: `local_path_missing`, `local_walk_failed`, `github_404`, `github_pat_denied`, `github_timeout`, `github_5xx`, `github_budget_exceeded`. The HTTP status code SHALL be included on the `status` field where applicable. R1-105: PAT-denied responses (401/403) emit `github_pat_denied`, NOT `github_403` — the enum value is the source of truth. Unexpected exceptions during a github fetch (network errors, JSON parse failures, etc.) map to `github_5xx` as the catch-all github-side-fault bucket so the SPA can type-narrow on the contract enum.
 
 The SPA's Proposals row SHALL render a partial-result chip (warning chrome, the same chrome `changes_requested` uses on PR cards) whenever `_warnings.length > 0`. The chip SHALL show on hover or click a list of the failed sources and their errors. This pattern mirrors the per-row error chip behavior already specified for the RefreshButton in PR #211 — same UX vocabulary, different trigger.
 
@@ -328,9 +328,9 @@ Sources MUST be retried independently on the NEXT request (no circuit breaker pi
 
 ### Requirement: GitHub API Request Budget Cap
 
-Each `github:` source request SHALL impose a per-source request budget cap of 50 directory listings per refresh. The endpoint SHALL count GitHub REST calls per source (the initial `/contents/openspec/changes/` call plus any per-change-id recursion for branch/diff probing). If a source exceeds 50 calls in a single refresh, the endpoint SHALL truncate the result at the 50-call boundary AND emit a `_warnings` entry: `{source: "github:owner/repo", error: "github_budget_exceeded", message: "<N> changes truncated"}`.
+Each `github:` source request SHALL impose a per-source budget cap of 50 CHANGES (proposals) per refresh — counted by number of returned `ProposalCard` entries, NOT by raw REST calls (R1-103 reconciliation: earlier draft conflated calls and changes). The implementation SHALL alphabetically sort the directory listing and stop processing additional changes once the 50th proposal is built. If a source has more than 50 changes, the endpoint SHALL emit a `_warnings` entry: `{source: "github:owner/repo", error: "github_budget_exceeded", message: "<N> changes truncated"}` where N is the count of changes beyond the cap.
 
-This protects against runaway calls when a repo has many in-flight changes AND/OR when the per-change-id branch probe recursion expands the call count unexpectedly. 50 is the v1 default; the cap SHALL be configurable via a `OPENSPEC_SOURCES_GITHUB_CAP` env var (integer, default 50, max 5000 — GitHub's authenticated rate-limit).
+This protects against runaway calls when a repo has many in-flight changes AND/OR when per-change-id branch-probe recursion expands the underlying REST-call count. 50 is the v1 default; the cap SHALL be configurable via the `OPENSPEC_SOURCES_GITHUB_CAP` env var (integer, default 50, recommended max 200 — a typical refresh issues 3-5 REST calls per change, so 200 changes ≈ 600-1000 calls, well below GitHub's hourly authenticated quota of 5000 which is SHARED across `GET /github/prs` and other coordinator endpoints using the same PAT — R1-108). Raising the cap higher requires accepting that one refresh can consume a meaningful share of the hourly quota.
 
 The truncation behavior SHALL be deterministic: changes are sorted alphabetically by directory name before processing, so the same 50 changes are returned on every refresh until either the cap is raised or the repo's change set shrinks below the cap.
 

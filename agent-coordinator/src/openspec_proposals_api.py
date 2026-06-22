@@ -445,9 +445,12 @@ async def _get_proposals_multi_source(
         for src, result in zip(github_sources, github_results):
             if isinstance(result, BaseException):
                 logger.warning("GitHub source %s failed: %s", src.spec, result)
+                # R1-105 fix: "github_error" was off-contract (not in
+                # SourceWarningError enum). github_5xx is the broadest
+                # github-side-fault bucket the SPA can type-narrow.
                 all_warnings.append({
                     "source": f"github:{src.spec}",
-                    "error": "github_error",
+                    "error": "github_5xx",
                     "message": str(result),
                 })
             else:
