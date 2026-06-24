@@ -27,7 +27,7 @@ import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from src.openspec_sources import SourceDescriptor
@@ -486,7 +486,7 @@ async def _fetch_github_with_cache(
     src: SourceDescriptor,
     pat: str,
     refresh: bool,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str, int]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], Literal["live", "cache"], int]:
     """Fetch github source with per-source TTL cache and single-flight mutex.
 
     Returns (proposals, warnings, status, cache_age_seconds).
