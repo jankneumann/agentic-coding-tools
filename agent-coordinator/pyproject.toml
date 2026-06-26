@@ -91,11 +91,12 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 override-dependencies = [
-    # CVE-2026-42561: python-multipart < 0.0.27 has a DoS vulnerability in
-    # multipart header parsing (no per-part header count or size limit).
+    # CVE-2026-53538/53539/53540: python-multipart < 0.0.31 has DoS and
+    # parser-differential vulnerabilities (negative Content-Length unbounded
+    # read; semicolon-separator quadratic scan; semicolon field-smuggling).
     # Brought in transitively via mcp -> fastmcp; force the resolver to pick
     # the patched version until upstream constraints catch up.
-    "python-multipart>=0.0.27",
+    "python-multipart>=0.0.31",
 ]
 
 # Resolve `gen-eval` to the sibling package in this monorepo. Per design
