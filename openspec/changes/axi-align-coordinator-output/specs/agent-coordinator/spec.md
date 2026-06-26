@@ -93,9 +93,16 @@ This applies to `GET /features/active`, `GET /merge-queue`, `GET /audit`,
 #### Scenario: HTTP limited endpoint flags truncation
 
 - **WHEN** a client calls a limited endpoint (`GET /audit`, `POST /memory/query`, or `POST /handoffs/read`) whose result exceeds the requested `limit`
-- **THEN** the endpoint SHALL request `limit + 1` rows from the service layer to detect truncation
+- **THEN** the implementation SHALL fetch `limit + 1` rows to detect truncation
 - **AND** SHALL return exactly `limit` rows under the named key
 - **AND** `truncated` SHALL be `true` with a `hint` describing how to page
+
+#### Scenario: Truncation over-fetch does not pollute the audit trail
+
+- **WHEN** a list operation audits its `limit` and returned `count` (e.g. `read_handoff`)
+- **AND** truncation detection fetches `limit + 1` rows
+- **THEN** truncation detection SHALL be owned by the audited service call (via a `detect_truncation` flag), trimming before it audits
+- **AND** the audit entry SHALL record the caller-facing `limit` and the trimmed `count`, never the sentinel `limit + 1`
 
 #### Scenario: Handoff rows avoid the next_steps key collision
 

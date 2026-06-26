@@ -1379,11 +1379,13 @@ def create_coordination_api() -> FastAPI:
         """Read previous handoff documents for session continuity."""
         from .handoffs import get_handoff_service
 
+        # Truncation detection is owned by the service (detect_truncation) so the
+        # over-fetch never inflates the audit trail's recorded limit/count.
         result = await get_handoff_service().read(
             agent_name=request.agent_name,
-            limit=request.limit + 1,  # +1 sentinel row to detect truncation
+            limit=request.limit,
+            detect_truncation=True,
         )
-        handoffs, truncated = probe_truncation(list(result.handoffs), request.limit)
         rows = [
             {
                 "id": str(h.id),
@@ -1397,13 +1399,13 @@ def create_coordination_api() -> FastAPI:
                 "relevant_files": h.relevant_files,
                 "created_at": h.created_at.isoformat() if h.created_at else None,
             }
-            for h in handoffs
+            for h in result.handoffs
         ]
         # No top-level ``next_steps`` here: each handoff row already carries a
         # semantic ``next_steps`` field, so reusing the key for command
         # suggestions would be ambiguous.
         return list_envelope(
-            "handoffs", rows, limit=request.limit, truncated=truncated
+            "handoffs", rows, limit=request.limit, truncated=result.truncated
         )
 
     # --------------------------------------------------------------------- #

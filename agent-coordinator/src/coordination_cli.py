@@ -532,11 +532,13 @@ def cmd_handoff_read(args: argparse.Namespace) -> int:
     """Read handoff documents."""
     from .handoffs import get_handoff_service
 
+    # Truncation detection is owned by the service (detect_truncation) so the
+    # over-fetch never inflates the audit trail's recorded limit/count.
     result = _run(get_handoff_service().read(
         agent_name=args.agent_name,
-        limit=args.limit + 1,  # +1 sentinel row to detect truncation
+        limit=args.limit,
+        detect_truncation=True,
     ))
-    handoffs, truncated = _probe_truncation(list(result.handoffs), args.limit)
     data = [
         {
             "id": str(h.id),
@@ -544,13 +546,13 @@ def cmd_handoff_read(args: argparse.Namespace) -> int:
             "summary": h.summary,
             "created_at": h.created_at.isoformat() if h.created_at else None,
         }
-        for h in handoffs
+        for h in result.handoffs
     ]
     _emit_list(
         data,
         json_mode=args.json,
         limit=args.limit,
-        truncated=truncated,
+        truncated=result.truncated,
         next_steps=["coordination-cli handoff read --agent-name <name> --limit <n>"],
     )
     return 0
