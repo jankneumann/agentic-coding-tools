@@ -13,6 +13,7 @@
 - [x] 2.2 Refactor the CLI to consume the shared `probe_truncation` (keep `_probe_truncation` importable for tests)
 - [x] 2.3 Apply additive envelope (`count` / `truncated` / `hint` / `next_steps`) to `GET /features/active`, `GET /merge-queue`, `GET /audit`, `POST /memory/query`, `POST /handoffs/read`
 - [x] 2.4 Use `limit + 1` truncation detection on the limited endpoints (`/audit`, `/memory/query`, `/handoffs/read`); omit top-level `next_steps` on handoffs to avoid colliding with the per-row field
+- [x] 2.5 (PR review) Push truncation detection into `HandoffService.read` via `detect_truncation` so the over-fetch never inflates the audit trail's `limit`/`count`; add `ReadHandoffResult.truncated`; add a regression test asserting audited limit/count are the trimmed values
 
 ## 3. Tests
 

@@ -45,6 +45,18 @@ printing. This is exact. The naive alternative — `truncated = len(items) == li
 many," which is precisely the ambiguity AXI principle 3 exists to remove.
 The `+1` cost is one extra row fetched, never an extra round trip.
 
+**Audited-path exception (D2a).** Where the service call also writes the
+`limit` and returned `count` to the audit trail (`HandoffService.read`), the
+endpoint-side `limit + 1` over-fetch would corrupt the audit (logging `N + 1`
+for a result the client only saw `N` of). For those paths, truncation
+detection is pushed *into* the audited service call via a `detect_truncation`
+flag: the service over-fetches, trims, sets `truncated`, and audits the
+caller-facing `limit` and trimmed `count`. Non-audited reads
+(`MemoryService.recall`, `AuditService.query` do not audit their limit/count)
+keep the simpler endpoint-side probe. (Raised in PR review by a Codex
+reviewer; the fix is codified in the spec's "over-fetch does not pollute the
+audit trail" scenario.)
+
 ### D3: Default shape, not opt-in flag
 
 The envelope is the default for the six list commands, not gated behind

@@ -142,6 +142,57 @@ class TestHandoffService:
         assert len(result.handoffs) == 3
 
     @pytest.mark.asyncio
+    async def test_read_handoff_detect_truncation_audits_trimmed_count(
+        self, mock_supabase, db_client, monkeypatch
+    ):
+        """detect_truncation must not inflate the audit trail.
+
+        The over-fetch fetches limit+1 rows, but the audit entry must record the
+        caller-facing limit and the trimmed count — never the sentinel row.
+        """
+        from unittest.mock import AsyncMock
+
+        import src.audit
+
+        audit_spy = AsyncMock()
+        monkeypatch.setattr(src.audit, "_audit_service", audit_spy)
+
+        # Service asks for limit+1 (=4); the DB returns 4 → more than limit exist.
+        handoffs = [
+            {
+                "id": str(uuid4()),
+                "agent_name": "test-agent-1",
+                "session_id": None,
+                "summary": f"Session {i}",
+                "completed_work": [],
+                "in_progress": [],
+                "decisions": [],
+                "next_steps": [],
+                "relevant_files": [],
+                "created_at": f"2024-01-0{i}T12:00:00+00:00",
+            }
+            for i in range(1, 5)
+        ]
+        mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/read_handoff"
+        ).mock(return_value=Response(200, json={"handoffs": handoffs}))
+
+        service = HandoffService(db_client)
+        result = await service.read(
+            agent_name="test-agent-1", limit=3, detect_truncation=True
+        )
+
+        # Result is trimmed to the caller-facing limit and flags truncation.
+        assert len(result.handoffs) == 3
+        assert result.truncated is True
+
+        # Audit records the caller-facing limit and trimmed count, not the +1.
+        audit_spy.log_operation.assert_awaited_once()
+        kwargs = audit_spy.log_operation.await_args.kwargs
+        assert kwargs["parameters"]["limit"] == 3
+        assert kwargs["result"]["count"] == 3
+
+    @pytest.mark.asyncio
     async def test_get_recent_handoffs(self, mock_supabase, db_client):
         """Test getting recent handoffs across all agents."""
         handoffs = [

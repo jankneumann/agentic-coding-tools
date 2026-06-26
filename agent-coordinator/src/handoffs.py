@@ -81,6 +81,8 @@ class ReadHandoffResult:
     """Result of reading handoff documents."""
 
     handoffs: list[HandoffDocument]
+    # Set by read(detect_truncation=True) when more than `limit` handoffs match.
+    truncated: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ReadHandoffResult":
@@ -190,25 +192,36 @@ class HandoffService:
         self,
         agent_name: str | None = None,
         limit: int = 1,
+        detect_truncation: bool = False,
     ) -> ReadHandoffResult:
         """Read recent handoff documents.
 
         Args:
             agent_name: Filter by agent name (None for all agents)
             limit: Maximum number of handoffs to return (default: 1)
+            detect_truncation: When True, fetch one extra row to determine
+                whether more than ``limit`` handoffs match, set
+                ``ReadHandoffResult.truncated`` accordingly, and trim the result
+                back to ``limit``. The over-fetch is contained here so the audit
+                trail records the caller-facing ``limit`` and the trimmed count,
+                never the sentinel row.
 
         Returns:
             ReadHandoffResult with list of handoff documents
         """
+        fetch_limit = limit + 1 if detect_truncation else limit
         result = await self.db.rpc(
             "read_handoff",
             {
                 "p_agent_name": agent_name,
-                "p_limit": limit,
+                "p_limit": fetch_limit,
             },
         )
 
         read_result = ReadHandoffResult.from_dict(result)
+        if detect_truncation:
+            read_result.truncated = len(read_result.handoffs) > limit
+            read_result.handoffs = read_result.handoffs[:limit]
 
         try:
             await get_audit_service().log_operation(
