@@ -18,6 +18,8 @@ import json
 import sys
 from typing import Any
 
+from .axi_output import probe_truncation as _probe_truncation
+
 
 def _run(coro: Any) -> Any:
     """Bridge async service calls to synchronous CLI."""
@@ -123,20 +125,6 @@ def _emit_list(
         print("next steps:")
         for step in next_steps:
             print(f"  - {step}")
-
-
-def _probe_truncation(items: list[Any], limit: int) -> tuple[list[Any], bool]:
-    """Detect truncation precisely via the limit+1 fetch pattern.
-
-    Callers request ``limit + 1`` rows from the service; if the service
-    returns more than ``limit``, the result was truncated. Trimming the
-    sentinel row here keeps the reported ``count`` honest while letting the
-    envelope flag that more data is available. This avoids the off-by-one
-    ambiguity of ``len(items) == limit`` (which cannot tell "exactly limit
-    rows exist" from "the first page of many").
-    """
-    truncated = len(items) > limit
-    return items[:limit], truncated
 
 
 # =============================================================================

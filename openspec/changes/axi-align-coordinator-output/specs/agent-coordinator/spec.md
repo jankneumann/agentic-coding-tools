@@ -64,6 +64,45 @@ The envelope SHALL contain:
 - **WHEN** an agent runs a list command that defines follow-up actions
 - **THEN** the envelope SHALL include a `next_steps` array of suggested command strings
 
+### Requirement: AXI-Aligned HTTP List Output
+
+HTTP API endpoints that return a collection of rows SHALL augment their
+response with the same AXI signals as the CLI, but **additively** — the
+existing named array key (e.g. `features`, `entries`, `memories`, `handoffs`)
+SHALL be preserved so existing clients continue to work, and the `count`,
+`truncated`, and (when applicable) `hint` and `next_steps` fields SHALL be
+added as sibling keys.
+
+This applies to `GET /features/active`, `GET /merge-queue`, `GET /audit`,
+`POST /memory/query`, and `POST /handoffs/read`.
+
+#### Scenario: HTTP list response preserves its named array key
+
+- **WHEN** a client calls a list endpoint (e.g. `GET /features/active`)
+- **THEN** the response SHALL still contain the endpoint's existing named array key holding the row objects
+- **AND** SHALL additionally contain a `count` equal to the number of rows
+- **AND** SHALL contain a boolean `truncated`
+
+#### Scenario: HTTP empty result is definitive
+
+- **WHEN** a client calls a list endpoint that matches no rows
+- **THEN** the named array key SHALL hold `[]`
+- **AND** `count` SHALL be `0`
+- **AND** `truncated` SHALL be `false`
+
+#### Scenario: HTTP limited endpoint flags truncation
+
+- **WHEN** a client calls a limited endpoint (`GET /audit`, `POST /memory/query`, or `POST /handoffs/read`) whose result exceeds the requested `limit`
+- **THEN** the endpoint SHALL request `limit + 1` rows from the service layer to detect truncation
+- **AND** SHALL return exactly `limit` rows under the named key
+- **AND** `truncated` SHALL be `true` with a `hint` describing how to page
+
+#### Scenario: Handoff rows avoid the next_steps key collision
+
+- **WHEN** a client calls `POST /handoffs/read`
+- **THEN** each handoff row MAY include its own semantic `next_steps` field
+- **AND** the response SHALL NOT add a top-level `next_steps` command-suggestion key
+
 ## MODIFIED Requirements
 
 ### Requirement: CLI Entry Point
