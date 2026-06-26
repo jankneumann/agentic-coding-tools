@@ -280,7 +280,11 @@ def test_query_memories_delegates_to_service(
         json={"agent_id": "agent-1", "limit": 5},
     )
     assert response.status_code == 200
-    assert response.json()["memories"] == []
+    body = response.json()
+    assert body["memories"] == []
+    # AXI-aligned envelope: definitive empty state + truncation flag.
+    assert body["count"] == 0
+    assert body["truncated"] is False
 
 
 # =============================================================================
@@ -548,7 +552,13 @@ def test_audit_query_delegates_to_service(
 
     response = client.get("/audit", headers=_auth_headers())
     assert response.status_code == 200
-    assert response.json()["entries"] == []
+    body = response.json()
+    assert body["entries"] == []
+    # AXI-aligned envelope: definitive empty state + truncation flag.
+    assert body["count"] == 0
+    assert body["truncated"] is False
+    # Truncation detection fetches limit+1 from the service (default limit 20).
+    assert mock_service.query.await_args.kwargs["limit"] == 21
 
 
 # =============================================================================

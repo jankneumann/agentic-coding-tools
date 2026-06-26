@@ -20,7 +20,6 @@ separately-measured follow-up.
 
 **Non-Goals**
 - Token-format optimization (TOON) — deferred, opt-in, A/B-measured later.
-- HTTP API parity — sequenced separately (Pydantic + OpenAPI surface).
 - Cursor/offset pagination — the envelope flags truncation; it is not a paging protocol.
 
 ## Decisions
@@ -63,6 +62,30 @@ Each list command declares its own follow-up commands inline (e.g.
 `feature list` → `feature show`, `feature conflicts`). These are static,
 hand-curated strings, not derived from row content, keeping the rendering
 pure and free of injection concerns.
+
+One exception: `POST /handoffs/read` omits the top-level `next_steps`
+command-suggestion key, because each handoff row already carries a *semantic*
+`next_steps` field (the handoff author's own next steps). Reusing the key at
+the envelope level would be ambiguous, so it is skipped there.
+
+### D5: CLI renames to `items`; HTTP keeps named keys (additive)
+
+The two surfaces share semantics but differ in shape, dictated by their
+Hyrum's-Law exposure:
+
+- **CLI** had no consumer parsing its bare-array output, so it adopts a clean
+  `{count, truncated, items, ...}` envelope (the array is renamed to `items`).
+- **HTTP** has live consumers (the coordination bridge, skills, cloud agents)
+  reading `.features` / `.entries` / `.memories` / `.handoffs`, so it keeps
+  those named keys and adds the AXI signals as *sibling* fields. This is a
+  non-breaking change — verified by running the existing API test suite, where
+  assertions like `response.json()["memories"] == []` continue to pass.
+
+The transport-agnostic logic (`probe_truncation`, `truncation_hint`, the HTTP
+`list_envelope` builder) lives in `src/axi_output.py` so both surfaces compute
+the contract identically. `src/axi_output.py` is in the `src/` package already
+covered by the Dockerfile `COPY src/` statement, so no Dockerfile↔src contract
+update is needed.
 
 ## Risks / Trade-offs
 

@@ -20,16 +20,17 @@ AXI's headline feature — TOON output for ~40% token savings — is deliberatel
   - `next_steps` — suggested follow-up commands (contextual disclosure).
   - `items` — the existing rows, unchanged in schema.
 - Detect truncation **precisely** via the `limit + 1` fetch-and-trim probe (avoids the off-by-one ambiguity of `len(items) == limit`).
-- Apply the envelope to: `feature list`, `merge-queue status`, `lock status`, `handoff read`, `memory query`, `audit query`.
-- Add unit tests for the envelope and truncation-probe helpers (no DB required).
-- Update the `agent-coordinator` capability spec: ADD the list-output contract requirement, MODIFY the `CLI Entry Point` feature-list scenario whose assertion changes from "JSON array" to "envelope object with an `items` array."
+- Apply the CLI envelope to: `feature list`, `merge-queue status`, `lock status`, `handoff read`, `memory query`, `audit query`.
+- Extend the **same contract to the HTTP API** list endpoints (`GET /features/active`, `GET /merge-queue`, `GET /audit`, `POST /memory/query`, `POST /handoffs/read`) — but **additively**: the existing named array key (`features`, `entries`, `memories`, `handoffs`) is preserved and `count` / `truncated` / `hint` / `next_steps` are added as sibling fields, because the HTTP API has live external consumers (the coordination bridge, skills, cloud agents) that read those keys. (Handoffs omit the top-level `next_steps` suggestion to avoid colliding with each handoff row's own semantic `next_steps` field.)
+- Factor the transport-agnostic logic (the `limit + 1` probe, the hint string, the HTTP envelope builder) into a shared `src/axi_output.py` so both surfaces compute the contract identically.
+- Add unit tests for the envelope and truncation-probe helpers (no DB required) and strengthen the existing `/memory/query` and `/audit` API tests to assert the new envelope keys.
+- Update the `agent-coordinator` capability spec: ADD the CLI list-output contract requirement and the HTTP additive-envelope requirement, MODIFY the `CLI Entry Point` feature-list scenario whose assertion changes from "JSON array" to "envelope object with an `items` array."
 
-A working prototype of all of the above is implemented in this change's branch (`agent-coordinator/src/coordination_cli.py`, `tests/test_coordination_cli_axi.py`) and passes `mypy --strict`, `ruff`, and its unit tests.
+A working prototype of all of the above is implemented in this change's branch (`src/axi_output.py`, `src/coordination_cli.py`, `src/coordination_api.py`, plus tests) and passes `mypy --strict`, `ruff`, and the unit/API test suites.
 
 ## Out of Scope
 
 - **TOON output format (AXI principle 1).** Defer to a separate, opt-in `--format=toon` change behind a flag. Rationale: TOON only wins on *uniform* arrays — the coordinator's nested handoff/phase-record payloads would regress — and it adds an encode/decode dependency plus a parsing-reliability risk. The turn-reduction principles in this change are the higher-leverage, lower-risk subset; TOON should be A/B-measured on the genuinely tabular commands afterward, not adopted by default.
-- **HTTP API parity.** This change covers the CLI surface only. The same envelope should later extend to `coordination_api.py` list endpoints, but that touches Pydantic response models and OpenAPI consumers and is sequenced separately.
 - **Pagination cursors / offsets.** The envelope flags truncation; it does not add `offset`/`cursor` parameters. Agents page by raising `--limit`. A real cursor protocol is a larger, separate design.
 - **Ambient session hooks (AXI principle 7).** Already covered by the existing SessionStart hooks, coordinator registration, and `coordination-bridge` capability detection — no action needed.
 
