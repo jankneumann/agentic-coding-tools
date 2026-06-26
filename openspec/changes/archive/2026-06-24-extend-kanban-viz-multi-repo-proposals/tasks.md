@@ -166,3 +166,20 @@ Test-first ordering. Each task is sized XS (≤30min) / S (≤2hr) / M (≤4hr) 
 - [ ] 11.3 (S) Smoke test the SPA at coord.rotkohl.ai: refresh shows proposals from all configured repos; RepoBadge renders with stable colors; cross-repo same-change_id does NOT cluster; hidden_repos saves and restores.
 
 - [ ] 11.4 ✓ CHECKPOINT — deployed and operationally live; the personal-coordinator multi-repo flow is end-to-end visible.
+
+## Migration Notes
+
+PR #214 merged 2026-06-24 (rebase) to main as commit `37acdb8`. Implementation
+sections 1–10 are COMPLETE per the autopilot test gates — verified by
+137 coordinator pytest passes (62 new + 75 PR #211 baseline) + 222 SPA
+vitest passes (was 163 baseline; +59 new). The unchecked boxes in those
+sections reflect that the work-package agents didn't tick checkboxes
+during TDD execution; the actual deliverables are landed and tested.
+
+Section 11 (Deploy preconditions) is genuinely-open ops handoff and is
+tracked at **GitHub issue [#216](https://github.com/jankneumann/agentic-coding-tools/issues/216)** so
+the operational steps are visible outside the archive.
+
+Related follow-ups from PR #214's review cycle:
+- Issue [#213](https://github.com/jankneumann/agentic-coding-tools/issues/213) — CVE dep bumps (cryptography / pydantic-settings / python-multipart / starlette); pre-existing main-wide, not introduced by this change. Filed during PR #211 merge.
+- R1-107 (default branch resolution for github sources) is spec-required but implementation still hardcodes `main` — defer to a follow-up change if a configured source uses `master`.

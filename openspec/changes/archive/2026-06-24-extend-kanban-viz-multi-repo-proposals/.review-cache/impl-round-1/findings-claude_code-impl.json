@@ -1,0 +1,79 @@
+{
+  "vendor": "claude_code",
+  "findings": {
+    "findings": [
+      {
+        "id": "R1-101",
+        "type": "inconsistency",
+        "criticality": "medium",
+        "description": "Local-source cache policy contradicts itself across artifacts AND the 'byte-identical to PR #211' goal. The Hybrid Cache requirement (spec.md 'Hybrid Cache Strategy', lines 57-63) mandates that ALL local sources are walked eagerly at boot and cached 'until the next boot or refresh; no TTL applies'. But the implicit local source (OPENSPEC_SOURCES unset) is itself a local source, and Goal line 18 / design line 18 promise byte-identical behavior to PR #211 \u2014 which used a 60s TTL (preserved in code at openspec_proposals_api.py _get_proposals_implicit_local, lines 336-348). These cannot both hold: no-TTL-boot-walk is NOT the same observable behavior as a 60s TTL (a proposal written to disk appears within 60s under PR #211, but only after an explicit ?refresh under the no-TTL rule). The spec never carves out an exception for the implicit source, so it is internally inconsistent and the implementation silently diverges from it.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/specs/coordinator-kanban-viz/spec.md",
+        "line_range": "55-92"
+      },
+      {
+        "id": "R1-102",
+        "type": "inconsistency",
+        "criticality": "medium",
+        "description": "Spec scenario 'Mixed source freshness produces mixed source label' (spec.md lines 87-92) asserts the local source is 'always live in this design' and that cache_age_seconds 'SHALL be the age of the github source's cache entry (the worst case)'. Both claims are wrong and contradict design.md D2 / R1-009 clarification (line 48), which explicitly retracts 'always live' in favor of 'as-of-last-walk', and which defines cache_age as the MAX across ALL sources. get_or_walk_local (openspec_sources.py) returns 'cache' for warm-served local sources, so a local source is NOT always live; and if a local source was walked at boot 5 min ago while a github source was cached 30s ago, the MAX age is the LOCAL one, not the github one \u2014 so 'github is the worst case' is false. The scenario's expected values are unreliable as written.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/specs/coordinator-kanban-viz/spec.md",
+        "line_range": "87-92"
+      },
+      {
+        "id": "R1-103",
+        "type": "inconsistency",
+        "criticality": "medium",
+        "description": "GitHub budget cap conflates two units. The requirement (spec.md 'GitHub API Request Budget Cap', lines 329-335) defines the cap as '50 directory listings / REST calls per refresh', explicitly counting 'the initial /contents call plus any per-change-id recursion for branch/diff probing', and truncates 'at the 50-call boundary'. But the scenario 'Source exceeds budget' (lines 345-349) treats the cap as 50 CHANGES: 80 changes, cap 50 => '50 proposals returned ... 30 changes truncated' (80-50=30). Since each change costs multiple REST calls (recursive /contents + branch probe + compare), 50 CALLS yields far fewer than 50 fully-probed proposals, so the scenario's arithmetic is impossible under the requirement's own accounting. Pick one unit (calls or changes) and make the requirement, scenarios, and tasks 3.2 agree.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/specs/coordinator-kanban-viz/spec.md",
+        "line_range": "329-349"
+      },
+      {
+        "id": "R1-104",
+        "type": "completeness",
+        "criticality": "medium",
+        "description": "Hidden-repos exclusion from clustering and row totals is required but unrealizable given the design's data flow, and is not wired end-to-end. Spec 'Hidden Repos Saved-View Field' scenario (lines 282-288) requires that hidden cards be excluded from row totals AND from cluster computation ('no orphan badges referencing hidden siblings'). But clusterBoardCards runs INSIDE useBoardCards over the full union of cards (useBoardCards.ts line 319) BEFORE any hidden filtering; the design (design.md 'SPA side', line 266) only says useBoardCards 'threads hidden_repos through to the filter step' and never specifies a re-cluster of the post-filter set. Worse, App.tsx does not pass hiddenRepos or onHiddenReposChange to SourceSwimlanes at all (App.tsx lines 91-93), so HiddenReposToggle never renders (it is gated on onHiddenReposChange at SourceSwimlanes.tsx line 607) and no hidden filtering is applied. The design needs an explicit step ordering hidden-filter BEFORE clustering, and a task to wire the props through App.tsx.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/specs/coordinator-kanban-viz/spec.md",
+        "line_range": "262-288"
+      },
+      {
+        "id": "R1-105",
+        "type": "inconsistency",
+        "criticality": "low",
+        "description": "Source-warning error codes drift across artifacts. spec.md 'Degraded Multi-Source Mode' (line 299) gives `github_403` as an example error code, but the canonical enum in both contracts/openapi/v1.yaml (lines 112-117) and the SPA type SourceWarningError use `github_pat_denied` (no `github_403`). Separately, the multi-source fan-out catch-all in openspec_proposals_api.py (line 450) emits `error: \"github_error\"`, a value that exists in NEITHER the openapi enum nor the TS union \u2014 so an unexpected github exception produces an off-contract warning code the SPA can't type-narrow. Reconcile spec prose to the enum and add a defined catch-all code (e.g. `github_5xx`/`github_unknown`) to the contract.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/specs/coordinator-kanban-viz/spec.md",
+        "line_range": "299-299"
+      },
+      {
+        "id": "R1-106",
+        "type": "inconsistency",
+        "criticality": "low",
+        "description": "ProposalCard.change_id_namespaced is documented as 'the canonical cluster key for cross-source linkage' (spec.md line 100; design.md ProposalCard, line 209) but the actual cluster function never reads it. getClusterKey (coordinator-types.ts) deliberately recomputes `${repo}/${bareId}` from repo + bare change_id (the R1-005 'avoid double-namespace' fix), so change_id_namespaced is dead wire data that nothing consumes. Either have getClusterKey consume the field (and drop the recompute) or downgrade the spec's 'canonical cluster key' language to 'display/debug convenience' so the contract doesn't overstate the field's role.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/specs/coordinator-kanban-viz/spec.md",
+        "line_range": "100-100"
+      },
+      {
+        "id": "R1-107",
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Default branch is hardcoded to 'main' for github sources. spec.md 'Multi-Source ProposalCard Fields' (line 106) and the in-impl scenario (lines 130-132) specify branch/diff probing via `/compare/main...openspec/{change-id}`, and proposal_path is `blob/main/...` per the scenario at line 126. design.md's fetcher pseudocode (lines 193) also pins `main`. Any configured github source whose default branch is `master` (or renamed) will mis-probe in-impl status (compare against a nonexistent base) and emit a broken proposal_path. For the user's current personal repos this is latent, but the contract bakes in the assumption. Resolve the default branch via `GET /repos/{owner}/{repo}` (default_branch field) rather than hardcoding, or at minimum document the all-repos-use-main assumption as an explicit precondition.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/specs/coordinator-kanban-viz/spec.md",
+        "line_range": "104-132"
+      },
+      {
+        "id": "R1-108",
+        "type": "correctness",
+        "criticality": "low",
+        "description": "OPENSPEC_SOURCES_GITHUB_CAP rationale conflates a per-refresh cap with GitHub's per-hour budget. spec.md line 333 sets the max to '5000 \u2014 GitHub's authenticated rate-limit'. But 5000 is the authenticated REST limit PER HOUR shared across ALL requests, not per refresh; permitting a single /openspec/proposals?refresh=true to issue up to 5000 calls would let one refresh exhaust the entire hourly quota for the PAT (also impacting GET /github/prs which shares the credential). Lower the documented max to a per-refresh-sane ceiling and note the hourly budget is shared with the PRs endpoint.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/specs/coordinator-kanban-viz/spec.md",
+        "line_range": "333-333"
+      }
+    ]
+  }
+}
