@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/checkpoint.schema.json",
+  "title": "Roadmap Checkpoint",
+  "description": "Defines the structure of checkpoint.json — resumable execution state for autopilot-roadmap.",
+  "type": "object",
+  "required": ["schema_version", "roadmap_id", "current_item_id", "phase", "created_at"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "roadmap_id": {
+      "type": "string",
+      "description": "References the roadmap this checkpoint belongs to."
+    },
+    "current_item_id": {
+      "type": "string",
+      "description": "The roadmap item currently being executed, or the last completed item."
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["planning", "implementing", "reviewing", "validating", "completed", "failed", "blocked"],
+      "description": "Current execution phase within the active item."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_items": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Item IDs that have successfully completed."
+    },
+    "failed_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["item_id", "reason", "failed_at"],
+        "properties": {
+          "item_id": { "type": "string" },
+          "reason": { "type": "string" },
+          "failed_at": { "type": "string", "format": "date-time" },
+          "retry_count": { "type": "integer", "default": 0 }
+        }
+      },
+      "description": "Items that failed with reasons and retry counts."
+    },
+    "vendor_state": {
+      "type": "object",
+      "description": "Tracks vendor availability and switch history for policy decisions.",
+      "properties": {
+        "active_vendor": { "type": "string" },
+        "switch_history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from_vendor", "to_vendor", "reason", "timestamp"],
+            "properties": {
+              "from_vendor": { "type": "string" },
+              "to_vendor": { "type": "string" },
+              "reason": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" },
+              "expected_cost_delta_usd": { "type": "number" },
+              "observed_cost_delta_usd": { "type": "number" },
+              "expected_latency_delta_seconds": { "type": "number" },
+              "observed_latency_delta_seconds": { "type": "number" }
+            }
+          }
+        },
+        "blocked_vendors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "vendor": { "type": "string" },
+              "reason": { "type": "string" },
+              "blocked_since": { "type": "string", "format": "date-time" },
+              "expected_resume": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      }
+    },
+    "pause_state": {
+      "type": "object",
+      "description": "Populated when execution is paused (e.g., waiting for vendor reset).",
+      "properties": {
+        "paused": { "type": "boolean" },
+        "reason": { "type": "string" },
+        "paused_at": { "type": "string", "format": "date-time" },
+        "expected_resume_at": { "type": "string", "format": "date-time" },
+        "blocked_vendor": { "type": "string" }
+      }
+    }
+  }
+}

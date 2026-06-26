@@ -1,0 +1,8 @@
+# Prism mock server configuration
+# Start with: npx @stoplight/prism-cli mock <openapi-file> --port <port>
+enabled: true
+spec: "contracts/openapi/v1.yaml"
+port: 4010
+# Options:
+#   dynamic: true    # Generate dynamic responses from schema
+#   errors: true     # Include error responses
