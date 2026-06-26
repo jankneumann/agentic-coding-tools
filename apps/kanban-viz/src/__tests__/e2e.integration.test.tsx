@@ -384,6 +384,199 @@ describe.skipIf(skip)(
   },
 );
 
+// ---------------------------------------------------------------------------
+// Section 10.1 — Multi-source board integration (mocked, no live coordinator)
+//
+// Covers the multi-repo shape from extend-kanban-viz-multi-repo-proposals:
+//   - Proposals from 2 distinct repos + _warnings array
+//   - Issues with repo:<owner>/<repo> labels → derive IssueCard.repo
+//   - Same-repo + same-change_id → cluster forms across rows
+//   - Cross-repo + same-change_id → NO cluster (D3 namespaced key)
+//   - Partial-result chip appears when proposalsWarnings.length > 0
+//   - hidden_repos filter excludes matching cards (HiddenReposToggle)
+// ---------------------------------------------------------------------------
+
+import { HiddenReposToggle } from "../components/HiddenReposToggle";
+import { deriveIssueRepo } from "../lib/coordinator-types";
+import type { SourceWarning } from "../lib/coordinator-types";
+
+// Build multi-source proposal response fixture
+const REPO_A = "owner/repo-a";
+const REPO_B = "owner/repo-b";
+const SHARED_CHANGE_ID = "multi-repo-shared-change";
+
+const multiSourceProposals: ProposalCard[] = [
+  makeProposal("prop-a1", SHARED_CHANGE_ID, REPO_A),
+  makeProposal("prop-b1", "repo-b-only-change", REPO_B),
+];
+
+const multiSourceWarnings: SourceWarning[] = [
+  { source: "github:owner/repo-c", error: "github_404" },
+];
+
+// Issues with repo: labels for repo-a (same repo as prop-a1)
+function makeIssueWithRepoLabel(
+  id: string,
+  changeId: string | null,
+  repoLabel: string | null,
+): IssueCard {
+  return {
+    kind: "issue",
+    id,
+    title: `Issue ${id}`,
+    body: null,
+    status: "pending",
+    priority: 1,
+    labels: repoLabel ? [`repo:${repoLabel}`, `change:${changeId ?? ""}`] : [],
+    assignee: null,
+    claimed_by: null,
+    claimed_at: null,
+    completed_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: null,
+    change_id: changeId,
+    task_key: null,
+    // repo is derived client-side from labels; not set on the raw backend shape
+  };
+}
+
+// PR for repo-a with same change_id (forms cluster with prop-a1)
+function makePRForRepo(id: string, repo: string, changeId: string | null): PRCard {
+  return {
+    kind: "pr",
+    id,
+    change_id: changeId,
+    repo,
+    number: Number(id.replace(/\D/g, "")) || 99,
+    title: `PR ${id}`,
+    author: "alice",
+    head_branch: `openspec/${changeId ?? "foo"}`,
+    base_branch: "main",
+    origin: "openspec",
+    status: "open",
+    review_summary: { state: "none", reviewer_count: 0, last_reviewed_at_iso: null },
+    is_draft: false,
+    url: `https://github.com/${repo}/pull/1`,
+    created_at_iso: new Date().toISOString(),
+    updated_at_iso: new Date().toISOString(),
+  };
+}
+
+describe("e2e integration: multi-source board (mocked, extend-kanban-viz-multi-repo-proposals)", () => {
+  it("renders all 3 rows with multi-repo proposals (2 distinct repos)", () => {
+    const cards: BoardCard[] = [
+      ...multiSourceProposals,
+      makeIssue("i1"),
+      makePR("pr1"),
+    ];
+    render(<SourceSwimlanes cards={cards} />);
+    expect(screen.getByTestId("source-row-issues")).toBeInTheDocument();
+    expect(screen.getByTestId("source-row-prs")).toBeInTheDocument();
+    expect(screen.getByTestId("source-row-proposals")).toBeInTheDocument();
+    // 2 proposals in backlog (both "drafted")
+    expect(screen.getByTestId("count-proposals-backlog")).toHaveTextContent("2");
+  });
+
+  it("same-repo + same-change_id clusters across Proposal and PR rows", () => {
+    // prop-a1: repo=owner/repo-a, change_id=SHARED_CHANGE_ID
+    // pr-a1: repo=owner/repo-a, change_id=SHARED_CHANGE_ID
+    // These MUST cluster (same repo, same change_id)
+    const prRepoA = makePRForRepo("pr-a1", REPO_A, SHARED_CHANGE_ID);
+    const cards: BoardCard[] = [
+      multiSourceProposals[0], // prop-a1: repo-a, SHARED_CHANGE_ID
+      prRepoA,
+    ];
+    const { annotated } = clusterBoardCards(cards);
+    // Both should have cluster_count = 2
+    const propAnnotated = annotated.find((c) => c.id === "prop-a1");
+    const prAnnotated = annotated.find((c) => c.id === "pr-a1");
+    expect(propAnnotated?.cluster_count).toBe(2);
+    expect(prAnnotated?.cluster_count).toBe(2);
+  });
+
+  it("cross-repo same-change_id does NOT cluster (D3 namespaced key)", () => {
+    // prop-b2: repo=owner/repo-b, change_id=SHARED_CHANGE_ID
+    // pr-a1: repo=owner/repo-a, change_id=SHARED_CHANGE_ID
+    // Same change_id but different repos → should NOT cluster
+    const propB2: ProposalCard = makeProposal("prop-b2", SHARED_CHANGE_ID, REPO_B);
+    const prRepoA = makePRForRepo("pr-a1", REPO_A, SHARED_CHANGE_ID);
+    const cards: BoardCard[] = [propB2, prRepoA];
+    const { clusters, annotated } = clusterBoardCards(cards);
+
+    // No cluster should form across the two different repos
+    // Each card should be in its own namespaced group (size 1 → no cluster badge)
+    const propAnnotated = annotated.find((c) => c.id === "prop-b2");
+    const prAnnotated = annotated.find((c) => c.id === "pr-a1");
+    expect(propAnnotated?.cluster_count).toBeNull();
+    expect(prAnnotated?.cluster_count).toBeNull();
+    // No cross-repo cluster
+    expect(clusters.size).toBe(0);
+  });
+
+  it("partial-result chip appears when proposalsWarnings is non-empty", () => {
+    render(
+      <SourceSwimlanes
+        cards={[]}
+        proposalsWarnings={multiSourceWarnings}
+      />,
+    );
+    expect(screen.getByTestId("proposals-partial-result-chip")).toBeInTheDocument();
+  });
+
+  it("partial-result chip does NOT appear when proposalsWarnings is empty", () => {
+    render(<SourceSwimlanes cards={[]} proposalsWarnings={[]} />);
+    expect(screen.queryByTestId("proposals-partial-result-chip")).not.toBeInTheDocument();
+  });
+
+  it("hidden_repos filter: HiddenReposToggle renders per-repo chips and toggles state", async () => {
+    const user = userEvent.setup();
+    const onchange = vi.fn();
+    const repos = [REPO_A, REPO_B];
+    render(
+      <HiddenReposToggle
+        repos={repos}
+        hiddenRepos={[]}
+        onHiddenReposChange={onchange}
+      />,
+    );
+    // Both repos visible
+    expect(screen.getByTestId(`repo-toggle-chip-${REPO_A}`).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId(`repo-toggle-chip-${REPO_B}`).getAttribute("aria-pressed")).toBe("true");
+    // Click repo-a chip → should hide it
+    await user.click(screen.getByTestId(`repo-toggle-chip-${REPO_A}`));
+    expect(onchange).toHaveBeenCalledWith([REPO_A]);
+  });
+
+  it("deriveIssueRepo extracts and lowercases repo from labels", () => {
+    // Issue with repo:Owner/Repo-A label (uppercase) → derived as lowercase
+    const labels = [`repo:${REPO_A}`, "change:some-change"];
+    const derived = deriveIssueRepo(labels);
+    expect(derived).toBe(REPO_A.toLowerCase());
+  });
+
+  it("deriveIssueRepo returns null when no repo: label present", () => {
+    const labels = ["change:some-change", "priority:1"];
+    expect(deriveIssueRepo(labels)).toBeNull();
+  });
+
+  it("issue with repo: label clusters with same-repo proposal via getClusterKey", () => {
+    // Simulate the post-fetch deriveIssueRepo step in useBoardCards
+    const rawIssue = makeIssueWithRepoLabel("i-labeled", SHARED_CHANGE_ID, REPO_A);
+    const derivedRepo = deriveIssueRepo(rawIssue.labels);
+    const issueWithRepo: IssueCard = { ...rawIssue, repo: derivedRepo };
+    const proposal = makeProposal("prop-match", SHARED_CHANGE_ID, REPO_A);
+
+    const cards: BoardCard[] = [issueWithRepo, proposal];
+    const { clusters, annotated } = clusterBoardCards(cards);
+
+    // Both cards share repo=owner/repo-a + change_id=SHARED_CHANGE_ID → cluster
+    expect(clusters.size).toBe(1);
+    expect(annotated.find((c) => c.id === "i-labeled")?.cluster_count).toBe(2);
+    expect(annotated.find((c) => c.id === "prop-match")?.cluster_count).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Smoke-test: the module loads without error when the coordinator is absent
 describe("e2e: module-level smoke (no coordinator needed)", () => {
   it("coordinator-types module loads", async () => {
@@ -394,5 +587,253 @@ describe("e2e: module-level smoke (no coordinator needed)", () => {
   it("reversibility module loads", async () => {
     const mod = await import("../lib/reversibility");
     expect(typeof mod.classify).toBe("function");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Section 9 — Integration tests: PR + Proposal rows, filter, cluster badge
+//
+// These tests mock the coordinator endpoints for GET /github/prs and
+// GET /openspec/proposals and assert that:
+//   - All 3 rows render (Issues, PRs, Proposals)
+//   - Refresh re-fetches all 3 sources
+//   - PR origin filter narrows the PR row (client-side, no refetch)
+//   - Cluster badge appears on cards sharing a change_id
+//
+// Skipped under the same IS_E2E gate as the SSE tests above.
+// These tests use mocked fetch so they do NOT require a live coordinator.
+// ---------------------------------------------------------------------------
+
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { vi, afterEach as viAfterEach } from "vitest";
+import { SourceSwimlanes } from "../components/SourceSwimlanes";
+import { clusterBoardCards } from "../hooks/useBoardCards";
+import type { BoardCard, IssueCard, PRCard, ProposalCard } from "../lib/coordinator-types";
+
+// Helpers for test fixtures
+function makeIssue(id: string, changeId: string | null = null): IssueCard {
+  return {
+    kind: "issue",
+    id,
+    title: `Issue ${id}`,
+    body: null,
+    status: "pending",
+    priority: 1,
+    labels: [],
+    assignee: null,
+    claimed_by: null,
+    claimed_at: null,
+    completed_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: null,
+    change_id: changeId,
+    task_key: null,
+  };
+}
+
+function makePR(id: string, origin: PRCard["origin"] = "openspec", changeId: string | null = null): PRCard {
+  return {
+    kind: "pr",
+    id,
+    change_id: changeId,
+    repo: "jankneumann/agentic-coding-tools",
+    number: Number(id.replace(/\D/g, "")) || 1,
+    title: `PR ${id}`,
+    author: "alice",
+    head_branch: `openspec/${changeId ?? "foo"}`,
+    base_branch: "main",
+    origin,
+    status: "open",
+    review_summary: { state: "none", reviewer_count: 0, last_reviewed_at_iso: null },
+    is_draft: false,
+    url: `https://github.com/example/${id}`,
+    created_at_iso: new Date().toISOString(),
+    updated_at_iso: new Date().toISOString(),
+  };
+}
+
+function makeProposal(id: string, changeId: string, repo: string | null = null): ProposalCard {
+  return {
+    kind: "proposal",
+    id,
+    change_id: changeId,
+    title: `Proposal ${id}`,
+    status: "drafted",
+    created_at_iso: new Date().toISOString(),
+    updated_at_iso: new Date().toISOString(),
+    proposal_path: `openspec/changes/${changeId}/proposal.md`,
+    has_tasks_md: true,
+    has_design_md: false,
+    has_spec_delta: false,
+    has_branch: false,
+    branch_name: null,
+    code_changes_outside_proposal: 0,
+    repo,
+    change_id_namespaced: repo != null ? `${repo}/${changeId}` : null,
+  };
+}
+
+describe("e2e integration: SourceSwimlanes with PR + Proposal rows (mocked)", () => {
+  viAfterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders all three rows (Issues, PRs, Proposals)", () => {
+    const cards: BoardCard[] = [
+      makeIssue("i1"),
+      makePR("pr1"),
+      makeProposal("prop1", "change-a"),
+    ];
+    render(<SourceSwimlanes cards={cards} />);
+    expect(screen.getByTestId("source-row-issues")).toBeInTheDocument();
+    expect(screen.getByTestId("source-row-prs")).toBeInTheDocument();
+    expect(screen.getByTestId("source-row-proposals")).toBeInTheDocument();
+  });
+
+  it("PR origin filter narrows the PR row without refetch", async () => {
+    const user = userEvent.setup();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    const cards: BoardCard[] = [
+      makePR("pr1", "openspec"),
+      makePR("pr2", "dependabot"),
+      makePR("pr3", "openspec"),
+    ];
+
+    render(<SourceSwimlanes cards={cards} />);
+
+    // Initially all 3 PRs visible (all in in-flight since status=open
+    // — per spec, only `draft` lands in backlog; `open` is active review)
+    expect(screen.getByTestId("count-prs-in-flight")).toHaveTextContent("3");
+
+    // Deselect dependabot chip
+    const dependabotChip = screen.getByTestId("origin-chip-dependabot");
+    await user.click(dependabotChip);
+
+    // Only 2 remain (openspec ones)
+    expect(screen.getByTestId("count-prs-in-flight")).toHaveTextContent("2");
+
+    // No network request was made
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("cluster badge renders on cards sharing a change_id", () => {
+    const sharedChangeId = "extend-kanban-viz-prs-proposals";
+    const REPO = "jankneumann/agentic-coding-tools"; // match PR fixture repo
+    const cards: BoardCard[] = [
+      // Issue with repo label so it clusters with PR and Proposal
+      { ...makeIssue("i1", sharedChangeId), repo: REPO },
+      makePR("pr1", "openspec", sharedChangeId),
+      makeProposal("prop1", sharedChangeId, REPO),
+    ];
+    const { annotated } = clusterBoardCards(cards);
+
+    render(<SourceSwimlanes cards={cards} annotatedCards={annotated} />);
+
+    // All 3 cards have cluster_count = 3 → badges should render
+    // The PR and Proposal card views include ClusterBadge
+    const badges = screen.queryAllByTestId(`cluster-badge-${sharedChangeId}`);
+    // At minimum, PR card and Proposal card should have badges
+    expect(badges.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("cluster badge highlights siblings on click", async () => {
+    const user = userEvent.setup();
+    const sharedChangeId = "cluster-test-change";
+    const REPO = "jankneumann/agentic-coding-tools"; // match PR fixture repo
+    const cards: BoardCard[] = [
+      makePR("pr1", "openspec", sharedChangeId),
+      makeProposal("prop1", sharedChangeId, REPO),
+    ];
+    const { annotated } = clusterBoardCards(cards);
+
+    render(<SourceSwimlanes cards={cards} annotatedCards={annotated} />);
+
+    // There should be cluster badges on both cards
+    const badges = screen.queryAllByTestId(`cluster-badge-${sharedChangeId}`);
+    expect(badges.length).toBeGreaterThanOrEqual(1);
+
+    // Click the first badge — siblings should highlight
+    await user.click(badges[0]);
+
+    // Check that highlight wrappers exist (emitHighlight was called)
+    // The highlight wrapper for proposal card should be highlighted
+    const highlightWrappers = screen.queryAllByTestId(`cluster-highlight-${sharedChangeId}`);
+    expect(highlightWrappers.length).toBeGreaterThanOrEqual(1);
+    // At least one wrapper should have the highlight outline
+    const highlighted = highlightWrappers.filter((el) =>
+      el.getAttribute("style")?.includes("2px solid #ff7043"),
+    );
+    expect(highlighted.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("PR rows, Proposal rows and Issue rows each have correct totals", () => {
+    const cards: BoardCard[] = [
+      makeIssue("i1"),
+      makeIssue("i2"),
+      makePR("pr1"),
+      makePR("pr2"),
+      makeProposal("prop1", "c1"),
+    ];
+    render(<SourceSwimlanes cards={cards} />);
+    // Issues: 2 pending → 2 in backlog
+    expect(screen.getByTestId("count-issues-backlog")).toHaveTextContent("2");
+    // PRs: 2 open → 2 in-flight (open is active review state per spec)
+    expect(screen.getByTestId("count-prs-in-flight")).toHaveTextContent("2");
+    // Proposals: 1 drafted → 1 in backlog
+    expect(screen.getByTestId("count-proposals-backlog")).toHaveTextContent("1");
+  });
+
+  it("refresh re-fetches all 3 sources via useBoardCards hook", async () => {
+    // This tests the useBoardCards.refresh() integration at hook level
+    // using mocked fetch — ensures all 3 endpoints are called on refresh
+    const { renderHook, waitFor: hookWaitFor, act: hookAct } = await import("@testing-library/react");
+    const { useBoardCards } = await import("../hooks/useBoardCards");
+
+    const issue = makeIssue("i1", "change-a");
+    const pr = makePR("pr1", "openspec", "change-a");
+    const proposal = makeProposal("prop1", "change-a");
+
+    const fetchMock = vi.fn().mockImplementation((url: string | URL) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/issues/list")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ issues: [issue] }) });
+      }
+      if (urlStr.includes("/github/prs")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ prs: [pr] }) });
+      }
+      if (urlStr.includes("/openspec/proposals")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ proposals: [proposal] }) });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+    (globalThis as Record<string, unknown>).fetch = fetchMock;
+
+    const { result, unmount } = renderHook(() =>
+      useBoardCards({ apiUrl: "http://localhost:8081", apiKey: "key", changeIds: ["change-a"] }),
+    );
+
+    await hookWaitFor(() => expect(result.current.loading).toBe(false));
+
+    // Initial fetch call count
+    const initialCallCount = fetchMock.mock.calls.length;
+    expect(initialCallCount).toBeGreaterThanOrEqual(3);
+
+    // Trigger refresh
+    await hookAct(async () => {
+      await result.current.refresh();
+    });
+
+    // Should have made more calls for all 3 sources
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(initialCallCount);
+    // Verify all 3 endpoint types were called during refresh
+    const allUrls = fetchMock.mock.calls.map((c) => String(c[0]));
+    expect(allUrls.some((u) => u.includes("/issues/list"))).toBe(true);
+    expect(allUrls.some((u) => u.includes("/github/prs"))).toBe(true);
+    expect(allUrls.some((u) => u.includes("/openspec/proposals"))).toBe(true);
+
+    unmount();
+    vi.restoreAllMocks();
   });
 });

@@ -1,11 +1,12 @@
 import { useState } from "react";
-import type { Issue } from "../lib/coordinator-types";
+import type { IssueCard } from "../lib/coordinator-types";
 import { classify } from "../lib/reversibility";
 import { VendorSwimlanes } from "./VendorSwimlanes";
 import type { AgentActivity } from "./VendorSwimlanes";
+import { RepoBadge } from "./RepoBadge";
 
 interface Props {
-  issue: Issue;
+  issue: IssueCard;
   /**
    * Per-issue agent activity (IMPL_REVIEW F2). Rendered as VendorSwimlanes
    * when the issue is in-flight (status ∈ {claimed, running}) and at least
@@ -110,6 +111,11 @@ export function Card({
       <div data-testid="card-title" style={{ fontWeight: 600, marginBottom: 4 }}>
         {issue.title}
       </div>
+      {issue.repo != null && (
+        <div style={{ marginBottom: 4 }}>
+          <RepoBadge repo={issue.repo} />
+        </div>
+      )}
       {issue.change_id && (
         <div
           data-testid="card-change-id"

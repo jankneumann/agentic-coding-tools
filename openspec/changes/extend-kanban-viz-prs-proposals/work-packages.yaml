@@ -1,0 +1,285 @@
+schema_version: 1
+
+feature:
+  id: extend-kanban-viz-prs-proposals
+  title: "Extend kanban-viz with PR and OpenSpec-proposal projections"
+  plan_revision: 1
+  created_by: claude
+  created_at: "2026-06-10T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/extend-kanban-viz-prs-proposals/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/extend-kanban-viz-prs-proposals/contracts/openapi/v1.yaml"
+      - "openspec/changes/extend-kanban-viz-prs-proposals/contracts/generated/types.ts"
+      - "openspec/changes/extend-kanban-viz-prs-proposals/contracts/events/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: "B"
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-coord-endpoints
+    title: "Coordinator: classifier extraction + /github/prs + /openspec/proposals"
+    task_type: implement
+    description: |
+      Implements tasks.md sections 1-3: extract classify_pr() out of
+      skills/merge-pull-requests/scripts/discover_prs.py into a new module
+      agent-coordinator/src/github_classifier.py; add GET /github/prs
+      (PAT-gated, 60s cache, ?refresh=true bust, review-summary projection)
+      and GET /openspec/proposals (local-git probe, in-impl detection via
+      out-of-proposal commit count). Single-flight mutex on caches. Failing
+      tests written first per TDD ordering — assert 503 on missing
+      GITHUB_PAT, cache TTL parity, review-summary reducer (4 scenarios),
+      in-impl detection (3 scenarios), archive exclusion, malformed-
+      proposal skip-with-warning. Sized L; cannot be split without
+      duplicating classifier wiring.
+    role: python-engineer
+    priority: 1
+    depends_on: []
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "agent-coordinator/src/github_classifier.py"
+        - "agent-coordinator/src/github_prs_api.py"
+        - "agent-coordinator/src/openspec_proposals_api.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/schemas/kanban_viz/saved-view.json"
+        - "agent-coordinator/tests/test_github_classifier.py"
+        - "agent-coordinator/tests/test_github_rest_adapter.py"
+        - "agent-coordinator/tests/test_github_prs_api.py"
+        - "agent-coordinator/tests/test_openspec_proposals_api.py"
+        - "agent-coordinator/tests/test_kanban_viz_saved_views.py"
+        - "skills/merge-pull-requests/scripts/discover_prs.py"
+      keys:
+        - "feature:extend-kanban-viz-prs-proposals:endpoints"
+      ttl_minutes: 180
+      reason: "Atomic backend slice — classifier + REST adapter + two endpoints + skill rewire + saved-view schema extension share auth and routing."
+    scope:
+      write_allow:
+        - "agent-coordinator/src/github_classifier.py"
+        - "agent-coordinator/src/github_prs_api.py"
+        - "agent-coordinator/src/openspec_proposals_api.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/schemas/kanban_viz/saved-view.json"
+        - "agent-coordinator/tests/test_github_classifier.py"
+        - "agent-coordinator/tests/test_github_rest_adapter.py"
+        - "agent-coordinator/tests/test_github_prs_api.py"
+        - "agent-coordinator/tests/test_openspec_proposals_api.py"
+        - "agent-coordinator/tests/test_kanban_viz_saved_views.py"
+        - "skills/merge-pull-requests/scripts/discover_prs.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+        - "skills/merge-pull-requests/**"
+        - "openspec/changes/extend-kanban-viz-prs-proposals/**"
+        - "openspec/specs/coordinator-kanban-viz/**"
+    worktree:
+      name: wp-coord-endpoints
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "coordinator unit tests"
+          kind: command
+          command: "cd agent-coordinator && uv run pytest tests/test_github_classifier.py tests/test_github_prs_api.py tests/test_openspec_proposals_api.py -v"
+          evidence:
+            artifacts:
+              - "agent-coordinator/src/github_prs_api.py"
+              - "agent-coordinator/src/openspec_proposals_api.py"
+            result_keys:
+              - "pytest_exit_code"
+              - "test_count_classifier"
+              - "test_count_prs_endpoint"
+              - "test_count_proposals_endpoint"
+        - name: "skill regression"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/merge-pull-requests/ -v"
+          evidence:
+            artifacts:
+              - "skills/merge-pull-requests/scripts/discover_prs.py"
+            result_keys:
+              - "pytest_exit_code"
+    metadata:
+      loc_estimate: 600
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "endpoints_registered"
+
+  - package_id: wp-spa-cards-swimlanes
+    title: "SPA: discriminated-union cards + SourceSwimlanes + RefreshButton"
+    task_type: implement
+    description: |
+      Implements tasks.md sections 5-7: rename Issue → IssueCard (add
+      kind: "issue"), add PRCard / ProposalCard / BoardCard from
+      contracts/generated/types.ts, three column-mapping functions
+      (issueStatusToColumn preserved; prStatusToColumn,
+      proposalStatusToColumn new). New hook useBoardCards (parallel fetch,
+      cluster computation, per-source lastRefreshed, refresh trigger).
+      New components SourceSwimlanes (three rows × three columns, row
+      visibility toggle persisted via saved-views) and RefreshButton
+      (spinner state, parallel refetch, per-row error chip on partial
+      failure). All existing Issue consumers migrated to IssueCard via
+      kind narrowing. Type-level exhaustiveness test (default never
+      branch). Sized L; refactor + new layout share too many files to
+      split cleanly. Runs in parallel with wp-coord-endpoints — relies on
+      contracts/generated/types.ts (already shipped in this PR) and
+      fetch mocks for tests.
+    role: typescript-engineer
+    priority: 2
+    depends_on: []
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "apps/kanban-viz/src/lib/coordinator-types.ts"
+        - "apps/kanban-viz/src/hooks/useBoardCards.ts"
+        - "apps/kanban-viz/src/hooks/useCoordinator.ts"
+        - "apps/kanban-viz/src/components/SourceSwimlanes.tsx"
+        - "apps/kanban-viz/src/components/RefreshButton.tsx"
+        - "apps/kanban-viz/src/components/Board.tsx"
+        - "apps/kanban-viz/src/lib/__tests__/column-mapping.test.ts"
+        - "apps/kanban-viz/src/hooks/__tests__/useBoardCards.test.ts"
+        - "apps/kanban-viz/src/components/__tests__/SourceSwimlanes.test.tsx"
+        - "apps/kanban-viz/src/components/__tests__/RefreshButton.test.tsx"
+      keys:
+        - "feature:extend-kanban-viz-prs-proposals:swimlanes"
+      ttl_minutes: 180
+      reason: "Type rename + layout swap share Board.tsx and coordinator-types.ts; mid-PR refactor would type-check but produce a half-renamed surface."
+    scope:
+      write_allow:
+        - "apps/kanban-viz/src/lib/**"
+        - "apps/kanban-viz/src/hooks/**"
+        - "apps/kanban-viz/src/components/**"
+      read_allow:
+        - "apps/kanban-viz/**"
+        - "openspec/changes/extend-kanban-viz-prs-proposals/**"
+        - "openspec/specs/coordinator-kanban-viz/**"
+    worktree:
+      name: wp-spa-cards-swimlanes
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "typecheck strict"
+          kind: command
+          command: "cd apps/kanban-viz && npm run typecheck"
+          evidence:
+            artifacts:
+              - "apps/kanban-viz/src/lib/coordinator-types.ts"
+            result_keys:
+              - "tsc_exit_code"
+        - name: "spa unit tests"
+          kind: command
+          command: "cd apps/kanban-viz && npm test -- --run"
+          evidence:
+            artifacts:
+              - "apps/kanban-viz/src/hooks/useBoardCards.ts"
+              - "apps/kanban-viz/src/components/SourceSwimlanes.tsx"
+            result_keys:
+              - "vitest_exit_code"
+              - "test_count_column_mapping"
+              - "test_count_swimlanes"
+    metadata:
+      loc_estimate: 850
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "vitest_exit_code"
+        - "tsc_exit_code"
+
+  - package_id: wp-spa-filter-cluster-integration
+    title: "SPA: PR filter, cluster badge, integration test, docs"
+    task_type: implement
+    description: |
+      Implements tasks.md sections 8-9: PROriginFilter chip multi-select
+      with localStorage + saved-view persistence; ClusterBadge with hover
+      tooltip, click-to-highlight (≥1.5s outline), aria-label;
+      PRCardView (review-summary chrome: approved/changes_requested/
+      neutral) and ProposalCardView (status chip + branch indicator);
+      e2e.integration.test.tsx extension covering both new endpoints,
+      cluster, filter, refresh; docs/kanban-viz/README.md updates for
+      new endpoints, env vars, refresh + cluster semantics; openspec
+      validate --strict; full test-suite green gate. Depends on both
+      prior packages — pulls real cards from wp-spa-cards-swimlanes hook
+      and real endpoint shapes from wp-coord-endpoints.
+    role: typescript-engineer
+    priority: 3
+    depends_on: [wp-coord-endpoints, wp-spa-cards-swimlanes]
+    timeout_minutes: 150
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "apps/kanban-viz/src/components/PROriginFilter.tsx"
+        - "apps/kanban-viz/src/components/ClusterBadge.tsx"
+        - "apps/kanban-viz/src/components/PRCardView.tsx"
+        - "apps/kanban-viz/src/components/ProposalCardView.tsx"
+        - "apps/kanban-viz/src/__tests__/e2e.integration.test.tsx"
+        - "apps/kanban-viz/src/components/__tests__/PROriginFilter.test.tsx"
+        - "apps/kanban-viz/src/components/__tests__/ClusterBadge.test.tsx"
+        - "docs/kanban-viz/README.md"
+      keys:
+        - "feature:extend-kanban-viz-prs-proposals:integration"
+      ttl_minutes: 150
+      reason: "Filter, cluster, integration test, and docs share the validate-and-ship boundary."
+    scope:
+      write_allow:
+        - "apps/kanban-viz/src/components/**"
+        - "apps/kanban-viz/src/__tests__/**"
+        - "docs/kanban-viz/README.md"
+      read_allow:
+        - "apps/kanban-viz/**"
+        - "agent-coordinator/src/**"
+        - "openspec/changes/extend-kanban-viz-prs-proposals/**"
+        - "openspec/specs/coordinator-kanban-viz/**"
+    worktree:
+      name: wp-spa-filter-cluster-integration
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "spa full test suite"
+          kind: command
+          command: "cd apps/kanban-viz && npm test -- --run && npm run typecheck"
+          evidence:
+            artifacts:
+              - "apps/kanban-viz/src/__tests__/e2e.integration.test.tsx"
+            result_keys:
+              - "vitest_exit_code"
+              - "tsc_exit_code"
+        - name: "openspec validate strict"
+          kind: command
+          command: "openspec validate extend-kanban-viz-prs-proposals --strict"
+          evidence:
+            artifacts:
+              - "openspec/changes/extend-kanban-viz-prs-proposals/specs/coordinator-kanban-viz/spec.md"
+            result_keys:
+              - "openspec_validate_exit_code"
+    metadata:
+      loc_estimate: 700
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "vitest_exit_code"
+        - "openspec_validate_exit_code"
+
+# Note: parallel_zones expressed via depends_on. wp-coord-endpoints and
+# wp-spa-cards-swimlanes have no deps and disjoint write_allow scopes
+# (agent-coordinator/ vs apps/kanban-viz/) — they run in parallel.
+# wp-spa-filter-cluster-integration depends on both and runs after they
+# integrate to the feature branch.

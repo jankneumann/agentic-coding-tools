@@ -1,10 +1,10 @@
-import type { Issue, ColumnId } from "../lib/coordinator-types";
-import { statusToColumn } from "../lib/coordinator-types";
+import type { IssueCard, ColumnId } from "../lib/coordinator-types";
+import { issueStatusToColumn } from "../lib/coordinator-types";
 import { Column } from "./Column";
 import type { AgentActivity } from "./VendorSwimlanes";
 
 interface Props {
-  issues: Issue[];
+  issues: IssueCard[];
   /** Per-issue agent activity (IMPL_REVIEW F2). Threaded through to Cards. */
   agentsByIssueId?: Map<string, AgentActivity[]>;
   /** Coordinator API base URL (task 6.8). */
@@ -32,14 +32,14 @@ export function Board({
   const now = Date.now();
   const MS_24H = 24 * 60 * 60 * 1000;
 
-  const byColumn: Record<ColumnId, Issue[]> = {
+  const byColumn: Record<ColumnId, IssueCard[]> = {
     backlog: [],
     "in-flight": [],
     done: [],
   };
 
   for (const issue of issues) {
-    const col = statusToColumn(issue.status);
+    const col = issueStatusToColumn(issue.status);
     if (col === "done") {
       // IMPL_REVIEW R2-id=15: proposal §3 specifies the Done column shows
       // `completed_at >= now() - 24h` for completed cards. The prior

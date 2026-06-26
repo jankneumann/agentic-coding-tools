@@ -1,8 +1,8 @@
-import { useCallback } from "react";
-import { Board } from "./components/Board";
+import { useCallback, useState } from "react";
 import { SaveViewButton } from "./components/SaveViewButton";
+import { SourceSwimlanes } from "./components/SourceSwimlanes";
 import { SyncPointBanner } from "./components/SyncPointBanner";
-import { useCoordinator } from "./hooks/useCoordinator";
+import { useBoardCards } from "./hooks/useBoardCards";
 
 const API_URL = import.meta.env["VITE_COORDINATOR_URL"] ?? "http://localhost:8081";
 const API_KEY = import.meta.env["VITE_COORDINATOR_API_KEY"] ?? "";
@@ -12,10 +12,21 @@ const CHANGE_IDS = (import.meta.env["VITE_CHANGE_IDS"] ?? "")
   .filter(Boolean);
 
 export default function App() {
-  const { issues, loading, error, agentsByIssueId } = useCoordinator({
+  // R1-104 fix: hiddenRepos state lives at App level so it can be threaded
+  // into BOTH useBoardCards (for filtering BEFORE clustering) AND
+  // SourceSwimlanes (for the HiddenReposToggle UI gating). Local state
+  // only for v1; saved-view persistence is a follow-up.
+  const [hiddenRepos, setHiddenRepos] = useState<readonly string[]>([]);
+
+  // Three-source board (PR #211 + multi-repo extension): Issues, PRs, Proposals
+  // fetched in parallel via useBoardCards. SourceSwimlanes renders the
+  // three-row layout with cluster badges, repo badges, and the partial-result
+  // chip when /openspec/proposals returns _warnings.
+  const { cards, annotated, loading, proposalsWarnings } = useBoardCards({
     apiUrl: API_URL,
     apiKey: API_KEY,
     changeIds: CHANGE_IDS,
+    hiddenRepos,
   });
 
   // IMPL_REVIEW R2-id=16 (high observability): App.tsx mounts the banner but
@@ -48,8 +59,8 @@ export default function App() {
     <div data-testid="kanban-app">
       {/*
        * IMPL_REVIEW F1 (critical, claude+codex confirmed): SyncPointBanner is
-       * MVP surface #1 per proposal §3. Render above the Board so the
-       * sync-point gate is always visible (it's not gated on Board loading).
+       * MVP surface #1 per proposal §3. Render above the board so the
+       * sync-point gate is always visible (it's not gated on board loading).
        * Banner is independent of the board's loading/error state.
        */}
       <SyncPointBanner
@@ -79,18 +90,19 @@ export default function App() {
         <div role="status" data-testid="app-loading">
           Loading board…
         </div>
-      ) : error ? (
-        <div role="alert" data-testid="app-error">
-          Error: {error}
-        </div>
       ) : (
-        <Board
-          issues={issues}
-          agentsByIssueId={agentsByIssueId}
-          apiUrl={API_URL}
-          apiKey={API_KEY}
-          onAuditEmit={emitAudit}
-        />
+        // Wrapper preserves the data-testid="kanban-board" anchor that
+        // App.test.tsx DOM-ordering assertions reference. SourceSwimlanes
+        // is the new three-row layout from PR #211 + multi-repo extension.
+        <div data-testid="kanban-board">
+          <SourceSwimlanes
+            cards={cards}
+            annotatedCards={annotated}
+            proposalsWarnings={proposalsWarnings}
+            hiddenRepos={hiddenRepos}
+            onHiddenReposChange={setHiddenRepos}
+          />
+        </div>
       )}
     </div>
   );

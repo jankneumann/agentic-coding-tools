@@ -21,33 +21,28 @@ Output: JSON array of PR objects to stdout.
 
 import argparse
 import json
-import re
 import sys
+from pathlib import Path
 
-from _helpers import check_clean_worktree, check_gh, run_gh, safe_author
+from _helpers import check_clean_worktree, check_gh, run_gh
 
-# Jules automation heuristics: title patterns only match when combined
-# with a label or author signal to avoid false positives on human PRs.
-JULES_PATTERNS = {
-    "sentinel": {
-        "labels": ["sentinel", "security"],
-        "branch": ["sentinel", "security-fix"],
-        "title": [r"\bsecurity\b", r"\bvulnerabilit", r"\bcve\b"],
-    },
-    "bolt": {
-        "labels": ["bolt", "performance"],
-        "branch": ["bolt", "perf-fix", "performance"],
-        "title": [r"\bperformance\b", r"\boptimiz", r"\bspeed\b"],
-    },
-    "palette": {
-        "labels": ["palette", "ux"],
-        "branch": ["palette", "ux-fix", "ui-fix"],
-        "title": [r"\bux\b", r"\bui\b", r"\baccessibilit"],
-    },
-}
+# ---------------------------------------------------------------------------
+# Import classify_pr and helpers from the coordinator's src package.
+# The coordinator publishes under `src` per agent-coordinator/pyproject.toml
+# (`packages = ['src']`).  Skills reach into src/ via a sys.path extension
+# established here — the same pattern used by session-bootstrap and fix-scrub.
+# ---------------------------------------------------------------------------
+_COORDINATOR_SRC = Path(__file__).resolve().parents[3] / "agent-coordinator"
+if str(_COORDINATOR_SRC) not in sys.path:
+    sys.path.insert(0, str(_COORDINATOR_SRC))
 
-# Known bot authors for Jules automations
-JULES_AUTHORS = {"jules", "jules[bot]", "jules-bot"}
+from src.github_classifier import (  # type: ignore[import]  # noqa: E402
+    JULES_AUTHORS,
+    JULES_PATTERNS,
+    classify_pr,
+    is_jules_author,
+    safe_author,
+)
 
 
 def get_default_branch() -> str:
@@ -88,76 +83,6 @@ def fetch_open_prs() -> list[dict]:
             file=sys.stderr,
         )
     return prs
-
-
-def is_jules_author(author: str) -> bool:
-    return author.lower() in JULES_AUTHORS
-
-
-def classify_pr(pr: dict) -> dict:
-    branch = pr.get("headRefName", "")
-    body = pr.get("body", "") or ""
-    title = pr.get("title", "")
-    labels = [label.get("name", "").lower() for label in pr.get("labels", [])]
-    author = safe_author(pr)
-
-    # OpenSpec detection
-    # Check body marker first — an explicit 'Implements OpenSpec:' line gives us
-    # a canonical change-id even on branches that don't follow openspec/* naming
-    # (e.g. claude/* cloud-session branches that use OPENSPEC_BRANCH_OVERRIDE).
-    body_match = re.search(r"Implements OpenSpec:\s*`?([a-z0-9-]+)`?", body)
-    change_id_from_body = body_match.group(1) if body_match else None
-
-    if branch.startswith("openspec/"):
-        change_id = change_id_from_body or branch.removeprefix("openspec/")
-        return {"origin": "openspec", "change_id": change_id}
-
-    # claude/* branches are Claude Code cloud-session output — agent-authored
-    # OpenSpec-adjacent work. The branch slug is not a reliable change-id (it
-    # has a random suffix and may not match an openspec/changes/ directory),
-    # so we only set change_id when the body marker is present.
-    if branch.startswith("claude/"):
-        return {"origin": "openspec", "change_id": change_id_from_body}
-
-    if change_id_from_body:
-        return {"origin": "openspec", "change_id": change_id_from_body}
-
-    # Dependabot detection
-    if (author.lower() in ("dependabot[bot]", "dependabot")
-            or branch.startswith("dependabot/")):
-        return {"origin": "dependabot", "change_id": None}
-
-    # Renovate detection
-    if (author.lower() in ("renovate[bot]", "renovate")
-            or branch.startswith("renovate/")):
-        return {"origin": "renovate", "change_id": None}
-
-    # Jules automation detection
-    # Label or branch match is a strong signal on its own.
-    # Title match alone is weak — only use it combined with author signal.
-    author_is_jules = is_jules_author(author)
-
-    for jules_type, patterns in JULES_PATTERNS.items():
-        # Strong signals: labels or branch patterns
-        if any(l in labels for l in patterns["labels"]):
-            return {"origin": jules_type, "change_id": None}
-        if any(tok in branch.lower() for tok in patterns["branch"]):
-            return {"origin": jules_type, "change_id": None}
-        # Weak signal: title match requires author confirmation
-        if author_is_jules and any(
-            re.search(p, title, re.IGNORECASE) for p in patterns["title"]
-        ):
-            return {"origin": jules_type, "change_id": None}
-
-    # If author is Jules but no specific type matched, classify generically
-    if author_is_jules:
-        return {"origin": "jules", "change_id": None}
-
-    # Codex detection
-    if "codex" in author.lower() or "codex" in branch.lower():
-        return {"origin": "codex", "change_id": None}
-
-    return {"origin": "other", "change_id": None}
 
 
 def detect_dep_ecosystem(branch: str, origin: str) -> str | None:

@@ -1,0 +1,88 @@
+{
+  "vendor": "claude_code",
+  "findings": {
+    "findings": [
+      {
+        "id": "R1-001",
+        "type": "blocking_dependency",
+        "criticality": "critical",
+        "description": "The entire change is predicated on PR #211 (extend-kanban-viz-prs-proposals) being in the codebase, but it is NOT merged and NOT an ancestor of this branch. Verified: this branch forked from main@6e0431b; `git merge-base --is-ancestor 281e95c HEAD` returns false; PR #211's tip is reachable ONLY from the `openspec/extend-kanban-viz-prs-proposals` branch. Consequently every file the plan targets is absent from the base: SPA has `Card.tsx`/`VendorSwimlanes.tsx`/`useCoordinator.ts` (NOT `PRCardView.tsx`, `ProposalCardView.tsx`, `SourceSwimlanes.tsx`, `useBoardCards.ts`/`clusterBoardCards`); `coordinator-types.ts` defines only `Issue` (NOT `IssueCard`/`PRCard`/`ProposalCard`/`BoardCard`); coordinator has `github_coordination.py` (NOT `github_prs_api.py` or `openspec_proposals_api.py`); `_get_repo_root()` does not exist; `saved-view.json` has `change_ids`/`vendors` filters (NOT `pr_origins`/`hidden_rows`). No artifact (proposal, design, tasks, work-packages) declares #211 as a blocking prerequisite, merge-order constraint, or rebase target \u2014 the proposal instead states '#211 just shipped' (proposal.md:212), implying it is merged. The plan is not implementable as written until #211 lands.",
+        "disposition": "escalate",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/proposal.md",
+        "line_range": "1-95"
+      },
+      {
+        "id": "R1-002",
+        "type": "fragile_coupling",
+        "criticality": "high",
+        "description": "This change's contracts/generated/types.ts imports PR #211 types via a relative path into the SIBLING change directory: `from \"../../../extend-kanban-viz-prs-proposals/contracts/generated/types\"` (lines 16-40). This path breaks the moment PR #211 is archived, because the archive step moves it to `openspec/changes/archive/<date>-extend-kanban-viz-prs-proposals/...`. It also can't be resolved by the SPA at all (tsconfig `include: [\"src\"]`), so the file is unusable as a real import target from the app. Cross-change directory imports are not a stable contract boundary.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/contracts/generated/types.ts",
+        "line_range": "16-40"
+      },
+      {
+        "id": "R1-003",
+        "type": "internal_contradiction",
+        "criticality": "high",
+        "description": "Proposal and design disagree on the empty-default behavior of OPENSPEC_SOURCES. Proposal says empty default = 'current single-checkout behavior' (proposal.md:37, 226), implying ProposalCard.repo stays effectively unchanged/null. Design D1 (design.md:33) + tasks.md:64 (task 4.4, marked CRITICAL) instead synthesize an implicit `local:.` source that DERIVES a non-null repo from `git remote get-url origin`. These are materially different defaults. Under the design's rule, the D3 'bare change_id fallback when every member has repo:null' (proposal.md:191, design.md:54-56) becomes near-dead code for proposals, since ProposalCard.repo is never null. Reconcile the proposal's stated default with the design's implicit-local-source rule.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/design.md",
+        "line_range": "31-37"
+      },
+      {
+        "id": "R1-004",
+        "type": "format_inconsistency",
+        "criticality": "medium",
+        "description": "derive_local_repo's basename fallback produces a repo value with NO slash (e.g. 'agentic-coding-tools'), but every other consumer assumes `<owner>/<repo>` form: the hidden_repos saved-view regex is `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$` (tasks.md:78, requires a slash), RepoBadge hover advertises 'the full <owner>/<repo>', and namespaced cluster keys are `<repo>/<change-id>`. A local source lacking an origin remote therefore yields a repo that (a) cannot be hidden via hidden_repos because it fails the schema regex, and (b) renders/clusters inconsistently. Either normalize the basename fallback into an owner/repo-shaped value (e.g. `local/<basename>`) or relax the regex and document the single-segment case.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/tasks.md",
+        "line_range": "13-16"
+      },
+      {
+        "id": "R1-005",
+        "type": "logic_bug",
+        "criticality": "medium",
+        "description": "getClusterKey pseudocode (design.md:231-235) computes `baseId = card.change_id ?? card.change_id_namespaced ?? null` then returns `${card.repo}/${baseId}`. But change_id_namespaced is ALREADY `<repo>/<change-id>`. When change_id is null and change_id_namespaced is populated, the result is a doubled namespace `repo/repo/change-id`, producing a key that won't match sibling cards keyed off bare change_id. The fallback chain should extract the bare change-id component (e.g. strip the leading `<repo>/` from change_id_namespaced), not concatenate the already-namespaced value.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/design.md",
+        "line_range": "231-235"
+      },
+      {
+        "id": "R1-006",
+        "type": "internal_contradiction",
+        "criticality": "medium",
+        "description": "Design states the SPA 're-exports from' the in-change contracts/generated/types.ts (design.md:210), but elsewhere (design.md:9, tasks.md:100 task 7.2) correctly states the SPA cannot import outside `apps/kanban-viz/src/` (tsconfig `include: [\"src\"]`), so the real flow is a manually-synced runtime copy in `coordinator-types.ts` \u2014 NOT a re-export. The two descriptions are incompatible. Pick one: the contracts file is a spec-only artifact and the SPA hand-maintains its copy (consistent with the rest of the plan), so remove/reword the 're-exports from there' claim at design.md:210.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/design.md",
+        "line_range": "194-211"
+      },
+      {
+        "id": "R1-007",
+        "type": "unverifiable_assertion",
+        "criticality": "medium",
+        "description": "Tasks assert regression baselines that don't exist in the branch base because PR #211 isn't merged: task 8.4 'SPA test suite green (138 PR #211 tests + new tests)', task 4.5 'full coordinator test suite (including PR #211 tests, to verify no regression)', task 7.4/7.5 'existing PR #211 cluster tests at apps/kanban-viz/src/hooks/__tests__/useBoardCards.test.ts'. None of these files/tests are present in the tree. The specific count '138' cannot be validated. These checkpoints will mislead an implementer about what 'green' means. (Root cause is R1-001; resolving the merge-order dependency fixes these, but the hardcoded count should be removed or made conditional.)",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/tasks.md",
+        "line_range": "70-123"
+      },
+      {
+        "id": "R1-008",
+        "type": "doc_staleness",
+        "criticality": "low",
+        "description": "The proposal's 'Open Questions for Implementation' (proposal.md:258-283) lists repo: label canonicalization, local-source repo derivation, and GitHub rate-limit batching as OPEN, but the design has already RESOLVED all three: D4 fixes lowercase normalization (design.md:68), R2 fixes origin-first-then-basename (design.md:269-271), and D7 fixes the REST budget cap with GraphQL deferred (design.md:92-100). Reading the proposal alone, these appear unresolved. Either trim them from the proposal's open-questions list or annotate them as 'resolved in design (D4/R2/D7)'.",
+        "disposition": "fix",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/proposal.md",
+        "line_range": "258-283"
+      },
+      {
+        "id": "R1-009",
+        "type": "semantic_clarity",
+        "criticality": "low",
+        "description": "Cache freshness labeling is slightly misleading. Design D2 (design.md:46-48) treats local sources as 'always live in this model', but local data is walked at boot and then served from cache until the next boot or ?refresh \u2014 it is not re-walked per request. Labeling boot-cached filesystem data as 'live' (and feeding it into the `source: live|cache|mixed` signal) understates staleness when the underlying checkout changes between refreshes. Consider documenting that 'live' for local means 'as-of-last-walk' and that cache_age_seconds should reflect the local walk time too.",
+        "disposition": "accept",
+        "file_path": "openspec/changes/extend-kanban-viz-multi-repo-proposals/design.md",
+        "line_range": "45-50"
+      }
+    ]
+  }
+}

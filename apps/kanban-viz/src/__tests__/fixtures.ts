@@ -1,6 +1,10 @@
-import type { Issue } from "../lib/coordinator-types";
+import type { IssueCard } from "../lib/coordinator-types";
 
-export const pendingIssue: Issue = {
+/** @deprecated Use IssueCard. Kept as alias to avoid renaming every import. */
+export type Issue = IssueCard;
+
+export const pendingIssue: IssueCard = {
+  kind: "issue",
   id: "00000000-0000-0000-0000-000000000001",
   title: "Implement login",
   body: null,
@@ -17,7 +21,8 @@ export const pendingIssue: Issue = {
   task_key: "1.1",
 };
 
-export const claimedIssue: Issue = {
+export const claimedIssue: IssueCard = {
+  kind: "issue",
   id: "00000000-0000-0000-0000-000000000002",
   title: "Add database migrations",
   body: null,
@@ -34,7 +39,8 @@ export const claimedIssue: Issue = {
   task_key: "1.2",
 };
 
-export const runningIssue: Issue = {
+export const runningIssue: IssueCard = {
+  kind: "issue",
   id: "00000000-0000-0000-0000-000000000003",
   title: "Write unit tests",
   body: null,
@@ -51,7 +57,8 @@ export const runningIssue: Issue = {
   task_key: "2.1",
 };
 
-export const completedRecentIssue: Issue = {
+export const completedRecentIssue: IssueCard = {
+  kind: "issue",
   id: "00000000-0000-0000-0000-000000000004",
   title: "Deploy to staging",
   body: null,
@@ -69,7 +76,8 @@ export const completedRecentIssue: Issue = {
   task_key: "1.3",
 };
 
-export const completedOldIssue: Issue = {
+export const completedOldIssue: IssueCard = {
+  kind: "issue",
   id: "00000000-0000-0000-0000-000000000005",
   title: "Old deployment",
   body: null,
@@ -87,7 +95,8 @@ export const completedOldIssue: Issue = {
   task_key: "9.1",
 };
 
-export const blockedIssue: Issue = {
+export const blockedIssue: IssueCard = {
+  kind: "issue",
   id: "00000000-0000-0000-0000-000000000006",
   title: "Blocked task",
   body: null,
