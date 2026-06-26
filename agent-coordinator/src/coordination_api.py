@@ -20,6 +20,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .approval import get_approval_service
+from .axi_output import list_envelope, probe_truncation
 from .config import get_config
 from .port_allocator import get_port_allocator
 
@@ -836,25 +837,27 @@ def create_coordination_api() -> FastAPI:
         result = await get_memory_service().recall(
             tags=request.tags,
             event_type=request.event_type,
-            limit=request.limit,
+            limit=request.limit + 1,  # +1 sentinel row to detect truncation
             agent_id=agent_id,
         )
-        return {
-            "memories": [
-                {
-                    "id": m.id,
-                    "event_type": m.event_type,
-                    "summary": m.summary,
-                    "details": m.details,
-                    "outcome": m.outcome,
-                    "lessons": m.lessons,
-                    "tags": m.tags,
-                    "relevance_score": m.relevance_score,
-                    "created_at": m.created_at.isoformat() if m.created_at else None,
-                }
-                for m in result.memories
-            ],
-        }
+        memories, truncated = probe_truncation(list(result.memories), request.limit)
+        rows = [
+            {
+                "id": m.id,
+                "event_type": m.event_type,
+                "summary": m.summary,
+                "details": m.details,
+                "outcome": m.outcome,
+                "lessons": m.lessons,
+                "tags": m.tags,
+                "relevance_score": m.relevance_score,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in memories
+        ]
+        return list_envelope(
+            "memories", rows, limit=request.limit, truncated=truncated
+        )
 
     # --------------------------------------------------------------------- #
     # WORK QUEUE
@@ -1316,24 +1319,24 @@ def create_coordination_api() -> FastAPI:
             operation=operation,
             since=since_dt,
             change_id=change_id,
-            limit=limit,
+            limit=limit + 1,  # +1 sentinel row to detect truncation
         )
-        return {
-            "entries": [
-                {
-                    "id": e.id,
-                    "agent_id": e.agent_id,
-                    "agent_type": e.agent_type,
-                    "operation": e.operation,
-                    "parameters": e.parameters,
-                    "result": e.result,
-                    "duration_ms": e.duration_ms,
-                    "success": e.success,
-                    "created_at": e.created_at.isoformat() if e.created_at else None,
-                }
-                for e in entries
-            ],
-        }
+        entries, truncated = probe_truncation(list(entries), limit)
+        rows = [
+            {
+                "id": e.id,
+                "agent_id": e.agent_id,
+                "agent_type": e.agent_type,
+                "operation": e.operation,
+                "parameters": e.parameters,
+                "result": e.result,
+                "duration_ms": e.duration_ms,
+                "success": e.success,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in entries
+        ]
+        return list_envelope("entries", rows, limit=limit, truncated=truncated)
 
     # --------------------------------------------------------------------- #
     # HANDOFFS
@@ -1376,27 +1379,34 @@ def create_coordination_api() -> FastAPI:
         """Read previous handoff documents for session continuity."""
         from .handoffs import get_handoff_service
 
+        # Truncation detection is owned by the service (detect_truncation) so the
+        # over-fetch never inflates the audit trail's recorded limit/count.
         result = await get_handoff_service().read(
             agent_name=request.agent_name,
             limit=request.limit,
+            detect_truncation=True,
         )
-        return {
-            "handoffs": [
-                {
-                    "id": str(h.id),
-                    "agent_name": h.agent_name,
-                    "session_id": h.session_id,
-                    "summary": h.summary,
-                    "completed_work": h.completed_work,
-                    "in_progress": h.in_progress,
-                    "decisions": h.decisions,
-                    "next_steps": h.next_steps,
-                    "relevant_files": h.relevant_files,
-                    "created_at": h.created_at.isoformat() if h.created_at else None,
-                }
-                for h in result.handoffs
-            ],
-        }
+        rows = [
+            {
+                "id": str(h.id),
+                "agent_name": h.agent_name,
+                "session_id": h.session_id,
+                "summary": h.summary,
+                "completed_work": h.completed_work,
+                "in_progress": h.in_progress,
+                "decisions": h.decisions,
+                "next_steps": h.next_steps,
+                "relevant_files": h.relevant_files,
+                "created_at": h.created_at.isoformat() if h.created_at else None,
+            }
+            for h in result.handoffs
+        ]
+        # No top-level ``next_steps`` here: each handoff row already carries a
+        # semantic ``next_steps`` field, so reusing the key for command
+        # suggestions would be ambiguous.
+        return list_envelope(
+            "handoffs", rows, limit=request.limit, truncated=result.truncated
+        )
 
     # --------------------------------------------------------------------- #
     # POLICY
@@ -1694,21 +1704,27 @@ def create_coordination_api() -> FastAPI:
         from .feature_registry import get_feature_registry_service
 
         features = await get_feature_registry_service().get_active_features()
-        return {
-            "features": [
-                {
-                    "feature_id": f.feature_id,
-                    "title": f.title,
-                    "status": f.status,
-                    "registered_by": f.registered_by,
-                    "resource_claims": f.resource_claims,
-                    "branch_name": f.branch_name,
-                    "merge_priority": f.merge_priority,
-                    "registered_at": f.registered_at.isoformat() if f.registered_at else None,
-                }
-                for f in features
+        rows = [
+            {
+                "feature_id": f.feature_id,
+                "title": f.title,
+                "status": f.status,
+                "registered_by": f.registered_by,
+                "resource_claims": f.resource_claims,
+                "branch_name": f.branch_name,
+                "merge_priority": f.merge_priority,
+                "registered_at": f.registered_at.isoformat() if f.registered_at else None,
+            }
+            for f in features
+        ]
+        return list_envelope(
+            "features",
+            rows,
+            next_steps=[
+                "GET /features/{feature_id}",
+                "POST /features/conflicts",
             ],
-        }
+        )
 
     @app.post("/features/conflicts")
     async def analyze_feature_conflicts_endpoint(
@@ -1775,20 +1791,26 @@ def create_coordination_api() -> FastAPI:
         from .merge_queue import get_merge_queue_service
 
         entries = await get_merge_queue_service().get_queue()
-        return {
-            "entries": [
-                {
-                    "feature_id": e.feature_id,
-                    "branch_name": e.branch_name,
-                    "merge_priority": e.merge_priority,
-                    "merge_status": e.merge_status.value,
-                    "pr_url": e.pr_url,
-                    "queued_at": e.queued_at.isoformat() if e.queued_at else None,
-                    "checked_at": e.checked_at.isoformat() if e.checked_at else None,
-                }
-                for e in entries
+        rows = [
+            {
+                "feature_id": e.feature_id,
+                "branch_name": e.branch_name,
+                "merge_priority": e.merge_priority,
+                "merge_status": e.merge_status.value,
+                "pr_url": e.pr_url,
+                "queued_at": e.queued_at.isoformat() if e.queued_at else None,
+                "checked_at": e.checked_at.isoformat() if e.checked_at else None,
+            }
+            for e in entries
+        ]
+        return list_envelope(
+            "entries",
+            rows,
+            next_steps=[
+                "GET /merge-queue/next",
+                "POST /merge-queue/check/{feature_id}",
             ],
-        }
+        )
 
     @app.get("/merge-queue/next")
     async def get_next_merge_endpoint(
