@@ -73,6 +73,72 @@ def _error(msg: str) -> int:
     return 1
 
 
+def _emit_list(
+    items: list[Any],
+    *,
+    json_mode: bool,
+    limit: int | None = None,
+    truncated: bool = False,
+    next_steps: list[str] | None = None,
+) -> None:
+    """Emit a list result as an AXI-aligned envelope.
+
+    Layers three agent-ergonomic signals on top of the raw rows so an agent
+    can act on a single response without a defensive follow-up call:
+
+    - ``count``      definitive empty state — ``count: 0`` is unambiguous,
+                     where a bare ``[]`` could read as "the call failed".
+    - ``truncated``  ``true`` when a ``--limit`` cut the result short, so the
+                     agent knows more rows exist and can paginate deliberately
+                     instead of mistaking a page for the whole set.
+    - ``next_steps`` suggested follow-up commands (contextual disclosure), so
+                     the agent's next move is in-band rather than guessed.
+
+    The raw rows remain available under ``items``; only the envelope is new.
+    """
+    envelope: dict[str, Any] = {
+        "count": len(items),
+        "truncated": truncated,
+        "items": items,
+    }
+    if truncated and limit is not None:
+        envelope["hint"] = (
+            f"showing first {limit}; re-run with a higher --limit to see more"
+        )
+    if next_steps:
+        envelope["next_steps"] = next_steps
+
+    if json_mode:
+        _output(envelope, json_mode=True)
+        return
+
+    # Human-readable mode keeps the compact per-row view, with the envelope
+    # metadata rendered as a header and an optional footer.
+    suffix = f" (truncated — showing first {limit})" if truncated else ""
+    print(f"{len(items)} result(s){suffix}")
+    if items:
+        print()
+        _output(items, json_mode=False)
+    if next_steps:
+        print("next steps:")
+        for step in next_steps:
+            print(f"  - {step}")
+
+
+def _probe_truncation(items: list[Any], limit: int) -> tuple[list[Any], bool]:
+    """Detect truncation precisely via the limit+1 fetch pattern.
+
+    Callers request ``limit + 1`` rows from the service; if the service
+    returns more than ``limit``, the result was truncated. Trimming the
+    sentinel row here keeps the reported ``count`` honest while letting the
+    envelope flag that more data is available. This avoids the off-by-one
+    ambiguity of ``len(items) == limit`` (which cannot tell "exactly limit
+    rows exist" from "the first page of many").
+    """
+    truncated = len(items) > limit
+    return items[:limit], truncated
+
+
 # =============================================================================
 # Subcommand handlers
 # =============================================================================
@@ -182,7 +248,14 @@ def cmd_feature_list(args: argparse.Namespace) -> int:
         }
         for f in features
     ]
-    _output(data, json_mode=args.json)
+    _emit_list(
+        data,
+        json_mode=args.json,
+        next_steps=[
+            "coordination-cli feature show --feature-id <id>",
+            "coordination-cli feature conflicts --feature-id <id> --claims <key>...",
+        ],
+    )
     return 0
 
 
@@ -241,7 +314,14 @@ def cmd_mq_status(args: argparse.Namespace) -> int:
         }
         for e in entries
     ]
-    _output(data, json_mode=args.json)
+    _emit_list(
+        data,
+        json_mode=args.json,
+        next_steps=[
+            "coordination-cli merge-queue next",
+            "coordination-cli merge-queue check --feature-id <id>",
+        ],
+    )
     return 0
 
 
@@ -351,7 +431,13 @@ def cmd_lock_status(args: argparse.Namespace) -> int:
         }
         for lock in locks
     ]
-    _output(data, json_mode=args.json)
+    _emit_list(
+        data,
+        json_mode=args.json,
+        next_steps=[
+            "coordination-cli lock release --file-path <path> --agent-id <id>",
+        ],
+    )
     return 0
 
 
@@ -460,8 +546,9 @@ def cmd_handoff_read(args: argparse.Namespace) -> int:
 
     result = _run(get_handoff_service().read(
         agent_name=args.agent_name,
-        limit=args.limit,
+        limit=args.limit + 1,  # +1 sentinel row to detect truncation
     ))
+    handoffs, truncated = _probe_truncation(list(result.handoffs), args.limit)
     data = [
         {
             "id": str(h.id),
@@ -469,9 +556,15 @@ def cmd_handoff_read(args: argparse.Namespace) -> int:
             "summary": h.summary,
             "created_at": h.created_at.isoformat() if h.created_at else None,
         }
-        for h in result.handoffs
+        for h in handoffs
     ]
-    _output(data, json_mode=args.json)
+    _emit_list(
+        data,
+        json_mode=args.json,
+        limit=args.limit,
+        truncated=truncated,
+        next_steps=["coordination-cli handoff read --agent-name <name> --limit <n>"],
+    )
     return 0
 
 
@@ -503,8 +596,9 @@ def cmd_memory_query(args: argparse.Namespace) -> int:
     result = _run(get_memory_service().recall(
         tags=args.tags,
         event_type=args.event_type,
-        limit=args.limit,
+        limit=args.limit + 1,  # +1 sentinel row to detect truncation
     ))
+    memories, truncated = _probe_truncation(list(result.memories), args.limit)
     data = [
         {
             "event_type": m.event_type,
@@ -512,9 +606,15 @@ def cmd_memory_query(args: argparse.Namespace) -> int:
             "tags": m.tags,
             "relevance_score": m.relevance_score,
         }
-        for m in result.memories
+        for m in memories
     ]
-    _output(data, json_mode=args.json)
+    _emit_list(
+        data,
+        json_mode=args.json,
+        limit=args.limit,
+        truncated=truncated,
+        next_steps=["coordination-cli memory query --tags <tag>... --limit <n>"],
+    )
     return 0
 
 
@@ -549,8 +649,9 @@ def cmd_audit_query(args: argparse.Namespace) -> int:
     entries = _run(get_audit_service().query(
         agent_id=args.agent_id,
         operation=args.operation,
-        limit=args.limit,
+        limit=args.limit + 1,  # +1 sentinel row to detect truncation
     ))
+    entries, truncated = _probe_truncation(list(entries), args.limit)
     data = [
         {
             "operation": e.operation,
@@ -561,7 +662,13 @@ def cmd_audit_query(args: argparse.Namespace) -> int:
         }
         for e in entries
     ]
-    _output(data, json_mode=args.json)
+    _emit_list(
+        data,
+        json_mode=args.json,
+        limit=args.limit,
+        truncated=truncated,
+        next_steps=["coordination-cli audit query --operation <op> --limit <n>"],
+    )
     return 0
 
 
