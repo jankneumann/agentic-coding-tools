@@ -8,16 +8,16 @@
 
 | Priority | Item | Effort | Status | Dependencies |
 |----------|------|--------|--------|--------------|
-| 1 | Gate drift with mirrors, hooks, and blocking CI | M | candidate | - |
-| 1 | Build structured vendor result channel | M | candidate | - |
-| 1 | Add live vendor capability and cost registry | M | candidate | - |
-| 1 | Implement the task router (vendor x location x model) | L | candidate | ri-04 |
-| 1 | Make the orchestrator obey the router | M | candidate | ri-03, ri-05 |
-| 2 | Harden the resume contract | S | candidate | - |
+| 1 | Gate drift with mirrors, hooks, and blocking CI | M | approved | - |
+| 1 | Build structured vendor result channel | M | approved | - |
+| 1 | Add live vendor capability and cost registry | M | approved | - |
+| 1 | Implement the task router (vendor x location x model) | L | approved | ri-04 |
+| 1 | Make the orchestrator obey the router | M | approved | ri-03, ri-05 |
+| 2 | Harden the resume contract | S | approved | - |
 | 2 | Add scheduled continuation for self-resuming loops | M | candidate | ri-07, ri-06 |
 | 2 | Build the cloud lane as a routable target | L | candidate | ri-03, ri-05 |
 | 2 | Make human gates non-blocking | M | candidate | ri-08 |
-| 3 | Reconcile versions and stale docs to one truth | S | candidate | - |
+| 3 | Reconcile versions and stale docs to one truth | S | approved | - |
 | 3 | Use native fan-out for same-vendor parallel work | M | candidate | ri-03 |
 | 3 | Schedule the learning pipeline | M | candidate | ri-08, ri-01 |
 | 3 | Feed routing decisions with outcome data | M | candidate | ri-05, ri-06, ri-12 |
@@ -76,9 +76,10 @@ graph TD
 
 ### ri-01: Gate drift with mirrors, hooks, and blocking CI
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: M
+- **Change ID**: gate-drift-with-mirrors-hooks-and-blocking-ci
 
 Add install.sh --check plus a CI job that fails when .claude/skills/ or .agents/skills/ drift from canonical skills/, wire core.hooksPath=.githooks into every bootstrap path, adopt or delete orphaned test suites, and promote continue-on-error CI steps (gen-eval mypy --strict blocking, Node job for apps/kanban-viz).
 
@@ -89,9 +90,10 @@ Add install.sh --check plus a CI job that fails when .claude/skills/ or .agents/
 
 ### ri-03: Build structured vendor result channel
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: M
+- **Change ID**: build-structured-vendor-result-channel
 
 Switch every CLI adapter to its vendor's structured JSON output mode with typed envelopes, replace stdout-regex completion polling with a coordinator completion ledger (submit_work/complete_work as the single source of dispatch state), add GET /locks?agent_id= plus bulk release to fix the cloud lock leak, and extend or explicitly document SdkVendorAdapter coverage beyond review-only.
 
@@ -102,9 +104,10 @@ Switch every CLI adapter to its vendor's structured JSON output mode with typed 
 
 ### ri-04: Add live vendor capability and cost registry
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: M
+- **Change ID**: add-live-vendor-capability-and-cost-registry
 
 Add a coordinator vendor_registry service holding static capabilities from agents.yaml plus dynamic availability, rate-limit windows with known reset times, and a versioned real cost table replacing the policy.py stub tiers; expose GET /vendors and GET /vendors/{id}/availability, teach coordination_bridge.py the same, and delete the hardcoded vendor list in orchestrator.py.
 
@@ -115,9 +118,10 @@ Add a coordinator vendor_registry service holding static capabilities from agent
 
 ### ri-05: Implement the task router (vendor x location x model)
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: L
+- **Change ID**: implement-the-task-router-vendor-x-location-x-model
 - **Depends on**: `ri-04`
 
 Add POST /route/task and a bridge function as a superset of /archetypes/resolve_for_phase, taking a task routing profile (phase/archetype signals, duration, scope, interactivity, secret needs, parallelism, repo shape, roadmap policy) and returning vendor, location, model, isolation, dispatch_mode, and rationale, driven by deterministic unit-testable rules versioned in routing.yaml, with every decision recorded under a routing audit event type and a local static fallback table when the coordinator is down.
@@ -129,9 +133,10 @@ Add POST /route/task and a bridge function as a superset of /archetypes/resolve_
 
 ### ri-06: Make the orchestrator obey the router
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 1
 - **Effort**: M
+- **Change ID**: make-the-orchestrator-obey-the-router
 - **Depends on**: `ri-03`, `ri-05`
 
 Call route/task before each dispatch_fn and pass the decision into the dispatch context as a contract, execute switch decisions with ledger-verified re-dispatch to the alternate vendor, add a global iteration cap and no-progress detector to the roadmap loop, un-stub _estimate_cost_delta/_estimate_wait_seconds against the registry, and turn the silent apply_phase_outcome no-op on a missing state file into an error.
@@ -143,9 +148,10 @@ Call route/task before each dispatch_fn and pass the decision into the dispatch 
 
 ### ri-07: Harden the resume contract
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 2
 - **Effort**: S
+- **Change ID**: harden-the-resume-contract
 
 Formalize and test that any fresh session can resume a loop via /autopilot <change-id> --resume and /autopilot-roadmap <workspace> --resume with zero conversational context, adding resume-freshness checks that reconcile or escalate when the branch or checkpoint has moved.
 
@@ -197,9 +203,10 @@ On ESCALATE, proposal-approval, and merge gates, write the request to the coordi
 
 ### ri-02: Reconcile versions and stale docs to one truth
 
-- **Status**: candidate
+- **Status**: approved
 - **Priority**: 3
 - **Effort**: S
+- **Change ID**: reconcile-versions-and-stale-docs-to-one-truth
 
 Single-source the root VERSION into agent-coordinator, packages/gen-eval, skills, and apps/kanban-viz, tag v0.2.0 with a minimal tag-triggered release workflow, fix documented drift (coordinator CLAUDE.md checklist, README counts, verification_gateway, formal/ duplication), and make one canonical file the sole statement of the D4 memory tag schema.
 
