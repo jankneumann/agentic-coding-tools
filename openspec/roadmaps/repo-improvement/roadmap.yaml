@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Gate drift with mirrors, hooks, and blocking CI
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on: []
@@ -20,6 +20,7 @@ items:
     skill mirrors have no drift gate, git hooks are inactive for most clones, and
     orphaned tests and advisory CI steps erode confidence in the quality machinery
     the roadmap builds on.
+  change_id: gate-drift-with-mirrors-hooks-and-blocking-ci
   acceptance_outcomes:
   - Editing a mirror file or forgetting to sync skills/ fails CI via the drift job.
   - A fresh clone gets active git hooks with no manual steps.
@@ -27,7 +28,7 @@ items:
     step.
 - item_id: ri-02
   title: Reconcile versions and stale docs to one truth
-  status: candidate
+  status: approved
   priority: 3
   effort: S
   depends_on: []
@@ -39,13 +40,14 @@ items:
   rationale: Version drift and docs-vs-reality drift undermine trust in automation
     (weakness W5); a single authoritative version and tag schema removes contradictory
     statements that mislead both humans and agents.
+  change_id: reconcile-versions-and-stale-docs-to-one-truth
   acceptance_outcomes:
   - git tag is non-empty and a tag-triggered release workflow exists.
   - One grep finds exactly one authoritative statement of the D4 memory tag schema.
   - Component manifests and the /health report agree with the root VERSION file.
 - item_id: ri-03
   title: Build structured vendor result channel
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on: []
@@ -57,6 +59,7 @@ items:
   rationale: Regex-scraping vendor CLI stdout is the most fragile link in the whole
     chain (weakness W3); structured results are a required input for the router, the
     orchestrator's ledger-verified switching, native fan-out, and the cloud lane.
+  change_id: build-structured-vendor-result-channel
   acceptance_outcomes:
   - No task_id_pattern or success_pattern regex remains on the primary result path
     for any vendor.
@@ -66,7 +69,7 @@ items:
     HTTP endpoints instead of waiting out the 120-minute TTL.
 - item_id: ri-04
   title: Add live vendor capability and cost registry
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on: []
@@ -78,6 +81,7 @@ items:
   rationale: Routing is reactive because vendor selection has only static config and
     stub cost estimators; a live registry gives the router and policy engine real
     availability and cost inputs (fixes weakness W1).
+  change_id: add-live-vendor-capability-and-cost-registry
   acceptance_outcomes:
   - evaluate_policy receives live availability and real cost deltas from the registry.
   - Taking a vendor offline or hitting its limit is visible in the registry within
@@ -86,7 +90,7 @@ items:
     the registry filtered by capability.
 - item_id: ri-05
   title: Implement the task router (vendor x location x model)
-  status: candidate
+  status: approved
   priority: 1
   effort: L
   depends_on:
@@ -100,6 +104,7 @@ items:
   rationale: No component ever decides where a task should run - the core gap of the
     proposal; putting all three axes in the coordinator's existing resolver keeps
     one decision point, one config file, one test surface for every harness.
+  change_id: implement-the-task-router-vendor-x-location-x-model
   acceptance_outcomes:
   - Given a synthetic task profile, POST /route/task returns a deterministic, explainable
     decision.
@@ -108,7 +113,7 @@ items:
     log.
 - item_id: ri-06
   title: Make the orchestrator obey the router
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on:
@@ -123,6 +128,7 @@ items:
   rationale: The policy engine currently only logs vendor-switch decisions and nothing
     executes them; closing this decide-but-don't-act gap is what makes routing decisions
     real and enables the switch_if_time_saved policy this roadmap runs under.
+  change_id: make-the-orchestrator-obey-the-router
   acceptance_outcomes:
   - An induced rate-limit on the preferred vendor causes an observed, ledger-verified
     dispatch to the alternate vendor.
@@ -132,7 +138,7 @@ items:
     of spinning indefinitely.
 - item_id: ri-07
   title: Harden the resume contract
-  status: candidate
+  status: approved
   priority: 2
   effort: S
   depends_on: []
@@ -143,6 +149,7 @@ items:
   rationale: Scheduled continuation (ri-08) is only safe if resume from loop-state.json
     and checkpoint.json is a tested contract rather than a best-effort behavior; this
     small item unblocks the durability arc.
+  change_id: harden-the-resume-contract
   acceptance_outcomes:
   - A scripted kill-resume test matrix passes for every autopilot phase and roadmap
     orchestrator step.
@@ -341,4 +348,4 @@ items:
   acceptance_outcomes:
   - Routing config changes come with a replay decision-diff in the PR.
   - The gen-eval routing suite runs in CI.
-updated_at: '2026-07-04T21:57:42.331056+00:00'
+updated_at: '2026-07-04T21:59:57.947902+00:00'
