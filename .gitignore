@@ -260,3 +260,13 @@ openspec/.plan-roadmap-tmp/
 # Legacy openspec init output (replaced by .agents/skills/ via skills/install.sh)
 .agent/
 skills/merge-pull-requests/scripts/docs/
+
+# Generated skill mirrors — THIS REPO ONLY.
+# .claude/skills/ and .agents/skills/ are rsync/symlink copies of the canonical
+# skills/ tree, produced by skills/install.sh. Because canonical skills/ ships in
+# this repo, the mirrors can always be regenerated on checkout, so tracking them
+# only produces drift noise (e.g. cloud sessions committing /home/user/... symlinks
+# that show as phantom "deleted" locally). Other repos that consume these skills
+# WITHOUT a parallel checkout of this repo must still commit their mirrors.
+.claude/skills/
+.agents/skills/
