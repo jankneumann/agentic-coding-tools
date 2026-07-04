@@ -2,10 +2,10 @@
  * End-to-end integration test: kanban-viz + live coordinator (add-coordinator-kanban-viz task 8.1)
  *
  * Requires a running coordinator on VITE_COORDINATOR_URL (default http://localhost:8000)
- * and a valid API key in VITE_API_KEY.
+ * and a valid API key in VITE_COORDINATOR_API_KEY.
  *
  * Skipped in CI (no coordinator available).  Run locally:
- *   VITE_COORDINATOR_URL=http://localhost:8081 VITE_API_KEY=<key> npm test -- e2e.integration
+ *   VITE_COORDINATOR_URL=http://localhost:8081 VITE_COORDINATOR_API_KEY=<key> npm test -- e2e.integration
  *
  * Spec scenarios covered:
  *   - composite: board renders cards bucketed by status
@@ -23,7 +23,7 @@ const COORDINATOR_URL =
     : undefined;
 const API_KEY =
   typeof import.meta.env !== "undefined"
-    ? import.meta.env.VITE_API_KEY
+    ? import.meta.env.VITE_COORDINATOR_API_KEY
     : undefined;
 const skip = !COORDINATOR_URL || !API_KEY;
 
