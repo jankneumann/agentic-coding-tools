@@ -1,0 +1,344 @@
+schema_version: 1
+roadmap_id: repo-improvement
+source_proposal: docs/proposals/repo-improvement-roadmap.md
+status: planning
+policy:
+  default_action: switch_if_time_saved
+  max_switch_attempts_per_item: 2
+items:
+- item_id: ri-01
+  title: Gate drift with mirrors, hooks, and blocking CI
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Add install.sh --check plus a CI job that fails when .claude/skills/
+    or .agents/skills/ drift from canonical skills/, wire core.hooksPath=.githooks
+    into every bootstrap path, adopt or delete orphaned test suites, and promote continue-on-error
+    CI steps (gen-eval mypy --strict blocking, Node job for apps/kanban-viz).
+  rationale: Everything later assumes the automation can be trusted; the committed
+    skill mirrors have no drift gate, git hooks are inactive for most clones, and
+    orphaned tests and advisory CI steps erode confidence in the quality machinery
+    the roadmap builds on.
+  acceptance_outcomes:
+  - Editing a mirror file or forgetting to sync skills/ fails CI via the drift job.
+  - A fresh clone gets active git hooks with no manual steps.
+  - No test file in the repo is outside CI, and gen-eval mypy --strict is a blocking
+    step.
+- item_id: ri-02
+  title: Reconcile versions and stale docs to one truth
+  status: candidate
+  priority: 3
+  effort: S
+  depends_on: []
+  description: Single-source the root VERSION into agent-coordinator, packages/gen-eval,
+    skills, and apps/kanban-viz, tag v0.2.0 with a minimal tag-triggered release workflow,
+    fix documented drift (coordinator CLAUDE.md checklist, README counts, verification_gateway,
+    formal/ duplication), and make one canonical file the sole statement of the D4
+    memory tag schema.
+  rationale: Version drift and docs-vs-reality drift undermine trust in automation
+    (weakness W5); a single authoritative version and tag schema removes contradictory
+    statements that mislead both humans and agents.
+  acceptance_outcomes:
+  - git tag is non-empty and a tag-triggered release workflow exists.
+  - One grep finds exactly one authoritative statement of the D4 memory tag schema.
+  - Component manifests and the /health report agree with the root VERSION file.
+- item_id: ri-03
+  title: Build structured vendor result channel
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Switch every CLI adapter to its vendor's structured JSON output mode
+    with typed envelopes, replace stdout-regex completion polling with a coordinator
+    completion ledger (submit_work/complete_work as the single source of dispatch
+    state), add GET /locks?agent_id= plus bulk release to fix the cloud lock leak,
+    and extend or explicitly document SdkVendorAdapter coverage beyond review-only.
+  rationale: Regex-scraping vendor CLI stdout is the most fragile link in the whole
+    chain (weakness W3); structured results are a required input for the router, the
+    orchestrator's ledger-verified switching, native fan-out, and the cloud lane.
+  acceptance_outcomes:
+  - No task_id_pattern or success_pattern regex remains on the primary result path
+    for any vendor.
+  - A vendor CLI output-format change degrades to a loud structured error rather than
+    a silent hang.
+  - Killed cloud sessions release their locks via the new list-and-release-by-agent
+    HTTP endpoints instead of waiting out the 120-minute TTL.
+- item_id: ri-04
+  title: Add live vendor capability and cost registry
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Add a coordinator vendor_registry service holding static capabilities
+    from agents.yaml plus dynamic availability, rate-limit windows with known reset
+    times, and a versioned real cost table replacing the policy.py stub tiers; expose
+    GET /vendors and GET /vendors/{id}/availability, teach coordination_bridge.py
+    the same, and delete the hardcoded vendor list in orchestrator.py.
+  rationale: Routing is reactive because vendor selection has only static config and
+    stub cost estimators; a live registry gives the router and policy engine real
+    availability and cost inputs (fixes weakness W1).
+  acceptance_outcomes:
+  - evaluate_policy receives live availability and real cost deltas from the registry.
+  - Taking a vendor offline or hitting its limit is visible in the registry within
+    one probe interval and changes routing output.
+  - No hardcoded vendor list remains in orchestrator.py; available vendors come from
+    the registry filtered by capability.
+- item_id: ri-05
+  title: Implement the task router (vendor x location x model)
+  status: candidate
+  priority: 1
+  effort: L
+  depends_on:
+  - ri-04
+  description: Add POST /route/task and a bridge function as a superset of /archetypes/resolve_for_phase,
+    taking a task routing profile (phase/archetype signals, duration, scope, interactivity,
+    secret needs, parallelism, repo shape, roadmap policy) and returning vendor, location,
+    model, isolation, dispatch_mode, and rationale, driven by deterministic unit-testable
+    rules versioned in routing.yaml, with every decision recorded under a routing
+    audit event type and a local static fallback table when the coordinator is down.
+  rationale: No component ever decides where a task should run - the core gap of the
+    proposal; putting all three axes in the coordinator's existing resolver keeps
+    one decision point, one config file, one test surface for every harness.
+  acceptance_outcomes:
+  - Given a synthetic task profile, POST /route/task returns a deterministic, explainable
+    decision.
+  - Changing routing.yaml changes decisions with no code edits.
+  - Every autopilot phase dispatch logs a routing record with rationale to the audit
+    log.
+- item_id: ri-06
+  title: Make the orchestrator obey the router
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on:
+  - ri-03
+  - ri-05
+  description: Call route/task before each dispatch_fn and pass the decision into
+    the dispatch context as a contract, execute switch decisions with ledger-verified
+    re-dispatch to the alternate vendor, add a global iteration cap and no-progress
+    detector to the roadmap loop, un-stub _estimate_cost_delta/_estimate_wait_seconds
+    against the registry, and turn the silent apply_phase_outcome no-op on a missing
+    state file into an error.
+  rationale: The policy engine currently only logs vendor-switch decisions and nothing
+    executes them; closing this decide-but-don't-act gap is what makes routing decisions
+    real and enables the switch_if_time_saved policy this roadmap runs under.
+  acceptance_outcomes:
+  - An induced rate-limit on the preferred vendor causes an observed, ledger-verified
+    dispatch to the alternate vendor.
+  - Cost and latency deltas are persisted in checkpoint.json as the roadmap-orchestration
+    spec specifies.
+  - A stuck dispatch_fn trips the global iteration cap or no-progress detector instead
+    of spinning indefinitely.
+- item_id: ri-07
+  title: Harden the resume contract
+  status: candidate
+  priority: 2
+  effort: S
+  depends_on: []
+  description: Formalize and test that any fresh session can resume a loop via /autopilot
+    <change-id> --resume and /autopilot-roadmap <workspace> --resume with zero conversational
+    context, adding resume-freshness checks that reconcile or escalate when the branch
+    or checkpoint has moved.
+  rationale: Scheduled continuation (ri-08) is only safe if resume from loop-state.json
+    and checkpoint.json is a tested contract rather than a best-effort behavior; this
+    small item unblocks the durability arc.
+  acceptance_outcomes:
+  - A scripted kill-resume test matrix passes for every autopilot phase and roadmap
+    orchestrator step.
+  - Resume after external branch movement (e.g. a human merge) reconciles or escalates
+    instead of blindly continuing.
+- item_id: ri-08
+  title: Add scheduled continuation for self-resuming loops
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-07
+  - ri-06
+  description: In the Claude dispatch adapter, replace in-session async-vendor polling
+    with self-wakeups matched to registry turnaround times and one-shot triggers at
+    known limit-reset times; add a nightly roadmap tick and hourly PR-babysit tick
+    that fire fresh sessions running the resume entry points; give non-Claude harnesses
+    the same contract via cron/CI, with pause-lock guard rails, idempotent trigger
+    registration, and deregistration at roadmap archive.
+  rationale: Loops are single-session and mortal (weakness W2); checkpoints make resume
+    possible but nothing makes it happen - scheduled triggers turn wait_if_budget_exceeded
+    pauses into active resumes and keep the factory running unattended, behind the
+    harness-agnostic adapter seam.
+  acceptance_outcomes:
+  - A roadmap started at 9am with a vendor limit hit at 10am completes overnight with
+    zero human re-invocations.
+  - The audit log shows the pause, the scheduled resume, and the completion.
+  - Killing every live session never strands a roadmap in in_progress for more than
+    one tick interval.
+- item_id: ri-09
+  title: Use native fan-out for same-vendor parallel work
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-03
+  description: Run review-convergence fan-out and local-parallel work-package DAGs
+    through native background subagents and workflow pipelines in the Claude adapter,
+    with structured outputs schema-enforced against review-findings.schema.json at
+    the tool-call layer, while keeping the subprocess CliVendorAdapter path for cross-vendor
+    diversity; fix the known consensus_synthesizer.py line-range parser bug in the
+    process.
+  rationale: Subprocess dispatch plus stdout JSON-parsing for same-harness reviewers
+    is needless fragility; schema enforcement at the tool layer replaces parse-and-pray
+    and converts convergence checkpoints from durability-only into actual recovery,
+    without collapsing vendor diversity.
+  acceptance_outcomes:
+  - A 3-vendor review round dispatches Claude reviewers natively (no subprocess, no
+    stdout parse) and Codex/Gemini via CLI, all landing in one review-manifest.json.
+  - Synthesis crash recovery from .review-cache/round-N/ works end-to-end.
+- item_id: ri-10
+  title: Build the cloud lane as a routable target
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-03
+  - ri-05
+  description: Make location cloud a first-class router output - Claude cloud dispatch
+    creates a fresh isolated session per task with a self-contained resume-contract
+    prompt, results come back as PRs on conventional branches collected event-driven
+    via PR activity subscriptions and the completion ledger, routing rules send independent
+    FULL-parallel packages to cloud fan-out while secret- or Docker-dependent tasks
+    stay local, and Codex cloud and Jules join the lane through structured harvesting.
+  rationale: Cloud execution today only happens if the operator already started a
+    cloud session; a vendor-neutral cloud lane lets the router actually choose where
+    work should go and replaces the manual /merge-pull-requests sweep as the discovery
+    mechanism.
+  acceptance_outcomes:
+  - /implement-feature on a 3-package FULL-parallel feature routes at least 2 packages
+    to cloud sessions.
+  - All cloud results are collected as PRs without any in-session polling and integrate
+    via the existing merge path.
+  - The coordinator work queue shows the full lifecycle of every cloud task.
+- item_id: ri-11
+  title: Make human gates non-blocking
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-08
+  description: On ESCALATE, proposal-approval, and merge gates, write the request
+    to the coordinator's approval queue, fire existing notification channels, mark
+    only that item blocked, and continue with other ready items; async approval responses
+    flip the item back to ready for the next scheduled tick, while the mandatory human
+    merge gate stays mandatory.
+  rationale: Every human gate currently parks the entire loop instead of one item,
+    stalling independent work; parked-item-plus-notification keeps the factory flowing
+    while preserving where humans decide.
+  acceptance_outcomes:
+  - A roadmap with one escalated item completes all independent items unattended.
+  - The escalated item resumes within one tick of the human's async approval.
+  - Time-to-unblock is visible in agent-metrics.
+- item_id: ri-12
+  title: Schedule the learning pipeline
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-08
+  - ri-01
+  description: Add a weekly trigger or CI cron running collect-transcripts --enable
+    over the week's sessions followed by improve-harness, emitting a dated gap report
+    plus coordinator issues for gaps above a frequency-times-severity threshold, and
+    wire /prioritize-proposals to include improve-harness-generated candidates in
+    the same queue as feature work.
+  rationale: The feedback pipeline is built but hand-cranked - capability-gap signal
+    accumulates unread because nothing schedules collection (weakness W4); this moves
+    the noticing from hand-crank to schedule while keeping proposal refinement human.
+  acceptance_outcomes:
+  - After a week of normal operation, an unattended run produces a gap report and
+    filed coordinator issues.
+  - Zero manual invocations of the collection pipeline are required.
+  - /prioritize-proposals output includes improve-harness-generated candidates.
+- item_id: ri-13
+  title: Feed routing decisions with outcome data
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-05
+  - ri-06
+  - ri-12
+  description: Compile a periodic routing scorecard (success rate, convergence rounds,
+    cost, latency, limit-hit frequency per vendor x phase-archetype x location) from
+    routing records, the dispatch ledger, and convergence metrics; render it into
+    routing.yaml as human-reviewed advisory weights, replace replanner.py's regex
+    ID-matching with scorecard- and learning-driven route/task signals, and give replan_required
+    a real handler via a scheduled /plan-roadmap --replan pass.
+  rationale: Dispatch outcomes are recorded but never consulted by any routing decision,
+    and replan_required is a documented dead status; this closes the learning half
+    of policy-aware routing conservatively and inspectably.
+  acceptance_outcomes:
+  - The routing scorecard exists and is regenerated on schedule.
+  - At least one routing rule cites scorecard evidence in its rationale.
+  - replan_required items are automatically re-planned or escalated within one tick,
+    never silently stuck.
+- item_id: ri-14
+  title: Enforce artifact freshness and automatic retrieval
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-01
+  description: Add staleness gates for docs/architecture-analysis/ and docs/factory-intelligence/
+    using their generated_at metadata and the 20-commit threshold (blocking only in
+    skills that depend on parallel-zone data), extend the SessionStart hook to inject
+    the latest handoff summary and top-K relevant memories, raise handoff read depth
+    from limit=1 to recent-N, and surface phase_record.write_both() double-failures
+    as errors at the gate.
+  rationale: Architecture artifacts are stale past their own warning threshold while
+    skills are told to trust them, and retrieval depends on agent virtue; extending
+    the decision-index freshness discipline keeps parallel-zone decisions and gap
+    capture trustworthy.
+  acceptance_outcomes:
+  - No skill consumes architecture artifacts older than threshold without an explicit
+    refresh-or-acknowledge.
+  - A fresh session on an in-flight change starts with the handoff summary in context
+    with zero skill invocation.
+  - A failed coordinator write with a failed local fallback surfaces as an error at
+    the gate, not a warning.
+- item_id: ri-15
+  title: Decompose the coordinator monoliths
+  status: candidate
+  priority: 4
+  effort: L
+  depends_on:
+  - ri-04
+  - ri-05
+  description: Split coordination_api.py (3.3k LOC) and coordination_mcp.py (3.2k
+    LOC) into per-domain routers and tool modules (locks, work, memory, approvals,
+    merge-train, routing, vendors, kanban) over the existing service layer, preserving
+    the Dockerfile-COPY contract checks.
+  rationale: The monoliths tax review bandwidth and merge-conflict surface, and the
+    Phase 1 routing and vendor endpoints should not be born into a monolith; the split
+    is mechanical and best done after those endpoints stabilize.
+  acceptance_outcomes:
+  - No src/ module exceeds roughly 800 LOC.
+  - The route inventory is unchanged, verified by contract tests before and after.
+  - Both CI docker import guards remain green.
+- item_id: ri-16
+  title: Evaluate the router with gen-eval and replay
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - ri-05
+  - ri-13
+  description: Add gen-eval scenarios asserting routing decisions and fallback ladders
+    for synthetic task profiles and registry states (vendor down, limit hit, cost
+    ceiling, secrets-required), plus replay evaluation that runs historical dispatch
+    records through proposed routing.yaml changes to show decision diffs before merge.
+  rationale: The router becomes load-bearing infrastructure and must be tested like
+    one; replay diffs make routing config changes reviewable against what would have
+    routed differently, mitigating confidently wrong decisions.
+  acceptance_outcomes:
+  - Routing config changes come with a replay decision-diff in the PR.
+  - The gen-eval routing suite runs in CI.
+updated_at: '2026-07-04T21:57:42.331056+00:00'
