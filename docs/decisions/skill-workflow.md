@@ -5,6 +5,127 @@
 
 ---
 
+## 2026-06-12 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Implementation
+
+**Pure-function helpers + bash orchestration** — Each helper module exposes pure functions for the testable logic (build_run_id, make_header, apply_retention, migrate_legacy) with a thin CLI entrypoint for shell invocation. SKILL.md stays bash-driven, calling the CLIs at the right points. Keeps tests fast and deterministic; keeps SKILL.md readable as a recipe.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D1)
+
+---
+
+## 2026-06-12 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Implementation
+
+**UTC-aware datetime enforcement** — Both build_run_id() and make_header() raise ValueError on naive datetimes. Run-ids must be stable across timezones (operators in different zones must produce the same run-id given the same UTC instant), so naive datetimes are a foot-gun the type system can't catch.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D2)
+
+---
+
+## 2026-06-12 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Implementation
+
+**Legacy migration refuses to clobber** — If openspec/priorities/2026-05-04-legacy/ already exists with content AND the source file also exists, migrate_legacy returns skipped_reason='already_migrated' rather than overwriting. The operator must resolve the collision manually. This trades automation for safety — a one-shot migration is the wrong place to silently overwrite history.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D3)
+
+---
+
+## 2026-06-12 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Implementation
+
+**Independent CLI verification in smoke tests** — test_artifact_header_cli_produces_same_shape invokes the CLI as a subprocess (mimicking SKILL.md's shell flow), not just the Python imports. This catches any divergence between the importable API and the CLI behavior — a class of bug that would silently break runtime even when unit tests pass.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D4)
+
+---
+
+## 2026-06-12 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Implementation
+
+**Mirror sync scope: only prioritize-proposals/, not other drift** — The bash skills/install.sh ran a full 132-skill rsync, but I only staged .claude/skills/prioritize-proposals/ and .agents/skills/prioritize-proposals/ for commit. Preexisting drift in other skills' mirrors is out of scope for this change (per Rule 0.5 Scope Discipline + work-packages.yaml write_allow).
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D5)
+
+---
+
+## 2026-06-11 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Plan
+
+**Directory layout mirrors openspec/changes/archive/** — Per-run subdirectory <YYYY-MM-DD>-HHMMSS-<short-git-sha>/ matches the existing OpenSpec archive idiom operators already know, accommodates multi-file artifacts (md + json + future siblings), and makes side-by-side comparison a one-shot 'diff <dir-A>/report.md <dir-B>/report.md'.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D1)
+
+---
+
+## 2026-06-11 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Plan
+
+**Run-id format HHMMSS-<short-git-sha>** — Sortable within a day, ties each run to the analyzed commit, human-recognizable, collision-resistant. Picked over UUID, sequential counter, or bare HHMMSS at Gate 0.5 discovery.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D2)
+
+---
+
+## 2026-06-11 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Plan
+
+**Rewritten flat-file latest.{md,json}, not symlinks** — Cross-platform: Windows, archive tarballs, GitHub web-UI downloads, and CI symlink quirks all work. Clean git diff shows what changed since last run. ~5 KB duplication cost is negligible.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D3)
+
+---
+
+## 2026-06-11 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Plan
+
+**Inline mandatory header now, migrate to codeviz helper later** — skills/shared/artifact_header.py is roadmap-planned (codeviz Phase 0), not built. ~10-LOC inline implementation unblocks this change; migration is trivial because on-disk schema is identical.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D4)
+
+---
+
+## 2026-06-11 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Plan
+
+**Retention archives past 30 (Decision A2), never deletes** — Operator-selected at Gate 1. Accepts ~2 MB/year sustained repo growth in exchange for full audit trail. 'What was the priority during the Q1 push?' remains answerable indefinitely.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D5)
+
+---
+
+## 2026-06-11 — 2026-06-26-add-timestamped-priorities-tree
+
+### Phase: Plan
+
+**Legacy file migrated as 2026-05-04-legacy entry (Decision B2)** — Operator-selected at Gate 1. The existing stale openspec/changes/prioritized-proposals.md becomes openspec/priorities/2026-05-04-legacy/report.md, preserving audit trail. Pre-migration header allowance (whitelist the literal directory name) avoids retrofitting a fake generated_at timestamp.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md](/openspec/changes/archive/2026-06-26-add-timestamped-priorities-tree/session-log.md) (D6)
+
+---
+
 ## 2026-05-19 — 2026-05-20-enforce-local-worktree-invariant
 
 ### Phase: Implement
