@@ -44,7 +44,7 @@
 
 ## Phase 4 — Skill integration
 
-- [ ] 4.1 Wire `--visual-review` into `plan-feature`: after drafting `proposal.md`, render + serve + long-poll, then fold resolved annotations into the `iterate-on-plan` pass as element-anchored findings; short-circuit in headless/cloud via `environment_profile.detect()`
+- [ ] 4.1 Wire `--visual-review` into `plan-feature` **after `tasks.md` is generated (Step 6)** so the task DAG is populated: render + serve + long-poll, then fold the **unresolved** annotations into the `iterate-on-plan` pass as element-anchored findings and mark each `resolved: true` once applied; short-circuit in headless/cloud via `environment_profile.detect()`
   **Spec scenarios**: skill-workflow "Visual review gate in plan-feature", "Visual review skipped when headless"
   **Design decisions**: D6 (environment awareness)
   **Dependencies**: 3.2

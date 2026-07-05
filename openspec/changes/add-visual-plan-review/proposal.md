@@ -43,9 +43,11 @@ annotation tuple wire-compatible with lavish-axi so we retain the option to inte
    `run_id`). Wire-compatible field names with lavish-axi's tuple.
 
 3. **`plan-feature` gains an optional visual-review step** (behind a `--visual-review` flag,
-   auto-skipped in headless/cloud). After drafting `proposal.md`, it renders the artifact, serves
-   it, long-polls for annotations, then folds resolved annotations into the existing
-   `iterate-on-plan` pass as element-anchored findings.
+   auto-skipped in headless/cloud). It runs **after `tasks.md` is generated** (plan-feature Step 6),
+   so the rendered task DAG is populated — not immediately after `proposal.md`, which exists alone
+   until the Step 5 approach-approval gate. It renders the artifact, serves it, long-polls for
+   annotations, then folds the **unresolved** annotations into the existing `iterate-on-plan` pass as
+   element-anchored findings, marking each `resolved: true` once its feedback has been applied.
 
 4. **`parallel-review-plan` consumes `plan-annotations.json`** when present, attaching human
    annotations to the review context so vendor reviewers see the human's element-anchored concerns

@@ -74,16 +74,19 @@ The visual-review step SHALL be opt-in (a `--visual-review` flag on `plan-featur
 short-circuited automatically in headless/cloud execution as determined by
 `environment_profile.detect()`. When short-circuited, the skill SHALL still write the HTML artifact
 to disk and SHALL log that visual review was skipped, and SHALL NOT block on a long-poll. When
-enabled and interactive, resolved annotations SHALL be folded into the `iterate-on-plan` pass as
-element-anchored findings, and `parallel-review-plan` SHALL attach `plan-annotations.json` (when
-present) to reviewer context.
+enabled and interactive, the **unresolved** annotations SHALL be folded into the `iterate-on-plan`
+pass as element-anchored findings, and each SHALL be marked `resolved: true` once its feedback has
+been applied; `parallel-review-plan` SHALL attach `plan-annotations.json` (when present) to reviewer
+context. The visual-review step SHALL run after `tasks.md` has been generated so the rendered task
+DAG is populated.
 
 #### Scenario: Visual review gate in plan-feature
 
-- **WHEN** `plan-feature --visual-review` runs in an interactive local environment after drafting
-  `proposal.md`
-- **THEN** the skill SHALL render and serve the artifact, long-poll for annotations, and fold
-  resolved annotations into the `iterate-on-plan` pass as element-anchored findings
+- **WHEN** `plan-feature --visual-review` runs in an interactive local environment after `tasks.md`
+  has been generated (plan-feature Step 6)
+- **THEN** the skill SHALL render and serve the artifact, long-poll for annotations, and fold the
+  **unresolved** annotations into the `iterate-on-plan` pass as element-anchored findings
+- **AND** SHALL mark each folded annotation `resolved: true` after its feedback has been applied
 
 #### Scenario: Visual review skipped when headless
 
