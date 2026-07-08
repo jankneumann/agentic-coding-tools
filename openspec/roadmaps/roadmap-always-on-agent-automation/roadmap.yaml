@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Implement fix-autopilot-archetype-and-apply-outcome
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on: []
@@ -23,7 +23,7 @@ items:
   - A re-run of the failure scenario documented in the proposal no longer reproduces.
 - item_id: ri-02
   title: Implement fix-compact-hook-phase-boundary-detection
-  status: candidate
+  status: approved
   priority: 1
   effort: S
   depends_on: []
@@ -51,7 +51,7 @@ items:
   - openspec/changes/ contains only genuinely open work.
 - item_id: ri-04
   title: Add trust posture contract file
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on: []
@@ -71,7 +71,7 @@ items:
     is block).
 - item_id: ri-05
   title: Build approval gate service (interviewer abstraction)
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on:
@@ -279,7 +279,7 @@ items:
   - Merge-blocking validation phases are configurable per repo via the posture file.
 - item_id: ri-15
   title: Build agent trajectory scenario harness
-  status: candidate
+  status: approved
   priority: 3
   effort: L
   depends_on: []
@@ -478,4 +478,4 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-07-08T09:37:26.909958+00:00'
+updated_at: '2026-07-08T09:43:46.372342+00:00'
