@@ -4,7 +4,10 @@
 Fires after every assistant turn (Stop lifecycle). Two trigger paths:
 
   1. **Threshold trip** — estimated context >= CLAUDE_COMPACT_THRESHOLD_PCT
-     of CLAUDE_CONTEXT_LIMIT (default 70% of 200_000 tokens).
+     of CLAUDE_CONTEXT_LIMIT (default 40% of 1_000_000 tokens, i.e. ~400k).
+     Modern Claude models (Opus 4.7, Sonnet 4.6) support 1M-token contexts;
+     prompting /compact at 400k still leaves substantial headroom for the
+     rest of the session while keeping per-turn latency and cost in check.
   2. **Phase boundary** — a PhaseRecord handoff JSON was just written under
      openspec/changes/<id>/handoffs/ in the last PHASE_BOUNDARY_WINDOW_SEC
      seconds. This is the "natural decomposition point" path.
@@ -42,8 +45,8 @@ from pathlib import Path
 from typing import Any
 
 PREFIX = "[check_compact]"
-DEFAULT_THRESHOLD_PCT = 70
-DEFAULT_CONTEXT_LIMIT = 200_000
+DEFAULT_THRESHOLD_PCT = 40
+DEFAULT_CONTEXT_LIMIT = 1_000_000
 PHASE_BOUNDARY_WINDOW_SEC = 300
 CHAR_PER_TOKEN = 4
 SDK_CACHE_TTL_SEC = 30
