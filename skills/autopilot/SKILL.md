@@ -235,7 +235,18 @@ Each block follows the same 3-step protocol:
 3. **Apply the outcome** by shelling out to `runner.py apply-outcome`,
    passing the `(outcome, handoff_id)` returned by the sub-agent. This
    updates `loop-state.json` (`last_handoff_id`, `handoff_ids`,
-   `phase_archetype`) and consumes the cache file.
+   `phase_archetype`, and appends a `phase_history` entry) and consumes
+   the cache file. It NEVER modifies `current_phase`.
+
+   **On non-zero exit (design D9): do NOT advance to the next phase.** A
+   failed `apply-outcome` means the bookkeeping did not land. Retain the
+   un-applied handoff file (do not delete it) and transition to `ESCALATE`
+   with `previous_phase` set to the failing phase. The
+   `apply_outcome_or_escalate()` helper in `autopilot.py` encapsulates this
+   exact sequence (run → on failure append `phase_history`, set
+   `current_phase = ESCALATE`, retain handoff); an in-process orchestrator
+   calls it in place of a bare `apply-outcome`. A silent continue is worse
+   than the bug this protocol prevents.
 
 **Fallback (D5)**: If `runner.py build-dispatch` returns `archetype: null`
 (coordinator unreachable or fallback), OR if no provider-neutral dispatch

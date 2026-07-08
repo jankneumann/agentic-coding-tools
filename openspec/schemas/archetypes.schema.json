@@ -21,7 +21,7 @@
       },
       "additionalProperties": {
         "type": "object",
-        "required": ["model", "system_prompt"],
+        "required": ["model", "system_prompt", "write_capable"],
         "properties": {
           "model": {
             "type": "string",
@@ -31,6 +31,10 @@
           "system_prompt": {
             "type": "string",
             "description": "Role-specific instruction prefix composed with task prompts."
+          },
+          "write_capable": {
+            "type": "boolean",
+            "description": "Whether this archetype may write files/artifacts. Required on every archetype (no implicit default). Write-capable autopilot phases must resolve to an archetype with write_capable: true."
           },
           "escalation": {
             "type": ["object", "null"],

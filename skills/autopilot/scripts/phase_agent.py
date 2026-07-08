@@ -30,10 +30,17 @@ import os
 import re
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
+
+
+def _now_iso() -> str:
+    """UTC ISO-8601 timestamp for phase_history entries."""
+    return datetime.now(timezone.utc).isoformat()
+
 
 _THIS_DIR = Path(__file__).resolve().parent
 _SESSION_LOG_SCRIPTS = _THIS_DIR.parent.parent / "session-log" / "scripts"
@@ -334,6 +341,10 @@ def _build_options(
         options["model"] = resolved["model"]
         options["system_prompt"] = resolved["system_prompt"]
         state_dict["_resolved_archetype"] = resolved["archetype"]
+        # write_capable is an optional passthrough from the coordinator (older
+        # coordinators may omit it); surface it for build-dispatch metadata.
+        if "write_capable" in resolved:
+            state_dict["_resolved_write_capable"] = resolved["write_capable"]
     # Path 3 (bridge None): leave options untouched. The bridge already
     # logs a structured warning; no need to double-log here.
 
@@ -384,7 +395,54 @@ def _build_prompt(
     parts.append("## Phase Task")
     parts.append("")
     parts.append(_phase_task_instructions(phase))
+    prohibitions = _state_mutation_prohibitions(phase, state_dict)
+    if prohibitions:
+        parts.append("")
+        parts.append(prohibitions)
     return "\n".join(parts)
+
+
+# Write-capable phases must carry the state-mutation prohibitions (Layers B+C).
+# This set is exactly the write-capable phase list from design D7 and mirrors
+# _WORKTREE_PHASES. State-only phases (INIT, SUBMIT_PR) and the read-only
+# GATEKEEPER judge are intentionally excluded.
+_STATE_MUTATION_PROHIBITION_PHASES: frozenset[str] = frozenset(_WORKTREE_PHASES)
+
+
+def _state_mutation_prohibitions(phase: str, state_dict: dict[str, Any]) -> str:
+    """Return the Layer B + Layer C state-mutation prohibition block for *phase*.
+
+    Write-capable phases append two explicit prohibitions to the dispatch
+    prompt (design D1 Layers B + C):
+
+      - Layer B: the sub-agent MUST NOT run ``runner.py apply-outcome`` (or any
+        other runner.py subcommand that mutates orchestrator state).
+      - Layer C: the sub-agent MUST NOT edit ``loop-state.json`` by any means
+        (python3 -c, sed, jq, or any other shell tool).
+
+    Read-only / state-only phases get an empty string (no prohibition needed).
+    """
+    if phase not in _STATE_MUTATION_PROHIBITION_PHASES:
+        return ""
+    change_id = state_dict.get("change_id")
+    loop_state_path = (
+        f"openspec/changes/{change_id}/loop-state.json"
+        if isinstance(change_id, str) and change_id
+        else "openspec/changes/<id>/loop-state.json"
+    )
+    return "\n".join([
+        "## Orchestrator State Ownership (do not violate)",
+        "",
+        "You return `(outcome, handoff_id)` and exit. The orchestrator — NOT you —",
+        "owns every state transition. Specifically:",
+        "",
+        "- DO NOT run `runner.py apply-outcome` or any other `runner.py` subcommand",
+        "  that modifies orchestrator state. The orchestrator runs apply-outcome",
+        "  after you return.",
+        f"- DO NOT edit `{loop_state_path}` by any means (python3 -c, sed, jq, or any",
+        "  other shell tool). The orchestrator owns this file, including",
+        "  `current_phase`. Editing it directly corrupts the loop.",
+    ])
 
 
 def _safe_state_dict(state_dict: dict[str, Any]) -> dict[str, Any]:
@@ -903,6 +961,7 @@ def build_phase_dispatch_kwargs(
     model = options.get("model")
     isolation = options.get("isolation")
     archetype = state_dict.get("_resolved_archetype")
+    write_capable = state_dict.get("_resolved_write_capable")
 
     if isinstance(system_prompt, str) and system_prompt:
         folded_prompt = f"{system_prompt}{_PROMPT_SEPARATOR}{phase_prompt}"
@@ -929,6 +988,7 @@ def build_phase_dispatch_kwargs(
         "system_prompt": system_prompt,
         "isolation": isolation,
         "archetype": archetype,
+        "write_capable": write_capable,
         "expected_outcomes": _expected_outcomes_for_phase(phase),
     }
 
@@ -1007,23 +1067,40 @@ def _read_cache(change_id: str) -> dict[str, Any] | None:
 def apply_phase_outcome(
     change_id: str,
     phase: str,
-    outcome: str,  # noqa: ARG001 — accepted for API symmetry, not yet consumed
+    outcome: str,
     handoff_id: str,
+    *,
+    allow_phase_mismatch: bool = False,
 ) -> None:
     """Update loop-state.json after a phase sub-agent returns (D4).
 
+    **No-transition contract (design D1 Layer A / Task 3):** this function
+    updates ONLY the fields it owns — ``last_handoff_id``, ``handoff_ids``
+    (append), ``phase_archetype``, and a new ``phase_history`` entry. It
+    NEVER modifies ``current_phase``. The orchestrator is the sole writer
+    of ``current_phase``.
+
+    **Phase-mismatch guard (Task 3.2-3.4):** on the non-replay path, if
+    *phase* does not equal loop-state's ``current_phase`` the call raises
+    ``ValueError`` (surfaced as a non-zero exit by the runner CLI) unless
+    *allow_phase_mismatch* is set. The escape hatch bypasses the guard for
+    operator-conscious recovery; it does NOT relax the no-transition
+    contract — ``current_phase`` is still left untouched.
+
     Idempotent: calling twice with the same arguments leaves the state
-    unchanged (no duplicate handoff_id append, no archetype overwrite).
+    unchanged (no duplicate handoff_id append, no archetype overwrite, no
+    duplicate phase_history entry).
 
     Replay rule: if loaded ``state.last_handoff_id == handoff_id`` AND
     ``state.previous_phase == phase`` (or ``state.current_phase == phase``),
-    treat as a replay — preserve ``phase_archetype`` and skip cache
-    validation entirely. The prior successful call deleted the cache, so
-    a missing cache on replay is expected and SHALL NOT raise.
+    treat as a replay — preserve ``phase_archetype``, skip the phase-mismatch
+    guard, and skip cache validation entirely. The prior successful call
+    deleted the cache, so a missing cache on replay is expected and SHALL
+    NOT raise.
 
     Otherwise: validate cache change_id+phase+checksum, write
-    ``phase_archetype`` from the cache (or None on any mismatch), and
-    atomically delete the cache.
+    ``phase_archetype`` from the cache (or None on any mismatch), append a
+    ``phase_history`` entry, and atomically delete the cache.
     """
     _validate_change_id(change_id)
 
@@ -1075,6 +1152,21 @@ def apply_phase_outcome(
         _atomic_unlink(_cache_path(change_id))
         return
 
+    # Phase-mismatch guard (Task 3.2-3.4). The orchestrator dispatches phase X
+    # while current_phase == X and applies the outcome before transitioning, so
+    # a mismatch means the caller is applying an outcome for the wrong phase.
+    # current_phase is NEVER modified either way — the flag only bypasses the
+    # guard, it does not enable a transition.
+    current_phase = state.get("current_phase")
+    if not allow_phase_mismatch and current_phase != phase:
+        raise ValueError(
+            f"--phase {phase!r} does not match current_phase="
+            f"{current_phase!r}. apply-outcome does not transition phases and "
+            f"refuses to apply an outcome for a non-current phase. Use "
+            f"--allow-phase-mismatch to apply anyway (current_phase will not be "
+            f"modified)."
+        )
+
     # Non-replay path: cache validation governs the archetype write.
     cache = _read_cache(change_id)
     archetype: str | None = None
@@ -1125,6 +1217,18 @@ def apply_phase_outcome(
     state["handoff_ids"] = ids
     state["last_handoff_id"] = handoff_id
     state["phase_archetype"] = archetype
+
+    # Append a phase_history entry recording this outcome (Task 3.6 / spec).
+    # current_phase is deliberately NOT touched here.
+    history = state.get("phase_history")
+    if not isinstance(history, list):
+        history = []
+    history.append({
+        "phase": phase,
+        "outcome": outcome,
+        "at": _now_iso(),
+    })
+    state["phase_history"] = history
 
     _save_state(state_path, state)
     _atomic_unlink(_cache_path(change_id))

@@ -1,0 +1,111 @@
+"""Structural checks over the real ``agent-coordinator/archetypes.yaml``.
+
+Spec: openspec/changes/fix-autopilot-archetype-and-apply-outcome/specs/
+      skill-workflow/spec.md
+      Requirement: "Archetypes Declare Write-Capability via a Structured Field"
+
+These are CI guards (Task 6.1-6.3). They enforce that every write-capable
+autopilot phase resolves to an archetype declaring ``write_capable: true`` via
+the structured field — NO substring matching over ``system_prompt`` text.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+import yaml
+
+from src.agents_config import (
+    WRITE_CAPABLE_PHASES,
+    load_archetypes_config,
+    reset_archetypes_config,
+    resolve_archetype_for_phase,
+)
+
+_ARCHETYPES_YAML = Path(__file__).resolve().parent.parent / "archetypes.yaml"
+
+
+@pytest.fixture()
+def _load_real_config() -> None:
+    """Load the real archetypes.yaml into the module cache and reset after."""
+    reset_archetypes_config()
+    load_archetypes_config(_ARCHETYPES_YAML)
+    yield
+    reset_archetypes_config()
+
+
+def _raw() -> dict:
+    return yaml.safe_load(_ARCHETYPES_YAML.read_text())
+
+
+# ---------------------------------------------------------------------------
+# Task 6.2 — every archetype declares write_capable
+# ---------------------------------------------------------------------------
+
+
+def test_every_archetype_declares_write_capable() -> None:
+    raw = _raw()
+    missing = [
+        name
+        for name, data in raw["archetypes"].items()
+        if "write_capable" not in data
+    ]
+    assert not missing, f"archetypes missing write_capable field: {missing}"
+
+
+def test_write_capable_values_are_boolean() -> None:
+    raw = _raw()
+    non_bool = {
+        name: data["write_capable"]
+        for name, data in raw["archetypes"].items()
+        if not isinstance(data.get("write_capable"), bool)
+    }
+    assert not non_bool, f"write_capable must be a bool: {non_bool}"
+
+
+# ---------------------------------------------------------------------------
+# Task 6.1 — every write-capable phase resolves to write_capable: true
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("phase", sorted(WRITE_CAPABLE_PHASES))
+def test_write_capable_phase_resolves_to_write_capable_archetype(
+    phase: str, _load_real_config: None
+) -> None:
+    resolved = resolve_archetype_for_phase(phase, {})
+    assert resolved.write_capable is True, (
+        f"phase {phase} resolves to archetype {resolved.archetype!r} "
+        f"with write_capable={resolved.write_capable}"
+    )
+
+
+def test_validate_maps_to_validator(_load_real_config: None) -> None:
+    resolved = resolve_archetype_for_phase("VALIDATE", {})
+    assert resolved.archetype == "validator"
+    assert resolved.write_capable is True
+
+
+def test_val_fix_maps_to_implementer(_load_real_config: None) -> None:
+    resolved = resolve_archetype_for_phase("VAL_FIX", {})
+    assert resolved.archetype == "implementer"
+    assert resolved.write_capable is True
+
+
+# ---------------------------------------------------------------------------
+# Task 6.3 — validator prompt free of read-only-marker phrasing (secondary
+# defense-in-depth guard; the structured field is the primary gate)
+# ---------------------------------------------------------------------------
+
+
+def test_validator_system_prompt_has_no_read_only_markers() -> None:
+    raw = _raw()
+    prompt = raw["archetypes"]["validator"]["system_prompt"].lower()
+    forbidden = [
+        "do not modify source code",
+        "without making changes",
+        "without modifying",
+        "only synthesize",
+    ]
+    hits = [phrase for phrase in forbidden if phrase in prompt]
+    assert not hits, f"validator system_prompt contains read-only markers: {hits}"

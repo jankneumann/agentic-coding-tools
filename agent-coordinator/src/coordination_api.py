@@ -2198,6 +2198,7 @@ def create_coordination_api() -> FastAPI:
             "archetype": resolved.archetype,
             "reasons": list(resolved.reasons),
             "provider": resolved.provider,
+            "write_capable": resolved.write_capable,
         }
 
     # --------------------------------------------------------------------- #
