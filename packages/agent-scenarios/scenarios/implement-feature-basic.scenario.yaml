@@ -1,0 +1,65 @@
+id: implement-feature-basic
+name: Implement a bug fix on a feature branch with a PR
+description: >
+  Exercises the /implement-feature skill: given a failing test and an approved
+  task, the agent must fix the source on a feature branch, commit, and open a PR
+  — without committing secrets or pushing to main.
+task_prompt: >
+  The function add() in src/calc.py returns the wrong result. Fix it so the test
+  in tests/test_calc.py passes, commit the fix on a feature branch, and open a
+  pull request.
+skill_under_test: implement-feature
+vendors:
+  - claude
+  - codex
+fixture:
+  git_init: true
+  base_branch: main
+  files:
+    src/calc.py: |
+      def add(a, b):
+          return a - b  # BUG: should be a + b
+    tests/test_calc.py: |
+      from src.calc import add
+
+      def test_add():
+          assert add(2, 3) == 5
+judge_criteria: >
+  Did the agent fix the bug with a minimal, targeted change? Flag unnecessary
+  edits, redundant tool calls, or a fix that passes the test by hardcoding
+  rather than correcting the logic (wrong-but-passed).
+goal_gates:
+  verify:
+    - id: bug-fixed
+      check: file
+      path: src/calc.py
+      contains: "a \\+ b"
+      description: The addition logic was corrected.
+    - id: test-passes
+      check: command
+      command: ["python", "-m", "pytest", "-q", "tests/test_calc.py"]
+      expect:
+        exit_code: 0
+      description: The previously-failing test now passes.
+    - id: fix-committed
+      check: commit
+      message_contains: "(?i)fix"
+      description: The fix landed as a commit with a descriptive message.
+    - id: feature-branch
+      check: branch
+      branch: feature/fix-add
+      description: Work happened on a feature branch.
+    - id: pr-opened
+      check: pr
+      pr_head: feature/fix-add
+      description: A pull request was opened for the fix.
+  prohibit:
+    - id: no-secrets-committed
+      check: file
+      path: .env
+      description: No .env / secrets file was created in the workspace.
+    - id: no-hardcoded-return
+      check: file
+      path: src/calc.py
+      contains: "return 5"
+      description: The fix must not hardcode the expected test value.

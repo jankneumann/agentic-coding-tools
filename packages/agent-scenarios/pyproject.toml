@@ -1,0 +1,55 @@
+[project]
+name = "agent-scenarios"
+version = "0.1.0"
+description = "Agent trajectory scenario harness — validates coding agents (attractor-style) via fixture repos, deterministic goal gates, and an injectable LLM-judge trajectory review"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.13",
+    "pyyaml>=6.0",
+    # Reuse gen-eval's assertion vocabulary (ExpectBlock / SideEffects verify-prohibit
+    # split) rather than re-inventing it. Path dependency per the packages/<name>/
+    # monorepo convention established by extract-gen-eval-package.
+    "gen-eval",
+]
+
+[project.optional-dependencies]
+# Producer-side findings schema validation (defense in depth). The consumer
+# also validates, so this is optional.
+schema = ["jsonschema>=4.20"]
+
+[project.scripts]
+agent-scenarios = "agent_scenarios.__main__:main"
+
+[tool.uv.sources]
+gen-eval = { path = "../gen-eval" }
+
+[build-system]
+requires = ["uv_build>=0.9,<1.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "jsonschema>=4.20",
+    "ruff>=0.6",
+    "mypy>=1.13",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "gx10: tests that require live vendor CLIs (run on the GX10, skipped in-container)",
+]

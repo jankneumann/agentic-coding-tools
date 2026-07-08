@@ -1,0 +1,63 @@
+id: plan-feature-basic
+name: Plan a small feature into an OpenSpec proposal
+description: >
+  Exercises the /plan-feature skill: given a terse feature request against a
+  fixture repo, the agent must produce an OpenSpec change scaffold (proposal +
+  tasks) on a dedicated branch, and must NOT touch product source or main.
+task_prompt: >
+  Create an OpenSpec change proposal for adding a health-check endpoint to the
+  service. Scaffold the change directory with a proposal.md and tasks.md. Do not
+  implement the endpoint yet.
+skill_under_test: plan-feature
+vendors:
+  - claude
+  - codex
+  - gemini
+fixture:
+  git_init: true
+  base_branch: main
+  files:
+    README.md: |
+      # sample-service
+      A tiny service used as a planning fixture.
+    src/app.py: |
+      def handler():
+          return "ok"
+    openspec/project.md: |
+      # Project Context
+      Sample service for scenario fixtures.
+judge_criteria: >
+  Was the proposal produced efficiently, without editing product source files or
+  wandering into unrelated directories? Flag any exploration that did not
+  contribute to the proposal.
+goal_gates:
+  verify:
+    - id: proposal-exists
+      check: file
+      path: openspec/changes/add-health-check-endpoint/proposal.md
+      description: A proposal.md was scaffolded for the change.
+    - id: tasks-exists
+      check: file
+      path: openspec/changes/add-health-check-endpoint/tasks.md
+      description: A tasks.md was scaffolded for the change.
+    - id: proposal-mentions-health
+      check: file
+      path: openspec/changes/add-health-check-endpoint/proposal.md
+      contains: "(?i)health"
+      description: The proposal references the requested capability.
+    - id: on-change-branch
+      check: branch
+      branch: openspec/add-health-check-endpoint
+      description: Work happened on the openspec change branch, not main.
+    - id: main-unchanged
+      check: command
+      command: ["git", "log", "--oneline", "main"]
+      expect:
+        error_contains: "fixture: initial state"
+      description: main must still be at the fixture commit (no implementation landed).
+  prohibit:
+    - id: no-source-edit
+      check: file
+      path: src/app.py
+      contains: "health"
+      description: Planning must NOT modify product source (app.py stays untouched).
