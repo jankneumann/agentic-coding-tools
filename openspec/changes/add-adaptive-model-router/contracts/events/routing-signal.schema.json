@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "routing-signal.schema.json",
+  "title": "Routing signal event",
+  "description": "Payload recorded on the coordinator audit_log (operation prefixed 'routing.') and mirrored as OTel measurements on the coordinator.signal meter. Families absorbed from cross-vendor-arbitrage-instrument.",
+  "type": "object",
+  "required": ["signal_version", "family", "event", "occurred_at"],
+  "properties": {
+    "signal_version": {"const": 1},
+    "family": {
+      "enum": ["compliance", "cost_quota", "quality_drift", "integration_cost", "decision_provenance", "posture"]
+    },
+    "event": {
+      "type": "string",
+      "examples": [
+        "routing.decision", "routing.fallback", "routing.exploration",
+        "routing.throttle", "routing.tos_diff", "routing.canary_drift",
+        "routing.tripwire.vendor_freeze", "routing.tripwire.economic_kill",
+        "routing.probe_failure"
+      ]
+    },
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "vendor": {"type": "string"},
+    "model": {"type": "string"},
+    "endpoint_kind": {"enum": ["vendor-cli", "vendor-sdk", "openrouter", "local"]},
+    "archetype": {"type": "string"},
+    "modality": {"enum": ["interactive", "programmatic"]},
+    "decision_id": {"type": "string", "format": "uuid"},
+    "detail": {
+      "type": "object",
+      "description": "Family-specific payload (e.g. cumulative usage at throttle, terms-hash pair, fingerprint distance, ledger evidence)",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
