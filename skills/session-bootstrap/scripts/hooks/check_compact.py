@@ -258,12 +258,43 @@ def _all_worktree_roots(cwd: Path | None = None) -> list[Path]:
     return roots or [cwd]
 
 
+def _applied_handoff_id(change_dir: Path) -> str | None:
+    """Return the ``last_handoff_id`` recorded in this change's
+    ``loop-state.json``, or None when the state file is absent, malformed,
+    or has no usable applied-handoff value.
+
+    The orchestrator (e.g. autopilot's ``apply-outcome`` step) writes
+    ``loop-state.json`` with ``last_handoff_id`` set to the repo-relative
+    path of the handoff it just consumed. That is the authoritative "a phase
+    just completed" signal. We read it defensively: any read/parse failure or
+    a missing/null/empty value is treated as "no applied handoff" so the
+    phase-boundary detector fails closed."""
+    loop_state_path = change_dir / "loop-state.json"
+    try:
+        loop_state = json.loads(loop_state_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None  # fail closed: no readable loop state = no boundary
+    if not isinstance(loop_state, dict):
+        return None
+    last_handoff = loop_state.get("last_handoff_id")
+    if not isinstance(last_handoff, str) or not last_handoff:
+        return None  # missing / null / empty = no applied handoff
+    return last_handoff
+
+
 def _recent_phase_boundary() -> str | None:
     """Return the phase name (e.g. 'implementation') if a handoff JSON was
     written in the last PHASE_BOUNDARY_WINDOW_SEC seconds in ANY worktree
-    of the current repo. PhaseRecord write_both() persists to
+    of the current repo AND that handoff has been recorded as the change's
+    most-recently-applied phase outcome. PhaseRecord write_both() persists to
     openspec/changes/<id>/handoffs/<phase>-<N>.json in the local-fallback
-    path."""
+    path.
+
+    A recent mtime alone is NOT a phase boundary: sub-agent writes, mtime
+    touches (git checkout, IDE indexing), and sibling-worktree handoffs all
+    produce fresh mtimes without a real phase transition. We gate on the
+    change's ``loop-state.json.last_handoff_id`` so only handoffs the
+    orchestrator has actually consumed count as boundaries."""
     cutoff = time.time() - PHASE_BOUNDARY_WINDOW_SEC
     newest_phase: str | None = None
     newest_mtime = 0.0
@@ -281,9 +312,21 @@ def _recent_phase_boundary() -> str | None:
                 mtime = p.stat().st_mtime
             except OSError:
                 continue
-            if mtime >= cutoff and mtime > newest_mtime:
-                newest_mtime = mtime
-                newest_phase = p.stem.rsplit("-", 1)[0]
+            if mtime < cutoff or mtime <= newest_mtime:
+                continue
+            # Gate on last_handoff_id from the loop-state.json alongside this
+            # handoff file. If the orchestrator has not yet consumed this
+            # handoff (apply-outcome step), the recent mtime is from sub-agent
+            # activity, an mtime touch, or a sibling worktree's write — not a
+            # real boundary. Compare basename because last_handoff_id is stored
+            # as a repo-relative path while p may resolve differently across
+            # worktree roots; per-change handoff dirs namespace filenames.
+            change_dir = p.parent.parent  # openspec/changes/<id>/
+            last_handoff = _applied_handoff_id(change_dir)
+            if last_handoff is None or not last_handoff.endswith(p.name):
+                continue
+            newest_mtime = mtime
+            newest_phase = p.stem.rsplit("-", 1)[0]
     return newest_phase
 
 
