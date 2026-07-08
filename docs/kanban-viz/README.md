@@ -17,11 +17,11 @@ npm run dev          # starts Vite dev server on http://localhost:5173
 ```
 
 Configure the coordinator URL and API key via environment variables or the
-`VITE_COORDINATOR_URL` / `VITE_API_KEY` prefix in a `.env.local` file:
+`VITE_COORDINATOR_URL` / `VITE_COORDINATOR_API_KEY` prefix in a `.env.local` file:
 
 ```
 VITE_COORDINATOR_URL=http://localhost:8000
-VITE_API_KEY=your-api-key-here
+VITE_COORDINATOR_API_KEY=your-api-key-here
 ```
 
 ## Environment Variables
@@ -29,7 +29,7 @@ VITE_API_KEY=your-api-key-here
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `VITE_COORDINATOR_URL` | yes | `http://localhost:8000` | Coordinator base URL |
-| `VITE_API_KEY` | yes | — | Bearer API key |
+| `VITE_COORDINATOR_API_KEY` | yes | — | Bearer API key |
 | `VITE_CHANGE_IDS` | no | `""` | Comma-separated change IDs to filter issues |
 
 ### Coordinator-side (server env, not SPA)
