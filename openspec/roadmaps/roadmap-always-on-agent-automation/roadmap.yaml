@@ -371,4 +371,111 @@ items:
   acceptance_outcomes:
   - A weekly automated harness-health digest is delivered via the notification service.
   - Ambient review ledger findings are available to sync-point gates.
-updated_at: '2026-07-08T09:31:57.812891+00:00'
+- item_id: ri-20
+  title: Migrate CI to self-hosted GX10 runners
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on: []
+  description: Ephemeral containerized GitHub Actions runners on the GX10 (systemd,
+    arm64) with ci.yml/security.yml moved to self-hosted labels and a GitHub-hosted
+    fallback lane; fork-PR execution requires approval.
+  rationale: CI wall-clock directly bounds merge sync-window cadence, and the runner
+    shares the Docker layer cache with validate-feature; aarch64 and fork-PR safety
+    are first-class requirements.
+  change_id: migrate-ci-to-self-hosted-gx10-runners
+  acceptance_outcomes:
+  - ci.yml and security.yml complete green on a self-hosted arm64 runner; non-arm64
+    jobs are explicitly pinned to the hosted lane.
+  - Median CI wall-clock for a typical PR drops measurably versus hosted runners.
+  - A fork PR cannot execute a job on the self-hosted runner without explicit approval.
+  - Runners are ephemeral per job and survive host reboot via systemd.
+- item_id: ri-21
+  title: Add GitHub two-way tracker adapter
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-07
+  - ri-08
+  description: 'Elevate the symphony github-tracker-adapter from one-way projection
+    to bidirectional sync: GitHub Issues as human-facing system of record, coordinator
+    issue tracker as the claim ledger, labels carrying ready/claimed/blocked/needs-human
+    status.'
+  rationale: Aligns agent work tracking with human processes on GitHub while keeping
+    exclusive claim semantics the platform lacks.
+  change_id: add-github-two-way-tracker-adapter
+  acceptance_outcomes:
+  - An issue labeled ready on GitHub is dispatchable within one poll interval, with
+    claim/progress/closure visible on GitHub.
+  - Concurrent dispatcher polls never claim the same GitHub issue twice.
+  - Human edits on GitHub (close, re-label, comment commands) reach the coordinator
+    within one sync interval.
+- item_id: ri-22
+  title: Schedule daily discovery refresh
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-08
+  description: Run refresh-architecture, tech-debt-analysis, and bug-scrub daily on
+    the daemon schedule (staggered, posture-gated), keeping architecture artifacts
+    under 24 h old and producing dated machine-readable findings.
+  rationale: validate-feature architecture checks and prioritization inputs drift
+    when analysis artifacts go stale; discovery must be continuous for backlog automation
+    to be trustworthy.
+  change_id: schedule-daily-discovery-refresh
+  acceptance_outcomes:
+  - All three analyses run daily unattended with timestamped artifacts; the architecture
+    graph is never older than 24 h.
+  - A failed refresh emits a notification rather than silently serving stale artifacts.
+  - fix-scrub auto-fix lane runs against fresh findings under the posture auto ceiling
+    only.
+- item_id: ri-23
+  title: Add findings-to-issues pipeline
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-21
+  - ri-22
+  description: Normalize bug-scrub, tech-debt, architecture, and capability-gap findings
+    into deduplicated GitHub issues with provenance links and severity/type labels;
+    route auto-fixable findings to a fix-scrub dispatch lane.
+  rationale: 'Gives humans and agents one shared backlog: humans see findings on GitHub,
+    agents consume the same issues through the dispatcher.'
+  change_id: add-findings-to-issues-pipeline
+  acceptance_outcomes:
+  - A bug-scrub finding becomes exactly one GitHub issue (re-runs update, never duplicate)
+    with a provenance link.
+  - Labels distinguish auto-fixable from needs-planning findings; the former are dispatchable
+    to fix-scrub.
+  - Closing the issue on GitHub retires the finding from subsequent scrub reports.
+- item_id: ri-24
+  title: Automate proposal prioritization and next-work selection
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-05
+  - ri-08
+  - ri-22
+  description: 'Extend prioritize-proposals into a scheduled decision layer: daily
+    scoring of proposals, roadmap items, and open issues on dependency-readiness,
+    value, effort, staleness, and live episodic-memory signals; top-N ready items
+    auto-enqueue to the dispatcher under a notify-with-veto posture; explore-feature
+    proposes candidates when the ready queue runs dry.'
+  rationale: Automating build/validate/merge without automating what-next leaves the
+    daemon starved or human-bottlenecked; selection is the remaining manual step in
+    the loop.
+  change_id: automate-proposal-prioritization-and-next-work-selection
+  acceptance_outcomes:
+  - A daily prioritization report ranks all active proposals and ready roadmap items
+    with per-factor scores, delivered via the notification service.
+  - Under the default posture, top-N picks auto-enqueue after the veto window; a veto
+    prevents enqueue; under block, nothing enqueues without approval.
+  - The dispatcher queue is never empty while unblocked candidate work exists over
+    a 7-day soak.
+  - When no ready work exists, an explore-feature run proposes candidates as draft
+    issues.
+updated_at: '2026-07-08T09:37:26.909958+00:00'
