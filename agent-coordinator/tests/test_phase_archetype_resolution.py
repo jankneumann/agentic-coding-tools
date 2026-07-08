@@ -79,10 +79,12 @@ _BASE_ARCHETYPES = """
 schema_version: 2
 archetypes:
   architect:
+    write_capable: true
     model: opus
     system_prompt: |
       You are a software architect. Focus on cross-cutting concerns.
   implementer:
+    write_capable: true
     model: sonnet
     system_prompt: |
       You are a focused implementer.
@@ -90,10 +92,12 @@ archetypes:
       escalate_to: opus
       loc_threshold: 100
   reviewer:
+    write_capable: true
     model: opus
     system_prompt: |
       You are a code reviewer.
   runner:
+    write_capable: false
     model: haiku
     system_prompt: |
       Execute and report.
@@ -141,6 +145,7 @@ def test_load_archetypes_legacy_v1_no_phase_mapping(tmp_path: Path) -> None:
         schema_version: 1
         archetypes:
           architect:
+            write_capable: true
             model: opus
             system_prompt: "You are an architect."
     """)

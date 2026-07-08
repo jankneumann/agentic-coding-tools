@@ -57,6 +57,25 @@ DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
 
 ARCHETYPE_NAME_PATTERN = r"^[a-z][a-z0-9_-]{0,31}$"
 
+# Autopilot phases that produce files, artifacts, or handoffs and therefore
+# MUST resolve to a `write_capable: true` archetype (design D7 canonical list).
+# State-only phases (INIT, SUBMIT_PR) and read-only judge phases (GATEKEEPER)
+# are intentionally excluded. Keep this list in sync with the write-capable
+# phase enumerations in skills/autopilot and design D7 when phases change.
+WRITE_CAPABLE_PHASES: frozenset[str] = frozenset({
+    "PLAN",
+    "PLAN_ITERATE",
+    "PLAN_REVIEW",
+    "PLAN_FIX",
+    "IMPLEMENT",
+    "IMPL_ITERATE",
+    "IMPL_REVIEW",
+    "IMPL_FIX",
+    "VALIDATE",
+    "VAL_REVIEW",
+    "VAL_FIX",
+})
+
 # Non-terminal autopilot phases that may be mapped to archetypes (per design D11).
 # Terminal phases (DONE, ESCALATE, ERROR) are not mapped.
 NON_TERMINAL_PHASES: tuple[str, ...] = (
@@ -109,7 +128,7 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
             },
             "additionalProperties": {
                 "type": "object",
-                "required": ["model", "system_prompt"],
+                "required": ["model", "system_prompt", "write_capable"],
                 "properties": {
                     "model": {
                         "type": "string",
@@ -119,6 +138,10 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
                         ],
                     },
                     "system_prompt": {"type": "string"},
+                    # Whether the archetype may write files / artifacts. Required
+                    # on every archetype (design D3 / D3.1 — no implicit default;
+                    # a missing field fails schema validation, i.e. fail-loud).
+                    "write_capable": {"type": "boolean"},
                     "escalation": {
                         "type": ["object", "null"],
                         "properties": {
@@ -427,6 +450,7 @@ class ArchetypeConfig:
     name: str
     model: str
     system_prompt: str
+    write_capable: bool = False
     escalation: EscalationConfig | None = None
 
 
@@ -457,6 +481,7 @@ class ResolvedArchetype:
     archetype: str
     reasons: list[str]
     provider: str | None = None
+    write_capable: bool = False
 
 
 class ProviderModelMappingError(ValueError):
@@ -937,6 +962,7 @@ def load_archetypes_config(
             name=name,
             model=data["model"],
             system_prompt=data["system_prompt"],
+            write_capable=bool(data["write_capable"]),
             escalation=esc_config,
         )
 
@@ -1242,6 +1268,17 @@ def resolve_archetype_for_phase(
             f"reset_archetypes_config() and reload)"
         )
 
+    # Enforce the write-capability contract at resolution time (design D3 /
+    # Task 2.5): a write-capable phase MUST resolve to a write_capable archetype.
+    # This is the structured-field gate — no substring matching over prompts.
+    if phase in WRITE_CAPABLE_PHASES and not archetype.write_capable:
+        raise ValueError(
+            f"phase_mapping[{phase!r}] resolves to archetype "
+            f"{archetype.name!r} with write_capable=false, but {phase} is a "
+            f"write-capable phase that produces files/artifacts/handoffs. "
+            f"Map it to an archetype with write_capable: true in archetypes.yaml."
+        )
+
     # Filter signals to keys listed in the phase entry — security-style
     # whitelist that mirrors the spec's "unknown keys silently dropped" rule.
     filtered: dict[str, Any] = {
@@ -1274,4 +1311,5 @@ def resolve_archetype_for_phase(
         archetype=archetype.name,
         reasons=reasons,
         provider=provider,
+        write_capable=archetype.write_capable,
     )

@@ -80,6 +80,11 @@ class LoopState:
     implementation_strategy: dict[str, str] = field(default_factory=dict)
     memory_ids: list[str] = field(default_factory=list)
     handoff_ids: list[str] = field(default_factory=list)
+    # Append-only log of {phase, outcome, at[, note]} entries. Written by
+    # runner.py apply-outcome (cross-process path) and the apply-outcome-failure
+    # escalation wrapper. Declared here so autopilot's dataclass round-trip
+    # (asdict/load_state) preserves it rather than dropping it on save.
+    phase_history: list[dict[str, Any]] = field(default_factory=list)
     last_handoff_id: str | None = None
     started_at: str = ""
     phase_started_at: str = ""
@@ -228,6 +233,139 @@ def check_escalation_resolved(
     if gate_check_fn is not None:
         return gate_check_fn(state)
     return False
+
+
+# ---------------------------------------------------------------------------
+# apply-outcome failure handling (design D9 / Task 5.5)
+# ---------------------------------------------------------------------------
+
+# Result of a runner.py apply-outcome invocation. Value is the process exit
+# code (0 == success). The orchestrator treats any non-zero code as a failure
+# that must escalate rather than silently continue.
+ApplyOutcomeRunner = Callable[..., int]
+
+
+def _default_apply_outcome_runner(
+    *,
+    change_id: str,
+    phase: str,
+    outcome: str,
+    handoff_id: str,
+    allow_phase_mismatch: bool,
+) -> int:
+    """Shell out to ``runner.py apply-outcome`` and return its exit code."""
+    import subprocess  # local import — keeps module import cheap
+
+    cmd = [
+        sys.executable,
+        str(_SCRIPTS_DIR / "runner.py"),
+        "apply-outcome",
+        "--change-id", change_id,
+        "--phase", phase,
+        "--outcome", outcome,
+        "--handoff-id", handoff_id,
+    ]
+    if allow_phase_mismatch:
+        cmd.append("--allow-phase-mismatch")
+    completed = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if completed.returncode != 0:
+        logger.warning(
+            "apply-outcome exited %d for phase=%s change=%s: %s",
+            completed.returncode, phase, change_id, completed.stderr.strip(),
+        )
+    return completed.returncode
+
+
+def apply_outcome_or_escalate(
+    *,
+    change_id: str,
+    phase: str,
+    outcome: str,
+    handoff_id: str,
+    state_path: str | Path,
+    allow_phase_mismatch: bool = False,
+    apply_runner: ApplyOutcomeRunner | None = None,
+    status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
+) -> int:
+    """Run apply-outcome and escalate on failure (design D9).
+
+    Invokes ``runner.py apply-outcome`` (via *apply_runner*, injectable for
+    tests). On a zero exit, returns 0 and leaves the state as apply-outcome
+    wrote it. On a non-zero exit the orchestrator MUST NOT continue silently;
+    instead it:
+
+      1. Retains the un-applied handoff file (this function never deletes it).
+      2. Appends a ``phase_history`` entry recording the apply-outcome failure.
+      3. Transitions ``current_phase`` to ``ESCALATE`` with ``previous_phase``
+         set to the failing *phase*.
+
+    Best-effort (D9.1): if the ESCALATE write ALSO fails (corrupt/read-only
+    loop-state), the failure is logged at CRITICAL with the handoff path and
+    the underlying cause, and the function returns the non-zero exit code. The
+    retained handoff file remains the durable record for operator resume.
+
+    Returns the apply-outcome exit code (0 on success, non-zero on failure).
+    """
+    runner = apply_runner or _default_apply_outcome_runner
+    rc = runner(
+        change_id=change_id,
+        phase=phase,
+        outcome=outcome,
+        handoff_id=handoff_id,
+        allow_phase_mismatch=allow_phase_mismatch,
+    )
+    if rc == 0:
+        return 0
+
+    # Non-zero exit — escalate. Operate on the raw JSON dict so unknown keys
+    # (phase_history, checkpoints, etc.) survive the round-trip.
+    path = Path(state_path)
+    try:
+        raw = json.loads(path.read_text())
+        if not isinstance(raw, dict):
+            raise ValueError(f"unexpected loop-state shape in {path}")
+
+        history = raw.get("phase_history")
+        if not isinstance(history, list):
+            history = []
+        history.append({
+            "phase": phase,
+            "outcome": "apply_outcome_failed",
+            "at": _now_iso(),
+            "note": (
+                f"runner.py apply-outcome exited {rc}; handoff {handoff_id} "
+                f"retained un-applied. Resolve the underlying cause and resume."
+            ),
+        })
+        raw["phase_history"] = history
+        raw["previous_phase"] = phase
+        raw["current_phase"] = "ESCALATE"
+        raw["escalation_reason"] = (
+            f"apply-outcome failed (exit {rc}) for phase {phase}; handoff "
+            f"{handoff_id} retained un-applied"
+        )
+        raw["phase_started_at"] = _now_iso()
+        path.write_text(json.dumps(raw, indent=2) + "\n")
+
+        if status_fn is not None:
+            # Reload a dataclass view for the status callback signature.
+            try:
+                _safe_status_call(
+                    status_fn, load_state(path), "status.escalated",
+                    f"apply-outcome failed for {phase}; escalated", urgent=True,
+                )
+            except Exception:  # noqa: BLE001
+                logger.debug("status_fn call after escalate failed", exc_info=True)
+    except Exception as exc:  # noqa: BLE001
+        # D9.1 double-failure: cannot even write the ESCALATE transition.
+        logger.critical(
+            "apply-outcome failed (exit %d) AND the ESCALATE write also failed "
+            "(%s). Handoff %s is retained at its path under "
+            "openspec/changes/%s/handoffs/; loop-state may be inconsistent. "
+            "Operator must resolve manually before resume.",
+            rc, exc, handoff_id, change_id,
+        )
+    return rc
 
 
 # ---------------------------------------------------------------------------

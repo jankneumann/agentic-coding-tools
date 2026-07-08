@@ -101,6 +101,7 @@ def _cmd_apply_outcome(args: argparse.Namespace) -> int:
             phase=args.phase,
             outcome=args.outcome,
             handoff_id=args.handoff_id,
+            allow_phase_mismatch=args.allow_phase_mismatch,
         )
     except ValueError as exc:
         sys.stderr.write(f"runner: {exc}\n")
@@ -137,11 +138,29 @@ def _build_parser() -> argparse.ArgumentParser:
     ao = sub.add_parser(
         "apply-outcome",
         help="Update loop-state.json with handoff_id and consume the cache.",
+        description=(
+            "Update loop-state.json with the sub-agent's (outcome, handoff_id): "
+            "sets last_handoff_id, appends handoff_ids and phase_history, and "
+            "records phase_archetype. It NEVER modifies current_phase — the "
+            "orchestrator is the sole writer of phase transitions. By default the "
+            "command errors if --phase does not match loop-state's current_phase; "
+            "pass --allow-phase-mismatch to apply anyway (current_phase is still "
+            "left untouched)."
+        ),
     )
     ao.add_argument("--change-id", required=True)
     ao.add_argument("--phase", required=True)
     ao.add_argument("--outcome", required=True, help="Outcome string from the sub-agent.")
     ao.add_argument("--handoff-id", required=True)
+    ao.add_argument(
+        "--allow-phase-mismatch",
+        action="store_true",
+        help=(
+            "Bypass the phase-mismatch guard when --phase differs from "
+            "loop-state's current_phase (operator recovery). Does NOT enable "
+            "current_phase modification — apply-outcome never transitions phases."
+        ),
+    )
     ao.set_defaults(func=_cmd_apply_outcome)
 
     rs = sub.add_parser(

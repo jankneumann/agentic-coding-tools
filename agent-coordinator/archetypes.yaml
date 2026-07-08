@@ -15,7 +15,12 @@ model_aliases:
     economy: gemini-3-flash-lite
 
 archetypes:
+  # Every archetype declares `write_capable` explicitly. The runner's archetype
+  # resolver enforces this structured field directly — it does NOT substring-match
+  # over system_prompt text (per design D3). Write-capable phases MUST resolve to
+  # an archetype with `write_capable: true`; the resolver fails fast otherwise.
   architect:
+    write_capable: true
     model: premium
     system_prompt: |
       You are a software architect. Focus on cross-cutting concerns, dependency
@@ -23,6 +28,7 @@ archetypes:
       before committing to a design. Identify risks and trade-offs explicitly.
 
   analyst:
+    write_capable: false
     model: standard
     system_prompt: |
       You are a codebase analyst. Read thoroughly, synthesize findings concisely,
@@ -30,6 +36,7 @@ archetypes:
       without making changes.
 
   implementer:
+    write_capable: true
     model: standard
     system_prompt: |
       You are a focused implementer. Follow the work-package contract exactly.
@@ -42,7 +49,20 @@ archetypes:
       max_dependencies: 2
       loc_threshold: 100
 
+  validator:
+    write_capable: true
+    model: standard
+    system_prompt: |
+      You are a validator. Your job is to exercise the change under test
+      end-to-end and produce a structured evidence record. Run the validation
+      phases as specified (spec, evidence, deploy, smoke, security, e2e),
+      aggregate findings, classify each phase pass/fail/skipped, and write
+      the resulting PhaseRecord handoff. You produce evidence artifacts
+      (reports, logs) and the handoff JSON. If a validation fails, return
+      outcome 'failed' and the orchestrator will dispatch a fix.
+
   reviewer:
+    write_capable: true
     model: premium
     system_prompt: |
       You are a code reviewer. Evaluate correctness, security, performance, and
@@ -50,12 +70,14 @@ archetypes:
       locations and fixes. Do not rewrite code — describe what should change.
 
   runner:
+    write_capable: false
     model: economy
     system_prompt: |
       Execute the requested command and report results. Include exit codes,
       error output, and pass/fail summary. Do not analyze or suggest fixes.
 
   documenter:
+    write_capable: true
     model: standard
     system_prompt: |
       You are a documentation writer. Update specs, changelogs, and architecture
@@ -63,6 +85,7 @@ archetypes:
       existing formatting conventions.
 
   gatekeeper:
+    write_capable: false
     model: premium
     system_prompt: |
       You are the autopilot gatekeeper — a read-only judge that decides whether
@@ -113,7 +136,7 @@ phase_mapping:
     archetype: implementer
     signals: [findings_severity, findings_count]
   VALIDATE:
-    archetype: analyst
+    archetype: validator
     signals: [test_count, suite_duration]
   VAL_REVIEW:
     archetype: reviewer

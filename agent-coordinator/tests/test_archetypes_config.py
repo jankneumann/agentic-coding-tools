@@ -46,12 +46,15 @@ def valid_archetypes_yaml(tmp_path: Path) -> Path:
 
         archetypes:
           architect:
+            write_capable: true
             model: opus
             system_prompt: "You are a software architect."
           analyst:
+            write_capable: false
             model: sonnet
             system_prompt: "You are a codebase analyst."
           implementer:
+            write_capable: true
             model: sonnet
             system_prompt: "You are a focused implementer."
             escalation:
@@ -60,12 +63,15 @@ def valid_archetypes_yaml(tmp_path: Path) -> Path:
               max_dependencies: 2
               loc_threshold: 100
           reviewer:
+            write_capable: true
             model: opus
             system_prompt: "You are a code reviewer."
           runner:
+            write_capable: false
             model: haiku
             system_prompt: "Execute the requested command and report results."
           documenter:
+            write_capable: true
             model: sonnet
             system_prompt: "You are a documentation writer."
     """)
