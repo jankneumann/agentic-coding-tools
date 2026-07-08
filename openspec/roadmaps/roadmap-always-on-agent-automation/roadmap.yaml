@@ -51,7 +51,7 @@ items:
   - openspec/changes/ contains only genuinely open work.
 - item_id: ri-04
   title: Add trust posture contract file
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on: []
@@ -478,4 +478,4 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-07-08T10:13:30.028565+00:00'
+updated_at: '2026-07-08T10:25:37.008788+00:00'
