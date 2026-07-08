@@ -1,0 +1,374 @@
+schema_version: 1
+roadmap_id: roadmap-always-on-agent-automation
+source_proposal: openspec/roadmaps/roadmap-always-on-agent-automation/proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: ri-01
+  title: Implement fix-autopilot-archetype-and-apply-outcome
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Implement the already-reviewed change so VALIDATE no longer resolves
+    to a read-only archetype and sub-agents cannot skip phases via apply-outcome.
+  rationale: Both bugs were hit in the real unattended /autopilot extract-gen-eval-package
+    run; clean unattended loops are impossible until this correctness fix lands.
+  change_id: fix-autopilot-archetype-and-apply-outcome
+  acceptance_outcomes:
+  - fix-autopilot-archetype-and-apply-outcome reaches implemented status and passes
+    /validate-feature.
+  - A re-run of the failure scenario documented in the proposal no longer reproduces.
+- item_id: ri-02
+  title: Implement fix-compact-hook-phase-boundary-detection
+  status: candidate
+  priority: 1
+  effort: S
+  depends_on: []
+  description: Implement the planned compact-hook phase-boundary detection fix so
+    phase boundaries survive context compaction in unattended runs.
+  rationale: The second known autopilot bug from the real unattended run; a prerequisite
+    for trusting any daemon-dispatched autopilot session.
+  change_id: fix-compact-hook-phase-boundary-detection
+  acceptance_outcomes:
+  - fix-compact-hook-phase-boundary-detection reaches implemented status and passes
+    /validate-feature.
+  - A re-run of the failure scenario documented in the proposal no longer reproduces.
+- item_id: ri-03
+  title: Archive the implemented-not-archived change backlog
+  status: candidate
+  priority: 1
+  effort: S
+  depends_on: []
+  description: Finish and archive factory-missions-architecture-alignment (51/53)
+    and extract-gen-eval-package (38/43).
+  rationale: The dispatcher daemon will consume openspec/changes/ as a work source,
+    so the directory must reflect only genuinely open work before automation starts.
+  acceptance_outcomes:
+  - Both changes are archived under openspec/changes/archive/.
+  - openspec/changes/ contains only genuinely open work.
+- item_id: ri-04
+  title: Add trust posture contract file
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Adopt the symphony trust-posture-binding item as a repo-owned TRUST_POSTURE.md
+    with typed YAML front matter declaring auto, notify_with_timeout, or block per
+    gate, plus timeout and default action, hot-reloadable.
+  rationale: Gates become machine-readable policy objects instead of prose; every
+    later unattended behavior (gate encoding, sync windows, auto-merge ceilings) reads
+    its authorization from this contract.
+  change_id: add-trust-posture-contract-file
+  acceptance_outcomes:
+  - Contract file is schema-validated; unknown gate names or dispositions fail validation.
+  - All eight enumerated gates (GATEKEEPER escalation, proposal approval, plan-review
+    convergence failure, validation failure, ESCALATE resume, replan_required, PR
+    creation, merge) are representable.
+  - With no contract file present, behavior is byte-identical to today (every gate
+    is block).
+- item_id: ri-05
+  title: Build approval gate service (interviewer abstraction)
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on:
+  - ri-04
+  description: A shared library (skills/shared/approval_gate.py) modeled on attractor's
+    Interviewer interface that consults the trust posture and executes auto, notify_with_timeout
+    (via request_approval plus reply-to-approve notifications and check_approval polling
+    with default action on expiry), or block dispositions.
+  rationale: Wires the existing approval queue and notification service into a single
+    reusable gate primitive so gates stop being prose; core of the "wire before building"
+    principle.
+  change_id: build-approval-gate-service-interviewer-abstraction
+  acceptance_outcomes:
+  - All four disposition paths (auto, notify_with_timeout resolved, notify_with_timeout
+    defaulted, block) are covered by tests.
+  - Coordinator-unreachable degrades to block, covered by a test.
+  - Every gate decision, including auto and defaulted ones, lands in the audit log
+    with the posture that authorized it.
+- item_id: ri-06
+  title: Encode autopilot gates and goal gate in code
+  status: candidate
+  priority: 1
+  effort: L
+  depends_on:
+  - ri-01
+  - ri-02
+  - ri-05
+  description: "Move the prose gates into autopilot.py \u2014 PLAN proposal approval,\
+    \ SUBMIT_PR to DONE merge handoff, ESCALATE resume, and roadmap replan_required\
+    \ with an automated /plan-roadmap replan path \u2014 and add an attractor-style\
+    \ goal-gate check that refuses DONE unless VALIDATE/VAL_REVIEW phase records show\
+    \ pass status."
+  rationale: Human gates living only in SKILL.md text is the primary blocker to unattended
+    operation; validation success must become structurally required at loop exit,
+    not just sequentially prior.
+  change_id: encode-autopilot-gates-and-goal-gate-in-code
+  acceptance_outcomes:
+  - Grep of skills/autopilot/SKILL.md finds no gate whose only enforcement is prose.
+  - An unattended run with an auto-everything posture reaches SUBMIT_PR without interaction;
+    with the default posture it parks exactly where it does today.
+  - A run whose VALIDATE record is missing or failed cannot reach DONE.
+  - replan_required re-invokes /plan-roadmap in replan mode when the posture allows.
+- item_id: ri-07
+  title: Build coordinator tracker adapter for dispatch
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-03
+  description: Implement the symphony coordinator-tracker-adapter item, a work-source
+    adapter over the coordinator issue tracker's ready-issues query that yields dispatchable
+    items with dependency-aware claiming and no duplicate handout.
+  rationale: The daemon needs a clean work-source boundary over the existing tracker;
+    splitting it from the daemon keeps each piece independently reviewable.
+  change_id: build-coordinator-tracker-adapter-for-dispatch
+  acceptance_outcomes:
+  - Adapter returns only ready (unblocked) issues and claims are exclusive under concurrent
+    polls.
+  - Fifty or more issues can be enumerated and claimed with no duplicate dispatch
+    in an integration test.
+- item_id: ri-08
+  title: Build dispatcher daemon on the always-on host
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-06
+  - ri-07
+  description: A long-running systemd service on the GX10 polling the tracker adapter
+    on a fixed cadence, spawning headless vendor-CLI sessions running /autopilot or
+    /autopilot-roadmap under a global concurrency cap, each with a distinct AGENT_ID,
+    recovering after restart purely from tracker, worktree, and loop-state.json state.
+  rationale: Nothing in the repo starts sessions today; this is the symphony dispatcher-daemon
+    item and the core of the non-interactive software-factory runner.
+  change_id: build-dispatcher-daemon-on-the-always-on-host
+  acceptance_outcomes:
+  - 24 hours unattended with no leaked workspaces and at least 50 issues processed
+    with no duplicate dispatch.
+  - kill -9 of the daemon followed by restart resumes every in-flight item from its
+    checkpoint without re-dispatch.
+  - Spawned sessions have unique agent identities visible in discover_agents, and
+    handoff reads use explicit agent names.
+- item_id: ri-09
+  title: Harden heartbeats and worktree registry for daemon operation
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-08
+  description: Wall-clock heartbeating of every active session's worktree by the daemon,
+    scheduled worktree.py gc, flock-based locking or per-entry files for the registry,
+    and documented reconciliation of the four staleness clocks (15 min, 1 h, 2 h,
+    24 h) against daemon cadences.
+  rationale: Worktree and session infrastructure assumes interactive turns (Stop-hook
+    heartbeats, last-writer-wins registry, unscheduled GC), which makes long headless
+    phases look dead and loses concurrent updates.
+  change_id: harden-heartbeats-and-worktree-registry-for-daemon-operation
+  acceptance_outcomes:
+  - A 3-hour non-interactive phase is never flagged stale by the watchdog or the sync-point
+    guard.
+  - 20 concurrent setup/heartbeat/teardown operations lose zero registry updates.
+  - Stale worktree count on the daemon host is bounded over a 7-day soak.
+  - The four staleness clocks are documented with their reconciled values.
+- item_id: ri-10
+  title: Land rate-limit accounting and vendor arbitrage signals
+  status: candidate
+  priority: 3
+  effort: L
+  depends_on:
+  - ri-08
+  description: Implement the existing cross-vendor-arbitrage-instrument proposal,
+    a durable cost/quota/ToS signal layer feeding the roadmap policy engine, replacing
+    the hardcoded cost tiers in policy.py and the placeholder vendor list in orchestrator.py,
+    with the daemon producing observed cost and latency learning-log fields.
+  rationale: The usage-limit policy engine (wait/switch/fail-closed) currently decides
+    on stubs; observed signals are required for sensible unattended vendor routing
+    and enable the local-model economy tier.
+  change_id: cross-vendor-arbitrage-instrument
+  acceptance_outcomes:
+  - Policy decisions (wait/switch/fail-closed) use observed signals, not hardcoded
+    stubs.
+  - cost_observed_usd and latency_observed_seconds learning-log fields populate on
+    every daemon-dispatched item.
+- item_id: ri-11
+  title: Amend skill-workflow spec for policy-authorized sync windows
+  status: candidate
+  priority: 2
+  effort: S
+  depends_on:
+  - ri-04
+  description: Amend the "Main Receives Work Through PR Sync Points" requirement so
+    sync-point skills MAY also run under a scheduled sync window declared in the trust
+    posture (cadence, allowed sources, auto-merge ceiling), with the active-agent
+    guard and validation gates unchanged.
+  rationale: Sync points are user-invoked by spec today; this deliberate, reviewed
+    relaxation is scoped to the posture file so interactive repos are unaffected.
+  change_id: amend-skill-workflow-spec-for-policy-authorized-sync-windows
+  acceptance_outcomes:
+  - openspec validate passes with the amended requirement.
+  - The user-invoked path remains the documented default; scheduled windows require
+    an explicit posture declaration.
+- item_id: ri-12
+  title: Add headless mode to merge-pull-requests
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-05
+  - ri-11
+  description: A non-interactive mode consuming /expedite's READY/BLOCKED verdict,
+    triaging with the existing classification scripts, merging only PRs that are Fresh,
+    CI-green, validation-gated, and within the posture's auto-merge ceiling, and notifying-with-veto-window
+    for everything else, reusing the --pipeline post-merge machinery.
+  rationale: Scheduled merge sync points need an execution path with zero prompts;
+    the existing auto-rebase and 15-minute rollback monitor make unattended merging
+    recoverable.
+  change_id: add-headless-mode-to-merge-pull-requests
+  acceptance_outcomes:
+  - A scheduled run merges qualifying PRs end-to-end with zero prompts and posts a
+    merge-log digest notification.
+  - A PR outside the auto-merge ceiling is never merged unattended and produces an
+    approval request instead.
+  - An induced main-CI failure after an unattended merge triggers the existing auto-rollback
+    path.
+- item_id: ri-13
+  title: Implement quiet-window drain protocol in the dispatcher
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-08
+  - ri-09
+  - ri-12
+  description: "The dispatcher coordinates each sync window \u2014 stop dispatching,\
+    \ drain active sessions with a bounded wait (pinning long-runners for the next\
+    \ window), run /expedite then headless merge then cascading rebase of surviving\
+    \ branches, then resume dispatch."
+  rationale: Resolves the deadlock where a daemon keeping sessions perpetually alive
+    would permanently block the repo-global active-agent guard, enabling daily-or-more-frequent
+    merge sync points.
+  change_id: implement-quiet-window-drain-protocol-in-the-dispatcher
+  acceptance_outcomes:
+  - Daily (configurable up to hourly) windows execute on the GX10 for a week with
+    no guard --force overrides and no orphaned rebases.
+  - Dispatch throughput before and after windows shows drain-and-resume works with
+    no starved queue.
+- item_id: ri-14
+  title: Promote behavioral validation gates to blocking
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-04
+  - ri-12
+  description: Make the holdout gate in /merge-pull-requests blocking under scheduled
+    windows, wire an llm_backend so gen-eval SemanticBlock judges run instead of silently
+    skipping, and let the posture file declare which validation phases are merge-blocking
+    per repo.
+  rationale: Validation is advisory where it matters today; unattended merges must
+    be gated by the behavioral machinery that already exists.
+  change_id: promote-behavioral-validation-gates-to-blocking
+  acceptance_outcomes:
+  - A holdout scenario failure blocks an unattended merge and files an approval request.
+  - Semantic evaluations report pass or fail (not skip) in a default GX10 run.
+  - Merge-blocking validation phases are configurable per repo via the posture file.
+- item_id: ri-15
+  title: Build agent trajectory scenario harness
+  status: candidate
+  priority: 3
+  effort: L
+  depends_on: []
+  description: A new packages/agent-scenarios/ harness where scenario YAML defines
+    a task prompt, fixture repo state, skill under test, and goal gates (expected
+    file/branch/PR/artifact outcomes plus prohibited side effects, reusing gen-eval's
+    ExpectBlock/SideEffectsBlock vocabulary); the runner executes headless per vendor,
+    scores goal gates deterministically plus an LLM-judge trajectory review over collect-transcripts
+    output, and emits review-findings.schema.json findings.
+  rationale: "The genuinely new attractor-inspired piece \u2014 gen-eval validates\
+    \ the system under test, but nothing validates the agents themselves; this enables\
+    \ cross-vendor parity checks before the dispatcher routes real work through changed\
+    \ skills."
+  change_id: build-agent-trajectory-scenario-harness
+  acceptance_outcomes:
+  - A scenario YAML with goal gates executes headless against at least 2 vendors and
+    produces deterministic goal-gate scores.
+  - LLM-judge trajectory review runs over normalized transcripts and contributes to
+    the verdict.
+  - Failures emit findings conforming to review-findings.schema.json.
+- item_id: ri-16
+  title: Seed scenario suite and nightly cross-vendor parity runs
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-15
+  description: Author at least 10 seed scenarios covering plan, implement, validate,
+    and merge skills, schedule the parity matrix nightly on the GX10, feed failures
+    into the /improve-harness capability-gap pipeline, and store per-vendor per-skill
+    results for trend queries.
+  rationale: The harness only pays off with coverage and cadence; parity results gate
+    whether the dispatcher routes real work through changed skills.
+  change_id: seed-scenario-suite-and-nightly-cross-vendor-parity-runs
+  acceptance_outcomes:
+  - At least 10 seed scenarios covering plan/implement/validate/merge skills run nightly
+    across at least 2 vendors.
+  - A deliberately-broken skill change fails the suite and produces a capability-gap
+    finding.
+  - Scenario results are queryable per vendor per skill over time.
+- item_id: ri-17
+  title: Auto-seed scenarios from incidents
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - ri-15
+  description: Auto-rollbacks, ESCALATE exits, and confirmed holdout failures generate
+    bootstrap_from_incident scenario seeds with holdout visibility instead of relying
+    on manual seeding.
+  rationale: "Closes the regression loop automatically \u2014 today an un-reported\
+    \ escaped defect has no holdout scenario and can regress silently."
+  change_id: auto-seed-scenarios-from-incidents
+  acceptance_outcomes:
+  - Every auto-rollback event yields a draft holdout scenario linked to the incident.
+  - ESCALATE exits and confirmed holdout failures also produce draft scenario seeds.
+- item_id: ri-18
+  title: Expose operator status surface
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - ri-05
+  - ri-08
+  description: Implement symphony's operator-http-status-surface (/api/v1/state, /healthz,
+    /metrics sidecar) or extend kanban-viz with a live view of daemon queue depth,
+    in-flight sessions and phases, gate decisions awaiting approval, next sync window,
+    and vendor budget state.
+  rationale: An always-on system needs one place answering "what is the daemon doing
+    and what is it waiting on"; the /sync-points/status local-disk registry coupling
+    is satisfied by the single-box GX10 layout but must be fixed before splitting
+    hosts.
+  change_id: expose-operator-status-surface
+  acceptance_outcomes:
+  - One URL answers what the daemon is doing right now and what it is waiting on.
+  - Pending gate decisions and the next sync window are visible on the surface.
+- item_id: ri-19
+  title: Schedule learning and metrics loops
+  status: candidate
+  priority: 5
+  effort: M
+  depends_on:
+  - ri-08
+  description: Put agent-metrics, collect-transcripts triage, ai_dora_snapshot.py,
+    and the usage-stats-multi-model proposal on timers, and adopt the ambient-review-ledger
+    proposal as the continuous commit-granular review sensor feeding sync-point gates.
+  rationale: Completes the learning loop so harness health, throughput, and cross-vendor
+    cost visibility improve without manual invocation.
+  acceptance_outcomes:
+  - A weekly automated harness-health digest is delivered via the notification service.
+  - Ambient review ledger findings are available to sync-point gates.
+updated_at: '2026-07-08T09:31:57.812891+00:00'
