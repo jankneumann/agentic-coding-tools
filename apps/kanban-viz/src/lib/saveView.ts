@@ -18,6 +18,12 @@ export interface SavedViewPayload {
   name: string;
   filters: Record<string, unknown>;
   column_layout?: Record<string, unknown>;
+  /**
+   * Multi-repo extension (wp-spa-multi-repo-ux): list of repos whose cards
+   * are currently hidden. Matches the saved-view JSON schema `hidden_repos`
+   * field added by wp-coord-sources. Each entry is `<owner>/<repo>`.
+   */
+  hidden_repos?: string[];
 }
 
 export interface SaveViewResult {

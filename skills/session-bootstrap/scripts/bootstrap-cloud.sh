@@ -9,9 +9,10 @@
 # Script"), which runs once on new sessions only.
 #
 # Profile-aware behavior:
-#   - Cloud (COORDINATOR_PROFILE=cloud): full verify + repair pass (default for
-#     ephemeral sandboxes where venvs and global packages vanish between sessions).
-#   - Local (COORDINATOR_PROFILE=local or unset): skips the repair pass entirely.
+#   - Cloud (COORDINATOR_PROFILE=cloud or unset): full verify + repair pass
+#     (default — preserves original self-healing for ephemeral sandboxes where
+#     venvs and global packages vanish between sessions).
+#   - Local (COORDINATOR_PROFILE=local): skips the repair pass entirely.
 #     Local workstations have persistent environments — running verify_openspec,
 #     activate_venv, and verify_git on every session is wasted work at best and
 #     silently invasive at worst (npm -g installs, ~/.bashrc mutations, git config
@@ -258,7 +259,7 @@ main() {
     $FORCE && log "Mode: --force (full repair pass)"
 
     # Profile gate: skip repairs on local workstations unless --force or --check
-    local profile="${COORDINATOR_PROFILE:-local}"
+    local profile="${COORDINATOR_PROFILE:-cloud}"
     if [[ "$profile" == "local" ]] && ! $FORCE && ! $CHECK_ONLY; then
         log "Profile=$profile — skipping repair pass (use --force or CLAUDE_FORCE_BOOTSTRAP=1 to override)"
         return 0

@@ -1,0 +1,289 @@
+schema_version: 1
+
+feature:
+  id: extend-kanban-viz-multi-repo-proposals
+  title: "Extend kanban-viz to multiple repositories"
+  plan_revision: 1
+  created_by: claude
+  created_at: "2026-06-14T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/extend-kanban-viz-multi-repo-proposals/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/extend-kanban-viz-multi-repo-proposals/contracts/openapi/v1.yaml"
+      - "openspec/changes/extend-kanban-viz-multi-repo-proposals/contracts/generated/types.ts"
+      - "openspec/changes/extend-kanban-viz-multi-repo-proposals/contracts/events/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: "B"
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-coord-sources
+    title: "Coordinator: source descriptors + multi-source proposals endpoint + schema"
+    task_type: implement
+    description: |
+      Implements tasks.md sections 1-5: source descriptor parsing + local
+      repo derivation, hybrid cache with local-eager warmup, GitHub-source
+      fetcher with budget cap + degraded modes, endpoint integration that
+      fans out across all configured sources and assembles the merged
+      response with _warnings, and the saved-view schema extension for
+      hidden_repos. All TDD-first with failing pytest before implementation.
+      Sized L overall; cannot be split smaller without entangling boot
+      warmup with endpoint handler.
+    role: python-engineer
+    priority: 1
+    depends_on: []
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "agent-coordinator/src/openspec_sources.py"
+        - "agent-coordinator/src/github_openspec_fetcher.py"
+        - "agent-coordinator/src/openspec_proposals_api.py"
+        - "agent-coordinator/src/schemas/kanban_viz/saved-view.json"
+        - "agent-coordinator/tests/test_openspec_sources.py"
+        - "agent-coordinator/tests/test_github_openspec_fetcher.py"
+        - "agent-coordinator/tests/test_openspec_proposals_api.py"
+        - "agent-coordinator/tests/test_kanban_viz_saved_views.py"
+        - "agent-coordinator/tests/fixtures/github_contents_openspec_changes.json"
+      keys:
+        - "feature:extend-kanban-viz-multi-repo-proposals:sources"
+      ttl_minutes: 180
+      reason: "Source parsing + endpoint handler + schema extension share the cache contract and the boot warmup wiring."
+    scope:
+      write_allow:
+        - "agent-coordinator/src/openspec_sources.py"
+        - "agent-coordinator/src/github_openspec_fetcher.py"
+        - "agent-coordinator/src/openspec_proposals_api.py"
+        - "agent-coordinator/src/schemas/kanban_viz/saved-view.json"
+        - "agent-coordinator/tests/test_openspec_sources.py"
+        - "agent-coordinator/tests/test_github_openspec_fetcher.py"
+        - "agent-coordinator/tests/test_openspec_proposals_api.py"
+        - "agent-coordinator/tests/test_kanban_viz_saved_views.py"
+        - "agent-coordinator/tests/fixtures/github_contents_openspec_changes.json"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+        - "openspec/changes/extend-kanban-viz-multi-repo-proposals/**"
+        - "openspec/specs/coordinator-kanban-viz/**"
+    worktree:
+      name: wp-coord-sources
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "coordinator unit tests"
+          kind: command
+          command: "cd agent-coordinator && uv run pytest tests/test_openspec_sources.py tests/test_github_openspec_fetcher.py tests/test_openspec_proposals_api.py tests/test_kanban_viz_saved_views.py -v"
+          evidence:
+            artifacts:
+              - "agent-coordinator/src/openspec_sources.py"
+              - "agent-coordinator/src/github_openspec_fetcher.py"
+            result_keys:
+              - "pytest_exit_code"
+              - "test_count_sources"
+              - "test_count_fetcher"
+              - "test_count_endpoint"
+        - name: "PR #211 regression"
+          kind: command
+          command: "cd agent-coordinator && uv run pytest tests/test_github_prs_api.py tests/test_github_classifier.py tests/test_github_rest_adapter.py -v"
+          evidence:
+            artifacts:
+              - "agent-coordinator/src/github_prs_api.py"
+            result_keys:
+              - "pytest_exit_code"
+    metadata:
+      loc_estimate: 700
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+
+  - package_id: wp-spa-multi-repo
+    title: "SPA: type extensions + repo derivation + cluster key + RepoBadge"
+    task_type: implement
+    description: |
+      Implements tasks.md sections 6-8: contracts file updates
+      (in-change OpenAPI + TS types), deriveIssueRepo helper +
+      IssueCard.repo optional field, cluster-key resolution refactor
+      (namespaced default with all-null fallback and mixed-null split),
+      RepoBadge component with hash-derived color, and wiring of the
+      badge into all three CardView components plus the useBoardCards
+      hook. TDD-first; preserves PR #211 cluster behavior for repo-null
+      data. Sized L; deferring the hidden_repos UX and partial-result
+      chip to wp-spa-multi-repo-ux keeps blast radius bounded.
+    role: typescript-engineer
+    priority: 2
+    depends_on: [wp-coord-sources]
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "openspec/changes/extend-kanban-viz-multi-repo-proposals/contracts/openapi/v1.yaml"
+        - "openspec/changes/extend-kanban-viz-multi-repo-proposals/contracts/generated/types.ts"
+        - "apps/kanban-viz/src/lib/coordinator-types.ts"
+        - "apps/kanban-viz/src/lib/__tests__/derive-issue-repo.test.ts"
+        - "apps/kanban-viz/src/lib/__tests__/cluster-key.test.ts"
+        - "apps/kanban-viz/src/components/RepoBadge.tsx"
+        - "apps/kanban-viz/src/components/__tests__/RepoBadge.test.tsx"
+        - "apps/kanban-viz/src/components/Card.tsx"
+        - "apps/kanban-viz/src/components/PRCardView.tsx"
+        - "apps/kanban-viz/src/components/ProposalCardView.tsx"
+        - "apps/kanban-viz/src/hooks/useBoardCards.ts"
+        - "apps/kanban-viz/src/hooks/__tests__/useBoardCards.test.ts"
+      keys:
+        - "feature:extend-kanban-viz-multi-repo-proposals:spa"
+      ttl_minutes: 180
+      reason: "Contract types + cluster key refactor + RepoBadge wiring share the polymorphic card surface; mid-package split would leave half-typed components."
+    scope:
+      write_allow:
+        - "openspec/changes/extend-kanban-viz-multi-repo-proposals/contracts/**"
+        - "apps/kanban-viz/src/lib/**"
+        - "apps/kanban-viz/src/hooks/**"
+        - "apps/kanban-viz/src/components/RepoBadge.tsx"
+        - "apps/kanban-viz/src/components/Card.tsx"
+        - "apps/kanban-viz/src/components/PRCardView.tsx"
+        - "apps/kanban-viz/src/components/ProposalCardView.tsx"
+        - "apps/kanban-viz/src/components/__tests__/RepoBadge.test.tsx"
+      read_allow:
+        - "apps/kanban-viz/**"
+        - "openspec/changes/extend-kanban-viz-multi-repo-proposals/**"
+        - "openspec/changes/extend-kanban-viz-prs-proposals/contracts/**"
+        - "openspec/specs/coordinator-kanban-viz/**"
+    worktree:
+      name: wp-spa-multi-repo
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "typecheck strict"
+          kind: command
+          command: "cd apps/kanban-viz && npm run typecheck"
+          evidence:
+            artifacts:
+              - "apps/kanban-viz/src/lib/coordinator-types.ts"
+            result_keys:
+              - "tsc_exit_code"
+        - name: "spa unit tests"
+          kind: command
+          command: "cd apps/kanban-viz && npm test -- --run"
+          evidence:
+            artifacts:
+              - "apps/kanban-viz/src/lib/clusterBoardCards.ts"
+              - "apps/kanban-viz/src/components/RepoBadge.tsx"
+            result_keys:
+              - "vitest_exit_code"
+              - "test_count_derive_repo"
+              - "test_count_cluster_key"
+              - "test_count_repobadge"
+    metadata:
+      loc_estimate: 700
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "vitest_exit_code"
+        - "tsc_exit_code"
+
+  - package_id: wp-spa-multi-repo-ux
+    title: "SPA: hidden_repos UX + partial-result chip + e2e integration + docs"
+    task_type: implement
+    description: |
+      Implements tasks.md sections 9-10: HiddenReposToggle component +
+      saved-view persistence wiring, partial-result chip in
+      SourceSwimlanes for _warnings, extended e2e integration test
+      covering multi-source proposals + multi-repo issues + cross-repo
+      cluster behavior + hidden_repos filter, docs/kanban-viz/README.md
+      updates for OPENSPEC_SOURCES + label convention + RepoBadge +
+      hidden_repos + _warnings + budget cap, openspec validate gate,
+      validate-packages gate. Depends on both prior packages — needs
+      real types, real cluster behavior, real coord responses.
+    role: typescript-engineer
+    priority: 3
+    depends_on: [wp-coord-sources, wp-spa-multi-repo]
+    timeout_minutes: 150
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "apps/kanban-viz/src/components/HiddenReposToggle.tsx"
+        - "apps/kanban-viz/src/components/SourceSwimlanes.tsx"
+        - "apps/kanban-viz/src/components/__tests__/HiddenReposToggle.test.tsx"
+        - "apps/kanban-viz/src/components/__tests__/SourceSwimlanes.test.tsx"
+        - "apps/kanban-viz/src/__tests__/e2e.integration.test.tsx"
+        - "apps/kanban-viz/src/lib/saveView.ts"
+        - "docs/kanban-viz/README.md"
+      keys:
+        - "feature:extend-kanban-viz-multi-repo-proposals:integration"
+      ttl_minutes: 150
+      reason: "UX components + e2e test + docs share the validate-and-ship boundary."
+    scope:
+      write_allow:
+        - "apps/kanban-viz/src/components/HiddenReposToggle.tsx"
+        - "apps/kanban-viz/src/components/SourceSwimlanes.tsx"
+        - "apps/kanban-viz/src/components/__tests__/HiddenReposToggle.test.tsx"
+        - "apps/kanban-viz/src/components/__tests__/SourceSwimlanes.test.tsx"
+        - "apps/kanban-viz/src/__tests__/e2e.integration.test.tsx"
+        - "apps/kanban-viz/src/lib/saveView.ts"
+        - "docs/kanban-viz/README.md"
+      read_allow:
+        - "apps/kanban-viz/**"
+        - "agent-coordinator/src/**"
+        - "openspec/changes/extend-kanban-viz-multi-repo-proposals/**"
+        - "openspec/specs/coordinator-kanban-viz/**"
+    worktree:
+      name: wp-spa-multi-repo-ux
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "spa full test suite"
+          kind: command
+          command: "cd apps/kanban-viz && npm test -- --run && npm run typecheck"
+          evidence:
+            artifacts:
+              - "apps/kanban-viz/src/__tests__/e2e.integration.test.tsx"
+            result_keys:
+              - "vitest_exit_code"
+              - "tsc_exit_code"
+        - name: "openspec validate strict"
+          kind: command
+          command: "openspec validate extend-kanban-viz-multi-repo-proposals --strict"
+          evidence:
+            artifacts:
+              - "openspec/changes/extend-kanban-viz-multi-repo-proposals/specs/coordinator-kanban-viz/spec.md"
+            result_keys:
+              - "openspec_validate_exit_code"
+        - name: "validate-packages strict"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py --check-overlap openspec/changes/extend-kanban-viz-multi-repo-proposals/work-packages.yaml"
+          evidence:
+            artifacts:
+              - "openspec/changes/extend-kanban-viz-multi-repo-proposals/work-packages.yaml"
+            result_keys:
+              - "validate_packages_exit_code"
+    metadata:
+      loc_estimate: 500
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "vitest_exit_code"
+        - "openspec_validate_exit_code"
+
+# Note: parallel_zones expressed via depends_on. wp-coord-sources can run
+# alongside wp-spa-multi-repo's contracts work IF the SPA agent uses the
+# in-change types.ts as the contract source. In practice the dependency
+# chain is sequential because the SPA package's tests need real coord
+# response shapes (from wp-coord-sources). wp-spa-multi-repo-ux depends on
+# both and runs after they integrate.

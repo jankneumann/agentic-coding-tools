@@ -1,0 +1,62 @@
+{
+  "schema_version": 4,
+  "change_id": "extend-kanban-viz-multi-repo-proposals",
+  "current_phase": "DONE",
+  "iteration": 0,
+  "total_iterations": 0,
+  "max_phase_iterations": 3,
+  "findings_trend": [
+    9,
+    8
+  ],
+  "blocking_findings": [],
+  "vendor_availability": {
+    "claude": true,
+    "codex": true,
+    "gemini": true
+  },
+  "packages_status": {
+    "wp-coord-sources": "complete",
+    "wp-spa-multi-repo": "complete",
+    "wp-spa-multi-repo-ux": "complete"
+  },
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-extend-kanban-viz-multi-repo-proposals-init-01",
+    "plan-iterate-extend-kanban-viz-multi-repo-proposals-01",
+    "plan-fix-extend-kanban-viz-multi-repo-proposals-r1",
+    "wp-coord-sources-a3f7b2e1",
+    "wp-spa-multi-repo-a84cc845",
+    "wp-spa-multi-repo-ux-a7c3f2",
+    "impl-iterate-extend-kanban-viz-multi-repo-proposals-01",
+    "impl-fix-app-tsx-wiring-01",
+    "impl-review-extend-kanban-viz-multi-repo-proposals-r1-converged",
+    "validate-extend-kanban-viz-multi-repo-proposals-passed",
+    "submit-pr-extend-kanban-viz-multi-repo-proposals-#214"
+  ],
+  "last_handoff_id": "submit-pr-extend-kanban-viz-multi-repo-proposals-#214",
+  "started_at": "2026-06-22T01:52:52.878034+00:00",
+  "phase_started_at": "2026-06-22T03:54:46.708523+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": null,
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 3,
+    "total_loc_estimate": 1900
+  },
+  "gate_verdict": "proceed"
+}

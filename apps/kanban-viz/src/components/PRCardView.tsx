@@ -11,6 +11,7 @@
 import type { PRCard } from "../lib/coordinator-types";
 import { ClusterBadge, ClusterHighlightWrapper } from "./ClusterBadge";
 import type { AnnotatedCard } from "../hooks/useBoardCards";
+import { RepoBadge } from "./RepoBadge";
 
 interface Props {
   card: PRCard & Partial<Pick<AnnotatedCard, "cluster_count">>;
@@ -120,6 +121,11 @@ export function PRCardView({ card }: Props) {
           >
             {card.status.replace("_", " ")}
           </span>
+        </div>
+
+        {/* RepoBadge — always rendered since PRCard.repo is always non-null */}
+        <div style={{ marginBottom: 3 }}>
+          <RepoBadge repo={card.repo} />
         </div>
 
         {/* Repo + number */}

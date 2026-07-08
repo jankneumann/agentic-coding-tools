@@ -1,0 +1,82 @@
+[
+  {
+    "name": "add-langfuse-tracing",
+    "path": "openspec/changes/add-langfuse-tracing",
+    "sha": "abc123def456abc123def456abc123def456abc1",
+    "size": 0,
+    "url": "https://api.github.com/repos/owner/repo/contents/openspec/changes/add-langfuse-tracing",
+    "html_url": "https://github.com/owner/repo/tree/main/openspec/changes/add-langfuse-tracing",
+    "git_url": "https://api.github.com/repos/owner/repo/git/trees/abc123",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/owner/repo/contents/openspec/changes/add-langfuse-tracing",
+      "git": "https://api.github.com/repos/owner/repo/git/trees/abc123",
+      "html": "https://github.com/owner/repo/tree/main/openspec/changes/add-langfuse-tracing"
+    }
+  },
+  {
+    "name": "fix-auth",
+    "path": "openspec/changes/fix-auth",
+    "sha": "def456abc123def456abc123def456abc123def4",
+    "size": 0,
+    "url": "https://api.github.com/repos/owner/repo/contents/openspec/changes/fix-auth",
+    "html_url": "https://github.com/owner/repo/tree/main/openspec/changes/fix-auth",
+    "git_url": "https://api.github.com/repos/owner/repo/git/trees/def456",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/owner/repo/contents/openspec/changes/fix-auth",
+      "git": "https://api.github.com/repos/owner/repo/git/trees/def456",
+      "html": "https://github.com/owner/repo/tree/main/openspec/changes/fix-auth"
+    }
+  },
+  {
+    "name": "refactor-db",
+    "path": "openspec/changes/refactor-db",
+    "sha": "789abc123def456abc123def456abc123def4567",
+    "size": 0,
+    "url": "https://api.github.com/repos/owner/repo/contents/openspec/changes/refactor-db",
+    "html_url": "https://github.com/owner/repo/tree/main/openspec/changes/refactor-db",
+    "git_url": "https://api.github.com/repos/owner/repo/git/trees/789abc",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/owner/repo/contents/openspec/changes/refactor-db",
+      "git": "https://api.github.com/repos/owner/repo/git/trees/789abc",
+      "html": "https://github.com/owner/repo/tree/main/openspec/changes/refactor-db"
+    }
+  },
+  {
+    "name": "archive",
+    "path": "openspec/changes/archive",
+    "sha": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+    "size": 0,
+    "url": "https://api.github.com/repos/owner/repo/contents/openspec/changes/archive",
+    "html_url": "https://github.com/owner/repo/tree/main/openspec/changes/archive",
+    "git_url": "https://api.github.com/repos/owner/repo/git/trees/deadbeef",
+    "download_url": null,
+    "type": "dir",
+    "_links": {
+      "self": "https://api.github.com/repos/owner/repo/contents/openspec/changes/archive",
+      "git": "https://api.github.com/repos/owner/repo/git/trees/deadbeef",
+      "html": "https://github.com/owner/repo/tree/main/openspec/changes/archive"
+    }
+  },
+  {
+    "name": "README.md",
+    "path": "openspec/changes/README.md",
+    "sha": "cafe1234cafe1234cafe1234cafe1234cafe1234",
+    "size": 128,
+    "url": "https://api.github.com/repos/owner/repo/contents/openspec/changes/README.md",
+    "html_url": "https://github.com/owner/repo/blob/main/openspec/changes/README.md",
+    "git_url": "https://api.github.com/repos/owner/repo/git/blobs/cafe1234",
+    "download_url": "https://raw.githubusercontent.com/owner/repo/main/openspec/changes/README.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/owner/repo/contents/openspec/changes/README.md",
+      "git": "https://api.github.com/repos/owner/repo/git/blobs/cafe1234",
+      "html": "https://github.com/owner/repo/blob/main/openspec/changes/README.md"
+    }
+  }
+]

@@ -16,11 +16,13 @@ import { fetchIssuesUnioned } from "./useCoordinator";
 import type {
   BoardCard,
   IssueCard,
+  MultiSourceProposalListResponse,
   PRCard,
   PRListResponse,
   ProposalCard,
-  ProposalListResponse,
+  SourceWarning,
 } from "../lib/coordinator-types";
+import { getClusterKey, deriveIssueRepo } from "../lib/coordinator-types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure utility: cluster computation
@@ -37,36 +39,87 @@ export interface ClusterResult {
 
 /**
  * clusterBoardCards — pure function that:
- * 1. Groups cards by change_id (excluding nulls).
+ * 1. Groups cards by a namespaced cluster key.
  * 2. Annotates each card with cluster_count (>1 means it has cross-row siblings).
  * 3. Returns the cluster Map and the annotated array.
  *
+ * Cluster key resolution (D3 + R1-005):
+ *   - When a card has repo != null: key = `<repo>/<change_id>` (namespaced)
+ *   - When ALL cards in a candidate change_id group have repo == null:
+ *     key = bare change_id (back-compat for pre-multi-repo data)
+ *   - Mixed-null groups SPLIT: repo-null cards form their own bare-key group
+ *     while repo-set cards form per-repo namespaced groups. The groups never
+ *     mix because a cluster cannot contain both repo=null and repo="x/y" cards.
+ *
  * Cards with change_id=null receive cluster_count=null and are excluded from clusters.
- * Cards that are the only card for a given change_id also receive cluster_count=null.
+ * Cards that are the only card for a given effective key also receive cluster_count=null.
  */
-export function clusterBoardCards(cards: readonly BoardCard[]): ClusterResult {
-  // Group by change_id
+export function clusterBoardCards(
+  cards: readonly BoardCard[],
+  clusterKeyOverride?: (card: BoardCard) => string | null,
+): ClusterResult {
+  const resolveKey = clusterKeyOverride ?? getClusterKey;
+
+  // First pass: for each bare change_id, collect all cards and determine
+  // whether ALL have null repo (i.e., the bare-fallback case).
   const byChangeId = new Map<string, BoardCard[]>();
   for (const card of cards) {
-    const cid = card.change_id;
-    if (cid == null) continue;
-    const list = byChangeId.get(cid) ?? [];
-    list.push(card);
-    byChangeId.set(cid, list);
+    if (card.change_id == null) continue;
+    const group = byChangeId.get(card.change_id) ?? [];
+    group.push(card);
+    byChangeId.set(card.change_id, group);
+  }
+
+  // Compute the effective cluster key for each card.
+  //
+  // Mixed-null split rule (D3, spec "Namespaced Cluster Key Resolution"):
+  //   - A cluster cannot mix repo=null and repo="x/y" members.
+  //   - If ALL members of a bare change_id group have repo=null → bare key (back-compat).
+  //   - If SOME members have repo=null (mixed group):
+  //       * The repo-null cards use the bare change_id as their key
+  //         (they cluster ONLY with other repo-null cards sharing the same change_id).
+  //       * The repo-set cards use their namespaced key (`<repo>/<change_id>`).
+  //   - If ALL members have repo set → namespaced keys (no bare fallback).
+  const effectiveKey = (card: BoardCard): string | null => {
+    if (card.change_id == null) return null;
+    const group = byChangeId.get(card.change_id) ?? [];
+    const allNull = group.every((c) => (c.repo ?? null) == null);
+    if (allNull) {
+      // Back-compat fallback: all members have null repo → use bare change_id
+      return card.change_id;
+    }
+    // Mixed or all-repo case:
+    if ((card.repo ?? null) == null) {
+      // This card has no repo — give it the bare change_id key so it can
+      // cluster with other null-repo cards (split from the namespaced group).
+      return card.change_id;
+    }
+    // Card has repo set → namespaced key
+    return resolveKey(card);
+  };
+
+  // Second pass: group by effective key
+  const byEffectiveKey = new Map<string, BoardCard[]>();
+  for (const card of cards) {
+    const key = effectiveKey(card);
+    if (key == null) continue;
+    const group = byEffectiveKey.get(key) ?? [];
+    group.push(card);
+    byEffectiveKey.set(key, group);
   }
 
   // Only include clusters with >1 card
   const clusters = new Map<string, BoardCard[]>();
-  for (const [cid, group] of byChangeId) {
+  for (const [key, group] of byEffectiveKey) {
     if (group.length > 1) {
-      clusters.set(cid, group);
+      clusters.set(key, group);
     }
   }
 
-  // Annotate
+  // Annotate: find which cluster (if any) a card belongs to
   const annotated: AnnotatedCard[] = cards.map((card) => {
-    const cid = card.change_id;
-    const clusterSize = cid != null ? (clusters.get(cid)?.length ?? null) : null;
+    const key = effectiveKey(card);
+    const clusterSize = key != null ? (clusters.get(key)?.length ?? null) : null;
     return { ...card, cluster_count: clusterSize } as AnnotatedCard;
   });
 
@@ -86,6 +139,13 @@ export interface UseBoardCardsOptions {
   apiUrl?: string;
   apiKey: string;
   changeIds: string[];
+  /**
+   * Lowercase `<owner>/<repo>` strings whose cards should be excluded from
+   * the board. Filtering happens BEFORE clustering so cluster_count never
+   * reflects hidden siblings (per spec scenario "Hidden repo filters all
+   * three rows"). Default: no repos hidden.
+   */
+  hiddenRepos?: readonly string[];
 }
 
 export interface UseBoardCardsResult {
@@ -98,11 +158,22 @@ export interface UseBoardCardsResult {
   };
   /** Cluster map keyed by change_id (only clusters with >1 card). */
   clusters: Map<string, BoardCard[]>;
+  /**
+   * Cards with cluster_count attached (>1 means cross-row siblings exist).
+   * Pass to SourceSwimlanes.annotatedCards to enable ClusterBadge rendering.
+   */
+  annotated: AnnotatedCard[];
   loading: boolean;
   /** Generation counter — bump on each manual refresh. SSE handlers fence on this. */
   refreshGeneration: number;
   /** Trigger a parallel refetch of all three sources with ?refresh=true. */
   refresh: () => Promise<void>;
+  /**
+   * Per-source failures from GET /openspec/proposals _warnings field.
+   * Non-empty when at least one configured source failed on the last fetch.
+   * Reset to [] on each refresh so warnings never persist across refreshes.
+   */
+  proposalsWarnings: readonly SourceWarning[];
 }
 
 async function fetchPRs(apiUrl: string, apiKey: string, bust = false): Promise<PRCard[]> {
@@ -116,21 +187,32 @@ async function fetchPRs(apiUrl: string, apiKey: string, bust = false): Promise<P
   return Array.from(data.prs);
 }
 
-async function fetchProposals(apiUrl: string, apiKey: string, bust = false): Promise<ProposalCard[]> {
+async function fetchProposals(
+  apiUrl: string,
+  apiKey: string,
+  bust = false,
+): Promise<{ proposals: ProposalCard[]; warnings: readonly SourceWarning[] }> {
   const url = new URL(`${apiUrl}/openspec/proposals`);
   if (bust) url.searchParams.set("refresh", "true");
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
   if (!res.ok) throw new Error(`GET /openspec/proposals: ${res.status}`);
-  const data = (await res.json()) as ProposalListResponse;
-  return Array.from(data.proposals);
+  // Cast to MultiSourceProposalListResponse so _warnings are preserved.
+  // Wire-compatible with PR #211's ProposalListResponse (adds optional _warnings,
+  // widens source enum to include "mixed").
+  const data = (await res.json()) as MultiSourceProposalListResponse;
+  return {
+    proposals: Array.from(data.proposals),
+    warnings: data._warnings ?? [],
+  };
 }
 
 export function useBoardCards({
   apiUrl = "http://localhost:8081",
   apiKey,
   changeIds,
+  hiddenRepos,
 }: UseBoardCardsOptions): UseBoardCardsResult {
   const changeIdsKey = useMemo(() => [...changeIds].sort().join(","), [changeIds]);
   const stableChangeIds = useMemo(
@@ -154,6 +236,9 @@ export function useBoardCards({
     error: null,
   });
   const [refreshGeneration, setRefreshGeneration] = useState(0);
+  // Per-source warnings from the last /openspec/proposals response.
+  // Reset to [] on each refresh so warnings never persist across refreshes (D6).
+  const [proposalsWarnings, setProposalsWarnings] = useState<readonly SourceWarning[]>([]);
 
   const mountedRef = useRef(true);
   const currentGenRef = useRef(0);
@@ -173,7 +258,12 @@ export function useBoardCards({
       if (!mountedRef.current || currentGenRef.current !== gen) return;
 
       if (issueResult.status === "fulfilled") {
-        setIssueRow({ cards: issueResult.value, loading: false, error: null });
+        // Derive repo from labels client-side (D4 — label convention)
+        const issuesWithRepo = issueResult.value.map((issue) => ({
+          ...issue,
+          repo: deriveIssueRepo(issue.labels),
+        }));
+        setIssueRow({ cards: issuesWithRepo, loading: false, error: null });
       } else {
         setIssueRow((prev) => ({
           ...prev,
@@ -193,13 +283,15 @@ export function useBoardCards({
       }
 
       if (proposalResult.status === "fulfilled") {
-        setProposalRow({ cards: proposalResult.value, loading: false, error: null });
+        setProposalRow({ cards: proposalResult.value.proposals, loading: false, error: null });
+        setProposalsWarnings(proposalResult.value.warnings);
       } else {
         setProposalRow((prev) => ({
           ...prev,
           loading: false,
           error: String(proposalResult.reason),
         }));
+        setProposalsWarnings([]);
       }
     },
     [apiUrl, apiKey, stableChangeIds],
@@ -218,19 +310,35 @@ export function useBoardCards({
   const refresh = useCallback(async () => {
     currentGenRef.current += 1;
     setRefreshGeneration(currentGenRef.current);
-    // Reset loading state
+    // Reset loading state and clear stale warnings so the chip disappears
+    // while the next refresh is in-flight (D6: only latest-refresh warnings shown).
     setIssueRow((prev) => ({ ...prev, loading: true }));
     setPrRow((prev) => ({ ...prev, loading: true }));
     setProposalRow((prev) => ({ ...prev, loading: true }));
+    setProposalsWarnings([]);
     await fetchAll(true);
   }, [fetchAll]);
 
-  const cards = useMemo<BoardCard[]>(
-    () => [...issueRow.cards, ...prRow.cards, ...proposalRow.cards],
-    [issueRow.cards, prRow.cards, proposalRow.cards],
+  // R1-104 fix: filter hidden-repo cards BEFORE clustering so cluster_count
+  // never references hidden siblings (spec scenario "Hidden repo filters all
+  // three rows" requires hidden cards excluded from row totals AND cluster
+  // computation). Cards with null repo are always visible — hiding a repo
+  // doesn't hide unattributed cards.
+  const hiddenSet = useMemo(
+    () => new Set((hiddenRepos ?? []).map((r) => r.toLowerCase())),
+    [hiddenRepos],
   );
 
-  const { clusters } = useMemo(() => clusterBoardCards(cards), [cards]);
+  const cards = useMemo<BoardCard[]>(
+    () => {
+      const all: BoardCard[] = [...issueRow.cards, ...prRow.cards, ...proposalRow.cards];
+      if (hiddenSet.size === 0) return all;
+      return all.filter((c) => c.repo == null || !hiddenSet.has(c.repo));
+    },
+    [issueRow.cards, prRow.cards, proposalRow.cards, hiddenSet],
+  );
+
+  const { clusters, annotated } = useMemo(() => clusterBoardCards(cards), [cards]);
 
   const loading =
     issueRow.loading || prRow.loading || proposalRow.loading;
@@ -243,8 +351,10 @@ export function useBoardCards({
       proposals: proposalRow,
     },
     clusters,
+    annotated,
     loading,
     refreshGeneration,
     refresh,
+    proposalsWarnings,
   };
 }

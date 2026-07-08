@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-06-12T13:00:05.880432+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented all 20 tasks across 3 phases in 9 logical commits. Four new helper modules (priorities_paths.py, artifact_header.py, retention.py, migrate_legacy.py) + SKILL.md rewrite + spec delta verified + one-shot legacy migration executed as a discrete commit + runtime mirrors synced. 42 tests pass; openspec validate --strict passes; scope discipline preserved (no out-of-scope edits).",
+    "completed_work": [
+      "All 20 tasks (Phase 1: 10, Phase 2: 5, Phase 3: 5) \u2014 checkboxes flipped in-commit per discipline",
+      "4 helper modules: priorities_paths.py, artifact_header.py, retention.py, migrate_legacy.py",
+      "Updated skills/prioritize-proposals/SKILL.md to use the new layout",
+      "Executed one-shot migration of openspec/changes/prioritized-proposals.md \u2192 openspec/priorities/2026-05-04-legacy/report.md (discrete commit)",
+      "Synced runtime mirrors at .claude/skills/prioritize-proposals/ and .agents/skills/prioritize-proposals/",
+      "42 tests total (30 unit + 6 migration + 6 e2e smoke); openspec validate --strict passing"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Pure-function helpers + bash orchestration",
+        "rationale": "Each helper module exposes pure functions for the testable logic (build_run_id, make_header, apply_retention, migrate_legacy) with a thin CLI entrypoint for shell invocation. SKILL.md stays bash-driven, calling the CLIs at the right points. Keeps tests fast and deterministic; keeps SKILL.md readable as a recipe.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "UTC-aware datetime enforcement",
+        "rationale": "Both build_run_id() and make_header() raise ValueError on naive datetimes. Run-ids must be stable across timezones (operators in different zones must produce the same run-id given the same UTC instant), so naive datetimes are a foot-gun the type system can't catch.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Legacy migration refuses to clobber",
+        "rationale": "If openspec/priorities/2026-05-04-legacy/ already exists with content AND the source file also exists, migrate_legacy returns skipped_reason='already_migrated' rather than overwriting. The operator must resolve the collision manually. This trades automation for safety \u2014 a one-shot migration is the wrong place to silently overwrite history.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Independent CLI verification in smoke tests",
+        "rationale": "test_artifact_header_cli_produces_same_shape invokes the CLI as a subprocess (mimicking SKILL.md's shell flow), not just the Python imports. This catches any divergence between the importable API and the CLI behavior \u2014 a class of bug that would silently break runtime even when unit tests pass.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Mirror sync scope: only prioritize-proposals/, not other drift",
+        "rationale": "The bash skills/install.sh ran a full 132-skill rsync, but I only staged .claude/skills/prioritize-proposals/ and .agents/skills/prioritize-proposals/ for commit. Preexisting drift in other skills' mirrors is out of scope for this change (per Rule 0.5 Scope Discipline + work-packages.yaml write_allow).",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Push branch and open PR for review",
+      "/cleanup-feature will run the deploy/smoke/security/E2E validation phases pre-merge",
+      "Post-merge: regenerate docs/decisions/ (per project_derived_artifact_drift) \u2014 `make decisions`"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/prioritize-proposals/SKILL.md",
+        "description": "rewritten Step 8/9 + --retain N flag added"
+      },
+      {
+        "path": "skills/prioritize-proposals/scripts/priorities_paths.py",
+        "description": "run-id + path helpers"
+      },
+      {
+        "path": "skills/prioritize-proposals/scripts/artifact_header.py",
+        "description": "mandatory _header constructor + CLI"
+      },
+      {
+        "path": "skills/prioritize-proposals/scripts/retention.py",
+        "description": "archive-not-delete retention scan"
+      },
+      {
+        "path": "skills/prioritize-proposals/scripts/migrate_legacy.py",
+        "description": "one-shot legacy migration"
+      },
+      {
+        "path": "openspec/priorities/2026-05-04-legacy/report.md",
+        "description": "first historical entry, pre-migration header allowance"
+      },
+      {
+        "path": "skills/tests/prioritize-proposals/",
+        "description": "42 tests covering all helpers + e2e smoke"
+      }
+    ]
+  }
+}

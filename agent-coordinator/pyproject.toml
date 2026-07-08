@@ -12,7 +12,10 @@ dependencies = [
     "jsonschema>=4.0",
     "pydantic>=2.13.4",
     "pyyaml>=6.0.3",
-    "aiosmtplib>=2.0.0",
+    # Floor >=5.1.1: 5.1.0 and earlier are affected by CVE-2026-53533
+    # (SMTP command injection via unneutralized CR/LF in caller-supplied
+    # addresses passed to mail()/rcpt()/vrfy()/expn()/sendmail()).
+    "aiosmtplib>=5.1.1",
     "aioimaplib>=1.0.0",
     "email-validator>=2.3.0",
     "urllib3>=2.7.0",
@@ -25,7 +28,7 @@ dependencies = [
 [project.optional-dependencies]
 api = [
     "fastapi>=0.136.1",
-    "uvicorn>=0.48.0",
+    "uvicorn>=0.49.0",
     # IMPL_REVIEW claude_code#12: sse-starlette is imported at runtime in
     # coordination_api.py:2759 (EventSourceResponse) for the /events/work SSE
     # endpoint. PyJWT is imported in event_stream.py for mint/verify of the
@@ -36,7 +39,7 @@ api = [
     "PyJWT>=2.13.0",
 ]
 postgres = [
-    "asyncpg>=0.30.0",
+    "asyncpg>=0.31.0",
 ]
 cedar = [
     "cedarpy>=4.0.0",
@@ -55,7 +58,7 @@ observability = [
     "opentelemetry-exporter-otlp>=1.20.0",
     "opentelemetry-exporter-prometheus>=0.62b1",
     "prometheus-client>=0.20.0",
-    "langfuse>=4.5.1,<5.0",
+    "langfuse>=4.7.1,<5.0",
 ]
 test = [
     "pytest>=8.0.0",
@@ -64,7 +67,7 @@ test = [
     "respx>=0.23.1",
     "PyJWT>=2.13.0",
     "ruff>=0.15.16",
-    "mypy>=1.13.0",
+    "mypy>=2.1.0",
     "hypothesis>=6.152.7",
 ]
 dev = [
@@ -74,9 +77,9 @@ dev = [
     "respx>=0.23.1",
     "PyJWT>=2.13.0",
     "ruff>=0.15.16",
-    "mypy>=1.13.0",
+    "mypy>=2.1.0",
     "types-PyYAML>=6.0",
-    "asyncpg>=0.30.0",
+    "asyncpg>=0.31.0",
     "cedarpy>=4.0.0",
 ]
 
@@ -91,11 +94,17 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 override-dependencies = [
-    # CVE-2026-42561: python-multipart < 0.0.27 has a DoS vulnerability in
-    # multipart header parsing (no per-part header count or size limit).
+    # CVE-2026-53538/53539/53540: python-multipart < 0.0.31 has DoS and
+    # parser-differential vulnerabilities (negative Content-Length unbounded
+    # read; semicolon-separator quadratic scan; semicolon field-smuggling).
     # Brought in transitively via mcp -> fastmcp; force the resolver to pick
     # the patched version until upstream constraints catch up.
-    "python-multipart>=0.0.27",
+    "python-multipart>=0.0.31",
+    # CVE-2026-49852 (HIGH — HMAC empty-key auth bypass) and CVE-2026-48990
+    # (RFC7797 payload-size-limit bypass) affect joserfc < 1.6.8. Brought in
+    # transitively via the auth stack; force the patched version until an
+    # upstream parent floor covers it.
+    "joserfc>=1.6.8",
 ]
 
 # Resolve `gen-eval` to the sibling package in this monorepo. Per design

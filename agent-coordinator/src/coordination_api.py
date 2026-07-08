@@ -3270,6 +3270,19 @@ def create_coordination_api() -> FastAPI:
                     ),
                 },
             )
+        except ValueError as exc:
+            # openspec_sources_invalid: raised when OPENSPEC_SOURCES has bad entries
+            error_str = str(exc)
+            if error_str.startswith("openspec_sources_invalid:"):
+                offending = error_str.removeprefix("openspec_sources_invalid:")
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        "error": "openspec_sources_invalid",
+                        "message": f"Invalid OPENSPEC_SOURCES entry: {offending}",
+                    },
+                )
+            raise
         return result
 
     return app
