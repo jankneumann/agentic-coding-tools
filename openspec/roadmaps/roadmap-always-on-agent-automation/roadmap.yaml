@@ -71,7 +71,7 @@ items:
     is block).
 - item_id: ri-05
   title: Build approval gate service (interviewer abstraction)
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on:
@@ -478,4 +478,4 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-07-08T10:25:37.008788+00:00'
+updated_at: '2026-07-08T10:39:01.628997+00:00'
