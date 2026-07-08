@@ -78,6 +78,16 @@ def _write_handoff(cwd: Path, change_id: str, phase: str, n: int = 1) -> Path:
     return target
 
 
+def _write_loop_state(cwd: Path, change_id: str, last_handoff_id: str) -> Path:
+    """Write a loop-state.json recording the applied handoff. The
+    phase-boundary gate cross-references last_handoff_id."""
+    change_dir = cwd / "openspec" / "changes" / change_id
+    change_dir.mkdir(parents=True, exist_ok=True)
+    target = change_dir / "loop-state.json"
+    target.write_text(json.dumps({"last_handoff_id": last_handoff_id}))
+    return target
+
+
 @pytest.fixture
 def isolated(tmp_path: Path) -> tuple[Path, Path]:
     """Yields (home, cwd). Both are scratch directories; setting HOME isolates
@@ -143,6 +153,10 @@ def test_phase_boundary_blocks_when_below_threshold(
     transcript = cwd / "session.jsonl"
     _write_transcript(transcript, 1000)  # well below threshold
     _write_handoff(cwd, "test-change", "implementation")
+    _write_loop_state(
+        cwd, "test-change",
+        "openspec/changes/test-change/handoffs/implementation-1.json",
+    )
     result = _run_hook(
         hook_input={"transcript_path": str(transcript)},
         home=home,
@@ -339,6 +353,13 @@ def test_recent_phase_boundary_finds_in_cwd(
     handoff_dir.mkdir(parents=True)
     target = handoff_dir / "implementation-1.json"
     target.write_text("{}")
+    # Record the handoff as applied so the boundary gate accepts it.
+    (tmp_path / "openspec" / "changes" / "test" / "loop-state.json").write_text(
+        json.dumps({
+            "last_handoff_id":
+                "openspec/changes/test/handoffs/implementation-1.json",
+        })
+    )
     # Stub git worktree list to return only this directory.
     monkeypatch.setattr(hook_module, "_all_worktree_roots",
                          lambda: [tmp_path])
@@ -356,6 +377,13 @@ def test_recent_phase_boundary_scans_all_worktrees(
     handoff_dir = sibling / "openspec" / "changes" / "test" / "handoffs"
     handoff_dir.mkdir(parents=True)
     (handoff_dir / "validation-2.json").write_text("{}")
+    # Record the sibling handoff as applied so the boundary gate accepts it.
+    (sibling / "openspec" / "changes" / "test" / "loop-state.json").write_text(
+        json.dumps({
+            "last_handoff_id":
+                "openspec/changes/test/handoffs/validation-2.json",
+        })
+    )
     monkeypatch.chdir(main_root)  # pretend we're in the main checkout
     monkeypatch.setattr(hook_module, "_all_worktree_roots",
                          lambda: [main_root, sibling])
