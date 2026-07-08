@@ -2,7 +2,7 @@
 
 ## Context and Goals
 
-Target deployment: a dedicated always-on box (ASUS Ascent GX10) running the coordinator, a dispatcher daemon, and the validation stack, executing `/autopilot` and `/autopilot-roadmap` work unattended with (a) automatic verification, (b) scenario-based validation in the spirit of strongdm/attractor, and (c) daily-or-more-frequent merge sync points.
+Target deployment: a dedicated always-on box (ASUS Ascent GX10) running the coordinator, a dispatcher daemon, and the validation stack, executing `/autopilot` and `/autopilot-roadmap` work unattended with (a) automatic verification, (b) scenario-based validation in the spirit of strongdm/attractor, (c) daily-or-more-frequent merge sync points, (d) autonomous backlog curation — daily architecture/tech-debt/bug-scrub refreshes feeding automated proposal prioritization and next-work selection, (e) GitHub Issues as the human-aligned tracking surface, and (f) CI migrated to local runners on the same host.
 
 The codebase is closer to this than it first appears. Already delivered (per the OpenSpec archive and specs):
 
@@ -172,6 +172,57 @@ Put the existing analysis skills on timers: `agent-metrics` (throughput/failure/
 Acceptance outcomes:
 - Weekly automated harness-health digest delivered via the notification service.
 
+## Phase 6 — Backlog Automation, GitHub Alignment, and Local CI
+
+The phases above automate execution of *known* work; this phase automates deciding **what to work on next** and aligns the tracking and CI substrate with human processes. All the analysis skills involved (`prioritize-proposals`, `explore-feature`, `refresh-architecture`, `tech-debt-analysis`, `bug-scrub`, `fix-scrub`) already exist as manual invocations — the work is scheduling them, normalizing their outputs into the tracker, and closing the loop into the dispatcher's work source.
+
+### Capability: Migrate CI to Self-Hosted Runners
+
+Run ephemeral, containerized GitHub Actions runners on the GX10 and move `ci.yml` / `security.yml` (and the license-compliance workflow when it lands) to `runs-on: [self-hosted, ...]` with a GitHub-hosted fallback lane. Two caveats are first-class requirements, not afterthoughts: (1) the GX10 is aarch64 (Grace CPU), so every job, container image, and wheel must build/run on arm64 or be explicitly pinned to the hosted x86 lane; (2) self-hosted runners must never execute fork-PR code unattended — restrict to `push`/`merge_group` events or require environment approval for external PRs. Payoff beyond cost: CI wall-clock directly bounds merge sync-window cadence (Phase 3), and the runner shares the Docker layer cache with `validate-feature`'s deploy phase.
+
+Acceptance outcomes:
+- `ci.yml` and `security.yml` complete green on a self-hosted arm64 runner; jobs that cannot run on arm64 are explicitly pinned to the hosted lane.
+- Median CI wall-clock for a typical PR drops measurably versus hosted runners.
+- A fork PR cannot execute a job on the self-hosted runner without explicit approval.
+- Runner processes are ephemeral (fresh environment per job) and survive host reboot via systemd.
+
+### Capability: GitHub Two-Way Tracker Adapter
+
+Elevate symphony's `github-tracker-adapter` from a one-way projection to a first-class two-way adapter: GitHub Issues become the human-facing system of record, while the coordinator issue tracker remains the dispatcher's claim ledger. Labels carry status (`ready`, `claimed`, `blocked`, `needs-human`); sync is bidirectional (issues opened/closed/labeled by humans on GitHub flow to the coordinator; agent claims, progress, and completions flow back as labels/comments/closures); claiming stays exclusive under concurrent polls so GitHub's lack of atomic claim semantics cannot cause duplicate dispatch.
+
+Acceptance outcomes:
+- An issue opened and labeled `ready` on GitHub is dispatchable within one poll interval; its claim, progress, and closure are visible on GitHub without touching the coordinator.
+- Concurrent dispatcher polls never claim the same GitHub issue twice (coordinator ledger arbitrates).
+- Human edits on GitHub (close, re-label, comment commands) take effect on the coordinator side within one sync interval.
+
+### Capability: Scheduled Discovery Refresh
+
+Run `refresh-architecture`, `tech-debt-analysis`, and `bug-scrub` daily on the daemon's schedule (staggered off-peak; posture-gated for anything that writes). Architecture artifacts (`docs/architecture-analysis/`) stay fresh so `validate-feature`'s architecture phase and `explore-feature`'s inputs stop drifting; bug-scrub and tech-debt reports land as dated artifacts with machine-readable findings.
+
+Acceptance outcomes:
+- All three analyses run daily unattended; artifacts carry run timestamps and the architecture graph is never older than 24 h.
+- A failed refresh emits a notification rather than silently serving stale artifacts.
+- `fix-scrub`'s auto-fix lane runs against fresh bug-scrub findings under the posture's `auto` ceiling only.
+
+### Capability: Findings-to-Issues Pipeline
+
+Normalize discovery outputs (bug-scrub findings, tech-debt items, architecture diagnostics, capability-gap reports from `improve-harness`) into tracker issues via the two-way adapter: dedupe against open issues, file with provenance links to the source artifact, tag by finding type and severity, and route auto-fixable findings to a `fix-scrub` dispatch lane. Humans see one backlog on GitHub; agents consume the same backlog through the dispatcher.
+
+Acceptance outcomes:
+- A bug-scrub finding becomes exactly one GitHub issue (re-runs update, never duplicate) with a provenance link to the report.
+- Issue labels distinguish auto-fixable from needs-planning findings; the former are dispatchable to fix-scrub.
+- Closing the issue on GitHub retires the finding from subsequent scrub reports.
+
+### Capability: Automated Proposal Prioritization and Next-Work Selection
+
+Extend `prioritize-proposals` from an on-demand report into the scheduled decision layer that feeds the dispatcher. Daily, after the discovery refresh: score every active proposal, roadmap item, and open tracker issue on dependency-readiness (roadmap DAGs), value/priority, effort, staleness, and live signals (capability gaps and incidents from episodic memory, fresh scrub findings); emit a prioritized "what to do next" report; and enqueue the top-N ready items into the dispatcher's work source. Selection is posture-gated: default `notify_with_timeout` (the report goes out, top picks auto-enqueue after the veto window), `block` keeps today's human-selects behavior. `explore-feature` remains the generative complement — surfacing candidate proposals when the ready queue runs dry is part of this capability's scope, gated at `notify` since new scope is a human decision by default.
+
+Acceptance outcomes:
+- A daily prioritization report ranks all active proposals and ready roadmap items with per-factor scores and is delivered via the notification service.
+- Under the default posture, top-N picks auto-enqueue after the veto window; a veto prevents enqueue; under `block`, nothing enqueues without approval.
+- The dispatcher's queue is never empty while unblocked candidate work exists (starvation check over a 7-day soak).
+- When no ready work exists, an `explore-feature` run proposes candidates as draft issues rather than the daemon idling silently.
+
 ## Appendix: Attractor Concept Mapping
 
 | attractor concept | repo status | action |
@@ -187,4 +238,4 @@ Acceptance outcomes:
 
 ## Appendix: GX10 Host Layout
 
-Single box runs: ParadeDB + coordinator API (`docker-compose --profile api`; watchdog + merge-watcher come up with it), the dispatcher daemon (systemd), Docker for `validate-feature` deploy/smoke/e2e phases, and Playwright/Node for frontend validation. Coordinator and repo checkout co-located (required by the sync-point registry coupling above). The GB10's unified memory also makes the box a candidate to serve a local model as an economy-tier vendor for triage/review work once the Phase 2 arbitrage signal layer exists — a cost-free consumer for the vendor router.
+Single box runs: ParadeDB + coordinator API (`docker-compose --profile api`; watchdog + merge-watcher come up with it), the dispatcher daemon (systemd), ephemeral GitHub Actions runners (systemd, arm64), Docker for `validate-feature` deploy/smoke/e2e phases, and Playwright/Node for frontend validation. Coordinator and repo checkout co-located (required by the sync-point registry coupling above). The GB10's unified memory also makes the box a candidate to serve a local model as an economy-tier vendor for triage/review work once the Phase 2 arbitrage signal layer exists — a cost-free consumer for the vendor router.
