@@ -1,0 +1,495 @@
+schema_version: 1
+
+feature:
+  id: add-adaptive-model-router
+  title: "Adaptive model router — catalog, resolver, dispatch adapter, feedback loop, dashboard"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml"
+      - "openspec/changes/add-adaptive-model-router/contracts/db/schema.sql"
+      - "openspec/changes/add-adaptive-model-router/contracts/events/routing-signal.schema.json"
+      - "openspec/changes/add-adaptive-model-router/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ── wp-contracts — validate and freeze contract set, generate types (tasks 1.1–1.4)
+  - package_id: wp-contracts
+    title: "Contracts — OpenAPI, DB, event schemas + generated types"
+    task_type: contracts
+    description: |
+      Tasks 1.1–1.4: validate/refine the routing OpenAPI (v1.yaml), DB contract
+      (schema.sql), and signal event schema; generate Pydantic models into
+      contracts/generated/. Coordination boundary for all downstream packages.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:model-routing-openapi"
+        - "contract:model-routing-db"
+        - "contract:model-routing-events"
+      ttl_minutes: 60
+      reason: "Contract definitions for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/add-adaptive-model-router/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Event schema validates as JSON Schema; OpenAPI parses"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json, yaml, jsonschema; jsonschema.Draft202012Validator.check_schema(json.load(open(\"openspec/changes/add-adaptive-model-router/contracts/events/routing-signal.schema.json\"))); yaml.safe_load(open(\"openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml\"))'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+    metadata:
+      loc_estimate: 300
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "contracts_valid"
+
+  # ── wp-db-catalog — migrations, catalog service, refresher, local probes, ledger (tasks 2.1–2.11)
+  - package_id: wp-db-catalog
+    title: "Coordinator catalog storage — migrations, catalog, OpenRouter refresher, ledger"
+    task_type: backend
+    description: |
+      Tasks 2.1–2.11 (flagged L, internally decomposed): additive migrations for the four
+      routing tables; catalog service (no external calls on read path); OpenRouter REST
+      refresher with standing key; local endpoint registration + health probe; spend +
+      counterfactual ledger; watchdog schedule wiring. Design D1, D4, D5, D7, D8.
+    role: backend-implementer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/src/watchdog.py"
+      keys:
+        - "db:schema:model_routing"
+      ttl_minutes: 180
+      reason: "Routing storage layer and scheduled jobs"
+    scope:
+      write_allow:
+        - "agent-coordinator/database/migrations/**"
+        - "agent-coordinator/src/model_routing/catalog.py"
+        - "agent-coordinator/src/model_routing/refresher.py"
+        - "agent-coordinator/src/model_routing/local_endpoints.py"
+        - "agent-coordinator/src/model_routing/ledger.py"
+        - "agent-coordinator/src/model_routing/__init__.py"
+        - "agent-coordinator/src/watchdog.py"
+        - "agent-coordinator/tests/model_routing/test_catalog*.py"
+        - "agent-coordinator/tests/model_routing/test_refresher*.py"
+        - "agent-coordinator/tests/model_routing/test_ledger*.py"
+        - "agent-coordinator/tests/model_routing/test_migrations*.py"
+        - "agent-coordinator/tests/model_routing/test_local_endpoints*.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-db-catalog
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Catalog layer unit + integration tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "catalog_tests_passed"
+    metadata:
+      loc_estimate: 1500
+      complexity: high
+      package_kind: data_model
+    inputs: {}
+    outputs:
+      result_keys:
+        - "catalog_tests_passed"
+
+  # ── wp-resolver — scoring, Cedar constraints, exploration, API/MCP, delegation (tasks 3.1–3.11)
+  - package_id: wp-resolver
+    title: "Selection resolver — scoring, hard constraints, exploration, API surface, flag delegation"
+    task_type: backend
+    description: |
+      Tasks 3.1–3.11: linear-utility resolver with objective profiles (D3); Cedar hard
+      feasibility constraints pre-scoring (D10); dual-ceiling exploration budget (D6);
+      HTTP endpoints + MCP tool per OpenAPI contract; ROUTING_ADAPTIVE delegation with
+      static-tier fallback in agents_config (D2); agents.yaml endpoint_kind/base_url schema.
+    role: backend-implementer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-db-catalog]
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+      keys:
+        - "api:POST /routing/select_model"
+        - "api:GET /routing/catalog"
+        - "api:GET /routing/usage"
+        - "api:POST /routing/feedback"
+      ttl_minutes: 180
+      reason: "Resolver, routing API surface, archetype delegation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/model_routing/resolver.py"
+        - "agent-coordinator/src/model_routing/exploration.py"
+        - "agent-coordinator/src/model_routing/api.py"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/policies/**"
+        - "agent-coordinator/tests/model_routing/test_resolver*.py"
+        - "agent-coordinator/tests/model_routing/test_exploration*.py"
+        - "agent-coordinator/tests/model_routing/test_api*.py"
+        - "agent-coordinator/tests/model_routing/test_delegation*.py"
+        - "agent-coordinator/tests/model_routing/test_constraints*.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-resolver
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Resolver, constraint, exploration, API tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing -q -k 'resolver or exploration or api or delegation or constraints'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "resolver_tests_passed"
+    metadata:
+      loc_estimate: 1200
+      complexity: high
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "resolver_tests_passed"
+
+  # ── wp-dispatch — OpenAI-compatible adapter + policy pricing (tasks 4.1–4.6)
+  - package_id: wp-dispatch
+    title: "Dispatch adapter + roadmap policy pricing"
+    task_type: backend
+    description: |
+      Tasks 4.1–4.6: OpenAICompatAdapter (base_url) in review_dispatcher for OpenRouter and
+      local endpoints with generation-id capture (D10); replace policy.py _estimate_cost_delta
+      stub with catalog pricing via HTTP contract (D7); roadmap exploration gating.
+      Skills tree only — parallel-safe with coordinator packages.
+    role: backend-implementer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/autopilot-roadmap/scripts/policy.py"
+      keys:
+        - "feature:add-adaptive-model-router:dispatch"
+        - "feature:add-adaptive-model-router:policy"
+      ttl_minutes: 120
+      reason: "Dispatch adapter and cost-model replacement"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/**"
+        - "skills/autopilot-roadmap/scripts/**"
+        - "skills/tests/parallel-infrastructure/**"
+        - "skills/tests/autopilot-roadmap/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-dispatch
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Adapter and policy tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure skills/tests/autopilot-roadmap -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "dispatch_tests_passed"
+    metadata:
+      loc_estimate: 700
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "dispatch_tests_passed"
+
+  # ── wp-feedback — posterior aggregation + learning-log wiring (tasks 5.1–5.6)
+  - package_id: wp-feedback
+    title: "Feedback aggregation — posteriors, learning-log wiring, gen-eval calibration"
+    task_type: backend
+    description: |
+      Tasks 5.1–5.6: weighted decayed-average aggregation into model_posteriors from
+      gen-eval, validation/VendorSwitch, procedural memory, transcript triage (D9);
+      best-effort POST /routing/feedback from learning-log writers; gen-eval calibration
+      suite seeding local-model priors (D5). File-disjoint from wp-resolver.
+    role: backend-implementer
+    archetype: implementer
+    priority: 4
+    depends_on: [wp-db-catalog]
+    locks:
+      files:
+        - "skills/roadmap-runtime/scripts/learning.py"
+      keys:
+        - "feature:add-adaptive-model-router:learning"
+      ttl_minutes: 120
+      reason: "Feedback aggregation and learning wiring"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/model_routing/feedback.py"
+        - "agent-coordinator/tests/model_routing/test_feedback*.py"
+        - "skills/roadmap-runtime/scripts/learning.py"
+        - "skills/roadmap-runtime/scripts/models.py"
+        - "skills/tests/roadmap-runtime/**"
+        - "packages/gen-eval/src/gen_eval/calibration/**"
+        - "packages/gen-eval/tests/calibration/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-feedback
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Feedback aggregation and calibration tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing -q -k feedback"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "feedback_tests_passed"
+    metadata:
+      loc_estimate: 800
+      complexity: medium
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "feedback_tests_passed"
+
+  # ── wp-probes — ToS monitor, canary, tripwires (tasks 6.1–6.6)
+  - package_id: wp-probes
+    title: "Probes and tripwires — ToS monitor, model canary, posture flips"
+    task_type: backend
+    description: |
+      Tasks 6.1–6.6: ToS-diff monitor with vendor freeze pending ack; model canary with
+      posterior invalidation on drift; tripwire evaluator emitting posture-flip signals
+      (economic kill recommendation) (D11). Sequential after wp-db-catalog because both
+      touch watchdog wiring.
+    role: backend-implementer
+    archetype: implementer
+    priority: 4
+    depends_on: [wp-db-catalog]
+    locks:
+      files:
+        - "agent-coordinator/src/watchdog.py"
+      keys:
+        - "feature:add-adaptive-model-router:probes"
+      ttl_minutes: 120
+      reason: "Probe scheduling and tripwire evaluation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/model_routing/probes_tos.py"
+        - "agent-coordinator/src/model_routing/probes_canary.py"
+        - "agent-coordinator/src/model_routing/tripwires.py"
+        - "agent-coordinator/src/watchdog.py"
+        - "agent-coordinator/tests/model_routing/test_probes*.py"
+        - "agent-coordinator/tests/model_routing/test_tripwires*.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-probes
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Probe and tripwire tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing -q -k 'probes or tripwires'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "probes_tests_passed"
+    metadata:
+      loc_estimate: 600
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "probes_tests_passed"
+
+  # ── wp-dashboard — usage-viz app + routing telemetry (tasks 7.1–7.5)
+  - package_id: wp-dashboard
+    title: "Usage dashboard (apps/usage-viz) + routing telemetry"
+    task_type: frontend
+    description: |
+      Tasks 7.1–7.5: React/TS/Vite dashboard from kanban-viz conventions — spend,
+      counterfactual savings, posterior scoreboard, exploration burn-down, estimate
+      labelling (D12); OTel routing measurements. Note: task 7.5 (telemetry emission)
+      lands in coordinator telemetry module — file-disjoint from other packages.
+    role: frontend-implementer
+    archetype: implementer
+    priority: 4
+    depends_on: [wp-contracts]
+    locks:
+      files: []
+      keys:
+        - "feature:add-adaptive-model-router:dashboard"
+      ttl_minutes: 120
+      reason: "New dashboard app"
+    scope:
+      write_allow:
+        - "apps/usage-viz/**"
+        - "agent-coordinator/src/model_routing/telemetry.py"
+        - "agent-coordinator/tests/model_routing/test_telemetry*.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-dashboard
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Dashboard component tests pass"
+          kind: command
+          command: "npm --prefix apps/usage-viz test -- --run"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "dashboard_tests_passed"
+    metadata:
+      loc_estimate: 1000
+      complexity: medium
+      package_kind: crud
+    inputs: {}
+    outputs:
+      result_keys:
+        - "dashboard_tests_passed"
+
+  # ── wp-integration — merge, e2e, archival, docs (tasks 8.1–8.5)
+  - package_id: wp-integration
+    title: "Integration — full suite, e2e parity, archive absorbed changes, ADR"
+    task_type: integration
+    description: |
+      Tasks 8.1–8.5: merge all package branches; full test suite in both venvs; e2e
+      flag-on local-endpoint quick-task + flag-off parity; archive
+      cross-vendor-arbitrage-instrument and usage-stats-multi-model with superseded-by
+      pointers; register OpenRouter MCP dev-time entry in .mcp.json; ADR for D1/D3.
+    role: integrator
+    archetype: integrator
+    priority: 9
+    depends_on: [wp-db-catalog, wp-resolver, wp-dispatch, wp-feedback, wp-probes, wp-dashboard]
+    locks:
+      files:
+        - ".mcp.json"
+      keys:
+        - "feature:add-adaptive-model-router:integration"
+      ttl_minutes: 120
+      reason: "Final merge and archival"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-integration
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Coordinator suite passes"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_suite_passed"
+        - name: "Skills suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "skills_suite_passed"
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "coordinator_suite_passed"
+        - "skills_suite_passed"

@@ -60,6 +60,13 @@ no manual model picks, (b) local models absorb a meaningful share of economy-tie
 
 ## Approaches Considered
 
+### Selected Approach
+
+**Approach A — coordinator-native selection service** (selected at Gate 1, 2026-07-08, no
+modifications requested). The latent-intent check confirmed the scope/coordinator-dependency
+trade-off is acceptable in exchange for fleet-wide learning and automation. Approaches B and C
+below are retained as brief records of the rejected directions.
+
 ### Approach A — Coordinator-native selection service (full absorption) — **Recommended**
 
 Catalog, ledger, posteriors, and the resolver live in the coordinator (Postgres + FastAPI/MCP);
