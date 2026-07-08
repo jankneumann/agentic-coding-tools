@@ -279,7 +279,7 @@ items:
   - Merge-blocking validation phases are configurable per repo via the posture file.
 - item_id: ri-15
   title: Build agent trajectory scenario harness
-  status: approved
+  status: completed
   priority: 3
   effort: L
   depends_on: []
@@ -478,4 +478,4 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-07-08T10:39:01.628997+00:00'
+updated_at: '2026-07-08T10:58:57.526611+00:00'
