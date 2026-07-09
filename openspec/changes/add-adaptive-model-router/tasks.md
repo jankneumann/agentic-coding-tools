@@ -5,20 +5,20 @@ design.md "Task-sizing notes"). Scenario IDs are `<capability>.<requirement-ordi
 
 ## Phase 1 — Contracts (wp-contracts)
 
-- [ ] 1.1 Write OpenAPI contract for routing endpoints (`/routing/select_model`, `/routing/catalog`, `/routing/decisions/{id}`, `/routing/usage`, `/routing/feedback`) [S]
+- [x] 1.1 Write OpenAPI contract for routing endpoints (`/routing/select_model`, `/routing/catalog`, `/routing/decisions/{id}`, `/routing/usage`, `/routing/feedback`) [S]
   **Spec scenarios**: agent-coordinator.1
   **Design decisions**: D1
   **Dependencies**: None
-- [ ] 1.2 Write DB contract for routing tables (`model_catalog`, `model_posteriors`, `routing_decisions`, `routing_spend_ledger`) [S]
+- [x] 1.2 Write DB contract for routing tables (`model_catalog`, `model_posteriors`, `routing_decisions`, `routing_spend_ledger`) [S]
   **Spec scenarios**: agent-coordinator.2
   **Design decisions**: D8
   **Dependencies**: None
-- [ ] 1.3 Write event contract for routing signal payloads (decision, fallback, tripwire, probe) [S]
+- [x] 1.3 Write event contract for routing signal payloads (decision, fallback, tripwire, probe) [S]
   **Spec scenarios**: model-routing.10
   **Design decisions**: D8
   **Dependencies**: None
-- [ ] Checkpoint: run contract lint/validation, review diff, verify scope
-- [ ] 1.4 Generate Pydantic models from OpenAPI schemas into `contracts/generated/` [XS]
+- [x] Checkpoint: run contract lint/validation, review diff, verify scope
+- [x] 1.4 Generate Pydantic models from OpenAPI schemas into `contracts/generated/` [XS]
   **Dependencies**: 1.1, 1.2, 1.3
 
 ## Phase 2 — Catalog storage layer (wp-db-catalog) [flagged L, decomposed]
