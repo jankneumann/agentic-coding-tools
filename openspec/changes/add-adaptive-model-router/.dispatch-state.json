@@ -1,0 +1,7 @@
+{
+  "change_id": "add-adaptive-model-router",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}
