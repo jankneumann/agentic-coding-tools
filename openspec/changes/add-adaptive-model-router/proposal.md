@@ -39,7 +39,8 @@ no manual model picks, (b) local models absorb a meaningful share of economy-tie
   health probe.
 - **`select_model_for_task` resolver** in `agent-coordinator/src/agents_config.py`, exposed as
   HTTP `POST /routing/select_model` and MCP tool alongside `resolve_for_phase`. Score =
-  benchmark prior + task-type posterior − λ_cost·price − λ_latency·latency, with **configurable
+  benchmark prior + task-type posterior − λ_cost·cost-per-completed-task − λ_latency·latency
+  (per-Mtok price is only the cost prior for unsampled pairs; see design D3), with **configurable
   objective weights** (cost/quality/resilience profile) and an **explicit exploration budget knob**
   (percent-of-tasks and monthly-$ ceiling, policy-enforced).
 - **OpenAI-compatible `base_url` dispatch adapter** in
