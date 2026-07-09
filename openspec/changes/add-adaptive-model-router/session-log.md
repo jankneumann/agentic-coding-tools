@@ -40,3 +40,19 @@
 ### Context
 Planned the adaptive model router: coordinator-owned catalog/resolver/ledger fed by OpenRouter (catalog refresher + real dispatch) and local endpoints, with benchmark priors blended against fleet feedback posteriors. Interview-mode discovery (7 questions) fixed latent intent on automation + durable learning with configurable trade-offs; Gate 1 selected Approach A (coordinator-native selection service).
 
+---
+
+## Phase: Plan (2026-07-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Gate 2: plan approved without modification** `architectural: model-routing` — Operator approved after reviewing artifacts and the five flagged assumptions (task-type taxonomy, exploration defaults, benchmark ingestion source, gen-eval local priors, sequencing with fix-autopilot-archetype-and-apply-outcome)
+
+### Next Steps
+- /implement-feature add-adaptive-model-router
+- wp-contracts first; wp-db-catalog is the critical path
+
+### Context
+Gate 2 approved by operator (2026-07-09): full plan accepted with no revisions - proposal (Approach A), design D1-D12, 5 spec deltas, 54 tasks, contracts, 8-package DAG. Coordinator issues seeded from tasks.md. Ready for /implement-feature.
+
