@@ -7,8 +7,15 @@
 The system SHALL provide a web dashboard (patterned on the kanban-viz stack: React + TypeScript +
 Vite, Bearer-authenticated coordinator API access with SSE or polling) rendering per-vendor/model
 token and spend totals, cumulative counterfactual savings, the model×task-type posterior
-scoreboard, and exploration budget burn-down. Entries derived from estimated token counts SHALL be
-visually labelled as estimates.
+scoreboard, and exploration budget burn-down. The headline model-comparison metric SHALL be
+cost-per-completed-task per model×task-type, not per-token price. Entries derived from estimated
+token counts SHALL be visually labelled as estimates.
+
+#### Scenario: Cost comparison is per completed task
+
+- **WHEN** the dashboard renders the model cost comparison view
+- **THEN** models SHALL be ranked by success-adjusted cost-per-completed-task
+- **AND** per-Mtok price SHALL be shown only as secondary detail
 
 #### Scenario: Scoreboard reflects posteriors
 

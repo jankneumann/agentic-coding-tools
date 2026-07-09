@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-09T10:43:51.556757+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Plan revision 2 (approved by operator): incorporated Databricks multi-million-line coding-agent benchmark insights. A1: scoring cost term switched to success-adjusted observed cost-per-completed-task posterior (per-Mtok price prior-only). A2: feedback source weights reordered - deterministic verification outcomes above LLM-judged gen-eval scores. A3: dashboard headline metric is cost-per-completed-task. A4 logged as deferred task DT-1 (internal task-derived benchmark). No DAG/contract/package changes.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Cost term = success-adjusted cost-per-completed-task posterior",
+        "rationale": "Databricks: Sonnet 5 ~1.7x cheaper per token than Opus 4.8 yet $2.09 vs $1.94 per completed task at 81% vs 87% completion - token price inverts real rankings",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Deterministic verification outcomes outweigh LLM-judged scores in posteriors",
+        "rationale": "Databricks graded via held-out tests, no LLM judge: judging rewards sounding right over being right; gen-eval semantic_judge is an LLM judge",
+        "capability": "model-routing",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "/implement-feature add-adaptive-model-router"
+    ],
+    "relevant_files": []
+  }
+}

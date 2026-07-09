@@ -56,3 +56,19 @@ Planned the adaptive model router: coordinator-owned catalog/resolver/ledger fed
 ### Context
 Gate 2 approved by operator (2026-07-09): full plan accepted with no revisions - proposal (Approach A), design D1-D12, 5 spec deltas, 54 tasks, contracts, 8-package DAG. Coordinator issues seeded from tasks.md. Ready for /implement-feature.
 
+---
+
+## Phase: Plan (2026-07-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Cost term = success-adjusted cost-per-completed-task posterior** `architectural: model-routing` — Databricks: Sonnet 5 ~1.7x cheaper per token than Opus 4.8 yet $2.09 vs $1.94 per completed task at 81% vs 87% completion - token price inverts real rankings
+2. **Deterministic verification outcomes outweigh LLM-judged scores in posteriors** `architectural: model-routing` — Databricks graded via held-out tests, no LLM judge: judging rewards sounding right over being right; gen-eval semantic_judge is an LLM judge
+
+### Next Steps
+- /implement-feature add-adaptive-model-router
+
+### Context
+Plan revision 2 (approved by operator): incorporated Databricks multi-million-line coding-agent benchmark insights. A1: scoring cost term switched to success-adjusted observed cost-per-completed-task posterior (per-Mtok price prior-only). A2: feedback source weights reordered - deterministic verification outcomes above LLM-judged gen-eval scores. A3: dashboard headline metric is cost-per-completed-task. A4 logged as deferred task DT-1 (internal task-derived benchmark). No DAG/contract/package changes.
+

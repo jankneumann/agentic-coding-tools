@@ -61,7 +61,10 @@ calibration suite rather than public benchmarks.
 The system SHALL expose a `select_model_for_task` operation that ranks feasible candidates by a
 transparent linear utility — quality (benchmark prior blended with task-type posterior by
 sample-size confidence) minus weighted normalized cost and latency — and returns the selected
-candidate, ranked alternatives, and a decision-provenance record. Objective weights SHALL come
+candidate, ranked alternatives, and a decision-provenance record. The cost term SHALL use the
+success-adjusted observed cost-per-completed-task posterior for the `(model, task_type)` pair
+when its sample size clears the confidence threshold, falling back to catalog per-Mtok pricing
+as the prior for unsampled pairs. Objective weights SHALL come
 from named profiles (`quality-first`, `balanced`, `cost-first`, `resilience`) selectable per
 archetype/phase and overridable per call.
 
@@ -76,6 +79,13 @@ archetype/phase and overridable per call.
 - **WHEN** the same task is resolved under `cost-first` instead of `quality-first`
 - **THEN** the resolver MAY select a cheaper candidate
 - **AND** both decisions SHALL record their profile and weights in provenance
+
+#### Scenario: Observed cost-per-completed-task overrides cheaper token price
+
+- **WHEN** model A has a lower per-Mtok price than model B but a higher observed
+  success-adjusted cost-per-completed-task for the task type with sufficient samples
+- **THEN** the cost term SHALL rank model B as cheaper for that task type
+- **AND** provenance SHALL record `cost_source: posterior` for both candidates
 
 ### Requirement: Hard Feasibility Constraints as Mutable Policy
 
@@ -133,15 +143,24 @@ including and excluding estimated entries.
 ### Requirement: Feedback Posterior Aggregation
 
 The system SHALL aggregate task-outcome feedback into per-`(model, task_type, metric)` posteriors
-from weighted sources (gen-eval scores, validation/review outcomes and vendor switches, procedural
-memory counters, transcript struggle signals) using exponential decay, and SHALL store sample
-sizes so the resolver can blend by confidence.
+from weighted sources using exponential decay, and SHALL store sample sizes so the resolver can
+blend by confidence. Deterministic verification outcomes (held-out tests, validation runs, CI
+results, vendor switches) SHALL weigh above LLM-judged quality scores (gen-eval semantic judge),
+which SHALL weigh above coarse counters (procedural memory) and inferred signals (transcript
+struggle triage).
 
 #### Scenario: Vendor switch updates posteriors
 
 - **WHEN** a recorded vendor switch carries expected-vs-observed cost and latency deltas
 - **THEN** the aggregation job SHALL fold the observation into the affected model's posterior
 - **AND** increment its sample size
+
+#### Scenario: Deterministic outcome outweighs LLM-judged score
+
+- **WHEN** a model's held-out validation failures conflict with favorable LLM-judged gen-eval
+  scores for the same task type
+- **THEN** the blended posterior SHALL reflect the deterministic failures more strongly than the
+  judged scores
 
 ### Requirement: Signal Recording and Decision Provenance
 

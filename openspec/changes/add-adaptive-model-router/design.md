@@ -21,8 +21,16 @@ additive-only. This is the rollback plan for the BREAKING change.
 
 ## D3 — Scoring: transparent linear utility, not a bandit policy (yet)
 
-`score(model, task) = w_q · quality(model, task) − w_c · norm_cost(model) − w_l · norm_latency(model)`
-where `quality = blend(benchmark_prior, task_type_posterior, confidence_weight)`. Weights
+`score(model, task) = w_q · quality(model, task) − w_c · norm_cost(model, task) − w_l · norm_latency(model)`
+where `quality = blend(benchmark_prior, task_type_posterior, confidence_weight)`.
+
+**Cost term (amended 2026-07-09, Databricks benchmark insight)**: `norm_cost` is the
+**success-adjusted observed cost-per-completed-task** posterior
+(`observed_cost_usd / success_rate`, pricing in retries) for the `(model, task_type)` pair once
+its sample size clears the confidence threshold; catalog per-Mtok pricing is only the cost
+*prior* for unsampled pairs. Per-token price is a demonstrably poor proxy — Databricks measured
+Sonnet 5 at ~1.7× cheaper per token than Opus 4.8 yet *more expensive per completed task*
+($2.09 vs $1.94) at lower completion (81% vs 87%). Weights
 `(w_q, w_c, w_l)` come from a named **objective profile** (`quality-first`, `balanced`,
 `cost-first`, `resilience`) selectable per archetype/phase and overridable per call. Exploration
 is epsilon-greedy on top of the ranking (D6), not a full bandit — decayed-average posteriors with
@@ -79,10 +87,13 @@ posteriors.
 ## D9 — Feedback aggregation: decayed averages with source weights
 
 A coordinator job folds four sources into `model_posteriors` keyed
-`(model_id, task_type, metric)`: gen-eval scores (weight 1.0 — measured), validation/review
-outcomes from `VendorSwitch`/`vendor_notes` (0.8 — observed), `memory_procedural`
-success/failure counts (0.5 — coarse), and struggle signals from collect-transcripts triage
-(0.3 — inferred). Exponential decay (half-life 30 days) keeps posteriors current; a
+`(model_id, task_type, metric)`. Source weights (amended 2026-07-09): **deterministic
+verification outcomes rank above LLM-judged scores** — Databricks found LLM judging "rewards
+sounding right over being right", so held-out-test/validation/CI outcomes from
+`VendorSwitch`/`vendor_notes` weigh 1.0 (verified), gen-eval scores weigh 0.7 (their
+`semantic_judge` component is an LLM judge; gen-eval's deterministic metric checks may claim
+0.9 when separable), `memory_procedural` success/failure counts 0.5 (coarse), and struggle
+signals from collect-transcripts triage 0.3 (inferred). Exponential decay (half-life 30 days) keeps posteriors current; a
 `sample_size`-driven confidence weight controls the prior/posterior blend in D3. Task types
 initially = archetype × phase-signal bucket (e.g. `implementer/high-complexity`).
 
@@ -108,7 +119,9 @@ integration-cost signal (deferred to a report, not an automatic action, in this 
 `apps/usage-viz` (React + TS + Vite, Bearer auth, SSE/poll fallback — copied conventions from
 `apps/kanban-viz`) renders per-vendor/model token+spend, counterfactual savings, posterior
 scoreboard (success-criterion c is satisfied by the scoreboard view), and exploration budget
-burn-down. No SQLite, no transcript parsing in v1: data comes from the router ledger tables
+burn-down. **Headline comparison metric (amended 2026-07-09): cost-per-completed-task per
+model×task-type — not $/Mtok**, so the UI surfaces the metric the router optimizes rather than
+the per-token price that inverts real rankings. No SQLite, no transcript parsing in v1: data comes from the router ledger tables
 (supersedes `usage-stats-multi-model`'s local-parsing design; its transcript-parsing idea is
 recorded as a deferred task for backfilling history).
 

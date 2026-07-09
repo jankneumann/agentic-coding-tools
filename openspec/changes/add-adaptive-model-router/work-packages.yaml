@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: add-adaptive-model-router
   title: "Adaptive model router — catalog, resolver, dispatch adapter, feedback loop, dashboard"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude-code
 
 contracts:
