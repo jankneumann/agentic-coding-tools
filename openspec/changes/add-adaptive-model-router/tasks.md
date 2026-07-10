@@ -62,25 +62,25 @@ design.md "Task-sizing notes"). Scenario IDs are `<capability>.<requirement-ordi
 
 ## Phase 3 — Selection resolver (wp-resolver)
 
-- [ ] 3.1 Write tests for scoring — prior/posterior blend, profile weight changes, provenance content [M]
+- [x] 3.1 Write tests for scoring — prior/posterior blend, profile weight changes, provenance content [M]
   **Spec scenarios**: model-routing.4, model-routing.10
   **Design decisions**: D3
   **Dependencies**: 1.4
-- [ ] 3.2 Implement `src/model_routing/resolver.py` — linear utility ranking with objective profiles [M]
+- [x] 3.2 Implement `src/model_routing/resolver.py` — linear utility ranking with objective profiles [M]
   **Dependencies**: 3.1
-- [ ] 3.3 Write tests for Cedar hard constraints — EULA ineligibility excluded pre-scoring [S]
+- [x] 3.3 Write tests for Cedar hard constraints — EULA ineligibility excluded pre-scoring [S]
   **Spec scenarios**: model-routing.5
   **Design decisions**: D10
   **Dependencies**: 3.2
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 - [ ] 3.4 Implement Cedar feasibility policies plus vendor attribute schema [M]
   **Spec scenarios**: model-routing.5
   **Dependencies**: 3.3
-- [ ] 3.5 Write tests for exploration budget — dual ceilings, premium ineligibility, provenance flag [M]
+- [x] 3.5 Write tests for exploration budget — dual ceilings, premium ineligibility, provenance flag [M]
   **Spec scenarios**: model-routing.6
   **Design decisions**: D6
   **Dependencies**: 3.2
-- [ ] 3.6 Implement exploration selection under pct plus monthly-USD ceilings [M]
+- [x] 3.6 Implement exploration selection under pct plus monthly-USD ceilings [M]
   **Dependencies**: 3.5
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 3.7 Write tests for routing API endpoints plus MCP tool parity [M]

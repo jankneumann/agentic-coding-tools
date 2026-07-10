@@ -10,9 +10,9 @@ Traceability skeleton generated at implementation start (Phase 1). Requirement I
 | model-routing.1 | Model Catalog | contracts/db/schema.sql#model_catalog | D1 | test_catalog | --- | pending |
 | model-routing.2 | OpenRouter Catalog Refresher | contracts/openapi/v1.yaml#/routing/catalog | D4 | test_refresher | --- | pending |
 | model-routing.3 | Local Endpoint Registration | contracts/db/schema.sql#model_catalog | D5 | test_local_endpoints | --- | pending |
-| model-routing.4 | Adaptive Selection Resolver | contracts/openapi/v1.yaml#/routing/select_model | D3 | test_resolver | --- | pending |
-| model-routing.5 | Hard Feasibility Constraints (Cedar) | --- | D10 | test_constraints | --- | pending |
-| model-routing.6 | Exploration Budget | contracts/openapi/v1.yaml#SelectModelRequest | D6 | test_exploration | --- | pending |
+| model-routing.4 | Adaptive Selection Resolver | contracts/openapi/v1.yaml#/routing/select_model | D3 | test_resolver | src/model_routing/resolver.py | core (API pending) |
+| model-routing.5 | Hard Feasibility Constraints (Cedar) | --- | D10 | test_resolver | src/model_routing/resolver.py | filter done (Cedar policy pending) |
+| model-routing.6 | Exploration Budget | contracts/openapi/v1.yaml#SelectModelRequest | D6 | test_resolver | src/model_routing/exploration.py | verified |
 | model-routing.7 | Monthly Metered Spend Ceiling | contracts/db/schema.sql#routing_spend_ledger | D7 | test_ledger | --- | pending |
 | model-routing.8 | Metered-Counterfactual Cost Ledger | contracts/db/schema.sql#routing_spend_ledger | D7 | test_ledger | --- | pending |
 | model-routing.9 | Feedback Posterior Aggregation | contracts/openapi/v1.yaml#FeedbackEvent | D9 | test_feedback | --- | pending |
@@ -41,6 +41,6 @@ D11 probes/tripwires · D12 dashboard (cost-per-completed-task headline, rev2).
 
 ## Coverage Summary
 
-- Requirements: 23 total, 0 verified, 23 pending
+- Requirements: 23 total, 1 verified (exploration), 3 core-complete (resolver/feasibility), 19 pending
 - Contracts: OpenAPI (5 paths), DB (4 tables), events (1 schema) — all present, parse-validated
 - Package status: wp-contracts in progress; wp-db-catalog … wp-integration pending

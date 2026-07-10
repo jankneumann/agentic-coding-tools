@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+from typing import get_args
 
 import pytest
 import yaml
@@ -106,8 +107,7 @@ def test_generated_feedback_source_enum_matches_contract():
     """model-routing.9 — feedback source enum parity."""
     m = _load_generated()
     doc = yaml.safe_load(_OPENAPI.read_text())
-    contract_enum = set(doc["components"]["schemas"]["FeedbackEvent"]["properties"]["source"]["enum"])
+    feedback_props = doc["components"]["schemas"]["FeedbackEvent"]["properties"]
+    contract_enum = set(feedback_props["source"]["enum"])
     # FeedbackSource is a Literal; extract its args.
-    from typing import get_args
-
     assert set(get_args(m.FeedbackSource)) == contract_enum
