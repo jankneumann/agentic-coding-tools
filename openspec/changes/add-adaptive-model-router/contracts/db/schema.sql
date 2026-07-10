@@ -13,6 +13,11 @@ CREATE TABLE IF NOT EXISTS model_catalog (
     benchmark_priors        JSONB       NOT NULL DEFAULT '{}'::jsonb,
     p50_latency_ms          NUMERIC(10,2),
     available               BOOLEAN     NOT NULL DEFAULT TRUE,
+    -- Proactive quota headroom (design D13, quota-axi signal). NULL when the
+    -- quota probe is disabled or the provider is uncovered (reactive fallback).
+    quota_headroom_pct      NUMERIC(5,2),
+    quota_reset_at          TIMESTAMPTZ,
+    quota_source            TEXT,          -- e.g. 'quota-axi' | 'throttle-triangulation'
     refreshed_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
     stale                   BOOLEAN     NOT NULL DEFAULT FALSE,
     UNIQUE (vendor, model, endpoint_kind)

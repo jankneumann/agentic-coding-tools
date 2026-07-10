@@ -161,9 +161,15 @@ design.md "Task-sizing notes"). Scenario IDs are `<capability>.<requirement-ordi
 - [ ] 6.5 Write tests for tripwire evaluation — economic kill, posture-flip signals [M]
   **Spec scenarios**: model-routing.13
   **Dependencies**: 6.2, 6.4
+- [ ] 6.7 Write tests for quota probe — quota-axi JSON normalized to signal, resilience down-rank, graceful degrade [S]
+  **Spec scenarios**: model-routing.15
+  **Design decisions**: D13
+  **Dependencies**: 2.11
+- [ ] 6.8 Implement optional quota probe (quota-axi subprocess adapter, off by default) [S]
+  **Dependencies**: 6.7
 - [ ] 6.6 Implement tripwire evaluator with posture flips as signals [M]
   **Dependencies**: 6.5
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [ ] Checkpoint: run tests, review diff, verify scope, verify quota probe degrades cleanly
 
 ## Phase 7 — Dashboard (wp-dashboard)
 

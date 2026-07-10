@@ -223,3 +223,24 @@ resolution. Disabling the flag MUST restore pre-change behavior without data los
 - **WHEN** the resolver does not respond within its configured timeout
 - **THEN** the caller SHALL proceed with static tier resolution
 - **AND** the fallback SHALL be recorded as a signal event
+
+### Requirement: Proactive Quota Headroom Signal
+
+The system SHALL support an optional, off-by-default quota probe that reads proactive subscription
+quota state (remaining-window percentage and reset time) per provider from a read-only quota
+source, records it as a `cost_quota`-family signal, and exposes it as catalog quota-headroom for
+feasibility and resilience scoring. The probe MUST degrade to reactive throttle-triangulation when
+the quota source, credentials, or provider coverage are unavailable, and MUST NOT block routing
+when disabled or failing.
+
+#### Scenario: Quota headroom informs resilience scoring
+
+- **WHEN** the quota probe reports a provider near its window cap and the `resilience` objective is active
+- **THEN** that provider's candidates SHALL be down-ranked in favor of candidates with headroom
+- **AND** the decision provenance SHALL record the quota-headroom input
+
+#### Scenario: Probe absence falls back to reactive triangulation
+
+- **WHEN** the quota source is unavailable or does not cover a provider
+- **THEN** routing SHALL proceed using reactive throttle-derived cap estimates
+- **AND** no error SHALL be surfaced to the caller

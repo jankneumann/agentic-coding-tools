@@ -196,6 +196,9 @@ components:
           example: {artificial_analysis_intelligence: 62.5}
         p50_latency_ms: {type: number, nullable: true}
         available: {type: boolean}
+        quota_headroom_pct: {type: number, nullable: true, description: Proactive remaining-window pct (design D13); null when quota probe off/uncovered}
+        quota_reset_at: {type: string, format: date-time, nullable: true}
+        quota_source: {type: string, nullable: true, example: quota-axi}
         refreshed_at: {type: string, format: date-time}
         stale: {type: boolean}
     RoutingDecision:

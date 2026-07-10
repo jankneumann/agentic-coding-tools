@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: add-adaptive-model-router
   title: "Adaptive model router — catalog, resolver, dispatch adapter, feedback loop, dashboard"
-  plan_revision: 2
+  plan_revision: 3
   created_by: claude-code
 
 contracts:
@@ -346,10 +346,12 @@ packages:
       write_allow:
         - "agent-coordinator/src/model_routing/probes_tos.py"
         - "agent-coordinator/src/model_routing/probes_canary.py"
+        - "agent-coordinator/src/model_routing/probes_quota.py"
         - "agent-coordinator/src/model_routing/tripwires.py"
         - "agent-coordinator/src/watchdog.py"
         - "agent-coordinator/tests/model_routing/test_probes*.py"
         - "agent-coordinator/tests/model_routing/test_tripwires*.py"
+        - "agent-coordinator/tests/model_routing/test_quota*.py"
       read_allow:
         - "**"
     worktree:
