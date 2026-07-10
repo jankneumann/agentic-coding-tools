@@ -88,6 +88,11 @@ class CatalogRow(BaseModel):
     benchmark_priors: dict[str, float] = Field(default_factory=dict)
     p50_latency_ms: float | None = None
     available: bool = True
+    # Proactive quota headroom (design D13). None when the quota probe is off or
+    # the provider is uncovered (reactive throttle-triangulation fallback).
+    quota_headroom_pct: float | None = None
+    quota_reset_at: datetime | None = None
+    quota_source: str | None = None
     refreshed_at: datetime | None = None
     stale: bool = False
 

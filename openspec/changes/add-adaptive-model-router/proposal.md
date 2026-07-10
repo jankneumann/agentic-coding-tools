@@ -50,6 +50,9 @@ no manual model picks, (b) local models absorb a meaningful share of economy-tie
   catalog pricing; `generation-get` reconciles actual OpenRouter spend.
 - **Feedback aggregator** rolling `vendor_notes`, `VendorSwitch` deltas, gen-eval scores, and
   `memory_procedural` counts into per-(model, task-type) posteriors (decayed averages first).
+- **Optional proactive quota probe** (design D13): a worker-side adapter over the read-only
+  `quota-axi` CLI surfacing per-provider remaining-window headroom into catalog feasibility and
+  the resilience objective; off by default, degrades to reactive 429-triangulation.
 - **Usage/cost dashboard** (absorbs `usage-stats-multi-model`): coordinator-Postgres-backed
   per-vendor/model token+spend view reusing the `apps/kanban-viz` React/Vite pattern, reading the
   router's ledger instead of a separate SQLite store.

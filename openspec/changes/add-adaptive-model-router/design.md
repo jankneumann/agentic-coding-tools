@@ -125,6 +125,29 @@ the per-token price that inverts real rankings. No SQLite, no transcript parsing
 (supersedes `usage-stats-multi-model`'s local-parsing design; its transcript-parsing idea is
 recorded as a deferred task for backfilling history).
 
+## D13 — Proactive quota headroom via quota-axi (optional signal adapter)
+
+The router reads **proactive** subscription quota state — remaining window percentage and reset
+time per provider — instead of only inferring caps reactively from 429 throttles (the arbitrage
+instrument's cumulative-usage-at-throttle triangulation). Source: the `quota-axi` CLI
+(https://github.com/kunchenguid/quota-axi, MIT), a read-only tool that reads local provider
+credentials and calls first-party quota endpoints for Claude/Codex/Cursor/Copilot/Grok.
+
+**Integration shape**: a worker-side quota reporter shells out to `npx -y quota-axi --json`,
+normalizes results to a `cost_quota`-family signal, and feeds (a) a `quota_headroom_pct` /
+`quota_reset_at` field on the catalog row (proactive feasibility), and (b) the resolver's
+`resilience` objective (prefer models with headroom). **Off by default** behind
+`ROUTING_QUOTA_PROBE` (Rule 4); degrades to reactive-only 429-triangulation when Node, local
+credentials, or provider coverage are absent.
+
+**Boundaries** (why this is safe): quota-axi is read-only ("it is data only") — it never routes,
+proxies, or mutates, so it is purely an input with no overlap with the resolver. It does **not**
+replace 429-triangulation: coverage excludes Gemini, OpenRouter, and local endpoints, so both
+mechanisms coexist under one signal family. Because quota is per-account/per-machine, it runs
+worker-side and reports into the coordinator via the existing signal path, not as a central poll.
+Adopted as a pinned subprocess dependency, not vendored; if the dependency proves unstable the
+fallback is to read the same first-party endpoints directly in Python for our vendor set.
+
 ## Task-sizing notes
 
 The only L-sized work is the coordinator catalog+ledger package (`wp-db-catalog`); it decomposes

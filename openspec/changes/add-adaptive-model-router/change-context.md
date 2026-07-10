@@ -21,6 +21,7 @@ Traceability skeleton generated at implementation start (Phase 1). Requirement I
 | model-routing.12 | Model Canary Probe | contracts/events/routing-signal.schema.json | D11 | test_probes | --- | pending |
 | model-routing.13 | Tripwires Flip Posture | contracts/events/routing-signal.schema.json | D11 | test_tripwires | --- | pending |
 | model-routing.14 | Static-Tier Fallback + Kill Switch | --- | D2 | test_delegation | --- | pending |
+| model-routing.15 | Proactive Quota Headroom Signal | contracts/db/schema.sql#model_catalog | D13 | test_quota | --- | pending |
 | agent-coordinator.1 | Model Routing API Surface | contracts/openapi/v1.yaml | D1 | test_api | --- | pending |
 | agent-coordinator.2 | Routing Storage Migrations | contracts/db/schema.sql | D8 | test_migrations | --- | pending |
 | agent-coordinator.3 | Routing Watchdog Jobs | --- | D4,D11 | test_watchdog | --- | pending |
