@@ -112,6 +112,23 @@ def orchestrator(
     )
 
 
+@pytest.fixture(autouse=True)
+def _healthy_health_check() -> Any:
+    """Default the orchestrator health check to healthy for success-path tests.
+
+    ``_health_check`` uses ``urllib.request.urlopen`` (not ``curl``), so tests
+    that only mock ``subprocess.run`` for startup/teardown would otherwise make
+    a real request to the health endpoint and fail in CI. Tests that exercise
+    health-check *failure* patch ``urllib.request.urlopen`` themselves, which
+    nests over — and overrides — this default.
+    """
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        healthy = MagicMock()
+        healthy.status = 200
+        mock_urlopen.return_value.__enter__.return_value = healthy
+        yield mock_urlopen
+
+
 class TestFullRunLifecycle:
     """Test the complete orchestrator run lifecycle."""
 
@@ -240,7 +257,10 @@ class TestHealthCheck:
                 "urllib.request.urlopen", side_effect=urlopen_side_effect
             ):
                 with patch("gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
-                    with pytest.raises(HealthCheckError, match="Health check failed after 3 attempts"):
+                    with pytest.raises(
+                        HealthCheckError,
+                        match="Health check failed after 3 attempts",
+                    ):
                         await orchestrator.run()
 
 
