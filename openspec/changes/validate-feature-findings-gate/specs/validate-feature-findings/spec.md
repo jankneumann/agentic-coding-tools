@@ -120,7 +120,10 @@ fixers, re-runs the affected phase, and reverts the fix if the re-run regresses.
 - **WHEN** the triage step processes a finding with `fixability: auto-fix`
 - **THEN** it SHALL apply the fix via the `simplify` / `fix-scrub` low-risk fixers
 - **AND** it SHALL re-run the originating phase
-- **AND** on a passing re-run it SHALL mark the finding resolved
+- **AND** on a passing re-run it SHALL set the finding's `triage_state` to `fix`,
+  which marks it resolved for report and gate purposes (per "Triage state
+  resolution semantics") — so a successfully auto-fixed finding is persistently
+  distinguishable from an unresolved one
 
 #### Scenario: Regressing auto-fix reverted
 
@@ -150,8 +153,8 @@ fully describes the validation artifact: an envelope (`schema_version`, `change_
 the validated commit), a `phase_statuses[]` array (each
 `{ phase, final_status, reason, attempts?[] }`, one entry per phase),
 and a `findings[]` array whose item is a self-contained validation finding record
-(`id`, `type`, `criticality`, `description`, `phase`, affected file/endpoint, and
-the optional `fixability` and `triage_state`). This change SHALL NOT modify
+(`id`, a required stable `fingerprint`, `type`, `criticality`, `description`,
+`phase`, affected file/endpoint, and the optional `fixability` and `triage_state`). This change SHALL NOT modify
 `review-findings.schema.json` at all — it does not add `fixability` / `triage_state`
 to it, does not touch its required `disposition` field (enum `fix` / `regenerate` /
 `accept` / `escalate`), and does not add a `validation` value to its `review_type`
