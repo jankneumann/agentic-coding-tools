@@ -25,13 +25,20 @@ Affected architecture layers: **Execution** (validation run), **Governance**
 
 ## Decisions
 
-### D1 — Reuse `review-findings.schema.json`, extend additively
+### D1 — Reuse `review-findings.schema.json`, extend additively (do NOT touch `disposition`)
 
-Phases emit into the existing schema. The only change is an **optional**
-`disposition` enum (`auto-fix` | `escalate`, default `escalate`). Keeping it
-optional with a default preserves the architecture linters and
-`consensus_synthesizer` consumers unchanged (Risk: schema churn). A contract test
-asserts a finding without `disposition` still validates and reads as `escalate`.
+Phases emit into the existing schema. Critically, `disposition` is **already** a
+required field in that schema with the enum `fix` / `regenerate` / `accept` /
+`escalate`, consumed by the parallel-review pipeline — so we must not repurpose it
+for the auto-fix tier or the triage state (doing so would emit invalid findings or
+force a breaking enum change on current consumers). Instead we add two **new
+optional** fields: `fixability` (`auto-fix` | `escalate`, default `escalate`) for
+the mechanical-vs-escalate tier, and `triage_state` (`approve` | `fix` | `skip`,
+unset until triaged) for the interactive triage decision. Both default safely and
+leave the architecture linters and `consensus_synthesizer` consumers unchanged
+(Risk: schema churn). A contract test asserts `disposition`'s existing enum is
+unchanged and that a finding without `fixability` validates and reads as
+`escalate`.
 
 ### D2 — Auto-fix delegates to existing low-risk fixers only
 
@@ -67,10 +74,11 @@ than inventing a clone path, and short-circuits to in-place behavior under
 worktree stack (CLAUDE.md worktree-management guide). The report/findings file is
 copied back to the change branch before teardown so results survive.
 
-### D6 — One disposition model, two collection surfaces
+### D6 — One triage_state model, two collection surfaces
 
-Triage writes the same `disposition` + resolution fields whether collected via
-`AskUserQuestion` (agent harness) or a CLI prompt loop. A single render/apply
+Triage writes the same `triage_state` (`approve` / `fix` / `skip`) + resolution
+fields whether collected via `AskUserQuestion` (agent harness) or a CLI prompt
+loop, and never mutates the existing `disposition` field. A single render/apply
 path consumes them, so agent and CLI runs converge on identical findings-file
 state and are resumable.
 
