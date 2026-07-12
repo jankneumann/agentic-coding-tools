@@ -124,16 +124,16 @@ design.md "Task-sizing notes"). Scenario IDs are `<capability>.<requirement-ordi
 
 ## Phase 5 — Feedback aggregation (wp-feedback)
 
-- [ ] 5.1 Write tests for posterior aggregation — source weights, decay, sample-size confidence [M]
+- [x] 5.1 Write tests for posterior aggregation — source weights, decay, sample-size confidence [M]
   **Spec scenarios**: model-routing.9
   **Design decisions**: D9
   **Dependencies**: 1.4
-- [ ] 5.2 Implement `src/model_routing/feedback.py` aggregation job over four sources [M]
+- [x] 5.2 Implement `src/model_routing/feedback.py` aggregation job over four sources [M]
   **Dependencies**: 5.1
-- [ ] 5.3 Write tests for VendorSwitch/vendor_notes ingestion from roadmap workspaces [S]
+- [x] 5.3 Write tests for VendorSwitch/vendor_notes ingestion from roadmap workspaces [S]
   **Spec scenarios**: model-routing.9
   **Dependencies**: 5.2
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 - [ ] 5.4 Wire learning-log writers to POST `/routing/feedback` (best-effort, non-blocking) [S]
   **Dependencies**: 5.3
 - [ ] 5.5 Write tests for gen-eval calibration seeding of local-model priors [S]
