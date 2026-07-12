@@ -3,25 +3,27 @@
 ### Requirement: Phases emit structured findings
 
 Every `validate-feature` phase SHALL emit each issue it detects as a finding
-record that reuses the finding-record shape from
-`openspec/schemas/review-findings.schema.json` (`id`, `type`, `criticality`,
-`description`, file/endpoint, plus the new optional `fixability` / `triage_state`
-fields), appended to the `findings[]` array of a per-run validation-findings file
-at `openspec/changes/<change-id>/validation-findings.json`, in addition to any
-human-readable output. The validation-findings file as a whole SHALL conform to a
-new `validation-findings.schema.json` envelope — not to
-`review-findings.schema.json`, whose `review_type` enum (`plan` / `implementation`)
-does not describe a validation run and which has no phase-status container.
+record appended to the `findings[]` array of a per-run validation-findings file at
+`openspec/changes/<change-id>/validation-findings.json`, in addition to any
+human-readable output. The validation finding record is defined by the new
+`validation-findings.schema.json` and borrows the familiar field names from a
+review finding (`id`, `type`, `criticality`, `description`, originating `phase`,
+affected file/endpoint) plus the optional `fixability` / `triage_state` fields. It
+SHALL NOT require the review schema's review-only fields (`disposition`, `axis`,
+`severity`); a validation finding is its own record type, not an instance of
+`review-findings.schema.json`, whose `review_type` enum (`plan` /
+`implementation`) does not describe a validation run and which has no phase-status
+container. Reusing the field *names* keeps tooling familiar without coupling the
+two schemas' required-field sets.
 
 #### Scenario: Phase failure produces a finding record
 
 - **WHEN** a `validate-feature` phase (e.g. `smoke`, `security`, `architecture`)
   detects an issue
 - **THEN** the phase SHALL append a finding to the `findings[]` array of
-  `validation-findings.json` whose record shape matches the
-  `review-findings.schema.json` finding definition
+  `validation-findings.json` that validates against `validation-findings.schema.json`
 - **AND** the finding SHALL identify the originating phase, the affected file or
-  endpoint, and a severity
+  endpoint, and a criticality
 
 #### Scenario: Clean phase produces no findings
 
@@ -55,10 +57,11 @@ never misreported as passing.
 
 ### Requirement: Findings carry a fixability tier
 
-Each finding SHALL carry an optional `fixability` field of `auto-fix` or
-`escalate`, distinct from and additive to the existing `disposition` field.
-`auto-fix` SHALL be assigned only to mechanical, behavior-preserving issues; any
-issue that could touch program intent or behavior SHALL be `escalate`. When the
+Each validation finding SHALL carry an optional `fixability` field of `auto-fix`
+or `escalate` (defined on the validation finding record, not on the review
+schema's `disposition`). `auto-fix` SHALL be assigned only to mechanical,
+behavior-preserving issues; any issue that could touch program intent or behavior
+SHALL be `escalate`. When the
 classification is uncertain, or when `fixability` is omitted, it SHALL default to
 `escalate`.
 
@@ -112,39 +115,36 @@ machine-readable findings share a single source of truth.
 - **AND** the report SHALL not assert a pass for any phase whose status record is
   not `pass`, or that has an unresolved finding in the findings file
 
-### Requirement: New validation-findings schema; disposition contract preserved
+### Requirement: New self-contained validation-findings schema; review schema untouched
 
-This change SHALL add a new `openspec/schemas/validation-findings.schema.json`
-that describes the validation-findings envelope: a `schema_version`, the
-`change_id`, a `phase_statuses[]` array (each `{ phase, status, reason }`), and a
-`findings[]` array whose items reuse the finding-record shape from
-`review-findings.schema.json`. This change SHALL NOT redefine or repurpose the
-existing required `disposition` field in `review-findings.schema.json` (enum
-`fix` / `regenerate` / `accept` / `escalate`), which the parallel-review pipeline
-consumes, and SHALL NOT add a `validation` value to that schema's `review_type`
-enum. The shared finding record SHALL gain two new **optional** fields —
-`fixability` (`auto-fix` / `escalate`, default `escalate`) and `triage_state`
-(`approve` / `fix` / `skip`, unset until triaged) — leaving `disposition` and all
-existing required fields and consumers unchanged.
+This change SHALL add a new `openspec/schemas/validation-findings.schema.json` that
+fully describes the validation artifact: an envelope (`schema_version`, `change_id`,
+the validated commit), a `phase_statuses[]` array (each `{ phase, status, reason }`),
+and a `findings[]` array whose item is a self-contained validation finding record
+(`id`, `type`, `criticality`, `description`, `phase`, affected file/endpoint, and
+the optional `fixability` and `triage_state`). This change SHALL NOT modify
+`review-findings.schema.json` at all — it does not add `fixability` / `triage_state`
+to it, does not touch its required `disposition` field (enum `fix` / `regenerate` /
+`accept` / `escalate`), and does not add a `validation` value to its `review_type`
+enum — so the parallel-review pipeline and its consumers are wholly unaffected.
 
-#### Scenario: Existing consumer reads extended finding records
+#### Scenario: Review schema and its consumers are unaffected
 
-- **WHEN** an existing consumer (architecture linters, consensus synthesizer)
-  reads finding records that include the new `fixability` / `triage_state` fields
-- **THEN** the consumer SHALL continue to function without modification
-- **AND** the existing `disposition` field and the `review_type` enum SHALL retain
-  their current definitions
+- **WHEN** the change is applied
+- **THEN** `review-findings.schema.json` (its `disposition`, `axis`, `severity`
+  required fields and its `review_type` enum) SHALL be byte-for-byte unchanged
+- **AND** existing consumers (architecture linters, consensus synthesizer) SHALL
+  need no modification
 
 #### Scenario: Validation-findings file validates against its own schema
 
 - **WHEN** a complete `validation-findings.json` (envelope + `phase_statuses[]` +
   `findings[]`) is validated
 - **THEN** it SHALL validate against `validation-findings.schema.json`
-- **AND** each finding record SHALL also validate against the shared
-  `review-findings.schema.json` finding definition
+- **AND** it SHALL NOT be required to satisfy `review-findings.schema.json`
 
 #### Scenario: Omitted optional fields take their defaults
 
-- **WHEN** a finding omits `fixability`
+- **WHEN** a validation finding omits `fixability`
 - **THEN** it SHALL be treated as `escalate`
 - **AND** a finding that omits `triage_state` SHALL be treated as un-triaged

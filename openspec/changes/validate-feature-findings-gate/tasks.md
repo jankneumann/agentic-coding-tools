@@ -6,26 +6,25 @@
 
 ## 1. Findings model + auto-fix tier (Phase 1)
 
-- [ ] 1.1 Write contract test at two levels: (a) the shared finding record — the
-  existing required `disposition` field keeps its `fix`/`regenerate`/`accept`/
-  `escalate` enum and `review_type` keeps `plan`/`implementation`; a record with no
-  `fixability` reads as `escalate`; records with `fixability: auto-fix` and
-  `triage_state: skip` validate; (b) a complete `validation-findings.json`
+- [ ] 1.1 Write contract test at two levels: (a) `review-findings.schema.json` is
+  byte-for-byte unchanged (its `disposition` enum, `axis`, `severity`, and
+  `review_type` enum all intact); (b) a complete `validation-findings.json`
   (envelope + `phase_statuses[]` + `findings[]`) validates against
-  `validation-findings.schema.json` and each finding also matches the
-  `review-findings.schema.json` record. **(S)**
-  **Spec scenarios**: validate-feature-findings.new-validation-findings-schema-disposition-contract-preserved,
+  `validation-findings.schema.json`, a validation finding with no `fixability`
+  reads as `escalate`, and one with `triage_state: skip` validates. **(S)**
+  **Spec scenarios**: validate-feature-findings.new-self-contained-validation-findings-schema-review-schema-untouched,
   validate-feature-findings.validation-findings-file-validates-against-its-own-schema
   **Design decisions**: D1
   **Dependencies**: None
-- [ ] 1.2 Add the new optional fields (`fixability`, `triage_state`) to the finding
-  record in `openspec/schemas/review-findings.schema.json` WITHOUT touching
-  `disposition` or `review_type`; and add a new
-  `openspec/schemas/validation-findings.schema.json` envelope (`schema_version`,
-  `change_id`, `phase_statuses[]` of `{phase,status,reason}`, `findings[]` reusing
-  the review finding record + the validated commit/tree). Verify with 1.1. **(S)**
+- [ ] 1.2 Add a new self-contained
+  `openspec/schemas/validation-findings.schema.json` (envelope: `schema_version`,
+  `change_id`, validated commit; `phase_statuses[]` of `{phase,status,reason}`;
+  `findings[]` whose item is a validation finding record with `id`, `type`,
+  `criticality`, `description`, `phase`, file/endpoint, optional `fixability`,
+  optional `triage_state`). Do NOT modify `review-findings.schema.json`. Verify with
+  1.1. **(S)**
   **Spec scenarios**: validate-feature-findings.findings-carry-a-fixability-tier,
-  validate-feature-findings.new-validation-findings-schema-disposition-contract-preserved
+  validate-feature-findings.new-self-contained-validation-findings-schema-review-schema-untouched
   **Design decisions**: D1
   **Dependencies**: 1.1
 - [ ] 1.3 Write test for shared `emit_finding()` and `record_phase_status()`
@@ -85,11 +84,14 @@
 
 ## 2. Pre-push enforcement gate (Phase 2)
 
-- [ ] 2.1 Write test for the critical-subset runner: it executes only `smoke`,
-  spec task-drift, and `security` thresholds, and returns non-zero when any
-  produces an unresolved critical finding. **(M)**
+- [ ] 2.1 Write test for the critical-subset runner: it executes only `smoke`, spec
+  task-drift, and the **static** `security` checks (dependency audit, secret scan,
+  service-free SAST — not the dynamic ZAP scan), returns non-zero when any produces
+  an unresolved critical finding, and treats a live-service check that records
+  `skip`/`not-run` (e.g. smoke with no stack) as an unresolved critical. **(M)**
   **Spec scenarios**: validate-feature-gate.critical-subset-definition,
-  validate-feature-gate.critical-finding-blocks-the-push
+  validate-feature-gate.critical-finding-blocks-the-push,
+  validate-feature-gate.a-live-service-check-that-cannot-run-blocks-the-push
   **Design decisions**: D4
   **Dependencies**: 1.4
 - [ ] 2.2 Implement the critical-subset runner reusing the existing phase scripts
@@ -97,15 +99,20 @@
   **Spec scenarios**: validate-feature-gate.critical-subset-definition
   **Design decisions**: D4
   **Dependencies**: 2.1
-- [ ] 2.3 Write test for kill-switch + bypass: `VALIDATE_GATE=0` skips all checks;
-  the hook is absent until installed. **(S)**
-  **Spec scenarios**: validate-feature-gate.kill-switch-disables-the-gate,
-  validate-feature-gate.gate-installed-on-request
+- [ ] 2.3 Write test for inert-until-enabled + kill-switch: with `core.hooksPath=
+  .githooks` and the hook file present but no `validate-gate.enabled` marker, `git
+  push` runs no checks (hook exits 0); after opt-in it runs; `VALIDATE_GATE=0` skips
+  all checks. **(S)**
+  **Spec scenarios**: validate-feature-gate.checked-in-hook-is-inert-until-enabled,
+  validate-feature-gate.gate-enabled-on-request,
+  validate-feature-gate.kill-switch-disables-the-gate
   **Dependencies**: 2.2
-- [ ] 2.4 Add the `.githooks/pre-push` hook + installer entry, honoring
-  `VALIDATE_GATE=0` and printing escape-hatch guidance on block. Verify with 2.3.
-  **(M)**
+- [ ] 2.4 Add the `.githooks/pre-push` hook (inert no-op unless the
+  `validate-gate.enabled` marker is set) + opt-in installer that sets the marker,
+  honoring `VALIDATE_GATE=0` and printing escape-hatch guidance on block. Verify
+  with 2.3. **(M)**
   **Spec scenarios**: validate-feature-gate.opt-in-pre-push-enforcement-gate,
+  validate-feature-gate.checked-in-hook-is-inert-until-enabled,
   validate-feature-gate.kill-switch-disables-the-gate
   **Design decisions**: D4
   **Dependencies**: 2.3
