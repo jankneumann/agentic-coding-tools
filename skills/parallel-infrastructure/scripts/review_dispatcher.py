@@ -153,6 +153,9 @@ class ReviewResult:
     error_class: ErrorClass | None = None
     async_dispatch: bool = False
     task_id: str | None = None
+    # OpenRouter/OpenAI-compatible generation id for spend reconciliation
+    # (OpenSpec add-adaptive-model-router, D7/D10). None for CLI/SDK adapters.
+    generation_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
