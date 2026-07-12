@@ -6,18 +6,26 @@
 
 ## 1. Findings model + auto-fix tier (Phase 1)
 
-- [ ] 1.1 Write contract test: the existing required `disposition` field keeps its
-  `fix`/`regenerate`/`accept`/`escalate` enum unchanged; a finding with no
-  `fixability` validates and reads as `escalate`; a finding with
-  `fixability: auto-fix` and one with `triage_state: skip` also validate. **(S)**
-  **Spec scenarios**: validate-feature-findings.additive-schema-extension-preserves-the-disposition-contract
+- [ ] 1.1 Write contract test at two levels: (a) the shared finding record — the
+  existing required `disposition` field keeps its `fix`/`regenerate`/`accept`/
+  `escalate` enum and `review_type` keeps `plan`/`implementation`; a record with no
+  `fixability` reads as `escalate`; records with `fixability: auto-fix` and
+  `triage_state: skip` validate; (b) a complete `validation-findings.json`
+  (envelope + `phase_statuses[]` + `findings[]`) validates against
+  `validation-findings.schema.json` and each finding also matches the
+  `review-findings.schema.json` record. **(S)**
+  **Spec scenarios**: validate-feature-findings.new-validation-findings-schema-disposition-contract-preserved,
+  validate-feature-findings.validation-findings-file-validates-against-its-own-schema
   **Design decisions**: D1
   **Dependencies**: None
-- [ ] 1.2 Add the new optional fields to `openspec/schemas/review-findings.schema.json`
-  WITHOUT touching `disposition`: `fixability` (`auto-fix` | `escalate`, default
-  `escalate`) and `triage_state` (`approve` | `fix` | `skip`, unset until triaged).
-  Verify with 1.1. **(XS)**
-  **Spec scenarios**: validate-feature-findings.findings-carry-a-fixability-tier
+- [ ] 1.2 Add the new optional fields (`fixability`, `triage_state`) to the finding
+  record in `openspec/schemas/review-findings.schema.json` WITHOUT touching
+  `disposition` or `review_type`; and add a new
+  `openspec/schemas/validation-findings.schema.json` envelope (`schema_version`,
+  `change_id`, `phase_statuses[]` of `{phase,status,reason}`, `findings[]` reusing
+  the review finding record + the validated commit/tree). Verify with 1.1. **(S)**
+  **Spec scenarios**: validate-feature-findings.findings-carry-a-fixability-tier,
+  validate-feature-findings.new-validation-findings-schema-disposition-contract-preserved
   **Design decisions**: D1
   **Dependencies**: 1.1
 - [ ] 1.3 Write test for shared `emit_finding()` and `record_phase_status()`
@@ -109,14 +117,19 @@
 
 ## 3. Ephemeral disposable-worktree mode (Phase 3)
 
-- [ ] 3.1 Write test: `--ephemeral` runs in a scratch worktree cloned from `HEAD`
-  and removes it on completion, leaving the branch under test unchanged. **(M)**
+- [ ] 3.1 Write test: on a clean tree `--ephemeral` runs in a scratch worktree
+  cloned from `HEAD`, records the validated commit SHA, and removes the worktree on
+  completion; on a dirty tree it fails fast naming `--include-dirty`; with
+  `--include-dirty` it materializes the working-tree/index state into the scratch
+  worktree. **(M)**
   **Spec scenarios**: validate-feature-ephemeral.ephemeral-disposable-worktree-mode,
+  validate-feature-ephemeral.dirty-worktree-fails-fast,
   validate-feature-ephemeral.scratch-worktree-discarded-on-completion
   **Design decisions**: D5
   **Dependencies**: 1.4
-- [ ] 3.2 Implement `--ephemeral` over the `worktree` skill lifecycle; copy the
-  report + findings file back to the change branch before teardown. Verify with
+- [ ] 3.2 Implement `--ephemeral` (+ `--include-dirty`) over the `worktree` skill
+  lifecycle; guard against a dirty tree, record the validated commit/tree, and copy
+  the report + findings file back to the change branch before teardown. Verify with
   3.1. **(M)**
   **Spec scenarios**: validate-feature-ephemeral.report-still-lands-on-the-change-branch
   **Design decisions**: D5
@@ -147,8 +160,9 @@
   **Spec scenarios**: validate-feature-triage.resumable-curated-state
   **Design decisions**: D6
   **Dependencies**: 4.1
-- [ ] 4.3 Write test for `--auto` / `-y`: default `triage_state` applied with no
-  prompt; report records auto application. **(S)**
+- [ ] 4.3 Write test for `--auto` / `-y`: deterministic defaults — resolved
+  `auto-fix` findings → `triage_state: fix`, unresolved `escalate` findings →
+  `triage_state: skip`, never `approve`; report records auto application. **(S)**
   **Spec scenarios**: validate-feature-triage.non-interactive-auto-mode
   **Dependencies**: 4.2
 - [ ] 4.4 Implement `--triage` (AskUserQuestion in-harness / CLI prompt loop) and
