@@ -65,8 +65,23 @@ skills short-circuit worktree ops in cloud harnesses.
 
 ### D7 — Security posture
 
-Server binds `127.0.0.1` only; no external network exposure. The artifact is self-contained (inlined
-CSS/JS) so it can be opened directly from disk or attached to a PR without a running server.
+Binding `127.0.0.1` is necessary but **not sufficient**: any page in the user's browser can still
+POST to a localhost port via a cross-site request, and the artifact renders untrusted proposal/
+annotation text. So the server also (a) embeds a per-session random token in the artifact and
+requires it on every poll/annotation-write request, (b) validates `Host` and `Origin` and does not
+enable permissive CORS, and (c) escapes/sanitizes rendered markdown (no raw HTML execution) under a
+restrictive Content-Security-Policy. The artifact is self-contained (inlined CSS/JS) so it can be
+opened directly from disk or attached to a PR without a running server — the CSP forbids external
+and inline-script injection from proposal content while still permitting the artifact's own inlined
+assets via a nonce.
+
+### D8 — Explicit session completion, not an implicit one
+
+A no-timeout long-poll needs a positive "review is done" signal, otherwise the agent either blocks
+forever (reviewer with no feedback) or races ahead after the first annotation batch. The artifact
+carries a "done / continue" control that emits a terminal `complete` event over the poll channel;
+`plan-feature` folds annotations and advances only on that event or an operator abort. This makes the
+zero-annotation case a first-class outcome rather than an indefinite hang.
 
 ## Risks
 
