@@ -30,23 +30,23 @@
 
 ## Phase 3 — Review server (gate + long-poll)
 
-- [ ] 3.1 Write tests for `server.py`: loopback binding, long-poll returns queued annotations, layout-gate finding shape `{selector, kind, overflowPx, viewportWidth, severity}`, `--timeout-ms` test escape hatch
-  **Spec scenarios**: skill-workflow "Long-poll returns annotations", "Layout gate masks on error severity"
-  **Design decisions**: D4 (gate), D5 (long-poll), D7 (security)
+- [ ] 3.1 Write tests for `server.py`: loopback binding, long-poll returns queued annotations, a terminal `complete` event ends the poll (including the zero-annotation case), a mutation without the per-session token or with a mismatched `Origin`/`Host` is rejected and writes nothing, rendered `<script>`/HTML in proposal or annotation text is escaped, layout-gate finding shape `{selector, kind, overflowPx, viewportWidth, severity}`, `--timeout-ms` test escape hatch
+  **Spec scenarios**: skill-workflow "Long-poll returns annotations", "Poll returns a terminal complete event", "Completing with no annotations does not block", "Mutation without the session token is rejected", "Rendered proposal content cannot inject script", "Layout gate masks on error severity"
+  **Design decisions**: D4 (gate), D5 (long-poll), D7 (security), D8 (completion)
   **Dependencies**: 1.2
   **Size**: M
 
-- [ ] 3.2 Implement `skills/shared/plan_review/server.py` — serve the artifact on `127.0.0.1`, capture element/text-range annotations → `annotations.append`, run the open-time layout gate, expose the no-timeout poll endpoint keyed by change-id
-  **Spec scenarios**: skill-workflow "Long-poll returns annotations", "Layout gate masks on error severity"
-  **Design decisions**: D4, D5, D7
+- [ ] 3.2 Implement `skills/shared/plan_review/server.py` — serve the artifact on `127.0.0.1`; require a per-session random token on poll/annotation-write, validate `Host`/`Origin`, no permissive CORS, escape/sanitize rendered content under a restrictive CSP; capture element/text-range annotations → `annotations.append`; run the open-time layout gate; expose the no-timeout poll endpoint (keyed by change-id) plus a "done / continue" control that emits a terminal `complete` event
+  **Spec scenarios**: skill-workflow "Long-poll returns annotations", "Poll returns a terminal complete event", "Mutation without the session token is rejected", "Rendered proposal content cannot inject script", "Layout gate masks on error severity"
+  **Design decisions**: D4, D5, D7, D8
   **Dependencies**: 3.1, 2.2
   **Size**: L
 
 ## Phase 4 — Skill integration
 
-- [ ] 4.1 Wire `--visual-review` into `plan-feature` **after `tasks.md` is generated (Step 6)** so the task DAG is populated: render + serve + long-poll, then fold the **unresolved** annotations into the `iterate-on-plan` pass as element-anchored findings and mark each `resolved: true` once applied; short-circuit in headless/cloud via `environment_profile.detect()`
-  **Spec scenarios**: skill-workflow "Visual review gate in plan-feature", "Visual review skipped when headless"
-  **Design decisions**: D6 (environment awareness)
+- [ ] 4.1 Wire `--visual-review` into `plan-feature` **after `tasks.md` is generated (Step 6)** so the task DAG is populated: render + serve + long-poll **until the review-complete event or an operator abort** (never exit after only the first annotation batch), then fold the **unresolved** annotations into the `iterate-on-plan` pass as element-anchored findings and mark each `resolved: true` once applied; short-circuit in headless/cloud via `environment_profile.detect()`
+  **Spec scenarios**: skill-workflow "Visual review gate in plan-feature", "First annotation batch does not end the session", "Visual review skipped when headless"
+  **Design decisions**: D6 (environment awareness), D8 (completion)
   **Dependencies**: 3.2
   **Size**: M
 
