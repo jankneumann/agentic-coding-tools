@@ -4,21 +4,35 @@
 
 ### Requirement: Visual Plan Review Artifact
 
-The `plan-feature` skill SHALL be able to render an OpenSpec change's `proposal.md` (and the
-`tasks.md` task DAG) into a self-contained, reviewable HTML artifact at
-`.plan-review/<change-id>.html`. Every requirement heading and every task in the rendered artifact
-SHALL carry a deterministic `data-plan-anchor` attribute derived from its slug/id, so that
-annotations remain resolvable after the proposal is edited and the artifact re-rendered. The
-artifact SHALL inline all CSS/JS so it can be opened directly from disk without a running server.
+The `plan-feature` skill SHALL be able to render an OpenSpec change's `proposal.md`, the `tasks.md`
+task DAG, **and the change's spec-delta requirements and scenarios (`specs/**/spec.md`)** into a
+self-contained, reviewable HTML artifact at `.plan-review/<change-id>.html`. Every requirement
+heading, every scenario, and every task in the rendered artifact SHALL carry a deterministic
+`data-plan-anchor` attribute derived from its slug/id, so that annotations remain resolvable after
+the proposal is edited and the artifact re-rendered — including the spec-delta requirements this
+feature exists to review. The renderer SHALL escape or sanitize all rendered proposal/task/spec
+content so raw HTML in the source cannot execute — this is an invariant of the renderer itself, so
+the guarantee holds even when the artifact is opened directly from disk or in a headless run where
+the server (and its CSP) is skipped. The artifact SHALL inline all CSS/JS so it can be opened
+directly from disk without a running server.
 
-#### Scenario: Proposal rendered with stable anchors
+#### Scenario: Proposal, spec deltas, and tasks rendered with stable anchors
 
-- **WHEN** `plan-feature` renders a change whose `proposal.md` contains a requirement "Support
+- **WHEN** `plan-feature` renders a change whose `specs/**/spec.md` contains a requirement "Support
   cloud runs" and whose `tasks.md` contains task `2.1`
 - **THEN** the artifact SHALL contain an element with `data-plan-anchor="support-cloud-runs"`
+  (from the spec delta, not only the proposal)
 - **AND** an element with `data-plan-anchor="task-2-1"`
 - **AND** re-rendering after an unrelated edit SHALL preserve both anchor values
 - **AND** the artifact SHALL reference no external stylesheet, script, or font URL
+
+#### Scenario: Renderer sanitizes raw HTML regardless of transport
+
+- **WHEN** a `proposal.md`, spec delta, or `tasks.md` contains a raw `<script>` tag and the artifact
+  is opened directly from disk (no server)
+- **THEN** the rendered artifact SHALL display it as inert text, having been escaped/sanitized by the
+  renderer itself
+- **AND** the guarantee SHALL NOT depend on the server's CSP or hardening path
 
 ### Requirement: Plan Annotation Capture
 
@@ -121,9 +135,15 @@ SHALL be reported back to the agent through the same poll channel as annotations
 ### Requirement: Visual Review Is Environment-Aware and Optional
 
 The visual-review step SHALL be opt-in (a `--visual-review` flag on `plan-feature`) and SHALL be
-short-circuited automatically in headless/cloud execution as determined by
-`environment_profile.detect()`. When short-circuited, the skill SHALL still write the HTML artifact
-to disk and SHALL log that visual review was skipped, and SHALL NOT block on a long-poll. When
+short-circuited automatically whenever the environment cannot support an interactive human review.
+That determination SHALL use a dedicated interactive-review capability check — covering a cloud/
+headless profile (`environment_profile.detect()`), a `CI` environment, and the absence of an
+interactive session (no display/browser) — and SHALL honor an explicit override flag. It SHALL NOT
+rely on `environment_profile.detect()` alone, whose `isolation_provided` signal describes worktree
+filesystem isolation, not whether a human can actually drive the review (a local CI job or SSH
+session would otherwise start the server and block on a poll no one can complete). When
+short-circuited, the skill SHALL still write the HTML artifact to disk and SHALL log that visual
+review was skipped, and SHALL NOT block on a long-poll. When
 enabled and interactive, the skill SHALL wait for the review-complete signal (or an operator abort)
 and then fold the **unresolved** annotations into the `iterate-on-plan` pass as element-anchored
 findings, and each SHALL be marked `resolved: true` once its feedback has been applied;
@@ -141,10 +161,11 @@ populated.
   element-anchored findings
 - **AND** SHALL mark each folded annotation `resolved: true` after its feedback has been applied
 
-#### Scenario: Visual review skipped when headless
+#### Scenario: Visual review skipped when non-interactive
 
-- **WHEN** `plan-feature --visual-review` runs in a cloud/headless environment
-- **THEN** `environment_profile.detect()` SHALL cause the interactive loop to be skipped
+- **WHEN** `plan-feature --visual-review` runs in a cloud/headless profile, under `CI`, or in an
+  SSH/sandbox session with no display or browser
+- **THEN** the interactive-review capability check SHALL cause the interactive loop to be skipped
 - **AND** the HTML artifact SHALL still be written to `.plan-review/<change-id>.html`
 - **AND** the skill SHALL log that visual review was skipped and SHALL NOT block on a poll
 

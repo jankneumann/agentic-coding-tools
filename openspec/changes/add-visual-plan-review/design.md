@@ -57,11 +57,15 @@ The agent calls the poll endpoint and blocks; queued annotations survive disconn
 `plan-annotations.json` on every queue). A `--timeout-ms` escape hatch exists for tests only.
 Sessions are keyed by canonical change-id (like lavish-axi's file-path identity), so no opaque IDs.
 
-### D6 — Environment awareness
+### D6 — Environment awareness (interactive-capability, not just isolation)
 
-`environment_profile.detect()` gates the interactive loop. In cloud/headless: render the artifact to
-disk, skip the server and poll, log `visual review skipped: <profile>`. This mirrors how mutating
-skills short-circuit worktree ops in cloud harnesses.
+A dedicated interactive-review capability check gates the interactive loop — not
+`environment_profile.detect()` alone, whose `isolation_provided` describes worktree filesystem
+isolation, not whether a human can drive a browser review. The check combines the cloud/headless
+profile, a `CI` signal, and display/browser availability, plus an explicit override flag; a local CI
+job or SSH session (isolation=false but no human at a browser) must still short-circuit. When it
+does: render the artifact to disk, skip the server and poll, log `visual review skipped: <reason>`.
+This mirrors how mutating skills short-circuit worktree ops in cloud harnesses.
 
 ### D7 — Security posture
 
