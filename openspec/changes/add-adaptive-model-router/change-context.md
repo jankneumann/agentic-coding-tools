@@ -15,7 +15,7 @@ Traceability skeleton generated at implementation start (Phase 1). Requirement I
 | model-routing.6 | Exploration Budget | contracts/openapi/v1.yaml#SelectModelRequest | D6 | test_resolver | src/model_routing/exploration.py | verified |
 | model-routing.7 | Monthly Metered Spend Ceiling | contracts/db/schema.sql#routing_spend_ledger | D7 | test_ledger | --- | pending |
 | model-routing.8 | Metered-Counterfactual Cost Ledger | contracts/db/schema.sql#routing_spend_ledger | D7 | test_ledger | --- | pending |
-| model-routing.9 | Feedback Posterior Aggregation | contracts/openapi/v1.yaml#FeedbackEvent | D9 | test_feedback | --- | pending |
+| model-routing.9 | Feedback Posterior Aggregation | contracts/openapi/v1.yaml#FeedbackEvent | D9 | test_feedback | src/model_routing/feedback.py | core+normalizers done (HTTP wiring pending) |
 | model-routing.10 | Signal Recording + Decision Provenance | contracts/events/routing-signal.schema.json | D8 | test_provenance | --- | pending |
 | model-routing.11 | ToS Monitor Probe | contracts/events/routing-signal.schema.json | D11 | test_probes | --- | pending |
 | model-routing.12 | Model Canary Probe | contracts/events/routing-signal.schema.json | D11 | test_probes | --- | pending |
