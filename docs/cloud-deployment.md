@@ -379,3 +379,4 @@ python3 agent-coordinator/run_mcp.py
 
 - [Cloud Session Hooks & Network Configuration](cloud-session-hooks.md) — How hooks, permissions, and egress allowlists work in cloud/remote Claude Code sessions
 - [Cloudflare Domain Setup](cloudflare-setup.md) — Custom domain routing via Cloudflare
+- [Local Migration Runbook](local-migration.md) — Moving the coordinator off Railway onto a local box behind a Cloudflare Tunnel
