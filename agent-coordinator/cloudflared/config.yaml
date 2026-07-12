@@ -5,7 +5,14 @@
 #   CREDENTIALS_FILE  — path to <tunnel-uuid>.json (created during tunnel create)
 #   CUSTOM_DOMAIN     — your Cloudflare domain (e.g., example.com)
 #
-# See docs/cloudflare-setup.md for full setup instructions.
+# See docs/cloudflare-setup.md for full setup instructions and
+# docs/local-migration.md for the Railway → local migration runbook.
+#
+# SECURITY: publish the minimum. Only the coordinator HTTP API belongs on
+# the public internet — it enforces API-key auth on every write endpoint.
+# Never add ingress rules for Postgres, Langfuse, or OpenBao (the compose
+# OpenBao service runs in dev mode with a static root token; exposing it
+# hands out the secret store). Reach admin services over Tailscale instead.
 
 tunnel: ${TUNNEL_UUID}
 credentials-file: ${CREDENTIALS_FILE}
@@ -15,13 +22,11 @@ ingress:
   - hostname: coord.${CUSTOM_DOMAIN}
     service: http://localhost:8081
 
-  # MCP SSE transport (for cloud agents using MCP over SSE)
-  - hostname: mcp.${CUSTOM_DOMAIN}
-    service: http://localhost:8082
-
-  # OpenBao secret manager (dev mode on port 8200)
-  - hostname: vault.${CUSTOM_DOMAIN}
-    service: http://localhost:8200
+  # MCP SSE transport — enable only if cloud agents actually use MCP over
+  # SSE. The MCP server has no API-key gate of its own, so leave this off
+  # unless you need it.
+  # - hostname: mcp.${CUSTOM_DOMAIN}
+  #   service: http://localhost:8082
 
   # Catch-all: return 404 for unrecognized hostnames
   - service: http_status:404

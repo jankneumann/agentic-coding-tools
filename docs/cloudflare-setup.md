@@ -2,8 +2,8 @@
 
 Expose coordinator services through stable custom subdomains via Cloudflare. Two deployment paths are supported:
 
-1. **DNS Proxy to Railway** (production) — Cloudflare proxies traffic to Railway's backend
-2. **Named Tunnel to local machine** (development/testing) — Cloudflare Tunnel exposes local services
+1. **DNS Proxy to Railway** — Cloudflare proxies traffic to Railway's backend
+2. **Named Tunnel to local machine** — Cloudflare Tunnel exposes local services; also the production path when self-hosting the coordinator (see the [local migration runbook](local-migration.md))
 
 Both paths use the same subdomains. Switching between them is a DNS record change — no agent configuration changes needed.
 
@@ -139,8 +139,9 @@ Create CNAME records pointing to the tunnel:
 
 ```bash
 cloudflared tunnel route dns coordinator coord.yourdomain.com
-cloudflared tunnel route dns coordinator mcp.yourdomain.com
-cloudflared tunnel route dns coordinator vault.yourdomain.com
+
+# Only if cloud agents use MCP over SSE (see ingress note below):
+# cloudflared tunnel route dns coordinator mcp.yourdomain.com
 ```
 
 Or manually in Cloudflare dashboard — create CNAME records pointing to `<tunnel-uuid>.cfargotunnel.com`.
@@ -158,14 +159,19 @@ credentials-file: /path/to/credentials/<tunnel-uuid>.json
 ingress:
   - hostname: coord.yourdomain.com
     service: http://localhost:8081
-  - hostname: mcp.yourdomain.com
-    service: http://localhost:8082
-  - hostname: vault.yourdomain.com
-    service: http://localhost:8200
   - service: http_status:404
 ```
 
 Replace `<your-tunnel-uuid>` and update the credentials file path. The credentials file was created during `cloudflared tunnel create` (typically at `~/.cloudflared/<tunnel-uuid>.json`).
+
+**Publish the minimum.** Only the coordinator API belongs on the public
+internet — it enforces `X-API-Key` auth on every write endpoint. Do not add
+ingress rules for Postgres, Langfuse, or OpenBao (the docker-compose OpenBao
+service runs in dev mode with a static root token). Add the MCP SSE hostname
+(`mcp.yourdomain.com` → `http://localhost:8082`) only if cloud agents
+actually use MCP over SSE — the MCP server has no API-key gate of its own.
+Reach admin services over your private network (e.g., Tailscale) instead.
+See [local-migration.md](local-migration.md) for the full security checklist.
 
 ### 3e. Run the Tunnel
 
@@ -208,12 +214,9 @@ Both methods use the config file at the default location (`/etc/cloudflared/conf
 curl -I https://coord.yourdomain.com/health
 # Should return 200 with CF-Ray header
 
-# MCP SSE connectivity (should establish SSE stream)
+# Only if the optional MCP SSE ingress is enabled:
 curl -N https://mcp.yourdomain.com/sse
 # Should receive SSE events (Ctrl+C to stop)
-
-# OpenBao status
-curl https://vault.yourdomain.com/v1/sys/health
 ```
 
 ## 4. Switching Between Paths
