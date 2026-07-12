@@ -34,9 +34,9 @@ is discarded.
 
 ### Requirement: Cloud-harness fallback
 
-In a cloud-harness environment (as detected by the shared environment profile),
-`--ephemeral` SHALL fall back to the existing in-place validation behavior rather
-than creating a worktree.
+`--ephemeral` SHALL fall back to the existing in-place validation behavior in a
+cloud-harness environment (as detected by the shared environment profile),
+rather than creating a worktree.
 
 #### Scenario: Cloud environment skips worktree creation
 
