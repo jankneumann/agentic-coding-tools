@@ -72,3 +72,45 @@ Gate 2 approved by operator (2026-07-09): full plan accepted with no revisions -
 ### Context
 Plan revision 2 (approved by operator): incorporated Databricks multi-million-line coding-agent benchmark insights. A1: scoring cost term switched to success-adjusted observed cost-per-completed-task posterior (per-Mtok price prior-only). A2: feedback source weights reordered - deterministic verification outcomes above LLM-judged gen-eval scores. A3: dashboard headline metric is cost-per-completed-task. A4 logged as deferred task DT-1 (internal task-derived benchmark). No DAG/contract/package changes.
 
+---
+
+## Phase: Implementation (2026-07-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Sequential single-checkout execution instead of coordinated worktree fleet** `architectural: model-routing` — Cloud session short-circuits worktree isolation (isolation_provided=true); parallel agents would share one checkout and clobber. Drove the DAG order manually.
+2. **Split each package into a pure compute core (built now) and a DB/app shell (deferred)** `architectural: model-routing` — Scoring, exploration, feasibility, feedback aggregation, and the dispatch adapter are dependency-free and fully unit-testable; only candidate-fetch/persistence needs Postgres.
+3. **set_catalog_pricing hook instead of importing the coordinator into skills** `architectural: model-routing` — policy.py must stay decoupled from the coordinator process; default None preserves the pre-change static-tier behavior (Rule 4).
+4. **OpenAICompatAdapter in a sibling module with injectable transport** `architectural: model-routing` — Keeps the ~1500-line review_dispatcher diff reviewable and makes the adapter network-free testable; discovery-chain rewiring defers until the catalog supplies base_urls.
+
+### Alternatives Considered
+- Dispatch the coordinated multi-agent work-package fleet: rejected because Cloud worktree short-circuit removes the filesystem isolation the coordinated tier depends on
+- Stub the DB layer to complete all packages in-session: rejected because Repo convention is real-Postgres integration tests (mocks unreliable for asyncpg/JSONB); unverified DB code would give false confidence
+
+### Trade-offs
+- Accepted Partial package completion (cores, not wiring) over Sprawling unverified code across all 8 packages because Every landed line is tested and green; the DB/app wiring lands where it can be verified
+
+### Open Questions
+- [ ] wp-db-catalog, wp-probes, resolver API/delegation (3.7-3.10), Cedar policy files (3.4), and wp-dashboard need Postgres/Cedar/Node — run in a local env
+- [ ] 4.6 (roadmap exploration-gate wiring) and 5.4 (learning-log POST) attach to the orchestrator/API once the resolver is HTTP-exposed
+
+### Completed Work
+- wp-contracts: generated Pydantic models + contract parity tests (tasks 1.1-1.4)
+- wp-resolver core: resolver.py scoring (D3/D9/D13) + exploration.py budget (D6) + feasibility filter (D10) (3.1-3.3,3.5,3.6)
+- wp-feedback core: feedback.py weighted decayed aggregation (D9) + roadmap normalizers (5.1-5.3)
+- wp-dispatch: OpenAICompatAdapter (D10) + catalog-priced policy.py replacing the cost stub (D7) + exploration gate (D6) (4.1-4.5)
+
+### Next Steps
+- Local env: implement migration 028 + catalog/refresher/ledger (wp-db-catalog), then wire resolver.select via /routing/* and MCP
+- Then wp-probes (quota/ToS/canary), Cedar policy files (3.4), wp-dashboard (apps/usage-viz), wp-integration
+
+### Relevant Files
+- `agent-coordinator/src/model_routing/resolver.py` — pure scoring core
+- `agent-coordinator/src/model_routing/feedback.py` — posterior aggregation
+- `skills/parallel-infrastructure/scripts/openai_compat_adapter.py` — OpenRouter/local dispatch adapter
+- `openspec/changes/add-adaptive-model-router/change-context.md` — traceability matrix with per-req status
+
+### Context
+Implemented the four compute-only packages of the adaptive model router in a cloud session (no test Postgres / Node): wp-contracts, wp-resolver core, wp-feedback core, wp-dispatch. 22/56 tasks, 64 new tests green (mypy --strict + ruff clean), 142 existing skills tests still passing. Remaining packages are DB/Cedar/Node-gated and should run in a local environment.
+

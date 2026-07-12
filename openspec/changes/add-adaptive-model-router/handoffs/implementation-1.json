@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-12T17:14:31.692537+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented the four compute-only packages of the adaptive model router in a cloud session (no test Postgres / Node): wp-contracts, wp-resolver core, wp-feedback core, wp-dispatch. 22/56 tasks, 64 new tests green (mypy --strict + ruff clean), 142 existing skills tests still passing. Remaining packages are DB/Cedar/Node-gated and should run in a local environment.",
+    "completed_work": [
+      "wp-contracts: generated Pydantic models + contract parity tests (tasks 1.1-1.4)",
+      "wp-resolver core: resolver.py scoring (D3/D9/D13) + exploration.py budget (D6) + feasibility filter (D10) (3.1-3.3,3.5,3.6)",
+      "wp-feedback core: feedback.py weighted decayed aggregation (D9) + roadmap normalizers (5.1-5.3)",
+      "wp-dispatch: OpenAICompatAdapter (D10) + catalog-priced policy.py replacing the cost stub (D7) + exploration gate (D6) (4.1-4.5)"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Sequential single-checkout execution instead of coordinated worktree fleet",
+        "rationale": "Cloud session short-circuits worktree isolation (isolation_provided=true); parallel agents would share one checkout and clobber. Drove the DAG order manually.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Split each package into a pure compute core (built now) and a DB/app shell (deferred)",
+        "rationale": "Scoring, exploration, feasibility, feedback aggregation, and the dispatch adapter are dependency-free and fully unit-testable; only candidate-fetch/persistence needs Postgres.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "set_catalog_pricing hook instead of importing the coordinator into skills",
+        "rationale": "policy.py must stay decoupled from the coordinator process; default None preserves the pre-change static-tier behavior (Rule 4).",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "OpenAICompatAdapter in a sibling module with injectable transport",
+        "rationale": "Keeps the ~1500-line review_dispatcher diff reviewable and makes the adapter network-free testable; discovery-chain rewiring defers until the catalog supplies base_urls.",
+        "capability": "model-routing",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Local env: implement migration 028 + catalog/refresher/ledger (wp-db-catalog), then wire resolver.select via /routing/* and MCP",
+      "Then wp-probes (quota/ToS/canary), Cedar policy files (3.4), wp-dashboard (apps/usage-viz), wp-integration"
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/model_routing/resolver.py",
+        "description": "pure scoring core"
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/feedback.py",
+        "description": "posterior aggregation"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/openai_compat_adapter.py",
+        "description": "OpenRouter/local dispatch adapter"
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/change-context.md",
+        "description": "traceability matrix with per-req status"
+      }
+    ]
+  }
+}
