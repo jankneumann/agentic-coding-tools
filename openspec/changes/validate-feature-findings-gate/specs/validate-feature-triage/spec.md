@@ -27,15 +27,21 @@ the existing `disposition` field.
 
 ### Requirement: Non-interactive auto mode
 
-The system SHALL accept a `-y` / `--auto` flag that applies each finding's
-default `triage_state` without prompting, for headless and CI use.
+The system SHALL accept a `-y` / `--auto` flag that applies each finding's default
+`triage_state` without prompting, for headless and CI use. The default
+`triage_state` SHALL be deterministic: a finding with `fixability: auto-fix` that
+was already resolved by the auto-fix step defaults to `fix`, and every remaining
+`escalate` finding defaults to `skip` (never `approve`, so `--auto` never silently
+accepts an intent-touching issue). The chosen default SHALL be recorded on each
+finding.
 
-#### Scenario: Auto mode applies defaults headlessly
+#### Scenario: Auto mode applies deterministic defaults headlessly
 
 - **WHEN** `validate-feature <change-id> --triage --auto` runs
-- **THEN** the system SHALL apply each finding's default `triage_state` without
-  prompting
-- **AND** SHALL record in the report that triage states were applied automatically
+- **THEN** each resolved `auto-fix` finding SHALL be set to `triage_state: fix` and
+  each unresolved `escalate` finding SHALL be set to `triage_state: skip`
+- **AND** no finding SHALL be defaulted to `approve`
+- **AND** the report SHALL record that triage states were applied automatically
 
 ### Requirement: Resumable curated state
 

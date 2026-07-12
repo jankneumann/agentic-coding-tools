@@ -4,14 +4,29 @@
 
 The system SHALL accept a `--ephemeral` flag that runs validation against a
 throwaway scratch worktree cloned from the current `HEAD`, leaving the branch
-under test unmodified.
+under test unmodified. To avoid validating a stale tree, `--ephemeral` SHALL fail
+fast with a clear error when the working tree has uncommitted (staged or unstaged)
+changes, unless the operator passes `--include-dirty` to materialize the exact
+working-tree and index state into the scratch worktree. The commit (or
+materialized tree) that was actually validated SHALL be recorded in the findings
+file and report.
 
 #### Scenario: Validation runs in a disposable worktree
 
-- **WHEN** `validate-feature <change-id> --ephemeral` is invoked
+- **WHEN** `validate-feature <change-id> --ephemeral` is invoked on a clean tree
 - **THEN** the system SHALL create a scratch worktree at the current `HEAD`
 - **AND** all deploy artifacts, security-scan output, and log files SHALL be
   written inside the scratch worktree
+- **AND** the validated commit SHA SHALL be recorded in `validation-findings.json`
+  and the report
+
+#### Scenario: Dirty worktree fails fast
+
+- **WHEN** `--ephemeral` is invoked and the working tree has uncommitted changes
+- **THEN** the run SHALL abort with an error explaining that `HEAD` would validate
+  a stale tree
+- **AND** the message SHALL name `--include-dirty` as the opt-in to validate the
+  exact working-tree/index state instead
 
 #### Scenario: Scratch worktree discarded on completion
 

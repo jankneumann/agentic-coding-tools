@@ -25,20 +25,28 @@ Affected architecture layers: **Execution** (validation run), **Governance**
 
 ## Decisions
 
-### D1 — Reuse `review-findings.schema.json`, extend additively (do NOT touch `disposition`)
+### D1 — Reuse the review-*finding record*, not the review *envelope*; new `validation-findings.schema.json`
 
-Phases emit into the existing schema. Critically, `disposition` is **already** a
-required field in that schema with the enum `fix` / `regenerate` / `accept` /
-`escalate`, consumed by the parallel-review pipeline — so we must not repurpose it
-for the auto-fix tier or the triage state (doing so would emit invalid findings or
-force a breaking enum change on current consumers). Instead we add two **new
-optional** fields: `fixability` (`auto-fix` | `escalate`, default `escalate`) for
-the mechanical-vs-escalate tier, and `triage_state` (`approve` | `fix` | `skip`,
-unset until triaged) for the interactive triage decision. Both default safely and
-leave the architecture linters and `consensus_synthesizer` consumers unchanged
-(Risk: schema churn). A contract test asserts `disposition`'s existing enum is
-unchanged and that a finding without `fixability` validates and reads as
-`escalate`.
+`review-findings.schema.json` describes a *review* artifact: its `review_type`
+enum is `plan` / `implementation` and its top level is just `findings[]` — there
+is no place for a validation run's per-phase status. So a validation-findings file
+cannot honestly validate against it. We therefore add a thin
+`validation-findings.schema.json` envelope (`schema_version`, `change_id`,
+`phase_statuses[]`, `findings[]`) and **reuse the finding-record shape** from
+`review-findings.schema.json` for the items in `findings[]` — reusing the record,
+not the envelope.
+
+Critically, `disposition` is **already** a required field in the review schema
+(enum `fix` / `regenerate` / `accept` / `escalate`), consumed by the
+parallel-review pipeline — so we must not repurpose it for the auto-fix tier or
+the triage state, nor add a `validation` value to `review_type`. Instead the
+shared finding record gains two **new optional** fields: `fixability`
+(`auto-fix` | `escalate`, default `escalate`) and `triage_state`
+(`approve` | `fix` | `skip`, unset until triaged). Both default safely and leave
+the architecture linters and `consensus_synthesizer` consumers unchanged (Risk:
+schema churn). Contract tests assert (a) `disposition`'s enum and `review_type`
+are unchanged, (b) a finding without `fixability` reads as `escalate`, and (c) a
+complete `validation-findings.json` validates against the new envelope schema.
 
 ### D2 — Auto-fix delegates to existing low-risk fixers only
 
