@@ -16,14 +16,14 @@
 
 ## Phase 2 — Rendering
 
-- [ ] 2.1 Write tests for `render.py`: proposal.md → HTML with a `data-plan-anchor` on every requirement and task; deterministic slug anchors; self-contained (no external asset refs)
-  **Spec scenarios**: skill-workflow "Proposal rendered with stable anchors"
-  **Design decisions**: D3 (stable anchors), D7 (self-contained)
+- [ ] 2.1 Write tests for `render.py`: proposal.md + `specs/**/spec.md` deltas + tasks.md → HTML with a `data-plan-anchor` on every requirement heading, **scenario**, and task; deterministic slug anchors; self-contained (no external asset refs); **raw `<script>`/HTML in any source is escaped/sanitized at render time (verified without any server)**
+  **Spec scenarios**: skill-workflow "Proposal, spec deltas, and tasks rendered with stable anchors", "Renderer sanitizes raw HTML regardless of transport"
+  **Design decisions**: D3 (stable anchors), D7 (self-contained + sanitization invariant)
   **Dependencies**: None
   **Size**: M
 
-- [ ] 2.2 Implement `skills/shared/plan_review/render.py` — parse the change's `proposal.md` + `tasks.md` task DAG, emit `.plan-review/<change-id>.html` with inlined CSS/JS and anchored sections (goal → current state → approach → task DAG)
-  **Spec scenarios**: skill-workflow "Proposal rendered with stable anchors"
+- [ ] 2.2 Implement `skills/shared/plan_review/render.py` — parse the change's `proposal.md`, its `specs/**/spec.md` delta requirements/scenarios, and the `tasks.md` task DAG; escape/sanitize all rendered source content (renderer-level invariant); emit `.plan-review/<change-id>.html` with inlined CSS/JS and anchored sections (goal → current state → approach → requirements → task DAG)
+  **Spec scenarios**: skill-workflow "Proposal, spec deltas, and tasks rendered with stable anchors", "Renderer sanitizes raw HTML regardless of transport"
   **Design decisions**: D3, D7
   **Dependencies**: 2.1
   **Size**: L
@@ -44,9 +44,9 @@
 
 ## Phase 4 — Skill integration
 
-- [ ] 4.1 Wire `--visual-review` into `plan-feature` **after `tasks.md` is generated (Step 6)** so the task DAG is populated: render + serve + long-poll **until the review-complete event or an operator abort** (never exit after only the first annotation batch), then fold the **unresolved** annotations into the `iterate-on-plan` pass as element-anchored findings and mark each `resolved: true` once applied; short-circuit in headless/cloud via `environment_profile.detect()`
-  **Spec scenarios**: skill-workflow "Visual review gate in plan-feature", "First annotation batch does not end the session", "Visual review skipped when headless"
-  **Design decisions**: D6 (environment awareness), D8 (completion)
+- [ ] 4.1 Wire `--visual-review` into `plan-feature` **after `tasks.md` is generated (Step 6)** so the task DAG is populated: render + serve + long-poll **until the review-complete event or an operator abort** (never exit after only the first annotation batch), then fold the **unresolved** annotations into the `iterate-on-plan` pass as element-anchored findings and mark each `resolved: true` once applied; short-circuit via the **interactive-review capability check** (cloud/headless profile + `CI` + display/browser availability + explicit override), not `environment_profile.detect()` alone. Add a test that a local-CI/no-display run short-circuits instead of blocking on the poll.
+  **Spec scenarios**: skill-workflow "Visual review gate in plan-feature", "First annotation batch does not end the session", "Visual review skipped when non-interactive"
+  **Design decisions**: D6 (interactive-capability awareness), D8 (completion)
   **Dependencies**: 3.2
   **Size**: M
 
