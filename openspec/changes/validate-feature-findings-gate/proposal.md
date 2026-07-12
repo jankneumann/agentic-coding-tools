@@ -27,10 +27,12 @@ properties we lack:
 
 These are the four approaches the no-mistakes-vs-validate-feature analysis
 flagged as worth adopting. This change adapts them onto our existing
-infrastructure — crucially **reusing** `openspec/schemas/review-findings.schema.json`
-(already produced by our architecture linters) and the
-`consensus_synthesizer` / `fix-scrub` / `simplify` machinery — rather than
-inventing parallel structures or importing a Go push-proxy.
+infrastructure — reusing the **finding-record conventions** familiar from
+`openspec/schemas/review-findings.schema.json` (a new self-contained
+`validation-findings.schema.json` carries the validation artifact; the review
+schema itself is left unchanged) and the `consensus_synthesizer` / `fix-scrub` /
+`simplify` machinery — rather than inventing gratuitously different structures or
+importing a Go push-proxy.
 
 The change is explicitly scoped to **strengthen** `validate-feature`, never to
 weaken its depth. The live deploy, security scans, Playwright E2E, and the
@@ -101,17 +103,19 @@ backbone the others consume; Phase 4 depends on Phase 1's data model.
 
 ## Approaches Considered
 
-### Approach A — Phased enhancement reusing the findings schema *(Recommended)*
+### Approach A — Phased enhancement reusing existing infrastructure *(Recommended)*
 
-One change, four ordered phases, built on `review-findings.schema.json` and the
-existing `simplify` / `fix-scrub` fixers and `consensus_synthesizer` matching.
-The gate is an opt-in git hook; the ephemeral mode reuses the `worktree` skill;
-triage rides `AskUserQuestion` / a CLI prompt loop.
+One change, four ordered phases, built on the finding-record conventions and the
+existing `simplify` / `fix-scrub` fixers and `consensus_synthesizer` matching (a
+new self-contained `validation-findings.schema.json` carries the artifact; the
+review schema is untouched). The gate is an opt-in git hook; the ephemeral mode
+reuses the `worktree` skill; triage rides `AskUserQuestion` / a CLI prompt loop.
 
 - **Pros**
-  - Maximal reuse — the findings schema, low-risk fixers, worktree lifecycle,
-    and consensus dedup are all existing assets; net-new surface is the
-    finding-emit shims, the hook, the ephemeral flag, and the triage loop.
+  - Maximal reuse — the finding-record conventions, low-risk fixers, worktree
+    lifecycle, and consensus dedup are all existing assets; net-new surface is the
+    validation-findings schema, the finding-emit shims, the hook, the ephemeral
+    flag, and the triage loop.
   - Unifies `validate-feature` output with `fix-scrub` and the consensus
     synthesizer, so findings flow across skills instead of dead-ending in prose.
   - Each phase is independently shippable and independently valuable; Phase 1
@@ -156,9 +160,10 @@ advisory and isolation in-place.
 
 ### Selected Approach
 
-**Approach A — phased enhancement reusing the findings schema.** It captures all
-four adoptable ideas from the analysis while honoring our existing posture:
-OpenSpec-lifecycle-bound, coordinator-aware, schema-reusing, and opt-in for
+**Approach A — phased enhancement reusing existing infrastructure.** It captures
+all four adoptable ideas from the analysis while honoring our existing posture:
+OpenSpec-lifecycle-bound, coordinator-aware, convention-reusing (its own
+`validation-findings.schema.json`, review schema untouched), and opt-in for
 anything coercive. Approach B's wholesale proxy import duplicates orchestration
 we already own and severs the change-context coupling that gives our validation
 its depth; Approach C under-delivers by leaving the enforcement gap open.
@@ -212,7 +217,8 @@ backbone the gate and triage build on.
   `phase_statuses[]` + validated commit + a self-contained finding record with
   optional `fixability` / `triage_state`); `review-findings.schema.json` is left
   unchanged.
-- **Reused**: `review-findings.schema.json`, `simplify` + `fix-scrub` fixers,
+- **Reused**: the `review-findings.schema.json` finding-record *conventions* (not
+  the schema file itself, which is untouched), `simplify` + `fix-scrub` fixers,
   `consensus_synthesizer.py` matching, the `worktree` skill lifecycle,
   `environment_profile.detect()`, `AskUserQuestion`, coordinator
   `memory`/`audit`, and the existing `.githooks` installer.

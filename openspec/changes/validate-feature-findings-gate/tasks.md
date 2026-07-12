@@ -18,11 +18,12 @@
   **Dependencies**: None
 - [ ] 1.2 Add a new self-contained
   `openspec/schemas/validation-findings.schema.json` (envelope: `schema_version`,
-  `change_id`, validated commit; `phase_statuses[]` of `{phase,status,reason}`;
-  `findings[]` whose item is a validation finding record with `id`, `type`,
-  `criticality`, `description`, `phase`, file/endpoint, optional `fixability`,
-  optional `triage_state`). Do NOT modify `review-findings.schema.json`. Verify with
-  1.1. **(S)**
+  `change_id`, validated commit; `phase_statuses[]` of
+  `{phase, final_status, reason, attempts?[]}` with one entry per phase;
+  `findings[]` whose item is a validation finding record with `id`, `fingerprint`,
+  `type`, `criticality`, `description`, `phase`, file/endpoint, optional
+  `fixability`, optional `triage_state`). Do NOT modify
+  `review-findings.schema.json`. Verify with 1.1. **(S)**
   **Spec scenarios**: validate-feature-findings.findings-carry-a-fixability-tier,
   validate-feature-findings.new-self-contained-validation-findings-schema-review-schema-untouched
   **Design decisions**: D1
@@ -156,10 +157,14 @@
 ## 4. Interactive per-finding triage (Phase 4)
 
 - [ ] 4.1 Write test for the `triage_state` apply/render path: `approve` / `fix` /
-  `skip` are written back to `validation-findings.json` (leaving `disposition`
-  untouched) and a re-run does not re-present resolved findings. **(M)**
+  `skip` are written back to `validation-findings.json`, `skip` stays unresolved
+  (keeps gates failing) while not re-prompted, and a re-run merges prior state onto
+  regenerated findings **by `fingerprint`** — surviving re-ordering and not
+  misattributing to the wrong finding. **(M)**
   **Spec scenarios**: validate-feature-triage.interactive-per-finding-triage,
-  validate-feature-triage.resumable-curated-state
+  validate-feature-triage.resumable-curated-state,
+  validate-feature-triage.triage-state-resolution-semantics,
+  validate-feature-findings.findings-have-a-stable-identity
   **Design decisions**: D6
   **Dependencies**: 1.4
 - [ ] 4.2 Implement the shared `triage_state` apply/render path (single source for

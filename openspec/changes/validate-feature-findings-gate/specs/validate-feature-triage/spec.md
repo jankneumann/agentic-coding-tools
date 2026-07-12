@@ -71,12 +71,14 @@ unresolved.
 ### Requirement: Resumable curated state
 
 A subsequent `validate-feature` run SHALL resume from the `triage_state` values
-recorded in the findings file, so previously-skipped or approved findings are not
-re-prompted.
+recorded in the findings file, merging them onto the regenerated findings by
+`fingerprint` (see "Findings have a stable identity"), so previously-skipped or
+approved findings are not re-prompted even if their order changes.
 
 #### Scenario: Re-run honors prior triage state
 
 - **WHEN** `validate-feature` re-runs after a triage session
-- **THEN** findings already marked `triage_state` `skip` or `approve` SHALL NOT be
-  re-presented
-- **AND** only new or still-untriaged findings SHALL require triage
+- **THEN** findings whose `fingerprint` was already marked `triage_state` `skip` or
+  `approve` SHALL NOT be re-presented
+- **AND** only findings with a new or still-untriaged `fingerprint` SHALL require
+  triage

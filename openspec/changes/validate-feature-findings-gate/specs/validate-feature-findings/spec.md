@@ -35,18 +35,27 @@ two schemas' required-field sets.
 
 ### Requirement: Phases record explicit execution status
 
-Every `validate-feature` phase SHALL write an explicit per-phase execution-status
-record to `validation-findings.json` with a status of `pass`, `fail`, `skip`,
-`not-run`, or `error`, plus a short reason. A phase result SHALL be derived only
-from its status record; the absence of findings for a phase SHALL NOT by itself
-be treated as a pass, so a skipped, not-run, or crashed-before-emit phase is
-never misreported as passing.
+Every `validate-feature` phase SHALL have exactly **one** current status entry in
+`phase_statuses[]` — its `final_status` of `pass`, `fail`, `skip`, `not-run`, or
+`error`, plus a short reason — even across retries and auto-fix re-runs, which
+SHALL update that single entry to the outcome of the latest attempt (an optional
+ordered `attempts[]` history MAY record prior outcomes but SHALL NOT be consulted
+for the phase result). A phase result SHALL be derived only from its `final_status`;
+the absence of findings for a phase SHALL NOT by itself be treated as a pass, so a
+skipped, not-run, or crashed-before-emit phase is never misreported as passing.
 
 #### Scenario: Skipped phase is distinguishable from a pass
 
 - **WHEN** a phase is skipped (e.g. no live services, no applicable tests)
-- **THEN** the phase SHALL record a `skip` status with a reason
+- **THEN** the phase SHALL record a `skip` `final_status` with a reason
 - **AND** the report SHALL show the phase as `skip`, not `pass`
+
+#### Scenario: Auto-fixed phase resolves to its latest outcome
+
+- **WHEN** a phase records `fail`, an `auto-fix` is applied, and the re-run passes
+- **THEN** the phase's single `final_status` SHALL be updated to `pass`
+- **AND** the report and gate SHALL read `pass` (the latest outcome), regardless of
+  any earlier `fail` retained in `attempts[]`
 
 #### Scenario: Phase that crashes before emitting is not a pass
 
@@ -80,6 +89,25 @@ classification is uncertain, or when `fixability` is omitted, it SHALL default t
 
 - **WHEN** a finding's fixability cannot be determined with confidence
 - **THEN** its `fixability` SHALL default to `escalate`
+
+### Requirement: Findings have a stable identity
+
+Each validation finding SHALL carry a deterministic `fingerprint` derived from its
+stable attributes (originating `phase`, `type`, normalized location, and a
+normalized message/check key) — not from its array position or the per-run integer
+`id`. Because `validation-findings.json` is regenerated each run, a new run SHALL
+merge prior `triage_state` (and any waiver) onto findings by matching
+`fingerprint`, so curated state survives re-ordering and is never attached to the
+wrong finding.
+
+#### Scenario: Triage state re-attaches after re-ordering
+
+- **WHEN** a re-run regenerates `validation-findings.json` and the findings appear
+  in a different order
+- **THEN** each finding's prior `triage_state` SHALL be re-attached by matching
+  `fingerprint`
+- **AND** a finding whose `fingerprint` no longer appears SHALL be treated as
+  resolved/disappeared, while a new `fingerprint` SHALL start untriaged
 
 ### Requirement: Auto-fix triage step
 
