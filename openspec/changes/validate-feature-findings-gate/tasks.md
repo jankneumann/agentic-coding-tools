@@ -6,33 +6,41 @@
 
 ## 1. Findings model + auto-fix tier (Phase 1)
 
-- [ ] 1.1 Write contract test: a finding with no `disposition` validates against
-  `review-findings.schema.json` and reads as `escalate`; a finding with
-  `disposition: auto-fix` also validates. **(S)**
-  **Spec scenarios**: validate-feature-findings.backward-compatible-schema-extension
+- [ ] 1.1 Write contract test: the existing required `disposition` field keeps its
+  `fix`/`regenerate`/`accept`/`escalate` enum unchanged; a finding with no
+  `fixability` validates and reads as `escalate`; a finding with
+  `fixability: auto-fix` and one with `triage_state: skip` also validate. **(S)**
+  **Spec scenarios**: validate-feature-findings.additive-schema-extension-preserves-the-disposition-contract
   **Design decisions**: D1
   **Dependencies**: None
-- [ ] 1.2 Add the optional `disposition` enum (`auto-fix` | `escalate`, default
-  `escalate`) to `openspec/schemas/review-findings.schema.json`. Verify with 1.1.
-  **(XS)**
-  **Spec scenarios**: validate-feature-findings.findings-carry-an-auto-fix-vs-escalate-disposition
+- [ ] 1.2 Add the new optional fields to `openspec/schemas/review-findings.schema.json`
+  WITHOUT touching `disposition`: `fixability` (`auto-fix` | `escalate`, default
+  `escalate`) and `triage_state` (`approve` | `fix` | `skip`, unset until triaged).
+  Verify with 1.1. **(XS)**
+  **Spec scenarios**: validate-feature-findings.findings-carry-a-fixability-tier
   **Design decisions**: D1
   **Dependencies**: 1.1
-- [ ] 1.3 Write test for a shared `emit_finding()` helper: given a phase name +
-  issue, it appends a schema-valid record to `validation-findings.json`. **(S)**
-  **Spec scenarios**: validate-feature-findings.phases-emit-structured-findings
+- [ ] 1.3 Write test for shared `emit_finding()` and `record_phase_status()`
+  helpers: `emit_finding()` appends a schema-valid record; `record_phase_status()`
+  writes a per-phase status (`pass`/`fail`/`skip`/`not-run`/`error`) + reason to
+  `validation-findings.json`. **(S)**
+  **Spec scenarios**: validate-feature-findings.phases-emit-structured-findings,
+  validate-feature-findings.phases-record-explicit-execution-status
   **Dependencies**: 1.2
-- [ ] 1.4 Implement `emit_finding()` (e.g. `scripts/findings.py`) and wire each
-  phase (`smoke`, `security`, `e2e`, `architecture`, `spec`, `logs`) to call it.
+- [ ] 1.4 Implement `emit_finding()` + `record_phase_status()` (e.g.
+  `scripts/findings.py`) and wire EVERY failable phase (`smoke`, `security`,
+  `e2e`, `architecture`, `spec`, `logs`, `deploy`, `gen-eval`, `ci`) to call both
+  — emitting findings on issues and always recording an explicit status.
   Architecture phase already emits findings — adapt it to the shared helper.
   Verify with 1.3. **(L)**
   **Spec scenarios**: validate-feature-findings.phases-emit-structured-findings,
-  validate-feature-findings.clean-phase-produces-no-findings
+  validate-feature-findings.clean-phase-produces-no-findings,
+  validate-feature-findings.phases-record-explicit-execution-status
   **Dependencies**: 1.3
-- [ ] 1.5 Write test for the disposition classifier: mechanical finding-types
+- [ ] 1.5 Write test for the fixability classifier: mechanical finding-types
   (formatting, import-order, naming) → `auto-fix`; everything else → `escalate`.
   **(S)**
-  **Spec scenarios**: validate-feature-findings.findings-carry-an-auto-fix-vs-escalate-disposition
+  **Spec scenarios**: validate-feature-findings.findings-carry-a-fixability-tier
   **Design decisions**: D3
   **Dependencies**: 1.2
 - [ ] 1.6 Implement the classifier with a mechanical-type allowlist; default
@@ -52,9 +60,11 @@
   **Design decisions**: D2
   **Dependencies**: 1.7
 - [ ] 1.9 Write test: the report renderer produces `validation-report.md` from
-  `validation-findings.json`, and asserts no pass for a phase with unresolved
-  findings. **(S)**
-  **Spec scenarios**: validate-feature-findings.report-rendered-from-findings-file
+  `validation-findings.json`, deriving each phase result from its status record,
+  and asserts no pass for a phase whose status is not `pass` or that has an
+  unresolved finding. **(S)**
+  **Spec scenarios**: validate-feature-findings.report-rendered-from-findings-file,
+  validate-feature-findings.phases-record-explicit-execution-status
   **Dependencies**: 1.4
 - [ ] 1.10 Refactor SKILL.md §11/§12 report step to render from the findings file;
   update phase sections to document the finding-emit contract. Verify with 1.9.
@@ -125,19 +135,19 @@
 
 ## 4. Interactive per-finding triage (Phase 4)
 
-- [ ] 4.1 Write test for the disposition apply/render path: `approve` / `fix` /
-  `skip` are written back to `validation-findings.json` and a re-run does not
-  re-present resolved findings. **(M)**
+- [ ] 4.1 Write test for the `triage_state` apply/render path: `approve` / `fix` /
+  `skip` are written back to `validation-findings.json` (leaving `disposition`
+  untouched) and a re-run does not re-present resolved findings. **(M)**
   **Spec scenarios**: validate-feature-triage.interactive-per-finding-triage,
   validate-feature-triage.resumable-curated-state
   **Design decisions**: D6
   **Dependencies**: 1.4
-- [ ] 4.2 Implement the shared disposition apply/render path (single source for
+- [ ] 4.2 Implement the shared `triage_state` apply/render path (single source for
   both surfaces). Verify with 4.1. **(M)**
   **Spec scenarios**: validate-feature-triage.resumable-curated-state
   **Design decisions**: D6
   **Dependencies**: 4.1
-- [ ] 4.3 Write test for `--auto` / `-y`: default dispositions applied with no
+- [ ] 4.3 Write test for `--auto` / `-y`: default `triage_state` applied with no
   prompt; report records auto application. **(S)**
   **Spec scenarios**: validate-feature-triage.non-interactive-auto-mode
   **Dependencies**: 4.2
@@ -148,7 +158,7 @@
   validate-feature-triage.non-interactive-auto-mode
   **Design decisions**: D6
   **Dependencies**: 4.3
-- [ ] 4.5 Document `--triage` / `--auto` and the disposition lifecycle in SKILL.md.
+- [ ] 4.5 Document `--triage` / `--auto` and the fixability/triage_state lifecycle in SKILL.md.
   **(S)**
   **Dependencies**: 4.4
 - [ ] 4.C **Checkpoint**: a triage session marks a finding `skip`; a re-run skips

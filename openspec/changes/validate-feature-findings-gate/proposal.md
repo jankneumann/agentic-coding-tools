@@ -45,12 +45,15 @@ backbone the others consume; Phase 4 depends on Phase 1's data model.
 
 - **Phase 1 — Findings model + auto-fix tier (item #3 in the analysis).** Every
   `validate-feature` phase emits its issues as `review-findings.schema.json`
-  records (not just prose) into a per-run findings file. Each finding carries a
-  `disposition` of `auto-fix` (mechanical, behavior-preserving) or `escalate`
-  (touches intent). A new triage step auto-applies `auto-fix` findings by
-  delegating to the existing `simplify` / `fix-scrub` low-risk fixers, then
-  re-runs the affected phase. The markdown report is rendered *from* the findings
-  file, so humans and automation read the same source of truth.
+  records (not just prose) into a per-run findings file, and records an explicit
+  per-phase status (`pass` / `fail` / `skip` / `not-run` / `error`) so a pass is
+  never merely inferred from the absence of findings. Each finding carries a new
+  optional `fixability` tier of `auto-fix` (mechanical, behavior-preserving) or
+  `escalate` (touches intent) — a *new* field, leaving the schema's existing
+  `disposition` field untouched. A new triage step auto-applies `auto-fix`
+  findings by delegating to the existing `simplify` / `fix-scrub` low-risk fixers,
+  then re-runs the affected phase. The markdown report is rendered *from* the
+  findings file, so humans and automation read the same source of truth.
 
 - **Phase 2 — Opt-in pre-push enforcement gate (item #1).** Add an opt-in
   `pre-push` git hook (alongside the existing `.githooks/pre-commit` /
@@ -70,11 +73,12 @@ backbone the others consume; Phase 4 depends on Phase 1's data model.
   fall back to the existing in-place behavior.
 
 - **Phase 4 — Interactive per-finding triage (item #4).** Add a `--triage` mode
-  that walks unresolved `escalate` findings one at a time and collects an
-  `approve` / `fix` / `skip` disposition per finding (via `AskUserQuestion` in
+  that walks `escalate` findings one at a time and collects an
+  `approve` / `fix` / `skip` `triage_state` per finding (via `AskUserQuestion` in
   the agent harness, or a prompt loop in CLI), plus a `-y` / `--auto` mode that
-  applies the default disposition non-interactively. Dispositions are written
-  back into the Phase 1 findings file so a re-run resumes from curated state.
+  applies the default `triage_state` non-interactively. The `triage_state` is a
+  new field written back into the Phase 1 findings file (the existing
+  `disposition` field is never touched) so a re-run resumes from curated state.
 
 ### Non-goals
 
@@ -86,7 +90,9 @@ backbone the others consume; Phase 4 depends on Phase 1's data model.
 - Making the enforcement gate on-by-default or mandatory. It is opt-in with a
   kill-switch and a `--no-verify` escape hatch.
 - A new findings schema. We reuse `review-findings.schema.json` and extend it
-  only with an additive `disposition` field (see Risks).
+  only with additive optional fields (`fixability`, `triage_state`) plus a
+  per-phase status record — the existing required `disposition` field and its enum
+  are unchanged (see Risks).
 
 ## Approaches Considered
 
@@ -163,11 +169,15 @@ backbone the gate and triage build on.
 
 ## Risks
 
-- **Schema churn on `review-findings.schema.json`.** Adding `disposition` could
-  break existing consumers (architecture linters, consensus synthesizer).
-  *Mitigation*: make `disposition` an **optional, additive** field with a default
-  of `escalate`; version the schema and keep existing required fields unchanged;
-  add a contract test asserting backward compatibility.
+- **Schema churn on `review-findings.schema.json`.** The schema already defines a
+  required `disposition` field (enum `fix`/`regenerate`/`accept`/`escalate`) used
+  by the parallel-review pipeline; repurposing it would break existing consumers
+  (architecture linters, consensus synthesizer). *Mitigation*: do **not** touch
+  `disposition`; add the new tier/triage state as **optional, additive** fields
+  (`fixability` default `escalate`; `triage_state` unset until triaged) plus the
+  per-phase status record; keep all existing required fields and enums unchanged;
+  add a contract test asserting the `disposition` enum is unchanged and backward
+  compatibility holds.
 - **Auto-fix applying an unsafe change.** A finding mis-classified as `auto-fix`
   could alter behavior. *Mitigation*: `auto-fix` delegates only to the existing
   `simplify` / `fix-scrub` low-risk, behavior-preserving fixers (same boundary
@@ -180,19 +190,21 @@ backbone the gate and triage build on.
   `--ephemeral` is opt-in; cloud-harness detection (`environment_profile.detect()`)
   short-circuits to in-place behavior, matching the rest of the worktree stack.
 - **Triage loop divergence between agent (`AskUserQuestion`) and CLI surfaces.**
-  *Mitigation*: both write the same disposition fields back to the findings file;
-  a single render/apply path consumes them regardless of how they were collected.
+  *Mitigation*: both write the same `triage_state` fields back to the findings
+  file; a single render/apply path consumes them regardless of how they were
+  collected.
 
 ## Impact
 
 - **New**: a finding-emit helper shared by `validate-feature` phases; a
   findings→markdown renderer; an auto-fix triage step delegating to
   `simplify`/`fix-scrub`; `.githooks/pre-push` + installer entry; a `--ephemeral`
-  worktree path; a `--triage` / `-y` disposition loop.
+  worktree path; a `--triage` / `-y` triage-state loop.
 - **Modified**: `skills/validate-feature/SKILL.md` (phase output contracts, new
   flags, gate/triage/ephemeral sections); `skills/validate-feature/scripts/*`
   (phases emit findings); the report-rendering step (§11) reads the findings file;
-  `openspec/schemas/review-findings.schema.json` (additive `disposition` field).
+  `openspec/schemas/review-findings.schema.json` (additive optional `fixability` /
+  `triage_state` fields + per-phase status record; existing `disposition` unchanged).
 - **Reused**: `review-findings.schema.json`, `simplify` + `fix-scrub` fixers,
   `consensus_synthesizer.py` matching, the `worktree` skill lifecycle,
   `environment_profile.detect()`, `AskUserQuestion`, coordinator

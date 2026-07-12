@@ -31,7 +31,10 @@ unresolved. The gate SHALL NOT be installed or enabled by default.
 
 The gate SHALL run only the critical checks: the `smoke` phase, the spec
 task-checkbox drift gate, and the `security` threshold check. It SHALL NOT run
-the heavyweight deploy / E2E / gen-eval phases.
+the heavyweight deploy / E2E / gen-eval phases. Because the gate excludes deploy,
+a `smoke` phase that cannot actually exercise the system (no live services) SHALL
+be treated as a gate failure rather than a silent `skip`, so a green gate always
+means smoke genuinely ran.
 
 #### Scenario: Task-drift detected at push time
 
@@ -44,6 +47,15 @@ the heavyweight deploy / E2E / gen-eval phases.
 
 - **WHEN** the `pre-push` gate runs
 - **THEN** it SHALL NOT start a Docker deploy or run the E2E / gen-eval phases
+
+#### Scenario: Smoke that cannot run blocks the push
+
+- **WHEN** the gate's `smoke` phase records a `skip` or `not-run` status because
+  no live services are available
+- **THEN** the gate SHALL treat that as an unresolved critical result and block
+  the push with a non-zero exit
+- **AND** the message SHALL explain that smoke could not be exercised and list the
+  escape hatches, so smoke is never silently bypassed at the gate
 
 ### Requirement: Kill-switch and escape hatch
 
