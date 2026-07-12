@@ -36,9 +36,11 @@ Lives under `skills/shared/` (like `environment_profile.py`) so both `plan-featu
 
 ### D3 — Stable anchors survive re-render
 
-Every requirement and task gets a deterministic `data-plan-anchor` derived from its heading slug /
-task id, so an annotation still resolves after the agent edits the proposal and the artifact is
-re-rendered. Selectors are a fallback for free-text range selections that have no anchor.
+Every proposal requirement, every **spec-delta requirement and scenario** (from `specs/**/spec.md`),
+and every task gets a deterministic `data-plan-anchor` derived from its heading slug / task id, so an
+annotation still resolves after the agent edits the plan and the artifact is re-rendered. Scenarios
+are anchored too, since a reviewer often objects at the scenario level. Selectors are a fallback for
+free-text range selections that have no anchor.
 
 ### D4 — Layout gate
 

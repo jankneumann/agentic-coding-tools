@@ -122,7 +122,12 @@ The plan-review server SHALL run an open-time layout audit of the rendered artif
 overflow, element clipping, and text overlap, emitting findings of shape
 `{selector, kind, overflowPx, viewportWidth, severity}`. Findings of `error` severity SHALL mask the
 human view until resolved; findings of `warning` severity SHALL render normally. The audit findings
-SHALL be reported back to the agent through the same poll channel as annotations.
+SHALL be reported back to the agent through the same poll channel as annotations. Because an
+error-severity finding masks the human view, `plan-feature` SHALL consume layout findings from the
+poll channel and, while any `error`-severity finding is unresolved, SHALL regenerate the artifact and
+re-run the audit rather than wait for a human completion signal — it SHALL only begin waiting for
+completion once no `error`-severity finding remains (or the operator aborts). This prevents a deadlock
+where the agent waits for a `complete` event the human cannot send because their view is masked.
 
 #### Scenario: Layout gate masks on error severity
 
@@ -131,6 +136,14 @@ SHALL be reported back to the agent through the same poll channel as annotations
   of 40, and `severity` of `error`
 - **AND** the human view SHALL be masked until the finding is resolved
 - **AND** the finding SHALL be delivered to the agent via the poll channel
+
+#### Scenario: Agent resolves error-layout findings before awaiting completion
+
+- **WHEN** the poll channel delivers an `error`-severity layout finding
+- **THEN** `plan-feature` SHALL NOT yet wait for the human `complete` event
+- **AND** it SHALL regenerate the artifact and re-run the layout audit
+- **AND** it SHALL begin waiting for completion only once no `error`-severity finding remains, or the
+  operator aborts
 
 ### Requirement: Visual Review Is Environment-Aware and Optional
 

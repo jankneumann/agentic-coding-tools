@@ -19,17 +19,20 @@ the new markdown" — names the bet we have already been making informally with 
 We choose to **borrow the pattern natively** rather than depend on `npx lavish-axi`, so the
 review surface fits our stack: a Python review server under `skills/shared/`, annotations
 persisted as a git-tracked JSON artifact in the change directory (so `parallel-review-plan` and
-the coordinator can consume them), and `environment_profile.detect()` short-circuiting the
-browser loop in cloud/headless runs exactly like our worktree ops already do. We keep the
+the coordinator can consume them), and an interactive-review capability check short-circuiting the
+browser loop whenever no human can drive it, in the same spirit our worktree ops short-circuit in
+cloud harnesses. We keep the
 annotation tuple wire-compatible with lavish-axi so we retain the option to interoperate later.
 
 ## What Changes
 
 1. **New shared module `skills/shared/plan_review/`** providing:
-   - `render.py` — transform an OpenSpec change's `proposal.md` (+ `tasks.md` task DAG) into a
-     self-contained reviewable HTML artifact `.plan-review/<change-id>.html`. Sections:
-     goal → current state → approach → task DAG, with each requirement/task carrying a stable
-     `data-plan-anchor` id so annotations target it precisely.
+   - `render.py` — transform an OpenSpec change's `proposal.md`, its `specs/**/spec.md` delta
+     requirements and scenarios, and the `tasks.md` task DAG into a self-contained reviewable HTML
+     artifact `.plan-review/<change-id>.html`, escaping/sanitizing all source content at render time
+     (so a direct-from-disk or headless artifact can't execute injected markup). Sections:
+     goal → current state → approach → requirements → task DAG, with each requirement, scenario, and
+     task carrying a stable `data-plan-anchor` id so annotations target it precisely.
    - `server.py` — a local-first review server bound to `127.0.0.1` that serves the artifact,
      captures element/text-range annotations, runs an **open-time layout gate** (horizontal
      overflow, clipping, text overlap) that masks the artifact until it renders cleanly, and
@@ -53,8 +56,10 @@ annotation tuple wire-compatible with lavish-axi so we retain the option to inte
    annotations to the review context so vendor reviewers see the human's element-anchored concerns
    alongside their own findings.
 
-5. **Environment-aware behavior** — in headless/cloud (per `environment_profile.detect()`), the
-   server/browser loop is short-circuited: the HTML artifact is still written (so it can be opened
+5. **Environment-aware behavior** — a dedicated interactive-review capability check (cloud/headless
+   profile via `environment_profile.detect()`, plus `CI`, display/browser availability, and an
+   explicit override — not `detect()` alone) short-circuits the server/browser loop whenever no human
+   can drive the review: the HTML artifact is still written (so it can be opened
    later or shipped as a PR attachment) and the step logs a "visual review skipped: headless" note
    instead of blocking on a poll that no human can answer.
 
@@ -83,8 +88,9 @@ annotation tuple wire-compatible with lavish-axi so we retain the option to inte
 Adopting the tool is faster to a working loop but adds a Node dependency to the skill runtime and a
 long-poll protocol we do not own, and it cannot persist annotations into our change directory or
 feed the coordinator without a bridge. Building native keeps everything in the Python skill stack,
-makes annotations a first-class git-tracked artifact, and reuses `environment_profile.detect()`.
-We keep the annotation tuple wire-compatible so a future swap-in remains cheap.
+makes annotations a first-class git-tracked artifact, and reuses `environment_profile.detect()` as
+one input to the interactive-review capability check. We keep the annotation tuple wire-compatible so
+a future swap-in remains cheap.
 
 ### Decision B — Where annotations live (DECIDED: git-tracked JSON in the change dir)
 
