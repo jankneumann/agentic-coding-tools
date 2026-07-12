@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-12T15:44:28.587362+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned a durable, dynamic merge-plan orchestration for the merge-pull-requests skill. Selected the tiered storage approach (coordinator system-of-record + file projection, degrade to file). Specified the full two-phase architecture; scoped implementation to Phase 1 (file-tier artifact + --execute --pr <n> + downstream re-validation). Motivated by a real triage session where state had to be rebuilt by hand after a context clear and a mid-flight joserfc CVE re-ordered the cohort.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Tiered plan storage: coordinator system-of-record + file projection, degrade to file",
+        "rationale": "Only approach satisfying both solo-dev/offline and multi-host dispatch; reuses work_queue/merge_queue/event_bus instead of a new subsystem.",
+        "capability": "merge-infrastructure",
+        "supersedes": null
+      },
+      {
+        "title": "Separate plan definition from live state",
+        "rationale": "Different lifecycles: definition is a reviewable snapshot, live state is hot/concurrent. Conflating them breaks multi-host dispatch.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "Living plan: execution may insert discovered prerequisites",
+        "rationale": "A static plan cannot represent a blocker found mid-execution (the joserfc CVE case).",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "Security-check backstop is normative",
+        "rationale": "Execution SHALL defer to the auto-mode classifier rather than auto-bypass a failing required security check.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "Spec deltas contain Phase-1 behavior only; Phase 2 lives in design.md",
+        "rationale": "Keeps the archived capability spec honest \u2014 no claiming coordinator behavior that isn't built.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "/implement-feature add-merge-plan-orchestration \u2014 start with task 1.1 (plan schema + producer tests)."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-merge-plan-orchestration/proposal.md",
+        "description": "approved proposal + approaches"
+      },
+      {
+        "path": "openspec/changes/add-merge-plan-orchestration/design.md",
+        "description": "10 design decisions incl. tiered storage"
+      },
+      {
+        "path": "openspec/changes/add-merge-plan-orchestration/contracts/schemas/merge-plan.schema.json",
+        "description": "the plan contract"
+      }
+    ]
+  }
+}

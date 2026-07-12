@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/contracts/merge-plan.schema.json",
+  "title": "MergePlan",
+  "description": "Durable merge plan emitted by the merge-pull-requests analysis round and consumed by plan-driven execution. Separates plan DEFINITION (nodes, edges, strategy, gates) from plan LIVE STATE (outcome, claim, verdict, inserted blockers).",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "storage_tier", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "storage_tier": {
+      "description": "Which tier is authoritative for live state. 'file' in Phase 1; 'coordinator' when the coordinator is the system of record (Phase 2).",
+      "enum": ["file", "coordinator"]
+    },
+    "base_branch": { "type": "string", "default": "main" },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" }
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["pr", "origin", "strategy", "auto_executable", "definition", "state"],
+      "additionalProperties": false,
+      "properties": {
+        "pr": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string" },
+        "origin": {
+          "enum": ["openspec", "codex", "sentinel", "bolt", "palette", "jules", "dependabot", "renovate", "other"]
+        },
+        "strategy": { "enum": ["rebase", "squash", "merge"] },
+        "auto_executable": {
+          "type": "boolean",
+          "description": "True only for low-risk nodes (dependency bumps, trivial fixes) with no human gate. Proposal-acceptance and admin-override nodes are always false."
+        },
+        "definition": {
+          "type": "object",
+          "description": "Snapshot fields — reviewable/diffable; a live-state update SHALL NOT rewrite these.",
+          "required": ["depends_on", "gates"],
+          "additionalProperties": false,
+          "properties": {
+            "depends_on": {
+              "type": "array",
+              "description": "PR numbers this node depends on (file-overlap or base-branch edges).",
+              "items": { "type": "integer", "minimum": 1 }
+            },
+            "gates": {
+              "type": "array",
+              "items": {
+                "enum": ["requires_human_approval", "admin_override_needed", "proposal_acceptance", "required_review"]
+              }
+            },
+            "changed_files": { "type": "array", "items": { "type": "string" } },
+            "inserted_reason": {
+              "type": "string",
+              "description": "Present when this node was inserted mid-execution as a discovered prerequisite (living-plan amendment)."
+            }
+          }
+        },
+        "state": {
+          "type": "object",
+          "description": "Live state — hot, concurrently mutated.",
+          "required": ["outcome"],
+          "additionalProperties": false,
+          "properties": {
+            "outcome": {
+              "enum": ["pending", "in_progress", "merged", "closed", "deferred", "failed"]
+            },
+            "needs_revalidation": {
+              "type": "boolean",
+              "default": false,
+              "description": "Set when an upstream node merged into base; execution must recompute mergeability before merging this node."
+            },
+            "claimed_by": {
+              "type": ["string", "null"],
+              "description": "Executor identity holding this node (multi-host claim). Null when unclaimed."
+            },
+            "staleness": { "enum": ["fresh", "stale", "obsolete", "unknown"] },
+            "ci_state": { "enum": ["clean", "unstable", "blocked", "dirty", "unknown"] },
+            "unresolved_comments": { "type": "integer", "minimum": 0 },
+            "vendor_verdict": {
+              "type": ["object", "null"],
+              "description": "Result of vendor_review.py for this node (confirmed/unconfirmed/blocking counts); null until reviewed.",
+              "additionalProperties": true
+            },
+            "blocking_reason": {
+              "type": ["string", "null"],
+              "description": "Why the node could not be merged (e.g. 'failing required security check')."
+            }
+          }
+        }
+      }
+    }
+  }
+}
