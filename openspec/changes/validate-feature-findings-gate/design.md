@@ -18,9 +18,12 @@ Affected architecture layers: **Execution** (validation run), **Governance**
 
 - **Goal**: one machine-readable findings file per run that the report renders from.
 - **Goal**: opt-in hard gate on the critical subset; advisory remains the default.
-- **Goal**: isolation that leaves zero residue on the branch under test.
+- **Goal**: isolation that leaves no residue on the branch under test beyond the
+  intentionally-persisted `validation-report.md` / `validation-findings.json`.
 - **Goal**: an interactive + headless triage surface over escalated findings.
-- **Non-goal**: a Go push-proxy, a new TUI binary, or a new findings schema.
+- **Non-goal**: a Go push-proxy, a new TUI binary, or modifying the existing
+  `review-findings.schema.json` contract. (We *do* add one new self-contained
+  `validation-findings.schema.json` — see D1 — but leave the review schema alone.)
 - **Non-goal**: making the gate default-on or weakening pipeline depth.
 
 ## Decisions
