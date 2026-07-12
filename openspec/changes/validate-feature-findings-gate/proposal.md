@@ -44,20 +44,20 @@ Four capabilities, delivered as ordered phases of a single change. Phase 1 is th
 backbone the others consume; Phase 4 depends on Phase 1's data model.
 
 - **Phase 1 — Findings model + auto-fix tier (item #3 in the analysis).** Every
-  `validate-feature` phase emits its issues as finding records — reusing the
-  `review-findings.schema.json` *record* shape (not just prose) — into a per-run
-  `validation-findings.json`, and records an explicit per-phase status
-  (`pass` / `fail` / `skip` / `not-run` / `error`) so a pass is never merely
-  inferred from the absence of findings. The file as a whole uses a thin new
-  `validation-findings.schema.json` envelope (findings + phase statuses + the
-  validated commit), because the review schema's `review_type` (plan/implementation)
-  can't describe a validation run. Each finding carries a new optional `fixability`
-  tier of `auto-fix` (mechanical, behavior-preserving) or `escalate` (touches
-  intent) — a *new* field, leaving the review schema's existing `disposition` field
-  and `review_type` enum untouched. A new triage step auto-applies `auto-fix`
-  findings by delegating to the existing `simplify` / `fix-scrub` low-risk fixers,
-  then re-runs the affected phase. The markdown report is rendered *from* the
-  findings file, so humans and automation read the same source of truth.
+  `validate-feature` phase emits its issues as structured finding records (not just
+  prose) into a per-run `validation-findings.json`, and records an explicit
+  per-phase status (`pass` / `fail` / `skip` / `not-run` / `error`) so a pass is
+  never merely inferred from the absence of findings. The file uses a new,
+  self-contained `validation-findings.schema.json` (envelope + phase statuses +
+  validated commit + its own finding record) — it does **not** reuse
+  `review-findings.schema.json`, which is scoped to plan/implementation reviews and
+  requires review-only fields (`disposition`, `axis`, `severity`); the review
+  schema is left entirely unchanged. Each validation finding carries an optional
+  `fixability` tier of `auto-fix` (mechanical, behavior-preserving) or `escalate`
+  (touches intent). A new triage step auto-applies `auto-fix` findings by
+  delegating to the existing `simplify` / `fix-scrub` low-risk fixers, then re-runs
+  the affected phase. The markdown report is rendered *from* the findings file, so
+  humans and automation read the same source of truth.
 
 - **Phase 2 — Opt-in pre-push enforcement gate (item #1).** Add an opt-in
   `pre-push` git hook (alongside the existing `.githooks/pre-commit` /
@@ -93,12 +93,11 @@ backbone the others consume; Phase 4 depends on Phase 1's data model.
   hook; the triage surface rides the existing agent/CLI harness.
 - Making the enforcement gate on-by-default or mandatory. It is opt-in with a
   kill-switch and a `--no-verify` escape hatch.
-- A new finding-*record* schema. We reuse the `review-findings.schema.json` record
-  shape and extend it only with additive optional fields (`fixability`,
-  `triage_state`); the existing required `disposition` field and `review_type` enum
-  are unchanged. We do add one thin `validation-findings.schema.json` *envelope*
-  (findings + phase statuses + validated commit), because a validation run is not a
-  plan/implementation review and needs a phase-status container (see Risks).
+- Modifying `review-findings.schema.json`. We leave it entirely unchanged. Instead
+  we add one self-contained `validation-findings.schema.json` (envelope + phase
+  statuses + validated commit + its own finding record), because a validation run
+  is not a plan/implementation review and needs a phase-status container and a
+  record without review-only required fields (see Risks).
 
 ## Approaches Considered
 
@@ -178,14 +177,12 @@ backbone the gate and triage build on.
 - **Schema churn on `review-findings.schema.json`.** The schema already defines a
   required `disposition` field (enum `fix`/`regenerate`/`accept`/`escalate`) used
   by the parallel-review pipeline; repurposing it would break existing consumers
-  (architecture linters, consensus synthesizer). *Mitigation*: do **not** touch
-  `disposition` or `review_type`; add the new tier/triage state as **optional,
-  additive** fields on the finding record (`fixability` default `escalate`;
-  `triage_state` unset until triaged); put the validation-only concepts (phase
-  statuses, validated commit) in a **separate** thin `validation-findings.schema.json`
-  envelope that reuses the review finding record, so the review schema and its
-  consumers are untouched; add contract tests asserting the `disposition` enum and
-  `review_type` are unchanged and a full validation-findings file validates.
+  (architecture linters, consensus synthesizer). *Mitigation*: do **not** modify
+  `review-findings.schema.json` at all; put every validation-only concept (phase
+  statuses, validated commit, the `fixability` / `triage_state` fields, the finding
+  record itself) in a **separate** self-contained `validation-findings.schema.json`;
+  add contract tests asserting the review schema is byte-for-byte unchanged and a
+  full validation-findings file validates against the new schema.
 - **Auto-fix applying an unsafe change.** A finding mis-classified as `auto-fix`
   could alter behavior. *Mitigation*: `auto-fix` delegates only to the existing
   `simplify` / `fix-scrub` low-risk, behavior-preserving fixers (same boundary
@@ -211,10 +208,10 @@ backbone the gate and triage build on.
 - **Modified**: `skills/validate-feature/SKILL.md` (phase output contracts, new
   flags, gate/triage/ephemeral sections); `skills/validate-feature/scripts/*`
   (phases emit findings); the report-rendering step (§11) reads the findings file;
-  `openspec/schemas/review-findings.schema.json` (additive optional `fixability` /
-  `triage_state` fields on the finding record; existing `disposition` / `review_type`
-  unchanged); a new `openspec/schemas/validation-findings.schema.json` envelope
-  (findings + `phase_statuses[]` + validated commit).
+  a new `openspec/schemas/validation-findings.schema.json` (envelope +
+  `phase_statuses[]` + validated commit + a self-contained finding record with
+  optional `fixability` / `triage_state`); `review-findings.schema.json` is left
+  unchanged.
 - **Reused**: `review-findings.schema.json`, `simplify` + `fix-scrub` fixers,
   `consensus_synthesizer.py` matching, the `worktree` skill lifecycle,
   `environment_profile.detect()`, `AskUserQuestion`, coordinator

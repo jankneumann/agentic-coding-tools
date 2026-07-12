@@ -43,6 +43,31 @@ finding.
 - **AND** no finding SHALL be defaulted to `approve`
 - **AND** the report SHALL record that triage states were applied automatically
 
+### Requirement: Triage state resolution semantics
+
+Each `triage_state` value SHALL have explicit resolution semantics so that
+suppressing a re-prompt never silently clears a finding. `triage_state: fix` (the
+finding was fixed) and `triage_state: approve` (an explicit, recorded human
+waiver) SHALL mark a finding **resolved**. `triage_state: skip` SHALL leave a
+finding **unresolved**: it SHALL continue to count as an unresolved finding for
+report and gate purposes (so it keeps a phase failing), even though a later triage
+run does not re-prompt it. `--auto` therefore never silently passes a critical
+finding, because its default of `skip` for `escalate` findings keeps them
+unresolved.
+
+#### Scenario: Skip suppresses the prompt but not the failure
+
+- **WHEN** a finding is marked `triage_state: skip`
+- **THEN** it SHALL still be reported as unresolved and SHALL keep its phase and
+  any gate that includes it failing
+- **AND** a subsequent triage run SHALL NOT re-present it
+
+#### Scenario: Only fix or approve resolves a finding
+
+- **WHEN** a finding is marked `triage_state: fix` or `triage_state: approve`
+- **THEN** it SHALL be treated as resolved for report and gate purposes
+- **AND** an `approve` SHALL be recorded as an explicit waiver in the findings file
+
 ### Requirement: Resumable curated state
 
 A subsequent `validate-feature` run SHALL resume from the `triage_state` values
