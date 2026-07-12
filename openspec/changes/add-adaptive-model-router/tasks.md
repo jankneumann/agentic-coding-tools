@@ -102,20 +102,20 @@ design.md "Task-sizing notes"). Scenario IDs are `<capability>.<requirement-ordi
 
 ## Phase 4 — Dispatch adapter, policy pricing (wp-dispatch)
 
-- [ ] 4.1 Write tests for OpenAI-compatible adapter — OpenRouter headers, generation-id capture, local base_url [M]
+- [x] 4.1 Write tests for OpenAI-compatible adapter — OpenRouter headers, generation-id capture, local base_url [M]
   **Spec scenarios**: model-routing.7
   **Design decisions**: D10
   **Dependencies**: 1.4
-- [ ] 4.2 Implement `OpenAICompatAdapter` in review_dispatcher (tier-2.5 discovery order) [M]
+- [x] 4.2 Implement `OpenAICompatAdapter` in review_dispatcher (tier-2.5 discovery order) [M]
   **Dependencies**: 4.1
-- [ ] 4.3 Write tests for policy cost model — catalog-priced deltas, static fallback labelling [S]
+- [x] 4.3 Write tests for policy cost model — catalog-priced deltas, static fallback labelling [S]
   **Spec scenarios**: roadmap-orchestration.1
   **Design decisions**: D7
   **Dependencies**: 1.4
-- [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 4.4 Replace `_estimate_cost_delta` stub with catalog-priced estimation [S]
+- [x] Checkpoint: run tests, review diff, verify scope
+- [x] 4.4 Replace `_estimate_cost_delta` stub with catalog-priced estimation [S]
   **Dependencies**: 4.3
-- [ ] 4.5 Write tests for roadmap exploration gating — fail-closed items never explored [S]
+- [x] 4.5 Write tests for roadmap exploration gating — fail-closed items never explored [S]
   **Spec scenarios**: roadmap-orchestration.2
   **Dependencies**: 4.4
 - [ ] 4.6 Enforce exploration gating in roadmap dispatch path [S]

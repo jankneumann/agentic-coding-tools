@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -218,24 +219,78 @@ def _estimate_wait_seconds(reset_at: str | None) -> int | None:
         return None
 
 
-def _estimate_cost_delta(from_vendor: str, to_vendor: str) -> float | None:
-    """Estimate cost difference when switching vendors.
+# Static fallback cost tiers (relative $/1K tokens, normalized). Used only when
+# no catalog pricing source is wired or the catalog lacks a vendor's price.
+_STATIC_COST_TIERS: dict[str, float] = {
+    "claude": 1.0,
+    "codex": 0.8,
+    "gemini": 0.6,
+    "openai": 1.2,
+}
 
-    Returns a positive number if to_vendor is more expensive,
-    negative if cheaper, None if unknown.
+# Optional catalog pricing hook (OpenSpec add-adaptive-model-router, D7). When
+# wired via ``set_catalog_pricing``, maps a vendor name to its per-vendor price;
+# returns None for unknown vendors so we fall back to the static tiers. Default
+# None preserves the pre-change behavior exactly (Rule 4 — safe default).
+_catalog_pricing: "Callable[[str], float | None] | None" = None
 
-    This is a stub — real implementations would query vendor pricing
-    APIs or use cached rate cards.
+
+def set_catalog_pricing(fn: "Callable[[str], float | None] | None") -> None:
+    """Wire a catalog pricing lookup (vendor -> price) for cost estimation.
+
+    Passing None restores the static-tier behavior. Kept as a module hook so the
+    coordinator catalog can be injected without importing it here (skills stay
+    decoupled from the coordinator process).
     """
-    # Placeholder cost tiers (relative $/1K tokens, normalized)
-    _COST_TIERS: dict[str, float] = {
-        "claude": 1.0,
-        "codex": 0.8,
-        "gemini": 0.6,
-        "openai": 1.2,
-    }
-    from_cost = _COST_TIERS.get(from_vendor)
-    to_cost = _COST_TIERS.get(to_vendor)
+    global _catalog_pricing
+    _catalog_pricing = fn
+
+
+def _estimate_cost_delta_with_source(
+    from_vendor: str,
+    to_vendor: str,
+    pricing: "Callable[[str], float | None] | None" = None,
+) -> tuple[float | None, str]:
+    """Estimate switch cost delta and report the pricing source.
+
+    Prefers catalog pricing (source ``"catalog"``); falls back to the static
+    tier table (source ``"static"``) when the catalog is unwired or missing a
+    vendor. Returns (delta, source); delta is None when neither source has both
+    vendors. Positive delta = to_vendor more expensive.
+    """
+    lookup = pricing if pricing is not None else _catalog_pricing
+    if lookup is not None:
+        from_price, to_price = lookup(from_vendor), lookup(to_vendor)
+        if from_price is not None and to_price is not None:
+            return round(to_price - from_price, 2), "catalog"
+
+    from_cost = _STATIC_COST_TIERS.get(from_vendor)
+    to_cost = _STATIC_COST_TIERS.get(to_vendor)
     if from_cost is not None and to_cost is not None:
-        return round(to_cost - from_cost, 2)
-    return None
+        return round(to_cost - from_cost, 2), "static"
+    return None, "unknown"
+
+
+def _estimate_cost_delta(from_vendor: str, to_vendor: str) -> float | None:
+    """Estimate cost difference when switching vendors (see with_source variant).
+
+    Returns a positive number if to_vendor is more expensive, negative if
+    cheaper, None if unknown. Now catalog-aware (D7) with static fallback.
+    """
+    delta, _source = _estimate_cost_delta_with_source(from_vendor, to_vendor)
+    return delta
+
+
+def should_allow_exploration(policy: Policy) -> bool:
+    """Whether a roadmap item may explore lower-ranked models (D6).
+
+    Exploration is disabled for items with a *fail-closed posture* — an operator
+    who pinned a ``preferred_vendor`` or set a zero/negative ``cost_ceiling_usd``
+    is signalling "no experiments here". All other items may explore within the
+    router's global exploration budget.
+    """
+    if policy.preferred_vendor is not None:
+        return False
+    if policy.cost_ceiling_usd is not None and policy.cost_ceiling_usd <= 0:
+        return False
+    return True

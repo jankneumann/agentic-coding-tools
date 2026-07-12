@@ -27,8 +27,8 @@ Traceability skeleton generated at implementation start (Phase 1). Requirement I
 | agent-coordinator.3 | Routing Watchdog Jobs | --- | D4,D11 | test_watchdog | --- | pending |
 | agent-archetypes.1 | Archetype Resolution Delegates to Router | --- | D2 | test_delegation | --- | pending |
 | agent-archetypes.2 | Endpoint Kind in Agent Registry | --- | D5 | test_agents_config | --- | pending |
-| roadmap-orchestration.1 | Policy Engine Uses Catalog Pricing | --- | D7 | test_policy | --- | pending |
-| roadmap-orchestration.2 | Exploration Budget Enforcement in Roadmap | --- | D6 | test_policy | --- | pending |
+| roadmap-orchestration.1 | Policy Engine Uses Catalog Pricing | --- | D7 | test_routing_policy | skills/autopilot-roadmap/scripts/policy.py | verified |
+| roadmap-orchestration.2 | Exploration Budget Enforcement in Roadmap | --- | D6 | test_routing_policy | skills/autopilot-roadmap/scripts/policy.py | gate done (orchestrator wiring pending) |
 | observability.1 | Usage and Routing Dashboard | contracts/openapi/v1.yaml#/routing/usage | D12 | usage-viz tests | --- | pending |
 | observability.2 | Routing Telemetry | --- | D8 | test_telemetry | --- | pending |
 
