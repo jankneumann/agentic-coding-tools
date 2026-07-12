@@ -147,7 +147,8 @@ machine-readable findings share a single source of truth.
 
 This change SHALL add a new `openspec/schemas/validation-findings.schema.json` that
 fully describes the validation artifact: an envelope (`schema_version`, `change_id`,
-the validated commit), a `phase_statuses[]` array (each `{ phase, status, reason }`),
+the validated commit), a `phase_statuses[]` array (each
+`{ phase, final_status, reason, attempts?[] }`, one entry per phase),
 and a `findings[]` array whose item is a self-contained validation finding record
 (`id`, `type`, `criticality`, `description`, `phase`, affected file/endpoint, and
 the optional `fixability` and `triage_state`). This change SHALL NOT modify

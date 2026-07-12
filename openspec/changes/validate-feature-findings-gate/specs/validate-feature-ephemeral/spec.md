@@ -4,7 +4,11 @@
 
 The system SHALL accept a `--ephemeral` flag that runs validation against a
 throwaway scratch worktree cloned from the current `HEAD`, leaving the branch
-under test unmodified. To avoid validating a stale tree, `--ephemeral` SHALL fail
+under test free of validation *residue* — deploy artifacts, security-scan output,
+log files, and the scratch worktree itself. The one intentional exception is the
+persisted `validation-report.md` / `validation-findings.json` (see "Report still
+lands on the change branch"), which SHALL be the only files ephemeral mode writes
+back to the change branch. To avoid validating a stale tree, `--ephemeral` SHALL fail
 fast with a clear error when the working tree has uncommitted (staged or unstaged)
 changes, unless the operator passes `--include-dirty` to materialize the exact
 working-tree and index state into the scratch worktree. The commit (or
@@ -32,7 +36,8 @@ file and report.
 
 - **WHEN** an `--ephemeral` run finishes (pass or fail)
 - **THEN** the scratch worktree SHALL be removed
-- **AND** the branch under test SHALL contain no validation residue
+- **AND** the branch under test SHALL contain no validation residue other than the
+  persisted `validation-report.md` / `validation-findings.json`
 
 ### Requirement: Report still lands on the change branch
 
