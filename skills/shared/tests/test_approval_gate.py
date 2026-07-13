@@ -439,7 +439,7 @@ def test_bridge_coordinator_client_end_to_end(monkeypatch) -> None:
         },
         ("POST", "/notifications/test"): {
             "status_code": 200,
-            "data": {},
+            "data": {"success": True, "sent": True},
             "error": None,
         },
         ("GET", "/approvals/{id}"): {
@@ -488,12 +488,23 @@ def test_push_notification_transport_down_raises(monkeypatch, status) -> None:
         client.push_notification(subject="s", body="b", approval_id="R1")
 
 
-@pytest.mark.parametrize("status,delivered", [(200, True), (401, False), (404, False), (429, False)])
-def test_push_notification_reports_delivery(monkeypatch, status, delivered) -> None:
-    # 2xx = delivered (True); a non-2xx (auth/no-channel/rate-limit) is undelivered
-    # (False) — non-fatal here, but the gate uses it to refuse a proceed-on-timeout.
+@pytest.mark.parametrize(
+    "status,data,delivered",
+    [
+        (200, {"success": True, "sent": True}, True),      # confirmed delivery
+        (200, {"success": True, "sent": False}, False),    # 2xx but nothing sent
+        (200, {}, False),                                  # 2xx, no confirmation
+        (401, {}, False),                                  # auth failure
+        (404, {}, False),                                  # no channel
+        (429, {}, False),                                  # rate-limited
+    ],
+)
+def test_push_notification_reports_delivery(monkeypatch, status, data, delivered) -> None:
+    # Delivery is only True when the 2xx body confirms success AND sent. A 2xx with
+    # sent=false (test-stub / no channel) is undelivered — the gate uses this to refuse
+    # a proceed-on-timeout.
     responses = {
-        ("POST", "/notifications/test"): {"status_code": status, "data": {}, "error": None},
+        ("POST", "/notifications/test"): {"status_code": status, "data": data, "error": None},
     }
     monkeypatch.setattr(ag, "_import_bridge", lambda: FakeBridge(responses))
     client = ag.BridgeCoordinatorClient()

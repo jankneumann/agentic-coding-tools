@@ -100,3 +100,54 @@ def test_run_scenarios_over_seed_suite(scenarios_dir: Path) -> None:
     assert len(matrices) == 1
     assert matrices[0].all_vendors_pass
     assert len(matrices[0].results) == len(plan.vendors)
+
+
+def test_executor_failure_is_error_even_when_gates_pass() -> None:
+    # A CLI that exits non-zero after partially editing the workspace must be scored
+    # as an error, NOT a pass, even if the deterministic gates happen to pass.
+    scenario = AgentScenario(
+        id="partial-fail",
+        name="partial fail",
+        task_prompt="fix add()",
+        skill_under_test="implement-feature",
+        vendors=["claude"],
+        fixture={
+            "files": {"src/calc.py": "def add(a, b):\n    return a - b\n"},
+            "git_init": True,
+        },
+        goal_gates={
+            "verify": [
+                {"id": "fixed", "check": "file", "path": "src/calc.py", "contains": "a \\+ b"},
+            ],
+        },
+    )
+    partial = Outcome(
+        write_files={"src/calc.py": "def add(a, b):\n    return a + b\n"},  # gate would pass
+        commit_message="fix add",
+        exit_code=1,
+        error="cli crashed after editing",
+    )
+    matrix = run_scenario(scenario, FakeExecutor({("partial-fail", "claude"): partial}))
+    result = matrix.results[0]
+    assert result.deterministic_status == "error"
+    assert result.error is not None
+
+
+def test_fixture_path_traversal_is_rejected() -> None:
+    # A fixture file path that escapes the throwaway workspace must fail materialization
+    # (surfaced as an error RunResult), never write outside the workspace.
+    scenario = AgentScenario(
+        id="evil-fixture",
+        name="evil fixture",
+        task_prompt="x",
+        skill_under_test="implement-feature",
+        vendors=["claude"],
+        fixture={"files": {"../escape.txt": "pwned"}, "git_init": True},
+        goal_gates={
+            "verify": [{"id": "any", "check": "file", "path": "x.txt"}],
+        },
+    )
+    matrix = run_scenario(scenario, FakeExecutor({}))
+    result = matrix.results[0]
+    assert result.deterministic_status == "error"
+    assert "workspace" in (result.error or "").lower()
