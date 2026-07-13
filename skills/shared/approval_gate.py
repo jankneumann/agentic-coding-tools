@@ -650,13 +650,16 @@ class BridgeCoordinatorClient:
             raise CoordinatorUnavailable(
                 f"notification transport error (status={status})"
             )
-        # Returns True only when delivery is confirmed (2xx). A non-2xx (404 no
-        # channel, 401/403 auth, 429 rate-limit) means the notification was NOT
-        # delivered. That alone is non-fatal — the approval is filed and pollable, so
-        # a human can still resolve it from the queue — but the caller MUST NOT let a
-        # default_action=proceed gate auto-proceed on timeout when delivery is False
-        # (see _apply_default), else it would proceed unattended with nobody notified.
-        return 200 <= status < 300
+        if not (200 <= status < 300):
+            # Non-2xx (404 no channel, 401/403 auth, 429 rate-limit) → not delivered.
+            return False
+        # A 2xx alone is NOT proof of delivery: the endpoint returns 200 with
+        # ``{"success": true, "sent": false}`` when no channel actually delivered the
+        # message. Treat as delivered only when the body confirms both. Otherwise
+        # notified=False, so a default_action=proceed gate fails closed on timeout
+        # (see _apply_default) instead of proceeding with nobody actually notified.
+        data = response.get("data") or {}
+        return bool(data.get("success")) and bool(data.get("sent"))
 
     def check_approval(self, approval_id: str) -> str:
         bridge = self._bridge()

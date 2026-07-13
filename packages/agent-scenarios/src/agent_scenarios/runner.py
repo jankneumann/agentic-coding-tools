@@ -79,8 +79,14 @@ def _run_one_vendor(
 
     gate_verdicts = score_gates(scenario.goal_gates, run_result.workspace)
     det_status = deterministic_status(gate_verdicts)
-    # An executor-level failure (non-zero exit with no gates) still surfaces.
-    if not gate_verdicts and run_result.error:
+    # An executor-level failure (non-zero exit or a reported error) is an error
+    # regardless of whether goal gates happened to pass. A CLI that exits non-zero
+    # after partially editing the workspace must not be scored as a pass just because
+    # the deterministic gates align — the executor error is preserved on the verdict.
+    executor_error = run_result.error
+    if run_result.exit_code != 0 and not executor_error:
+        executor_error = f"executor exited non-zero ({run_result.exit_code})"
+    if executor_error:
         det_status = "error"
 
     trajectory = review_trajectory(
@@ -97,7 +103,7 @@ def _run_one_vendor(
         gate_verdicts=gate_verdicts,
         trajectory=trajectory,
         deterministic_status=det_status,  # type: ignore[arg-type]
-        error=run_result.error if det_status == "error" else None,
+        error=executor_error if det_status == "error" else None,
     )
 
 

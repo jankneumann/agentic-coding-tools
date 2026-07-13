@@ -18,10 +18,11 @@ Two implementations ship:
 
 from __future__ import annotations
 
+import ntpath
 import shlex
 import subprocess
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Protocol
 
 from .models import AgentScenario, PRRef, RunResult, WorkspaceState
@@ -68,8 +69,15 @@ def materialize_fixture(scenario: AgentScenario, workdir: Path) -> WorkspaceStat
     workdir.mkdir(parents=True, exist_ok=True)
     fx = scenario.fixture
 
+    workdir_resolved = workdir.resolve()
     for rel, content in fx.files.items():
-        target = workdir / rel
+        # Guard against path traversal / absolute paths: a fixture file must stay
+        # inside the throwaway workspace, never write to `../` or an absolute path.
+        if PurePosixPath(rel).is_absolute() or ntpath.isabs(rel):
+            raise FixtureError(f"fixture file path must be relative, got {rel!r}")
+        target = (workdir / rel).resolve()
+        if not target.is_relative_to(workdir_resolved):
+            raise FixtureError(f"fixture file path escapes the workspace: {rel!r}")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
 
