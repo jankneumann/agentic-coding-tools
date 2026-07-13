@@ -69,12 +69,20 @@ The service SHALL apply the gate's `default_action` when a `notify_with_timeout`
 gate's timer expires with no human resolution: `proceed` yields a proceed decision
 and `block` yields a blocked decision. A coordinator-reported `expired` status
 observed while polling SHALL be treated identically to a local timeout. The applied
-default action SHALL be recorded on the decision.
+default action SHALL be recorded on the decision. As a safety exception, a `proceed`
+default SHALL NOT be applied when the approval notification was not delivered — in that
+case the gate SHALL fail closed to a blocked decision, because auto-proceeding when no
+human was notified would be an unattended action nobody could have vetoed.
 
-#### Scenario: Timeout with default action proceed
+#### Scenario: Timeout with default action proceed (notification delivered)
 
-- **WHEN** a `notify_with_timeout` gate with `default_action: proceed` reaches its timeout unresolved
+- **WHEN** a `notify_with_timeout` gate with `default_action: proceed` reaches its timeout unresolved and the notification was delivered
 - **THEN** the service SHALL return a proceed decision recording that the default action was applied
+
+#### Scenario: Proceed default fails closed when the notification was undelivered
+
+- **WHEN** a `notify_with_timeout` gate with `default_action: proceed` reaches its timeout unresolved but the notification was never delivered (no channel / auth failure / rate-limit)
+- **THEN** the service SHALL return a blocked decision rather than proceeding
 
 #### Scenario: Timeout with default action block
 

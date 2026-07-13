@@ -305,9 +305,12 @@ class ApprovalGate:
         except CoordinatorUnavailable as exc:
             return self._unreachable(gate, gd, f"request_approval failed: {exc}")
 
-        # (2) Notify (best-effort). A soft no-op is fine; transport failure is not.
+        # (2) Notify. A raised CoordinatorUnavailable (transport down) fails closed;
+        # an undelivered notification (returns False: no channel/auth/rate-limit) is
+        # non-fatal here — the approval is still filed and pollable — but its delivery
+        # status gates whether a default_action=proceed may auto-proceed on timeout.
         try:
-            self.coordinator.push_notification(
+            notified = self.coordinator.push_notification(
                 subject=f"Approval needed: {gate.value}",
                 body=self._notification_body(gate, ctx, approval_id, timeout),
                 approval_id=approval_id,
@@ -327,7 +330,9 @@ class ApprovalGate:
                     gate, gd, f"check_approval failed: {exc}", approval_id=approval_id
                 )
 
-            resolved = self._interpret_status(gate, gd, status, approval_id)
+            resolved = self._interpret_status(
+                gate, gd, status, approval_id, notified=notified
+            )
             if resolved is not None:
                 return resolved
 
@@ -336,13 +341,22 @@ class ApprovalGate:
                 break
             self.sleep(min(self.poll_interval_seconds, remaining))
 
-        # (4) Timer expired unresolved → apply the default action.
-        return self._apply_default(gate, gd, default_action, approval_id)
+        # (4) Timer expired unresolved → apply the default action (a proceed default
+        # fails closed to block when the notification was never delivered).
+        return self._apply_default(
+            gate, gd, default_action, approval_id, notified=notified
+        )
 
     # -- notify helpers ------------------------------------------------------ #
 
     def _interpret_status(
-        self, gate: Gate, gd: GateDisposition, status: str, approval_id: str
+        self,
+        gate: Gate,
+        gd: GateDisposition,
+        status: str,
+        approval_id: str,
+        *,
+        notified: bool = True,
     ) -> Optional[_Draft]:
         """Map a coordinator status to a terminal draft, or ``None`` to keep polling."""
         normalized = (status or "").strip().lower()
@@ -367,7 +381,9 @@ class ApprovalGate:
         if normalized == "expired":
             # Server-side expiry is the same terminal condition as our local timeout.
             default_action = gd.default_action or DefaultAction.BLOCK
-            return self._apply_default(gate, gd, default_action, approval_id)
+            return self._apply_default(
+                gate, gd, default_action, approval_id, notified=notified
+            )
         # pending / unknown → keep polling
         return None
 
@@ -377,7 +393,30 @@ class ApprovalGate:
         gd: GateDisposition,
         default_action: DefaultAction,
         approval_id: str,
+        *,
+        notified: bool = True,
     ) -> _Draft:
+        if default_action is DefaultAction.PROCEED and not notified:
+            # The gate would auto-proceed on timeout, but no human was ever
+            # notified (notification undelivered). Proceeding would be an
+            # unattended action nobody could have vetoed, so fail closed to block.
+            self._logger.warning(
+                "approval gate %s timed out with default_action=proceed but the "
+                "notification was undelivered; failing closed to block",
+                gate.value,
+            )
+            return _Draft(
+                gate=gate,
+                outcome=Outcome.BLOCKED,
+                resolution=Resolution.TIMEOUT_BLOCK,
+                disposition=gd.disposition,
+                reason=(
+                    f"gate {gate.value!r} timed out; default_action=proceed NOT applied "
+                    "because the approval notification was undelivered — failing closed"
+                ),
+                approval_id=approval_id,
+                default_action=DefaultAction.BLOCK,
+            )
         if default_action is DefaultAction.PROCEED:
             return _Draft(
                 gate=gate,
@@ -607,11 +646,16 @@ class BridgeCoordinatorClient:
         )
         status = response.get("status_code")
         if status is None or status >= 500:
+            # Transport genuinely down → fail closed (raised, caller degrades to block).
             raise CoordinatorUnavailable(
                 f"notification transport error (status={status})"
             )
-        # 404 (no notify route) / 4xx (no channel) are soft no-ops: the approval is
-        # still filed and pollable, so do not fail the gate closed.
+        # Returns True only when delivery is confirmed (2xx). A non-2xx (404 no
+        # channel, 401/403 auth, 429 rate-limit) means the notification was NOT
+        # delivered. That alone is non-fatal — the approval is filed and pollable, so
+        # a human can still resolve it from the queue — but the caller MUST NOT let a
+        # default_action=proceed gate auto-proceed on timeout when delivery is False
+        # (see _apply_default), else it would proceed unattended with nobody notified.
         return 200 <= status < 300
 
     def check_approval(self, approval_id: str) -> str:

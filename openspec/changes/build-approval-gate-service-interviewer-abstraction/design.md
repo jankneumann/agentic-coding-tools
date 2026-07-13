@@ -103,12 +103,17 @@ safe reading. The distinction between "human said no" and "couldn't ask the huma
 exactly why the client *raises* for transport errors instead of returning a sentinel
 status the poll loop might misread as a decision.
 
-**Notification is the one non-fatal step.** `push_notification` returning `False` (no
-channel configured, soft no-op) does *not* fail the gate: the approval is already filed
-and pollable, so a human can still resolve it from the queue. Only a *raised*
-`CoordinatorUnavailable` from the notifier (transport genuinely down) fails closed. This
-reconciles "fail closed at any point" with "a missing Telegram token shouldn't park a
-correctly-filed approval."
+**Notification is mostly non-fatal — with one safety exception.** `push_notification`
+returning `False` (no channel configured, soft no-op) does *not* fail the gate outright:
+the approval is already filed and pollable, so a human can still resolve it from the
+queue. Only a *raised* `CoordinatorUnavailable` from the notifier (transport genuinely
+down) fails closed immediately. This reconciles "fail closed at any point" with "a
+missing Telegram token shouldn't park a correctly-filed approval." **The exception:** a
+`default_action=proceed` gate that *times out* with an **undelivered** notification
+fails closed to block rather than proceeding — auto-proceeding when nobody was ever
+notified would be an unattended action no human could have vetoed. Delivery status is
+therefore carried from the notify step into the timeout default so a `proceed` default
+only fires when a human was actually reachable.
 
 ### D5: `block` parks, it does not wait
 

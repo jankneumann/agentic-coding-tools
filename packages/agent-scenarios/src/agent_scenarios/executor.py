@@ -37,11 +37,33 @@ class ScenarioExecutor(Protocol):
     def run(self, scenario: AgentScenario, vendor: str, workdir: Path) -> RunResult: ...
 
 
+class FixtureError(RuntimeError):
+    """Raised when fixture materialization (git init / setup / commands) fails.
+
+    Carries the failed command, exit code, and captured output so the caller can
+    surface a meaningful ``RunResult`` error instead of silently scoring against a
+    broken workspace.
+    """
+
+
+def _run_checked(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    """Run a fixture-setup command and fail loudly on a non-zero exit."""
+    proc = _run(cmd, cwd)
+    if proc.returncode != 0:
+        raise FixtureError(
+            f"fixture command failed (exit {proc.returncode}): {' '.join(cmd)}\n"
+            f"stdout: {proc.stdout.strip()[:500]}\nstderr: {proc.stderr.strip()[:500]}"
+        )
+    return proc
+
+
 def materialize_fixture(scenario: AgentScenario, workdir: Path) -> WorkspaceState:
     """Write the fixture files and initialize git, returning the initial state.
 
     Shared by every executor so fixture semantics are identical across vendors
-    (a prerequisite for meaningful parity comparison).
+    (a prerequisite for meaningful parity comparison). Raises :class:`FixtureError`
+    if any git-init / setup / fixture command fails, so callers never run a vendor
+    or the scorer against a half-built workspace.
     """
     workdir.mkdir(parents=True, exist_ok=True)
     fx = scenario.fixture
@@ -52,21 +74,38 @@ def materialize_fixture(scenario: AgentScenario, workdir: Path) -> WorkspaceStat
         target.write_text(content, encoding="utf-8")
 
     working_branch = fx.base_branch
+    base_sha: str | None = None
     if fx.git_init:
-        _run(["git", "init", "-q", "-b", fx.base_branch], workdir)
-        _run(["git", "config", "user.email", "harness@agent-scenarios.local"], workdir)
-        _run(["git", "config", "user.name", "agent-scenarios"], workdir)
-        _run(["git", "add", "-A"], workdir)
-        _run(["git", "commit", "-q", "-m", "fixture: initial state", "--allow-empty"], workdir)
+        _run_checked(["git", "init", "-q", "-b", fx.base_branch], workdir)
+        _run_checked(["git", "config", "user.email", "harness@agent-scenarios.local"], workdir)
+        _run_checked(["git", "config", "user.name", "agent-scenarios"], workdir)
+        _run_checked(["git", "add", "-A"], workdir)
+        _run_checked(
+            ["git", "commit", "-q", "-m", "fixture: initial state", "--allow-empty"], workdir
+        )
+        base_sha = _run_checked(["git", "rev-parse", "HEAD"], workdir).stdout.strip() or None
 
     for cmd in fx.commands:
-        _run(cmd, workdir)
+        _run_checked(cmd, workdir)
 
-    return WorkspaceState(root=str(workdir), working_branch=working_branch)
+    return WorkspaceState(root=str(workdir), working_branch=working_branch, base_sha=base_sha)
 
 
 def _run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True, check=False)
+
+
+def _fixture_error_result(
+    scenario: AgentScenario, vendor: str, workdir: Path, exc: FixtureError
+) -> RunResult:
+    """Surface a fixture-materialization failure as an error RunResult (not a crash)."""
+    return RunResult(
+        scenario_id=scenario.id,
+        vendor=vendor,
+        workspace=WorkspaceState(root=str(workdir)),
+        exit_code=1,
+        error=f"fixture materialization failed: {exc}",
+    )
 
 
 class CLIVendorExecutor:
@@ -97,7 +136,10 @@ class CLIVendorExecutor:
         self._timeout = timeout_seconds
 
     def run(self, scenario: AgentScenario, vendor: str, workdir: Path) -> RunResult:
-        state = materialize_fixture(scenario, workdir)
+        try:
+            state = materialize_fixture(scenario, workdir)
+        except FixtureError as exc:
+            return _fixture_error_result(scenario, vendor, workdir, exc)
         template = self._vendor_commands.get(vendor)
         if template is None:
             return RunResult(
@@ -189,7 +231,10 @@ class FakeExecutor:
         self._script = script
 
     def run(self, scenario: AgentScenario, vendor: str, workdir: Path) -> RunResult:
-        state = materialize_fixture(scenario, workdir)
+        try:
+            state = materialize_fixture(scenario, workdir)
+        except FixtureError as exc:
+            return _fixture_error_result(scenario, vendor, workdir, exc)
         outcome = self._script.get((scenario.id, vendor)) or self._script.get(scenario.id)
         if outcome is None:
             return RunResult(
