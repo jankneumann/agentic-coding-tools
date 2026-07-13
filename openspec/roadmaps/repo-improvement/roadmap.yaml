@@ -3,7 +3,11 @@ roadmap_id: repo-improvement
 source_proposal: docs/proposals/repo-improvement-roadmap.md
 status: planning
 policy:
-  default_action: switch_if_time_saved
+  # wait_if_budget_exceeded matches the model default and every existing roadmap
+  # (symphony/sentinel/codeviz). switch_if_time_saved would let the runner switch
+  # vendors up to max_switch_attempts with no budget cap unless cost_ceiling_usd is
+  # set, so switch mode is deferred until a ceiling is chosen for this roadmap.
+  default_action: wait_if_budget_exceeded
   max_switch_attempts_per_item: 2
 items:
 - item_id: ri-01
