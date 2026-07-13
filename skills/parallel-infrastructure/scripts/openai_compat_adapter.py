@@ -26,7 +26,12 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
-from review_dispatcher import ErrorClass, ReviewResult, classify_error  # type: ignore[import-untyped]
+from review_dispatcher import (  # type: ignore[import-untyped]
+    CliVendorAdapter,
+    ErrorClass,
+    ReviewResult,
+    classify_error,
+)
 
 # transport(url, headers, body, timeout) -> parsed JSON response dict
 Transport = Callable[[str, "dict[str, str]", "dict[str, Any]", int], "dict[str, Any]"]
@@ -140,14 +145,36 @@ class OpenAICompatAdapter:
                 )
 
             content = _extract_content(resp)
+            if not content:
+                return ReviewResult(
+                    vendor=self.vendor, success=False,
+                    error="Empty response content", error_class=ErrorClass.UNKNOWN,
+                    model_used=model, models_attempted=models_attempted,
+                    elapsed_seconds=time.monotonic() - start,
+                    generation_id=resp.get("id"),
+                )
+            # Parse the model output into the dispatcher's review-findings shape
+            # ({"findings": [...]}) using the same extractor the CLI/SDK adapters use.
+            # A non-empty response that is NOT valid review-findings JSON is a failure,
+            # not a silent success with zero findings.
+            findings = CliVendorAdapter._parse_findings(content)
+            if findings is None:
+                return ReviewResult(
+                    vendor=self.vendor, success=False,
+                    error="Review output was not valid review-findings JSON",
+                    error_class=ErrorClass.UNKNOWN,
+                    model_used=model, models_attempted=models_attempted,
+                    elapsed_seconds=time.monotonic() - start,
+                    generation_id=resp.get("id"),
+                )
             return ReviewResult(
                 vendor=self.vendor,
-                success=bool(content),
-                findings={"content": content} if content else None,
+                success=True,
+                findings=findings,
                 model_used=model,
                 models_attempted=models_attempted,
                 elapsed_seconds=time.monotonic() - start,
-                error=None if content else "Empty response content",
+                error=None,
                 generation_id=resp.get("id"),
             )
 

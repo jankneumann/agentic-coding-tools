@@ -67,4 +67,7 @@ CREATE TABLE IF NOT EXISTS routing_spend_ledger (
     generation_id       TEXT,                                  -- OpenRouter generation-get reconciliation
     work_unit_ref       TEXT                                   -- change-id/package/task attribution
 );
-CREATE INDEX IF NOT EXISTS idx_spend_ledger_month ON routing_spend_ledger (date_trunc('month', occurred_at), endpoint_kind);
+-- date_trunc('month', <timestamptz>) is STABLE (depends on the session TimeZone), not
+-- IMMUTABLE, so it cannot be used directly in an index expression. Pin the timezone to
+-- make it IMMUTABLE (monthly buckets are UTC by convention here).
+CREATE INDEX IF NOT EXISTS idx_spend_ledger_month ON routing_spend_ledger (date_trunc('month', occurred_at AT TIME ZONE 'UTC'), endpoint_kind);

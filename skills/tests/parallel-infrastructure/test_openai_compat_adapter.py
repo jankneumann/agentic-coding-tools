@@ -27,7 +27,14 @@ class FakeTransport:
         return item
 
 
-def _ok(content="looks good", gen_id="gen-abc123"):
+# A minimal, valid review-findings envelope — the adapter parses assistant
+# content with the same extractor as the CLI/SDK adapters, which requires a
+# top-level ``findings`` key. Tests that only care about dispatch mechanics
+# (routing, gen-id, fallback) use this default.
+_FINDINGS_JSON = '{"review_type": "pr", "findings": []}'
+
+
+def _ok(content=_FINDINGS_JSON, gen_id="gen-abc123"):
     return {"id": gen_id, "choices": [{"message": {"role": "assistant", "content": content}}]}
 
 
@@ -62,7 +69,7 @@ def test_dispatch_routes_to_base_url_and_captures_generation_id():
     assert result.success
     assert result.generation_id == "gen-xyz"
     assert result.model_used == "qwen/qwen3-coder"
-    assert result.findings == {"content": "looks good"}
+    assert result.findings == {"review_type": "pr", "findings": []}
     assert tr.calls[0]["url"] == "https://openrouter.ai/api/v1/chat/completions"
 
 
@@ -95,7 +102,7 @@ def test_openrouter_without_key_fails_auth():
 # ── model fallback on capacity ───────────────────────────────────────────────
 
 def test_capacity_error_falls_back_to_next_model():
-    tr = FakeTransport([RuntimeError("HTTP 429 rate limit"), _ok(content="fallback ok")])
+    tr = FakeTransport([RuntimeError("HTTP 429 rate limit"), _ok()])
     adapter = _adapter(model_fallbacks=["meta/llama-3"])
     result = adapter.dispatch("review", "p", api_key="k", transport=tr)
     assert result.success
@@ -125,6 +132,17 @@ def test_empty_content_is_unsuccessful():
     result = _adapter().dispatch("review", "p", api_key="k", transport=tr)
     assert not result.success
     assert result.error == "Empty response content"
+
+
+def test_non_findings_json_is_unsuccessful():
+    # Non-empty content that is NOT valid review-findings JSON must fail loudly
+    # rather than be recorded as a successful review with zero findings.
+    tr = FakeTransport([_ok(content="Looks good to me, no issues found.")])
+    result = _adapter().dispatch("review", "p", api_key="k", transport=tr)
+    assert not result.success
+    assert result.error_class == ErrorClass.UNKNOWN
+    assert "review-findings JSON" in result.error
+    assert result.generation_id == "gen-abc123"  # gen-id still captured for reconciliation
 
 
 def test_can_dispatch_review_only():
