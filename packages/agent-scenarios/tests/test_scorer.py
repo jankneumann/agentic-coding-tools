@@ -146,3 +146,28 @@ def test_command_gate_times_out_to_error() -> None:
     verdict = score_gate(gate, WorkspaceState(root="."))
     assert verdict.status == "error"
     assert "time" in verdict.detail.lower() or "error" in verdict.detail.lower()
+
+
+def test_goal_gate_rejects_traversal_and_absolute_paths() -> None:
+    import pytest
+
+    from agent_scenarios.models import GoalGate
+
+    for bad in ("../escape.txt", "/etc/passwd", "a/../../b"):
+        with pytest.raises(ValueError):
+            GoalGate(id="p", check="file", path=bad)
+
+
+def test_command_gate_rejects_unsupported_expect_fields() -> None:
+    import pytest
+    from gen_eval.models import ExpectBlock
+
+    from agent_scenarios.models import GoalGate
+
+    # exit_code is supported → OK
+    GoalGate(id="ok", check="command", command=["true"], expect=ExpectBlock(exit_code=0))
+    # body/rows are HTTP-oriented and silently ignored by the command scorer → rejected
+    with pytest.raises(ValueError):
+        GoalGate(
+            id="bad", check="command", command=["true"], expect=ExpectBlock(body="hi")
+        )

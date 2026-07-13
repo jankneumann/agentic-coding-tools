@@ -14,6 +14,8 @@ share one assertion contract rather than re-inventing it.
 
 from __future__ import annotations
 
+import ntpath
+from pathlib import PurePosixPath
 from typing import Literal
 
 # Reuse gen-eval's assertion vocabulary. ExpectBlock powers ``command`` goal
@@ -84,6 +86,34 @@ class GoalGate(BaseModel):
             raise ValueError(
                 f"goal gate '{self.id}': check '{self.check}' requires 'path' or 'artifact_key'"
             )
+        # Path-backed gates must stay inside the throwaway workspace: reject absolute
+        # paths and `..` traversal at load time (fail-loud), so a scenario can't probe
+        # or score host files outside the fixture. Mirrors the fixture-write guard.
+        if self.path is not None:
+            posix = PurePosixPath(self.path)
+            if posix.is_absolute() or ntpath.isabs(self.path) or ".." in posix.parts:
+                raise ValueError(
+                    f"goal gate '{self.id}': path {self.path!r} must be relative and stay "
+                    "inside the workspace (no absolute paths or '..' traversal)"
+                )
+        # Command gates score process output; the scorer only enforces exit_code /
+        # error_contains / not_empty. Reject the HTTP-oriented ExpectBlock assertions
+        # here (fail-loud) so an author can't write a body/rows/status assertion that
+        # the command scorer would silently ignore, making the gate falsely pass.
+        if self.check == "command" and self.expect is not None:
+            supported = {"exit_code", "error_contains", "not_empty"}
+            used = {
+                name
+                for name in self.expect.model_fields_set
+                if getattr(self.expect, name, None) not in (None, False)
+            }
+            unsupported = used - supported
+            if unsupported:
+                raise ValueError(
+                    f"goal gate '{self.id}': command gate 'expect' fields "
+                    f"{sorted(unsupported)} are not supported (only exit_code, "
+                    "error_contains, not_empty apply to command output)"
+                )
         return self
 
 

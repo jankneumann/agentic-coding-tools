@@ -269,3 +269,30 @@ def test_apply_phase_outcome_validates_change_id(chdir_tmp: Path) -> None:
             outcome="continue",
             handoff_id="h",
         )
+
+
+def test_apply_phase_outcome_raises_when_state_missing(chdir_tmp: Path) -> None:
+    # A missing loop-state means apply-outcome cannot record the phase result — it must
+    # escalate (raise) so runner.py apply-outcome exits non-zero, not silently succeed.
+    with pytest.raises(ValueError):
+        phase_agent.apply_phase_outcome(
+            change_id="demo", phase="IMPLEMENT", outcome="continue", handoff_id="h-abc"
+        )
+
+
+def test_apply_phase_outcome_raises_when_state_malformed(chdir_tmp: Path) -> None:
+    state_path = _seed_state(chdir_tmp, "demo")
+    state_path.write_text("]not json[", encoding="utf-8")
+    with pytest.raises(ValueError):
+        phase_agent.apply_phase_outcome(
+            change_id="demo", phase="IMPLEMENT", outcome="continue", handoff_id="h-abc"
+        )
+
+
+def test_apply_phase_outcome_raises_when_state_not_mapping(chdir_tmp: Path) -> None:
+    state_path = _seed_state(chdir_tmp, "demo")
+    state_path.write_text("[1, 2, 3]", encoding="utf-8")
+    with pytest.raises(ValueError):
+        phase_agent.apply_phase_outcome(
+            change_id="demo", phase="IMPLEMENT", outcome="continue", handoff_id="h-abc"
+        )
