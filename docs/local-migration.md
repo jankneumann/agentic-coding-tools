@@ -114,10 +114,16 @@ the codebase and only need verification.
       is included commented-out — enable it only if cloud agents actually
       use MCP-over-SSE, and note the coordinator MCP server has no
       API-key gate of its own.
-- [ ] **Postgres stays private.** Cloud agents go through the HTTP API only.
-      This is an *improvement* over Railway, where MCP + direct-DB mode
-      required a public TCP proxy. Locally, Postgres binds to
-      `localhost:54322`; leave it there.
+- [ ] **Postgres stays private — bind it to loopback explicitly.** Cloud
+      agents go through the HTTP API only; this is an *improvement* over
+      Railway, where MCP + direct-DB mode required a public TCP proxy.
+      But note the compose default `ports: "54322:5432"` publishes Postgres
+      on **all host interfaces** (Docker inserts its own iptables rules,
+      which bypass simple ufw setups). Set
+      `AGENT_COORDINATOR_DB_PORT=127.0.0.1:54322` in `agent-coordinator/.env`
+      so the mapping becomes `127.0.0.1:54322:5432` (loopback only), and
+      verify with `ss -tlnp | grep 54322`. Reach it remotely over Tailscale
+      via SSH port-forward if needed.
 
 ### Host
 
@@ -151,14 +157,38 @@ docker compose up -d postgres
 # Generate fresh API keys + .env.cloud (manual mode — no Railway push)
 make cloud-setup DOMAIN=coord.yourdomain.com
 source .env.cloud
+```
 
-# Run the API in Docker with the new keys
-COORDINATOR_API_KEYS="$COORDINATION_API_KEYS" \
-COORDINATOR_API_KEY_IDENTITIES="$COORDINATION_API_KEY_IDENTITIES" \
+**`.env.cloud` contains only the client-side variables** (agent URL, keys,
+aliases). The *server-side* values — `COORDINATION_API_KEYS` and
+`COORDINATION_API_KEY_IDENTITIES` — are printed to stdout by
+`make cloud-setup` under "Railway env vars (set in dashboard...)". Persist
+them into `agent-coordinator/.env` (gitignored; docker compose reads it for
+variable interpolation), mapped to the compose operator variables:
+
+```bash
+# agent-coordinator/.env — values copied from the cloud-setup output
+COORDINATOR_API_KEYS=<printed COORDINATION_API_KEYS value>
+COORDINATOR_API_KEY_IDENTITIES=<printed COORDINATION_API_KEY_IDENTITIES JSON>
+# Bind Postgres to loopback only (see security checklist)
+AGENT_COORDINATOR_DB_PORT=127.0.0.1:54322
+```
+
+Skipping this step is the dev-key trap: without `COORDINATOR_API_KEYS` set,
+compose falls back to `dev-key-001` and the public API will accept that
+well-known key while rejecting the rotated keys you distribute to agents.
+
+```bash
 docker compose --profile api up -d --build coordinator-api
 
 curl -s localhost:8081/health
 # Expected: {"status":"ok","db":"connected",...}
+
+# Confirm the rotated keys are live and the dev fallback is NOT:
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "X-API-Key: $COORDINATION_API_KEY" localhost:8081/profiles/me   # 200
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "X-API-Key: dev-key-001" localhost:8081/profiles/me             # 401
 ```
 
 ### Phase 2 — Copy state from Railway
@@ -195,9 +225,15 @@ Follow [cloudflare-setup.md §3](cloudflare-setup.md#3-named-tunnel-to-local-mac
 cloudflared tunnel login
 cloudflared tunnel create coordinator
 # note the tunnel UUID; credentials land at ~/.cloudflared/<uuid>.json
-
-cloudflared tunnel route dns coordinator coord.yourdomain.com
 ```
+
+**DNS:** `cloudflared tunnel route dns coordinator coord.yourdomain.com`
+only works for hostnames with **no existing record** — it creates a new
+CNAME and errors out (or leaves the old record winning) when
+`coord.yourdomain.com` already has the Railway CNAME from
+[cloudflare-setup.md](cloudflare-setup.md). Since this is a migration,
+that record exists — so *don't* route DNS here. Leave the hostname
+pointing at Railway for now; repointing it **is** the cutover (Phase 4).
 
 Fill `TUNNEL_UUID`, `CREDENTIALS_FILE`, and `CUSTOM_DOMAIN` into
 `agent-coordinator/cloudflared/config.yaml`, then run the tunnel:
@@ -209,18 +245,28 @@ docker compose --profile cloudflared up -d
 # Option B: standalone
 cloudflared tunnel --config agent-coordinator/cloudflared/config.yaml run
 
-# Option C: systemd service (recommended for an always-on box)
-sudo cloudflared service install
+# Option C: systemd service (recommended for an always-on box).
+# Pass --config explicitly: `sudo` changes $HOME, so without it the
+# installed unit looks for ~/.cloudflared/config.yml as root and can start
+# without your edited ingress/credentials — the tunnel runs but never
+# serves coord.*. Use an absolute path (also for credentials-file inside
+# the config).
+sudo cloudflared --config /absolute/path/to/agent-coordinator/cloudflared/config.yaml service install
 sudo systemctl enable --now cloudflared
+systemctl status cloudflared   # verify it loaded the right config
 ```
 
 ### Phase 4 — Cutover
 
 If agents already point at `coord.yourdomain.com` (the recommended setup from
-[cloudflare-setup.md](cloudflare-setup.md)), cutover is one DNS change:
-`cloudflared tunnel route dns` in Phase 3 repointed the CNAME from
-`your-service.up.railway.app` to `<tunnel-uuid>.cfargotunnel.com`. Agents need
-**zero configuration changes** — same URL, same header.
+[cloudflare-setup.md](cloudflare-setup.md)), cutover is one DNS edit, done
+manually: in **Cloudflare Dashboard → DNS → Records**, change the existing
+`coord` CNAME's target from `your-service.up.railway.app` to
+`<tunnel-uuid>.cfargotunnel.com` and set it to **Proxied** (orange cloud —
+tunnel CNAMEs only resolve through the proxy). Do not use
+`cloudflared tunnel route dns` for this — it cannot repoint an existing
+record (see Phase 3). Agents need **zero configuration changes** — same URL,
+same header.
 
 If any agent still points at the raw `*.up.railway.app` URL, update it now to
 the custom domain (last time you will ever touch it):
