@@ -19,6 +19,14 @@ paths = [
     '''\.claude/skills/session-log/scripts/test_sanitize_session_log\.py''',
     '''\.agents/skills/session-log/scripts/test_sanitize_session_log\.py''',
 ]
+# Known-fake, non-secret placeholder values that appear in docs/examples and trip
+# secret rules (e.g. curl-auth-header on `-H "X-API-Key: <value>"`).
+regexes = [
+    # `dev-key-001` — the documented local dev-fallback API key (not a real
+    # secret). Appears in the migration runbook's curl examples demonstrating that
+    # the dev fallback is rejected (401) after key rotation.
+    '''dev-key-001''',
+]
 # Anonymized at HEAD by the kanban-viz PR (commit 9275908). Both fingerprints
 # below are the test fixture string "s3cr3t-32-byte-signing-key-abcdef", which
 # tripped gitleaks generic-api-key (entropy 3.92). Squash-rewriting the agent
