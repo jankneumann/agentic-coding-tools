@@ -11,6 +11,7 @@ final section.
   **Spec scenarios**: merge-pull-requests "Analysis round emits a durable plan", "Dependency edges are derived from file overlap and base branch"; merge-infrastructure "Plan state is separated into definition and live fields"
   **Contracts**: contracts/schemas/merge-plan.schema.json
   **Design decisions**: D1 (definition vs live state), D2 (DAG edges)
+  **Also cover**: producer-enforced DAG semantic invariants JSON Schema cannot express (contracts/README.md) — tests MUST reject duplicate `node.pr`, dangling `depends_on` targets, self-dependencies, and cycles; and assert every node's `state` carries `staleness`/`ci_state`/`unresolved_comments`
   **Dependencies**: None
 - [ ] 1.2 Add `build_plan.py` (or extend the analysis round) to emit `merge-plan.json` from `discover_prs` + `check_staleness` + `analyze_comments` output, validating against the schema
   **Dependencies**: 1.1
