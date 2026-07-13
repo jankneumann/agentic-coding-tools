@@ -4,12 +4,17 @@
 
 The system SHALL provide an opt-in `pre-push` git hook that runs the critical
 subset of `validate-feature` and blocks the push when any critical finding is
-unresolved. The gate SHALL NOT be enabled by default. Because this repo already
-points `core.hooksPath` at `.githooks`, a `pre-push` script checked in there would
-run for everyone; therefore the checked-in hook SHALL be **inert** — a no-op that
-exits 0 — unless the gate has been explicitly enabled via a marker (a
-`validate-gate.enabled` config flag or an equivalent opt-in file). Enabling the
-gate is a config/marker action, not merely the presence of the hook file.
+unresolved. The gate SHALL NOT be enabled by default. Two independent conditions
+SHALL both hold for the gate to run, and the opt-in installer SHALL establish both
+(and verify them): (a) the `pre-push` hook must actually be wired for the repo —
+because `core.hooksPath` is *local* git config not guaranteed on a fresh clone, the
+installer SHALL set and verify `core.hooksPath=.githooks` (or install a forwarding
+`.git/hooks/pre-push`) so the hook is genuinely invoked; and (b) the gate must be
+explicitly enabled via a `validate-gate.enabled` marker. Because the hook may be
+present in `.githooks` before opt-in, the checked-in hook SHALL be **inert** — a
+no-op that exits 0 — until the marker is set, so it never fires for someone who
+happens to have `core.hooksPath=.githooks` without opting in. Enabling the gate is
+this installer action, not merely the presence of the hook file.
 
 #### Scenario: Checked-in hook is inert until enabled
 
@@ -18,12 +23,21 @@ gate is a config/marker action, not merely the presence of the hook file.
 - **THEN** `git push` SHALL behave exactly as before (the hook exits 0 without
   running any checks)
 
-#### Scenario: Gate enabled on request
+#### Scenario: Opt-in wires the hook on a fresh clone
 
-- **WHEN** the operator runs the gate opt-in (sets the `validate-gate.enabled`
-  marker)
-- **THEN** the `pre-push` hook SHALL thereafter run the critical subset
-- **AND** absent that explicit opt-in, `git push` behavior SHALL be unchanged
+- **WHEN** the operator runs the gate opt-in in a fresh clone that has no
+  `core.hooksPath` set (hooks resolve to `.git/hooks`)
+- **THEN** the installer SHALL set and verify the hook wiring (`core.hooksPath=.githooks`
+  or a forwarding `.git/hooks/pre-push`) and set the `validate-gate.enabled` marker
+- **AND** a subsequent `git push` SHALL actually invoke the `pre-push` gate and run
+  the critical subset — the enforcement SHALL NOT be silently skipped
+
+#### Scenario: Marker without wiring does not silently disable enforcement
+
+- **WHEN** the `validate-gate.enabled` marker is set but the hook is not wired for
+  the repo
+- **THEN** the opt-in SHALL be considered incomplete and SHALL report the missing
+  wiring, rather than leaving the operator believing the gate is active
 
 #### Scenario: Critical finding blocks the push
 
