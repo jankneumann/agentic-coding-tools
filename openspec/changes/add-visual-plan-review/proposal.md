@@ -107,6 +107,7 @@ local artifact-based loop has proven its value.
 ### Decision D — Layout gate severity (OPERATOR GATE)
 
 lavish-axi blocks the human view on *error*-severity layout findings but shows *warning*-severity
-ones. We adopt the same default, but whether a failing gate should also **block the agent from
-proceeding** to `iterate-on-plan` (hard gate) or merely annotate the artifact (soft gate) is left as
-a Gate-1 operator decision in `design.md`.
+ones. We adopt the same model. Because an *error*-severity finding masks the human view, it can't be
+soft-gated — the agent must remediate (regenerate → re-audit) until errors clear before awaiting human
+completion, or the run deadlocks. Only *warning*-severity handling is a Gate-1 operator decision in
+`design.md` (surface to the agent vs. show only to the human).

@@ -48,10 +48,12 @@ The gate audits the rendered artifact for horizontal overflow, element clipping,
 emitting `{selector, kind, overflowPx, viewportWidth, severity}` findings (lavish-axi's shape).
 `error`-severity findings mask the human view until fixed; `warning`-severity render normally.
 
-**Gate-1 operator decision (Decision D in proposal):** does an `error`-severity gate also *block the
-agent* from proceeding to `iterate-on-plan` (hard gate), or only annotate the artifact and let the
-flow continue (soft gate)? Default proposed: **soft gate** — record the finding, let iteration
-continue, surface it in the annotation artifact. Operator confirms at Gate 1.
+Because an `error`-severity finding **masks the human view**, it necessarily blocks review — the human
+cannot annotate or signal completion on a masked artifact. So error severity is **not** subject to a
+soft/hard toggle: `plan-feature` MUST run the remediation loop (regenerate → re-audit) until no
+`error`-severity finding remains before it waits for human completion, else the run deadlocks (see the
+skill-workflow "Plan Review Layout Gate" requirement). The only genuinely soft class is
+`warning`-severity, which renders normally and is surfaced as an annotation without blocking.
 
 ### D5 — Long-poll, no timeout
 

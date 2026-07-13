@@ -66,6 +66,21 @@ session is keyed by canonical change-id.
 - **THEN** the poll SHALL return both annotation records
 - **AND** queued annotations SHALL survive a client disconnect because they are persisted on queue
 
+### Requirement: Annotation Text Is Secret-Redacted Before Persistence
+
+Annotation `text`/`prompt` SHALL be passed through the existing session-log secret-redaction (or an
+equivalent credential/token scanner) **before** it is written to the git-tracked
+`plan-annotations.json`, because that free-form human input is committed with the change. A reviewer
+who accidentally pastes a token, credential, or other secret into an annotation SHALL NOT have that
+secret land in the tracked artifact; the redacted form is what persists.
+
+#### Scenario: Pasted secret is redacted before it is committed
+
+- **WHEN** a human annotation's `text` contains a value matching a secret/credential pattern
+- **THEN** the persisted record in `plan-annotations.json` SHALL contain the redacted form, not the
+  raw secret
+- **AND** the redaction SHALL happen before the write, so the raw secret is never committed
+
 ### Requirement: Review Session Has an Explicit Completion Signal
 
 The plan-review session SHALL provide an explicit human "done / continue" control in the artifact
