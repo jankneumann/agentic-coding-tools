@@ -170,6 +170,11 @@ variable interpolation), mapped to the compose operator variables:
 # agent-coordinator/.env — values copied from the cloud-setup output
 COORDINATOR_API_KEYS=<printed COORDINATION_API_KEYS value>
 COORDINATOR_API_KEY_IDENTITIES=<printed COORDINATION_API_KEY_IDENTITIES JSON>
+# In-container client key for the HTTP loopback (e.g. /gen-eval/run spawns the
+# gen_eval CLI, which calls the coordinator's own API as a client). Must be ONE
+# of the keys in COORDINATOR_API_KEYS above — otherwise it defaults to
+# dev-key-001, which the rotated server now rejects, and loopback calls get 401.
+COORDINATOR_CLIENT_API_KEY=<one key from COORDINATOR_API_KEYS>
 # Bind Postgres to loopback only (see security checklist)
 AGENT_COORDINATOR_DB_PORT=127.0.0.1:54322
 ```
@@ -177,6 +182,10 @@ AGENT_COORDINATOR_DB_PORT=127.0.0.1:54322
 Skipping this step is the dev-key trap: without `COORDINATOR_API_KEYS` set,
 compose falls back to `dev-key-001` and the public API will accept that
 well-known key while rejecting the rotated keys you distribute to agents.
+The mirror trap is setting `COORDINATOR_API_KEYS` but *not*
+`COORDINATOR_CLIENT_API_KEY`: the server stops accepting `dev-key-001`, yet the
+in-container loopback client still sends it, so `/gen-eval/run` and other
+self-calls fail with 401 until the client key is pinned to a rotated key.
 
 ```bash
 docker compose --profile api up -d --build coordinator-api
