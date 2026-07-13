@@ -56,10 +56,13 @@ backbone the others consume; Phase 4 depends on Phase 1's data model.
   requires review-only fields (`disposition`, `axis`, `severity`); the review
   schema is left entirely unchanged. Each validation finding carries an optional
   `fixability` tier of `auto-fix` (mechanical, behavior-preserving) or `escalate`
-  (touches intent). A new triage step auto-applies `auto-fix` findings by
-  delegating to the existing `simplify` / `fix-scrub` low-risk fixers, then re-runs
-  the affected phase. The markdown report is rendered *from* the findings file, so
-  humans and automation read the same source of truth.
+  (touches intent). A new triage step walks `auto-fix` findings one at a time and
+  applies each through a narrow, single-finding fixer — the low-level tool-native
+  executor (e.g. `ruff --fix`), in place with no branch/commit — then re-runs the
+  affected phase and reverts on regression. It does not run the full
+  `simplify`/`fix-scrub` skill workflows (those remain manual escalation). The
+  markdown report is rendered *from* the findings file, so humans and automation
+  read the same source of truth.
 
 - **Phase 2 — Opt-in pre-push enforcement gate (item #1).** Add an opt-in
   `pre-push` git hook (alongside the existing `.githooks/pre-commit` /
@@ -189,10 +192,11 @@ backbone the gate and triage build on.
   add contract tests asserting the review schema is byte-for-byte unchanged and a
   full validation-findings file validates against the new schema.
 - **Auto-fix applying an unsafe change.** A finding mis-classified as `auto-fix`
-  could alter behavior. *Mitigation*: `auto-fix` delegates only to the existing
-  `simplify` / `fix-scrub` low-risk, behavior-preserving fixers (same boundary
-  they already enforce); every auto-fix re-runs the affected phase and reverts on
-  regression; the classifier defaults to `escalate` when uncertain.
+  could alter behavior. *Mitigation*: the narrow fixer applies only a single,
+  tool-native, behavior-preserving change per finding (e.g. `ruff --fix`) in place
+  with no branch/commit; every auto-fix re-runs the affected phase and reverts that
+  finding's change on regression; the classifier defaults to `escalate` when
+  uncertain; anything beyond the tool-native fixers is manual escalation.
 - **Enforcement gate blocking a legitimate emergency push.** *Mitigation*: opt-in
   install, `VALIDATE_GATE=0` kill-switch, and the standard `git push --no-verify`
   escape hatch, all documented at the block message.
@@ -207,9 +211,9 @@ backbone the gate and triage build on.
 ## Impact
 
 - **New**: a finding-emit helper shared by `validate-feature` phases; a
-  findings→markdown renderer; an auto-fix triage step delegating to
-  `simplify`/`fix-scrub`; `.githooks/pre-push` + installer entry; a `--ephemeral`
-  worktree path; a `--triage` / `-y` triage-state loop.
+  findings→markdown renderer; a narrow single-finding auto-fix step (tool-native
+  executors, in-place, no branch/commit); `.githooks/pre-push` + installer entry; a
+  `--ephemeral` worktree path; a `--triage` / `-y` triage-state loop.
 - **Modified**: `skills/validate-feature/SKILL.md` (phase output contracts, new
   flags, gate/triage/ephemeral sections); `skills/validate-feature/scripts/*`
   (phases emit findings); the report-rendering step (§11) reads the findings file;
@@ -218,7 +222,9 @@ backbone the gate and triage build on.
   optional `fixability` / `triage_state`); `review-findings.schema.json` is left
   unchanged.
 - **Reused**: the `review-findings.schema.json` finding-record *conventions* (not
-  the schema file itself, which is untouched), `simplify` + `fix-scrub` fixers,
-  `consensus_synthesizer.py` matching, the `worktree` skill lifecycle,
+  the schema file itself, which is untouched), the tool-native fixers (`ruff --fix`
+  / formatters) that `simplify`/`fix-scrub` also wrap — invoked directly per
+  finding, not via those skills' full workflows — `consensus_synthesizer.py`
+  matching, the `worktree` skill lifecycle,
   `environment_profile.detect()`, `AskUserQuestion`, coordinator
   `memory`/`audit`, and the existing `.githooks` installer.

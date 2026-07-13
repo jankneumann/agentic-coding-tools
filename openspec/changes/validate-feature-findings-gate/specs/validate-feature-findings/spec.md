@@ -111,14 +111,21 @@ wrong finding.
 
 ### Requirement: Auto-fix triage step
 
-The system SHALL provide a triage step that applies findings whose `fixability`
-is `auto-fix` by delegating to the existing `simplify` / `fix-scrub` low-risk
-fixers, re-runs the affected phase, and reverts the fix if the re-run regresses.
+The system SHALL provide a triage step that walks findings whose `fixability` is
+`auto-fix` **one at a time** and applies each through a **narrow, single-finding
+fixer**: for one finding, it invokes the low-level tool-native executor for that
+finding class (e.g. `ruff --fix` / a formatter) **in place in the current
+validation worktree — no branch, no commit, no push** — then re-runs the affected
+phase and reverts that finding's change if the re-run regresses. The step SHALL
+NOT invoke the full `simplify` or `fix-scrub` skill *workflows* (which create their
+own branch, commit, and push, or require interactive input); those remain a manual
+escalation path.
 
-#### Scenario: Auto-fix applied and phase re-validated
+#### Scenario: Auto-fix applied per finding and phase re-validated
 
 - **WHEN** the triage step processes a finding with `fixability: auto-fix`
-- **THEN** it SHALL apply the fix via the `simplify` / `fix-scrub` low-risk fixers
+- **THEN** it SHALL apply a single targeted fix for that finding via the low-level
+  tool-native executor, without creating a branch or committing
 - **AND** it SHALL re-run the originating phase
 - **AND** on a passing re-run it SHALL set the finding's `triage_state` to `fix`,
   which marks it resolved for report and gate purposes (per "Triage state
@@ -128,7 +135,7 @@ fixers, re-runs the affected phase, and reverts the fix if the re-run regresses.
 #### Scenario: Regressing auto-fix reverted
 
 - **WHEN** an applied `auto-fix` causes the re-run of its phase to fail
-- **THEN** the triage step SHALL revert the fix
+- **THEN** the triage step SHALL revert that finding's change
 - **AND** SHALL re-classify the finding's `fixability` as `escalate`
 
 ### Requirement: Report rendered from findings file

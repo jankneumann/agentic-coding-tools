@@ -55,15 +55,18 @@
   `escalate`. Verify with 1.5. **(S)**
   **Design decisions**: D3
   **Dependencies**: 1.5
-- [ ] 1.7 Write test for the auto-fix triage step: an `auto-fix` finding is
-  applied and resolved on a passing re-run; a regressing fix is reverted and
-  re-classified `escalate`. **(M)**
+- [ ] 1.7 Write test for the narrow single-finding auto-fix step: one `auto-fix`
+  finding is fixed in place (no branch/commit) and resolved (`triage_state: fix`)
+  on a passing re-run; a regressing fix reverts only that finding's change and
+  re-classifies it `escalate`; the full `simplify`/`fix-scrub` skills are NOT
+  invoked. **(M)**
   **Spec scenarios**: validate-feature-findings.auto-fix-triage-step
   **Design decisions**: D2
   **Dependencies**: 1.4, 1.6
-- [ ] 1.8 Implement the auto-fix triage step delegating to `simplify` /
-  `fix-scrub`, re-running the affected phase, reverting on regression. Verify with
-  1.7. **(M)**
+- [ ] 1.8 Implement the narrow single-finding fixer: map a finding class to its
+  low-level tool-native executor (e.g. `ruff --fix` / formatter), apply in place in
+  the current worktree with no branch/commit/push, re-run the affected phase, revert
+  that finding's change on regression. Verify with 1.7. **(M)**
   **Spec scenarios**: validate-feature-findings.auto-fix-triage-step
   **Design decisions**: D2
   **Dependencies**: 1.7
@@ -100,18 +103,22 @@
   **Spec scenarios**: validate-feature-gate.critical-subset-definition
   **Design decisions**: D4
   **Dependencies**: 2.1
-- [ ] 2.3 Write test for inert-until-enabled + kill-switch: with `core.hooksPath=
-  .githooks` and the hook file present but no `validate-gate.enabled` marker, `git
-  push` runs no checks (hook exits 0); after opt-in it runs; `VALIDATE_GATE=0` skips
-  all checks. **(S)**
-  **Spec scenarios**: validate-feature-gate.checked-in-hook-is-inert-until-enabled,
-  validate-feature-gate.gate-enabled-on-request,
+- [ ] 2.3 Write tests for wiring + inert-until-enabled + kill-switch: (a) fresh
+  clone with NO `core.hooksPath` → opt-in sets/verifies the wiring + marker → `git
+  push` actually invokes the gate; (b) `core.hooksPath=.githooks` with the hook file
+  present but no `validate-gate.enabled` marker → `git push` runs no checks (hook
+  exits 0); (c) marker set but hook not wired → opt-in reports incomplete; (d)
+  `VALIDATE_GATE=0` skips all checks. **(S)**
+  **Spec scenarios**: validate-feature-gate.opt-in-wires-the-hook-on-a-fresh-clone,
+  validate-feature-gate.checked-in-hook-is-inert-until-enabled,
+  validate-feature-gate.marker-without-wiring-does-not-silently-disable-enforcement,
   validate-feature-gate.kill-switch-disables-the-gate
   **Dependencies**: 2.2
 - [ ] 2.4 Add the `.githooks/pre-push` hook (inert no-op unless the
-  `validate-gate.enabled` marker is set) + opt-in installer that sets the marker,
-  honoring `VALIDATE_GATE=0` and printing escape-hatch guidance on block. Verify
-  with 2.3. **(M)**
+  `validate-gate.enabled` marker is set) + opt-in installer that **sets and verifies
+  the hook wiring** (`core.hooksPath=.githooks` or a forwarding `.git/hooks/pre-push`)
+  AND sets the marker, honoring `VALIDATE_GATE=0` and printing escape-hatch guidance
+  on block. Verify with 2.3. **(M)**
   **Spec scenarios**: validate-feature-gate.opt-in-pre-push-enforcement-gate,
   validate-feature-gate.checked-in-hook-is-inert-until-enabled,
   validate-feature-gate.kill-switch-disables-the-gate
@@ -151,8 +158,13 @@
   **Spec scenarios**: validate-feature-ephemeral.cloud-harness-fallback
   **Design decisions**: D5
   **Dependencies**: 3.3
-- [ ] 3.C **Checkpoint**: an `--ephemeral` run leaves `git status` clean on the
-  branch while the report lands in `openspec/changes/<change-id>/`.
+- [ ] 3.C **Checkpoint**: after an `--ephemeral` run, `git status` on the branch
+  shows **only** the persisted `validation-report.md` / `validation-findings.json`
+  under `openspec/changes/<change-id>/` (no deploy artifacts, scan output, logs, or
+  scratch worktree) — the persisted files are the sole intentional change; the test
+  asserts exactly that set and no other residue. (Whether those files are left
+  unstaged, staged, or committed is the implementation's explicit choice per 3.2,
+  not left ambiguous.)
 
 ## 4. Interactive per-finding triage (Phase 4)
 

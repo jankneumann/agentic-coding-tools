@@ -51,13 +51,22 @@ linters, and `consensus_synthesizer` are wholly unaffected (Risk: schema churn �
 eliminated). Contract tests assert the review schema is unchanged and that a
 complete `validation-findings.json` validates against the new schema.
 
-### D2 — Auto-fix delegates to existing low-risk fixers only
+### D2 — Auto-fix is a narrow, single-finding fixer (not the full skills)
 
-`auto-fix` does not implement its own mutation logic. It calls the `simplify` and
-`fix-scrub` skills, which already enforce a "low-risk, behavior-preserving"
-boundary — the same boundary that defines the auto-fix/escalate split. This keeps
-one definition of "safe to apply headless" instead of two. Every auto-fix
-re-runs its originating phase and reverts on regression (Risk: unsafe auto-fix).
+`auto-fix` operates on **one specific finding at a time**. It is a narrow fixer
+that applies a single targeted, behavior-preserving change **in place in the
+current validation worktree** — no branch creation, no commit, no push — by
+invoking the low-level tool-native executor for that finding class (e.g.
+`ruff --fix`/formatter for a lint/format finding), then re-runs the originating
+phase and reverts on regression (Risk: unsafe auto-fix). It does **not** invoke
+the full `simplify` or `fix-scrub` skill *workflows*: `fix-scrub` consumes a
+bug-scrub report and creates its own branch, verifies broadly, commits, and
+pushes; `simplify` is an interactive read-then-edit flow — both would mutate/commit
+outside the validation run's branch semantics or fail the per-finding input
+contract. Those skills remain a **manual escalation** path. The one-by-one
+orchestration (walk findings → call the narrow fixer per finding) is the caller's
+job; this is deliberately the same per-finding primitive a future `bug-scrub`
+would call to apply `tech-debt-analysis` findings individually.
 
 ### D3 — Classifier defaults to escalate
 
