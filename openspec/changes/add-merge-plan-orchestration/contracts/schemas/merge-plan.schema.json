@@ -43,7 +43,8 @@
           "properties": {
             "depends_on": {
               "type": "array",
-              "description": "PR numbers this node depends on (file-overlap or base-branch edges).",
+              "description": "PR numbers this node depends on (file-overlap or base-branch edges). Must form a DAG: JSON Schema enforces per-node edge uniqueness via uniqueItems; cross-node invariants (each `pr` unique across nodes, every edge target present as a node, no self-dependency, no cycles) are producer-enforced — see contracts/README.md.",
+              "uniqueItems": true,
               "items": { "type": "integer", "minimum": 1 }
             },
             "gates": {
@@ -62,7 +63,7 @@
         "state": {
           "type": "object",
           "description": "Live state — hot, concurrently mutated.",
-          "required": ["outcome"],
+          "required": ["outcome", "staleness", "ci_state", "unresolved_comments"],
           "additionalProperties": false,
           "properties": {
             "outcome": {
@@ -79,7 +80,15 @@
             },
             "staleness": { "enum": ["fresh", "stale", "obsolete", "unknown"] },
             "ci_state": { "enum": ["clean", "unstable", "blocked", "dirty", "unknown"] },
-            "unresolved_comments": { "type": "integer", "minimum": 0 },
+            "unresolved_comments": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of unresolved review comments on the node. 0 until analysis records it; 'unknown' state is not applicable to a count."
+            },
+            "unresolved_comment_summary": {
+              "type": ["string", "null"],
+              "description": "Human-readable summary of the unresolved review comments the comment-addressing seam records on the node (spec: 'SHALL record the unresolved-comment summary'). Null when there are none or none have been summarised yet."
+            },
             "vendor_verdict": {
               "type": ["object", "null"],
               "description": "Result of vendor_review.py for this node (confirmed/unconfirmed/blocking counts); null until reviewed.",
