@@ -92,15 +92,20 @@ def test_generated_models_import_and_roundtrip():
 
 
 def test_generated_candidate_matches_openapi_fields():
-    """Parity guard: generated Candidate field set == OpenAPI Candidate schema."""
+    """Parity guard: generated Candidate field set == OpenAPI Candidate schema.
+
+    Bidirectional: the model may not drop an OpenAPI-declared field, and it may
+    not silently carry a field (e.g. provenance like ``cost_source``) that the
+    OpenAPI contract omits — OpenAPI-generated clients would drop/reject it.
+    """
     m = _load_generated()
     doc = yaml.safe_load(_OPENAPI.read_text())
     openapi_fields = set(doc["components"]["schemas"]["Candidate"]["properties"].keys())
     model_fields = set(m.Candidate.model_fields.keys())
-    # cost_source is a rev2 provenance addition present in both once contracts sync;
-    # every OpenAPI-declared field must exist on the model (model may add provenance).
     missing = openapi_fields - model_fields
+    extra = model_fields - openapi_fields
     assert not missing, f"generated Candidate missing OpenAPI fields: {missing}"
+    assert not extra, f"generated Candidate has fields absent from OpenAPI: {extra}"
 
 
 def test_generated_feedback_source_enum_matches_contract():
