@@ -22,4 +22,4 @@ Call route/task before each dispatch_fn and pass the decision into the dispatch 
 
 ## Rationale
 
-The policy engine currently only logs vendor-switch decisions and nothing executes them; closing this decide-but-don't-act gap is what makes routing decisions real and enables the switch_if_time_saved policy this roadmap runs under.
+The policy engine currently only logs vendor-switch decisions and nothing executes them; closing this decide-but-don't-act gap is what makes routing decisions real and enables the switch_if_time_saved policy — which this roadmap can opt into once a cost_ceiling_usd is set (it currently uses the safe wait default).
