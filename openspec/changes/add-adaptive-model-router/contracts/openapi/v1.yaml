@@ -149,6 +149,14 @@ components:
         norm_latency: {type: number}
         posterior_sample_size: {type: integer}
         stale_catalog: {type: boolean, default: false}
+        cost_source:
+          type: string
+          enum: [posterior, prior]
+          nullable: true
+          description: >
+            Provenance of the cost estimate used in scoring — `posterior` (learned
+            per-task cost cleared the sample threshold) or `prior` (catalog per-Mtok
+            proxy). Null when no cost was scored. Mirrors the resolver Candidate.
     SelectModelResponse:
       type: object
       required: [decision_id, selected, alternatives, fallback]
