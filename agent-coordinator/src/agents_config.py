@@ -103,8 +103,11 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["schema_version", "archetypes"],
     "properties": {
-        # schema_version=2 enables phase_mapping per OpenSpec
-        # add-per-phase-archetype-resolution; v1 remains valid for legacy configs.
+        # schema_version selects optional structure: v2 enables phase_mapping (OpenSpec
+        # add-per-phase-archetype-resolution), v3 adds model_aliases / tier models. Note:
+        # `write_capable` is REQUIRED on every archetype regardless of version (fail-loud,
+        # design D3 — no implicit default). A pre-existing v1 file that omits it must add
+        # `write_capable` on migration; the version does NOT grandfather the field away.
         "schema_version": {"type": "integer", "enum": [1, 2, 3]},
         "model_aliases": {
             "type": ["object", "null"],
