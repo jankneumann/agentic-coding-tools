@@ -15,9 +15,26 @@ semantic-judge output is discounted.
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
+
+# Metrics bounded to [0, 1]; and metrics that must be non-negative (delta metrics may
+# legitimately be negative, so they are NOT range-checked beyond finiteness).
+_UNIT_INTERVAL_METRICS = frozenset({"quality", "success_rate"})
+_NON_NEGATIVE_METRICS = frozenset({"cost_per_task_usd", "latency_seconds"})
+
+
+def _observation_value_is_sane(metric: str, value: float) -> bool:
+    """Reject non-finite or out-of-range feedback values before aggregation."""
+    if not math.isfinite(value):
+        return False
+    if metric in _UNIT_INTERVAL_METRICS and not (0.0 <= value <= 1.0):
+        return False
+    if metric in _NON_NEGATIVE_METRICS and value < 0.0:
+        return False
+    return True
 
 # Deterministic verification (1.0) > LLM-judged (0.7) > coarse (0.5) > inferred
 # (0.3). Keys match the FeedbackEvent.source contract enum (design D9).
@@ -75,6 +92,11 @@ def aggregate(
     counts: dict[tuple[str, str, str], int] = defaultdict(int)
 
     for o in observations:
+        if not _observation_value_is_sane(o.metric, o.value):
+            # Reject malformed/hostile inputs before they poison the posteriors that
+            # route future work: non-finite (NaN/inf), bounded metrics outside 0..1,
+            # or negative cost/latency.
+            continue
         w = _decayed_weight(o.source, o.age_days, half_life_days)
         if w <= 0:
             continue
