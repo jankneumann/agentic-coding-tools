@@ -2,14 +2,14 @@
 
 ## Phase 1 — Annotation schema & persistence
 
-- [ ] 1.1 Write tests for `annotations.py`: record construction, 240-char text truncation, artifact-header population, round-trip read/write of `plan-annotations.json`
-  **Spec scenarios**: skill-workflow "Annotation record persisted", "Annotation artifact carries header"
+- [ ] 1.1 Write tests for `annotations.py`: record construction, 240-char text truncation, artifact-header population, round-trip read/write of `plan-annotations.json`, and **secret redaction of `text`/`prompt` before persistence** (a pasted token/credential is stored redacted, never raw)
+  **Spec scenarios**: skill-workflow "Annotation record persisted", "Annotation artifact carries header", "Pasted secret is redacted before it is committed"
   **Design decisions**: D2 (schema), D3 (anchors)
   **Dependencies**: None
   **Size**: S
 
-- [ ] 1.2 Implement `skills/shared/plan_review/annotations.py` — `Annotation` dataclass, `append(change_id, record)`, `load(change_id)`, header stamping (reuse the shared artifact-header helper if present, else inline ~10 LOC)
-  **Spec scenarios**: skill-workflow "Annotation record persisted", "Annotation artifact carries header"
+- [ ] 1.2 Implement `skills/shared/plan_review/annotations.py` — `Annotation` dataclass, `append(change_id, record)` (running `text`/`prompt` through the session-log secret-redaction / credential scanner before write), `load(change_id)`, header stamping (reuse the shared artifact-header helper if present, else inline ~10 LOC)
+  **Spec scenarios**: skill-workflow "Annotation record persisted", "Annotation artifact carries header", "Pasted secret is redacted before it is committed"
   **Design decisions**: D2, D3
   **Dependencies**: 1.1
   **Size**: M
@@ -44,9 +44,9 @@
 
 ## Phase 4 — Skill integration
 
-- [ ] 4.1 Wire `--visual-review` into `plan-feature` **after `tasks.md` is generated (Step 6)** so the task DAG is populated: render + serve + long-poll **until the review-complete event or an operator abort** (never exit after only the first annotation batch), then fold the **unresolved** annotations into the `iterate-on-plan` pass as element-anchored findings and mark each `resolved: true` once applied; short-circuit via the **interactive-review capability check** (cloud/headless profile + `CI` + display/browser availability + explicit override), not `environment_profile.detect()` alone. Add a test that a local-CI/no-display run short-circuits instead of blocking on the poll.
-  **Spec scenarios**: skill-workflow "Visual review gate in plan-feature", "First annotation batch does not end the session", "Visual review skipped when non-interactive"
-  **Design decisions**: D6 (interactive-capability awareness), D8 (completion)
+- [ ] 4.1 Wire `--visual-review` into `plan-feature` **after `tasks.md` is generated (Step 6)** so the task DAG is populated: render + serve + long-poll, **consuming layout findings from the poll channel — while any `error`-severity finding is unresolved, regenerate the artifact and re-run the audit rather than wait for completion** — then long-poll **until the review-complete event or an operator abort** (never exit after only the first annotation batch), then fold the **unresolved** annotations into the `iterate-on-plan` pass as element-anchored findings and mark each `resolved: true` once applied; short-circuit via the **interactive-review capability check** (cloud/headless profile + `CI` + display/browser availability + explicit override), not `environment_profile.detect()` alone. Add tests that (a) a local-CI/no-display run short-circuits instead of blocking on the poll, and (b) an `error`-severity layout finding triggers regenerate/re-audit and the skill does NOT wait for completion until errors clear.
+  **Spec scenarios**: skill-workflow "Visual review gate in plan-feature", "Agent resolves error-layout findings before awaiting completion", "First annotation batch does not end the session", "Visual review skipped when non-interactive"
+  **Design decisions**: D4 (layout gate), D6 (interactive-capability awareness), D8 (completion)
   **Dependencies**: 3.2
   **Size**: M
 
@@ -78,4 +78,4 @@
 
 ## Gate 1 — operator decision required
 
-- [ ] G1 Confirm layout-gate default (Decision D / D4): **soft gate** (record finding, continue) vs. **hard gate** (block agent until layout fixed). Proposed default: soft.
+- [ ] G1 Confirm the `warning`-severity layout policy (Decision D / D4): warnings render normally and are surfaced as annotations without blocking. `error`-severity is NOT part of this toggle — it always drives the mandatory remediation loop (regenerate → re-audit before awaiting completion) because a masked view can't be reviewed. Confirm whether warnings should additionally be surfaced to the agent or only shown to the human.
