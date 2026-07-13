@@ -72,7 +72,7 @@ library precedent.
 | `explore-feature/SKILL.md` | Consume `opportunity-solution-tree` output; add outcome framing to "what next" |
 | `prioritize-proposals/SKILL.md` | Add `prioritize-features` scoring axes alongside code-signal ranking |
 | `plan-feature/SKILL.md` | Gate-1 discovery incorporates `identify-assumptions` + `strategy-red-team` findings |
-| `validate-feature/SKILL.md` (+ `openspec-verify-change` note) | Add `intended-vs-implemented` as a complementary drift check |
+| `validate-feature/SKILL.md` (+ a note in the OpenSpec verify workflow docs; no tracked `openspec-verify-change` skill exists) | Add `intended-vs-implemented` as a complementary drift check |
 | `openspec/schemas/roadmap/templates/*` + `roadmap.yaml` schema | Optional `outcome` / `okr` fields per roadmap item |
 
 ### Cross-cutting
