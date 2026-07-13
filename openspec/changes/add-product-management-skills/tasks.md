@@ -27,12 +27,14 @@ as `Dxx` live in [`design.md`](design.md).
   - Add optional per-item `outcome` and `okr` fields to `openspec/schemas/roadmap/templates/*` and
     the roadmap schema; confirm existing `roadmap.yaml` files still validate.
 
-- [ ] 0.4 Register the 12 new test dirs in `skills/pyproject.toml` `testpaths`
+- [ ] 0.4 Create the 12 new test dirs (each with a placeholder `test_skill_md.py` containing a
+  trivial passing test) AND register them in `skills/pyproject.toml` `testpaths`
   - **Spec scenarios**: `skill-workflow.new-skill-test-directories-are-collected`
   - **Design decisions**: D9
   - **Dependencies**: None
-  - Append the 12 `skills/tests/<name>/` paths; verify `cd skills && uv run pytest --collect-only`
-    enumerates them (collecting empty is fine until Phase 1 lands the tests).
+  - The placeholder files MUST exist before/with the `testpaths` registration — pytest errors on a
+    configured `testpaths` entry that does not exist. Verify `cd skills && uv run pytest --collect-only`
+    enumerates all 12 (Phase 1 replaces the placeholders with the real tests).
 
 - [ ] 0.5 Stub the "Product discovery" group in `docs/skills-catalogue.md`
   - **Dependencies**: None
@@ -136,6 +138,18 @@ Each existing skill is edited exactly once (D6). All edits additive (D6, D7).
 - [ ] 2.1.2 Wire `plan-feature/SKILL.md` Gate-1 discovery to incorporate `identify-assumptions` + `strategy-red-team`
   - **Design decisions**: D6
   - **Dependencies**: Phase 1.2, 1.3
+- [ ] 2.1.3 Wire seam 1 producer→consumer: `plan-roadmap`, `plan-feature`, and the proposal template consume `create-prd` / `opportunity-solution-tree` output so discovery output is a valid `proposal.md` / candidate set
+  - **Spec scenarios**: `product-discovery-workflow.proposal-template-accepts-discovery-sections`
+  - **Design decisions**: D6
+  - **Dependencies**: Phase 1.1
+- [ ] 2.1.4 Wire seam 3's `iterate-on-plan` consumer: `iterate-on-plan/SKILL.md` consumes `pre-mortem` findings (using the existing plan-review finding shape), completing the Gate-1 + iterate coverage of seam 3
+  - **Spec scenarios**: `product-discovery-workflow.strategy-red-team-findings-flow-into-plan-iteration`
+  - **Design decisions**: D6
+  - **Dependencies**: Phase 1.3
+- [ ] 2.1.5 Wire seam 4: `plan-feature` spec generation and `validate-feature` consume `user-stories` / `test-scenarios` so generated specs and validation include WHEN/THEN scenario blocks
+  - **Spec scenarios**: `product-discovery-workflow.user-stories-and-test-scenarios-emit-when-then-blocks`
+  - **Design decisions**: D6
+  - **Dependencies**: Phase 1.4
 
 ### Phase 2.2 — Prioritization cluster (`wp-wire-prioritization`)
 
@@ -146,7 +160,7 @@ Each existing skill is edited exactly once (D6). All edits additive (D6, D7).
 
 ### Phase 2.3 — Verification & roadmap cluster (`wp-wire-verification-roadmap`)
 
-- [ ] 2.3.1 Wire `validate-feature/SKILL.md` (+ note in `openspec-verify-change`) for the `intended-vs-implemented` drift check
+- [ ] 2.3.1 Wire `validate-feature/SKILL.md` (+ a note in the OpenSpec verification workflow docs under `docs/guides/` — there is no tracked `openspec-verify-change` skill to edit) for the `intended-vs-implemented` drift check
   - **Spec scenarios**: `product-discovery-workflow.drift-check-runs-alongside-spec-compliance`, `product-discovery-workflow.drift-check-is-advisory-additive`
   - **Design decisions**: D6
   - **Dependencies**: Phase 1.5

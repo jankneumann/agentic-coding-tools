@@ -15,7 +15,7 @@ The six seam wirings SHALL be:
 | 2 | `prioritize-features`, `identify-assumptions` | `prioritize-proposals`, `explore-feature` | scoring axes compose with code-signal ranking |
 | 3 | `strategy-red-team`, `pre-mortem` | `plan-feature` (Gate 1), `iterate-on-plan` | findings use the existing plan-review finding shape |
 | 4 | `user-stories`, `test-scenarios` | `plan-feature` spec generation, `validate-feature` | output includes WHEN/THEN scenario blocks |
-| 5 | `intended-vs-implemented` | `validate-feature`, `openspec-verify-change` | complementary drift check, does not replace spec-compliance |
+| 5 | `intended-vs-implemented` | `validate-feature` (+ a note in the OpenSpec verification workflow docs) | complementary drift check, does not replace spec-compliance |
 | 6 | `outcome-roadmap`, `brainstorm-okrs` | `plan-roadmap`, `autopilot-roadmap`, `roadmap.yaml` | optional outcome/OKR fields per item |
 
 #### Scenario: Proposal template accepts discovery sections
@@ -44,14 +44,23 @@ code-signal ranking unchanged
 **THEN** the findings SHALL conform to the plan-review finding shape consumed by `iterate-on-plan`
 **AND** `iterate-on-plan` SHALL be able to iterate on them without a schema adapter
 
+#### Scenario: User stories and test scenarios emit WHEN/THEN blocks
+
+**WHEN** `user-stories` or `test-scenarios` produces output for a feature under `plan-feature` spec
+generation
+**THEN** the output SHALL include WHEN/THEN scenario blocks in the OpenSpec scenario shape
+**AND** `validate-feature` SHALL be able to consume those scenario blocks as behavioral checks
+without a schema adapter
+
 ---
 
 ### Requirement: Intended-vs-Implemented Verification Seam
 
 The validation workflow SHALL include an `intended-vs-implemented` drift check that compares the
 behavior documented in a change's proposal/specs against the behavior actually shipped. This check
-SHALL be **complementary** to the existing spec-compliance verification in `openspec-verify-change`
-and `validate-feature`; it SHALL NOT replace it, and a failure of one SHALL NOT be masked by a pass
+SHALL be **complementary** to the existing spec-compliance verification (`validate-feature` and the
+OpenSpec verify step, `openspec verify` / `opsx:verify`); it SHALL NOT replace it, and a failure of
+one SHALL NOT be masked by a pass
 of the other.
 
 #### Scenario: Drift check runs alongside spec compliance
