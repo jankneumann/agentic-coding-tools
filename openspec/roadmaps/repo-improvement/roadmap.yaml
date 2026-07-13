@@ -131,7 +131,8 @@ items:
     state file into an error.
   rationale: The policy engine currently only logs vendor-switch decisions and nothing
     executes them; closing this decide-but-don't-act gap is what makes routing decisions
-    real and enables the switch_if_time_saved policy this roadmap runs under.
+    real and enables the switch_if_time_saved policy — which this roadmap can opt into
+    once a cost_ceiling_usd is set (it currently runs under the safe wait default).
   change_id: make-the-orchestrator-obey-the-router
   acceptance_outcomes:
   - An induced rate-limit on the preferred vendor causes an observed, ledger-verified
