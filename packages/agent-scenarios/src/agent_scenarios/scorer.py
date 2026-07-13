@@ -95,12 +95,16 @@ def _condition_met(gate: GoalGate, state: WorkspaceState) -> tuple[bool, str]:
 
     if gate.check == "command":
         assert gate.command is not None  # guarded by model validator
+        # Bounded by command_timeout_seconds so a stuck command (hung test runner,
+        # waiting server) can't hang the whole parity run. A TimeoutExpired propagates
+        # to score_gate's handler and scores the gate as ``error`` (not a silent fail).
         proc = subprocess.run(
             _resolve_command(gate.command),
             cwd=str(root),
             capture_output=True,
             text=True,
             check=False,
+            timeout=gate.command_timeout_seconds,
         )
         return _evaluate_command(gate, proc)
 

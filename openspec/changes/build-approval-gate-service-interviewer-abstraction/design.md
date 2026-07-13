@@ -113,7 +113,14 @@ missing Telegram token shouldn't park a correctly-filed approval." **The excepti
 fails closed to block rather than proceeding — auto-proceeding when nobody was ever
 notified would be an unattended action no human could have vetoed. Delivery status is
 therefore carried from the notify step into the timeout default so a `proceed` default
-only fires when a human was actually reachable.
+only fires when a human was actually reachable. **Current implementation limitation:**
+the bridge's only notification path is the diagnostic `POST /notifications/test`, which
+emits a generic ping and does not carry the approval id / approve-deny actions — so it
+cannot *confirm* the approval reached a human. The bridge therefore always reports
+`notified=False`, which means `default_action=proceed` gates currently always fail
+closed on timeout (the approval remains filed and pollable). Returning `notified=True`
+is gated on a future real approval-notification endpoint; the fail-closed default is the
+safe interim behavior.
 
 ### D5: `block` parks, it does not wait
 

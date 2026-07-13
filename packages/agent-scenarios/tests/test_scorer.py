@@ -131,3 +131,18 @@ def test_deterministic_status_rollup(git_workspace: Path) -> None:
         _state(git_workspace),
     )
     assert deterministic_status(all_ok) == "pass"
+
+
+def test_command_gate_times_out_to_error() -> None:
+    from agent_scenarios.models import GoalGate, WorkspaceState
+    from agent_scenarios.scorer import score_gate
+
+    gate = GoalGate(
+        id="slow",
+        check="command",
+        command=["python3", "-c", "import time; time.sleep(30)"],
+        command_timeout_seconds=1,
+    )
+    verdict = score_gate(gate, WorkspaceState(root="."))
+    assert verdict.status == "error"
+    assert "time" in verdict.detail.lower() or "error" in verdict.detail.lower()

@@ -456,7 +456,8 @@ def test_bridge_coordinator_client_end_to_end(monkeypatch) -> None:
         operation="gate:merge", resource=None, context={}, timeout_seconds=10
     )
     assert rid == "R1"
-    assert client.push_notification(subject="s", body="b", approval_id="R1") is True
+    # The diagnostic notify endpoint never confirms approval delivery (fail closed).
+    assert client.push_notification(subject="s", body="b", approval_id="R1") is False
     assert client.check_approval("R1") == "approved"
 
 
@@ -489,26 +490,29 @@ def test_push_notification_transport_down_raises(monkeypatch, status) -> None:
 
 
 @pytest.mark.parametrize(
-    "status,data,delivered",
+    "status,data",
     [
-        (200, {"success": True, "sent": True}, True),      # confirmed delivery
-        (200, {"success": True, "sent": False}, False),    # 2xx but nothing sent
-        (200, {}, False),                                  # 2xx, no confirmation
-        (401, {}, False),                                  # auth failure
-        (404, {}, False),                                  # no channel
-        (429, {}, False),                                  # rate-limited
+        (200, {"success": True, "sent": True}),   # diagnostic endpoint "sent" ≠ approval delivered
+        (200, {"success": True, "sent": False}),
+        (200, {}),
+        (401, {}),
+        (404, {}),
+        (429, {}),
     ],
 )
-def test_push_notification_reports_delivery(monkeypatch, status, data, delivered) -> None:
-    # Delivery is only True when the 2xx body confirms success AND sent. A 2xx with
-    # sent=false (test-stub / no channel) is undelivered — the gate uses this to refuse
-    # a proceed-on-timeout.
+def test_push_notification_never_reports_delivery_via_diagnostic_endpoint(
+    monkeypatch, status, data
+) -> None:
+    # /notifications/test is a diagnostic endpoint that ignores the approval details,
+    # so the bridge client NEVER reports delivery from it (returns False). This keeps a
+    # default_action=proceed gate failing closed on timeout until a real approval-
+    # notification channel exists. (Transport-down 5xx still raises — tested separately.)
     responses = {
         ("POST", "/notifications/test"): {"status_code": status, "data": data, "error": None},
     }
     monkeypatch.setattr(ag, "_import_bridge", lambda: FakeBridge(responses))
     client = ag.BridgeCoordinatorClient()
-    assert client.push_notification(subject="s", body="b", approval_id="R1") is delivered
+    assert client.push_notification(subject="s", body="b", approval_id="R1") is False
 
 
 def test_notify_timeout_proceed_fails_closed_when_undelivered() -> None:

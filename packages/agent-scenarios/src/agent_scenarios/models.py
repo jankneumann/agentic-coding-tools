@@ -70,6 +70,9 @@ class GoalGate(BaseModel):
     command: list[str] | None = None
     # Reused gen-eval ExpectBlock: exit_code / error_contains / not_empty / ...
     expect: ExpectBlock | None = None
+    # Wall-clock cap for a ``command`` gate. A stuck test runner / waiting server must
+    # not hang the whole parity run; on timeout the gate scores ``error``.
+    command_timeout_seconds: int = 120
 
     @model_validator(mode="after")
     def _check_shape(self) -> GoalGate:

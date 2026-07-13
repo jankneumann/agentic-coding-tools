@@ -650,16 +650,20 @@ class BridgeCoordinatorClient:
             raise CoordinatorUnavailable(
                 f"notification transport error (status={status})"
             )
-        if not (200 <= status < 300):
-            # Non-2xx (404 no channel, 401/403 auth, 429 rate-limit) → not delivered.
-            return False
-        # A 2xx alone is NOT proof of delivery: the endpoint returns 200 with
-        # ``{"success": true, "sent": false}`` when no channel actually delivered the
-        # message. Treat as delivered only when the body confirms both. Otherwise
-        # notified=False, so a default_action=proceed gate fails closed on timeout
-        # (see _apply_default) instead of proceeding with nobody actually notified.
-        data = response.get("data") or {}
-        return bool(data.get("success")) and bool(data.get("sent"))
+        # We deliberately do NOT report delivery from this path. `/notifications/test`
+        # is a *diagnostic* endpoint: it emits a generic test notification and ignores
+        # the approval subject/body/approval_id, so even a `sent: true` does not mean a
+        # human received the actual approval (with its id and approve/deny actions).
+        # Reporting delivery here would let a default_action=proceed gate auto-proceed
+        # on timeout believing a human was asked when they were not. Until a real
+        # approval-notification channel exists (one that carries the approval id and
+        # actionable instructions), return False so `proceed` gates fail closed on
+        # timeout. The approval is still filed and pollable, so a human can resolve it
+        # from the queue; and the 5xx check above still fails closed when the
+        # coordinator is unreachable.
+        # TODO: return True only once a dedicated approval-notification endpoint
+        # confirms the *approval* (not a test ping) was delivered.
+        return False
 
     def check_approval(self, approval_id: str) -> str:
         bridge = self._bridge()
