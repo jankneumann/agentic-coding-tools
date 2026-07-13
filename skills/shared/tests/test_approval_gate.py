@@ -476,6 +476,56 @@ def test_bridge_coordinator_client_transport_error_raises(monkeypatch) -> None:
         )
 
 
+@pytest.mark.parametrize("status", [500, 503, None])
+def test_push_notification_transport_down_raises(monkeypatch, status) -> None:
+    # A 5xx / no-response means the transport is genuinely down → fail closed (raise).
+    responses = {
+        ("POST", "/notifications/test"): {"status_code": status, "data": {}, "error": None},
+    }
+    monkeypatch.setattr(ag, "_import_bridge", lambda: FakeBridge(responses))
+    client = ag.BridgeCoordinatorClient()
+    with pytest.raises(CoordinatorUnavailable):
+        client.push_notification(subject="s", body="b", approval_id="R1")
+
+
+@pytest.mark.parametrize("status,delivered", [(200, True), (401, False), (404, False), (429, False)])
+def test_push_notification_reports_delivery(monkeypatch, status, delivered) -> None:
+    # 2xx = delivered (True); a non-2xx (auth/no-channel/rate-limit) is undelivered
+    # (False) — non-fatal here, but the gate uses it to refuse a proceed-on-timeout.
+    responses = {
+        ("POST", "/notifications/test"): {"status_code": status, "data": {}, "error": None},
+    }
+    monkeypatch.setattr(ag, "_import_bridge", lambda: FakeBridge(responses))
+    client = ag.BridgeCoordinatorClient()
+    assert client.push_notification(subject="s", body="b", approval_id="R1") is delivered
+
+
+def test_notify_timeout_proceed_fails_closed_when_undelivered() -> None:
+    # Security: a default_action=proceed gate that times out MUST NOT proceed if the
+    # notification was never delivered (no human could have vetoed the unattended action).
+    posture = posture_with(Gate.MERGE, NOTIFY_PROCEED)
+    coord = FakeCoordinator(statuses=["pending", "pending"], notify_return=False)
+    gate, coord, audit, clock = make_gate(posture=posture, coordinator=coord)
+
+    decision = gate.evaluate(Gate.MERGE)
+
+    assert not decision.proceed
+    assert decision.resolution is Resolution.TIMEOUT_BLOCK
+    assert "push_notification" in coord.calls
+
+
+def test_notify_timeout_proceed_applies_when_delivered() -> None:
+    # Control: with the notification delivered, default_action=proceed still proceeds.
+    posture = posture_with(Gate.MERGE, NOTIFY_PROCEED)
+    coord = FakeCoordinator(statuses=["pending", "pending"], notify_return=True)
+    gate, coord, audit, clock = make_gate(posture=posture, coordinator=coord)
+
+    decision = gate.evaluate(Gate.MERGE)
+
+    assert decision.proceed
+    assert decision.resolution is Resolution.TIMEOUT_PROCEED
+
+
 def test_bridge_audit_sink_records_to_memory(monkeypatch) -> None:
     fake_bridge = FakeBridge({})
     monkeypatch.setattr(ag, "_import_bridge", lambda: fake_bridge)

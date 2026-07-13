@@ -185,6 +185,10 @@ class WorkspaceState(BaseModel):
 
     root: str
     working_branch: str | None = None
+    # SHA of the fixture's initial commit, captured at materialize time. The commit
+    # scorer counts only commits *after* this base, so the fixture's own initial
+    # commit never satisfies a `min_count` gate. None when the fixture has no git repo.
+    base_sha: str | None = None
     created_pr: PRRef | None = None
     artifacts: dict[str, str] = Field(default_factory=dict)
 

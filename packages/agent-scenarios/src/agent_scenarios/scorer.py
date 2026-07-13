@@ -62,7 +62,11 @@ def _condition_met(gate: GoalGate, state: WorkspaceState) -> tuple[bool, str]:
         return False, f"branch missing: {gate.branch}"
 
     if gate.check == "commit":
-        log = _git(root, "log", "--format=%H%x00%s")
+        # Count only commits created *after* the fixture's initial commit, so the
+        # fixture's own "initial state" commit never satisfies a `min_count` gate
+        # (a scenario with min_count=1 must require a real agent commit).
+        rev_range = f"{state.base_sha}..HEAD" if state.base_sha else "HEAD"
+        log = _git(root, "log", "--format=%H%x00%s", rev_range)
         if log.returncode != 0:
             return False, f"git log failed: {log.stderr.strip()}"
         lines = [ln for ln in log.stdout.split("\n") if ln]
