@@ -1106,29 +1106,28 @@ def apply_phase_outcome(
 
     state_path = _state_path(change_id)
     if not state_path.exists():
-        # No state file means nothing to update — log and return rather
-        # than raising. This is consistent with the lenient cache path.
-        logger.warning(
-            "phase_agent.apply_phase_outcome: %s does not exist; nothing to update",
-            state_path,
+        # apply-outcome must RECORD the phase result (handoff id, phase history,
+        # escalation state). A missing loop-state means it cannot — failing loud here
+        # so `runner.py apply-outcome` exits non-zero and the escalation wrapper parks
+        # the loop, rather than the orchestrator silently continuing with no record.
+        raise ValueError(
+            f"apply_phase_outcome: loop state {state_path} does not exist; "
+            "cannot record phase outcome (escalating)"
         )
-        return
 
     try:
         state = json.loads(state_path.read_text())
     except (OSError, json.JSONDecodeError) as exc:
-        logger.warning(
-            "phase_agent.apply_phase_outcome: failed to read %s (%s); aborting update",
-            state_path, exc,
-        )
-        return
+        raise ValueError(
+            f"apply_phase_outcome: failed to read/parse loop state {state_path} "
+            f"({exc}); cannot record phase outcome (escalating)"
+        ) from exc
 
     if not isinstance(state, dict):
-        logger.warning(
-            "phase_agent.apply_phase_outcome: unexpected state shape in %s; aborting",
-            state_path,
+        raise ValueError(
+            f"apply_phase_outcome: loop state {state_path} is not a mapping "
+            f"(got {type(state).__name__}); cannot record phase outcome (escalating)"
         )
-        return
 
     is_replay = (
         state.get("last_handoff_id") == handoff_id
