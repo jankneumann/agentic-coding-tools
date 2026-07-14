@@ -105,6 +105,11 @@ override-dependencies = [
     # transitively via the auth stack; force the patched version until an
     # upstream parent floor covers it.
     "joserfc>=1.6.8",
+    # PYSEC-2026-3444: httplib2 < 0.32.0 performs unbounded decompression of
+    # gzip/deflate response bodies, letting a malicious server OOM the client.
+    # Brought in transitively via google-api-python-client / google-auth-httplib2;
+    # force the patched version until an upstream parent floor covers it.
+    "httplib2>=0.32.0",
 ]
 
 # Resolve `gen-eval` to the sibling package in this monorepo. Per design

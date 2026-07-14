@@ -26,6 +26,16 @@ test = [
     "pyyaml>=6.0",
 ]
 
+[tool.uv]
+override-dependencies = [
+    # PYSEC-2026-3444: httplib2 < 0.32.0 performs unbounded decompression of
+    # gzip/deflate response bodies, letting a malicious server OOM the client.
+    # Brought in transitively via google-api-python-client / google-auth-httplib2
+    # (pulled by the sdk extra); force the patched version until an upstream
+    # parent floor covers it.
+    "httplib2>=0.32.0",
+]
+
 [tool.pytest.ini_options]
 # Multiple sibling test directories ship `test_skill_md.py`; without importlib
 # mode, pytest's default rootdir-based import causes module-name collisions.
