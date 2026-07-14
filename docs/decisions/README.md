@@ -30,6 +30,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [coordinator-task-status-renderer](./coordinator-task-status-renderer.md)
 - [evaluation-framework](./evaluation-framework.md)
 - [gen-eval-framework](./gen-eval-framework.md)
+- [merge-infrastructure](./merge-infrastructure.md)
 - [merge-pull-requests](./merge-pull-requests.md)
 - [observability](./observability.md)
 - [sentinel-security-eval](./sentinel-security-eval.md)
