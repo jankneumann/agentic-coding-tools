@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-07-12 — add-merge-plan-orchestration
+
+### Phase: Plan
+
+**Separate plan definition from live state** — Different lifecycles: definition is a reviewable snapshot, live state is hot/concurrent. Conflating them breaks multi-host dispatch.
+
+- Status: `active`
+- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D2)
+
+---
+
+## 2026-07-12 — add-merge-plan-orchestration
+
+### Phase: Plan
+
+**Living plan: execution may insert discovered prerequisites** — A static plan cannot represent a blocker found mid-execution (the joserfc CVE case).
+
+- Status: `active`
+- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D3)
+
+---
+
+## 2026-07-12 — add-merge-plan-orchestration
+
+### Phase: Plan
+
+**Security-check backstop is normative** — Execution SHALL defer to the auto-mode classifier rather than auto-bypass a failing required security check.
+
+- Status: `active`
+- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D4)
+
+---
+
+## 2026-07-12 — add-merge-plan-orchestration
+
+### Phase: Plan
+
+**Spec deltas contain Phase-1 behavior only; Phase 2 lives in design.md** — Keeps the archived capability spec honest — no claiming coordinator behavior that isn't built.
+
+- Status: `active`
+- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D5)
+
+---
+
 ## 2026-04-02 — 2026-04-02-hybrid-merge-strategy
 
 ### Phase: Plan
