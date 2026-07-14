@@ -450,6 +450,48 @@ class TestCmdSetup:
         assert (wt_path / "feature-only.txt").is_file()
         assert not (wt_path / "main-only.txt").exists()
 
+    def test_agent_branch_starts_from_current_feature_branch_when_parent_ref_absent(
+        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: when the named parent feature branch does not exist as a
+        ref, the agent branch must start from the feature branch the operator is
+        on (the invoking checkout's HEAD), NOT from main.
+
+        Coordinated workflow: setup runs from the feature-branch worktree. With
+        no OPENSPEC_BRANCH_OVERRIDE, resolve_parent_branch computes
+        'openspec/<change-id>', which may not exist as a ref (the operator's
+        branch has a different name). The helper previously fabricated that
+        parent from main, giving every agent branch a stale base so merging it
+        back dragged main-only commits into the feature PR. It must instead base
+        the parent on the current feature-branch HEAD.
+        """
+        # Operator's feature branch (name differs from openspec/<id>); stay on it.
+        _commit_file(git_repo, "feature-only.txt", "feature\n", branch="feature-work")
+        # main diverges with a commit that must NOT leak into the agent branch.
+        subprocess.run(
+            ["git", "checkout", "main"], cwd=str(git_repo), check=True, capture_output=True
+        )
+        _commit_file(git_repo, "main-only.txt", "main\n")
+        # Return to the feature branch — this is the invoking checkout state.
+        subprocess.run(
+            ["git", "checkout", "feature-work"], cwd=str(git_repo), check=True, capture_output=True
+        )
+
+        # No override: parent 'openspec/feat' will not resolve as a ref.
+        monkeypatch.delenv("OPENSPEC_BRANCH_OVERRIDE", raising=False)
+        args = _make_args("setup", change_id="feat", agent_id="wp-backend")
+        with _chdir(git_repo):
+            result = worktree.cmd_setup(args)
+        assert result == 0
+
+        wt_path = git_repo / ".git-worktrees" / "feat" / "wp-backend"
+        assert (wt_path / "feature-only.txt").is_file(), (
+            "agent branch must start from the current feature branch HEAD"
+        )
+        assert not (wt_path / "main-only.txt").exists(), (
+            "agent branch must NOT be fabricated from main (stale base)"
+        )
+
     def test_explicit_branch_wins_over_env_override(
         self, git_repo: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
