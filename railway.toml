@@ -1,21 +1,28 @@
 # Railway deployment configuration for the Coordination API
 #
-# ─── ONE-TIME DASHBOARD PREREQUISITE (D8 Strategy A) ───────────────────────
+# ─── THIS FILE MUST LIVE AT THE REPO ROOT ──────────────────────────────────
 #
-# The gen-eval framework is now a sibling package at packages/gen-eval/
-# (see OpenSpec change extract-gen-eval-package).  The Dockerfile (at
+# Railway resolves railway.toml RELATIVE TO the service's Source > Root
+# Directory. The Coordination API service has Root Directory = `/` (see
+# below), so Railway looks for the config at `/railway.toml`. If this file is
+# moved back under agent-coordinator/ it becomes invisible, Railway ignores
+# dockerfilePath, falls back to Railpack, and the build fails ("no recognized
+# manifest at repo root"). Keep it here.
+#
+# ─── DASHBOARD PREREQUISITE (D8 Strategy A) ────────────────────────────────
+#
+# The gen-eval framework is a sibling package at packages/gen-eval/ (see
+# OpenSpec change extract-gen-eval-package). The Dockerfile (at
 # agent-coordinator/Dockerfile) uses a repo-root build context so it can
 # COPY both agent-coordinator/ and packages/gen-eval/ in a single build.
 #
-# Before deploying this version, update the Railway dashboard for the
-# Coordination API service:
+# The Coordination API service must be configured with:
 #
-#   Settings → Source → Root Directory: /   (change from agent-coordinator)
-#   Settings → Build  → Dockerfile Path: agent-coordinator/Dockerfile
+#   Settings → Source → Root Directory: /   (NOT agent-coordinator)
 #
-# The dashboard's Source > Root Directory takes precedence over any
-# buildCommand in this file; only the dashboard change makes the
-# repo-root build context effective.
+# Root Directory is dashboard-only (config-as-code cannot set it). Once it is
+# `/`, this file is discovered and [build] below takes effect — so the
+# Dockerfile Path does NOT need to be set manually in the dashboard.
 #
 # ─── ROLLBACK ────────────────────────────────────────────────────────────────
 # If the dashboard change cannot be made, revert the commit on the deployed
@@ -49,6 +56,18 @@
 [build]
 # Effective once the Railway dashboard Source > Root Directory is set to `/`.
 dockerfilePath = "agent-coordinator/Dockerfile"
+# Root Directory and rebuild-trigger scope are SEPARATE concerns on Railway.
+# Root Directory = `/` is required only so the Docker build CONTEXT can see
+# both agent-coordinator/ and its sibling packages/gen-eval/ (D8 Strategy A).
+# It does NOT mean "rebuild on any repo change": watchPatterns below restrict
+# redeploys to the two source trees that actually go into the coordinator
+# image (mirror of the Dockerfile COPYs). Edits to skills/, apps/, docs/, etc.
+# will not trigger a coordinator rebuild. Add a pattern here if the Dockerfile
+# starts COPYing from a new path outside these two trees.
+watchPatterns = [
+  "agent-coordinator/**",
+  "packages/gen-eval/**",
+]
 
 [deploy]
 healthcheckPath = "/live"
