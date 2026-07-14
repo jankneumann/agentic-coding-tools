@@ -78,6 +78,17 @@ Archive a completed change in the experimental workflow.
    mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
    ```
 
+   **Then regenerate the decision index in the same commit.** `docs/decisions/`
+   is a derived artifact generated from `openspec/changes/` via `make decisions`.
+   The move above stales it, so `main` will fail the `validate-decision-index`
+   CI job unless the index is refreshed alongside the archive. Regenerate and
+   stage it now:
+
+   ```bash
+   make decisions
+   git add docs/decisions/
+   ```
+
 6. **Display summary**
 
    Show archive completion summary including:
