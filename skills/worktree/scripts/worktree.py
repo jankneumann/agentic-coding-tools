@@ -130,6 +130,28 @@ def _existing_branch_start_point(main_repo: Path, branch: str) -> str | None:
     return None
 
 
+def _invoking_feature_branch(cwd: str | None, exclude: set[str]) -> str | None:
+    """Return the invoking checkout's current branch if it is a viable parent.
+
+    In the coordinated workflow, ``worktree.py setup`` is invoked from the
+    feature-branch worktree, so its current branch is the real parent that agent
+    branches must start from (its HEAD is the base to preserve). Returns None
+    when the checkout is on ``main``, detached, or already on one of the
+    ``exclude`` branches (the agent branch itself or the computed parent name),
+    leaving the caller to fall back to ``main`` — the correct base for a
+    genuinely fresh feature with no prior work.
+    """
+    if not cwd:
+        return None
+    try:
+        current = (run_git("branch", "--show-current", cwd=cwd) or "").strip()
+    except subprocess.CalledProcessError:
+        return None
+    if not current or current == "main" or current in exclude:
+        return None
+    return current
+
+
 def _branch_creation_start_point(
     main_repo: Path,
     change_id: str,
@@ -138,6 +160,7 @@ def _branch_creation_start_point(
     prefix: str | None = None,
     explicit: str | None = None,
     branch_prefix: str | None = None,
+    invoking_cwd: str | None = None,
 ) -> tuple[str, str]:
     """Choose the start point for a newly-created worktree branch.
 
@@ -159,9 +182,20 @@ def _branch_creation_start_point(
             return parent_start, "parent"
 
         if not explicit_branch:
-            run_git("branch", parent, "main", cwd=str(main_repo))
-            print(f"PARENT_BRANCH_CREATED={parent}", file=sys.stderr)
-            return parent, "parent-created"
+            # The named parent ref doesn't exist. Fabricating it from main would
+            # give the agent branch a stale base and drag main-only commits into
+            # the feature PR on merge-back. Prefer the feature branch the operator
+            # is actually on (the invoking checkout's HEAD): in the coordinated
+            # workflow setup runs from the feature-branch worktree. Fall back to
+            # main only when that checkout is on main/detached.
+            feature_branch = _invoking_feature_branch(
+                invoking_cwd, exclude={branch, parent}
+            )
+            base = feature_branch or "main"
+            source = "parent-created-from-feature" if feature_branch else "parent-created"
+            run_git("branch", parent, base, cwd=str(main_repo))
+            print(f"PARENT_BRANCH_CREATED={parent} (from {base})", file=sys.stderr)
+            return parent, source
 
     return "main", "main"
 
@@ -594,6 +628,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
             prefix=prefix,
             explicit=args.branch,
             branch_prefix=branch_prefix,
+            invoking_cwd=cwd,
         )
         run_git("branch", branch, start_point, cwd=str(main_repo))
         print(f"BRANCH_CREATED={branch}", file=sys.stderr)
