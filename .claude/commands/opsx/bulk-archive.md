@@ -132,6 +132,18 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
+   d. **Regenerate the decision index once, after all moves.** `docs/decisions/`
+      is a derived artifact generated from `openspec/changes/` via `make decisions`.
+      Every archive move above stales it, so `main` will fail the
+      `validate-decision-index` CI job unless the index is refreshed alongside the
+      archives. Run this a single time after the loop (not per change) and stage
+      it into the same commit as the archive moves:
+
+      ```bash
+      make decisions
+      git add docs/decisions/
+      ```
+
 9. **Display summary**
 
    Show final results:
