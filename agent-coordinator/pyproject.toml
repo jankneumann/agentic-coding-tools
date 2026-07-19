@@ -110,6 +110,12 @@ override-dependencies = [
     # Brought in transitively via google-api-python-client / google-auth-httplib2;
     # force the patched version until an upstream parent floor covers it.
     "httplib2>=0.32.0",
+    # CVE-2026-52869/52870 (session hijack + cross-session task access on the
+    # MCP HTTP transports) and CVE-2026-59950 (missing Host/Origin validation in
+    # the deprecated WebSocket transport) affect mcp < 1.28.1. Brought in
+    # transitively via fastmcp; force the patched version until fastmcp's floor
+    # covers it.
+    "mcp>=1.28.1",
 ]
 
 # Resolve `gen-eval` to the sibling package in this monorepo. Per design
