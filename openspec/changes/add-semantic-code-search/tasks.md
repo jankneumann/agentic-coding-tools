@@ -139,19 +139,28 @@ file order.
 
 ## Phase 4 — Indexing infrastructure (wp-indexing-infra)
 
-- [ ] 4.1 (S) Write migration test — registry table shape, slug CHECK constraint, additive-only
+- [x] 4.1 (S) Write migration test — registry table shape, slug CHECK constraint, additive-only
   **Spec scenarios**: code-search.4 (registry)
   **Contracts**: contracts/db/schema.sql
   **Dependencies**: 1.1
-- [ ] 4.2 (S) Add coordinator migration `NNN_code_search_registry.sql` (next free number) with
+  **Done**: `tests/test_code_search_registry_migration.py` — structural checks (additive-only,
+  pgvector, slug CHECK) run here (2 passed); the live-apply/CheckViolation test skips without
+  POSTGRES_DSN.
+- [x] 4.2 (S) Add coordinator migration `NNN_code_search_registry.sql` (next free number) with
   `CREATE EXTENSION IF NOT EXISTS vector`
   **Design decisions**: D6
   **Dependencies**: 4.1
-- [ ] 4.3 (S) Wire `index_repo` as a post-merge hook target and document the reindex trigger in
+  **Done**: `028_code_search_registry.sql` — additive; `CREATE EXTENSION IF NOT EXISTS vector` +
+  registry table with slug CHECK. Chunk tables stay pipeline-managed (not in this migration).
+- [x] 4.3 (S) Wire `index_repo` as a post-merge hook target and document the reindex trigger in
   `docs/guides/` (indexing never reachable from query surfaces)
   **Design decisions**: D5
   **Dependencies**: 2.6, 4.2
-- [ ] Checkpoint: run tests, review diff, verify scope
+  **Done**: `docs/guides/code-search.md` documents `index_repo`, the post-merge reindex trigger,
+  the flag, and the embedding-endpoint requirement the spike surfaced. Live hook install is left
+  to the deployment env (needs POSTGRES_DSN + embedder), as documented.
+- [x] Checkpoint: run tests, review diff, verify scope — migration tests green; scope confined to
+  migrations/, tests/, docs/guides/.
 
 ## Phase 5 — Integration (wp-integration)
 
