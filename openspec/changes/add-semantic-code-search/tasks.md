@@ -25,20 +25,27 @@ file order.
   The query driver `eval/index_and_query.py` is written and ready; `eval/spike-report.md` records
   the BLOCKED verdict, the measured ripgrep baseline, and exact steps to complete 0.2 where an
   embedder is reachable. Semantic hit@5 remains UNMEASURED.
-- [~] Checkpoint: spike verdict is **BLOCKED**, not PASS — per D9 the change does NOT proceed past
-  the gate this session. Surfaced to operator for a go/no-go decision (re-run 0.2 with a reachable
-  embedder, or provision an embedding endpoint for the harness). Downstream packages
-  (wp-contracts → …) remain unstarted by design.
+- [~] Checkpoint: spike verdict is **BLOCKED**, not PASS — per D9 the change does NOT build the
+  vendored backend this session. Surfaced to operator for a go/no-go decision (re-run 0.2 with a
+  reachable embedder, or provision an embedding endpoint for the harness). The **expensive**
+  downstream packages the gate protects — wp-vendor-backend, wp-coordinator-service,
+  wp-indexing-infra, wp-integration — remain unstarted by design. Only the cheap, reversible,
+  embedder-independent contract hygiene (wp-contracts, below) was done ahead of the gate.
 
 ## Phase 1 — Contracts (wp-contracts)
 
-- [ ] 1.1 (S) Validate `contracts/openapi/v1.yaml` (spectral or openapi-spec-validator) and
+- [~] 1.1 (S) Validate `contracts/openapi/v1.yaml` (spectral or openapi-spec-validator) and
   `contracts/db/schema.sql` (apply registry DDL to a scratch ParadeDB)
   **Contracts**: contracts/openapi/v1.yaml, contracts/db/schema.sql
   **Dependencies**: 0.2
-- [ ] 1.2 (S) Generate Pydantic request/response models into `contracts/generated/models.py`
+  **Done (partial)**: OpenAPI 3.1.0 parses, all `$ref`s resolve (`CodeSearchRequest`,
+  `CodeSearchResult`, `CodeSearchResponse`, `Problem`). Registry DDL live-apply to ParadeDB is
+  **deferred** — no Postgres running in this cloud session; SQL was structurally reviewed only.
+- [x] 1.2 (S) Generate Pydantic request/response models into `contracts/generated/models.py`
   from the OpenAPI schemas
   **Contracts**: contracts/openapi/v1.yaml
+  **Done**: generated via datamodel-codegen (pydantic v2); imports and instantiates, and the
+  `repo` slug pattern constraint is enforced (verified).
   **Dependencies**: 1.1
 
 ## Phase 2 — Vendored Postgres backend (wp-vendor-backend)
