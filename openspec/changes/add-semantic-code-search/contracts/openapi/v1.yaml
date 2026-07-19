@@ -1,0 +1,161 @@
+openapi: 3.1.0
+info:
+  title: Coordinator Code Search API
+  version: "1.0.0"
+  description: >
+    Semantic code retrieval surface of the agent coordinator (change:
+    add-semantic-code-search). Read-only. The MCP tool `search_code` is a thin wrapper over the
+    same service and returns the identical result payload.
+
+paths:
+  /search/code:
+    post:
+      operationId: searchCode
+      summary: Semantic search over an indexed repository
+      description: >
+        Embeds the query server-side (design D4) and returns top-k chunks ranked by cosine
+        similarity. Classified `read` — never locks, enqueues, or triggers indexing (design D5).
+        Gated by CODE_SEARCH_ENABLED (404 when disabled).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CodeSearchRequest"
+            example:
+              query: "how are file locks released after a crash"
+              repo: "agentic_coding_tools"
+              limit: 8
+              languages: ["python"]
+              scope: { work_package: "wp-coordinator-service" }
+      responses:
+        "200":
+          description: Ranked results (possibly empty for an indexed repo)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodeSearchResponse"
+              example:
+                repo: "agentic_coding_tools"
+                scope_filtered: true
+                results:
+                  - file_path: "agent-coordinator/src/lock_manager.py"
+                    language: "python"
+                    content: "async def release_stale_locks(...): ..."
+                    start_line: 118
+                    end_line: 164
+                    score: 0.83
+        "404":
+          description: Capability disabled (CODE_SEARCH_ENABLED off)
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "409":
+          description: Repo not indexed (distinguishable from empty results)
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+              example:
+                type: "urn:coordinator:code-search:repo-not-indexed"
+                title: "Repo not indexed"
+                detail: "Repo 'foo' has no code_search_registry entry. Run index_repo first."
+                status: 409
+        "422":
+          description: Embedder mismatch or invalid parameters
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "503":
+          description: Database unreachable (standard unavailable envelope)
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+components:
+  schemas:
+    CodeSearchRequest:
+      type: object
+      required: [query, repo]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          description: Natural-language (or code-fragment) query text.
+          example: "where are work-queue retries scheduled"
+        repo:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{0,50}$"
+          description: Registered repo slug (code_search_registry.repo_slug).
+          example: "agentic_coding_tools"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+        languages:
+          type: [array, "null"]
+          items: { type: string }
+          description: Optional tree-sitter language ids; filtered in the ranking statement.
+          example: ["python", "sql"]
+        paths:
+          type: [array, "null"]
+          items: { type: string }
+          description: Optional SQL LIKE patterns over file_path; filtered in the ranking statement.
+          example: ["agent-coordinator/%"]
+        scope:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                work_package:
+                  type: string
+                  description: work-packages.yaml package id whose read_allow/deny globs filter results.
+                read_allow:
+                  type: array
+                  items: { type: string }
+                deny:
+                  type: array
+                  items: { type: string }
+          description: >
+            Optional scope filter (design D7). Provide either a work_package id or explicit
+            glob lists. Omitted means unrestricted (ripgrep parity).
+    CodeSearchResult:
+      type: object
+      required: [file_path, language, content, start_line, end_line, score]
+      properties:
+        file_path: { type: string, example: "agent-coordinator/src/memory.py" }
+        language: { type: string, example: "python" }
+        content: { type: string, example: "async def recall(...): ..." }
+        start_line: { type: integer, example: 42 }
+        end_line: { type: integer, example: 87 }
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Cosine similarity mapped to [0,1].
+          example: 0.79
+    CodeSearchResponse:
+      type: object
+      required: [repo, results]
+      properties:
+        repo: { type: string, example: "agentic_coding_tools" }
+        scope_filtered:
+          type: boolean
+          default: false
+          description: True when a scope was supplied and applied (spec scenario code-search scope filtering).
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/CodeSearchResult" }
+    Problem:
+      type: object
+      description: RFC 7807 problem document.
+      required: [title, status]
+      properties:
+        type: { type: string, example: "urn:coordinator:code-search:repo-not-indexed" }
+        title: { type: string, example: "Repo not indexed" }
+        detail: { type: string }
+        status: { type: integer, example: 409 }
