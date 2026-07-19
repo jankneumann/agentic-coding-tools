@@ -1,0 +1,249 @@
+schema_version: 1
+
+feature:
+  id: add-coordinator-llm-gateway
+  title: "Coordinator-managed LLM gateway — control plane in coordinator, LiteLLM/OpenRouter data plane"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-coordinator-llm-gateway/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/add-coordinator-llm-gateway/contracts/openapi/v1.yaml"
+      - "openspec/changes/add-coordinator-llm-gateway/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Contracts — validate OpenAPI, generate Pydantic models"
+    task_type: contracts
+    description: |
+      Phase 0–1: pin the add-adaptive-model-router ledger/policy integration points; validate the
+      control-plane OpenAPI and generate contracts/generated/models.py.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:llm-gateway-openapi"
+      ttl_minutes: 60
+      reason: "Contract definitions for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/add-coordinator-llm-gateway/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: llm-gateway-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "OpenAPI parses and models generate"
+          kind: command
+          command: "python3 -c 'import yaml; yaml.safe_load(open(\"openspec/changes/add-coordinator-llm-gateway/contracts/openapi/v1.yaml\"))'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+    outputs:
+      result_keys:
+        - "contracts_valid"
+
+  - package_id: wp-gateway-deployable
+    title: "Data plane — pinned LiteLLM proxy container + config + langfuse callback"
+    task_type: infra
+    description: |
+      Phase 2: docker/llm-gateway/ compose service (upstreams: OpenRouter, local Ollama/vLLM,
+      direct providers), make targets, langfuse callback, health/embeddings smoke test.
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files: []
+      keys:
+        - "feature:llm-gateway:dataplane"
+      ttl_minutes: 120
+      reason: "Gateway deployable + config"
+    scope:
+      write_allow:
+        - "docker/llm-gateway/**"
+        - "agent-coordinator/Makefile"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/**"
+    worktree:
+      name: llm-gateway-wp-deployable
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Gateway container smoke test (skips without Docker/model)"
+          kind: command
+          command: "echo 'smoke test runs where Docker + a model upstream are available'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "gateway_smoke"
+    outputs:
+      result_keys:
+        - "gateway_smoke"
+
+  - package_id: wp-control-service
+    title: "Control plane — llm_gateway.py service + MCP/HTTP surfaces"
+    task_type: backend
+    description: |
+      Phase 3: src/llm_gateway.py (DI over vault, gateway admin, router ledger); trust-bounded
+      issuance, vault fail-closed, revoke, budget/spend reads; MCP tools + HTTP routes behind
+      LLM_GATEWAY_ENABLED; http_proxy passthroughs (design G2, G3, G9, G10).
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+      keys:
+        - "api:POST /llm/keys/issue"
+        - "feature:llm-gateway:control"
+      ttl_minutes: 120
+      reason: "Coordinator control-surface additions"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "**"
+      deny:
+        - "docker/llm-gateway/**"
+    worktree:
+      name: llm-gateway-wp-control
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Control service + surface tests pass (issuance, fail-closed, flag, parity)"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -k llm_gateway -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "control_service_tests_passed"
+    outputs:
+      result_keys:
+        - "control_service_tests_passed"
+
+  - package_id: wp-enforcement
+    title: "Enforcement + audit — key table, spend callback → router ledger, inline budget"
+    task_type: backend
+    description: |
+      Phase 4: additive llm_gateway_keys migration (no spend columns); spend callback into the
+      router ledger with buffer-and-reconcile; inline budget-exhaustion rejection test (G2, G4, G10).
+    role: backend-implementer
+    priority: 3
+    depends_on: [wp-control-service]
+    locks:
+      files: []
+      keys:
+        - "db:schema:llm_gateway_keys"
+      ttl_minutes: 90
+      reason: "Migration + enforcement wiring"
+    scope:
+      write_allow:
+        - "agent-coordinator/database/migrations/**"
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: llm-gateway-wp-enforcement
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Migration + enforcement tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -k llm_gateway_keys -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "enforcement_tests_passed"
+    outputs:
+      result_keys:
+        - "enforcement_tests_passed"
+
+  - package_id: wp-integration
+    title: "Consumer + integration — code-search embedder via gateway, docs, E2E"
+    task_type: integration
+    description: |
+      Phase 5: repoint code_search.py embedder at the gateway behind a config toggle; docs
+      (control/data split, coverage boundary, wiring); E2E where a gateway + model are reachable
+      (issue key → embed → spend lands in ledger → budget enforces).
+    role: integrator
+    priority: 4
+    depends_on: [wp-control-service, wp-enforcement, wp-gateway-deployable]
+    locks:
+      files: []
+      keys:
+        - "feature:llm-gateway:integration"
+      ttl_minutes: 120
+      reason: "Consumer wiring + E2E"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/**"
+        - "docs/**"
+        - "agent-coordinator/CLAUDE.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: llm-gateway-wp-integration
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Consumer + docs tests pass; E2E where reachable"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -k 'llm_gateway or code_search' -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "integration_passed"
+    outputs:
+      result_keys:
+        - "integration_passed"

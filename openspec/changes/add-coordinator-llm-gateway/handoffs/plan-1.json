@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-19T18:16:39.315755+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned a coordinator-managed LLM gateway: control/enforcement in the coordinator, a separate LiteLLM/OpenRouter proxy as the data plane. Depends on and integrates with add-adaptive-model-router (its ledger/policy stay the single source of truth). First consumer is the code-search embedder, which retires the D9 environment block.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Control plane in coordinator; data plane is a separate deployable",
+        "rationale": "Inference is high-QPS/streaming/latency-critical; keeping it out of coordination_api preserves blast radius + profile (G1)",
+        "capability": "llm-gateway",
+        "supersedes": null
+      },
+      {
+        "title": "Router ledger/policy is the single spend source of truth",
+        "rationale": "Budgets derive from router policy; spend flows back into the same ledger; only new table is a key-issuance audit \u2014 no second spend system (G2/G10)",
+        "capability": "llm-gateway",
+        "supersedes": null
+      },
+      {
+        "title": "Coordinator-issued virtual keys from vault-held master keys",
+        "rationale": "Agents never hold provider master keys; trust level bounds issuable scope; fails closed if vault down (G3)",
+        "capability": "llm-gateway",
+        "supersedes": null
+      },
+      {
+        "title": "Gateway /embeddings is the code-search embedder",
+        "rationale": "One provisioned endpoint unblocks add-semantic-code-search's spike environment gap (G6)",
+        "capability": "llm-gateway",
+        "supersedes": null
+      },
+      {
+        "title": "Explicit coverage boundary: meterable traffic only",
+        "rationale": "Subscription CLIs can't be proxied and stay on the router's advisory path; do not sell the gateway as universal (G5)",
+        "capability": "llm-gateway",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Gate/approve, then /implement-feature add-coordinator-llm-gateway (contracts + gateway deployable first)"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-coordinator-llm-gateway/proposal.md",
+        "description": "proposal + approaches"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-llm-gateway/design.md",
+        "description": "G1-G10 decisions"
+      }
+    ]
+  }
+}
