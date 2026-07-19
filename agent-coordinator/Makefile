@@ -266,6 +266,16 @@ cloud-verify: ## Verify cloud coordinator connectivity (DOMAIN=...)
 	fi
 	python3 $(CURDIR)/scripts/setup_cloud.py --domain "$(DOMAIN)" --verify
 
+.PHONY: migrate-to-local
+migrate-to-local: ## Copy coordinator DB Railway->local (SOURCE_DSN=... TARGET_DSN=... [MIGRATE_FLAGS=--dry-run])
+	@if [ -z "$(SOURCE_DSN)" ] || [ -z "$(TARGET_DSN)" ]; then \
+		echo "Usage: make migrate-to-local SOURCE_DSN=<railway-dsn> TARGET_DSN=<local-dsn>"; \
+		echo "  Add MIGRATE_FLAGS=--dry-run to preview without changes."; \
+		exit 1; \
+	fi
+	bash $(CURDIR)/scripts/migrate_railway_to_local.sh \
+		--source "$(SOURCE_DSN)" --target "$(TARGET_DSN)" $(MIGRATE_FLAGS)
+
 # ---------------------------------------------------------------------------
 # Phase: Quality
 # ---------------------------------------------------------------------------

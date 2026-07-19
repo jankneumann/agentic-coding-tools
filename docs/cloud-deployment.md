@@ -2,6 +2,12 @@
 
 Deploy the Agent Coordination API to Railway with ParadeDB Postgres.
 
+> **Moving off Railway to a self-hosted box?** See
+> [`coordinator-railway-to-local-migration.md`](coordinator-railway-to-local-migration.md)
+> for the data-copy + DNS-cutover runbook, and
+> [`cloudflare-access-setup.md`](cloudflare-access-setup.md) for the zero-trust
+> auth layer to enable during the move.
+
 ## Architecture
 
 ```
