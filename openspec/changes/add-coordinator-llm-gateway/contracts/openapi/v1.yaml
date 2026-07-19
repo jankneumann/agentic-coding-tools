@@ -1,0 +1,139 @@
+openapi: 3.1.0
+info:
+  title: Coordinator LLM Gateway Control API
+  version: "1.0.0"
+  description: >
+    Control-plane operations for the coordinator-managed LLM gateway (change:
+    add-coordinator-llm-gateway). Administers a separate LiteLLM proxy deployable — issues/revokes
+    scoped virtual keys and reads budget/spend. Does NOT proxy inference; the data-plane API is
+    LiteLLM's own OpenAI-compatible spec. All routes gated by LLM_GATEWAY_ENABLED (404 when off).
+
+paths:
+  /llm/keys/issue:
+    post:
+      operationId: issueLlmKey
+      summary: Issue a scoped virtual key (reversible-write)
+      description: >
+        Mint a short-lived LiteLLM virtual key scoped to a budget + model allowlist, from
+        vault-held provider keys (design G3). Bounded by the agent's trust level. Fails closed if
+        the vault is unreachable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IssueKeyRequest" }
+            example:
+              agent_id: "claude-code-42"
+              budget_usd: 5.0
+              models: ["openrouter/anthropic/claude-3.5-sonnet", "text-embedding-3-small"]
+              ttl_seconds: 3600
+      responses:
+        "200":
+          description: Scoped virtual key
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IssuedKey" }
+        "403":
+          description: Requested scope exceeds the agent's trust bound
+          content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+        "404": { description: Gateway control surface disabled (LLM_GATEWAY_ENABLED off) }
+        "503":
+          description: Vault or gateway unavailable (fails closed — no key minted)
+          content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+  /llm/keys/revoke:
+    post:
+      operationId: revokeLlmKey
+      summary: Revoke a virtual key (reversible-write)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevokeKeyRequest" }
+      responses:
+        "200":
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { key_id: { type: string }, revoked: { type: boolean } }
+        "404": { description: Disabled, or key not found }
+  /llm/budget/{agent_id}:
+    get:
+      operationId: getLlmBudget
+      summary: Read an agent's current budget (read)
+      parameters:
+        - { name: agent_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Budget snapshot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BudgetSnapshot" }
+        "404": { description: Disabled }
+  /llm/spend/{agent_id}:
+    get:
+      operationId: getLlmSpend
+      summary: Read an agent's spend from the router ledger (read)
+      description: Spend is read from the add-adaptive-model-router ledger — the single source of truth (G2).
+      parameters:
+        - { name: agent_id, in: path, required: true, schema: { type: string } }
+        - { name: window, in: query, required: false, schema: { type: string, enum: [day, week, month], default: month } }
+      responses:
+        "200":
+          description: Spend snapshot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SpendSnapshot" }
+        "404": { description: Disabled }
+
+components:
+  schemas:
+    IssueKeyRequest:
+      type: object
+      required: [agent_id, budget_usd, models]
+      properties:
+        agent_id: { type: string }
+        budget_usd: { type: number, exclusiveMinimum: 0 }
+        models:
+          type: array
+          minItems: 1
+          items: { type: string }
+          description: Model allowlist (gateway model names / OpenRouter ids / local endpoint names).
+        ttl_seconds: { type: integer, minimum: 60, default: 3600 }
+    IssuedKey:
+      type: object
+      required: [key_id, virtual_key, base_url, budget_usd, models, expires_at]
+      properties:
+        key_id: { type: string, description: "Handle for revoke/audit (not the secret)." }
+        virtual_key: { type: string, description: "The scoped key the agent uses as its API key." }
+        base_url: { type: string, description: "Gateway OpenAI-compatible base_url to point clients at." }
+        budget_usd: { type: number }
+        models: { type: array, items: { type: string } }
+        expires_at: { type: string, format: date-time }
+    RevokeKeyRequest:
+      type: object
+      required: [key_id]
+      properties: { key_id: { type: string } }
+    BudgetSnapshot:
+      type: object
+      required: [agent_id, budget_usd, remaining_usd]
+      properties:
+        agent_id: { type: string }
+        budget_usd: { type: number }
+        remaining_usd: { type: number }
+    SpendSnapshot:
+      type: object
+      required: [agent_id, window, spend_usd]
+      properties:
+        agent_id: { type: string }
+        window: { type: string, enum: [day, week, month] }
+        spend_usd: { type: number, description: "From the router ledger (G2)." }
+    Problem:
+      type: object
+      required: [title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        detail: { type: string }
+        status: { type: integer }
