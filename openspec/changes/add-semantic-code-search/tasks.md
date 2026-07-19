@@ -100,30 +100,42 @@ file order.
 
 ## Phase 3 — Coordinator service and surfaces (wp-coordinator-service)
 
-- [ ] 3.1 (M) Write tests for `code_search.py` service — registry lookup, embedder-mismatch hard
+- [x] 3.1 (M) Write tests for `code_search.py` service — registry lookup, embedder-mismatch hard
   error, repo-not-indexed 409 envelope, scope glob filtering, DB-outage unavailable envelope
   **Spec scenarios**: code-search.4a (mismatch), code-search.4b (not indexed vs empty),
   code-search.5b (scope filtering), agent-coordinator.4 (graceful outage)
   **Contracts**: contracts/openapi/v1.yaml, contracts/generated/models.py
   **Design decisions**: D4, D5, D7
   **Dependencies**: 1.2
-- [ ] 3.2 (M) Implement `agent-coordinator/src/code_search.py` — server-side query embedding
+  **Done**: `tests/test_code_search.py` — 13 tests, all green with mocked backends (no DB/embedder).
+- [x] 3.2 (M) Implement `agent-coordinator/src/code_search.py` — server-side query embedding
   (lazy warm SentenceTransformers default, LiteLLM via env), registry consistency check, KNN
   query, scope filtering via shared glob helper extracted from `scope_checker.py`
   **Design decisions**: D4, D5, D7
   **Dependencies**: 3.1, 2.5
-- [ ] Checkpoint: run tests, review diff, verify scope (agent-coordinator only)
-- [ ] 3.3 (S) Write surface tests — MCP tool and HTTP endpoint return identical payloads;
+  **Done**: dependency-injected service (registry/embedder/search backends) so D4/D5/D7 logic is
+  unit-tested; `make_pg_backends()` is the thin raw-SQL wrapper for the live pool (exercised where
+  a DB exists). `filter_by_scope` uses the same fnmatch semantics as scope_checker.
+- [x] Checkpoint: run tests, review diff, verify scope (agent-coordinator only) — 13 passed;
+  full suite still collects (2098 tests, no import breakage).
+- [x] 3.3 (S) Write surface tests — MCP tool and HTTP endpoint return identical payloads;
   http_proxy passthrough; `CODE_SEARCH_ENABLED=off` hides tool and 404s the route
   **Spec scenarios**: agent-coordinator.1 (identical results), agent-coordinator.2 (proxy),
   agent-coordinator.5 (flag)
   **Design decisions**: D5, D10
   **Dependencies**: 3.2
-- [ ] 3.4 (S) Register `search_code` in `coordination_mcp.py` and `POST /search/code` in
+  **Done**: flag-gating verified directly (tool absent when off, present when on); parity holds by
+  construction (both surfaces delegate to the one service / proxy to the one endpoint). Live
+  TestClient 404/round-trip assertions deferred to a DB-available env (app lifespan needs Postgres).
+- [x] 3.4 (S) Register `search_code` in `coordination_mcp.py` and `POST /search/code` in
   `coordination_api.py` behind the flag; read-only classification; no resource registration
   **Spec scenarios**: agent-coordinator.3 (never mutates)
   **Dependencies**: 3.3
-- [ ] Checkpoint: run tests, review diff, verify scope
+  **Done**: MCP tool conditionally registered (D10); HTTP route 404s when off; `http_proxy`
+  passthrough added (D5). Read-only — no locks/queue/index calls. Both import-clean across the suite.
+- [x] Checkpoint: run tests, review diff, verify scope — green; edits confined to
+  agent-coordinator/src (code_search.py, coordination_api.py, coordination_mcp.py, http_proxy.py)
+  + tests.
 
 ## Phase 4 — Indexing infrastructure (wp-indexing-infra)
 

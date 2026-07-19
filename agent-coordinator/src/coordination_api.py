@@ -3317,6 +3317,35 @@ def create_coordination_api() -> FastAPI:
             raise
         return result
 
+    # --- code search (change: add-semantic-code-search) -------------------------------------
+    # Read-only (design D5): never locks/enqueues/indexes. Gated by CODE_SEARCH_ENABLED (D10):
+    # the route is always registered but returns 404 when the flag is off, so nothing depends on
+    # unproven retrieval quality until the spike gate (D9) is closed.
+    @app.post("/search/code")
+    async def search_code_endpoint(
+        request: dict[str, Any],
+        principal: dict[str, Any] = Depends(optional_api_key),
+    ) -> dict[str, Any]:
+        from .code_search import CodeSearchError, code_search_enabled, get_code_search_service
+
+        if not code_search_enabled():
+            raise HTTPException(status_code=404, detail="code search is disabled")
+        if not request.get("query") or not request.get("repo"):
+            raise HTTPException(status_code=422, detail="query and repo are required")
+        try:
+            resp = await get_code_search_service().search(
+                query=request["query"],
+                repo=request["repo"],
+                limit=int(request.get("limit", 10)),
+                offset=int(request.get("offset", 0)),
+                languages=request.get("languages"),
+                paths=request.get("paths"),
+                scope=request.get("scope"),
+            )
+        except CodeSearchError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        return resp.to_dict()
+
     return app
 
 
