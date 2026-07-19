@@ -80,3 +80,45 @@ Planned adoption of cocoindex-code as the semantic code-search engine with a ven
 ### Context
 Executed Phase 0 spike gate (wp-spike-eval). Built the 10-task retrieval eval set and a fair ripgrep baseline (keyword hit@5 = 3/10, deterministic). The semantic half is BLOCKED: this cloud harness allowlists PyPI only — huggingface.co, download.pytorch.org, and api.openai.com all 403, no embedding key provisioned — so cocoindex-code's embedder cannot run. Gate verdict BLOCKED (not PASS); did not fan out downstream packages per design D9.
 
+---
+
+## Phase: Implementation (2026-07-19)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Dependency-injected service so D4/D5/D7/D10 logic is unit-testable without DB/embedder** `architectural: code-search` — Injected registry/embedder/search backends let the whole service be tested with mocks in the PyPI-only harness; make_pg_backends is the thin raw-SQL wrapper for the live pool
+2. **Import-layering: heavy cocoindex/torch confined to indexer_pg (lazy)** `architectural: code-search` — identifiers/schema/query_pg import with asyncpg only, so the package + query path work without the embedding stack (verified)
+3. **MCP tool conditionally registered; HTTP route 404s when flag off** `architectural: agent-coordinator` — Spec requires the tool be absent from the list when disabled; the route returning 404 satisfies the HTTP flag scenario
+4. **E2E/migration-apply tests written but skip-marked** `architectural: code-search` — Honest coverage — the scenarios exist and gate the DB-available env, without faking green in a no-DB session
+
+### Alternatives Considered
+- Bind the service directly to DatabaseClient: rejected because PostgREST-style client can't express pgvector KNN; raw SQL wrapper + DI keeps logic testable
+- Skip the surface wiring until E2E possible: rejected because Wiring is cheap, import-safe (2098 tests still collect), and completes the vertical slice for review
+
+### Trade-offs
+- Accepted E2E/integration verification deferred to a DB+embedder env over Standing up ParadeDB+model in the harness because Network policy blocks model hosts; deferral is honest and the harness is ready
+
+### Open Questions
+- [ ] Close the D9 gate: run eval task 0.2 + the 5.1 E2E where an embedder is reachable
+- [ ] Pick the embedding-endpoint option for the fleet (HF-allowlist / cloud key / pre-baked model)
+
+### Completed Work
+- wp-contracts: OpenAPI validated + contracts/generated/models.py
+- wp-vendor-backend: packages/code-search (identifiers, schema, query_pg, indexer_pg, cli, pyproject, tests) — 24 pass / 4 skip
+- wp-coordinator-service: src/code_search.py + POST /search/code + search_code MCP tool + http_proxy passthrough — 13 pass
+- wp-indexing-infra: 028_code_search_registry.sql + migration test + docs/guides/code-search.md
+- wp-integration (partial): CLAUDE.md tool row; E2E + upstream PR deferred
+
+### Next Steps
+- Run /validate-feature where a DB/embedder exists; close D9 via eval 0.2 + task 5.1
+- Optionally open the upstream cocoindex-code backend-option PR (task 5.3)
+
+### Relevant Files
+- `agent-coordinator/src/code_search.py` — coordinator service
+- `packages/code-search/` — vendored pgvector backend
+- `docs/guides/code-search.md` — capability + embedding-endpoint docs
+
+### Context
+Implemented the feature under the operator's D9 waiver. Built all packages: vendored pgvector backend (packages/code-search), coordinator service + MCP/HTTP surfaces, and the registry migration + docs. Everything runnable without a live DB/embedder is tested and green (backend 24, service 13, migration 2); E2E paths that need ParadeDB + an embedder are written and skip-marked. CODE_SEARCH_ENABLED stays off by default.
+

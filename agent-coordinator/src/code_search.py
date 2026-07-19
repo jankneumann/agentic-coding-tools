@@ -21,9 +21,10 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
-from typing import Any, Awaitable, Callable, Sequence
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +170,7 @@ class CodeSearchService:
         # 2. Server-side query embedding (callers send text only — cloud agents lack a model) (D4).
         embedding = await self._embedder(query)
 
-        # 3. One-statement KNN. Over-fetch when a scope will post-filter, so we can still fill limit.
+        # 3. One-statement KNN. Over-fetch when a scope will post-filter, to still fill `limit`.
         fetch = limit * 4 if scope else limit
         rows = await self._search(repo, embedding, fetch, offset, languages, paths)
         hits = [

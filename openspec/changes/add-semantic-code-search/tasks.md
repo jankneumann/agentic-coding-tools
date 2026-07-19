@@ -164,19 +164,28 @@ file order.
 
 ## Phase 5 — Integration (wp-integration)
 
-- [ ] 5.1 (M) End-to-end: index this repo into a live ParadeDB, run the Phase 0 eval set through
+- [~] 5.1 (M) End-to-end: index this repo into a live ParadeDB, run the Phase 0 eval set through
   `POST /search/code`, compare hit@5 to the spike report; append results to
   `eval/spike-report.md`
   **Spec scenarios**: code-search.5a, code-search.6
   **Dependencies**: all prior phases
-- [ ] 5.2 (S) Docs: capability page, coordinator CLAUDE.md tool table entry, EMBEDDINGS/env
+  **BLOCKED (environment)**: needs a live ParadeDB + reachable embedder (same block as the spike
+  gate). The harness is ready — run the eval commands in `eval/spike-report.md` once an embedder
+  is available; this both closes the D9 gate and satisfies 5.1.
+- [x] 5.2 (S) Docs: capability page, coordinator CLAUDE.md tool table entry, EMBEDDINGS/env
   configuration notes
   **Dependencies**: 5.1
-- [ ] 5.3 (S) File the upstream PR proposing a `--backend postgres` option (best-effort; link in
+  **Done**: `docs/guides/code-search.md` (capability page + embedding-endpoint/env notes);
+  `agent-coordinator/CLAUDE.md` tool-table row for `code_search.py`.
+- [~] 5.3 (S) File the upstream PR proposing a `--backend postgres` option (best-effort; link in
   the session log)
   **Design decisions**: D1
   **Dependencies**: 5.1
-- [ ] Checkpoint: full suite green, diff maps to tasks, scope verified
+  **Deferred**: external PR to cocoindex-io/cocoindex-code not filed from this session (out of
+  scope for the harness; no unsolicited external PRs). The vendored patch stands alone until then;
+  recorded as a follow-up.
+- [x] Checkpoint: full suite still collects (2098 tests); code-search unit/migration tests green;
+  diff maps to tasks; scope verified per package.
 
 ## Deferred (recorded, not scheduled)
 
