@@ -13,3 +13,4 @@
 - **WHEN** <failure trigger>
 - **THEN** <error or boundary behavior>
 - **AND** <safety/consistency expectation>
+

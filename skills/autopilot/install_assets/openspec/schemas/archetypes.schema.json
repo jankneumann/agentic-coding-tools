@@ -1,14 +1,28 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Archetypes Configuration",
-  "description": "Schema for archetypes.yaml — named agent archetype definitions with model preference, system prompt, and optional complexity escalation rules.",
+  "description": "Schema for archetypes.yaml — named agent archetype definitions with model preference, system prompt, and optional complexity escalation rules. Mirrors the runtime ARCHETYPES_SCHEMA in agent-coordinator/src/agents_config.py (the source of truth); keep the two in sync.",
   "type": "object",
   "required": ["schema_version", "archetypes"],
   "properties": {
     "schema_version": {
       "type": "integer",
-      "const": 1,
-      "description": "Schema version for forward compatibility."
+      "enum": [1, 2, 3],
+      "description": "Schema version. v1 = legacy; v2 enables phase_mapping; v3 adds model_aliases / tier models."
+    },
+    "model_aliases": {
+      "type": ["object", "null"],
+      "description": "Optional map of alias name to a {premium, standard, economy} tier→model mapping (schema_version 3).",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["premium", "standard", "economy"],
+        "additionalProperties": false,
+        "properties": {
+          "premium": {"type": "string", "minLength": 1},
+          "standard": {"type": "string", "minLength": 1},
+          "economy": {"type": "string", "minLength": 1}
+        }
+      }
     },
     "archetypes": {
       "type": "object",
@@ -21,16 +35,20 @@
       },
       "additionalProperties": {
         "type": "object",
-        "required": ["model", "system_prompt"],
+        "required": ["model", "system_prompt", "write_capable"],
         "properties": {
           "model": {
             "type": "string",
-            "enum": ["opus", "sonnet", "haiku"],
-            "description": "Primary model for this archetype."
+            "enum": ["premium", "standard", "economy", "opus", "sonnet", "haiku"],
+            "description": "Primary model for this archetype — a tier (premium/standard/economy) or a legacy model name."
           },
           "system_prompt": {
             "type": "string",
             "description": "Role-specific instruction prefix composed with task prompts."
+          },
+          "write_capable": {
+            "type": "boolean",
+            "description": "Whether this archetype may write files/artifacts. Required on every archetype (no implicit default). Write-capable autopilot phases must resolve to an archetype with write_capable: true."
           },
           "escalation": {
             "type": ["object", "null"],
@@ -38,8 +56,8 @@
             "properties": {
               "escalate_to": {
                 "type": "string",
-                "enum": ["opus", "sonnet", "haiku"],
-                "description": "Model to escalate to when complexity thresholds are exceeded."
+                "enum": ["premium", "standard", "economy", "opus", "sonnet", "haiku"],
+                "description": "Model/tier to escalate to when complexity thresholds are exceeded."
               },
               "max_write_dirs": {
                 "type": "integer",
@@ -62,6 +80,26 @@
           }
         },
         "additionalProperties": false
+      }
+    },
+    "phase_mapping": {
+      "type": ["object", "null"],
+      "description": "Optional per-phase archetype resolution (schema_version 2+). Maps a non-terminal autopilot phase to an archetype (+ optional signals).",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["archetype"],
+        "additionalProperties": false,
+        "properties": {
+          "archetype": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+          },
+          "signals": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
       }
     }
   },

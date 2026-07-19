@@ -22,3 +22,4 @@
 - [ ] 1.2 Implement <component> — <task description>
   **Dependencies**: 1.1
   **Files**: <file paths>
+

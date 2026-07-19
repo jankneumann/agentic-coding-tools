@@ -2,7 +2,7 @@
 
 <!-- Root index for learning entries. Per-item entries live in learnings/<item-id>.md
      with YAML frontmatter conforming to learning-log.schema.json.
-
+     
      SECURITY: Never include credentials, tokens, connection strings, or raw prompts.
      Redact high-entropy strings (>4.5 bits/char, >20 chars) unless they are
      UUIDs, git SHAs, or change-ids. -->
