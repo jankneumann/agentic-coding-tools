@@ -678,6 +678,15 @@ def create_coordination_api() -> FastAPI:
         max_age=600,
     )
 
+    # Cloudflare Access origin verification (defense-in-depth for public
+    # deployments behind a Cloudflare Tunnel + Access application). Added after
+    # CORS so it is the outermost middleware and rejects unauthenticated
+    # requests before they reach any route. No-op when disabled (env unset), so
+    # local/dev behavior is unchanged. See src/cloudflare_access.py.
+    from .cloudflare_access import install_cloudflare_access
+
+    install_cloudflare_access(app, get_config().cloudflare_access)
+
     # Mount Prometheus /metrics endpoint if enabled
     prometheus_app = get_prometheus_app()
     if prometheus_app is not None:

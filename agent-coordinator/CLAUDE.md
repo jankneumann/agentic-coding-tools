@@ -219,6 +219,21 @@ API_PORT=8081
 COORDINATION_API_KEYS=key1,key2
 COORDINATION_API_KEY_IDENTITIES={"key1": {"agent_id": "agent-1", "agent_type": "codex"}}
 
+# Cloudflare Access origin verification (SERVER side; see docs/cloudflare-access-setup.md)
+# When both TEAM_DOMAIN and AUD are set (or CF_ACCESS_ENABLED=true), the API
+# verifies the Cf-Access-Jwt-Assertion header Cloudflare injects and rejects
+# any non-exempt request that did not transit Access (fail-closed). Unset in
+# local/dev → pass-through, no behavior change.
+CF_ACCESS_TEAM_DOMAIN=https://yourteam.cloudflareaccess.com
+CF_ACCESS_AUD=<access-application-audience-tag>   # comma-separated for multiple apps
+# CF_ACCESS_ENABLED=true                          # force on/off; inferred from the two above
+# CF_ACCESS_EXEMPT_PATHS=/live,/ready,/health,/metrics   # default shown
+# CF_ACCESS_JWKS_CACHE_SECONDS=3600
+
+# Cloudflare Access service token (CLIENT side; set on cloud agents, not the server)
+# CF_ACCESS_CLIENT_ID=<client-id>.access
+# CF_ACCESS_CLIENT_SECRET=<client-secret>
+
 # Compose `coordinator-api` service overrides (for `docker compose --profile api up`)
 # Each operator-facing var has a docker-internal default that works out of the box.
 COORDINATOR_POSTGRES_DSN=postgresql://postgres:postgres@postgres:5432/postgres  # default

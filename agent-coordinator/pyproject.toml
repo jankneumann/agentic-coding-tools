@@ -36,7 +36,10 @@ api = [
     # but absent from [api] — any environment installed via `pip install
     # .[api]` would fail at runtime.
     "sse-starlette>=2.1.0",
-    "PyJWT>=2.13.0",
+    # [crypto] pulls in `cryptography` for RS256 — required by both the SSE
+    # token flow (HS256) and Cloudflare Access origin verification (RS256,
+    # src/cloudflare_access.py), which validates Cloudflare's RSA-signed JWKS.
+    "PyJWT[crypto]>=2.13.0",
 ]
 postgres = [
     "asyncpg>=0.31.0",
@@ -65,7 +68,7 @@ test = [
     "pytest-asyncio>=1.4.0",
     "pytest-playwright>=0.8.0",
     "respx>=0.23.1",
-    "PyJWT>=2.13.0",
+    "PyJWT[crypto]>=2.13.0",
     "ruff>=0.15.21",
     "mypy>=2.1.0",
     "hypothesis>=6.152.7",
@@ -75,7 +78,7 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "pytest-playwright>=0.8.0",
     "respx>=0.23.1",
-    "PyJWT>=2.13.0",
+    "PyJWT[crypto]>=2.13.0",
     "ruff>=0.15.21",
     "mypy>=2.1.0",
     "types-PyYAML>=6.0",

@@ -100,6 +100,14 @@ def write_env_file(domain: str, keys: dict[str, str], output: Path) -> None:
         f'export COORDINATION_API_URL="{url}"',
         f'export COORDINATION_ALLOWED_HOSTS="{domain}"',
         "",
+        "# -- Cloudflare Access service token (edge auth) --",
+        "# Required only when the coordinator is behind a Cloudflare Access",
+        "# application (recommended for public deployments). Create a service",
+        "# token in Zero Trust > Access > Service Tokens, then uncomment and fill",
+        "# in the two values below. See docs/cloudflare-access-setup.md.",
+        '# export CF_ACCESS_CLIENT_ID="<client-id>.access"',
+        '# export CF_ACCESS_CLIENT_SECRET="<client-secret>"',
+        "",
         "# -- Default key (Claude Code local) --",
     ]
     local_claude_key = keys.get("claude_local_key", "")
@@ -235,6 +243,8 @@ def push_to_railway(service: str | None, all_keys: str, identities_json: str) ->
 
 
 def verify_connectivity(domain: str, api_key: str | None = None) -> bool:
+    import os
+
     url = f"https://{domain}/health"
     print(f"\nVerifying: GET {url}")
     try:
@@ -242,6 +252,12 @@ def verify_connectivity(domain: str, api_key: str | None = None) -> bool:
         req.add_header("User-Agent", "agentic-coding-tools/0.1")
         if api_key:
             req.add_header("X-API-Key", api_key)
+        # Pass the Cloudflare Access edge when a service token is configured.
+        cf_id = os.environ.get("CF_ACCESS_CLIENT_ID", "").strip()
+        cf_secret = os.environ.get("CF_ACCESS_CLIENT_SECRET", "").strip()
+        if cf_id and cf_secret:
+            req.add_header("CF-Access-Client-Id", cf_id)
+            req.add_header("CF-Access-Client-Secret", cf_secret)
         with urlopen(req, timeout=10) as resp:
             body = json.loads(resp.read().decode())
             print(f"  Status: {resp.status}")
