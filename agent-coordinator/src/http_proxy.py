@@ -478,6 +478,26 @@ async def proxy_get_task(task_id: str) -> dict[str, Any]:
     return await _request("POST", "/work/get", json_body=body)
 
 
+async def proxy_search_code(
+    query: str,
+    repo: str,
+    limit: int = 10,
+    offset: int = 0,
+    languages: list[str] | None = None,
+    paths: list[str] | None = None,
+    scope: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Proxy search_code to POST /search/code (design D5 — read, works in http_proxy mode)."""
+    body: dict[str, Any] = {"query": query, "repo": repo, "limit": limit, "offset": offset}
+    if languages is not None:
+        body["languages"] = languages
+    if paths is not None:
+        body["paths"] = paths
+    if scope is not None:
+        body["scope"] = scope
+    return await _request("POST", "/search/code", json_body=body)
+
+
 # =============================================================================
 # PROXY FUNCTIONS: Issues
 # =============================================================================

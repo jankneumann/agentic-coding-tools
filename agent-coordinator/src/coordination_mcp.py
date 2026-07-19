@@ -3102,6 +3102,60 @@ After completing work, I'll release locks and mark tasks as done.
 
 
 # =============================================================================
+# MCP TOOL: Code Search (change: add-semantic-code-search)
+# =============================================================================
+
+# Design D5/D10: registered ONLY when CODE_SEARCH_ENABLED is on, so the tool does not appear in
+# the tool list while disabled (spec agent-coordinator "Code Search Feature Flag"). Exposed as a
+# tool (not an MCP resource) so it works through the http_proxy fallback.
+from .code_search import code_search_enabled as _code_search_enabled  # noqa: E402
+
+if _code_search_enabled():
+
+    @mcp.tool
+    async def search_code(
+        query: str,
+        repo: str,
+        limit: int = 10,
+        offset: int = 0,
+        languages: list[str] | None = None,
+        paths: list[str] | None = None,
+        scope: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Semantic search over an indexed repository's code (read-only).
+
+        Finds code by meaning, not just text — e.g. "how are file locks released after a crash"
+        surfaces the lock-expiry implementation even without matching identifiers.
+
+        Args:
+            query: Natural-language (or code-fragment) query.
+            repo: Registered repo slug (see code_search_registry).
+            limit: Max results (default 10).
+            offset: Results to skip (pagination).
+            languages: Optional tree-sitter language filter.
+            paths: Optional file_path LIKE-pattern filter.
+            scope: Optional {work_package} or {read_allow, deny} globs to restrict results.
+
+        Returns:
+            {"repo", "results": [{file_path, language, content, start_line, end_line, score}],
+             "scope_filtered"}
+        """
+        if _transport == "http":
+            return await http_proxy.proxy_search_code(
+                query=query, repo=repo, limit=limit, offset=offset,
+                languages=languages, paths=paths, scope=scope,
+            )
+        from .code_search import get_code_search_service
+
+        resp = await get_code_search_service().search(
+            query=query, repo=repo, limit=limit, offset=offset,
+            languages=languages, paths=paths, scope=scope,
+        )
+        return resp.to_dict()
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
