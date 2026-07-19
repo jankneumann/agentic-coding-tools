@@ -40,3 +40,43 @@
 ### Context
 Planned adoption of cocoindex-code as the semantic code-search engine with a vendored Postgres/pgvector backend on the coordinator's ParadeDB, exposed via dual MCP/HTTP coordinator surfaces. Source analysis showed ~95% reuse (storage seam = indexer.py + query.py, ~300 lines); a spike quality gate (D9) precedes all backend work.
 
+---
+
+## Phase: Implementation (2026-07-19)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Record spike gate as BLOCKED (environment), not PASS/FAIL** `architectural: code-search` — Semantic hit@5 is unmeasurable without a reachable embedder; D9 requires an explicit quality verdict before backend work, so a non-PASS holds the gate
+2. **Strengthen ripgrep baseline to distinct-term + match-frequency ranking** `architectural: code-search` — A naive literal-phrase grep (0/10) is a strawman; the fair keyword baseline (3/10) is the honest lexical floor semantic search must beat
+3. **Work on claude/cocoindex-repo-eval-kaurb2 in the main checkout, not a worktree** `architectural: code-search` — Cloud harness mandates the branch and env-profile detection didn't short-circuit; worktree.py branched off main and would have lost planning commits
+
+### Alternatives Considered
+- Install full CUDA torch from PyPI and push through: rejected because ~6GB on a CPU box, and the model download from HF is 403-blocked anyway — torch alone doesn't unblock the embedder
+- Substitute a TF-IDF/hashing embedder to force a number: rejected because That is lexical retrieval again; it would not measure SEMANTIC quality, defeating the gate's purpose
+
+### Trade-offs
+- Accepted An unmeasured semantic column this session over A fabricated or lexical-proxy 'semantic' number because An honest BLOCKED verdict + runnable harness beats a misleading PASS
+
+### Open Questions
+- [ ] Which embedding-endpoint option for the cloud harness: HF-allowlist, provisioned cloud key, or model pre-baked into the image? (feeds D4 / wp-indexing-infra)
+- [ ] Operator go/no-go: re-run task 0.2 on a machine with a reachable embedder before proceeding to wp-contracts?
+
+### Completed Work
+- eval/eval-set.yaml — 10 grounded retrieval tasks (7 semantic-win, 3 lexical-ok control)
+- eval/run_eval.py — deterministic ripgrep-phrase + fair ripgrep-keyword hit@5 scorer
+- eval/baseline-results.json — measured baseline (keyword hit@5 = 3/10)
+- eval/index_and_query.py — semantic query driver over stock ccc (ready to run elsewhere)
+- eval/spike-report.md — BLOCKED verdict with reachability evidence and completion steps
+
+### Next Steps
+- Operator decision: re-run task 0.2 where an embedder is reachable, or provision an embedding endpoint for the harness
+- On PASS: proceed to wp-contracts; on FAIL: stop the change with the finding
+
+### Relevant Files
+- `openspec/changes/add-semantic-code-search/eval/spike-report.md` — gate verdict + evidence
+- `openspec/changes/add-semantic-code-search/eval/eval-set.yaml` — the 10-task eval set
+
+### Context
+Executed Phase 0 spike gate (wp-spike-eval). Built the 10-task retrieval eval set and a fair ripgrep baseline (keyword hit@5 = 3/10, deterministic). The semantic half is BLOCKED: this cloud harness allowlists PyPI only — huggingface.co, download.pytorch.org, and api.openai.com all 403, no embedding key provisioned — so cocoindex-code's embedder cannot run. Gate verdict BLOCKED (not PASS); did not fan out downstream packages per design D9.
+
