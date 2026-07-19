@@ -1,0 +1,140 @@
+{
+  "k": 5,
+  "aggregate": {
+    "n": 10,
+    "rg_phrase_hit_at_k": 0,
+    "rg_keyword_hit_at_k": 3
+  },
+  "rows": [
+    {
+      "id": "T1",
+      "category": "semantic-win",
+      "rg_phrase_hit": false,
+      "rg_keyword_hit": false,
+      "rg_keyword_topk": [
+        "openspec/specs/agent-coordinator/spec.md",
+        "agent-coordinator/src/coordination_mcp.py",
+        "openspec/changes/archive/2026-05-22-add-coordinator-kanban-viz/design.md",
+        "openspec/specs/observability/spec.md",
+        "openspec/specs/sentinel-security-eval/spec.md"
+      ]
+    },
+    {
+      "id": "T2",
+      "category": "semantic-win",
+      "rg_phrase_hit": false,
+      "rg_keyword_hit": true,
+      "rg_keyword_topk": [
+        "openspec/specs/agent-coordinator/spec.md",
+        "openspec/specs/skill-workflow/spec.md",
+        "agent-coordinator/src/coordination_api.py",
+        "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-2/_prompt.md",
+        "agent-coordinator/src/agents_config.py"
+      ]
+    },
+    {
+      "id": "T3",
+      "category": "semantic-win",
+      "rg_phrase_hit": false,
+      "rg_keyword_hit": false,
+      "rg_keyword_topk": [
+        "openspec/specs/skill-workflow/spec.md",
+        "docs/proposals/repo-improvement-roadmap.md",
+        "docs/architecture-analysis/architecture.report.md",
+        "openspec/specs/codebase-analysis/spec.md",
+        "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-2/_prompt.md"
+      ]
+    },
+    {
+      "id": "T4",
+      "category": "semantic-win",
+      "rg_phrase_hit": false,
+      "rg_keyword_hit": false,
+      "rg_keyword_topk": [
+        "openspec/specs/agent-coordinator/spec.md",
+        "docs/cross-repo-setup.md",
+        "openspec/changes/archive/2026-05-03-conditional-worktree-generation/proposal.md",
+        "skills/merge-pull-requests/SKILL.md",
+        "openspec/specs/skill-workflow/spec.md"
+      ]
+    },
+    {
+      "id": "T5",
+      "category": "lexical-ok",
+      "rg_phrase_hit": false,
+      "rg_keyword_hit": false,
+      "rg_keyword_topk": [
+        "docs/proposals/repo-improvement-roadmap.md",
+        "openspec/roadmaps/repo-improvement/roadmap.md",
+        "openspec/changes/archive/2026-04-13-roadmap-openspec-orchestration/session-log.md",
+        "openspec/specs/agent-coordinator/spec.md",
+        "openspec/specs/skill-workflow/spec.md"
+      ]
+    },
+    {
+      "id": "T6",
+      "category": "semantic-win",
+      "rg_phrase_hit": false,
+      "rg_keyword_hit": false,
+      "rg_keyword_topk": [
+        "openspec/specs/skill-workflow/spec.md",
+        "openspec/specs/agent-coordinator/spec.md",
+        "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-2/_prompt.md",
+        "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-1/_prompt.md",
+        "docs/parallel-agentic-development.md"
+      ]
+    },
+    {
+      "id": "T7",
+      "category": "lexical-ok",
+      "rg_phrase_hit": false,
+      "rg_keyword_hit": false,
+      "rg_keyword_topk": [
+        "openspec/roadmaps/symphony/roadmap.md",
+        "skills/source-driven-development/SKILL.md",
+        "agent-coordinator/src/notifications/notifier.py",
+        "docs/archive/two-level-parallel-agentic-development.md",
+        "openspec/roadmaps/symphony/proposal.md"
+      ]
+    },
+    {
+      "id": "T8",
+      "category": "semantic-win",
+      "rg_phrase_hit": false,
+      "rg_keyword_hit": true,
+      "rg_keyword_topk": [
+        "agent-coordinator/tests/integration/postgres/test_memory_postgres.py",
+        "openspec/specs/agent-coordinator/spec.md",
+        "agent-coordinator/database/migrations/004_memory_tables.sql",
+        "openspec/specs/skill-workflow/spec.md",
+        "agent-coordinator/src/coordination_api.py"
+      ]
+    },
+    {
+      "id": "T9",
+      "category": "lexical-ok",
+      "rg_phrase_hit": false,
+      "rg_keyword_hit": true,
+      "rg_keyword_topk": [
+        "openspec/specs/agent-coordinator/spec.md",
+        "openspec/specs/skill-workflow/spec.md",
+        "agent-coordinator/src/coordination_api.py",
+        "agent-coordinator/src/work_queue.py",
+        "agent-coordinator/src/coordination_mcp.py"
+      ]
+    },
+    {
+      "id": "T10",
+      "category": "semantic-win",
+      "rg_phrase_hit": false,
+      "rg_keyword_hit": false,
+      "rg_keyword_topk": [
+        "openspec/specs/skill-workflow/spec.md",
+        "docs/parallel-agentic-development.md",
+        "agent-coordinator/src/http_proxy.py",
+        "docs/archive/two-level-parallel-agentic-development.md",
+        "openspec/changes/archive/2026-06-07-harness-engineering-features/tasks.md"
+      ]
+    }
+  ]
+}

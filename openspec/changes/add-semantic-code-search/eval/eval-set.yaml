@@ -1,0 +1,123 @@
+# Retrieval eval set for the add-semantic-code-search spike gate (task 0.1, design D9).
+#
+# Ten realistic agent retrieval tasks against THIS repo. Each task has:
+#   query           — natural language, as a coding agent would phrase it
+#   expected_files  — hand-labeled correct answer(s); a hit = any expected file in top-k
+#   ripgrep_baseline— the naive command a coding agent runs today (query words → pattern)
+#   category        — "semantic-win" (expected ripgrep top-5 MISS) | "lexical-ok" (ripgrep should find)
+#   rationale       — why this file answers the query / why ripgrep does or doesn't find it
+#
+# Gate (design D9 / spec code-search "Retrieval Quality Gate"):
+#   PASS iff semantic hit@5 >= 7/10 AND >= 2 of the passing tasks are category=semantic-win
+#   (i.e. tasks the ripgrep baseline misses in its top-5).
+#
+# Expected-file labels verified to exist at plan time (2026-07-19).
+
+schema_version: 1
+repo: agentic_coding_tools
+k: 5
+
+tasks:
+  - id: T1
+    query: "how are file locks released after a crash"
+    expected_files:
+      - agent-coordinator/src/locks.py
+      - agent-coordinator/src/watchdog.py
+    ripgrep_baseline: "rg -il 'released after a crash'"
+    category: semantic-win
+    rationale: >
+      Crash recovery for locks is TTL/expiry-based (expires_at in locks.py, reclaimed by
+      watchdog.py). The literal phrase 'after a crash' appears only in merge_train.py, so the
+      naive ripgrep misses the real target entirely.
+
+  - id: T2
+    query: "where does the coordinator pick which model an agent uses"
+    expected_files:
+      - agent-coordinator/src/agents_config.py
+    ripgrep_baseline: "rg -il 'pick which model'"
+    category: semantic-win
+    rationale: >
+      Model resolution lives in agents_config.py (resolve_model / archetype tiers). The query's
+      words ('pick which model') do not appear as tokens near the implementation.
+
+  - id: T3
+    query: "what stops two agents from editing the same files at once"
+    expected_files:
+      - skills/parallel-infrastructure/scripts/scope_checker.py
+    ripgrep_baseline: "rg -il 'same files at once'"
+    category: semantic-win
+    rationale: >
+      scope_checker.py enforces per-package write_allow globs so parallel agents don't collide.
+      It contains no 'same file' / 'simultaneous' / 'at once' tokens — pure ripgrep miss.
+
+  - id: T4
+    query: "how does it know whether it is running in the cloud or locally"
+    expected_files:
+      - skills/shared/environment_profile.py
+    ripgrep_baseline: "rg -il 'cloud or locally'"
+    category: semantic-win
+    rationale: >
+      environment_profile.detect() decides isolation/cloud-vs-local. The query phrasing does not
+      match the function/identifier tokens.
+
+  - id: T5
+    query: "where is cross-session agent learning persisted"
+    expected_files:
+      - agent-coordinator/src/memory.py
+    ripgrep_baseline: "rg -il 'cross-session'"
+    category: lexical-ok
+    rationale: >
+      memory.py's module docstring literally says 'cross-session learning', so ripgrep should
+      find it — a control case where lexical search is expected to succeed.
+
+  - id: T6
+    query: "how are work packages ordered so dependencies run first"
+    expected_files:
+      - skills/parallel-infrastructure/scripts/dag_scheduler.py
+    ripgrep_baseline: "rg -il 'ordered so dependencies'"
+    category: semantic-win
+    rationale: >
+      dag_scheduler.py topologically sorts packages by depends_on. The naive phrase-based grep
+      misses; the concept ('topological order') is not in the query words.
+
+  - id: T7
+    query: "retry with exponential backoff"
+    expected_files:
+      - agent-coordinator/src/event_bus.py
+      - agent-coordinator/src/guardrails.py
+      - agent-coordinator/src/merge_train.py
+    ripgrep_baseline: "rg -il 'exponential backoff'"
+    category: lexical-ok
+    rationale: >
+      Control case: the query IS the literal token. ripgrep should tie or beat semantic here;
+      included to confirm the eval doesn't only reward semantic-friendly phrasing.
+
+  - id: T8
+    query: "how is memory relevance decayed as it gets older"
+    expected_files:
+      - agent-coordinator/database/migrations/004_memory_tables.sql
+    ripgrep_baseline: "rg -il 'decayed as it gets older'"
+    category: semantic-win
+    rationale: >
+      Relevance decay is an EXP(-lambda * age) term in the 004 migration's get_relevant_memories
+      function. The query's words don't match the SQL; ripgrep top-5 misses.
+
+  - id: T9
+    query: "how does an agent claim the next available task"
+    expected_files:
+      - agent-coordinator/src/work_queue.py
+    ripgrep_baseline: "rg -il 'claim the next available task'"
+    category: lexical-ok
+    rationale: >
+      work_queue.py implements get_work/claim semantics. 'claim' + 'task' tokens are likely
+      present, so ripgrep has a reasonable chance — treated as a lexical control.
+
+  - id: T10
+    query: "how can an agent leave notes for the next session to pick up"
+    expected_files:
+      - agent-coordinator/src/handoffs.py
+    ripgrep_baseline: "rg -il 'leave notes for the next session'"
+    category: semantic-win
+    rationale: >
+      Handoffs are the mechanism for passing context between sessions (handoffs.py). The
+      colloquial 'leave notes for the next session' shares no tokens with 'handoff'.

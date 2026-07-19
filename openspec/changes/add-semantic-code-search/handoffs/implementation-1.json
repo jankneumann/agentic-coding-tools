@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-19T15:06:29.453156+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Executed Phase 0 spike gate (wp-spike-eval). Built the 10-task retrieval eval set and a fair ripgrep baseline (keyword hit@5 = 3/10, deterministic). The semantic half is BLOCKED: this cloud harness allowlists PyPI only \u2014 huggingface.co, download.pytorch.org, and api.openai.com all 403, no embedding key provisioned \u2014 so cocoindex-code's embedder cannot run. Gate verdict BLOCKED (not PASS); did not fan out downstream packages per design D9.",
+    "completed_work": [
+      "eval/eval-set.yaml \u2014 10 grounded retrieval tasks (7 semantic-win, 3 lexical-ok control)",
+      "eval/run_eval.py \u2014 deterministic ripgrep-phrase + fair ripgrep-keyword hit@5 scorer",
+      "eval/baseline-results.json \u2014 measured baseline (keyword hit@5 = 3/10)",
+      "eval/index_and_query.py \u2014 semantic query driver over stock ccc (ready to run elsewhere)",
+      "eval/spike-report.md \u2014 BLOCKED verdict with reachability evidence and completion steps"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Record spike gate as BLOCKED (environment), not PASS/FAIL",
+        "rationale": "Semantic hit@5 is unmeasurable without a reachable embedder; D9 requires an explicit quality verdict before backend work, so a non-PASS holds the gate",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Strengthen ripgrep baseline to distinct-term + match-frequency ranking",
+        "rationale": "A naive literal-phrase grep (0/10) is a strawman; the fair keyword baseline (3/10) is the honest lexical floor semantic search must beat",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Work on claude/cocoindex-repo-eval-kaurb2 in the main checkout, not a worktree",
+        "rationale": "Cloud harness mandates the branch and env-profile detection didn't short-circuit; worktree.py branched off main and would have lost planning commits",
+        "capability": "code-search",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Operator decision: re-run task 0.2 where an embedder is reachable, or provision an embedding endpoint for the harness",
+      "On PASS: proceed to wp-contracts; on FAIL: stop the change with the finding"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-semantic-code-search/eval/spike-report.md",
+        "description": "gate verdict + evidence"
+      },
+      {
+        "path": "openspec/changes/add-semantic-code-search/eval/eval-set.yaml",
+        "description": "the 10-task eval set"
+      }
+    ]
+  }
+}

@@ -6,17 +6,29 @@ file order.
 
 ## Phase 0 — Spike gate (blocks all later phases; design D9)
 
-- [ ] 0.1 (M) Build the retrieval eval set: 10 realistic agent retrieval tasks against this repo
+- [x] 0.1 (M) Build the retrieval eval set: 10 realistic agent retrieval tasks against this repo
   with hand-labeled expected files, plus the ripgrep baseline commands
   **Spec scenarios**: code-search.6 (quality gate)
   **Design decisions**: D9
   **Dependencies**: none
-- [ ] 0.2 (S) Run stock cocoindex-code (sqlite-vec, local) on this repo; record hit@5 and token
+  **Done**: `eval/eval-set.yaml` (10 tasks, 7 semantic-win + 3 lexical-ok), `eval/run_eval.py`
+  (fair ripgrep-phrase + ripgrep-keyword baselines), `eval/baseline-results.json`. Measured
+  lexical floor: ripgrep-keyword hit@5 = 3/10.
+- [~] 0.2 (S) Run stock cocoindex-code (sqlite-vec, local) on this repo; record hit@5 and token
   cost per task in `eval/spike-report.md` with an explicit pass/fail verdict
   **Spec scenarios**: code-search.6
   **Design decisions**: D9
   **Dependencies**: 0.1
-- [ ] Checkpoint: review spike report; if verdict is FAIL, stop the change and write the finding
+  **BLOCKED (environment)**: this cloud harness allowlists PyPI only; huggingface.co,
+  download.pytorch.org, and api.openai.com all return 403, and no embedding API key is
+  provisioned — so neither the local (SentenceTransformers) nor cloud (LiteLLM) embedder can run.
+  The query driver `eval/index_and_query.py` is written and ready; `eval/spike-report.md` records
+  the BLOCKED verdict, the measured ripgrep baseline, and exact steps to complete 0.2 where an
+  embedder is reachable. Semantic hit@5 remains UNMEASURED.
+- [~] Checkpoint: spike verdict is **BLOCKED**, not PASS — per D9 the change does NOT proceed past
+  the gate this session. Surfaced to operator for a go/no-go decision (re-run 0.2 with a reachable
+  embedder, or provision an embedding endpoint for the harness). Downstream packages
+  (wp-contracts → …) remain unstarted by design.
 
 ## Phase 1 — Contracts (wp-contracts)
 
