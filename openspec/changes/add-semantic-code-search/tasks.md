@@ -25,12 +25,13 @@ file order.
   The query driver `eval/index_and_query.py` is written and ready; `eval/spike-report.md` records
   the BLOCKED verdict, the measured ripgrep baseline, and exact steps to complete 0.2 where an
   embedder is reachable. Semantic hit@5 remains UNMEASURED.
-- [~] Checkpoint: spike verdict is **BLOCKED**, not PASS — per D9 the change does NOT build the
-  vendored backend this session. Surfaced to operator for a go/no-go decision (re-run 0.2 with a
-  reachable embedder, or provision an embedding endpoint for the harness). The **expensive**
-  downstream packages the gate protects — wp-vendor-backend, wp-coordinator-service,
-  wp-indexing-infra, wp-integration — remain unstarted by design. Only the cheap, reversible,
-  embedder-independent contract hygiene (wp-contracts, below) was done ahead of the gate.
+- [x] Checkpoint: spike verdict **BLOCKED → WAIVED** (operator decision 2026-07-19). Semantic
+  hit@5 unmeasured; operator elected to proceed with implementation. Retrieval-quality risk stays
+  open (close by running task 0.2 with a reachable embedder before production); `CODE_SEARCH_ENABLED`
+  remains off-by-default so nothing depends on unproven quality. Downstream packages now proceed.
+  In this cloud session, code + mockable unit tests are written and run; paths needing a live
+  ParadeDB + embedder (E2E fixture tests, migration apply, indexing) are written but marked
+  deferred/skipped — to be exercised where a DB and embedder are available.
 
 ## Phase 1 — Contracts (wp-contracts)
 
@@ -50,7 +51,7 @@ file order.
 
 ## Phase 2 — Vendored Postgres backend (wp-vendor-backend)
 
-- [ ] 2.1 (M) Write fixture tests for `indexer_pg`: index the sample tree
+- [~] 2.1 (M) Write fixture tests for `indexer_pg`: index the sample tree
   (`tests/fixtures/sample_repo/`) into a scratch ParadeDB; assert chunk-table shape, HNSW index
   presence, provenance columns, and idempotent re-run
   **Spec scenarios**: code-search.1 (namespaced table), code-search.2 (provenance),
@@ -58,32 +59,44 @@ file order.
   **Contracts**: contracts/db/schema.sql
   **Design decisions**: D2, D6, D8
   **Dependencies**: 1.1
-- [ ] 2.2 (M) Implement `packages/code-search/src/code_search_pkg/indexer_pg.py` — port of
+  **Done (deferred exec)**: `tests/test_indexer_e2e.py` written for all four scenarios; auto-skips
+  without POSTGRES_DSN + cocoindex (conftest). Runs where ParadeDB + embedder are available.
+- [x] 2.2 (M) Implement `packages/code-search/src/code_search_pkg/indexer_pg.py` — port of
   cocoindex-code `indexer.py` to `cocoindex.connectors.postgres` (asyncpg pool context key,
   `mount_table_target`, `declare_vector_index(metric="cosine", method="hnsw")`, per-repo table
   naming, slug validation); reuse upstream chunker registry/file-walk/settings unchanged
   **Design decisions**: D1, D2, D3, D8
   **Dependencies**: 2.1
-- [ ] 2.3 (S) Write tests for single-file incremental reprocessing (modify one fixture file,
+  **Done**: heavy cocoindex imports isolated to this module (lazy via CLI); slug/table logic
+  extracted to `identifiers.py` so the package imports without torch (verified).
+- [~] 2.3 (S) Write tests for single-file incremental reprocessing (modify one fixture file,
   assert only its chunks change)
   **Spec scenarios**: code-search.4 (single-file change)
   **Dependencies**: 2.2
-- [ ] Checkpoint: run tests, review diff, verify scope (packages/code-search only)
-- [ ] 2.4 (S) Write tests for `query_pg`: single-statement ranking with language/path filters;
+  **Done (deferred exec)**: covered by `test_single_file_change_reprocesses_only_that_file`
+  (requires_db + requires_embedder skip markers).
+- [x] Checkpoint: run tests, review diff, verify scope (packages/code-search only) — 24 passed,
+  4 skipped (E2E); diff confined to `packages/code-search/**`.
+- [x] 2.4 (S) Write tests for `query_pg`: single-statement ranking with language/path filters;
   score in [0,1]; offset/limit
   **Spec scenarios**: code-search.5 (single statement), code-search.5a (conceptual query —
   eval fixture)
   **Contracts**: contracts/db/schema.sql (query contract)
   **Dependencies**: 2.2
-- [ ] 2.5 (S) Implement `packages/code-search/src/code_search_pkg/query_pg.py` — single pgvector
+  **Done**: `tests/test_query_pg.py` — asserts single SELECT, cosine KNN + both filters, param
+  binding order, row mapping. Runs green with a fake pool (no DB needed).
+- [x] 2.5 (S) Implement `packages/code-search/src/code_search_pkg/query_pg.py` — single pgvector
   KNN statement replacing upstream `query.py`'s three-branch logic
   **Design decisions**: D3
   **Dependencies**: 2.4
-- [ ] 2.6 (S) Package glue: `pyproject.toml` with hard pins (`cocoindex>=1.0.13,<1.1.0`,
+  **Done**: one `SELECT ... embedding <=> $1 ... LIMIT/OFFSET`; asyncpg-only dep, unit-tested.
+- [x] 2.6 (S) Package glue: `pyproject.toml` with hard pins (`cocoindex>=1.0.13,<1.1.0`,
   exact `cocoindex-code`), upstream-API fixture tripwire test, `index_repo` CLI entrypoint
   **Design decisions**: D1, D8
   **Dependencies**: 2.2, 2.5
-- [ ] Checkpoint: run tests, review diff, verify scope
+  **Done**: pins in `[project.optional-dependencies].index`; `index_repo` script; E2E file is the
+  upstream-API tripwire; `resolve_slug` unit-tested.
+- [x] Checkpoint: run tests, review diff, verify scope — green (24 passed / 4 skipped), scope clean.
 
 ## Phase 3 — Coordinator service and surfaces (wp-coordinator-service)
 
