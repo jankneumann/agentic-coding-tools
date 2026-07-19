@@ -6,12 +6,15 @@
 
 ## Verdict
 
-**BLOCKED (environment)** — the semantic half of the spike cannot execute in this sandbox
-because every embedding backend is unreachable. The deterministic ripgrep baseline was measured
-(hit@5 = 3/10); the semantic hit@5 could not be measured here. Per design D9 the gate requires an
-explicit PASS/FAIL on semantic retrieval quality before any backend work proceeds, so this is a
-**non-PASS** and the feature MUST NOT proceed past the gate on this run. Task 0.2 must be re-run in
-an environment with a reachable embedder (see "How to complete" below).
+**BLOCKED (environment) → WAIVED (operator decision, 2026-07-19).** The semantic half of the spike
+could not execute in this sandbox because every embedding backend is unreachable (details below);
+semantic hit@5 is UNMEASURED. The deterministic ripgrep baseline was measured (keyword hit@5 =
+3/10). Design D9 asks for an explicit PASS/FAIL before backend work; that signal could not be
+produced here. **The operator elected to waive the empirical gate and proceed with implementation
+on the strength of the design and decision memo.** The retrieval-quality risk D9 was meant to
+retire therefore remains open and MUST be closed before production rollout by running task 0.2
+(see "How to complete") against a reachable embedder. Until then, `CODE_SEARCH_ENABLED` stays
+`off` by default (design D10), so no agent depends on unproven retrieval quality.
 
 This is not a failure of the approach — it is a measurement that could not be taken. It also
 directly corroborates the decision memo's core thesis (see "What this tells us" below).
