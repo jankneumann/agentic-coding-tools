@@ -1,0 +1,317 @@
+schema_version: 1
+
+feature:
+  id: add-semantic-code-search
+  title: "Semantic code search — cocoindex-code adoption, Postgres backend, coordinator surfaces"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-semantic-code-search/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/add-semantic-code-search/contracts/openapi/v1.yaml"
+      - "openspec/changes/add-semantic-code-search/contracts/db/schema.sql"
+      - "openspec/changes/add-semantic-code-search/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ── wp-spike-eval — retrieval-quality gate on stock cocoindex-code (tasks 0.1–0.2)
+  - package_id: wp-spike-eval
+    title: "Spike gate — retrieval-quality eval of stock cocoindex-code"
+    task_type: research
+    description: |
+      Tasks 0.1–0.2: build the 10-task retrieval eval set with ripgrep baseline, run stock
+      cocoindex-code (sqlite-vec) on this repo, and record hit@5 + token cost with an explicit
+      pass/fail verdict in eval/spike-report.md. A FAIL verdict stops the feature (design D9);
+      all other packages depend on this one.
+    role: analyst
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "feature:code-search:eval"
+      ttl_minutes: 120
+      reason: "Spike evaluation artifacts"
+    scope:
+      write_allow:
+        - "openspec/changes/add-semantic-code-search/eval/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: code-search-wp-spike
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Spike report exists with per-task results and explicit verdict"
+          kind: command
+          command: "python3 -c \"import pathlib,sys; t=pathlib.Path('openspec/changes/add-semantic-code-search/eval/spike-report.md').read_text(); sys.exit(0 if ('Verdict' in t and 'hit@5' in t) else 1)\""
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/add-semantic-code-search/eval/spike-report.md"
+            result_keys:
+              - "spike_verdict"
+    outputs:
+      result_keys:
+        - "spike_verdict"
+
+  # ── wp-contracts — validate contracts, generate types (tasks 1.1–1.2)
+  - package_id: wp-contracts
+    title: "Contracts — validate OpenAPI + DB contract, generate Pydantic models"
+    task_type: contracts
+    description: |
+      Tasks 1.1–1.2: validate contracts/openapi/v1.yaml and contracts/db/schema.sql against a
+      scratch ParadeDB, generate contracts/generated/models.py. Coordination boundary for the
+      implementation packages.
+    role: contracts-author
+    priority: 1
+    depends_on: [wp-spike-eval]
+    locks:
+      files: []
+      keys:
+        - "contract:code-search-openapi"
+        - "contract:code-search-db"
+      ttl_minutes: 60
+      reason: "Contract definitions for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/add-semantic-code-search/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: code-search-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "OpenAPI parses and registry DDL applies to scratch ParadeDB"
+          kind: command
+          command: "python3 -c 'import yaml; yaml.safe_load(open(\"openspec/changes/add-semantic-code-search/contracts/openapi/v1.yaml\"))'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+    outputs:
+      result_keys:
+        - "contracts_valid"
+
+  # ── wp-vendor-backend — vendored Postgres backend package (tasks 2.1–2.6)
+  - package_id: wp-vendor-backend
+    title: "Vendored package — indexer_pg / query_pg on cocoindex postgres connector"
+    task_type: backend
+    description: |
+      Tasks 2.1–2.6: packages/code-search/ with indexer_pg.py (mount_table_target +
+      declare_vector_index, per-repo tables, slug validation), query_pg.py (single-statement
+      pgvector KNN), hard pins, fixture tripwire tests, index_repo CLI. Reuses upstream
+      chunking/file-walk/settings/embedder modules as libraries (design D1, D2, D3, D8).
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files: []
+      keys:
+        - "feature:code-search:vendor"
+      ttl_minutes: 120
+      reason: "New vendored package implementation"
+    scope:
+      write_allow:
+        - "packages/code-search/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+    worktree:
+      name: code-search-wp-vendor
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Vendored backend fixture tests pass"
+          kind: command
+          command: "packages/code-search/.venv/bin/python -m pytest packages/code-search/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "vendor_backend_tests_passed"
+    outputs:
+      result_keys:
+        - "vendor_backend_tests_passed"
+
+  # ── wp-coordinator-service — service + MCP/HTTP surfaces (tasks 3.1–3.4)
+  - package_id: wp-coordinator-service
+    title: "Coordinator — code_search.py service, search_code MCP tool, POST /search/code"
+    task_type: backend
+    description: |
+      Tasks 3.1–3.4: src/code_search.py (server-side embedding, registry consistency check,
+      scope filtering via shared glob helper), MCP tool + HTTP endpoint behind
+      CODE_SEARCH_ENABLED, read-only classification, http_proxy passthrough (design D4, D5,
+      D7, D10).
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-contracts, wp-vendor-backend]
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+      keys:
+        - "api:POST /search/code"
+        - "feature:code-search:mcptool"
+      ttl_minutes: 120
+      reason: "Coordinator surface additions"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/code-search/**"
+    worktree:
+      name: code-search-wp-coordinator
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Service + surface tests pass (MCP/HTTP parity, flag gating, outage envelope)"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -k code_search -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_service_tests_passed"
+    outputs:
+      result_keys:
+        - "coordinator_service_tests_passed"
+
+  # ── wp-indexing-infra — migration + reindex trigger (tasks 4.1–4.3)
+  - package_id: wp-indexing-infra
+    title: "Infrastructure — code_search_registry migration, post-merge reindex hook, docs"
+    task_type: infra
+    description: |
+      Tasks 4.1–4.3: additive migration NNN_code_search_registry.sql (CREATE EXTENSION vector,
+      registry table + slug CHECK), post-merge index_repo trigger wiring, guide documentation
+      (design D5, D6).
+    role: backend-implementer
+    priority: 3
+    depends_on: [wp-contracts, wp-vendor-backend]
+    locks:
+      files: []
+      keys:
+        - "db:schema:code_search_registry"
+      ttl_minutes: 60
+      reason: "Coordinator migration"
+    scope:
+      write_allow:
+        - "agent-coordinator/database/migrations/**"
+        - "docs/guides/**"
+        - ".githooks/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "packages/code-search/**"
+    worktree:
+      name: code-search-wp-infra
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Migration applies idempotently; slug CHECK constraint rejects invalid slugs"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -k code_search_registry -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "migration_applied"
+    outputs:
+      result_keys:
+        - "migration_applied"
+
+  # ── wp-integration — end-to-end eval + docs + upstream PR (tasks 5.1–5.3)
+  - package_id: wp-integration
+    title: "Integration — E2E eval through the API, docs, upstream backend-option PR"
+    task_type: integration
+    description: |
+      Tasks 5.1–5.3: index this repo into live ParadeDB, replay the Phase 0 eval set through
+      POST /search/code and append the comparison to eval/spike-report.md, write capability
+      docs, file the best-effort upstream PR (design D1).
+    role: integrator
+    priority: 4
+    depends_on: [wp-vendor-backend, wp-coordinator-service, wp-indexing-infra]
+    locks:
+      files: []
+      keys:
+        - "feature:code-search:integration"
+      ttl_minutes: 120
+      reason: "Full-stack integration run"
+    scope:
+      write_allow:
+        - "openspec/changes/add-semantic-code-search/eval/**"
+        - "docs/**"
+        - "agent-coordinator/CLAUDE.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: code-search-wp-integration
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "E2E eval through POST /search/code meets or beats spike hit@5; full suite green"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests packages/code-search/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/add-semantic-code-search/eval/spike-report.md"
+            result_keys:
+              - "e2e_eval_passed"
+        - name: "Docs updated: capability page + coordinator CLAUDE.md tool table"
+          kind: manual
+          manual_instructions: "Confirm docs/ capability page exists and agent-coordinator/CLAUDE.md lists search_code."
+          evidence:
+            artifacts: []
+            result_keys:
+              - "docs_updated"
+    outputs:
+      result_keys:
+        - "e2e_eval_passed"

@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-19T14:40:05.967532+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude-code",
+    "session_id": null,
+    "summary": "Planned adoption of cocoindex-code as the semantic code-search engine with a vendored Postgres/pgvector backend on the coordinator's ParadeDB, exposed via dual MCP/HTTP coordinator surfaces. Source analysis showed ~95% reuse (storage seam = indexer.py + query.py, ~300 lines); a spike quality gate (D9) precedes all backend work.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Adopt cocoindex-code; do not replicate",
+        "rationale": "~5,900-line package is ~95% storage-agnostic; chunking/daemon/MCP/CLI reused as libraries; rebuilding the AST pipeline is a poor trade",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Postgres (ParadeDB) backend instead of stock sqlite-vec",
+        "rationale": "Index persists across ephemeral cloud sessions, one shared fleet index, hybrid pg_search BM25 unlocked, no new storage silo",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Vendor the 2-file backend patch, attempt upstream PR",
+        "rationale": "No storage-backend registry upstream; patch is ~300-400 lines; Apache 2.0 permits either outcome",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Per-repo chunk tables (code_chunks__<slug>)",
+        "rationale": "Zero query changes, DROP TABLE unload, no cross-repo index contention",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Coordinator-side query embedding with registry consistency check",
+        "rationale": "Cloud agents lack model access; embedder mismatch must be a hard error, not silent degradation",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Expose as read-only tool/endpoint, never MCP resource",
+        "rationale": "Resources are not proxied in http_proxy mode (coordination_mcp D6); read/write split keeps indexing out of query paths",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Gate 2 approval, then /implement-feature add-semantic-code-search starting with wp-spike-eval"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-semantic-code-search/proposal.md",
+        "description": "proposal with approaches"
+      },
+      {
+        "path": "openspec/changes/add-semantic-code-search/decision-memo.md",
+        "description": "adopt-vs-build decision memo with reuse analysis"
+      },
+      {
+        "path": "openspec/changes/add-semantic-code-search/prototype/README.md",
+        "description": "implementation prototype (indexer_pg, query_pg, code_search service)"
+      }
+    ]
+  }
+}
