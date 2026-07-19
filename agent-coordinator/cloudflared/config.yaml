@@ -1,32 +1,40 @@
-# Cloudflare Tunnel configuration for coordinator service mesh.
+# Cloudflare Tunnel configuration for the coordinator service mesh.
 #
 # Replace placeholders before use:
 #   TUNNEL_UUID       — from `cloudflared tunnel create coordinator`
 #   CREDENTIALS_FILE  — path to <tunnel-uuid>.json (created during tunnel create)
 #   CUSTOM_DOMAIN     — your Cloudflare domain (e.g., example.com)
 #
-# See docs/cloudflare-setup.md for full setup instructions and
-# docs/local-migration.md for the Railway → local migration runbook.
+# See docs/cloudflare-setup.md (tunnel/DNS), docs/cloudflare-access-setup.md
+# (service tokens + origin verification), and docs/local-migration.md
+# (Railway → local migration runbook) for full setup instructions.
 #
-# SECURITY: publish the minimum. Only the coordinator HTTP API belongs on
-# the public internet — it enforces API-key auth on every write endpoint.
-# Never add ingress rules for Postgres, Langfuse, or OpenBao (the compose
-# OpenBao service runs in dev mode with a static root token; exposing it
-# hands out the secret store). Reach admin services over Tailscale instead.
+# SECURITY MODEL
+# --------------
+# Only the coordinator HTTP API is exposed to the public internet, and it is
+# protected by a Cloudflare Access application (service tokens for cloud agents,
+# SSO for humans) plus the coordinator's own X-API-Key. The MCP HTTP transport
+# and the OpenBao secret manager are NOT published here — reach them over
+# Tailscale (private tailnet) instead. Cloud agents like Claude Code Web cannot
+# join your tailnet, which is exactly why the API needs the public path and the
+# secret manager does not. Never add ingress rules for Postgres, Langfuse, or
+# OpenBao (the compose OpenBao service runs in dev mode with a static root
+# token; exposing it hands out the secret store).
 
 tunnel: ${TUNNEL_UUID}
 credentials-file: ${CREDENTIALS_FILE}
 
 ingress:
-  # Coordinator HTTP API (FastAPI on port 8081)
+  # Coordinator HTTP API (FastAPI on port 8081). Public, but gated by the
+  # Cloudflare Access application configured for coord.${CUSTOM_DOMAIN}.
   - hostname: coord.${CUSTOM_DOMAIN}
     service: http://localhost:8081
 
-  # MCP SSE transport — enable only if cloud agents actually use MCP over
-  # SSE. The MCP server has no API-key gate of its own, so leave this off
-  # unless you need it.
-  # - hostname: mcp.${CUSTOM_DOMAIN}
-  #   service: http://localhost:8082
+  # NOTE: mcp.${CUSTOM_DOMAIN} (MCP HTTP transport, :8082) and
+  # vault.${CUSTOM_DOMAIN} (OpenBao, :8200) are intentionally NOT published on
+  # the public tunnel. Access them over Tailscale. If you must expose either,
+  # put it behind its own Cloudflare Access application first — never publish
+  # the secret manager unauthenticated.
 
   # Catch-all: return 404 for unrecognized hostnames
   - service: http_status:404

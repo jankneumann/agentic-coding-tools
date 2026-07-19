@@ -31,6 +31,14 @@ _API_KEY_ENV_KEYS = (
     "COORDINATOR_API_KEY",
 )
 
+# Cloudflare Access service-token env vars. When the coordinator is fronted by a
+# Cloudflare Access application, cloud agents authenticate to the edge with a
+# service token (client id + secret); Cloudflare validates it and injects a
+# signed assertion for the origin to verify. These are separate from and
+# complementary to the coordinator's own COORDINATION_API_KEY.
+_CF_ACCESS_ID_ENV = "CF_ACCESS_CLIENT_ID"
+_CF_ACCESS_SECRET_ENV = "CF_ACCESS_CLIENT_SECRET"
+
 _CAPABILITY_FLAGS = (
     "CAN_LOCK",
     "CAN_QUEUE_WORK",
@@ -192,6 +200,22 @@ def _resolve_api_key(api_key: str | None = None) -> str | None:
     return None
 
 
+def _cf_access_headers() -> dict[str, str]:
+    """Return Cloudflare Access service-token headers when both are configured.
+
+    Returns an empty dict when the token is not set, so direct (non-Cloudflare)
+    coordinator access is unaffected.
+    """
+    client_id = os.environ.get(_CF_ACCESS_ID_ENV, "").strip()
+    client_secret = os.environ.get(_CF_ACCESS_SECRET_ENV, "").strip()
+    if client_id and client_secret:
+        return {
+            "CF-Access-Client-Id": client_id,
+            "CF-Access-Client-Secret": client_secret,
+        }
+    return {}
+
+
 def _decode_payload(raw_body: bytes) -> Any:
     if not raw_body:
         return {}
@@ -228,6 +252,7 @@ def _http_request(
         body = json.dumps(payload).encode("utf-8")
     if api_key:
         headers["X-API-Key"] = api_key
+    headers.update(_cf_access_headers())
 
     request_obj = url_request.Request(
         target_url,

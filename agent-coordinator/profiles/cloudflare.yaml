@@ -8,6 +8,13 @@
 #
 # The SSRF allowlist accepts wildcard patterns: *.example.com matches
 # coord.example.com, mcp.example.com, etc.
+#
+# RECOMMENDED: also enable Cloudflare Access origin verification for a public
+# deployment. Set these server-side env vars (not profile settings — they are
+# deployment-specific) and see docs/cloudflare-access-setup.md:
+#   CF_ACCESS_TEAM_DOMAIN=https://<team>.cloudflareaccess.com
+#   CF_ACCESS_AUD=<access-application-audience-tag>
+# The API then rejects any request that did not transit Cloudflare Access.
 extends: railway
 
 api:

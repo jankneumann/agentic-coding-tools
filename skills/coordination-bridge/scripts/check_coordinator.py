@@ -63,11 +63,25 @@ MCP_TOOL_PROBES: dict[str, str] = {
 }
 
 
+def _add_cf_access_headers(req: Request) -> None:
+    """Attach Cloudflare Access service-token headers when configured.
+
+    Lets health/capability probes pass the Cloudflare Access edge on public
+    deployments. No-op when the token env vars are unset.
+    """
+    client_id = os.environ.get("CF_ACCESS_CLIENT_ID", "").strip()
+    client_secret = os.environ.get("CF_ACCESS_CLIENT_SECRET", "").strip()
+    if client_id and client_secret:
+        req.add_header("CF-Access-Client-Id", client_id)
+        req.add_header("CF-Access-Client-Secret", client_secret)
+
+
 def check_health(base_url: str, timeout: float = 3.0) -> dict | None:
     """Probe /health and return parsed JSON, or None on failure."""
     url = f"{base_url.rstrip('/')}/health"
     req = Request(url, method="GET")
     req.add_header("User-Agent", "agentic-coding-tools/0.1")
+    _add_cf_access_headers(req)
     try:
         with urlopen(req, timeout=timeout) as resp:
             if resp.status == 200:
@@ -82,6 +96,7 @@ def probe_route(base_url: str, path: str, timeout: float = 2.0) -> bool:
     url = f"{base_url.rstrip('/')}{path}"
     req = Request(url, method="GET")
     req.add_header("User-Agent", "agentic-coding-tools/0.1")
+    _add_cf_access_headers(req)
     try:
         with urlopen(req, timeout=timeout) as resp:
             return resp.status < 500

@@ -99,6 +99,9 @@ class HttpProxyConfig:
     agent_id_explicit: bool = True
     agent_type_explicit: bool = True
     timeout: float = 5.0
+    # Cloudflare Access service token (edge auth for public deployments).
+    cf_access_client_id: str | None = None
+    cf_access_client_secret: str | None = None
 
     @classmethod
     def from_env(cls) -> HttpProxyConfig | None:
@@ -130,6 +133,8 @@ class HttpProxyConfig:
             agent_id_explicit=agent_id is not None,
             agent_type_explicit=agent_type is not None,
             timeout=float(os.environ.get("COORDINATION_HTTP_TIMEOUT", "5.0")),
+            cf_access_client_id=os.environ.get("CF_ACCESS_CLIENT_ID") or None,
+            cf_access_client_secret=os.environ.get("CF_ACCESS_CLIENT_SECRET") or None,
         )
 
 
@@ -246,6 +251,12 @@ def _build_default_headers(config: HttpProxyConfig) -> dict[str, str]:
     headers = {"Accept": "application/json"}
     if config.api_key:
         headers["X-API-Key"] = config.api_key
+    # Cloudflare Access service token, sent on every proxied request so the
+    # edge admits the call before it reaches the origin. Only added when both
+    # halves are configured.
+    if config.cf_access_client_id and config.cf_access_client_secret:
+        headers["CF-Access-Client-Id"] = config.cf_access_client_id
+        headers["CF-Access-Client-Secret"] = config.cf_access_client_secret
     return headers
 
 

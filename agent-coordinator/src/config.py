@@ -445,6 +445,60 @@ class ApiConfig:
 
 
 @dataclass
+class CloudflareAccessConfig:
+    """Cloudflare Access (Zero Trust) origin-verification configuration.
+
+    When enabled, the HTTP API verifies the ``Cf-Access-Jwt-Assertion`` header
+    Cloudflare injects after authenticating a caller at the edge. See
+    ``src/cloudflare_access.py`` and ``docs/cloudflare-access-setup.md``.
+    """
+
+    enabled: bool = False
+    # Full team domain URL, e.g. https://myteam.cloudflareaccess.com
+    team_domain: str = ""
+    # One or more Access application Audience (AUD) tags. Any match is accepted.
+    audiences: list[str] = field(default_factory=list)
+    # Paths that bypass verification (health probes, metrics, etc.).
+    exempt_paths: list[str] = field(
+        default_factory=lambda: ["/live", "/ready", "/health", "/metrics"]
+    )
+    jwks_cache_seconds: int = 3600
+
+    @classmethod
+    def from_env(cls) -> CloudflareAccessConfig:
+        team_domain = os.environ.get("CF_ACCESS_TEAM_DOMAIN", "").strip().rstrip("/")
+        if team_domain and not team_domain.startswith(("http://", "https://")):
+            team_domain = f"https://{team_domain}"
+
+        raw_aud = os.environ.get("CF_ACCESS_AUD", "")
+        audiences = [a.strip() for a in raw_aud.split(",") if a.strip()]
+
+        # Explicit toggle wins; otherwise infer from whether both required
+        # values are present. This keeps local/dev (no env set) a pass-through.
+        explicit = os.environ.get("CF_ACCESS_ENABLED")
+        if explicit is not None and explicit.strip() != "":
+            enabled = explicit.strip().lower() in {"1", "true", "yes", "on"}
+        else:
+            enabled = bool(team_domain and audiences)
+
+        raw_exempt = os.environ.get("CF_ACCESS_EXEMPT_PATHS", "").strip()
+        if raw_exempt:
+            exempt_paths = [p.strip() for p in raw_exempt.split(",") if p.strip()]
+        else:
+            exempt_paths = ["/live", "/ready", "/health", "/metrics"]
+
+        return cls(
+            enabled=enabled,
+            team_domain=team_domain,
+            audiences=audiences,
+            exempt_paths=exempt_paths,
+            jwks_cache_seconds=int(
+                os.environ.get("CF_ACCESS_JWKS_CACHE_SECONDS", "3600")
+            ),
+        )
+
+
+@dataclass
 class ApprovalConfig:
     """Approval gates configuration."""
 
@@ -588,6 +642,9 @@ class Config:
         default_factory=PolicyEngineConfig.from_env
     )
     api: ApiConfig = field(default_factory=ApiConfig.from_env)
+    cloudflare_access: CloudflareAccessConfig = field(
+        default_factory=CloudflareAccessConfig.from_env
+    )
     port_allocator: PortAllocatorConfig = field(
         default_factory=PortAllocatorConfig.from_env
     )
@@ -650,6 +707,7 @@ class Config:
             network_policy=NetworkPolicyConfig.from_env(),
             policy_engine=PolicyEngineConfig.from_env(),
             api=ApiConfig.from_env(),
+            cloudflare_access=CloudflareAccessConfig.from_env(),
             port_allocator=PortAllocatorConfig.from_env(),
             openbao=OpenBaoConfig.from_env(),
             active_profile=active_profile,
