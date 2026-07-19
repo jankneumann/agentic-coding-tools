@@ -76,9 +76,23 @@ install_openspec() {
 }
 
 # ---------------------------------------------------------------------------
-# Skills — runtime copies (.claude/skills/, .agents/skills/) are committed
-# to the repo, so they arrive via git clone.  No install.sh needed.
+# Skills — regenerate runtime mirrors (.claude/skills/, .agents/skills/) from
+# the canonical skills/ tree.  In the canonical-layout repo the mirrors are
+# gitignored, so a fresh clone ships only skills/ and install.sh must rebuild
+# them (otherwise skill discovery and the SessionStart hooks, which live under
+# .claude/skills/, are missing).  Mirror-layout consumer repos commit their
+# mirrors and have no skills/install.sh — the guard makes this a no-op there.
 # ---------------------------------------------------------------------------
+install_skills() {
+    if [[ -x "$PROJECT_DIR/skills/install.sh" ]]; then
+        log "Syncing skill mirrors from canonical skills/ via install.sh..."
+        (cd "$PROJECT_DIR" && bash skills/install.sh --mode rsync --force \
+            --deps none --python-tools none --openspec-cli none) \
+            || log "WARNING: skills install.sh failed"
+    else
+        log "No canonical skills/install.sh — assuming committed mirrors (consumer-repo layout)"
+    fi
+}
 
 # ---------------------------------------------------------------------------
 # Frontend (if web/ or frontend/ exists)
@@ -118,6 +132,7 @@ setup_git() {
 # ---------------------------------------------------------------------------
 install_venvs
 install_openspec
+install_skills
 install_frontend
 setup_git
 log "=== Setup complete ==="
