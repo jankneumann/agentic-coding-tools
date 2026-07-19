@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-19T17:02:55.888038+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented the feature under the operator's D9 waiver. Built all packages: vendored pgvector backend (packages/code-search), coordinator service + MCP/HTTP surfaces, and the registry migration + docs. Everything runnable without a live DB/embedder is tested and green (backend 24, service 13, migration 2); E2E paths that need ParadeDB + an embedder are written and skip-marked. CODE_SEARCH_ENABLED stays off by default.",
+    "completed_work": [
+      "wp-contracts: OpenAPI validated + contracts/generated/models.py",
+      "wp-vendor-backend: packages/code-search (identifiers, schema, query_pg, indexer_pg, cli, pyproject, tests) \u2014 24 pass / 4 skip",
+      "wp-coordinator-service: src/code_search.py + POST /search/code + search_code MCP tool + http_proxy passthrough \u2014 13 pass",
+      "wp-indexing-infra: 028_code_search_registry.sql + migration test + docs/guides/code-search.md",
+      "wp-integration (partial): CLAUDE.md tool row; E2E + upstream PR deferred"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Dependency-injected service so D4/D5/D7/D10 logic is unit-testable without DB/embedder",
+        "rationale": "Injected registry/embedder/search backends let the whole service be tested with mocks in the PyPI-only harness; make_pg_backends is the thin raw-SQL wrapper for the live pool",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Import-layering: heavy cocoindex/torch confined to indexer_pg (lazy)",
+        "rationale": "identifiers/schema/query_pg import with asyncpg only, so the package + query path work without the embedding stack (verified)",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "MCP tool conditionally registered; HTTP route 404s when flag off",
+        "rationale": "Spec requires the tool be absent from the list when disabled; the route returning 404 satisfies the HTTP flag scenario",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "E2E/migration-apply tests written but skip-marked",
+        "rationale": "Honest coverage \u2014 the scenarios exist and gate the DB-available env, without faking green in a no-DB session",
+        "capability": "code-search",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run /validate-feature where a DB/embedder exists; close D9 via eval 0.2 + task 5.1",
+      "Optionally open the upstream cocoindex-code backend-option PR (task 5.3)"
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/code_search.py",
+        "description": "coordinator service"
+      },
+      {
+        "path": "packages/code-search/",
+        "description": "vendored pgvector backend"
+      },
+      {
+        "path": "docs/guides/code-search.md",
+        "description": "capability + embedding-endpoint docs"
+      }
+    ]
+  }
+}

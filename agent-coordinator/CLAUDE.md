@@ -51,6 +51,7 @@ LOCAL AGENTS (Claude Code)     CLOUD AGENTS (Claude API)
 | `src/config.py` | Configuration from environment variables |
 | `src/locks.py` | File locking service |
 | `src/memory.py` | Episodic memory service |
+| `src/code_search.py` | Semantic code-search service (`search_code` tool / `POST /search/code`, behind `CODE_SEARCH_ENABLED`) |
 | `src/work_queue.py` | Task queue service |
 | `src/guardrails.py` | Destructive operation detection |
 | `src/profiles.py` | Agent profiles and trust levels |
