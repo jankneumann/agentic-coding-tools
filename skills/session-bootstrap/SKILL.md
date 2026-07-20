@@ -137,6 +137,18 @@ into the cloud UI; a wrapped line that injects whitespace inside
 
 ### 2. `.claude/settings.json` — Hooks
 
+**Hook path depends on layout.** The template below uses `.claude/skills/…`,
+which is correct for **mirror-layout consumer repos** (mirrors are committed and
+tracked, so the hook scripts survive a resume). In a **canonical-layout repo**
+where `.claude/skills/` is gitignored (like this one), point the session-bootstrap
+hooks at canonical `skills/session-bootstrap/scripts/…` instead. Rationale: the
+runtime mirror can be wiped on an ephemeral resume, and `bootstrap-cloud.sh` is
+the hook that *rebuilds* it (`verify_skills()`) — if that hook lived only in the
+wiped mirror it could never run to repair itself. Canonical `skills/` is tracked,
+so it always survives. (The langfuse Stop hook already follows this pattern.)
+`$CLAUDE_PROJECT_DIR` is set for hooks, so no `find` is needed here — unlike the
+Setup Script in §1, which runs before it is injected.
+
 ```json
 {
   "hooks": {

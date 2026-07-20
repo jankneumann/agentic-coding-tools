@@ -39,16 +39,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/skills/session-bootstrap/scripts/bootstrap-cloud.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/bootstrap-cloud.sh",
             "timeout": 30
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/session-bootstrap/scripts/hooks/print_coordinator_env.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/print_coordinator_env.py"
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/session-bootstrap/scripts/hooks/register_agent.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/register_agent.py"
           }
         ]
       }
@@ -59,11 +59,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/session-bootstrap/scripts/hooks/report_status.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/report_status.py"
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/session-bootstrap/scripts/hooks/check_compact.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/check_compact.py",
             "timeout": 5
           },
           {
@@ -80,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/session-bootstrap/scripts/hooks/precompact_handoff.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/precompact_handoff.py",
             "timeout": 5
           }
         ]
@@ -92,7 +92,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/session-bootstrap/scripts/hooks/report_status.py --subagent"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/report_status.py --subagent"
           }
         ]
       }
@@ -103,7 +103,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/session-bootstrap/scripts/hooks/deregister_agent.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/deregister_agent.py"
           }
         ]
       }
