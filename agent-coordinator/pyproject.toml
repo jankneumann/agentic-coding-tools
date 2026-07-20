@@ -16,7 +16,7 @@ dependencies = [
     # (SMTP command injection via unneutralized CR/LF in caller-supplied
     # addresses passed to mail()/rcpt()/vrfy()/expn()/sendmail()).
     "aiosmtplib>=5.1.1",
-    "aioimaplib>=1.0.0",
+    "aioimaplib>=2.0.1",
     "email-validator>=2.3.0",
     "urllib3>=2.7.0",
     # gen-eval framework is now a sibling package (see [tool.uv.sources]).
