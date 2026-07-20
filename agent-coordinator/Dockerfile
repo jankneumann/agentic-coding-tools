@@ -54,6 +54,15 @@ COPY --from=builder /app/.venv /app/.venv
 
 # Copy application source code and runtime config assets loaded from disk.
 COPY agent-coordinator/src/ /app/src/
+# code_search_pkg provides the pgvector query backend lazily imported by
+# src/code_search.py (`from code_search_pkg.query_pg import ...`) when code
+# search runs with the Postgres backend. Only the light query modules
+# (identifiers, schema, query_pg — pure Python, no asyncpg/cocoindex at import
+# time) are needed here; the coordinator supplies its own asyncpg pool at
+# call time, so this package is NOT a resolved venv dependency (its asyncpg
+# <0.31 pin would conflict with the coordinator's >=0.31). Sourced from
+# packages/code-search/src/ per the check-docker-imports contract.
+COPY packages/code-search/src/code_search_pkg/ /app/code_search_pkg/
 COPY agent-coordinator/profiles/ /app/profiles/
 COPY agent-coordinator/cedar/ /app/cedar/
 # Evaluation module is imported by src/coordination_api.py for the
