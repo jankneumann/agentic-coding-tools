@@ -57,7 +57,7 @@ observability = [
     "opentelemetry-sdk>=1.41.0",
     "opentelemetry-exporter-otlp>=1.20.0",
     "opentelemetry-exporter-prometheus>=0.62b1",
-    "prometheus-client>=0.20.0",
+    "prometheus-client>=0.25.0",
     "langfuse>=4.14.0,<5.0",
 ]
 test = [
