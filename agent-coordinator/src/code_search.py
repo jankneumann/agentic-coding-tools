@@ -187,7 +187,7 @@ class CodeSearchService:
 
         # 4. Scope filtering (D7).
         scoped = scope is not None
-        if scoped:
+        if scope is not None:
             read_allow, deny = await self._resolve_scope(scope)
             hits = filter_by_scope(hits, read_allow, deny)[:limit]
         else:
@@ -227,7 +227,14 @@ def make_pg_backends(pool: Any) -> tuple[RegistryLookup, SearchBackend]:
         )
         return dict(row) if row else None
 
-    async def search_backend(repo, embedding, limit, offset, languages, paths):
+    async def search_backend(
+        repo: str,
+        embedding: Sequence[float],
+        limit: int,
+        offset: int,
+        languages: list[str] | None,
+        paths: list[str] | None,
+    ) -> list[dict[str, Any]]:
         rows = await pool.fetch(
             build_search_sql(repo),
             to_pgvector_literal(embedding),
