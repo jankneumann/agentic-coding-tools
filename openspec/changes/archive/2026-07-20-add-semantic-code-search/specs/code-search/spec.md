@@ -84,10 +84,10 @@ merge).
 
 ### Requirement: Scope-Aware Result Filtering
 
-When a search request carries a scope (a work-package id or explicit glob lists), the service
-SHALL drop result chunks whose `file_path` falls outside the scope's `read_allow` globs or inside
-its `deny` globs before returning, using the same glob semantics as the parallel-infrastructure
-scope checker. Absence of a scope SHALL return unrestricted results.
+The service SHALL drop result chunks whose `file_path` falls outside the scope's `read_allow`
+globs or inside its `deny` globs before returning, when a search request carries a scope (a
+work-package id or explicit glob lists), using the same glob semantics as the
+parallel-infrastructure scope checker. Absence of a scope SHALL return unrestricted results.
 
 #### Scenario: Out-of-scope chunks are dropped server-side
 

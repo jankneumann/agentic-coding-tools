@@ -5,36 +5,36 @@
 
 ---
 
-## 2026-07-19 — add-semantic-code-search
+## 2026-07-19 — 2026-07-20-add-semantic-code-search
 
 ### Phase: Implementation
 
 **MCP tool conditionally registered; HTTP route 404s when flag off** — Spec requires the tool be absent from the list when disabled; the route returning 404 satisfies the HTTP flag scenario
 
 - Status: `active`
-- Source: [openspec/changes/add-semantic-code-search/session-log.md](/openspec/changes/add-semantic-code-search/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-07-20-add-semantic-code-search/session-log.md](/openspec/changes/archive/2026-07-20-add-semantic-code-search/session-log.md) (D3)
 
 ---
 
-## 2026-07-19 — add-semantic-code-search
+## 2026-07-19 — 2026-07-20-add-semantic-code-search
 
 ### Phase: Plan
 
 **Coordinator-side query embedding with registry consistency check** — Cloud agents lack model access; embedder mismatch must be a hard error, not silent degradation
 
 - Status: `active`
-- Source: [openspec/changes/add-semantic-code-search/session-log.md](/openspec/changes/add-semantic-code-search/session-log.md) (D5)
+- Source: [openspec/changes/archive/2026-07-20-add-semantic-code-search/session-log.md](/openspec/changes/archive/2026-07-20-add-semantic-code-search/session-log.md) (D5)
 
 ---
 
-## 2026-07-19 — add-semantic-code-search
+## 2026-07-19 — 2026-07-20-add-semantic-code-search
 
 ### Phase: Plan
 
 **Expose as read-only tool/endpoint, never MCP resource** — Resources are not proxied in http_proxy mode (coordination_mcp D6); read/write split keeps indexing out of query paths
 
 - Status: `active`
-- Source: [openspec/changes/add-semantic-code-search/session-log.md](/openspec/changes/add-semantic-code-search/session-log.md) (D6)
+- Source: [openspec/changes/archive/2026-07-20-add-semantic-code-search/session-log.md](/openspec/changes/archive/2026-07-20-add-semantic-code-search/session-log.md) (D6)
 
 ---
 

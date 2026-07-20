@@ -24,6 +24,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 
 - [agent-archetypes](./agent-archetypes.md)
 - [agent-coordinator](./agent-coordinator.md)
+- [code-search](./code-search.md)
 - [configuration](./configuration.md)
 - [coordination-bridge](./coordination-bridge.md)
 - [coordinator-kanban-viz](./coordinator-kanban-viz.md)
