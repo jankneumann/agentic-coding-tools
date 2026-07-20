@@ -40,7 +40,7 @@ analysis = [
 ]
 api = [
     { name = "fastapi" },
-    { name = "pyjwt" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "sse-starlette" },
     { name = "uvicorn" },
 ]
@@ -51,7 +51,7 @@ dev = [
     { name = "asyncpg" },
     { name = "cedarpy" },
     { name = "mypy" },
-    { name = "pyjwt" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-playwright" },
@@ -78,7 +78,7 @@ sdk = [
 test = [
     { name = "hypothesis" },
     { name = "mypy" },
-    { name = "pyjwt" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-playwright" },
@@ -115,9 +115,9 @@ requires-dist = [
     { name = "prometheus-client", marker = "extra == 'observability'", specifier = ">=0.25.0" },
     { name = "psycopg2-binary", marker = "extra == 'analysis'", specifier = ">=2.9.0" },
     { name = "pydantic", specifier = ">=2.13.4" },
-    { name = "pyjwt", marker = "extra == 'api'", specifier = ">=2.13.0" },
-    { name = "pyjwt", marker = "extra == 'dev'", specifier = ">=2.13.0" },
-    { name = "pyjwt", marker = "extra == 'test'", specifier = ">=2.13.0" },
+    { name = "pyjwt", extras = ["crypto"], marker = "extra == 'api'", specifier = ">=2.13.0" },
+    { name = "pyjwt", extras = ["crypto"], marker = "extra == 'dev'", specifier = ">=2.13.0" },
+    { name = "pyjwt", extras = ["crypto"], marker = "extra == 'test'", specifier = ">=2.13.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.1.1" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.4.0" },
