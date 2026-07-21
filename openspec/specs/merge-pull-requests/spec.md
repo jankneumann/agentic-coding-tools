@@ -4,23 +4,24 @@
 TBD - created by archiving change add-merge-pull-requests-skill. Update Purpose after archive.
 ## Requirements
 ### Requirement: PR Discovery and Classification
-The skill SHALL discover all open pull requests in the current repository and classify each by origin: OpenSpec, Jules/Sentinel, Jules/Bolt, Jules/Palette, Codex, or other.
+
+The skill SHALL discover all open pull requests in the current repository and classify each by origin: OpenSpec, Jules/Sentinel, Jules/Bolt, Jules/Palette, Codex, Dependabot, Renovate, or other. Its discovery entry point and classifier SHALL be runnable from the installed consumer payload without importing coordinator source code.
 
 #### Scenario: Discover open PRs
-- **WHEN** the skill is invoked in a repository with open PRs
+- **WHEN** the skill is invoked in a consumer repository with open PRs
 - **THEN** it SHALL list all open PRs with their number, title, author, origin classification, branch name, creation date, and labels
+- **AND** discovery SHALL not require `agent-coordinator/src`
 
-#### Scenario: Classify OpenSpec PR
-- **WHEN** a PR's branch matches `openspec/*` or its body contains `Implements OpenSpec:`
-- **THEN** it SHALL be classified as origin `openspec` with the change-id extracted
-
-#### Scenario: Classify Jules automation PR
-- **WHEN** a PR is authored by a Jules bot or has labels/branch patterns matching Sentinel, Bolt, or Palette
-- **THEN** it SHALL be classified with the specific Jules automation type (sentinel, bolt, or palette)
+#### Scenario: Import discovery without coordinator checkout
+- **WHEN** `discover_prs.py --help` is executed from an rsynced `.claude/skills/merge-pull-requests` or `.agents/skills/merge-pull-requests` directory
+- **AND** the consumer contains no `agent-coordinator` package
+- **THEN** the command SHALL exit successfully
+- **AND** classification helpers SHALL resolve from the installed payload
 
 #### Scenario: No open PRs
 - **WHEN** the skill is invoked in a repository with no open PRs
 - **THEN** it SHALL report that no open PRs were found and exit gracefully
+- **AND** SHALL preserve the same classification result schema as the coordinator PR-card adapter
 
 ### Requirement: Staleness Detection
 The skill SHALL detect whether a PR's changes are still relevant by comparing its diff against changes made to main since the PR was created.
