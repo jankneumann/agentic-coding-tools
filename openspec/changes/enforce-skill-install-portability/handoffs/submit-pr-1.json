@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-21T03:34:04.347579+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-autopilot",
+    "session_id": null,
+    "summary": "Published the validated feature branch and opened draft pull request #259; autopilot delivery is complete.",
+    "completed_work": [
+      "Pushed openspec/enforce-skill-install-portability to origin",
+      "Opened draft PR https://github.com/jankneumann/agentic-coding-tools/pull/259"
+    ],
+    "in_progress": [],
+    "decisions": [],
+    "next_steps": [],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/enforce-skill-install-portability/tasks.md",
+        "description": "Completed P0-P3 delivery checklist"
+      }
+    ]
+  }
+}

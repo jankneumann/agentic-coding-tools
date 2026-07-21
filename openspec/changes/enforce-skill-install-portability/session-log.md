@@ -83,3 +83,19 @@ Implemented the approved P0-P3 portability program; independent implementation f
 ### Context
 Standalone install portability is proven for both Claude and agents mirrors, and all configured local quality gates pass.
 
+---
+
+## Phase: Submit PR (2026-07-21)
+
+**Agent**: codex-autopilot | **Session**: N/A
+
+### Completed Work
+- Pushed openspec/enforce-skill-install-portability to origin
+- Opened draft PR https://github.com/jankneumann/agentic-coding-tools/pull/259
+
+### Relevant Files
+- `openspec/changes/enforce-skill-install-portability/tasks.md` — Completed P0-P3 delivery checklist
+
+### Context
+Published the validated feature branch and opened draft pull request #259; autopilot delivery is complete.
+

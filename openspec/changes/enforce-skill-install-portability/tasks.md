@@ -186,6 +186,6 @@ The P0–P3 headings and scope below preserve the portability audit accepted by 
   **Dependencies**: 4.1
   **Files**: generated mirrors only through `skills/install.sh`
 
-- [ ] 4.3 (S) Complete implementation review, write validation/session artifacts, commit task checkboxes with their implementation, push the feature branch, and open the autopilot PR.
+- [x] 4.3 (S) Complete implementation review, write validation/session artifacts, commit task checkboxes with their implementation, push the feature branch, and open the autopilot PR.
   **Dependencies**: 4.2
   **Files**: `openspec/changes/enforce-skill-install-portability/`
