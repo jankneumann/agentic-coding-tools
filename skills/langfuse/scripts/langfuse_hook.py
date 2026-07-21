@@ -285,6 +285,25 @@ def sanitize(text: str) -> str:
     return text
 
 
+def sanitize_value(value: Any) -> Any:
+    """Recursively redact secrets from strings nested anywhere in a value.
+
+    Preserves the structure (dicts, lists, scalars) so tracing keeps the shape
+    of the payload, while scrubbing every string at any depth. A shallow pass
+    that only touches top-level strings leaks secrets carried in nested maps
+    such as request headers, env blocks, bodies, or MCP tool arguments.
+    """
+    if isinstance(value, str):
+        return sanitize(value)
+    if isinstance(value, dict):
+        return {k: sanitize_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [sanitize_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(sanitize_value(item) for item in value)
+    return value
+
+
 # ---------------------------------------------------------------------------
 # Langfuse trace creation
 # ---------------------------------------------------------------------------
@@ -346,11 +365,7 @@ def send_turns_to_langfuse(
                 tool_input = tc.get("input", {})
                 tool_output = tc.get("output", "")
 
-                if isinstance(tool_input, dict):
-                    tool_input = {
-                        k: sanitize(str(v)) if isinstance(v, str) else v
-                        for k, v in tool_input.items()
-                    }
+                tool_input = sanitize_value(tool_input)
                 if isinstance(tool_output, str):
                     tool_output = sanitize(tool_output)
 
