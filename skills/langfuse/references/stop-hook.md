@@ -14,9 +14,9 @@ After every assistant turn, the hook:
 
 ## Reference implementation
 
-A working hook ships in this repo at `agent-coordinator/scripts/langfuse_hook.py` (copied or vendored when you adopt this pattern in another project).
+A working hook runtime ships with the skill at `<skill-base-dir>/scripts/langfuse_hook.py`.
 
-The script is self-contained — single Python file, no internal imports beyond stdlib + `langfuse>=3.0,<4.0`.
+The script is self-contained — single Python file, no internal imports beyond stdlib + `langfuse>=4.14,<5.0`.
 
 ## Required environment variables
 
@@ -29,40 +29,36 @@ The script is self-contained — single Python file, no internal imports beyond 
 | `LANGFUSE_DEBUG` | No | Set to `true` for verbose logging to `~/.claude/state/langfuse_hook.log` |
 | `CLAUDE_SESSION_ID` | No | Override the auto-detected session ID (rarely needed) |
 
-The recommended source for the three `LANGFUSE_PUBLIC_KEY/SECRET_KEY/HOST` values is OpenBao via `skills/bao-vault/scripts/langfuse_env.sh` — `run_stop_hook.sh` calls it automatically. Otherwise export them from your shell profile or `.envrc`. The hook is gated on `LANGFUSE_ENABLED`, so leaving it unset is the off switch even when registration is in place.
+The recommended source for the three `LANGFUSE_PUBLIC_KEY/SECRET_KEY/HOST` values is OpenBao via `<skill-base-dir>/../bao-vault/scripts/langfuse_env.sh` — `run_stop_hook.sh` calls it automatically. Otherwise export them from your shell profile or `.envrc`. The hook is gated on `LANGFUSE_ENABLED`, so leaving it unset is the off switch even when registration is in place.
 
 ## Wiring in `.claude/settings.json`
 
 The supported path is the wrapper-plus-installer pair shipped with this skill:
 
 ```bash
-python3 skills/langfuse/scripts/install_stop_hook.py            # project-scoped (.claude/settings.json)
-python3 skills/langfuse/scripts/install_stop_hook.py --user     # user-scoped  (~/.claude/settings.json)
-python3 skills/langfuse/scripts/install_stop_hook.py --remove   # uninstall
+python3 "<skill-base-dir>/scripts/install_stop_hook.py"            # project-scoped (.claude/settings.json)
+python3 "<skill-base-dir>/scripts/install_stop_hook.py" --user     # user-scoped  (~/.claude/settings.json)
+python3 "<skill-base-dir>/scripts/install_stop_hook.py" --remove   # uninstall
 ```
 
-This appends a single Stop-hook entry whose command is `bash "$CLAUDE_PROJECT_DIR"/skills/langfuse/scripts/run_stop_hook.sh`. The installer is idempotent (re-runs are no-ops), preserves all existing Stop hooks, and `--remove` cleanly uninstalls.
+This appends a single Stop-hook entry using the installer's actual canonical,
+`.claude/skills`, or `.agents/skills` location. The installer is idempotent,
+preserves all existing Stop hooks, and `--remove` cleanly uninstalls.
 
 ### What `run_stop_hook.sh` does
 
-1. Sources `skills/bao-vault/scripts/langfuse_env.sh` (silent no-op if OpenBao is not configured) — this populates `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `LANGFUSE_BASIC_AUTH`.
+1. Sources the sibling `bao-vault/scripts/langfuse_env.sh` (silent no-op if OpenBao is not configured) — this populates `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `LANGFUSE_BASIC_AUTH`.
 2. Bails (exit 0) if credentials are still missing — Stop hooks must never fail noisily.
-3. Picks the Python invocation in priority order:
-   - `agent-coordinator/.venv/bin/python` (fastest — uses pre-installed langfuse)
-   - `uv run --with 'langfuse>=3.0,<4.0' python` (portable fallback; first run cold-installs)
-   - `python3` (last resort; assumes `langfuse` is on `sys.path`)
-4. Sets `LANGFUSE_ENABLED=true` and `exec`s `agent-coordinator/scripts/langfuse_hook.py`.
+3. Uses `uv run --with 'langfuse>=4.14,<5.0' python` when available, then
+   falls back to `python3` when Langfuse is already installed.
+4. Sets `LANGFUSE_ENABLED=true` and executes the co-installed `langfuse_hook.py`.
 
 ### Manual wiring (if you need a different shape)
 
-If you can't use the wrapper, the two raw command patterns are still valid — paste either into the `Stop` array:
+If you cannot use the installer, invoke the wrapper from the installed layout:
 
 ```json
-{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/agent-coordinator/.venv/bin/python \"$CLAUDE_PROJECT_DIR\"/agent-coordinator/scripts/langfuse_hook.py" }
-```
-
-```json
-{ "type": "command", "command": "uv run --with 'langfuse>=3.0,<4.0' python \"$CLAUDE_PROJECT_DIR\"/agent-coordinator/scripts/langfuse_hook.py" }
+{ "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/skills/langfuse/scripts/run_stop_hook.sh" }
 ```
 
 These bypass `run_stop_hook.sh`, so you must export `LANGFUSE_*` and `LANGFUSE_ENABLED=true` yourself in the shell that launches Claude Code.

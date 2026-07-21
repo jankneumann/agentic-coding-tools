@@ -3,15 +3,12 @@
 
 Adds (idempotently) an entry to the Stop hook array in either the project-scoped
 .claude/settings.json (default) or the user-scoped ~/.claude/settings.json
-(--user flag). The entry invokes skills/langfuse/scripts/run_stop_hook.sh, which
-in turn resolves credentials and runs agent-coordinator/scripts/langfuse_hook.py.
+(--user flag). The entry invokes the co-installed Langfuse wrapper and runtime.
 
 Other Stop hook entries (e.g. session-bootstrap report_status) are preserved.
 
 Usage:
-    python3 skills/langfuse/scripts/install_stop_hook.py            # project-scoped
-    python3 skills/langfuse/scripts/install_stop_hook.py --user     # user-scoped
-    python3 skills/langfuse/scripts/install_stop_hook.py --remove   # uninstall
+    python3 "<skill-base-dir>/scripts/install_stop_hook.py" [--user|--remove]
 """
 
 from __future__ import annotations
@@ -21,8 +18,7 @@ import json
 import sys
 from pathlib import Path
 
-WRAPPER_REL = "skills/langfuse/scripts/run_stop_hook.sh"
-HOOK_COMMAND = f'bash "$CLAUDE_PROJECT_DIR"/{WRAPPER_REL}'
+WRAPPER_SUFFIX = "langfuse/scripts/run_stop_hook.sh"
 
 
 def repo_root() -> Path:
@@ -31,6 +27,16 @@ def repo_root() -> Path:
         if (parent / ".git").exists():
             return parent
     return Path.cwd()
+
+
+def wrapper_relative(root: Path | None = None) -> str:
+    """Return the wrapper path for canonical or installed skill layouts."""
+    root = (root or repo_root()).resolve()
+    wrapper = Path(__file__).resolve().with_name("run_stop_hook.sh")
+    try:
+        return wrapper.relative_to(root).as_posix()
+    except ValueError:
+        return str(wrapper)
 
 
 def load(path: Path) -> dict:
@@ -47,11 +53,17 @@ def save(path: Path, data: dict) -> None:
 def upsert(settings: dict) -> bool:
     hooks = settings.setdefault("hooks", {})
     stop = hooks.setdefault("Stop", [])
-    new_hook = {"type": "command", "command": HOOK_COMMAND, "timeout": 30}
+    wrapper_rel = wrapper_relative()
+    wrapper_path = (
+        f'"{wrapper_rel}"'
+        if Path(wrapper_rel).is_absolute()
+        else f'"$CLAUDE_PROJECT_DIR"/{wrapper_rel}'
+    )
+    new_hook = {"type": "command", "command": f"bash {wrapper_path}", "timeout": 30}
 
     for group in stop:
         for hook in group.get("hooks", []):
-            if hook.get("command", "").endswith(WRAPPER_REL):
+            if hook.get("command", "").rstrip('"').endswith(WRAPPER_SUFFIX):
                 hook.update(new_hook)
                 return False
 
@@ -70,7 +82,7 @@ def remove(settings: dict) -> bool:
     for group in list(stop):
         group["hooks"] = [
             h for h in group.get("hooks", [])
-            if not h.get("command", "").endswith(WRAPPER_REL)
+            if not h.get("command", "").rstrip('"').endswith(WRAPPER_SUFFIX)
         ]
         if not group["hooks"]:
             stop.remove(group)

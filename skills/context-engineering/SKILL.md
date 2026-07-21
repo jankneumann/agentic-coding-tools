@@ -81,7 +81,7 @@ you can provide.
 - TypeScript 5, Vite, React 18 (web app)
 
 ## Commands
-- Test (Python): `skills/.venv/bin/python -m pytest skills/tests/`
+- Test (Python, **source-contribution-only**): `skills/.venv/bin/python -m pytest skills/tests/`
 - Test (Node): `npm test`
 - Lint: `npm run lint --fix`
 - Type check: `npx tsc --noEmit`
@@ -103,8 +103,8 @@ you can provide.
 - `.github/copilot-instructions.md` (GitHub Copilot)
 - `AGENTS.md` (OpenAI Codex)
 
-In this repo, the canonical rules file is `CLAUDE.md` at the root. Sync via
-`bash skills/install.sh --mode rsync --deps none --python-tools none` after edits.
+In this source repo, the canonical rules file is `CLAUDE.md` at the root. After
+source-contribution-only edits, regenerate the runtime mirrors with the repository installer.
 
 ### Level 2: Specs and Architecture
 
@@ -155,7 +155,7 @@ scope:
     - "skills/**"
     - "openspec/changes/<change-id>/**"
   deny:
-    - "skills/install.sh"
+    - "skills/install.sh"  # source-contribution-only scope example
     - "skills/pyproject.toml"
     - "skills/references/**"
 ```
@@ -165,7 +165,7 @@ scope:
 `scope.deny` is an explicit blocklist that overrides `read_allow`.
 
 The worker should treat these as hard boundaries: a context block that violates the
-scope is a bug. `skills/parallel-infrastructure/scripts/scope_checker.py` validates
+scope is a bug. `<skill-base-dir>/../parallel-infrastructure/scripts/scope_checker.py` validates
 proposed file edits against the scope before they land.
 
 **Trust levels for loaded files:**
@@ -200,7 +200,7 @@ Long conversations accumulate stale context. Manage this:
 - **Summarize progress** when context is getting long: "So far we've completed X, Y, Z.
   Now working on W."
 - **Compact deliberately** — if the tool supports it, compact/summarize before critical work
-- **Sanitize before handoff.** Use `skills/session-log/scripts/sanitize_session_log.py`
+- **Sanitize before handoff.** Use `<skill-base-dir>/../session-log/scripts/sanitize_session_log.py`
   to strip secrets, tokens, and high-entropy strings from a session log before passing
   it to a fresh worker. Sanitize, then verify the diff with the operator. The
   sanitize-then-verify pattern is the contract for every cross-session context handoff.
@@ -212,7 +212,7 @@ worker:
 
 ### Coordinator Detection
 
-`skills/coordination-bridge/scripts/check_coordinator.py` is the canonical capability
+`<skill-base-dir>/../coordination-bridge/scripts/check_coordinator.py` is the canonical capability
 discovery probe. Before assembling a context block that assumes coordinator features
 (handoff documents, locks, trust scores), call:
 
@@ -221,7 +221,7 @@ import json
 import subprocess
 
 result = subprocess.run(
-    ["python3", "skills/coordination-bridge/scripts/check_coordinator.py"],
+    ["python3", "<skill-base-dir>/../coordination-bridge/scripts/check_coordinator.py"],
     capture_output=True,
     text=True,
     check=False,
@@ -322,12 +322,12 @@ CONSTRAINT:
 Or in Python:
 
 ```
-TASK: Add retry logic to skills/coordination-bridge/scripts/coordination_bridge.py
+TASK: Add retry logic to <skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py
 
 RELEVANT FILES:
-- skills/coordination-bridge/scripts/coordination_bridge.py (target)
-- skills/coordination-bridge/scripts/check_coordinator.py (existing fetch pattern)
-- skills/tests/coordination-bridge/test_bridge.py (tests to extend)
+- <skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py (target)
+- <skill-base-dir>/../coordination-bridge/scripts/check_coordinator.py (existing fetch pattern)
+- skills/tests/coordination-bridge/test_bridge.py (**source-contribution-only** tests to extend)
 
 PATTERN TO FOLLOW:
 - httpx.AsyncClient with tenacity retry decorator (see check_coordinator.py:45)
@@ -455,7 +455,7 @@ The sanitize-then-verify pattern is the contract for all cross-session context h
 in this repo:
 
 1. Worker writes a session log (decisions, blockers, partial state).
-2. `skills/session-log/scripts/sanitize_session_log.py` strips secrets, tokens, and
+2. `<skill-base-dir>/../session-log/scripts/sanitize_session_log.py` strips secrets, tokens, and
    high-entropy strings.
 3. The sanitized log is the input to the next session (fresh worker, possibly different
    vendor).

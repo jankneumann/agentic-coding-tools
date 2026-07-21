@@ -21,7 +21,10 @@ Inspect a change for readiness before sync-point operations (`/cleanup-feature`,
 
 The expediter is a **read-only** role. It does not merge, mutate state, or run commands that change the worktree, the registry, or the remote. Its only job is to refuse outgoing work that is not ready, the way an expediter at the kitchen pass refuses a plate that is not right.
 
-This is the kitchen-brigade role implementation called out in [`docs/mental-models.md`](../../docs/mental-models.md) gap G2 — a first-class expediter to replace the implicit role currently scattered across `/cleanup-feature` and `/merge-pull-requests`.
+This is the kitchen-brigade role summarized in the shipped
+[expediter rationale](references/expediter-role.md): a first-class expediter
+replaces the implicit role previously scattered across `/cleanup-feature` and
+`/merge-pull-requests`.
 
 ## Arguments
 
@@ -38,7 +41,7 @@ Optional flags:
 ### 1. Run the expediter
 
 ```bash
-python skills/expedite/scripts/expedite.py <change-id>
+python3 "<skill-base-dir>/scripts/expedite.py" <change-id>
 ```
 
 The script:
@@ -66,7 +69,7 @@ A `skip` status (e.g., no `rework-report.json`) does not block. Some changes leg
 ### 3. Optional: machine-readable mode
 
 ```bash
-python skills/expedite/scripts/expedite.py <change-id> --json > /tmp/verdict.json
+python3 "<skill-base-dir>/scripts/expedite.py" <change-id> --json > /tmp/verdict.json
 ```
 
 The JSON shape is:
@@ -100,6 +103,6 @@ The JSON shape is:
 ## See Also
 
 - [`skills/shared/active_agents.py`](../shared/active_agents.py) — the active-agent guard
-- [`skills/validate-feature/scripts/gate_logic.py`](../validate-feature/scripts/gate_logic.py) — `pre_merge_gate`, `REQUIRED_PHASES`
-- [`skills/validate-feature/scripts/rework_report.py`](../validate-feature/scripts/rework_report.py) — `ReworkReport`, `load_rework_report`
-- [`docs/mental-models.md`](../../docs/mental-models.md) gap G2 — the rationale
+- [`../validate-feature/scripts/gate_logic.py`](../validate-feature/scripts/gate_logic.py) — `pre_merge_gate`, `REQUIRED_PHASES`
+- [`../validate-feature/scripts/rework_report.py`](../validate-feature/scripts/rework_report.py) — `ReworkReport`, `load_rework_report`
+- [Expediter role](references/expediter-role.md) — shipped rationale and residual

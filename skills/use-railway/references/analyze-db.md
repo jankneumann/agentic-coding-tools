@@ -75,7 +75,7 @@ Use the `production` environment by default. If multiple non-PR environments exi
 
 **All scripts share the same CLI interface** (use the script name from the table above):
 ```bash
-python3 scripts/analyze-<script>.py \
+python3 "<skill-base-dir>/scripts/analyze-<script>.py" \
   --service <name> \
   --json \
   --project-id <project-id> \
@@ -239,7 +239,7 @@ Pass project, environment, and service IDs directly — no `railway link` needed
 ```bash
 # From plugins/railway/skills/use-railway directory:
 # Use the script name from the "Database Type Detection" table above
-python3 scripts/analyze-postgres.py --service <name> --json \
+python3 "<skill-base-dir>/scripts/analyze-postgres.py" --service <name> --json \
   --project-id <project-id> --environment-id <env-id> --service-id <service-id>
 ```
 
@@ -272,7 +272,7 @@ Match the environment name (case-insensitive) to get the `environmentId`.
 
 ```bash
 # Use the script name from the "Database Type Detection" table above
-python3 scripts/analyze-postgres.py --service <name> \
+python3 "<skill-base-dir>/scripts/analyze-postgres.py" --service <name> \
   --project-id <pid> --environment-id <eid> --service-id <sid> \
   --step ssh-test    # Test SSH connectivity
   --step query       # Run only the database query

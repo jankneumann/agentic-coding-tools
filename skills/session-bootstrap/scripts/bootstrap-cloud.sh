@@ -133,7 +133,8 @@ verify_openspec() {
 # Verify skills installed
 # ---------------------------------------------------------------------------
 verify_skills() {
-    if [[ ! -f "$PROJECT_DIR/skills/install.sh" ]]; then
+    local source_installer="$PROJECT_DIR/skills/install.sh"  # source-contribution-only
+    if [[ ! -f "$source_installer" ]]; then
         return  # not a skills source repo
     fi
 
@@ -142,7 +143,7 @@ verify_skills() {
     elif $CHECK_ONLY; then
         warn "skills directories missing"
     else
-        bash "$PROJECT_DIR/skills/install.sh" \
+        bash "$source_installer" \
             --mode rsync --deps none --python-tools none --force >&2 2>&1 \
             && repair "skills installed" || warn "skills install failed"
     fi

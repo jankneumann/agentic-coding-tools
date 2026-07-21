@@ -148,11 +148,19 @@ Gather context from multiple sources concurrently using Task(Explore) agents.
 Resolve the analyst archetype before dispatching:
 
 ```python
-from src.agents_config import load_archetypes_config, resolve_model
-archetypes = load_archetypes_config()
-analyst = archetypes.get("analyst")
-analyst_model = resolve_model(analyst, {}) if analyst else "sonnet"
+import sys
+from pathlib import Path
+
+bridge_scripts = Path("<skill-base-dir>").parent / "coordination-bridge" / "scripts"
+sys.path.insert(0, str(bridge_scripts))
+import coordination_bridge
+
+resolved = coordination_bridge.try_resolve_archetype_for_phase("PLAN", {})
+analyst_model = resolved["model"] if resolved else None
 ```
+
+If resolution is unavailable, omit `model=` from `Task` so the harness uses
+its configured default.
 
 ```
 Task(subagent_type="Explore", model=analyst_model, prompt="Read openspec/project.md and summarize the project purpose, tech stack, and conventions", run_in_background=true)
@@ -559,10 +567,10 @@ openspec validate <change-id> --strict
 
 **Local-parallel+ tiers** (additionally):
 ```bash
-skills/.venv/bin/python "<skill-base-dir>/../validate-packages/scripts/validate_work_packages.py" \
+python3 "<skill-base-dir>/../validate-packages/scripts/validate_work_packages.py" \
   openspec/changes/<change-id>/work-packages.yaml
 
-skills/.venv/bin/python "<skill-base-dir>/../refresh-architecture/scripts/parallel_zones.py" \
+python3 "<skill-base-dir>/../refresh-architecture/scripts/parallel_zones.py" \
   --validate-packages openspec/changes/<change-id>/work-packages.yaml --json
 ```
 
@@ -614,7 +622,8 @@ This step MUST run BEFORE the `git add` in Step 11 so the session-log entry is i
 ```bash
 python3 - <<'EOF'
 import sys
-sys.path.insert(0, "skills/session-log/scripts")
+from pathlib import Path
+sys.path.insert(0, str(Path("<skill-base-dir>").parent / "session-log" / "scripts"))
 from phase_record import PhaseRecord, Decision, Alternative, TradeOff, FileRef
 
 record = PhaseRecord(
@@ -673,7 +682,7 @@ After the user selects "Approve -- proceed to implementation", invoke the
 seeder to create coordinator issues for every hand-authored task in `tasks.md`:
 
 ```bash
-skills/.venv/bin/python skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py <change-id>
+python3 "<skill-base-dir>/../coordinator-task-status-renderer/scripts/seed_tasks_from_md.py" <change-id>
 ```
 
 The seeder is idempotent on the `(change:<id>, task:<key>)` label pair

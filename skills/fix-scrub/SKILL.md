@@ -31,7 +31,8 @@ Scripts live in `<agent-skills-dir>/fix-scrub/scripts/`. Each agent runtime subs
 - **Codex**: `.codex/skills`
 - **Gemini**: `.gemini/skills`
 
-If scripts are missing, run `skills/install.sh` to sync them from the canonical `skills/` source.
+Installed skill copies are expected to include these scripts. If they are missing,
+reinstall the skill from its canonical distribution rather than invoking a repo-local path.
 
 ## Prerequisites
 
@@ -125,11 +126,15 @@ If agent-fix prompts were generated, resolve the implementer archetype and dispa
 
 ```python
 import json
-from src.agents_config import load_archetypes_config, resolve_model
+import sys
+from pathlib import Path
 
-archetypes = load_archetypes_config()
-implementer = archetypes.get("implementer")
-resolved_model = resolve_model(implementer, {}) if implementer else "sonnet"
+bridge_scripts = Path("<skill-base-dir>").parent / "coordination-bridge" / "scripts"
+sys.path.insert(0, str(bridge_scripts))
+import coordination_bridge
+
+resolved = coordination_bridge.try_resolve_archetype_for_phase("IMPL_FIX", {})
+resolved_model = resolved["model"] if resolved else None
 
 with open("docs/bug-scrub/agent-fix-prompts.json") as f:
     prompts = json.load(f)

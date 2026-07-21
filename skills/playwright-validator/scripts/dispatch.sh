@@ -7,8 +7,7 @@
 #
 # Behavior:
 #   - Resolves repo root (walks up from this file looking for .git or openspec/).
-#   - Activates skills/.venv if present so the CLI's deps (jsonschema, pyyaml)
-#     are guaranteed.
+#   - Uses the configured PYTHON interpreter, defaulting to python3.
 #   - Invokes scripts/cli.py with the change-id + any forwarded args.
 #
 # Exit codes propagate the CLI's:
@@ -38,8 +37,4 @@ if [[ "$REPO_ROOT" == "/" ]]; then
 fi
 
 PYTHON="${PYTHON:-python3}"
-if [[ -x "$REPO_ROOT/skills/.venv/bin/python" ]]; then
-    PYTHON="$REPO_ROOT/skills/.venv/bin/python"
-fi
-
 exec "$PYTHON" "$SCRIPT_DIR/cli.py" "$@"

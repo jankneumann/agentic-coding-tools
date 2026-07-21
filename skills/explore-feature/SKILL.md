@@ -53,7 +53,7 @@ For artifact-producing mode, run this before the first write:
 CHANGE_ID="explore-<short-focus-slug>"
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
 cd "$WORKTREE_PATH"
-skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 ```
 
 All artifact-producing steps below happen inside that worktree and are committed

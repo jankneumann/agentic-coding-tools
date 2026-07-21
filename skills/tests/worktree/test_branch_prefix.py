@@ -20,7 +20,16 @@ from __future__ import annotations
 
 import pytest
 
+import worktree
 from worktree import resolve_branch, resolve_parent_branch
+
+
+def test_bootstrap_helper_is_resolved_beside_installed_script(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    installed = tmp_path / ".agents" / "skills" / "worktree" / "scripts"
+    monkeypatch.setattr(worktree, "__file__", str(installed / "worktree.py"))
+    assert worktree._installed_bootstrap_script() == installed / "worktree-bootstrap.sh"
 
 
 class TestPrototypeBranchPrefix:

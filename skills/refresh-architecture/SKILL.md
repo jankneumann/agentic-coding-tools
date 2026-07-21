@@ -31,9 +31,15 @@ Regenerate, validate, or inspect the `docs/architecture-analysis/` artifacts tha
 
 ## Prerequisites
 
-- Python 3.12+ available (or activate the venv: `source agent-coordinator/.venv/bin/activate`)
-- For TypeScript analysis: `npm` with `ts-morph` installed (`make architecture-setup`)
-- For full pipeline: the source directories (`agent-coordinator/src`, `web/`, `agent-coordinator/database/migrations`) should exist
+- Python 3.12+ available as `python3`
+- For TypeScript analysis: `npm` with `ts-morph`, `typescript`, and `ts-node`
+- A consumer project root. Defaults are `src/`, `web/`, and
+  `database/migrations/`; override them with `--python-src-dir`,
+  `--ts-src-dir`, and `--migrations-dir` for other layouts.
+
+Resolve `<skill-base-dir>` to the directory containing this loaded `SKILL.md`.
+Every command below invokes shipped tools from that directory and does not
+require a repo-root Makefile, `agent-coordinator/`, or `skills/.venv`.
 
 ## Local CLI Mutation Boundary
 
@@ -44,7 +50,7 @@ MUST run in a managed worktree in local CLI execution:
 CHANGE_ID="refresh-architecture-<short-slug>"
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
 cd "$WORKTREE_PATH"
-skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 ```
 
 Pure read-only inspection modes may run from the shared checkout when they do
@@ -92,17 +98,25 @@ Determine which mode to run based on the arguments.
 Run the complete 3-layer pipeline:
 
 ```bash
-make architecture
+python3 "<skill-base-dir>/scripts/run_architecture.py" \
+  --target-dir . \
+  --python-src-dir "${PYTHON_SRC_DIR:-src}" \
+  --ts-src-dir "${TS_SRC_DIR:-web}" \
+  --migrations-dir "${MIGRATIONS_DIR:-database/migrations}"
 ```
 
-This calls `"<skill-base-dir>/scripts/refresh_architecture.sh"` which runs all layers in sequence. Expect output showing each stage completing.
+The wrapper resolves `refresh_architecture.sh` from this installed skill and
+runs all layers in the consumer project working directory. Expect output
+showing each stage completing.
 
 **When to use:** After significant code changes, before planning a new feature, or when artifacts are stale/missing.
 
 #### Validate Only (`--validate`)
 
 ```bash
-make architecture-validate
+python3 "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" \
+  --graph docs/architecture-analysis/architecture.graph.json \
+  --output docs/architecture-analysis/architecture.diagnostics.json
 ```
 
 Runs schema validation and flow validation on the existing graph. Does NOT regenerate — just checks what's there.
@@ -112,7 +126,12 @@ Runs schema validation and flow validation on the existing graph. Does NOT regen
 #### Views Only (`--views`)
 
 ```bash
-make architecture-views
+python3 "<skill-base-dir>/scripts/generate_views.py" \
+  --graph docs/architecture-analysis/architecture.graph.json \
+  --output-dir docs/architecture-analysis/views
+python3 "<skill-base-dir>/scripts/parallel_zones.py" \
+  --graph docs/architecture-analysis/architecture.graph.json \
+  --output docs/architecture-analysis/parallel_zones.json
 ```
 
 Regenerates Mermaid diagrams and parallel zones from the existing graph.
@@ -122,7 +141,9 @@ Regenerates Mermaid diagrams and parallel zones from the existing graph.
 #### Report Only (`--report`)
 
 ```bash
-make architecture-report
+python3 "<skill-base-dir>/scripts/reports/architecture_report.py" \
+  --input-dir docs/architecture-analysis \
+  --output docs/architecture-analysis/architecture.report.md
 ```
 
 Generates `architecture.report.md` from all Layer 2 JSON artifacts.
@@ -132,7 +153,14 @@ Generates `architecture.report.md` from all Layer 2 JSON artifacts.
 #### Diff (`--diff <sha>`)
 
 ```bash
-make architecture-diff BASE_SHA=<sha>
+BASE_SHA=<sha>
+mkdir -p docs/architecture-analysis/tmp
+git show "${BASE_SHA}:docs/architecture-analysis/architecture.graph.json" \
+  > docs/architecture-analysis/tmp/baseline_graph.json
+python3 "<skill-base-dir>/scripts/diff_architecture.py" \
+  --baseline docs/architecture-analysis/tmp/baseline_graph.json \
+  --current docs/architecture-analysis/architecture.graph.json \
+  --output docs/architecture-analysis/architecture.diff.json
 ```
 
 Compares the current architecture graph to a baseline from the given commit SHA. Reports new cycles, new high-impact modules, untested routes, and structural changes.
@@ -142,7 +170,10 @@ Compares the current architecture graph to a baseline from the given commit SHA.
 #### Feature Slice (`--feature <files>`)
 
 ```bash
-make architecture-feature FEATURE="<comma-separated files or glob>"
+python3 "<skill-base-dir>/scripts/generate_views.py" \
+  --graph docs/architecture-analysis/architecture.graph.json \
+  --output-dir docs/architecture-analysis/views \
+  --feature-files "<comma-separated files or glob>"
 ```
 
 Extracts a subgraph containing only the nodes and edges relevant to the specified files. Produces a Mermaid diagram and JSON in `docs/architecture-analysis/views/`.
@@ -152,7 +183,10 @@ Extracts a subgraph containing only the nodes and edges relevant to the specifie
 #### Clean (`--clean`)
 
 ```bash
-make architecture-clean
+ARCH_DIR="docs/architecture-analysis"  # consumer-project-relative output
+rm -f "$ARCH_DIR"/{python_analysis,ts_analysis,postgres_analysis,architecture.graph,architecture.summary,architecture.diagnostics,architecture.diff,cross_layer_flows,high_impact_nodes,parallel_zones}.json
+rm -f "$ARCH_DIR/architecture.report.md"
+rm -rf "$ARCH_DIR/views" "$ARCH_DIR/tmp"
 ```
 
 Removes all generated artifacts. The committed README and schema files are preserved.

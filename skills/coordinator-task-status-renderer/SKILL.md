@@ -17,9 +17,9 @@ related:
 
 Two scripts ship with this skill:
 
-- `scripts/render_tasks_status.py <change-id>` — read coordinator issue state for
+- `<skill-base-dir>/scripts/render_tasks_status.py <change-id>` — read coordinator issue state for
   the change and rewrite the managed block in `openspec/changes/<change-id>/tasks.md`.
-- `scripts/seed_tasks_from_md.py <change-id>` — parse hand-authored tasks from
+- `<skill-base-dir>/scripts/seed_tasks_from_md.py <change-id>` — parse hand-authored tasks from
   `tasks.md` and POST them to the coordinator as issues. Idempotent on the
   `(change:<id>, task:<key>)` label pair.
 

@@ -367,7 +367,10 @@ PLAN_REVIEW — convergence_loop never overwrites the field.
 - `convergence.synthesis_failed_with_checkpoint` — synthesis (or upstream `Finding.from_dict()`) raised. Payload includes `checkpoint_dir` for manual recovery.
 - `convergence.checkpoint_write_failed` — OSError/PermissionError during checkpoint write. Original exception still propagates.
 
-Synthesis failures will continue to surface to the autopilot caller. The value of this contract is durability for postmortem and manual recovery, not automatic recovery — see [docs/parallel-agentic-development.md](../../docs/parallel-agentic-development.md) Section 8 for the manual-invocation procedure.
+Synthesis failures will continue to surface to the autopilot caller. The value
+of this contract is durability for postmortem and manual recovery, not
+automatic recovery — see the shipped
+[manual recovery reference](references/convergence-recovery.md).
 
 ### 3.5. Write-Capable Phase Isolation
 
@@ -386,7 +389,7 @@ step so the skill can call `worktree.py setup` and then verify the resulting
 checkout with:
 
 ```bash
-skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 ```
 
 ### 4. IMPLEMENT Phase

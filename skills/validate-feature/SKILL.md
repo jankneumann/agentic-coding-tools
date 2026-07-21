@@ -68,7 +68,7 @@ managed worktree before the first write:
 ```bash
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
 cd "$WORKTREE_PATH"
-skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 ```
 
 Read-only CI status checks may inspect from the shared checkout, but any report
@@ -254,7 +254,7 @@ export API_PROTECTED_ENDPOINT="${API_PROTECTED_ENDPOINT:-/api/v1/settings/prompt
 export API_CORS_ORIGIN="${API_CORS_ORIGIN:-http://localhost:5173}"
 
 # Run smoke tests
-SKILL_DIR="$(git rev-parse --show-toplevel)/skills/validate-feature"
+SKILL_DIR="<skill-base-dir>"
 pytest "$SKILL_DIR/scripts/smoke_tests/" -v --tb=short 2>&1
 SMOKE_EXIT=$?
 
@@ -363,7 +363,7 @@ else
   echo "Running security scans against live deployment..."
 
   # Invoke the security-review orchestrator with the live API target
-  python3 skills/security-review/scripts/main.py \
+  python3 "<skill-base-dir>/../security-review/scripts/main.py" \
     --repo . \
     --out-dir docs/security-review \
     --zap-target "http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}" \
@@ -566,7 +566,7 @@ This phase runs only when `work-packages.yaml` exists at `openspec/changes/<chan
 For each work package, validate its result (if `artifacts/<package-id>/work-queue-result.json` exists):
 
 ```bash
-skills/.venv/bin/python "<skill-base-dir>/../validate-packages/scripts/validate_work_result.py" \
+python3 "<skill-base-dir>/../validate-packages/scripts/validate_work_result.py" \
   artifacts/<package-id>/result.json
 ```
 
@@ -808,7 +808,7 @@ Construct a `PhaseRecord` for the `Validation` phase and call `write_both()`. Va
 ```bash
 python3 - <<'EOF'
 import sys
-sys.path.insert(0, "skills/session-log/scripts")
+sys.path.insert(0, "<skill-base-dir>/../session-log/scripts")
 from phase_record import PhaseRecord, Decision
 
 record = PhaseRecord(

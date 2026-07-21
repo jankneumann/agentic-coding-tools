@@ -7,6 +7,7 @@ Verifies that install.sh:
 """
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -55,6 +56,23 @@ def _run_install(install_target: Path, scripts_dir: Path) -> subprocess.Complete
     install_copy = scripts_dir / "install.sh"
     shutil.copy(INSTALL_SH, install_copy)
     install_copy.chmod(0o755)
+    shared_dir = scripts_dir / "shared"
+    shared_dir.mkdir(exist_ok=True)
+    shutil.copy(SKILLS_ROOT / "shared" / "validate_install_manifest.py", shared_dir)
+    skill_names = sorted(
+        path.parent.name for path in scripts_dir.glob("*/SKILL.md")
+    )
+    (scripts_dir / "install-manifest.json").write_text(json.dumps({
+        "schema_version": 1,
+        "shared_libraries": ["shared"],
+        "runtime_globs": ["*/SKILL.md"],
+        "installed_assets": [],
+        "cross_skill_dependencies": {},
+        "skills": {
+            name: {"distribution": "portable"} for name in skill_names
+        },
+        "smoke_entrypoints": [],
+    }))
     return subprocess.run(
         [
             "bash", str(install_copy),
@@ -95,7 +113,7 @@ def test_related_with_unknown_target_warns_but_succeeds(tmp_path):
 
     result = _run_install(install_target, scripts_dir)
 
-    assert result.returncode == 0, f"install.sh should not fail on unknown related: target"
+    assert result.returncode == 0, "install.sh should not fail on unknown related: target"
     combined = result.stdout + result.stderr
     assert "nonexistent-target" in combined, \
         f"install.sh should warn on unknown related: target. Output:\n{combined}"

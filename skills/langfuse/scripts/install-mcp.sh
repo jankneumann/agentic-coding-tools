@@ -13,18 +13,12 @@
 # Re-running this script overwrites only the langfuse entry in each target.
 #
 # Usage:
-#   bash skills/langfuse/scripts/install-mcp.sh                    # all three agents (default)
-#   bash skills/langfuse/scripts/install-mcp.sh --no-codex         # skip Codex
-#   bash skills/langfuse/scripts/install-mcp.sh --no-gemini        # skip Gemini
-#   bash skills/langfuse/scripts/install-mcp.sh --claude-only      # only .mcp.json
-#   bash skills/langfuse/scripts/install-mcp.sh --lock-read-only   # deny write tools (Claude Code)
-#   bash skills/langfuse/scripts/install-mcp.sh --host us          # US cloud
-#   bash skills/langfuse/scripts/install-mcp.sh --host self-hosted --url https://lf.example.com
+#   bash "<skill-base-dir>/scripts/install-mcp.sh" [options]
 #
 # Credentials (Codex/Gemini only — Claude Code uses env var reference):
 #   Resolved from LANGFUSE_PUBLIC_KEY+LANGFUSE_SECRET_KEY (preferred) or LANGFUSE_BASIC_AUTH.
 #   Easiest source is the OpenBao bridge:
-#     eval "$(skills/bao-vault/scripts/langfuse_env.sh)"
+#     eval "$("<skill-base-dir>/../bao-vault/scripts/langfuse_env.sh")"
 #
 # Requires: jq, base64, python3.
 
@@ -38,6 +32,9 @@ LOCK_READ_ONLY=0
 HOST_REGION="eu"
 CUSTOM_URL=""
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+SKILLS_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+BAO_HELPER="$SKILLS_ROOT/bao-vault/scripts/langfuse_env.sh"
 WRITE_CODEX=1
 WRITE_GEMINI=1
 
@@ -106,6 +103,9 @@ fi
 # ---------------------------------------------------------------------------
 
 resolve_auth_token() {
+  if [[ -z "${LANGFUSE_BASIC_AUTH:-}" && -x "$BAO_HELPER" ]]; then
+    eval "$(bash "$BAO_HELPER" 2>/dev/null || true)"
+  fi
   if [[ -n "${LANGFUSE_PUBLIC_KEY:-}" && -n "${LANGFUSE_SECRET_KEY:-}" ]]; then
     AUTH_TOKEN=$(printf '%s:%s' "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SECRET_KEY" | base64 | tr -d '\n')
   elif [[ -n "${LANGFUSE_BASIC_AUTH:-}" ]]; then
@@ -115,8 +115,7 @@ resolve_auth_token() {
 ERROR: Codex/Gemini install needs a resolved Basic-auth token.
        Set LANGFUSE_PUBLIC_KEY+LANGFUSE_SECRET_KEY or LANGFUSE_BASIC_AUTH first.
 
-       From OpenBao:
-         eval "$(skills/bao-vault/scripts/langfuse_env.sh)"
+       From OpenBao, evaluate the sibling bao-vault langfuse_env.sh helper.
 
        Or skip these targets:
          --no-codex --no-gemini   (or --claude-only)
@@ -223,7 +222,7 @@ $([[ "$WRITE_GEMINI" -eq 1 ]] && echo "  - Gemini CLI   : \$HOME/.gemini/setting
 
 Next:
   1. Ensure Claude Code can resolve \${LANGFUSE_BASIC_AUTH}:
-       eval "\$(skills/bao-vault/scripts/langfuse_env.sh)"   # OpenBao path
+       eval "\$(bash \"$BAO_HELPER\")"   # OpenBao path
        # or export the var manually in your shell profile.
 
   2. Restart each agent CLI so it picks up the new MCP entry.

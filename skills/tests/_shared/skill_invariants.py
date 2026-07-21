@@ -81,20 +81,26 @@ def _references_root(skill_path: Path) -> Path | None:
 
 
 def assert_references_resolve(skill_path: Path) -> None:
-    """Assert every references/<file>.md path cited in SKILL.md body exists."""
+    """Assert every references/<file>.md citation resolves in installed layout."""
     _, body = _read_skill(skill_path)
     cited = set(re.findall(r"references/([A-Za-z0-9._/-]+\.md)", body))
     if not cited:
         return
+    skill_dir = skill_path if skill_path.is_dir() else skill_path.parent
     refs_root = _references_root(skill_path)
     if refs_root is None:
         raise AssertionError(
             f"{skill_path}: SKILL.md cites references/* but skills/references/ directory not found"
         )
-    missing = [name for name in cited if not (refs_root / name).exists()]
+    missing = [
+        name
+        for name in cited
+        if not (skill_dir / "references" / name).exists()
+        and not (refs_root / name).exists()
+    ]
     if missing:
         raise AssertionError(
-            f"{skill_path}: cited references not found in {refs_root}: {missing}"
+            f"{skill_path}: cited references not found in skill-local or shared references: {missing}"
         )
 
 

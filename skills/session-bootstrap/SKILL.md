@@ -51,10 +51,10 @@ On a resumed session, `bootstrap-cloud.sh` takes <1 second — it only checks th
 The Setup Script field is a text area in the cloud UI (not committed to git).
 A single snippet must serve **two repo layouts**:
 
-- **Canonical layout** (this repo): the script ships only at
-  `<repo>/skills/session-bootstrap/scripts/setup-cloud.sh`. The runtime mirrors
+- **Canonical layout** (this repo): the script ships at
+  `<skill-base-dir>/scripts/setup-cloud.sh`. The runtime mirrors
   `.claude/skills/` and `.agents/skills/` are gitignored, so a fresh clone does
-  NOT contain them — `setup-cloud.sh` rebuilds them via `skills/install.sh`.
+  NOT contain them — `setup-cloud.sh` rebuilds them with the source-repository installer.
 - **Mirror layout** (consumer repos): there is no canonical `skills/`; the
   script is committed at `<repo>/.claude/skills/...` and `<repo>/.agents/skills/...`.
 
@@ -63,7 +63,7 @@ for both layouts and both harnesses (Claude Code web and Codex):
 
 ```bash
 # Find session-bootstrap's setup-cloud.sh across BOTH repo layouts:
-#   canonical  <repo>/skills/session-bootstrap/scripts/setup-cloud.sh   (mirrors gitignored)
+#   canonical source checkout: session-bootstrap/scripts/setup-cloud.sh
 #   mirror     <repo>/.claude/skills/... or <repo>/.agents/skills/...   (mirrors committed)
 # At Setup-Script time pwd is often the PARENT of the clone, so search downward.
 matches="$(find "$(pwd)" -maxdepth 8 \
@@ -73,7 +73,7 @@ matches="$(find "$(pwd)" -maxdepth 8 \
 # Reduce every match to its repo root, then dedupe: one repo may expose the
 # script in 1-3 layouts, but they must all resolve to a SINGLE root.
 roots="$(printf '%s\n' "$matches" | sed '/^$/d' | while IFS= read -r m; do
-  r="${m%/skills/session-bootstrap/scripts/setup-cloud.sh}"   # strip common tail
+  r="${m%/skills/session-bootstrap/scripts/setup-cloud.sh}"   # source-contribution-only layout normalization
   r="${r%/.claude}"; r="${r%/.agents}"                        # strip mirror dir, if any
   printf '%s\n' "$r"
 done | sort -u)"
@@ -204,4 +204,5 @@ All hook scripts are **stdlib-only** (no third-party dependencies) and **never b
 
 ## Canonical Source
 
-The hook scripts here are the canonical copies for distribution via `install.sh`. The `agent-coordinator/scripts/` directory contains equivalent scripts for local development and the Makefile's user-scope hook targets.
+The hook scripts here are the complete runtime copies distributed by
+`install.sh`; they do not import or invoke coordinator source-repository scripts.

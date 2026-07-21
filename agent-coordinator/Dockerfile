@@ -54,6 +54,10 @@ COPY --from=builder /app/.venv /app/.venv
 
 # Copy application source code and runtime config assets loaded from disk.
 COPY agent-coordinator/src/ /app/src/
+# The coordinator and installed merge skill share one portable classifier.
+# Keep it outside coordinator internals so consumer skill installs can use the
+# same implementation without depending on /app/src.
+COPY skills/shared/github_classifier.py /app/skills/shared/github_classifier.py
 # code_search_pkg provides the pgvector query backend lazily imported by
 # src/code_search.py (`from code_search_pkg.query_pg import ...`) when code
 # search runs with the Postgres backend. Only the light query modules
@@ -99,6 +103,7 @@ USER appuser
 # Default environment
 ENV DB_BACKEND=postgres \
     PYTHONPATH=/app \
+    SKILLS_ROOT=/app/skills \
     # Prepend the venv to PATH so `python` (and other installed entry points)
     # resolve to /app/.venv/ instead of the base image's /usr/local/bin/python.
     # Without this, ad-hoc invocations like `docker run --entrypoint python ...`

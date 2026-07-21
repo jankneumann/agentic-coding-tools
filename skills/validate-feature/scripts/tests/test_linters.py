@@ -23,10 +23,10 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from linters import run_all_linters
-from linters.dependency_direction import check_dependency_direction
-from linters.file_size import check_file_size
-from linters.naming_conventions import check_naming_conventions
+from linters import run_all_linters  # noqa: E402
+from linters.dependency_direction import check_dependency_direction  # noqa: E402
+from linters.file_size import check_file_size  # noqa: E402
+from linters.naming_conventions import check_naming_conventions  # noqa: E402
 
 # Path to the review-findings schema for validation
 _SCHEMA_PATH = (
@@ -152,6 +152,49 @@ class TestDependencyDirection:
         assert len(findings) == 2
         assert findings[0]["line_range"]["start"] == 2
         assert findings[1]["line_range"]["start"] == 3
+
+    @pytest.mark.parametrize(
+        ("suffix", "content", "needle"),
+        [
+            (".py", 'sys.path.insert(0, str(root / "agent-coordinator"))\n', "agent-coordinator"),
+            (".py", 'subprocess.run(["python", "-c", "from src.agents_config import load"])\n', "src"),
+            (".sh", 'python3 skills/validate-feature/scripts/phase_smoke.py\n', "canonical skills/"),
+            (".json", '{"command": "python3 skills/langfuse/scripts/hook.py"}\n', "canonical skills/"),
+            (".md", 'Run `skills/.venv/bin/python <skill-base-dir>/scripts/check.py`.\n', "skills/.venv"),
+            (".sh", '$REPO_ROOT/skills/.venv/bin/python check.py\n', "skills/.venv"),
+            (".md", 'Run `bash skills/install.sh`.\n', "canonical skills/"),
+            (".md", 'Run `python3 skills/shared/active_agents.py`.\n', "canonical skills/"),
+        ],
+    )
+    def test_installed_payload_escape_patterns_fail(
+        self, tmp_path: Path, suffix: str, content: str, needle: str
+    ) -> None:
+        skill_file = tmp_path / "skills" / "portable-skill" / f"runtime{suffix}"
+        skill_file.parent.mkdir(parents=True)
+        skill_file.write_text(content)
+
+        findings = check_dependency_direction([str(skill_file)])
+
+        assert len(findings) == 1
+        assert needle in findings[0]["description"]
+
+    def test_installed_sibling_and_explicit_project_paths_pass(self, tmp_path: Path) -> None:
+        skill_file = tmp_path / "skills" / "portable-skill" / "SKILL.md"
+        skill_file.parent.mkdir(parents=True)
+        skill_file.write_text(
+            'python3 "<skill-base-dir>/../worktree/scripts/worktree.py" list\n'
+            'python3 "<project-root>/scripts/project_check.py"\n'
+        )
+
+        assert check_dependency_direction([str(skill_file)]) == []
+
+    def test_explicit_source_contribution_command_passes(self, tmp_path: Path) -> None:
+        skill_file = tmp_path / "skills" / "portable-skill" / "SKILL.md"
+        skill_file.parent.mkdir(parents=True)
+        skill_file.write_text(
+            "Test (**source-contribution-only**): `skills/.venv/bin/python -m pytest`\n"
+        )
+        assert check_dependency_direction([str(skill_file)]) == []
 
 
 # ---------------------------------------------------------------------------

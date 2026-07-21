@@ -12,7 +12,7 @@ Non-user-invocable infrastructure skill that provides HTTP fallback for the coor
 
 ## Scripts
 
-### scripts/coordination_bridge.py
+### `<skill-base-dir>/scripts/coordination_bridge.py`
 
 Detects coordinator availability and provides HTTP-based fallback operations.
 

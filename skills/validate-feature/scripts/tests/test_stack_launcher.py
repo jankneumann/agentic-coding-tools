@@ -10,12 +10,23 @@ TDD test-first: these tests define the expected behavior for:
 from __future__ import annotations
 
 import os
-import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+
+
+def test_default_compose_prefers_consumer_project(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from stack_launcher import _find_default_compose_file
+
+    compose = tmp_path / "compose.yaml"
+    compose.write_text("services: {}\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("VALIDATE_FEATURE_COMPOSE_FILE", raising=False)
+    assert _find_default_compose_file() == str(compose)
 
 
 # ---------------------------------------------------------------------------
@@ -338,3 +349,17 @@ class TestStatusCommand:
 
         with pytest.raises(FileNotFoundError):
             cmd_status(test_env_path="/nonexistent/.test-env")
+
+    @patch("subprocess.run")
+    def test_status_cli_does_not_require_compose_file(
+        self, mock_run: MagicMock, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        from stack_launcher import main
+
+        test_env = tmp_path / ".test-env"
+        test_env.write_text("ENV_TYPE=docker\nDB_PORT=10000\nSESSION_ID=test-session\n")
+        mock_run.return_value = MagicMock(returncode=0)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr("sys.argv", ["stack_launcher", "status", "--test-env", str(test_env)])
+
+        main()

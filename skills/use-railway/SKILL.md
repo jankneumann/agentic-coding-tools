@@ -37,7 +37,7 @@ https://railway.com/project/<PROJECT_ID>/service/<SERVICE_ID>
 The URL always contains `projectId` and `serviceId`. It may contain `environmentId` as a query parameter. If the environment ID is missing and the user specifies an environment by name (e.g., "production"), resolve it:
 
 ```bash
-scripts/railway-api.sh \
+"<skill-base-dir>/scripts/railway-api.sh" \
   'query getProject($id: String!) {
     project(id: $id) {
       environments { edges { node { id name } } }
@@ -115,7 +115,7 @@ If the request spans two areas (for example, "deploy and then check if it's heal
 
 ## Execution rules
 
-1. Prefer Railway CLI. Fall back to `scripts/railway-api.sh` for operations the CLI doesn't expose.
+1. Prefer Railway CLI. Fall back to `<skill-base-dir>/scripts/railway-api.sh` for operations the CLI doesn't expose.
 2. Use `--json` output where available for reliable parsing.
 3. Resolve context before mutation. Know which project, environment, and service you're acting on.
 4. For destructive actions (delete service, remove deployment, drop database), confirm intent and state impact before executing.
@@ -127,9 +127,9 @@ These commands modify database state and require the user to run them directly i
 
 | Command | Why user-only |
 |---------|---------------|
-| `python3 scripts/enable-pg-stats.py --service <name>` | Modifies shared_preload_libraries, may restart database |
-| `python3 scripts/pg-extensions.py --service <name> install <ext>` | Installs database extension |
-| `python3 scripts/pg-extensions.py --service <name> uninstall <ext>` | Removes database extension |
+| `python3 "<skill-base-dir>/scripts/enable-pg-stats.py" --service <name>` | Modifies shared_preload_libraries, may restart database |
+| `python3 "<skill-base-dir>/scripts/pg-extensions.py" --service <name> install <ext>` | Installs database extension |
+| `python3 "<skill-base-dir>/scripts/pg-extensions.py" --service <name> uninstall <ext>` | Removes database extension |
 | `ALTER SYSTEM SET ...` | Changes PostgreSQL configuration |
 | `DROP EXTENSION ...` | Removes database extension |
 | `CREATE EXTENSION ...` | Installs database extension |

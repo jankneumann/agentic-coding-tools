@@ -144,15 +144,13 @@ Use `ADR-NNN` with zero-padded three-digit numbers (`ADR-001`, `ADR-002`, …). 
 
 This repository keeps decisions in `docs/decisions/`, but with a twist: instead of one file per ADR, the directory holds **capability timelines**. Each `<capability>.md` is reverse-chronological; every entry has a status (`active` or `superseded`) and back-references to the originating session-log phase entry.
 
-Existing capability timelines (read these to see the on-disk style before adding to them):
+See the shipped [capability timeline guide](references/capability-timelines.md)
+for the on-disk style and representative capability names. In a consumer
+project, `docs/decisions/` is consumer-project-relative and may not exist yet.
 
-- [`docs/decisions/agent-coordinator.md`](../../docs/decisions/agent-coordinator.md)
-- [`docs/decisions/configuration.md`](../../docs/decisions/configuration.md)
-- [`docs/decisions/merge-pull-requests.md`](../../docs/decisions/merge-pull-requests.md)
-- [`docs/decisions/skill-workflow.md`](../../docs/decisions/skill-workflow.md)
-- [`docs/decisions/software-factory-tooling.md`](../../docs/decisions/software-factory-tooling.md)
-
-The index at [`docs/decisions/README.md`](../../docs/decisions/README.md) is **generated** by `make decisions` from `architectural:`-tagged Decision bullets in session-log Phase Entries. Do not hand-edit the generated index.
+The consumer project's `docs/decisions/README.md` is generated from
+`architectural:`-tagged Decision bullets in session-log Phase Entries. Do not
+hand-edit a generated index.
 
 **Numbering still applies, but at the entry level.** Inside each capability timeline, individual entries inherit ADR-style numbering relative to that capability. When you tag a session-log Decision bullet with `` `architectural: <capability>` ``, the next `make decisions` run produces a new entry at the top of the timeline. The first new ADR-style entry you add to a capability follows the existing entry numbering for that file (read the file to see the highest current number and continue from there).
 

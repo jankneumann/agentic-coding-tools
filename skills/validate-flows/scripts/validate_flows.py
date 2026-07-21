@@ -28,9 +28,16 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from arch_utils.constants import SIDE_EFFECT_EDGE_TYPES, EdgeType  # noqa: E402
-from arch_utils.traversal import (  # noqa: E402
+_ARCHITECTURE_SCRIPTS = (
+    Path(__file__).resolve().parents[2] / "refresh-architecture" / "scripts"
+)
+if str(_ARCHITECTURE_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_ARCHITECTURE_SCRIPTS))
+from arch_utils.constants import (  # type: ignore[import-not-found]  # noqa: E402
+    SIDE_EFFECT_EDGE_TYPES,
+    EdgeType,
+)
+from arch_utils.traversal import (  # type: ignore[import-not-found]  # noqa: E402
     build_adjacency,
     reachable_from,
 )

@@ -12,7 +12,7 @@ Non-user-invocable infrastructure skill that bundles validation scripts for the 
 
 ## Scripts
 
-### scripts/validate_work_packages.py
+### `<skill-base-dir>/scripts/validate_work_packages.py`
 
 Validates `work-packages.yaml` against the JSON schema.
 
@@ -24,7 +24,7 @@ python3 "<skill-base-dir>/scripts/validate_work_packages.py" <path-to-work-packa
 **Checks**: schema compliance, depends_on references, DAG cycles, lock key canonicalization
 **Exit codes**: 0 = VALID, 1 = INVALID (details on stderr)
 
-### scripts/parallel_zones.py
+### `<skill-base-dir>/scripts/parallel_zones.py`
 
 Validates scope non-overlap for parallel work packages.
 
@@ -35,7 +35,7 @@ python3 "<skill-base-dir>/scripts/parallel_zones.py" --validate-packages <path> 
 
 **Exit codes**: 0 = no overlap, 1 = overlap detected
 
-### scripts/validate_work_result.py
+### `<skill-base-dir>/scripts/validate_work_result.py`
 
 Validates work results against the work-queue-result schema.
 
@@ -46,7 +46,7 @@ python3 "<skill-base-dir>/scripts/validate_work_result.py" <path-to-result.json>
 
 **Exit codes**: 0 = valid, 1 = invalid
 
-### scripts/validate_schema.py
+### `<skill-base-dir>/scripts/validate_schema.py`
 
 Generic JSON schema validator.
 
@@ -55,6 +55,6 @@ Generic JSON schema validator.
 python3 "<skill-base-dir>/scripts/validate_schema.py" <schema-path> <document-path>
 ```
 
-### scripts/architecture_schema.json
+### `<skill-base-dir>/scripts/architecture_schema.json`
 
 JSON schema for architecture analysis artifacts.

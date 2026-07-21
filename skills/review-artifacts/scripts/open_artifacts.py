@@ -26,7 +26,7 @@ Worktree resolution:
   (`git rev-parse --show-toplevel`), which means invoking this script
   inside any worktree opens that worktree's files.
   Pass --worktree <change-id> to explicitly target a different worktree;
-  resolution goes through skills/worktree/scripts/worktree.py.
+  resolution goes through the co-installed worktree/scripts/worktree.py.
 
 Usage:
     open_artifacts.py                           # auto-detect from cwd
@@ -119,7 +119,7 @@ def _resolve_worktree(change_id: str, cwd: Path) -> Path | None:
     if not main:
         return None
 
-    worktree_helper = main / "skills" / "worktree" / "scripts" / "worktree.py"
+    worktree_helper = _installed_worktree_helper()
     if worktree_helper.exists():
         try:
             out = subprocess.run(
@@ -153,6 +153,11 @@ def _resolve_worktree(change_id: str, cwd: Path) -> Path | None:
             if sub.is_dir() and (sub / ".git").exists():
                 return sub
     return None
+
+
+def _installed_worktree_helper() -> Path:
+    """Locate worktree.py through the current installation's skills root."""
+    return Path(__file__).resolve().parents[2] / "worktree" / "scripts" / "worktree.py"
 
 
 # ---------------------------------------------------------------------------

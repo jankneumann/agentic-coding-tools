@@ -44,6 +44,23 @@ def _copy_installer(scripts_dir: Path) -> Path:
     install_copy = scripts_dir / "install.sh"
     shutil.copy(INSTALL_SH, install_copy)
     install_copy.chmod(0o755)
+    shared_dir = scripts_dir / "shared"
+    shared_dir.mkdir(exist_ok=True)
+    shutil.copy(SKILLS_ROOT / "shared" / "validate_install_manifest.py", shared_dir)
+    skill_names = sorted(
+        path.parent.name for path in scripts_dir.glob("*/SKILL.md")
+    )
+    (scripts_dir / "install-manifest.json").write_text(json.dumps({
+        "schema_version": 1,
+        "shared_libraries": ["shared"],
+        "runtime_globs": ["*/SKILL.md"],
+        "installed_assets": [],
+        "cross_skill_dependencies": {},
+        "skills": {
+            name: {"distribution": "portable"} for name in skill_names
+        },
+        "smoke_entrypoints": [],
+    }))
     return install_copy
 
 

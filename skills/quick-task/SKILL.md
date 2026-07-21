@@ -62,7 +62,7 @@ If `--write <slug>` is supplied, enter a managed worktree before dispatch:
 CHANGE_ID="quick-<slug>"
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
 cd "$WORKTREE_PATH"
-skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 ```
 
 Write-mode quick tasks must push their branch and use PR review before any work

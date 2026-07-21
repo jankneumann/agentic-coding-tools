@@ -8,6 +8,7 @@ branches are agent-authored OpenSpec work and must classify as origin=openspec
 from __future__ import annotations
 
 import sys
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,27 @@ SCRIPTS_DIR = REPO_ROOT / "merge-pull-requests" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from discover_prs import classify_pr  # noqa: E402
+
+
+def test_coordinator_compatibility_module_matches_shared_classifier() -> None:
+    """Coordinator and installed skills execute the same canonical implementation."""
+    shared_path = REPO_ROOT / "shared" / "github_classifier.py"
+    coordinator_path = REPO_ROOT.parent / "agent-coordinator" / "src" / "github_classifier.py"
+
+    shared_spec = importlib.util.spec_from_file_location("shared_classifier", shared_path)
+    coordinator_spec = importlib.util.spec_from_file_location(
+        "coordinator_classifier", coordinator_path
+    )
+    assert shared_spec is not None and shared_spec.loader is not None
+    assert coordinator_spec is not None and coordinator_spec.loader is not None
+    shared_module = importlib.util.module_from_spec(shared_spec)
+    coordinator_module = importlib.util.module_from_spec(coordinator_spec)
+    shared_spec.loader.exec_module(shared_module)
+    coordinator_spec.loader.exec_module(coordinator_module)
+
+    payload = _pr("openspec/portable-classifier")
+    assert coordinator_module.classify_pr(payload) == shared_module.classify_pr(payload)
+    assert Path(coordinator_module.classify_pr.__code__.co_filename) == shared_path
 
 
 def _pr(

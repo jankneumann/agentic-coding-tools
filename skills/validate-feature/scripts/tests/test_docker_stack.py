@@ -12,11 +12,7 @@ TDD test-first: these tests define the expected behavior for:
 
 from __future__ import annotations
 
-import json
-import subprocess
-import textwrap
-from pathlib import Path
-from unittest.mock import MagicMock, call, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -39,7 +35,6 @@ class TestProtocolCompliance:
 
     def test_docker_stack_satisfies_test_environment(self) -> None:
         from environments.docker_stack import DockerStackEnvironment
-        from environments.protocol import TestEnvironment
 
         assert isinstance(DockerStackEnvironment.__mro__, tuple)
         # runtime_checkable protocol isinstance check
@@ -126,9 +121,7 @@ class TestInit:
     def test_stores_session_id(self, _w: MagicMock) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         assert env.session_id == "test-session"
 
     @patch("shutil.which", return_value="/usr/bin/docker")
@@ -146,69 +139,67 @@ class TestInit:
 
 
 class TestPortAllocation:
-    """Port allocation via subprocess to agent-coordinator venv."""
+    """Self-contained localhost port allocation."""
+
+    @patch("shutil.which", return_value="/usr/bin/docker")
+    @patch("socket.socket")
+    def test_local_allocator_persists_distinct_ports_across_instances(
+        self, mock_socket: MagicMock, _w: MagicMock, monkeypatch, tmp_path
+    ) -> None:
+        from environments import docker_stack
+        from environments.docker_stack import DockerStackEnvironment
+
+        monkeypatch.setattr(docker_stack, "PORT_REGISTRY_DIR", tmp_path / "ports")
+
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
+        allocation = env._allocate_ports()
+        try:
+            assert (
+                len(
+                    {
+                        allocation[key]
+                        for key in ("db_port", "rest_port", "realtime_port", "api_port")
+                    }
+                )
+                == 4
+            )
+            second = DockerStackEnvironment(
+                compose_file="docker-compose.yml", session_id="second-session"
+            )
+            second_allocation = second._allocate_ports()
+            assert {
+                allocation[key] for key in ("db_port", "rest_port", "realtime_port", "api_port")
+            }.isdisjoint(
+                {
+                    second_allocation[key]
+                    for key in ("db_port", "rest_port", "realtime_port", "api_port")
+                }
+            )
+            second._release_ports()
+            assert mock_socket.return_value.__enter__.return_value.bind.call_count == 8
+        finally:
+            env._release_ports()
 
     @patch("shutil.which", return_value="/usr/bin/docker")
     @patch("subprocess.run")
-    def test_start_allocates_ports_via_subprocess(
-        self, mock_run: MagicMock, _w: MagicMock
-    ) -> None:
+    def test_start_runs_docker_compose_up(self, mock_run: MagicMock, _w: MagicMock) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        port_result = json.dumps(
-            {
-                "session_id": "test-session",
-                "db_port": 10000,
-                "rest_port": 10001,
-                "realtime_port": 10002,
-                "api_port": 10003,
-                "compose_project_name": "ac-abcd1234",
-            }
-        )
-        # First call = port allocation subprocess, second = docker compose up
-        mock_run.side_effect = [
-            MagicMock(returncode=0, stdout=port_result, stderr=""),
-            MagicMock(returncode=0, stdout="", stderr=""),
-        ]
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
-        env.start()
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
+        allocation = {
+            "session_id": "test-session",
+            "db_port": 10000,
+            "rest_port": 10001,
+            "realtime_port": 10002,
+            "api_port": 10003,
+            "compose_project_name": "validate-test-session",
+        }
+        with patch.object(env, "_allocate_ports", return_value=allocation):
+            env.start()
 
-        # Verify port allocation subprocess was called
-        first_call = mock_run.call_args_list[0]
-        assert "port_allocator" in str(first_call) or "allocate" in str(first_call)
-
-    @patch("shutil.which", return_value="/usr/bin/docker")
-    @patch("subprocess.run")
-    def test_start_runs_docker_compose_up(
-        self, mock_run: MagicMock, _w: MagicMock
-    ) -> None:
-        from environments.docker_stack import DockerStackEnvironment
-
-        port_result = json.dumps(
-            {
-                "session_id": "test-session",
-                "db_port": 10000,
-                "rest_port": 10001,
-                "realtime_port": 10002,
-                "api_port": 10003,
-                "compose_project_name": "ac-abcd1234",
-            }
-        )
-        mock_run.side_effect = [
-            MagicMock(returncode=0, stdout=port_result, stderr=""),
-            MagicMock(returncode=0, stdout="", stderr=""),
-        ]
-
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
-        env.start()
-
-        # Second subprocess call should be docker compose up
-        compose_call = mock_run.call_args_list[1]
+        compose_call = mock_run.call_args_list[0]
         cmd = compose_call[0][0] if compose_call[0] else compose_call[1].get("args", [])
         assert "compose" in cmd
         assert "up" in cmd
@@ -221,43 +212,33 @@ class TestPortAllocation:
     ) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        mock_run.return_value = MagicMock(
-            returncode=1, stdout="", stderr="allocation failed"
-        )
-
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
-        with pytest.raises(RuntimeError, match="[Pp]ort allocation"):
-            env.start()
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
+        with patch.object(
+            env, "_allocate_ports", side_effect=RuntimeError("Port allocation failed")
+        ):
+            with pytest.raises(RuntimeError, match="[Pp]ort allocation"):
+                env.start()
+        mock_run.assert_not_called()
 
     @patch("shutil.which", return_value="/usr/bin/docker")
     @patch("subprocess.run")
-    def test_start_raises_on_compose_failure(
-        self, mock_run: MagicMock, _w: MagicMock
-    ) -> None:
+    def test_start_raises_on_compose_failure(self, mock_run: MagicMock, _w: MagicMock) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        port_result = json.dumps(
-            {
-                "session_id": "test-session",
-                "db_port": 10000,
-                "rest_port": 10001,
-                "realtime_port": 10002,
-                "api_port": 10003,
-                "compose_project_name": "ac-abcd1234",
-            }
-        )
-        mock_run.side_effect = [
-            MagicMock(returncode=0, stdout=port_result, stderr=""),
-            MagicMock(returncode=1, stdout="", stderr="compose error"),
-        ]
+        mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="compose error")
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
-        with pytest.raises(RuntimeError, match="[Cc]ompose.*failed|[Ff]ailed.*compose"):
-            env.start()
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
+        allocation = {
+            "session_id": "test-session",
+            "db_port": 10000,
+            "rest_port": 10001,
+            "realtime_port": 10002,
+            "api_port": 10003,
+            "compose_project_name": "validate-test-session",
+        }
+        with patch.object(env, "_allocate_ports", return_value=allocation):
+            with pytest.raises(RuntimeError, match="[Cc]ompose.*failed|[Ff]ailed.*compose"):
+                env.start()
 
 
 # ---------------------------------------------------------------------------
@@ -281,9 +262,7 @@ class TestWaitReady:
     ) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         # Simulate allocated ports
         env._allocation = {
             "db_port": 10000,
@@ -311,9 +290,7 @@ class TestWaitReady:
     ) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         env._allocation = {
             "db_port": 10000,
             "api_port": 10003,
@@ -340,9 +317,7 @@ class TestWaitReady:
     ) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         env._allocation = {
             "db_port": 10000,
             "api_port": 10003,
@@ -373,14 +348,10 @@ class TestTeardown:
 
     @patch("shutil.which", return_value="/usr/bin/docker")
     @patch("subprocess.run")
-    def test_teardown_runs_compose_down(
-        self, mock_run: MagicMock, _w: MagicMock
-    ) -> None:
+    def test_teardown_runs_compose_down(self, mock_run: MagicMock, _w: MagicMock) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         env._allocation = {
             "db_port": 10000,
             "api_port": 10003,
@@ -402,14 +373,10 @@ class TestTeardown:
 
     @patch("shutil.which", return_value="/usr/bin/docker")
     @patch("subprocess.run")
-    def test_teardown_is_idempotent(
-        self, mock_run: MagicMock, _w: MagicMock
-    ) -> None:
+    def test_teardown_is_idempotent(self, mock_run: MagicMock, _w: MagicMock) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         env._allocation = {
             "db_port": 10000,
             "api_port": 10003,
@@ -426,14 +393,10 @@ class TestTeardown:
 
     @patch("shutil.which", return_value="/usr/bin/docker")
     @patch("subprocess.run")
-    def test_teardown_catches_exceptions(
-        self, mock_run: MagicMock, _w: MagicMock
-    ) -> None:
+    def test_teardown_catches_exceptions(self, mock_run: MagicMock, _w: MagicMock) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         env._allocation = {
             "db_port": 10000,
             "api_port": 10003,
@@ -458,9 +421,7 @@ class TestEnvVars:
     def test_env_vars_returns_required_keys(self, _w: MagicMock) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         env._allocation = {
             "db_port": 10000,
             "rest_port": 10001,
@@ -483,9 +444,7 @@ class TestEnvVars:
     def test_env_vars_postgres_dsn_format(self, _w: MagicMock) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         env._allocation = {
             "db_port": 10000,
             "rest_port": 10001,
@@ -504,9 +463,7 @@ class TestEnvVars:
     def test_env_vars_includes_api_base_url(self, _w: MagicMock) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         env._allocation = {
             "db_port": 10000,
             "rest_port": 10001,
@@ -523,9 +480,7 @@ class TestEnvVars:
     def test_env_vars_raises_before_start(self, _w: MagicMock) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        env = DockerStackEnvironment(
-            compose_file="docker-compose.yml", session_id="test-session"
-        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="test-session")
         # No allocation set
         with pytest.raises((RuntimeError, AttributeError)):
             env.env_vars()

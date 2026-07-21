@@ -20,12 +20,13 @@ set -euo pipefail
 # Configuration
 # ---------------------------------------------------------------------------
 
-# All paths are relative to CWD and configurable via environment variables.
-# When called from the Makefile, these are passed in; when called directly,
-# the defaults assume you're running from the project being analyzed.
+# Project input/output paths are relative to CWD and configurable via environment
+# variables. Tool paths default to this installed skill, so direct invocation does
+# not require the source repository's Makefile or a repo-root scripts directory.
 ARCH_DIR="${ARCH_DIR:-docs/architecture-analysis}"
 VIEWS_DIR="${ARCH_DIR}/views"
-SCRIPTS_DIR="${SCRIPTS_DIR:-scripts}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_DIR="${SCRIPTS_DIR:-${SCRIPT_DIR}}"
 PYTHON_SRC_DIR="${PYTHON_SRC_DIR:-src}"
 TS_SRC_DIR="${TS_SRC_DIR:-web}"
 MIGRATIONS_DIR="${MIGRATIONS_DIR:-database/migrations}"

@@ -13,7 +13,6 @@ Tests cover:
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -25,7 +24,29 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from phase_deploy import create_environment, main, write_test_env_file
+from phase_deploy import (  # noqa: E402
+    _find_default_compose_file,
+    create_environment,
+    main,
+    write_test_env_file,
+)
+
+
+def test_default_compose_uses_explicit_consumer_config(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    compose = tmp_path / "custom.yml"
+    monkeypatch.setenv("VALIDATE_FEATURE_COMPOSE_FILE", str(compose))
+    assert _find_default_compose_file() == str(compose)
+
+
+def test_default_compose_does_not_assume_coordinator(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("VALIDATE_FEATURE_COMPOSE_FILE", raising=False)
+    with pytest.raises(FileNotFoundError, match="--compose-file"):
+        _find_default_compose_file()
 
 
 class TestCreateEnvironment:

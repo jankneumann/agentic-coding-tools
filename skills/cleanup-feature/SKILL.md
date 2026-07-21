@@ -151,7 +151,7 @@ If any phase **fails**, present findings and let the operator decide: fix, re-va
 **Programmatic enforcement** — run the gate check script before merge:
 
 ```bash
-python3 skills/validate-feature/scripts/gate_logic.py \
+python3 "<skill-base-dir>/../validate-feature/scripts/gate_logic.py" \
   openspec/changes/<change-id>/validation-report.md
 ```
 
@@ -166,7 +166,7 @@ If the gate halts:
 
 ```bash
 # Explicit user override (must be requested by user, never autonomous)
-python3 skills/validate-feature/scripts/gate_logic.py \
+python3 "<skill-base-dir>/../validate-feature/scripts/gate_logic.py" \
   openspec/changes/<change-id>/validation-report.md --force
 ```
 
@@ -215,7 +215,7 @@ The merge command integrates the pre-merge gate — it will refuse to merge unle
 
 ```bash
 # Via merge_pr.py with gate enforcement (preferred)
-python3 skills/merge-pull-requests/scripts/merge_pr.py merge <pr_number> \
+python3 "<skill-base-dir>/../merge-pull-requests/scripts/merge_pr.py" merge <pr_number> \
   --origin openspec \
   --validation-report openspec/changes/<change-id>/validation-report.md
 
@@ -226,7 +226,7 @@ gh pr merge "$FEATURE_BRANCH" --rebase --delete-branch
 
 **Explicit user override** (only when user explicitly requests):
 ```bash
-python3 skills/merge-pull-requests/scripts/merge_pr.py merge <pr_number> \
+python3 "<skill-base-dir>/../merge-pull-requests/scripts/merge_pr.py" merge <pr_number> \
   --origin openspec \
   --validation-report openspec/changes/<change-id>/validation-report.md \
   --force
@@ -453,7 +453,9 @@ This archives the change, merges delta specs, and validates repository integrity
 
 **Regenerate the decision index (REQUIRED — in the SAME commit as the archive).**
 `docs/decisions/` is a derived artifact generated from `openspec/changes/` via
-`make decisions` (`skills/explore-feature/scripts/archive_index.py --emit-decisions`).
+In this source repository, the **source-contribution-only** command is
+`make decisions`; its implementation is the co-installed
+`<skill-base-dir>/../explore-feature/scripts/archive_index.py --emit-decisions`.
 Archiving moves `openspec/changes/<change-id>/` into `archive/<date>-<change-id>/`,
 which is exactly what makes the committed index stale. Regenerate it now and stage
 it so the refresh lands in the **same commit as the archive move** — never as a

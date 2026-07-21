@@ -33,13 +33,13 @@ Update OpenSpec spec files to reflect what was actually built. Use this after im
 Before any other work, verify exclusive access — this skill commits spec updates to `main` and must not race other agents:
 
 ```bash
-python skills/shared/active_agents.py
+python3 "<skill-base-dir>/../shared/active_agents.py"
 ```
 
 - Exit `0`: no active agents → proceed.
 - Exit `1`: one or more active agents hold worktrees → **stop**, surface the list to the operator (the script's stdout already prints it), and ask whether to wait or pass `--force`. Never auto-force.
 
-An entry is "active" when it is pinned OR its `last_heartbeat` is within 1 hour. See `skills/shared/active_agents.py` and CLAUDE.md "Sync-Point Skills" for the contract; `docs/mental-models.md` gap G10 for the rationale.
+An entry is "active" when it is pinned OR its `last_heartbeat` is within 1 hour. See the co-installed `../shared/active_agents.py` helper and the consumer repository's coordination guidance for the contract.
 
 ## Steps
 

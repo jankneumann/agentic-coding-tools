@@ -12,7 +12,7 @@ Non-user-invocable infrastructure skill for architecture flow validation during 
 
 ## Scripts
 
-### scripts/validate_flows.py
+### `<skill-base-dir>/scripts/validate_flows.py`
 
 Validates cross-layer architecture flows (API → DB, MCP → service, etc.).
 

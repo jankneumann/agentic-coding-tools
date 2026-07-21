@@ -84,13 +84,14 @@ install_openspec() {
 # mirrors and have no skills/install.sh — the guard makes this a no-op there.
 # ---------------------------------------------------------------------------
 install_skills() {
-    if [[ -x "$PROJECT_DIR/skills/install.sh" ]]; then
+    local source_installer="$PROJECT_DIR/skills/install.sh"  # source-contribution-only
+    if [[ -x "$source_installer" ]]; then
         log "Syncing skill mirrors from canonical skills/ via install.sh..."
-        (cd "$PROJECT_DIR" && bash skills/install.sh --mode rsync --force \
+        (cd "$PROJECT_DIR" && bash "$source_installer" --mode rsync --force \
             --deps none --python-tools none --openspec-cli none) \
             || log "WARNING: skills install.sh failed"
     else
-        log "No canonical skills/install.sh — assuming committed mirrors (consumer-repo layout)"
+        log "No canonical skill installer — assuming committed mirrors (consumer-repo layout)"
     fi
 }
 

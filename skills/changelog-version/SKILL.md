@@ -41,7 +41,7 @@ worktree in local CLI execution:
 CHANGE_ID="changelog-version-<version-or-date>"
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
 cd "$WORKTREE_PATH"
-skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 ```
 
 ## Version Bump Rules

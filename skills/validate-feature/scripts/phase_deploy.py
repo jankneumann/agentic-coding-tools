@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,8 +28,8 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from environments.docker_stack import DockerStackEnvironment
-from environments.neon_branch import NeonBranchEnvironment
+from environments.docker_stack import DockerStackEnvironment  # noqa: E402
+from environments.neon_branch import NeonBranchEnvironment  # noqa: E402
 
 
 def create_environment(
@@ -97,13 +98,17 @@ def write_test_env_file(
 
 
 def _find_default_compose_file() -> str:
-    """Find the default docker-compose.yml relative to git root."""
-    scripts_dir = Path(__file__).resolve().parent
-    for parent in [scripts_dir] + list(scripts_dir.parents):
-        compose = parent / "agent-coordinator" / "docker-compose.yml"
-        if compose.exists():
-            return str(compose)
-    return "agent-coordinator/docker-compose.yml"
+    """Resolve an explicit or consumer-local compose file."""
+    configured = os.environ.get("VALIDATE_FEATURE_COMPOSE_FILE")
+    if configured:
+        return str(Path(configured).expanduser())
+    for name in ("compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"):
+        candidate = Path.cwd() / name
+        if candidate.is_file():
+            return str(candidate)
+    raise FileNotFoundError(
+        "No compose file found; pass --compose-file or set VALIDATE_FEATURE_COMPOSE_FILE"
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:

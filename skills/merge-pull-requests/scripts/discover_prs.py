@@ -26,21 +26,13 @@ from pathlib import Path
 
 from _helpers import check_clean_worktree, check_gh, run_gh
 
-# ---------------------------------------------------------------------------
-# Import classify_pr and helpers from the coordinator's src package.
-# The coordinator publishes under `src` per agent-coordinator/pyproject.toml
-# (`packages = ['src']`).  Skills reach into src/ via a sys.path extension
-# established here — the same pattern used by session-bootstrap and fix-scrub.
-# ---------------------------------------------------------------------------
-_COORDINATOR_SRC = Path(__file__).resolve().parents[3] / "agent-coordinator"
-if str(_COORDINATOR_SRC) not in sys.path:
-    sys.path.insert(0, str(_COORDINATOR_SRC))
+# ``shared`` is installed alongside every skill in canonical and mirror layouts.
+_SHARED_DIR = Path(__file__).resolve().parents[2] / "shared"
+if str(_SHARED_DIR) not in sys.path:
+    sys.path.insert(0, str(_SHARED_DIR))
 
-from src.github_classifier import (  # type: ignore[import]  # noqa: E402
-    JULES_AUTHORS,
-    JULES_PATTERNS,
+from github_classifier import (  # type: ignore[import-not-found]  # noqa: E402
     classify_pr,
-    is_jules_author,
     safe_author,
 )
 

@@ -11,6 +11,12 @@ from detect_profile import detect_profiles
 from models import normalize_severity
 
 ECOSYSTEM_PROFILES = {"python", "node", "java", "mixed", "generic"}
+SCRIPTS_DIR = Path(__file__).resolve().parent
+
+
+def _runner(name: str) -> str:
+    """Return a runner path anchored to this installed skill."""
+    return str(SCRIPTS_DIR / name)
 
 
 def build_plan(
@@ -34,7 +40,7 @@ def build_plan(
                 else "No dependency-bearing profile detected"
             ),
             "required_tools": ["java", "dependency-check or podman/docker-compatible runtime"],
-            "runner": "skills/security-review/scripts/run_dependency_check.sh",
+            "runner": _runner("run_dependency_check.sh"),
         }
     )
 
@@ -56,7 +62,7 @@ def build_plan(
             "target": zap_target,
             "target_required": zap_profile_match,
             "required_tools": ["podman or docker-compatible runtime"],
-            "runner": "skills/security-review/scripts/run_zap_scan.sh",
+            "runner": _runner("run_zap_scan.sh"),
         }
     )
 

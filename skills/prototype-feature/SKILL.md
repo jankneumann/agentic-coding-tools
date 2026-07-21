@@ -26,8 +26,8 @@ This skill is the **divergence stage on the generation side of the approval gate
 ## Prerequisites
 
 - Approved OpenSpec proposal at `openspec/changes/<change-id>/` (proposal.md + design.md + specs/ + tasks.md). The skill never auto-triggers — it's only invoked explicitly by the operator or via `/iterate-on-plan`'s advisory `workflow.prototype-recommended` finding.
-- Worktree infrastructure (`skills/worktree/scripts/worktree.py`) supports `--branch-prefix prototype` (added by wp-worktree).
-- VariantDescriptor schema and `synthesize_variants()` available in `skills/parallel-infrastructure/scripts/variant_descriptor.py`.
+- Worktree infrastructure (`<skill-base-dir>/../worktree/scripts/worktree.py`) supports `--branch-prefix prototype` (added by wp-worktree).
+- VariantDescriptor schema and `synthesize_variants()` are available in `<skill-base-dir>/../parallel-infrastructure/scripts/variant_descriptor.py`.
 
 ## Coordinator Integration (Optional)
 
@@ -79,7 +79,7 @@ Per D3:
 For each `VariantSpec`, call `worktree.py setup` with the new prototype prefix:
 
 ```bash
-python3 skills/worktree/scripts/worktree.py setup "${CHANGE_ID}" \
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "${CHANGE_ID}" \
   --agent-id "${VARIANT_ID}" \
   --branch-prefix prototype \
   --no-bootstrap

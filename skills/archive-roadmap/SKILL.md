@@ -23,7 +23,7 @@ Optional flags:
 ## Prerequisites
 
 - A roadmap workspace at `openspec/roadmaps/<roadmap-id>/` containing at least `roadmap.yaml`.
-- Shared runtime at `skills/roadmap-runtime/scripts/`.
+- Shared runtime at `<skill-base-dir>/../roadmap-runtime/scripts/`.
 
 ## Local CLI Mutation Boundary
 
@@ -34,7 +34,7 @@ local CLI execution, run inside a managed worktree before moving the workspace:
 CHANGE_ID="archive-roadmap-<roadmap-id>"
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
 cd "$WORKTREE_PATH"
-skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 ```
 
 ## Steps
@@ -44,7 +44,7 @@ skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
 ```python
 from pathlib import Path
 import sys
-sys.path.insert(0, "skills/archive-roadmap/scripts")
+sys.path.insert(0, "<skill-base-dir>/scripts")
 from archive import archive_roadmap, IncompleteRoadmapError
 
 workspace = Path("openspec/roadmaps") / roadmap_id
