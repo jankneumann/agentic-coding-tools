@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -26,7 +27,7 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from environments.docker_stack import DockerStackEnvironment
+from environments.docker_stack import DockerStackEnvironment  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -171,16 +172,17 @@ def cmd_status(*, test_env_path: str) -> dict[str, object]:
 
 
 def _find_default_compose_file() -> str:
-    """Find the default docker-compose.yml relative to git root."""
-    try:
-        scripts_dir = Path(__file__).resolve().parent
-        for parent in [scripts_dir] + list(scripts_dir.parents):
-            compose = parent / "agent-coordinator" / "docker-compose.yml"
-            if compose.exists():
-                return str(compose)
-    except Exception:
-        pass
-    return "agent-coordinator/docker-compose.yml"
+    """Resolve an explicit or consumer-local compose file."""
+    configured = os.environ.get("VALIDATE_FEATURE_COMPOSE_FILE")
+    if configured:
+        return str(Path(configured).expanduser())
+    for name in ("compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"):
+        candidate = Path.cwd() / name
+        if candidate.is_file():
+            return str(candidate)
+    raise FileNotFoundError(
+        "No compose file found; pass --compose-file or set VALIDATE_FEATURE_COMPOSE_FILE"
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -261,9 +263,8 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    compose_file = getattr(args, "compose_file", None) or _find_default_compose_file()
-
     if args.subcommand == "start":
+        compose_file = args.compose_file or _find_default_compose_file()
         cmd_start(
             env_type=args.env,
             compose_file=compose_file,
@@ -272,6 +273,7 @@ def main() -> None:
             seed_strategy=args.seed_strategy,
         )
     elif args.subcommand == "teardown":
+        compose_file = args.compose_file or _find_default_compose_file()
         cmd_teardown(
             test_env_path=args.test_env,
             compose_file=compose_file,

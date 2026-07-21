@@ -94,3 +94,27 @@ def test_main_launch_failure_returns_error_code(tmp_path: Path) -> None:
         rc = run_architecture.main(["--target-dir", str(target)])
 
     assert rc == 1
+
+
+def test_refresh_script_resolves_its_tools_outside_source_checkout(tmp_path: Path) -> None:
+    """Direct invocation must find shipped analyzers from an arbitrary consumer cwd."""
+    import os
+    import subprocess
+
+    for relative in ("src", "web", "database/migrations"):
+        (tmp_path / relative).mkdir(parents=True, exist_ok=True)
+
+    env = dict(os.environ)
+    env["AUTO_INSTALL_DEPS"] = "false"
+    result = subprocess.run(
+        ["bash", _refresh_script_path(), "--quick"],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    output = result.stdout + result.stderr
+    assert "Python analyzer script not found" not in output
+    assert "Postgres analyzer script not found" not in output

@@ -108,7 +108,8 @@ Scripts live in `<agent-skills-dir>/security-review/scripts/`. Each agent runtim
 - **Codex**: `.codex/skills`
 - **Gemini**: `.gemini/skills`
 
-If scripts are missing, run `skills/install.sh` to sync them from the canonical `skills/` source.
+Installed skill copies are expected to include these scripts. If they are missing,
+reinstall the skill from its canonical distribution rather than invoking a repo-local path.
 
 ## Prerequisites
 

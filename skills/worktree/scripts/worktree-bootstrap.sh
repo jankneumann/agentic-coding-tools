@@ -49,9 +49,10 @@ if [ -f "${WORKTREE_PATH}/skills/pyproject.toml" ]; then
 fi
 
 # --- Sync skills ---
-if [ -f "${WORKTREE_PATH}/skills/install.sh" ]; then
+source_installer="${WORKTREE_PATH}/skills/install.sh"  # source-contribution-only
+if [ -f "${source_installer}" ]; then
     echo "Syncing skills..."
-    (cd "${WORKTREE_PATH}" && bash skills/install.sh --mode rsync --force --deps none --python-tools none 2>&1) || \
+    (cd "${WORKTREE_PATH}" && bash "${source_installer}" --mode rsync --force --deps none --python-tools none 2>&1) || \
         { echo "Warning: skills install failed" >&2; errors=$((errors + 1)); }
 fi
 

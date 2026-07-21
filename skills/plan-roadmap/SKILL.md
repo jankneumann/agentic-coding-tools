@@ -40,9 +40,9 @@ Optional flags:
 The semantic work — reading the proposal and deciding what the items, dependencies, efforts, and acceptance outcomes are — is done by a premium model, never by keyword parsing. The orchestrator (the agent running this skill) **dispatches** that work rather than importing an LLM SDK:
 
 - **Default (`--vendor claude`):** spawn a Claude subagent with the Agent tool, handing it the filled generation prompt. The subagent reads the proposal and returns the `roadmap.yaml` body.
-- **External (`--vendor codex|gemini`):** route through `skills/parallel-infrastructure/scripts/review_dispatcher.py` (`ReviewOrchestrator`) using the `alternative` dispatch mode, which shells out to the vendor CLI configured in `agent-coordinator/agents.yaml`. Models resolve to `gpt-5.5` (codex) / `gemini-3.1-pro` (gemini) with the fallbacks declared there.
+- **External (`--vendor codex|gemini`):** route through `<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py` (`ReviewOrchestrator`) using the `alternative` dispatch mode. Vendor configuration comes from `AGENTS_YAML` when provided, with public/provider-local fallbacks documented by that sibling skill.
 
-**No LLM SDK calls inside this skill's Python.** The scripts stay deterministic (readiness check, schema/DAG validation, file I/O). This mirrors the host-assisted invariant enforced for `autopilot-roadmap`: semantic reasoning is delegated to the orchestrator or a dispatched agent, not embedded in `scripts/`.
+**No LLM SDK calls inside this skill's Python.** The scripts stay deterministic (readiness check, schema/DAG validation, file I/O). This mirrors the host-assisted invariant enforced for `autopilot-roadmap`: semantic reasoning is delegated to the orchestrator or a dispatched agent, not embedded in `<skill-base-dir>/scripts/`.
 
 The generator's instructions and the exact output contract live in `templates/generation-prompt.md`. The orchestrator fills its `{{PROPOSAL_TEXT}}`, `{{SOURCE_PROPOSAL_PATH}}`, and `{{ROADMAP_ID}}` placeholders before dispatch.
 
@@ -57,7 +57,7 @@ worktree before writing:
 CHANGE_ID="roadmap-<slug>"
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
 cd "$WORKTREE_PATH"
-skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 ```
 
 If the invocation only reads a proposal and returns advice in chat, no worktree
@@ -161,7 +161,7 @@ Determine the output location:
 - If `--workspace <path>` was supplied, use it (directory → `<path>/roadmap.yaml`, or explicit `.yaml` file path).
 - Otherwise, default to `openspec/roadmaps/<roadmap_id>/roadmap.yaml`.
 
-Print the resolved path, then call `save_roadmap(roadmap, path, overwrite=<force_flag>)` from `skills/roadmap-runtime/scripts/models.py`. The helper creates parent directories and raises `FileExistsError` on collision unless `overwrite=True`. On collision, surface the error verbatim and instruct the operator to re-invoke with `--force` or `--workspace`.
+Print the resolved path, then call `save_roadmap(roadmap, path, overwrite=<force_flag>)` from `<skill-base-dir>/../roadmap-runtime/scripts/models.py`. The helper creates parent directories and raises `FileExistsError` on collision unless `overwrite=True`. On collision, surface the error verbatim and instruct the operator to re-invoke with `--force` or `--workspace`.
 
 If `--new` was used in Step 0, the proposal.md already lives at `openspec/roadmaps/<roadmap_id>/proposal.md` — leave it in place. If decomposing an existing proposal from elsewhere, the `source_proposal` field in `roadmap.yaml` records the original path.
 
@@ -187,13 +187,13 @@ Generated sections of any rendered markdown view are wrapped in `<!-- GENERATED:
 
 ## Runtime Reference
 
-Shared models and utilities are in `skills/roadmap-runtime/scripts/`. `decomposer.py` imports `Roadmap`, `validate_against_schema`, and `ROADMAP_SCHEMA` from the runtime's `models` module; `scaffolder.py` imports `Roadmap`, `RoadmapItem`, `ItemStatus`. Roadmap persistence (`save_roadmap` / `load_roadmap`) lives in `models`.
+Shared models and utilities are in `<skill-base-dir>/../roadmap-runtime/scripts/`. `decomposer.py` imports `Roadmap`, `validate_against_schema`, and `ROADMAP_SCHEMA` from the runtime's `models` module; `scaffolder.py` imports `Roadmap`, `RoadmapItem`, `ItemStatus`. Roadmap persistence (`save_roadmap` / `load_roadmap`) lives in `models`.
 
 ## Scripts
 
 | Script | Role |
 |---|---|
-| `scripts/decomposer.py` | Deterministic validation only: `validate_proposal()` (readiness), `validate_roadmap()` (schema + ids + DAG), `scan_archive_state()`, `make_repo_relative()`, and a `validate` CLI. Contains no keyword extraction and no LLM calls. |
-| `scripts/scaffolder.py` | Scaffolds OpenSpec change directories from approved items. |
-| `scripts/renderer.py` | Renders `roadmap.yaml` → human-readable `roadmap.md` (maintenance direction). |
+| `<skill-base-dir>/scripts/decomposer.py` | Deterministic validation only: `validate_proposal()` (readiness), `validate_roadmap()` (schema + ids + DAG), `scan_archive_state()`, `make_repo_relative()`, and a `validate` CLI. Contains no keyword extraction and no LLM calls. |
+| `<skill-base-dir>/scripts/scaffolder.py` | Scaffolds OpenSpec change directories from approved items. |
+| `<skill-base-dir>/scripts/renderer.py` | Renders `roadmap.yaml` → human-readable `roadmap.md` (maintenance direction). |
 | `templates/generation-prompt.md` | The model-facing generation contract dispatched in Step 3. |

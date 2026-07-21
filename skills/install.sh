@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: ./install.sh [--target <directory>] [--agents <list>] [--mode <symlink|rsync|copy>] [--deps <none|print|apply>] [--openspec-assets <none|print|sync>] [--openspec-cli <none|print|apply|required>] [--python-tools <none|print|apply>] [--copy] [--force]
+Usage: ./install.sh [--target <directory>] [--agents <list>] [--mode <symlink|rsync|copy>] [--deps <none|print|apply>] [--openspec-assets <none|print|sync>] [--openspec-cli <none|print|apply|required>] [--python-tools <none|print|apply>] [--copy] [--force] [--check]
 
 Install skills into agent config directories using symlinks or synced copies.
 Any directory under skills/ with SKILL.md is installed automatically.
@@ -37,6 +37,7 @@ Options:
                          (default: .skills-venv)
   --copy                 Shorthand for --mode copy
   --force                Replace conflicting existing files/symlinks at destination paths
+  --check                Validate the complete install payload and exit without syncing
   -h, --help             Show this help
 
 Examples:
@@ -61,6 +62,7 @@ OPENSPEC_CLI_MODE=""
 PYTHON_TOOLS_MODE="print"
 PYTHON_PACKAGES="pytest,mypy,ruff"
 PYTHON_VENV=".skills-venv"
+CHECK_ONLY=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -115,6 +117,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --force)
       FORCE=1
+      shift
+      ;;
+    --check)
+      CHECK_ONLY=1
       shift
       ;;
     -h|--help)
@@ -198,15 +204,27 @@ canonicalize_target_path() {
   printf '%s/%s\n' "$(canonicalize_existing_dir "$parent")" "$base"
 }
 
-skills=()
-while IFS= read -r entry; do
-  name="$(basename "$entry")"
-  [[ "$name" == "openspec" ]] && continue
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "python3 is required to validate the skill install manifest" >&2
+  exit 1
+fi
 
-  if [[ -f "$entry/SKILL.md" ]]; then
-    skills+=("$entry")
-  fi
-done < <(find "$SCRIPT_DIR" -mindepth 1 -maxdepth 1 -type d -o -type l | sort)
+INSTALL_MANIFEST="$SCRIPT_DIR/install-manifest.json"
+MANIFEST_VALIDATOR="$SCRIPT_DIR/shared/validate_install_manifest.py"
+if [[ ! -f "$INSTALL_MANIFEST" || ! -f "$MANIFEST_VALIDATOR" ]]; then
+  echo "Install manifest or validator is missing from $SCRIPT_DIR" >&2
+  exit 1
+fi
+
+python3 "$MANIFEST_VALIDATOR" --skills-root "$SCRIPT_DIR" --manifest "$INSTALL_MANIFEST"
+if [[ $CHECK_ONLY -eq 1 ]]; then
+  exit 0
+fi
+
+skills=()
+while IFS= read -r skill_name; do
+  [[ -n "$skill_name" ]] && skills+=("$SCRIPT_DIR/$skill_name")
+done < <(python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); print("\n".join(sorted(name for name, meta in data["skills"].items() if meta["distribution"] == "portable")))' "$INSTALL_MANIFEST")
 
 if [[ ${#skills[@]} -eq 0 ]]; then
   echo "No skills found in $SCRIPT_DIR" >&2
@@ -500,6 +518,25 @@ sync_references_library() {
   fi
 }
 
+sync_install_manifest() {
+  local dest_dir="$1"
+  local manifest_dest="$dest_dir/install-manifest.json"
+  if [[ "$MODE" == "symlink" ]]; then
+    if [[ -e "$manifest_dest" || -L "$manifest_dest" ]]; then
+      if [[ $FORCE -eq 1 ]]; then
+        rm -f "$manifest_dest"
+      else
+        echo "  skip  install-manifest.json (destination exists; use --force to replace)"
+        return 0
+      fi
+    fi
+    ln -s "$INSTALL_MANIFEST" "$manifest_dest"
+  else
+    rsync -a --checksum "$INSTALL_MANIFEST" "$manifest_dest"
+  fi
+  echo "  manifest  install-manifest.json -> $manifest_dest"
+}
+
 # Scan every skill's SKILL.md frontmatter for `related:` entries and warn on unknown
 # targets. Advisory only — exits 0 even on warnings.
 validate_related_keys() {
@@ -659,6 +696,7 @@ for agent in "${agent_list[@]}"; do
   done
 
   sync_references_library "$dest_dir"
+  sync_install_manifest "$dest_dir"
 
   for lib_name in "${SHARED_LIBS[@]}"; do
     lib_src="$SCRIPT_DIR/$lib_name"

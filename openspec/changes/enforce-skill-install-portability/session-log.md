@@ -35,3 +35,51 @@
 ### Context
 Approved portable-install boundary and P0-P3 implementation DAG; independent specification, architecture, and TDD reviews are resolved.
 
+---
+
+## Phase: Implementation Review (2026-07-21)
+
+**Agent**: codex-autopilot | **Session**: N/A
+
+### Decisions
+1. **Installed payload owns shared runtime code** `architectural: skill-workflow` — Consumers receive skills/shared but not coordinator source, so shared PR classification and path helpers live inside the shipped boundary.
+2. **Persistent local port reservations** `architectural: skill-workflow` — Docker validation processes must retain reservations after their launcher exits and release them during teardown.
+
+### Completed Work
+- Moved PR classification into the shipped shared library and retained a coordinator compatibility facade
+- Removed coordinator-source and canonical skills-path runtime dependencies across scripts, hooks, and instructions
+- Added manifest-driven payload validation, consumer compilation/probes, and complete-payload CI linting
+- Resolved all independent implementation review findings
+
+### Next Steps
+- Publish the validated feature branch and open the autopilot draft PR
+
+### Relevant Files
+- `skills/install-manifest.json` — Installed payload contract
+- `openspec/changes/enforce-skill-install-portability/implementation-findings.md` — Review findings and resolutions
+
+### Context
+Implemented the approved P0-P3 portability program; independent implementation findings were resolved and no blocking finding remains.
+
+---
+
+## Phase: Validation (2026-07-21)
+
+**Agent**: codex-autopilot | **Session**: N/A
+
+### Completed Work
+- Strict OpenSpec validation and work-package schema/DAG/lock checks passed
+- Canonical installer check and sync completed for 65 skills in each mirror
+- Clean-consumer and Langfuse suites passed 10 tests
+- Default skills suite passed 837 tests; classifier suites passed 60 tests
+- Changed Python passed Ruff and scoped mypy; changed shell passed bash syntax; git diff check passed
+
+### Next Steps
+- Push the feature branch and open a draft pull request
+
+### Relevant Files
+- `openspec/changes/enforce-skill-install-portability/validation-report.md` — Complete validation evidence
+
+### Context
+Standalone install portability is proven for both Claude and agents mirrors, and all configured local quality gates pass.
+

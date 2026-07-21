@@ -85,7 +85,7 @@ now before claiming any work:
 ```bash
 # Pseudocode — drop in coordination_bridge.try_issue_list to inspect.
 if coordinator_reachable and try_issue_list(labels=["change:<change-id>"]) is empty:
-    skills/.venv/bin/python skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py <change-id>
+    python3 "<skill-base-dir>/../coordinator-task-status-renderer/scripts/seed_tasks_from_md.py" <change-id>
 ```
 
 This "seeding retry" path makes Gate 2 robust to transient coordinator outages:
@@ -238,11 +238,12 @@ Before dispatching implementation agents, resolve the archetype model. This enab
 complexity-based escalation from Sonnet to Opus for large work packages:
 
 ```python
-from src.agents_config import load_archetypes_config, resolve_model, compose_prompt
+import sys
+from pathlib import Path
 
-archetypes = load_archetypes_config()  # cached singleton — no repeated file I/O
-implementer = archetypes.get("implementer")
-runner = archetypes.get("runner")
+bridge_scripts = Path("<skill-base-dir>").parent / "coordination-bridge" / "scripts"
+sys.path.insert(0, str(bridge_scripts))
+import coordination_bridge
 
 # For each package, resolve implementer model based on complexity signals
 package_metadata = {
@@ -251,11 +252,16 @@ package_metadata = {
     "loc_estimate": <from work-packages.yaml metadata.loc_estimate>,
     "complexity": <from work-packages.yaml metadata.complexity or None>,
 }
-impl_model = resolve_model(implementer, package_metadata) if implementer else "sonnet"
-runner_model = resolve_model(runner, {}) if runner else "haiku"
+resolved = coordination_bridge.try_resolve_archetype_for_phase(
+    "IMPLEMENT", package_metadata
+)
+impl_model = resolved["model"] if resolved else None
+runner_model = None
 ```
 
-Thresholds are configurable in `agent-coordinator/archetypes.yaml` — no code changes needed.
+If resolution is unavailable, omit `model=` so the harness uses its configured
+default. Thresholds remain coordinator-configurable without requiring local
+coordinator source or configuration files.
 
 ##### Parallel Implementation (for independent tasks)
 
@@ -292,7 +298,7 @@ Uses `work-packages.yaml` for structured DAG execution within a **single feature
 **A. Parse and validate work-packages.yaml:**
 
 ```bash
-skills/.venv/bin/python "<skill-base-dir>/../parallel-infrastructure/scripts/dag_scheduler.py" \
+python3 "<skill-base-dir>/../parallel-infrastructure/scripts/dag_scheduler.py" \
   --validate openspec/changes/<change-id>/work-packages.yaml
 ```
 
@@ -340,7 +346,7 @@ Do NOT commit - the orchestrator will handle commits.",
 **D. Collect results and verify scope:**
 
 ```bash
-skills/.venv/bin/python "<skill-base-dir>/../parallel-infrastructure/scripts/scope_checker.py" \
+python3 "<skill-base-dir>/../parallel-infrastructure/scripts/scope_checker.py" \
   --packages openspec/changes/<change-id>/work-packages.yaml \
   --diff <git diff output>
 ```
@@ -453,9 +459,9 @@ Fix all failures before proceeding.
 Run live service smoke tests if a test environment is available:
 
 ```bash
-python3 skills/validate-feature/scripts/phase_deploy.py --env docker --timeout 120
-python3 skills/validate-feature/scripts/phase_smoke.py
-python3 skills/validate-feature/scripts/stack_launcher.py teardown
+python3 "<skill-base-dir>/../validate-feature/scripts/phase_deploy.py" --env docker --timeout 120
+python3 "<skill-base-dir>/../validate-feature/scripts/phase_smoke.py"
+python3 "<skill-base-dir>/../validate-feature/scripts/stack_launcher.py" teardown
 ```
 
 If Docker/Neon is unavailable, log a WARNING and continue with smoke status "skipped" in validation-report.md. This is a **soft gate** — implementation proceeds regardless.
@@ -503,7 +509,8 @@ This step MUST run BEFORE the `git add .` in Step 8 so the session-log entry is 
 ```bash
 python3 - <<'EOF'
 import sys
-sys.path.insert(0, "skills/session-log/scripts")
+from pathlib import Path
+sys.path.insert(0, str(Path("<skill-base-dir>").parent / "session-log" / "scripts"))
 from phase_record import PhaseRecord, Decision, Alternative, TradeOff, FileRef
 
 record = PhaseRecord(

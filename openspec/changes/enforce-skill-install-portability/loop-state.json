@@ -2,7 +2,7 @@
   "blocking_findings": [],
   "change_id": "enforce-skill-install-portability",
   "cli_review_enabled": true,
-  "current_phase": "IMPLEMENT",
+  "current_phase": "SUBMIT_PR",
   "error": null,
   "escalation_reason": null,
   "findings_trend": [],
@@ -18,15 +18,41 @@
   },
   "gate_verdict": "proceed",
   "handoff_ids": [
-    "local:plan-1"
+    "local:plan-1",
+    "local:implementation-review-1",
+    "local:validation-1"
   ],
-  "implementation_strategy": {},
+  "implementation_strategy": {
+    "tier": "coordinated",
+    "work_packages": [
+      "wp-contract-tests",
+      "wp-p0-runtime",
+      "wp-p1-runtime",
+      "wp-p2-instructions",
+      "wp-p3-enforcement",
+      "wp-validation"
+    ]
+  },
   "iteration": 0,
-  "last_handoff_id": "local:plan-1",
+  "last_handoff_id": "local:validation-1",
   "max_phase_iterations": 3,
   "memory_ids": [],
-  "package_authors": {},
-  "packages_status": {},
+  "package_authors": {
+    "wp-contract-tests": "implement_p0",
+    "wp-p0-runtime": "implement_p0",
+    "wp-p1-runtime": "implement_p1",
+    "wp-p2-instructions": "implement_p2",
+    "wp-p3-enforcement": "codex-autopilot",
+    "wp-validation": "codex-autopilot"
+  },
+  "packages_status": {
+    "wp-contract-tests": "complete",
+    "wp-p0-runtime": "complete",
+    "wp-p1-runtime": "complete",
+    "wp-p2-instructions": "complete",
+    "wp-p3-enforcement": "complete",
+    "wp-validation": "complete"
+  },
   "phase_archetype": null,
   "phase_history": [
     {
@@ -39,10 +65,30 @@
       "at": "2026-07-21T00:02:32.564727+00:00",
       "outcome": "next",
       "phase": "PLAN"
+    },
+    {
+      "at": "2026-07-21T00:30:00+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-07-21T01:00:00+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-07-21T03:32:05.462812+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-07-21T03:32:18.254454+00:00",
+      "outcome": "continue",
+      "phase": "VALIDATE"
     }
   ],
   "phase_started_at": "2026-07-20T00:00:00Z",
-  "previous_phase": "PLAN",
+  "previous_phase": "VALIDATE",
   "schema_version": 4,
   "started_at": "2026-07-20T00:00:00Z",
   "total_iterations": 1,

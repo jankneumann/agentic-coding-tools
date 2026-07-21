@@ -6,15 +6,15 @@ pin/unpin, list, and garbage collection. Outputs machine-parseable
 KEY=VALUE lines for shell eval.
 
 Usage:
-    python3 scripts/worktree.py setup <change-id> [--agent-id <id>] [--branch <name>] [--prefix <prefix>] [--no-bootstrap]
-    python3 scripts/worktree.py teardown <change-id> [--agent-id <id>] [--prefix <prefix>]
-    python3 scripts/worktree.py status [<change-id>] [--agent-id <id>]
-    python3 scripts/worktree.py detect
-    python3 scripts/worktree.py heartbeat <change-id> [--agent-id <id>]
-    python3 scripts/worktree.py list
-    python3 scripts/worktree.py pin <change-id> [--agent-id <id>]
-    python3 scripts/worktree.py unpin <change-id> [--agent-id <id>]
-    python3 scripts/worktree.py gc [--stale-after <duration>] [--force]
+    python3 "<skill-base-dir>/scripts/worktree.py" setup <change-id> [options]
+    python3 "<skill-base-dir>/scripts/worktree.py" teardown <change-id> [options]
+    python3 "<skill-base-dir>/scripts/worktree.py" status [<change-id>] [options]
+    python3 "<skill-base-dir>/scripts/worktree.py" detect
+    python3 "<skill-base-dir>/scripts/worktree.py" heartbeat <change-id> [options]
+    python3 "<skill-base-dir>/scripts/worktree.py" list
+    python3 "<skill-base-dir>/scripts/worktree.py" pin <change-id> [options]
+    python3 "<skill-base-dir>/scripts/worktree.py" unpin <change-id> [options]
+    python3 "<skill-base-dir>/scripts/worktree.py" gc [options]
 """
 
 from __future__ import annotations
@@ -682,7 +682,10 @@ def cmd_setup(args: argparse.Namespace) -> int:
     # Bootstrap the worktree (copy .env, install deps, sync skills)
     bootstrapped = False
     if not args.no_bootstrap and not already_exists:
-        bootstrap_script = main_repo / "skills" / "worktree" / "scripts" / "worktree-bootstrap.sh"
+        # Resolve the co-installed helper from this skill's own directory.  In
+        # consumers the skills may live under .claude/skills or .agents/skills,
+        # and the main repository need not contain a canonical skills/ tree.
+        bootstrap_script = _installed_bootstrap_script()
         if bootstrap_script.is_file():
             print("Bootstrapping worktree...", file=sys.stderr)
             env = os.environ.copy()
@@ -702,6 +705,11 @@ def cmd_setup(args: argparse.Namespace) -> int:
     print(f"WORKTREE_BRANCH={branch}")
     print(f"BOOTSTRAPPED={'true' if bootstrapped else 'false'}")
     return 0
+
+
+def _installed_bootstrap_script() -> Path:
+    """Return the bootstrap script co-installed with this module."""
+    return Path(__file__).resolve().with_name("worktree-bootstrap.sh")
 
 
 def _deinit_submodules(wt_path: Path) -> None:

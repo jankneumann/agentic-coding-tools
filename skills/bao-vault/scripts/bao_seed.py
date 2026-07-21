@@ -17,6 +17,8 @@ Environment variables:
     BAO_MOUNT_PATH: KV v2 mount path (default: "secret")
     BAO_SECRET_PATH: Secret data path (default: "coordinator")
     BAO_TOKEN_TTL: Token TTL for AppRoles in seconds (default: 3600)
+    BAO_SECRETS_FILE: Path to the secrets YAML (default: ./.secrets.yaml)
+    AGENTS_YAML: Path to agents.yaml (default: ./agents.yaml)
 """
 
 from __future__ import annotations
@@ -31,26 +33,10 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-def _repo_root() -> Path:
-    """Find the repository root via git, falling back to path traversal."""
-    import subprocess
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=5,
-            cwd=Path(__file__).parent,
-        )
-        if result.returncode == 0:
-            return Path(result.stdout.strip())
-    except (OSError, subprocess.TimeoutExpired):
-        pass
-    # Fallback: scripts/ → bao-vault/ → skills/ → repo root
-    return Path(__file__).resolve().parent.parent.parent.parent
-
-
-COORDINATOR_DIR = _repo_root() / "agent-coordinator"
-DEFAULT_SECRETS_PATH = COORDINATOR_DIR / ".secrets.yaml"
-DEFAULT_AGENTS_PATH = COORDINATOR_DIR / "agents.yaml"
+def _default_config_path(env_name: str, filename: str) -> Path:
+    """Resolve explicit configuration before a consumer-local default."""
+    configured = os.environ.get(env_name)
+    return Path(configured).expanduser() if configured else Path.cwd() / filename
 
 
 def _get_client():  # type: ignore[no-untyped-def]
@@ -268,16 +254,20 @@ def main() -> None:
     parser.add_argument(
         "--secrets-path",
         type=Path,
-        default=DEFAULT_SECRETS_PATH,
-        help="Path to .secrets.yaml (default: agent-coordinator/.secrets.yaml)",
+        default=None,
+        help="Path to .secrets.yaml (default: BAO_SECRETS_FILE or ./.secrets.yaml)",
     )
     parser.add_argument(
         "--agents-path",
         type=Path,
-        default=DEFAULT_AGENTS_PATH,
-        help="Path to agents.yaml (default: agent-coordinator/agents.yaml)",
+        default=None,
+        help="Path to agents.yaml (default: AGENTS_YAML or ./agents.yaml)",
     )
     args = parser.parse_args()
+    secrets_path = args.secrets_path or _default_config_path(
+        "BAO_SECRETS_FILE", ".secrets.yaml"
+    )
+    agents_path = args.agents_path or _default_config_path("AGENTS_YAML", "agents.yaml")
 
     mount_path = os.environ.get("BAO_MOUNT_PATH", "secret")
     secret_path = os.environ.get("BAO_SECRET_PATH", "coordinator")
@@ -291,13 +281,13 @@ def main() -> None:
 
     # Step 1: Seed secrets from .secrets.yaml
     print("--- Seeding secrets ---")
-    seed_secrets(client, args.secrets_path, mount_path, secret_path, dry_run=args.dry_run)
+    seed_secrets(client, secrets_path, mount_path, secret_path, dry_run=args.dry_run)
     print()
 
     # Step 2: Create AppRoles from agents.yaml
     print("--- Seeding AppRoles ---")
     seed_approles(
-        client, args.agents_path, mount_path, secret_path, token_ttl, dry_run=args.dry_run
+        client, agents_path, mount_path, secret_path, token_ttl, dry_run=args.dry_run
     )
     print()
 

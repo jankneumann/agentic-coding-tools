@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-21T03:31:36.900466+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-autopilot",
+    "session_id": null,
+    "summary": "Implemented the approved P0-P3 portability program; independent implementation findings were resolved and no blocking finding remains.",
+    "completed_work": [
+      "Moved PR classification into the shipped shared library and retained a coordinator compatibility facade",
+      "Removed coordinator-source and canonical skills-path runtime dependencies across scripts, hooks, and instructions",
+      "Added manifest-driven payload validation, consumer compilation/probes, and complete-payload CI linting",
+      "Resolved all independent implementation review findings"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Installed payload owns shared runtime code",
+        "rationale": "Consumers receive skills/shared but not coordinator source, so shared PR classification and path helpers live inside the shipped boundary.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Persistent local port reservations",
+        "rationale": "Docker validation processes must retain reservations after their launcher exits and release them during teardown.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Publish the validated feature branch and open the autopilot draft PR"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/install-manifest.json",
+        "description": "Installed payload contract"
+      },
+      {
+        "path": "openspec/changes/enforce-skill-install-portability/implementation-findings.md",
+        "description": "Review findings and resolutions"
+      }
+    ]
+  }
+}

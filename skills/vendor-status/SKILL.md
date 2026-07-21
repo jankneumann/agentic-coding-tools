@@ -16,7 +16,7 @@ requires:
 
 # Vendor Status
 
-Check all configured vendors' availability, CLI installation, API key validity, and dispatch mode support. Standalone — no coordinator dependency.
+Check all configured vendors' availability, CLI installation, API key validity, and dispatch mode support. Configuration is read from `AGENTS_YAML` first, then the public coordinator HTTP endpoint when `COORDINATION_API_URL` is set. A local `agent-coordinator/agents.yaml` is only a compatibility fallback.
 
 Inspired by the `/codex:setup` command from [codex-plugin-cc](https://github.com/openai/codex-plugin-cc).
 
@@ -32,15 +32,14 @@ Optional flags:
 ### 1. Run Health Check
 
 ```bash
-python3 "<skill-base-dir>/../parallel-infrastructure/scripts/vendor_health.py" \
-  --agents-yaml agent-coordinator/agents.yaml
+AGENTS_YAML=/path/to/agents.yaml \
+  python3 "<skill-base-dir>/../parallel-infrastructure/scripts/vendor_health.py"
 ```
 
 Or with JSON output:
 
 ```bash
-python3 "<skill-base-dir>/../parallel-infrastructure/scripts/vendor_health.py" \
-  --agents-yaml agent-coordinator/agents.yaml --json
+python3 "<skill-base-dir>/../parallel-infrastructure/scripts/vendor_health.py" --json
 ```
 
 ### 2. Present Results

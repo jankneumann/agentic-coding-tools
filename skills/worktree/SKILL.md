@@ -12,7 +12,7 @@ Non-user-invocable infrastructure skill that bundles worktree lifecycle manageme
 
 ## Scripts
 
-### scripts/worktree.py
+### `<skill-base-dir>/scripts/worktree.py`
 
 Git worktree lifecycle manager for the launcher invariant (shared checkout is read-only).
 
@@ -37,7 +37,7 @@ python3 "<skill-base-dir>/scripts/worktree.py" <command> [args]
 **Stdout** (setup): `WORKTREE_PATH=<path>`, `BRANCH_CREATED=<branch>`, `CREATED=true|false`
 **Exit codes**: 0 = success, 1 = error
 
-### scripts/merge_worktrees.py
+### `<skill-base-dir>/scripts/merge_worktrees.py`
 
 Merges parallel agent branches into the feature branch.
 
@@ -53,7 +53,7 @@ python3 "<skill-base-dir>/scripts/merge_worktrees.py" <change-id> <pkg-id>... [-
 
 **Exit codes**: 0 = all merged, 1 = conflict or error
 
-### scripts/git-parallel-setup.sh
+### `<skill-base-dir>/scripts/git-parallel-setup.sh`
 
 Configures local git for parallel agent development (rerere, zdiff3, histogram diff).
 

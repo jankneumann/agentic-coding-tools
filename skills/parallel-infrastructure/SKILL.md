@@ -12,39 +12,39 @@ Non-user-invocable infrastructure skill providing shared scripts for parallel ex
 
 ## Scripts
 
-### scripts/dag_scheduler.py
+### `<skill-base-dir>/scripts/dag_scheduler.py`
 
 DAG computation and topological sort for work-packages.yaml.
 
-### scripts/scope_checker.py
+### `<skill-base-dir>/scripts/scope_checker.py`
 
 Post-execution scope verification — checks that agent changes stayed within declared `write_allow` / `deny` boundaries.
 
-### scripts/package_executor.py
+### `<skill-base-dir>/scripts/package_executor.py`
 
 Work package execution protocol for coordinated-tier worker agents.
 
-### scripts/review_dispatcher.py
+### `<skill-base-dir>/scripts/review_dispatcher.py`
 
 Multi-vendor review dispatch — sends review prompts to configured vendor CLIs and collects findings.
 
-### scripts/consensus_synthesizer.py
+### `<skill-base-dir>/scripts/consensus_synthesizer.py`
 
 Synthesizes review findings from multiple vendors into a consensus report with confirmed/unconfirmed/disagreement classifications.
 
-### scripts/integration_orchestrator.py
+### `<skill-base-dir>/scripts/integration_orchestrator.py`
 
 Cross-package integration management — tracks package completion, consensus recording, and integration gating.
 
-### scripts/result_validator.py
+### `<skill-base-dir>/scripts/result_validator.py`
 
 Validates work-queue results against `work-queue-result.schema.json`.
 
-### scripts/circuit_breaker.py
+### `<skill-base-dir>/scripts/circuit_breaker.py`
 
 Fault tolerance for external service calls with configurable thresholds.
 
-### scripts/escalation_handler.py
+### `<skill-base-dir>/scripts/escalation_handler.py`
 
 Escalation protocol for scope violations, resource conflicts, and review disagreements.
 

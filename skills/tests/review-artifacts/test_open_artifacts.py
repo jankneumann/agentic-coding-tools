@@ -27,6 +27,16 @@ sys.modules["open_artifacts"] = open_artifacts
 _spec.loader.exec_module(open_artifacts)
 
 
+def test_worktree_helper_uses_installed_skills_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    script = tmp_path / ".claude" / "skills" / "review-artifacts" / "scripts" / "open_artifacts.py"
+    monkeypatch.setattr(open_artifacts, "__file__", str(script))
+    assert open_artifacts._installed_worktree_helper() == (
+        tmp_path / ".claude" / "skills" / "worktree" / "scripts" / "worktree.py"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Fixture: synthetic repo with an openspec change directory
 # ---------------------------------------------------------------------------

@@ -42,7 +42,8 @@ Scripts live in `<agent-skills-dir>/tech-debt-analysis/scripts/`. Each agent run
 - **Codex**: `.codex/skills`
 - **Gemini**: `.gemini/skills`
 
-If scripts are missing, run `skills/install.sh` to sync them from the canonical `skills/` source.
+Installed skill copies are expected to include these scripts. If they are missing,
+reinstall the skill from its canonical distribution rather than invoking a repo-local path.
 
 ## Prerequisites
 

@@ -248,7 +248,7 @@ Reports are persisted as **event-class artifacts** under `openspec/priorities/`.
 
 ```bash
 # 1. Compute run-id (UTC date + HHMMSS + short HEAD SHA)
-RUN_ID="$(skills/.venv/bin/python skills/prioritize-proposals/scripts/priorities_paths.py run-id)"
+RUN_ID="$(python3 "<skill-base-dir>/scripts/priorities_paths.py" run-id)"
 # Example: 2026-06-10-143052-a93fe59
 
 DATED_DIR="openspec/priorities/${RUN_ID}"
@@ -271,7 +271,7 @@ if [[ "${FORMAT}" == "json" ]]; then
   # The report body JSON is built by the analysis steps above; pipe it through
   # the header wrapper which adds the codeviz-aligned _header block.
   echo "${REPORT_BODY_JSON}" \
-    | skills/.venv/bin/python skills/prioritize-proposals/scripts/artifact_header.py \
+    | python3 "<skill-base-dir>/scripts/artifact_header.py" \
         --run-id "${RUN_ID}" \
         --out "${DATED_DIR}/report.json"
 fi
@@ -283,7 +283,7 @@ if [[ -f "${DATED_DIR}/report.json" ]]; then
 fi
 
 # 5. Run retention: keep the N most recent dated dirs; move older to archive/.
-skills/.venv/bin/python skills/prioritize-proposals/scripts/retention.py \
+python3 "<skill-base-dir>/scripts/retention.py" \
   --base openspec/priorities --retain "${RETAIN_N}"
 ```
 

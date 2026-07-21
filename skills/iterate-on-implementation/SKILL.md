@@ -244,13 +244,21 @@ Schema types `spec_gap`, `contract_mismatch`, and `compatibility` have no matchi
 Before dispatching fix agents, resolve the implementer archetype for escalation:
 
 ```python
-from src.agents_config import load_archetypes_config, resolve_model
-archetypes = load_archetypes_config()
-implementer = archetypes.get("implementer")
-runner = archetypes.get("runner")
-impl_model = resolve_model(implementer, package_metadata) if implementer else "sonnet"
-runner_model = resolve_model(runner, {}) if runner else "haiku"
+import sys
+from pathlib import Path
+
+bridge_scripts = Path("<skill-base-dir>").parent / "coordination-bridge" / "scripts"
+sys.path.insert(0, str(bridge_scripts))
+import coordination_bridge
+
+resolved = coordination_bridge.try_resolve_archetype_for_phase(
+    "IMPL_FIX", package_metadata
+)
+impl_model = resolved["model"] if resolved else None
+runner_model = None
 ```
+
+If resolution is unavailable, omit `model=` from dispatch calls.
 
 #### Parallel Fixes (for independent findings)
 
@@ -368,7 +376,8 @@ This step MUST run BEFORE the `git add .` in Step 10 so the session-log entry is
 ```bash
 python3 - <<'EOF'
 import sys
-sys.path.insert(0, "skills/session-log/scripts")
+from pathlib import Path
+sys.path.insert(0, str(Path("<skill-base-dir>").parent / "session-log" / "scripts"))
 from phase_record import PhaseRecord, Decision, Alternative, TradeOff
 from extract_session_log import count_phase_iterations
 

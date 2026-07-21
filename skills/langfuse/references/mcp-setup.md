@@ -35,7 +35,7 @@ Uses HTTP Basic auth with project-scoped API keys (`LANGFUSE_PUBLIC_KEY` + `LANG
 The recommended source of `LANGFUSE_*` values is OpenBao (matches the rest of this repo's secret-management pattern — see `docs/openbao-secret-management.md`). The bao-vault skill ships a one-line bridge:
 
 ```bash
-eval "$(skills/bao-vault/scripts/langfuse_env.sh)"
+eval "$("<skill-base-dir>/../bao-vault/scripts/langfuse_env.sh")"
 ```
 
 This reads `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` from your OpenBao KV path (defaults: `secret/coordinator`), computes `LANGFUSE_BASIC_AUTH` from the public+secret pair, and emits four `export` lines into the current shell. It is safe to run unconditionally — when `BAO_ADDR` is unset or the keys are already in the environment, it falls back silently.
@@ -52,7 +52,7 @@ export LANGFUSE_BASIC_AUTH=$(printf '%s:%s' "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SE
 
 ## Cross-agent registration
 
-`bash skills/langfuse/scripts/install-mcp.sh` registers the server with **all three agents in one shot** (Claude Code, Codex, Gemini). Pass `--claude-only`, `--no-codex`, or `--no-gemini` to skip any.
+`bash "<skill-base-dir>/scripts/install-mcp.sh"` registers the server with **all three agents in one shot** (Claude Code, Codex, Gemini). Pass `--claude-only`, `--no-codex`, or `--no-gemini` to skip any.
 
 | Agent | File | Scope | Auth header value |
 |---|---|---|---|
@@ -76,7 +76,7 @@ Choose where to register based on how broadly the team uses Langfuse:
 
 ## Project-scoped registration for Claude Code (`.mcp.json`)
 
-`bash skills/langfuse/scripts/install-mcp.sh --claude-only` produces this. Read/write by default — pass `--lock-read-only` to additionally insert deny rules for the three write tools.
+`bash "<skill-base-dir>/scripts/install-mcp.sh" --claude-only` produces this. Read/write by default — pass `--lock-read-only` to additionally insert deny rules for the three write tools.
 
 ```json
 {
@@ -134,7 +134,7 @@ User-global. Re-running updates only the `langfuse` key; other MCP servers in `m
 By default, the install script does not modify `.claude/settings.json` — both reads and writes are allowed. If you want a hard guard against mutations (useful for shared projects where prompt versioning is gated through a release process), pass `--lock-read-only`:
 
 ```bash
-bash skills/langfuse/scripts/install-mcp.sh --lock-read-only
+bash "<skill-base-dir>/scripts/install-mcp.sh" --lock-read-only
 ```
 
 This adds the three write tools to the `permissions.deny` list:

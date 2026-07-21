@@ -25,6 +25,28 @@ bash skills/install.sh \
 This copies all skills (SKILL.md + scripts/) into `<your-repo>/.claude/skills/`
 and `<your-repo>/.agents/skills/`.
 
+Before syncing, `install.sh` validates `skills/install-manifest.json` and the
+complete portable payload. The install stops if a skill references private
+coordinator source, a canonical source-tree command, an escaping local link, or
+an undeclared skill/library. To run the same gate without changing a consumer:
+
+```bash
+cd ~/Coding/agentic-coding-tools
+bash skills/install.sh --check
+```
+
+Changes that move behavior between coordinator and skills boundaries must also
+run the clean-consumer regression suite:
+
+```bash
+cd ~/Coding/agentic-coding-tools/skills
+uv run pytest tests/install_sh/test_consumer_portability.py -q
+```
+
+That suite installs both `.claude/skills/` and `.agents/skills/` into a temporary
+repository with no canonical `skills/` or `agent-coordinator/` tree, then runs
+the safe smoke entry points declared by the installed manifest.
+
 ## Step-by-Step Setup
 
 ### 1. Install Skills

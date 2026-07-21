@@ -1238,39 +1238,33 @@ class ReviewOrchestrator:
         if data is not None:
             return cls.from_config_dict(data)
 
+        # Provider-native fallback. Today this includes Claude Code MCP config.
+        found = cls._find_coordinator_dir()
+        if found:
+            python_bin, ac_dir = found
+            script = ac_dir / "get_dispatch_configs.py"
+            if script.is_file():
+                try:
+                    result = subprocess.run(
+                        [python_bin, str(script)],
+                        capture_output=True, text=True, timeout=15,
+                    )
+                    if result.returncode == 0:
+                        return cls.from_config_dict(json.loads(result.stdout))
+                    logger.warning("Coordinator query failed: %s", result.stderr[:200])
+                except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as exc:
+                    logger.warning("Coordinator query error: %s", exc)
+
+        # Compatibility only: source-repository configuration is considered
+        # after explicit, HTTP, and provider-native MCP configuration.
         local = cls._find_local_agents_yaml()
         if local:
             data = cls._config_from_agents_yaml(local)
             if data is not None:
                 return cls.from_config_dict(data)
 
-        # Provider-native fallback. Today this includes Claude Code MCP config.
-        found = cls._find_coordinator_dir()
-        if not found:
-            logger.warning("No provider-native coordination MCP config found")
-            return cls({})
-
-        python_bin, ac_dir = found
-        script = ac_dir / "get_dispatch_configs.py"
-        if not script.is_file():
-            logger.warning("get_dispatch_configs.py not found at %s", script)
-            return cls({})
-
-        try:
-            result = subprocess.run(
-                [python_bin, str(script)],
-                capture_output=True, text=True, timeout=15,
-            )
-            if result.returncode != 0:
-                logger.warning(
-                    "Coordinator query failed: %s", result.stderr[:200],
-                )
-                return cls({})
-            data = json.loads(result.stdout)
-            return cls.from_config_dict(data)
-        except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as exc:
-            logger.warning("Coordinator query error: %s", exc)
-            return cls({})
+        logger.warning("No public or local vendor configuration found")
+        return cls({})
 
     @classmethod
     def from_agents_yaml(cls, path: Path | None = None) -> "ReviewOrchestrator":

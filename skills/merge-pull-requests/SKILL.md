@@ -26,7 +26,9 @@ Scripts live in `<agent-skills-dir>/merge-pull-requests/scripts/`. Each agent ru
 - **Codex**: `.codex/skills`
 - **Gemini**: `.gemini/skills`
 
-If scripts are missing, run `skills/install.sh` to sync them from the canonical `skills/` source.
+If scripts are missing, re-run the installer from a separate
+`agentic-coding-tools` source checkout; the installer is not shipped inside a
+consumer skill payload.
 
 ## Prerequisites
 
@@ -39,13 +41,13 @@ If scripts are missing, run `skills/install.sh` to sync them from the canonical 
 Before any other work, verify exclusive access — this skill merges into `main` and must not race other agents:
 
 ```bash
-python skills/shared/active_agents.py
+python3 "<skill-base-dir>/../shared/active_agents.py"
 ```
 
 - Exit `0`: no active agents → proceed.
 - Exit `1`: one or more active agents hold worktrees → **stop**, surface the list to the operator (the script's stdout already prints it), and ask whether to wait or pass `--force`. Never auto-force.
 
-An entry is "active" when it is pinned OR its `last_heartbeat` is within 1 hour. See `skills/shared/active_agents.py` and CLAUDE.md "Sync-Point Skills" for the contract; `docs/mental-models.md` gap G10 for the rationale.
+An entry is "active" when it is pinned OR its `last_heartbeat` is within 1 hour. See the co-installed `../shared/active_agents.py` helper and the consumer repository's coordination guidance for the contract.
 
 ## Merge Backend Selection
 

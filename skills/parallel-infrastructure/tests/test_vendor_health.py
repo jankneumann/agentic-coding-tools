@@ -16,7 +16,21 @@ from vendor_health import (
     check_all_vendors,
     check_vendor,
     format_table,
+    load_agents_yaml,
 )
+
+
+def test_agents_yaml_environment_precedes_local_coordinator(
+    monkeypatch, tmp_path: Path
+) -> None:
+    explicit = tmp_path / "explicit.yaml"
+    explicit.write_text("agents:\n  explicit: {type: test}\n")
+    local = tmp_path / "agent-coordinator" / "agents.yaml"
+    local.parent.mkdir()
+    local.write_text("agents:\n  local: {type: test}\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AGENTS_YAML", str(explicit))
+    assert set(load_agents_yaml()["agents"]) == {"explicit"}
 
 
 class TestCheckVendor:

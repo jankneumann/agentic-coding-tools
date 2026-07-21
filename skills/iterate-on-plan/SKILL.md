@@ -67,7 +67,7 @@ validation, findings generation, or edits:
 ```bash
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
 cd "$WORKTREE_PATH"
-skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" resolve-branch "$CHANGE_ID" --parent)"
 FEATURE_BRANCH="$BRANCH"
 ```
@@ -125,7 +125,7 @@ fi
 ```bash
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
 cd "$WORKTREE_PATH"
-skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" resolve-branch "$CHANGE_ID" --parent)"
 FEATURE_BRANCH="$BRANCH"
 ```
@@ -229,11 +229,18 @@ Read all proposal documents to understand intent and current quality. For comple
 Resolve the analyst archetype before dispatching:
 
 ```python
-from src.agents_config import load_archetypes_config, resolve_model
-archetypes = load_archetypes_config()
-analyst = archetypes.get("analyst")
-analyst_model = resolve_model(analyst, {}) if analyst else "sonnet"
+import sys
+from pathlib import Path
+
+bridge_scripts = Path("<skill-base-dir>").parent / "coordination-bridge" / "scripts"
+sys.path.insert(0, str(bridge_scripts))
+import coordination_bridge
+
+resolved = coordination_bridge.try_resolve_archetype_for_phase("PLAN_ITERATE", {})
+analyst_model = resolved["model"] if resolved else None
 ```
+
+If resolution is unavailable, omit `model=` from `Task`.
 
 ```
 # Launch parallel analysis agents (single message, multiple Task calls)
@@ -411,7 +418,8 @@ This step MUST run BEFORE the `git add` in Step 9 so the session-log entry is in
 ```bash
 python3 - <<'EOF'
 import sys
-sys.path.insert(0, "skills/session-log/scripts")
+from pathlib import Path
+sys.path.insert(0, str(Path("<skill-base-dir>").parent / "session-log" / "scripts"))
 from phase_record import PhaseRecord, Decision, Alternative, TradeOff
 from extract_session_log import count_phase_iterations
 

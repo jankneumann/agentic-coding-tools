@@ -5,3 +5,13 @@
 - **Sync command**: `bash skills/install.sh --mode rsync --deps none --python-tools none` (add `--force` only if destinations have conflicting types, e.g. symlinks from old installs)
 - **OpenSpec assets**: `install.sh` syncs skill-owned schemas/templates from `skills/<skill>/install_assets/openspec/` into the target repo's `openspec/` directory by default. Use `--openspec-assets none|print|sync` to control this behavior. The OpenSpec CLI preflight follows `--deps` by default and can be overridden with `--openspec-cli none|print|apply|required`.
 - **Tests**: Place at `skills/tests/<skill-name>/` (not inside skill directories). This keeps shipped skill dirs clean — `install.sh` excludes `tests/` and `__pycache__/` during rsync. Run all skill tests: `skills/.venv/bin/python -m pytest skills/tests/`
+- **Runtime path convention**: In `SKILL.md`, `<skill-base-dir>` means the
+  directory containing the loaded `SKILL.md`, whether that is canonical
+  `skills/<name>/`, `.claude/skills/<name>/`, or `.agents/skills/<name>/`.
+  Invoke owned scripts as `python3 "<skill-base-dir>/scripts/tool.py"` and
+  sibling skills as `python3 "<skill-base-dir>/../<sibling>/scripts/tool.py"`.
+  Never use repo-root `skills/...`, `skills/.venv`, or a bare `scripts/...` as
+  an installed runtime path. Bare paths are allowed only when explicitly
+  labelled consumer-project-relative; source-only contribution commands must
+  be labelled as such. See
+  [`skills/references/skill-path-resolution.md`](../../skills/references/skill-path-resolution.md).

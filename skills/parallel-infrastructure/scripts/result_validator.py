@@ -24,13 +24,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Import base validation from scripts/validate_work_result.py
-_SCRIPTS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "scripts"
+# Import the validator from its co-installed validate-packages skill.
+_SCRIPTS_DIR = (
+    Path(__file__).resolve().parents[2] / "validate-packages" / "scripts"
+)
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from validate_work_result import (
-    load_schema,
+from validate_work_result import (  # type: ignore[import-not-found]  # noqa: E402
     validate_result as validate_result_base,
 )
 
@@ -45,7 +46,7 @@ def validate_revision_match(
     A mismatch indicates the package was working against stale contracts
     or an outdated plan — its output may be invalid.
     """
-    errors = []
+    errors: list[str] = []
 
     actual_contracts = result_data.get("contracts_revision")
     if actual_contracts != expected_contracts_revision:
@@ -80,7 +81,7 @@ def validate_output_keys(
     - scope_check keys
     - files_modified (if "files_modified" is a declared key)
     """
-    errors = []
+    errors: list[str] = []
     declared_keys = set(package_def.get("outputs", {}).get("result_keys", []))
     if not declared_keys:
         return errors

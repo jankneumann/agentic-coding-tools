@@ -45,6 +45,11 @@ SANITIZER_SCRIPT = _THIS_DIR / "sanitize_session_log.py"
 _EXTRACT_PATH = _THIS_DIR / "extract_session_log.py"
 
 
+def _installed_bridge_path() -> Path:
+    """Return the coordination bridge in this installation's skills root."""
+    return Path(__file__).resolve().parents[2] / "coordination-bridge" / "scripts" / "coordination_bridge.py"
+
+
 def _load_extract() -> Any:
     spec = importlib.util.spec_from_file_location("_extract_session_log", _EXTRACT_PATH)
     if spec is None or spec.loader is None:  # pragma: no cover - defensive
@@ -461,28 +466,26 @@ class PhaseRecord:
 
     def _default_coordinator_writer(self) -> Any:
         """Locate `coordination_bridge.try_handoff_write` for production use."""
+        # Sibling skills share the same installed root in canonical,
+        # .claude/skills, and .agents/skills layouts.
+        candidate = _installed_bridge_path()
+        if candidate.exists():
+            spec = importlib.util.spec_from_file_location(
+                "_coordination_bridge", candidate
+            )
+            if spec is None or spec.loader is None:
+                return None
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return getattr(module, "try_handoff_write", None)
         try:
-            # Try import via sys.path first (typical install scenario)
+            # Compatibility for environments that install the bridge module
+            # directly on sys.path instead of syncing sibling skills.
             from coordination_bridge import try_handoff_write  # type: ignore[import-not-found]
 
             return try_handoff_write
         except ImportError:
             pass
-
-        # Fall back: locate the bridge by walking up to find skills/coordination-bridge
-        cur = _THIS_DIR
-        for _ in range(8):
-            cur = cur.parent
-            candidate = cur / "skills" / "coordination-bridge" / "scripts" / "coordination_bridge.py"
-            if candidate.exists():
-                spec = importlib.util.spec_from_file_location(
-                    "_coordination_bridge", candidate
-                )
-                if spec is None or spec.loader is None:
-                    return None
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                return getattr(module, "try_handoff_write", None)
         return None
 
     def _extract_handoff_id(self, response: Any) -> str | None:

@@ -185,7 +185,7 @@ packages:
       steps:
         - name: "Affected P1 suites"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/validate-feature skills/tests/langfuse skills/tests/worktree skills/tests/session-log skills/tests/review-artifacts skills/tests/session-bootstrap skills/tests/bao-vault -q"
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/scripts/tests/test_docker_stack.py skills/validate-feature/scripts/tests/test_phase_deploy.py skills/validate-feature/scripts/tests/test_stack_launcher.py skills/tests/langfuse skills/tests/worktree skills/tests/session-log skills/tests/review-artifacts skills/tests/session-bootstrap skills/bao-vault/scripts/tests -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -200,7 +200,7 @@ packages:
     outputs:
       result_keys: ["p1_tests_pass"]
       artifacts:
-        - "skills/shared/runtime_paths.py"
+        - "skills/validate-feature/scripts/environments/docker_stack.py"
 
   - package_id: wp-p2-instructions
     title: "Normalize installed skill instructions"

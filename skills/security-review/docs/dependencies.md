@@ -7,13 +7,13 @@
 Print recommended install commands:
 
 ```bash
-skills/security-review/scripts/install_deps.sh --components java,podman,dependency-check
+"<skill-base-dir>/scripts/install_deps.sh" --components java,podman,dependency-check
 ```
 
 Execute install commands (where supported):
 
 ```bash
-skills/security-review/scripts/install_deps.sh --apply --components java,podman,dependency-check
+"<skill-base-dir>/scripts/install_deps.sh" --apply --components java,podman,dependency-check
 ```
 
 ## Required by Capability
@@ -51,7 +51,7 @@ sudo dnf install -y java-17-openjdk podman podman-docker
 ## Verify
 
 ```bash
-skills/security-review/scripts/check_prereqs.sh --json
+"<skill-base-dir>/scripts/check_prereqs.sh" --json
 ```
 
 If dependency-check is missing but container runtime access is available, `/security-review` will use container fallback for dependency scanning.

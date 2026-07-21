@@ -9,4 +9,4 @@ tags: [roadmap, runtime, shared-library]
 
 Shared library providing artifact models, checkpoint management, learning-log helpers, sanitization, and bounded context assembly for the `plan-roadmap` and `autopilot-roadmap` skills.
 
-This is an infrastructure skill — not user-invocable. Import from `skills/roadmap-runtime/scripts/`.
+This is an infrastructure skill — not user-invocable. Import from `<skill-base-dir>/scripts/` after resolving this loaded skill directory.

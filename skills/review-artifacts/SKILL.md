@@ -42,7 +42,7 @@ By default, the skill resolves paths against the **cwd's git toplevel** (`git re
 - Invoking it from the main checkout → opens files from main checkout.
 - Invoking it from inside a worktree (`cd .git-worktrees/<id>/`) → opens that worktree's files.
 
-To review a **different worktree** from where you are, pass `--worktree <change-id>`. Resolution goes through `skills/worktree/scripts/worktree.py list`, with a fallback to the conventional `.git-worktrees/<id>/` path.
+To review a **different worktree** from where you are, pass `--worktree <change-id>`. Resolution goes through the co-installed `<skill-base-dir>/../worktree/scripts/worktree.py list`, with a fallback to the conventional `.git-worktrees/<id>/` path.
 
 ## Prerequisites
 
@@ -54,36 +54,36 @@ To review a **different worktree** from where you are, pass `--worktree <change-
 
 ```bash
 # Most common: review the OpenSpec proposal you're about to approve
-python3 skills/review-artifacts/scripts/open_artifacts.py --change-id add-kanban-viz-docker-e2e
+python3 "<skill-base-dir>/scripts/open_artifacts.py" --change-id add-kanban-viz-docker-e2e
 
 # Auto-detect from current branch (no flag — picks change-id or git-changes)
-python3 skills/review-artifacts/scripts/open_artifacts.py
+python3 "<skill-base-dir>/scripts/open_artifacts.py"
 
 # Review everything you've changed on a feature branch
-python3 skills/review-artifacts/scripts/open_artifacts.py --git-changes
+python3 "<skill-base-dir>/scripts/open_artifacts.py" --git-changes
 
 # Compare against a non-main base branch
-python3 skills/review-artifacts/scripts/open_artifacts.py --git-changes --base develop
+python3 "<skill-base-dir>/scripts/open_artifacts.py" --git-changes --base develop
 
 # Pure proposal review — skip the implementation files
-python3 skills/review-artifacts/scripts/open_artifacts.py --change-id add-foo --no-scope
+python3 "<skill-base-dir>/scripts/open_artifacts.py" --change-id add-foo --no-scope
 
 # Review a worktree from elsewhere
-python3 skills/review-artifacts/scripts/open_artifacts.py \
+python3 "<skill-base-dir>/scripts/open_artifacts.py" \
     --change-id add-foo --worktree add-foo
 
 # Explicit list — pass-through to `code`
-python3 skills/review-artifacts/scripts/open_artifacts.py --paths file1.py docs/foo.md
+python3 "<skill-base-dir>/scripts/open_artifacts.py" --paths file1.py docs/foo.md
 
 # Preview what would be opened, without opening anything
-python3 skills/review-artifacts/scripts/open_artifacts.py --change-id add-foo --dry-run
+python3 "<skill-base-dir>/scripts/open_artifacts.py" --change-id add-foo --dry-run
 
 # Cap the tab count (default 40) — useful for very large changes
-python3 skills/review-artifacts/scripts/open_artifacts.py --change-id huge-change --max 12
+python3 "<skill-base-dir>/scripts/open_artifacts.py" --change-id huge-change --max 12
 
 # Reuse the most-recently-active window instead of opening a new one
 # (this SWITCHES that window's workspace folder — can displace open files)
-python3 skills/review-artifacts/scripts/open_artifacts.py --change-id add-foo --reuse-window
+python3 "<skill-base-dir>/scripts/open_artifacts.py" --change-id add-foo --reuse-window
 ```
 
 ## Window behavior
@@ -153,7 +153,7 @@ Assume you've just had Claude generate `openspec/changes/add-kanban-viz-docker-e
 **A. From the main checkout (or any cwd in the repo):**
 
 ```bash
-python3 skills/review-artifacts/scripts/open_artifacts.py \
+python3 "<skill-base-dir>/scripts/open_artifacts.py" \
     --change-id add-kanban-viz-docker-e2e
 ```
 
@@ -162,7 +162,7 @@ This opens (in order): proposal.md → design.md → tasks.md → specs/coordina
 **B. Pure proposal-doc review (no implementation files):**
 
 ```bash
-python3 skills/review-artifacts/scripts/open_artifacts.py \
+python3 "<skill-base-dir>/scripts/open_artifacts.py" \
     --change-id add-kanban-viz-docker-e2e --no-scope
 ```
 
@@ -172,7 +172,7 @@ Just the 6 proposal-level files (about half the tabs of option A).
 
 ```bash
 git checkout openspec/add-kanban-viz-docker-e2e   # if you're on a feature branch
-python3 skills/review-artifacts/scripts/open_artifacts.py --git-changes
+python3 "<skill-base-dir>/scripts/open_artifacts.py" --git-changes
 ```
 
 Shows files in modification order (uncommitted first, branch-local commits second).

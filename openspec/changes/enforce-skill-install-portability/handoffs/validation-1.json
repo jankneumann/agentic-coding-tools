@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-21T03:31:44.924724+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-autopilot",
+    "session_id": null,
+    "summary": "Standalone install portability is proven for both Claude and agents mirrors, and all configured local quality gates pass.",
+    "completed_work": [
+      "Strict OpenSpec validation and work-package schema/DAG/lock checks passed",
+      "Canonical installer check and sync completed for 65 skills in each mirror",
+      "Clean-consumer and Langfuse suites passed 10 tests",
+      "Default skills suite passed 837 tests; classifier suites passed 60 tests",
+      "Changed Python passed Ruff and scoped mypy; changed shell passed bash syntax; git diff check passed"
+    ],
+    "in_progress": [],
+    "decisions": [],
+    "next_steps": [
+      "Push the feature branch and open a draft pull request"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/enforce-skill-install-portability/validation-report.md",
+        "description": "Complete validation evidence"
+      }
+    ]
+  }
+}

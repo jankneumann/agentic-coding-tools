@@ -31,7 +31,7 @@ For step 5 (creating prompts in Langfuse) and step 7 (relabeling versions), pref
 | List existing prompts (avoid duplicates) | `mcp__langfuse__listPrompts` | `npx langfuse-cli api prompts list --json` |
 | Inspect a prompt before refactor | `mcp__langfuse__getPrompt` | `npx langfuse-cli api prompts get --name ... --json` |
 
-Check MCP availability with `mcp__langfuse__listPrompts({})` — if it returns "tool not found", the MCP server isn't registered. See `references/mcp-setup.md` to add it (or run `bash skills/langfuse/scripts/install-mcp.sh`). Either path produces identical results in Langfuse; the MCP path is just cheaper to invoke.
+Check MCP availability with `mcp__langfuse__listPrompts({})` — if it returns "tool not found", the MCP server isn't registered. See `references/mcp-setup.md` to add it (or run `bash "<skill-base-dir>/scripts/install-mcp.sh"`). Either path produces identical results in Langfuse; the MCP path is just cheaper to invoke.
 
 ## Migration Flow
 

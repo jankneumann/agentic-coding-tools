@@ -168,7 +168,8 @@ class TestSkillModelHints:
         content = skill_file.read_text()
         # Verify archetype resolution block exists
         assert "analyst" in content.lower()
-        assert "resolve_model" in content
+        assert "try_resolve_archetype_for_phase" in content
+        assert "src.agents_config" not in content
         # Verify Explore tasks use the resolved variable
         task_calls = _extract_task_calls(content)
         for line_num, task_text in task_calls:
@@ -185,7 +186,8 @@ class TestSkillModelHints:
         content = skill_file.read_text()
         # Verify archetype resolution block exists
         assert "runner" in content.lower()
-        assert "resolve_model" in content
+        assert "try_resolve_archetype_for_phase" in content
+        assert "src.agents_config" not in content
         # Verify Bash tasks use the resolved variable
         task_calls = _extract_task_calls(content)
         for line_num, task_text in task_calls:

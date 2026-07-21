@@ -1,32 +1,63 @@
 """Docker compose-based test environment implementation.
 
 Design decisions:
-- D3: Port allocator accessed via subprocess to agent-coordinator/.venv/bin/python
-  (separate venvs — cannot import directly).
+- D3: Port allocation is self-contained so installed skills do not require the
+  coordinator package or its virtual environment.
 - D3a: Coordination API runs on host via uvicorn, not inside Docker.
   Docker compose only provides PostgreSQL.
 """
 
 from __future__ import annotations
 
-import json
 import logging
+import os
+import random
+import json
+import socket
 import shutil
 import subprocess
+import tempfile
 import time
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
+
+import fcntl
 
 logger = logging.getLogger(__name__)
+PORT_REGISTRY_DIR = Path(tempfile.gettempdir()) / "agentic-coding-tools-ports"
 
 
-def _find_git_root() -> Path:
-    """Walk up from this file to find the git root."""
-    current = Path(__file__).resolve()
-    for parent in [current] + list(current.parents):
-        if (parent / ".git").exists():
-            return parent
-    raise RuntimeError("Could not find git root from " + str(current))
+@contextmanager
+def _locked_port_registry() -> Iterator[dict[str, dict[str, Any]]]:
+    """Lock, load, and atomically persist cross-process port reservations."""
+    PORT_REGISTRY_DIR.mkdir(parents=True, exist_ok=True)
+    lock_fd = os.open(PORT_REGISTRY_DIR / ".registry.lock", os.O_CREAT | os.O_RDWR, 0o600)
+    registry_path = PORT_REGISTRY_DIR / "registry.json"
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        try:
+            raw = json.loads(registry_path.read_text()) if registry_path.exists() else {}
+        except (json.JSONDecodeError, OSError):
+            raw = {}
+        registry: dict[str, dict[str, Any]] = (
+            {
+                key: value
+                for key, value in raw.items()
+                if isinstance(key, str) and isinstance(value, dict)
+            }
+            if isinstance(raw, dict)
+            else {}
+        )
+        yield registry
+        pending = registry_path.with_suffix(".json.tmp")
+        pending.write_text(json.dumps(registry, sort_keys=True))
+        pending.replace(registry_path)
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
 
 
 class DockerStackEnvironment:
@@ -54,80 +85,73 @@ class DockerStackEnvironment:
         if shutil.which("podman"):
             return "podman"
         raise RuntimeError(
-            "Neither docker nor podman found on PATH. "
-            "Install one to use DockerStackEnvironment."
+            "Neither docker nor podman found on PATH. Install one to use DockerStackEnvironment."
         )
 
     def _allocate_ports(self) -> dict[str, object]:
-        """Allocate ports via subprocess to agent-coordinator venv.
+        """Reserve four available ports in a persistent cross-session registry.
 
-        Design decision D3: separate venvs, so we call the port allocator
-        via subprocess rather than importing directly.
+        The locked registry prevents parallel validate-feature processes from
+        choosing the same ports after their launch commands exit. Each candidate
+        is also bind-probed to avoid ports held by unrelated local processes.
         """
-        git_root = _find_git_root()
-        venv_python = git_root / "agent-coordinator" / ".venv" / "bin" / "python"
+        with _locked_port_registry() as registry:
+            existing = registry.get(self.session_id)
+            if isinstance(existing, dict) and isinstance(existing.get("ports"), list):
+                existing_ports = existing["ports"]
+                if len(existing_ports) == 4 and all(
+                    isinstance(port, int) for port in existing_ports
+                ):
+                    return {
+                        "session_id": self.session_id,
+                        "db_port": existing_ports[0],
+                        "rest_port": existing_ports[1],
+                        "realtime_port": existing_ports[2],
+                        "api_port": existing_ports[3],
+                        "compose_project_name": existing.get(
+                            "compose_project_name", f"validate-{self.session_id}"[:63]
+                        ),
+                    }
 
-        allocator_script = (
-            "import json; "
-            "from src.port_allocator import get_port_allocator; "
-            f"alloc = get_port_allocator().allocate('{self.session_id}'); "
-            "print(json.dumps({"
-            "'session_id': alloc.session_id, "
-            "'db_port': alloc.db_port, "
-            "'rest_port': alloc.rest_port, "
-            "'realtime_port': alloc.realtime_port, "
-            "'api_port': alloc.api_port, "
-            "'compose_project_name': alloc.compose_project_name"
-            "}) if alloc else 'null')"
-        )
-
-        try:
-            result = subprocess.run(
-                [str(venv_python), "-c", allocator_script],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                cwd=str(git_root / "agent-coordinator"),
-            )
-        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
-            raise RuntimeError(
-                f"Port allocation subprocess failed: {exc}. "
-                "Ensure agent-coordinator venv is set up: "
-                "cd agent-coordinator && uv sync --all-extras"
-            ) from exc
-
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"Port allocation failed (rc={result.returncode}): {result.stderr}"
-            )
-
-        data = json.loads(result.stdout.strip())
-        if data is None:
-            raise RuntimeError(
-                "Port allocation returned null — all port ranges exhausted"
-            )
-        return data
+            reserved = {
+                port
+                for entry in registry.values()
+                if isinstance(entry, dict)
+                for port in entry.get("ports", [])
+                if isinstance(port, int)
+            }
+            candidates = [port for port in range(15432, 25432) if port not in reserved]
+            random.SystemRandom().shuffle(candidates)
+            ports: list[int] = []
+            for port in candidates:
+                try:
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                        sock.bind(("127.0.0.1", port))
+                except OSError:
+                    continue
+                ports.append(port)
+                if len(ports) == 4:
+                    break
+            if len(ports) != 4:
+                raise RuntimeError("Port allocation failed: fewer than four ports available")
+            project_name = f"validate-{self.session_id}"[:63]
+            registry[self.session_id] = {
+                "ports": ports,
+                "compose_project_name": project_name,
+            }
+            return {
+                "session_id": self.session_id,
+                "db_port": ports[0],
+                "rest_port": ports[1],
+                "realtime_port": ports[2],
+                "api_port": ports[3],
+                "compose_project_name": project_name,
+            }
 
     def _release_ports(self) -> None:
-        """Release allocated ports via subprocess."""
-        git_root = _find_git_root()
-        venv_python = git_root / "agent-coordinator" / ".venv" / "bin" / "python"
-
-        release_script = (
-            "from src.port_allocator import get_port_allocator; "
-            f"get_port_allocator().release('{self.session_id}')"
-        )
-
-        try:
-            subprocess.run(
-                [str(venv_python), "-c", release_script],
-                capture_output=True,
-                text=True,
-                timeout=15,
-                cwd=str(git_root / "agent-coordinator"),
-            )
-        except Exception:
-            logger.warning("Failed to release ports for session %s", self.session_id)
+        """Remove this session's persistent reservation under the registry lock."""
+        with _locked_port_registry() as registry:
+            registry.pop(self.session_id, None)
 
     def start(self) -> None:
         """Allocate ports and start docker compose stack."""
@@ -143,8 +167,6 @@ class DockerStackEnvironment:
             "COMPOSE_PROJECT_NAME": project_name,
         }
 
-        import os
-
         compose_env = {**os.environ, **env_overrides}
 
         cmd = [
@@ -158,15 +180,20 @@ class DockerStackEnvironment:
             "-d",
         ]
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env=compose_env,
-        )
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=compose_env,
+            )
+        except Exception:
+            self._release_ports()
+            raise
 
         if result.returncode != 0:
+            self._release_ports()
             logger.error("Compose up failed: %s", result.stderr)
             raise RuntimeError(
                 f"Docker compose up failed (rc={result.returncode}): {result.stderr}"
@@ -201,9 +228,7 @@ class DockerStackEnvironment:
                 pass
 
             if time.monotonic() >= deadline:
-                raise TimeoutError(
-                    f"Database not ready after {timeout_seconds}s on port {db_port}"
-                )
+                raise TimeoutError(f"Database not ready after {timeout_seconds}s on port {db_port}")
 
             time.sleep(2)
 
@@ -234,9 +259,7 @@ class DockerStackEnvironment:
             )
             logger.info("Docker compose stopped: project=%s", project_name)
         except Exception:
-            logger.warning(
-                "Failed to stop compose for project %s", project_name, exc_info=True
-            )
+            logger.warning("Failed to stop compose for project %s", project_name, exc_info=True)
 
         # Step 2: Release ports
         try:

@@ -13,6 +13,8 @@ import json
 import os
 import shutil
 import sys
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -98,16 +100,43 @@ def check_vendor(agent_id: str, agent_config: dict) -> VendorHealth:
 
 
 def load_agents_yaml(path: Path | None = None) -> dict:
-    """Load agents.yaml from explicit path or discovery."""
+    """Load explicit config, then public HTTP config, then a local fallback."""
     import yaml
 
-    if path and path.exists():
-        with open(path) as f:
+    explicit = path or (
+        Path(os.environ["AGENTS_YAML"]).expanduser()
+        if os.environ.get("AGENTS_YAML")
+        else None
+    )
+    if explicit and explicit.exists():
+        with open(explicit) as f:
             return yaml.safe_load(f) or {}
 
-    # Try default locations
+    base_url = os.environ.get("COORDINATION_API_URL")
+    if base_url:
+        request = Request(
+            f"{base_url.rstrip('/')}/agents/dispatch-configs",
+            headers={"User-Agent": "agentic-coding-tools/0.1"},
+        )
+        try:
+            with urlopen(request, timeout=3.0) as response:
+                payload = json.loads(response.read())
+            if isinstance(payload, dict):
+                agents = payload.get("agents", [])
+                if isinstance(agents, list):
+                    return {
+                        "agents": {
+                            item["agent_id"]: item
+                            for item in agents
+                            if isinstance(item, dict) and item.get("agent_id")
+                        }
+                    }
+                return payload
+        except (URLError, OSError, ValueError, json.JSONDecodeError):
+            pass
+
+    # Optional source-repository compatibility fallback.
     candidates = [
-        Path(__file__).resolve().parent.parent.parent.parent / "agent-coordinator" / "agents.yaml",
         Path.cwd() / "agent-coordinator" / "agents.yaml",
     ]
     for candidate in candidates:

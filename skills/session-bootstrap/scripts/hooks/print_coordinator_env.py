@@ -10,7 +10,7 @@ Wired up as a SessionStart hook for Claude Code and Codex via
 non-blocking: swallows all errors so session startup is never delayed.
 
 Usage:
-    python3 agent-coordinator/scripts/print_coordinator_env.py
+    python3 "<skill-base-dir>/scripts/hooks/print_coordinator_env.py"
 """
 
 from __future__ import annotations
@@ -34,20 +34,12 @@ def _mask(value: str | None, keep: int = 4) -> str:
 
 
 def _apply_profile_best_effort() -> None:
-    """Load the active deployment profile so env vars reflect what the
-    coordinator code will see. Silently skipped if the coordinator package
-    or pyyaml is unavailable (e.g. running outside the repo venv).
-    """
-    try:
-        sys.path.insert(
-            0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-        )
-        from src.profile_loader import apply_profile  # type: ignore
+    """Compatibility no-op.
 
-        apply_profile()
-    except Exception:
-        # Profile loading is a nice-to-have; never block session start.
-        pass
+    Installed hooks report the public environment they inherit.  Profile
+    expansion belongs to the coordinator process and is intentionally not
+    imported from its private ``src`` package here.
+    """
 
 
 def main() -> int:

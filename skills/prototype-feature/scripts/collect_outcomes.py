@@ -26,10 +26,20 @@ D7 (pick-and-choose, not pick-one-winner), D9 (VariantDescriptor schema).
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
-from variant_descriptor import AutomatedScores, VariantDescriptor
+_PARALLEL_SCRIPTS = (
+    Path(__file__).resolve().parents[2] / "parallel-infrastructure" / "scripts"
+)
+if str(_PARALLEL_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_PARALLEL_SCRIPTS))
+
+from variant_descriptor import (  # type: ignore[import-not-found]  # noqa: E402
+    AutomatedScores,
+    VariantDescriptor,
+)
 
 FINDINGS_FILENAME = "prototype-findings.md"
 

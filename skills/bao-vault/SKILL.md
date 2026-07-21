@@ -24,6 +24,12 @@ python3 "<skill-base-dir>/scripts/bao_seed.py" [options]
 **Environment variables**:
 - `BAO_ADDR` — OpenBao server address
 - `BAO_TOKEN` — Root or privileged token for seeding
+- `BAO_SECRETS_FILE` — secrets YAML path (defaults to `.secrets.yaml` in the current project)
+- `AGENTS_YAML` — agent configuration path (defaults to `agents.yaml` in the current project)
+
+Both inputs can also be supplied with `--secrets-path` and `--agents-path`.
+The skill does not assume that the consumer contains an `agent-coordinator/`
+checkout.
 
 **Exit codes**: 0 = seeded successfully, 1 = error
 
@@ -32,7 +38,7 @@ python3 "<skill-base-dir>/scripts/bao_seed.py" [options]
 Resolves `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and `LANGFUSE_HOST` from OpenBao (preferring values already in the environment), computes `LANGFUSE_BASIC_AUTH = base64(public:secret)`, and emits four `export` lines on stdout. Designed to be sourced via `eval`:
 
 ```bash
-eval "$(skills/bao-vault/scripts/langfuse_env.sh)"
+eval "$("<skill-base-dir>/scripts/langfuse_env.sh")"
 ```
 
 Falls back silently when `BAO_ADDR` is unset or the keys are already populated, so it is safe to put in shell init or scripts.
@@ -40,5 +46,5 @@ Falls back silently when `BAO_ADDR` is unset or the keys are already populated, 
 **Authentication**: prefers `BAO_TOKEN` if set, otherwise uses AppRole login via `BAO_ROLE_ID` + `BAO_SECRET_ID` (matches `bao_seed.py`).
 
 **Consumed by**:
-- `skills/langfuse/scripts/install-mcp.sh` — to compute the literal Basic-auth token written into Codex / Gemini user-global config files.
-- `skills/langfuse/scripts/run_stop_hook.sh` — to populate the env for the Claude Code Stop-hook tracer.
+- `<skill-base-dir>/../langfuse/scripts/install-mcp.sh` — computes the literal Basic-auth token written into Codex / Gemini user-global config files.
+- `<skill-base-dir>/../langfuse/scripts/run_stop_hook.sh` — populates the env for the Claude Code Stop-hook tracer.

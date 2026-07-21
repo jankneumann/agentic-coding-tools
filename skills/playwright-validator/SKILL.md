@@ -57,7 +57,7 @@ non-frontend dispatch target.
 Direct (Python):
 
 ```bash
-skills/.venv/bin/python skills/playwright-validator/scripts/cli.py <change-id>
+python3 "<skill-base-dir>/scripts/cli.py" <change-id>
 ```
 
 Module form (after the skill is on `PYTHONPATH`):
@@ -69,7 +69,7 @@ python -m playwright_validator <change-id> [--descriptor PATH] [--output-dir PAT
 Dispatch shim (used by `validate-feature --phase gen-eval`):
 
 ```bash
-bash skills/playwright-validator/scripts/dispatch.sh <change-id>
+bash "<skill-base-dir>/scripts/dispatch.sh" <change-id>
 ```
 
 ## Exit codes
@@ -94,7 +94,7 @@ bash skills/playwright-validator/scripts/dispatch.sh <change-id>
    (`packages/gen-eval/`).
 
 The detection predicate is `descriptor.is_frontend_descriptor(path)` from
-`scripts/descriptor.py`.
+`<skill-base-dir>/scripts/descriptor.py`.
 
 ## Findings output
 
@@ -120,7 +120,7 @@ A minimal static HTML page is available at
 package-shipped data). To exercise the full pipeline (requires Node + Playwright):
 
 ```bash
-skills/.venv/bin/python skills/playwright-validator/scripts/cli.py \
+python3 "<skill-base-dir>/scripts/cli.py" \
     sample-frontend-demo \
     --descriptor packages/gen-eval/tests/fixtures/sample-descriptor.yaml \
     --specs-dir openspec/changes/sample-frontend-demo/specs
@@ -152,7 +152,9 @@ the descriptor; the validator checks it before the auth_flow walk.
 Unit + integration tests at `skills/tests/playwright-validator/`. Run:
 
 ```bash
-skills/.venv/bin/python -m pytest skills/tests/playwright-validator/ -v
+# Source-contribution-only validation from the agentic-coding-tools checkout
+# (not an installed runtime command):
+python3 -m pytest skills/tests/playwright-validator/ -v
 ```
 
 Tests that would invoke real `npx playwright` skip gracefully when the CLI

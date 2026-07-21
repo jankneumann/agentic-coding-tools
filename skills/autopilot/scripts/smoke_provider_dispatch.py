@@ -9,38 +9,45 @@ import sys
 from pathlib import Path
 
 _THIS_DIR = Path(__file__).resolve().parent
-_REPO_ROOT = _THIS_DIR.parents[2]
 for candidate in (
     _THIS_DIR,
     _THIS_DIR.parent.parent / "session-log" / "scripts",
-    _REPO_ROOT / "agent-coordinator",
 ):
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
 
 import phase_agent  # type: ignore[import-not-found]  # noqa: E402
 from phase_record import PhaseRecord  # type: ignore[import-not-found]  # noqa: E402
-from provider_dispatch import PhaseDispatchPayload, dispatch_phase  # noqa: E402
-from src.agents_config import (  # type: ignore[import-not-found]  # noqa: E402
-    ProviderModelMappingError,
-    load_archetypes_config,
-    resolve_archetype_for_phase,
+from provider_dispatch import (  # type: ignore[import-not-found]  # noqa: E402
+    PhaseDispatchPayload,
+    dispatch_phase,
 )
 
 _CLAUDE_ALIASES = {"opus", "sonnet", "haiku"}
+_FALLBACK_MODELS = {
+    "claude_code": "sonnet",
+    "codex": "gpt-5.4",
+    "gemini": "gemini-3-flash-preview",
+}
+
+
+class ProviderModelMappingError(ValueError):
+    """Raised when a provider is paired with a Claude-only model alias."""
 
 
 def _build_payload(provider: str, model_override: str | None) -> PhaseDispatchPayload:
     if provider != "claude_code" and model_override in _CLAUDE_ALIASES:
         raise ProviderModelMappingError(provider, model_override or "")
 
-    load_archetypes_config()
-    resolved = resolve_archetype_for_phase(
-        "IMPLEMENT",
-        {"loc_estimate": 25, "write_allow": ["skills/autopilot/**"], "dependencies": []},
-        provider=provider,
+    state = {
+        "loc_estimate": 25,
+        "write_allow": ["skills/autopilot/**"],
+        "dependencies": [],
+    }
+    options = phase_agent._build_options(  # noqa: SLF001 - canonical public bridge path
+        "IMPLEMENT", state, provider=provider
     )
-    model = model_override or resolved.model
+    model = model_override or options.get("model") or _FALLBACK_MODELS[provider]
     if provider != "claude_code" and model in _CLAUDE_ALIASES:
         raise ProviderModelMappingError(provider, model)
 
@@ -56,18 +63,19 @@ def _build_payload(provider: str, model_override: str | None) -> PhaseDispatchPa
         incoming,
         artifacts_manifest=["openspec/changes/vendor-neutral-autopilot/design.md"],
     )
-    if resolved.system_prompt:
-        prompt = f"{resolved.system_prompt}{phase_agent._PROMPT_SEPARATOR}{prompt}"  # noqa: SLF001
+    system_prompt = options.get("system_prompt")
+    if system_prompt:
+        prompt = f"{system_prompt}{phase_agent._PROMPT_SEPARATOR}{prompt}"  # noqa: SLF001
 
     return PhaseDispatchPayload(
         schema_version=1,
         change_id="vendor-neutral-autopilot-smoke",
         phase="IMPLEMENT",
         provider=provider,
-        archetype=resolved.archetype,
+        archetype=state.get("_resolved_archetype"),
         model=model,
         prompt=prompt,
-        system_prompt=resolved.system_prompt,
+        system_prompt=system_prompt,
         isolation="worktree",
         expected_outcomes=["complete", "failed"],
     )
