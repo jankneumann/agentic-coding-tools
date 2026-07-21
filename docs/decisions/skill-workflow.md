@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-07-21 — enforce-skill-install-portability
+
+### Phase: Plan
+
+**Install payload is the runtime boundary** — Consumer repositories do not include coordinator source or the canonical skills tree.
+
+- Status: `active`
+- Source: [openspec/changes/enforce-skill-install-portability/session-log.md](/openspec/changes/enforce-skill-install-portability/session-log.md) (D1)
+
+---
+
+## 2026-07-21 — enforce-skill-install-portability
+
+### Phase: Implementation Review
+
+**Installed payload owns shared runtime code** — Consumers receive skills/shared but not coordinator source, so shared PR classification and path helpers live inside the shipped boundary.
+
+- Status: `active`
+- Source: [openspec/changes/enforce-skill-install-portability/session-log.md](/openspec/changes/enforce-skill-install-portability/session-log.md) (D1)
+
+---
+
+## 2026-07-21 — enforce-skill-install-portability
+
+### Phase: Implementation Review
+
+**Persistent local port reservations** — Docker validation processes must retain reservations after their launcher exits and release them during teardown.
+
+- Status: `active`
+- Source: [openspec/changes/enforce-skill-install-portability/session-log.md](/openspec/changes/enforce-skill-install-portability/session-log.md) (D2)
+
+---
+
 ## 2026-06-12 — 2026-06-26-add-timestamped-priorities-tree
 
 ### Phase: Implementation
