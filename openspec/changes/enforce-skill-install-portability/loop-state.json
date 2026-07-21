@@ -1,0 +1,55 @@
+{
+  "blocking_findings": [],
+  "change_id": "enforce-skill-install-portability",
+  "cli_review_enabled": true,
+  "current_phase": "IMPLEMENT",
+  "error": null,
+  "escalation_reason": null,
+  "findings_trend": [],
+  "force": false,
+  "gate_signals": {
+    "broad_scope": false,
+    "database_migration": false,
+    "external_dependencies": 0,
+    "has_proposal": true,
+    "has_specs": true,
+    "has_tasks": true,
+    "security_sensitive": false
+  },
+  "gate_verdict": "proceed",
+  "handoff_ids": [
+    "local:plan-1"
+  ],
+  "implementation_strategy": {},
+  "iteration": 0,
+  "last_handoff_id": "local:plan-1",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "phase_archetype": null,
+  "phase_history": [
+    {
+      "at": "2026-07-20T00:00:00Z",
+      "note": "coordinated tier; user supplied approved P0-P3 scope",
+      "outcome": "next",
+      "phase": "INIT"
+    },
+    {
+      "at": "2026-07-21T00:02:32.564727+00:00",
+      "outcome": "next",
+      "phase": "PLAN"
+    }
+  ],
+  "phase_started_at": "2026-07-20T00:00:00Z",
+  "previous_phase": "PLAN",
+  "schema_version": 4,
+  "started_at": "2026-07-20T00:00:00Z",
+  "total_iterations": 1,
+  "val_review_enabled": false,
+  "vendor_availability": {
+    "claude": true,
+    "codex": true,
+    "gemini": true
+  }
+}
