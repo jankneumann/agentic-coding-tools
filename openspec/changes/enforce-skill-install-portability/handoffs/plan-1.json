@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-21T00:02:22.579251+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-autopilot",
+    "session_id": null,
+    "summary": "Approved portable-install boundary and P0-P3 implementation DAG; independent specification, architecture, and TDD reviews are resolved.",
+    "completed_work": [
+      "Strict OpenSpec validation passed",
+      "Work-package schema and dependency DAG passed",
+      "Known consumer import failures were captured as P0 tasks"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Install payload is the runtime boundary",
+        "rationale": "Consumer repositories do not include coordinator source or the canonical skills tree.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement work packages with test-first regression coverage"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/enforce-skill-install-portability/tasks.md",
+        "description": "Approved P0-P3 task list"
+      },
+      {
+        "path": "openspec/changes/enforce-skill-install-portability/work-packages.yaml",
+        "description": "Implementation DAG"
+      }
+    ]
+  }
+}

@@ -1,0 +1,371 @@
+schema_version: 1
+
+feature:
+  id: enforce-skill-install-portability
+  title: "Enforce standalone skill installation portability"
+  plan_revision: 1
+  created_by: codex-autopilot
+
+contracts:
+  revision: 1
+  openapi:
+    # This change has no HTTP API. README documents the executable contracts.
+    primary: "openspec/changes/enforce-skill-install-portability/contracts/README.md"
+    files:
+      - "openspec/changes/enforce-skill-install-portability/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contract-tests
+    title: "Install-boundary contracts and regression harness"
+    task_type: contracts
+    description: |
+      Define the install payload manifest and add clean-consumer regression tests
+      before changing runtime behavior. Covers tasks 0.1, 0.2, and the test-first
+      portions of 0.4 and 0.5.
+    role: test-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/install-manifest.json"
+        - "skills/tests/install_sh/test_consumer_portability.py"
+      keys:
+        - "contract:skill-install-payload"
+      ttl_minutes: 120
+      reason: "Establishes the failing executable contract for all later packages"
+    scope:
+      write_allow:
+        - "skills/install-manifest.json"
+        - "skills/tests/install_sh/**"
+        - "skills/tests/merge-pull-requests/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: portability-wp-contract-tests
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Consumer regression tests collect"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/install_sh/test_consumer_portability.py --collect-only -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["consumer_tests_collect"]
+    metadata:
+      loc_estimate: 400
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["consumer_tests_collect"]
+      artifacts:
+        - "skills/install-manifest.json"
+        - "skills/tests/install_sh/test_consumer_portability.py"
+
+  - package_id: wp-p0-runtime
+    title: "Repair confirmed P0 runtime failures"
+    task_type: bugfix
+    description: |
+      Move the GitHub classifier into the installed shared boundary, repair the
+      result validator and provider smoke imports, and replace private src.*
+      instruction snippets and repair additional isolated-import failures. Covers
+      tasks 0.3 through 0.7.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contract-tests"]
+    locks:
+      files:
+        - "skills/shared/github_classifier.py"
+        - "skills/merge-pull-requests/scripts/discover_prs.py"
+        - "agent-coordinator/src/github_classifier.py"
+      keys:
+        - "feature:enforce-skill-install-portability:pzero"
+      ttl_minutes: 120
+      reason: "Canonical classifier and confirmed failing entry points"
+    scope:
+      write_allow:
+        - "skills/shared/**"
+        - "skills/merge-pull-requests/**"
+        - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/autopilot/scripts/smoke_provider_dispatch.py"
+        - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
+        - "skills/prototype-feature/scripts/collect_outcomes.py"
+        - "skills/validate-flows/scripts/validate_flows.py"
+        - "agent-coordinator/src/github_classifier.py"
+        - "skills/tests/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: portability-wp-p0-runtime
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "P0 consumer entry points"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/install_sh/test_consumer_portability.py skills/tests/merge-pull-requests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["p0_tests_pass"]
+    metadata:
+      loc_estimate: 500
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contracts: ["skills/install-manifest.json"]
+    outputs:
+      result_keys: ["p0_tests_pass"]
+      artifacts:
+        - "skills/shared/github_classifier.py"
+
+  - package_id: wp-p1-runtime
+    title: "Normalize runtime and configuration discovery"
+    task_type: bugfix
+    description: |
+      Remove source-checkout assumptions from validate-feature, Langfuse,
+      worktree, session-log, review-artifacts, session-bootstrap, Bao, and vendor
+      discovery. Covers tasks 1.1 through 1.8.
+    role: implementer
+    priority: 3
+    depends_on: ["wp-p0-runtime"]
+    locks:
+      files:
+        - "skills/shared/runtime_paths.py"
+      keys:
+        - "feature:enforce-skill-install-portability:pone"
+      ttl_minutes: 180
+      reason: "Shared installed-path and configuration discovery conventions"
+    scope:
+      write_allow:
+        - "skills/shared/**"
+        - "skills/validate-feature/**"
+        - "skills/langfuse/**"
+        - "skills/worktree/**"
+        - "skills/session-log/**"
+        - "skills/review-artifacts/**"
+        - "skills/session-bootstrap/**"
+        - "skills/bao-vault/**"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/vendor_health.py"
+        - "skills/vendor-status/SKILL.md"
+        - "skills/tests/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: portability-wp-p1-runtime
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Affected P1 suites"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/validate-feature skills/tests/langfuse skills/tests/worktree skills/tests/session-log skills/tests/review-artifacts skills/tests/session-bootstrap skills/tests/bao-vault -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["p1_tests_pass"]
+    metadata:
+      loc_estimate: 1000
+      complexity: high
+      package_kind: integration
+    inputs:
+      contracts: ["skills/install-manifest.json"]
+    outputs:
+      result_keys: ["p1_tests_pass"]
+      artifacts:
+        - "skills/shared/runtime_paths.py"
+
+  - package_id: wp-p2-instructions
+    title: "Normalize installed skill instructions"
+    task_type: refactor
+    description: |
+      Document the installed-path convention, normalize canonical and bare
+      runtime commands, make architecture and coordinator setup configurable,
+      and repair escaping links. Covers tasks 2.1 through 2.6.
+    role: documentation-engineer
+    priority: 4
+    depends_on: ["wp-p1-runtime"]
+    locks:
+      files:
+        - "skills/references/skill-path-resolution.md"
+        - "docs/guides/skills.md"
+      keys:
+        - "contract:skill-path-resolution"
+      ttl_minutes: 180
+      reason: "One documentation and command convention across all installed skills"
+    scope:
+      write_allow:
+        - "skills/*/SKILL.md"
+        - "skills/*/references/**"
+        - "skills/references/**"
+        - "skills/refresh-architecture/**"
+        - "skills/setup-coordinator/**"
+        - "docs/guides/skills.md"
+        - "skills/install.sh"
+        - "skills/tests/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: portability-wp-p2-instructions
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Static reference inventory"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/install_sh -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["p2_reference_gate_pass"]
+    metadata:
+      loc_estimate: 1200
+      complexity: high
+      package_kind: config
+    inputs:
+      contracts: ["skills/install-manifest.json"]
+    outputs:
+      result_keys: ["p2_reference_gate_pass"]
+      artifacts:
+        - "skills/references/skill-path-resolution.md"
+
+  - package_id: wp-p3-enforcement
+    title: "Add complete-payload enforcement"
+    task_type: feature
+    description: |
+      Expand dependency-direction analysis, validate the manifest, wire the
+      complete installed payload into quality gates, and document the required
+      consumer smoke workflow. Covers tasks 3.1 through 3.4.
+    role: implementer
+    priority: 5
+    depends_on: ["wp-p2-instructions"]
+    locks:
+      files:
+        - "skills/validate-feature/scripts/linters/dependency_direction.py"
+        - "skills/install.sh"
+      keys:
+        - "feature:enforce-skill-install-portability:gate"
+      ttl_minutes: 180
+      reason: "Blocking recurrence-prevention gate"
+    scope:
+      write_allow:
+        - "skills/validate-feature/scripts/linters/**"
+        - "skills/install.sh"
+        - "skills/install-manifest.json"
+        - "skills/tests/**"
+        - ".github/**"
+        - "Makefile"
+        - "docs/guides/skills.md"
+        - "docs/cross-repo-setup.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: portability-wp-p3-enforcement
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Complete payload consumer gate"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/install_sh skills/tests/validate-feature -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["p3_gate_pass"]
+    metadata:
+      loc_estimate: 800
+      complexity: high
+      package_kind: integration
+    inputs:
+      contracts: ["skills/install-manifest.json"]
+    outputs:
+      result_keys: ["p3_gate_pass"]
+      artifacts:
+        - "skills/validate-feature/scripts/linters/dependency_direction.py"
+
+  - package_id: wp-validation
+    title: "Full validation, mirror sync, and delivery evidence"
+    task_type: validation
+    description: |
+      Run strict OpenSpec validation, package validators, affected and full
+      suites, formatting/type/shell checks, regenerate mirrors through the
+      installer, and publish validation evidence. Covers tasks 4.1 through 4.3.
+    role: validator
+    priority: 6
+    depends_on: ["wp-p3-enforcement"]
+    locks:
+      files: []
+      keys:
+        - "feature:enforce-skill-install-portability:release"
+      ttl_minutes: 120
+      reason: "Final release gate"
+    scope:
+      write_allow:
+        - "openspec/changes/enforce-skill-install-portability/**"
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: portability-wp-validation
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Strict proposal validation"
+          kind: command
+          command: "openspec validate enforce-skill-install-portability --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/enforce-skill-install-portability/validation-report.md"
+            result_keys: ["validation_pass"]
+    metadata:
+      loc_estimate: 200
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contracts: ["skills/install-manifest.json"]
+    outputs:
+      result_keys: ["validation_pass"]
+      artifacts:
+        - "openspec/changes/enforce-skill-install-portability/validation-report.md"
