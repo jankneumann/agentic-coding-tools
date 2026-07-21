@@ -2,7 +2,7 @@
   "blocking_findings": [],
   "change_id": "enforce-skill-install-portability",
   "cli_review_enabled": true,
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "error": null,
   "escalation_reason": null,
   "findings_trend": [],
@@ -20,7 +20,8 @@
   "handoff_ids": [
     "local:plan-1",
     "local:implementation-review-1",
-    "local:validation-1"
+    "local:validation-1",
+    "local:submit-pr-1"
   ],
   "implementation_strategy": {
     "tier": "coordinated",
@@ -34,7 +35,7 @@
     ]
   },
   "iteration": 0,
-  "last_handoff_id": "local:validation-1",
+  "last_handoff_id": "local:submit-pr-1",
   "max_phase_iterations": 3,
   "memory_ids": [],
   "package_authors": {
@@ -85,10 +86,15 @@
       "at": "2026-07-21T03:32:18.254454+00:00",
       "outcome": "continue",
       "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-07-21T03:34:08.185567+00:00",
+      "outcome": "created",
+      "phase": "SUBMIT_PR"
     }
   ],
   "phase_started_at": "2026-07-20T00:00:00Z",
-  "previous_phase": "VALIDATE",
+  "previous_phase": "SUBMIT_PR",
   "schema_version": 4,
   "started_at": "2026-07-20T00:00:00Z",
   "total_iterations": 1,
