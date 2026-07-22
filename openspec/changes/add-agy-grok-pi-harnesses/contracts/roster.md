@@ -28,6 +28,18 @@ rather than falling back.
 `pi` resolves to OpenRouter slugs in `<publisher>/<model>` form; its `standard` tier is
 `qwen/qwen3-coder`, fixed by roadmap item `ri-01`.
 
+Tier entries are either a bare model id or `{model, thinking}` — thinking level is part of
+the model definition (see `add-frontier-model-tier`; tiers optimize cost per successful
+task, not cost per token). Operator direction for the new vendors (2026-07-22):
+
+- **grok**: `premium` and `standard` are both `grok-4.5`, differentiated by thinking
+  budget — task 1.2 resolves the budget flag/values empirically.
+- **pi**: `frontier` candidate is **Kimi 3** (resolve the exact OpenRouter slug in task
+  1.3 and check the OpenRouter cost-vs-performance Pareto data before finalizing);
+  `standard` stays `qwen/qwen3-coder` (roadmap `ri-01` decision).
+- **antigravity**: tiers resolved by task 1.1 (E1); `frontier` only if the model menu
+  surfaces a clearly stronger reasoning option.
+
 `antigravity` tier slugs are resolved by task **1.1** (E1); `grok` tier slugs by task **1.2**
 (E5). Both are recorded in `design.md` § Empirical CLI findings. **No package may hardcode a
 tier slug for these two vendors before checkpoint 1.4 (human review) passes.**
