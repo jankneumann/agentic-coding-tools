@@ -22,8 +22,8 @@
     },
     "providers": {
       "type": "object",
-      "minProperties": 1,
-      "description": "Keyed by canonical provider key. `antigravity` is the canonical key for the agy CLI (proposal D3); `agy` is not a valid key. `gemini` is retired and rejected.",
+      "description": "Keyed by canonical provider key. `antigravity` is the canonical key for the agy CLI (proposal D3); `agy` is not a valid key. `gemini` is retired and rejected. The full roster is REQUIRED, not merely permitted: `configuration`'s Provider Model Mapping requirement says the default map SHALL include all five, so a map carrying only a subset must fail validation (PLAN_REVIEW finding U3).",
+      "required": ["claude_code", "codex", "antigravity", "grok", "pi"],
       "propertyNames": {
         "enum": ["claude_code", "codex", "antigravity", "grok", "pi"]
       },
@@ -46,6 +46,16 @@
       "providers": {
         "claude_code": { "premium": "opus", "standard": "sonnet", "economy": "haiku" },
         "codex": { "premium": "gpt-5.5", "standard": "gpt-5.4", "economy": "gpt-5.4-mini" },
+        "antigravity": {
+          "premium": "<resolved by task 2.1>",
+          "standard": "<resolved by task 2.1>",
+          "economy": "<resolved by task 2.1>"
+        },
+        "grok": {
+          "premium": "<resolved by task 2.6>",
+          "standard": "<resolved by task 2.6>",
+          "economy": "<resolved by task 2.6>"
+        },
         "pi": {
           "premium": "qwen/qwen3-coder",
           "standard": "qwen/qwen3-coder",

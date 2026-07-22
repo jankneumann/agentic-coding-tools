@@ -1,0 +1,276 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "behavioral_failure",
+      "criticality": "critical",
+      "description": "The 'authoritative inventory command' in design.md (lines 8-14) excludes only top-level `node_modules` and does not exclude Python virtualenvs at all. Run verbatim in the worktree it returns 240 files, 171 of which are `agent-coordinator/.venv/lib/python3.12/site-packages/**` (google.generativeai, fastmcp/cli/install/gemini_cli.py, googleapiclient discovery JSON) plus nested `apps/kanban-viz/node_modules`. Task 10.2 requires this command to 'return empty' and wp-integration's 'Scope inventory returns empty' step asserts `test -z \"$(...)\"`, so the change's terminal gate can never pass no matter how much work is done. It also means the '68 live files' figure was derived from a different command than the one recorded (the real tracked-code figure is 69). Fix: add `\\.venv|site-packages|node_modules|__pycache__` to the exclusion regex in both design.md and work-packages.yaml, and re-derive the file count from the corrected command.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/design.md",
+      "line_range": {
+        "start": 8,
+        "end": 16
+      }
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "The scope inventory's `--include` list omits `*.md`, so the measured 68-file scope excludes documentation entirely. 52 tracked markdown files outside the archive reference gemini as a live harness \u2014 e.g. `agent-coordinator/README.md:3,84,90,104,118` (`make gemini-mcp-setup`, `gemini-wrapper-install`, `gemini-coord`), `docs/agent-coordinator.md:3,35,36`, `skills/setup-coordinator/SKILL.md:28,52,144,153,155,159`, `skills/collect-transcripts/SKILL.md:20,33`, `skills/quick-task/SKILL.md:31`, `skills/langfuse/references/mcp-setup.md:31,55,61,113`, `skills/plan-roadmap/templates/generation-prompt.md:4`, `openspec/schemas/feature-workflow/templates/session-log.md:52`. Phase 9 covers only README.md, agent-coordinator/CLAUDE.md, docs/skills-workflow.md, docs/autopilot-provider-smoke.md and 'lifecycle SKILL.md'. Worse, wp-docs `write_allow` is `README.md`, `docs/**`, `agent-coordinator/CLAUDE.md`, `skills/*/SKILL.md` \u2014 which cannot reach `agent-coordinator/README.md`, `skills/langfuse/references/*.md`, `skills/plan-roadmap/templates/*.md`, or `openspec/schemas/feature-workflow/templates/session-log.md`, so no package may edit them. Fix: add `*.md` to the inventory command, enumerate the doc sites in Phase 9, and widen wp-docs `write_allow`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-docs",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 278,
+        "end": 298
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "`agent-coordinator/Makefile` is a missed edit site that task 8.1 actively breaks. It defines `GEMINI_AGENT_ID`/`GEMINI_AGENT_TYPE` (lines 133-146), `GEMINI_MCP_ENV_FLAGS` (158-160), a `gemini-mcp-setup` target (176-180) that is a prerequisite of the aggregate `mcp-setup` target (184), and `gemini-wrapper-install` (214-228) which chmods and symlinks `$(SCRIPTS_ABS)/gemini_wrapper.sh`. Task 8.1 deletes `gemini_wrapper.sh`, leaving `make gemini-wrapper-install` referencing a nonexistent file and `make mcp-setup` invoking a discontinued CLI. The Makefile appears in no task and in no package's `write_allow` (wp-registry lists individual agent-coordinator files; wp-cleanup does not include it), so no agent may fix it. Fix: add a task under Phase 8 to retarget the Makefile to antigravity/grok/pi setup targets and add `agent-coordinator/Makefile` to wp-cleanup's write_allow.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-cleanup",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 249,
+        "end": 262
+      }
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The change authors `contracts/provider-model-map.schema.json` at schema_version 2 with a closed `propertyNames.enum`, but nothing consumes it. The only consumer, `skills/tests/vendor-neutral-autopilot/test_contracts.py:9`, resolves `CHANGE = ROOT/'openspec'/'changes'/'vendor-neutral-autopilot'` \u2014 a directory that no longer exists (it was archived to `openspec/changes/archive/2026-05-16-vendor-neutral-autopilot`). Running `skills/.venv/bin/python -m pytest skills/tests/vendor-neutral-autopilot -q` on this branch today yields 5 failures, 4 of them FileNotFoundError on that dangling path. wp-dispatch's verification step runs exactly that suite and therefore can never exit 0, and task 4.4's checkpoint has the same problem. Separately, the 'closed provider key set' remains unenforced anywhere in the runtime. Fix: add a task to repoint `test_contracts.py` at this change's contract path (and to a durable post-archive location), and either fix or explicitly scope the 5 pre-existing failures before wp-dispatch's gate is used.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 256,
+        "end": 266
+      }
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "`contracts/provider-model-map.schema.json` sets `\"schema_version\": {\"const\": 2}` with top-level `additionalProperties: false`, but the implementation emits version 1: `agent-coordinator/src/agents_config.py:33` (`DEFAULT_PROVIDER_MODEL_MAP`) and `agents_config.py:1050` (`_normalize_provider_model_map`), and the fixture at `skills/tests/vendor-neutral-autopilot/test_contracts.py:16` asserts `schema_version: 1`. No task in tasks.md bumps the code or the fixture, so contract and implementation ship in disagreement \u2014 exactly the drift class D3/D4 claim to prevent. The bump also straddles two packages that run concurrently (wp-registry owns `agents_config.py`; wp-dispatch owns `skills/tests/vendor-neutral-autopilot/**`; both depend only on wp-contracts + wp-empirical), so the change cannot land atomically. Fix: either keep the contract at `const: 1`, or add an explicit task bumping the code plus fixtures and place both edits in the same package.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-registry",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/contracts/provider-model-map.schema.json",
+      "line_range": {
+        "start": 11,
+        "end": 14
+      }
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "grok's model tier slugs have no empirical task, but Phase 3 must write them. `contracts/roster.md` \u00a7 Model tiers asserts '`antigravity` and `grok` tier slugs are resolved empirically in tasks 2.1 and 2.2' \u2014 task 2.1 records `agy models` only, and task 2.2 verifies `grok --prompt-file /dev/stdin`, not model names. design.md's Empirical CLI findings table (lines 98-104) has no row for grok slugs either. Yet task 3.5 ('Add antigravity/grok/pi tier maps to DEFAULT_PROVIDER_MODEL_MAP') and 3.8 ('Add antigravity/grok/pi model_aliases') depend only on 2.1, so an implementer will guess grok premium/standard/economy slugs from the proposal's single unverified claim 'Default model `grok-4.5`' (proposal.md:18). This is the exact failure mode Phase 2 exists to prevent. Fix: add a task 2.1b recording grok's model list, add the corresponding design.md row, and make 3.5/3.8 depend on it.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-empirical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/contracts/roster.md",
+      "line_range": {
+        "start": 26,
+        "end": 33
+      }
+    },
+    {
+      "id": 7,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "wp-cleanup's verification runs `skills/.venv/bin/python -m pytest packages/agent-scenarios/tests -q`. That venv lacks agent-scenarios' dependencies: running it now produces `6 errors during collection` (test_judge, test_loader, test_runner, test_scorer, ...). The step can never exit 0, so wp-cleanup can never satisfy its own gate, and task 8.7's checkpoint has the same problem. Fix: run the agent-scenarios suite through its own environment (e.g. `uv run --project packages/agent-scenarios pytest tests`) or the agent-coordinator venv, whichever actually resolves its imports.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-cleanup",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 488,
+        "end": 498
+      }
+    },
+    {
+      "id": 8,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "wp-integration's 'Full test suite passes' step includes `skills/.venv/bin/python -m pytest skills/tests -q`. That command aborts at collection today: `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py:31` imports `fastapi.testclient`, which is not installed in `skills/.venv` \u2014 pytest reports `Interrupted: 1 error during collection` and exits non-zero after running 0 tests. The change's final integration gate is therefore unpassable, and task 10.3's 'full test suite' is unspecified as to which interpreter runs which tree. Fix: split the skills suite so `skills/tests/agent-coordinator/**` runs under the agent-coordinator venv, and record the exact per-tree commands in task 10.3.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 613,
+        "end": 620
+      }
+    },
+    {
+      "id": 9,
+      "type": "behavioral_failure",
+      "criticality": "medium",
+      "description": "Four verification steps use `! grep -ril gemini <dir>` (wp-registry, wp-dispatch, wp-eval, wp-transcripts). `grep -r` without `-I` reports binary matches, and the checked trees contain stale bytecode that embeds the old strings: `skills/autopilot/scripts/__pycache__/provider_dispatch.cpython-312.pyc`, `token_budget_check.cpython-312.pyc`, `skills/autopilot-roadmap/scripts/__pycache__/orchestrator.cpython-312.pyc`, `policy.cpython-312.pyc`, `skills/parallel-infrastructure/scripts/__pycache__/review_dispatcher.cpython-312.pyc`, `consensus_synthesizer.cpython-312.pyc`, `skills/review-artifacts/scripts/__pycache__/open_artifacts.cpython-312.pyc`. After every source edit is correct, these steps still fail until someone happens to clear `__pycache__`. Fix: add `-I --exclude-dir=__pycache__` (and `--exclude-dir=.venv`) to every `grep -ril` verification step.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 259,
+        "end": 262
+      }
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "grok's dispatch shape is asserted in `contracts/roster.md` \u00a7 Dispatch shape with no empirical task behind most of it. Phase 2 verifies only: agy model slugs (2.1), grok stdin delivery (2.2), pi OPENROUTER_API_KEY passthrough (2.3), and re-login commands (2.4). Unverified but load-bearing claims include: grok's `--json-schema` accepting `review-findings.schema.json` and emitting a conforming envelope (roster.md 'Dispatch shape'; task 5.2 builds the eval backend on `--output-format json`), antigravity's `--print` + stdin Claude-shaped interface, and pi accepting the prompt as a trailing positional under `--provider openrouter`. Note the repo's own recorded lesson that vendors must emit a `{\"findings\": [...]}` envelope rather than a bare array \u2014 grok's `--json-schema` output shape is precisely the thing to verify before writing the adapter. Fix: extend Phase 2 with tasks that exercise grok `--json-schema`, agy `--print` + stdin, and pi positional-prompt dispatch, and make tasks 3.2 / 5.2 depend on them.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-empirical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/contracts/roster.md",
+      "line_range": {
+        "start": 52,
+        "end": 60
+      }
+    },
+    {
+      "id": 11,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Three example/config templates reference gemini and are in no task, and two are in no package's `write_allow`: `agent-coordinator/.secrets.yaml.example:22` (`GEMINI_API_KEY: \"\"`), `agent-coordinator/config.yaml.example:19,24` ('One of: claude_code, codex, gemini' and a gemini-3-flash tier example), and `skills/collect-transcripts/config.yaml.example:39-41` (a `gemini_cli` adapter block). The first two fall outside every write_allow. The secrets template matters beyond cleanup: the proposal commits to making `OPENROUTER_API_KEY` resolvable for pi (proposal.md:61-65), but no task adds it to the secrets template or to a pi `api_key_env` in agents.yaml \u2014 task 2.3 only *verifies* passthrough, it does not configure it. Fix: add tasks for the three template files and an explicit task wiring `OPENROUTER_API_KEY` into the pi-local agents.yaml entry plus the secrets example, and extend the relevant write_allow lists.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-registry",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 61,
+        "end": 62
+      }
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Task 7.3 mislabels three kanban references as 'vendor fixtures'. `apps/kanban-viz/src/hooks/useCoordinator.ts:244` ('IMPL_REVIEW claude#4/gemini#1: the prior implementation called ...') and `apps/kanban-viz/src/__tests__/useCoordinator.test.tsx:278` are review-provenance annotations naming the reviewing vendor on a past finding, not roster data; rewriting them falsifies history. `apps/kanban-viz/src/lib/coordinator-types.ts:266` ('IMPL_REVIEW F5 / gemini#3') is the same kind of reference and is not listed in task 7.3 at all, yet task 10.2's zero-gemini gate will trip on it. Fix: state explicitly in task 7.3 whether provenance comments are rewritten or preserved, add coordinator-types.ts to the enumeration, and if preserved, carve them out of the 10.2 inventory command so the gate stays honest.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-kanban",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 236,
+        "end": 244
+      }
+    },
+    {
+      "id": 13,
+      "type": "behavioral_failure",
+      "criticality": "medium",
+      "description": "wp-kanban's verification proves less than its name claims. The package edits `agent-coordinator/tests/test_kanban_viz_endpoints.py`, `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py`, `agent-coordinator/src/schemas/kanban_viz/saved-view.json`, and `agent-coordinator/scripts/seed_kanban_board.py`, but the only functional step is `cd apps/kanban-viz && npm test -- --run` \u2014 which exercises none of them. The step named 'Kanban frontend and endpoint tests pass with the new roster' therefore passes with the Python endpoint tests broken and the seeder's `VENDORS` untouched. Fix: add `agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_kanban_viz_endpoints.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` to the step.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-kanban",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 419,
+        "end": 437
+      }
+    },
+    {
+      "id": 14,
+      "type": "behavioral_failure",
+      "criticality": "medium",
+      "description": "wp-empirical \u2014 the package the whole plan depends on for CLI facts \u2014 is gated only by `! grep -q '| pending |' design.md`. Any substitution satisfies it, including 'unknown', 'n/a', 'blocked', or deleting the table; nothing proves a CLI was actually invoked. There is also no precondition step confirming `agy`, `grok`, and `pi` are on PATH in the execution environment, and the package runs in an isolated worktree where a headless agent may not have the operator's subscriptions. Because the entire config surface is downstream, a silently-degraded wp-empirical propagates guessed flags into agents.yaml, tier maps, and eval backends \u2014 the exact outcome design.md \u00a7 'Why the empirical phase runs before config' says it exists to prevent. Fix: add a precondition step (`command -v agy grok pi`) and require each findings row to cite captured command output stored as an artifact, then assert on the artifact rather than on the word 'pending'.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-empirical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 117,
+        "end": 127
+      }
+    },
+    {
+      "id": 15,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "wp-dispatch's verification asserts `! grep -ril gemini skills/autopilot skills/autopilot-roadmap skills/parallel-infrastructure skills/quick-task skills/review-artifacts`, which sweeps in `skills/autopilot/SKILL.md` and `skills/quick-task/SKILL.md` \u2014 both containing live gemini prose and both assigned to wp-docs (task 9.4, `write_allow: skills/*/SKILL.md`). wp-dispatch cannot pass without editing files another package owns, and its own tasks (4.1-4.11) never mention SKILL.md. The same pattern hits wp-transcripts, whose `! grep -ril gemini skills/collect-transcripts` covers `skills/collect-transcripts/SKILL.md:20,33` and `config.yaml.example:39`, neither of which appears in tasks 6.1-6.5. Fix: either assign the SKILL.md edits to the owning implementation packages and drop them from 9.4, or restrict the grep gates to the source subtrees each package actually owns.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "optional",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 231,
+        "end": 249
+      }
+    },
+    {
+      "id": 16,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Task 4.1's **Files** enumeration lists `skills/tests/parallel-infrastructure/*.py` and `skills/parallel-infrastructure/scripts/tests/*.py` but omits the third, distinct location `skills/parallel-infrastructure/tests/test_vendor_diversity.py`, which asserts against the `claude/codex/gemini` roster. The file is inside wp-dispatch's `write_allow` (`skills/parallel-infrastructure/**`) so it is reachable, but an agent working from the enumerated list will miss it and only discover it when wp-dispatch's grep gate fails. Fix: add the path to task 4.1's Files list.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 126,
+        "end": 131
+      }
+    },
+    {
+      "id": 17,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "design.md's scope-inventory rationale states '`.claude/`, `.agents/`, `.codex/` are generated mirrors \u2014 install.sh overwrites them (task 10.1)'. `skills/install.sh:187-190` maps only `claude` -> `.claude/skills` and `agents` -> `.agents/skills`; `.codex/` is never written by install.sh and in this repo contains only `hooks.json`. The change's own skill-workflow delta correctly asserts 'The mirrors install.sh writes SHALL be exactly `.claude/skills/` and `.agents/skills/`', so design.md contradicts the spec it authors. Impact is low (`.codex/` holds no gemini references today), but the excuse for excluding it from the inventory is wrong. Fix: drop `.codex` from the mirror rationale, or exclude it for the accurate reason.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/design.md",
+      "line_range": {
+        "start": 18,
+        "end": 18
+      }
+    },
+    {
+      "id": 18,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The coordinator-kanban-viz delta preserves the base clause 'Each mini-lane SHALL display: the vendor name and color' while D5 forbids the component from holding a roster and wp-kanban's second verification step hard-asserts `git diff --quiet main -- apps/kanban-viz/src/components/VendorSwimlanes.tsx`. `VendorSwimlanes.tsx` has no per-vendor color (its only colors are the consensus indicator at line 80 and neutral greys at 119/129), so the requirement is unsatisfiable by construction under this change's own constraints. This is pre-existing drift, but the change re-affirms the clause and simultaneously bars the only file that could satisfy it. Fix: reword the clause to drop 'and color', or state in the delta that color is derived rather than rostered.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "package_id": "wp-kanban",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/specs/coordinator-kanban-viz/spec.md",
+      "line_range": {
+        "start": 11,
+        "end": 15
+      }
+    }
+  ]
+}

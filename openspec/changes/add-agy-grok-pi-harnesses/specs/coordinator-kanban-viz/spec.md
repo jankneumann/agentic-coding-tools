@@ -8,9 +8,11 @@ Updates the recognized vendor swimlane roster and the demo seeder's vendor cover
 
 When an `In Flight` card represents a work-package whose children include multiple agents with distinct vendor values (extracted per design.md D4: canonical source is the `agent_id` suffix after `--`; secondary cross-check is `agent_sessions.agent_type`), the card SHALL render mini-lanes — one per distinct vendor — showing the most recent `audit_log` row for that vendor's agent.
 
-Each mini-lane SHALL display: the vendor name and color, a one-line summary of the latest operation (`audit_log.args_summary` truncated to one line), and a relative timestamp (`<n>s ago`, `<n>m ago`).
+Each mini-lane SHALL display: the vendor name, a one-line summary of the latest operation (`audit_log.args_summary` truncated to one line), and a relative timestamp (`<n>s ago`, `<n>m ago`).
 
 The swimlane component SHALL derive the vendor dynamically from the `agent_id` suffix and SHALL NOT hold a hardcoded vendor roster. Adding or retiring a harness SHALL therefore require no change to the component. The roster `claude`, `codex`, `antigravity`, `grok`, `pi` is normative for the seeder and for test fixtures, not for the rendering component.
+
+The base requirement's "vendor name and color" clause is narrowed to "vendor name": a per-vendor colour map is precisely the hardcoded roster this requirement now forbids, and the component has never implemented one. Lanes are visually distinguished by position and label, not by per-vendor colour.
 
 #### Scenario: Single-vendor card collapses swimlanes
 
