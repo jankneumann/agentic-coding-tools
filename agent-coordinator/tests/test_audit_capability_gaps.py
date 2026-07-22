@@ -19,6 +19,14 @@ import pytest
 
 from src.audit import AuditEntry
 
+
+def _standard_model_for(provider: str) -> str:
+    """Expected standard-tier model, derived from the configured map."""
+    from src.agents_config import DEFAULT_PROVIDER_MODEL_MAP
+
+    entry = DEFAULT_PROVIDER_MODEL_MAP["providers"][provider]["standard"]
+    return entry["model"] if isinstance(entry, dict) else entry
+
 # ---------------------------------------------------------------------------
 # Fixtures: audit entries representing various agent operations
 # ---------------------------------------------------------------------------
@@ -220,8 +228,8 @@ class TestClassifierModelResolution:
         )
 
         model = resolve_model(analyst, package_metadata={}, provider="claude_code")
-        # standard tier for claude_code maps to "sonnet"
-        assert model == "sonnet"
+        # Derived from the configured map — tier tuning must not break tests.
+        assert model == _standard_model_for("claude_code")
 
     def test_resolve_model_with_provider_override(self):
         """resolve_model respects provider parameter for model mapping."""
@@ -234,7 +242,7 @@ class TestClassifierModelResolution:
         )
 
         model = resolve_model(analyst, package_metadata={}, provider="codex")
-        assert model == "gpt-5.4"
+        assert model == _standard_model_for("codex")
 
     def test_compose_prompt_includes_archetype_base(self):
         """compose_prompt layers archetype system prompt with task prompt."""

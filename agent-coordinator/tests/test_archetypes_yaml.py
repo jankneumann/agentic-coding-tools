@@ -113,23 +113,43 @@ def test_validator_system_prompt_has_no_read_only_markers() -> None:
 
 # ---------------------------------------------------------------------------
 # Frontier tier — planning archetypes think at frontier, implementer does not
+#
+# Expectations are DERIVED from archetypes.yaml, never hardcoded: tuning a
+# tier entry (model or thinking level) must not invalidate these tests.
 # ---------------------------------------------------------------------------
 
 
+def _alias(provider: str, tier: str) -> dict | str | None:
+    return _raw()["model_aliases"][provider].get(tier)
+
+
+def _alias_model(provider: str, tier: str) -> str:
+    entry = _alias(provider, tier)
+    assert entry is not None, f"{provider} defines no {tier} alias"
+    return entry["model"] if isinstance(entry, dict) else entry
+
+
+def _alias_thinking(provider: str, tier: str) -> str | None:
+    entry = _alias(provider, tier)
+    return entry.get("thinking") if isinstance(entry, dict) else None
+
+
 def test_architect_resolves_frontier_per_provider(_load_real_config: None) -> None:
-    plan_claude = resolve_archetype_for_phase("PLAN", {}, provider="claude_code")
-    plan_codex = resolve_archetype_for_phase("PLAN", {}, provider="codex")
-    # gemini defines no frontier alias: graceful fallback to its premium model.
-    plan_gemini = resolve_archetype_for_phase("PLAN", {}, provider="gemini")
+    aliases = _raw()["model_aliases"]
 
-    assert plan_claude.archetype == "architect"
-    assert plan_claude.model == "fable"
-    assert plan_codex.model == "gpt-5.6-sol"
-    assert plan_gemini.model == "gemini-3.1-pro-preview"
+    for provider in aliases:
+        resolved = resolve_archetype_for_phase("PLAN", {}, provider=provider)
+        # Providers without a frontier alias gracefully fall back to premium.
+        tier = "frontier" if "frontier" in aliases[provider] else "premium"
+
+        assert resolved.archetype == "architect"
+        assert resolved.model == _alias_model(provider, tier)
+        assert resolved.thinking == _alias_thinking(provider, tier)
 
 
-def test_implement_does_not_resolve_to_frontier(_load_real_config: None) -> None:
-    resolved = resolve_archetype_for_phase("IMPLEMENT", {}, provider="claude_code")
+def test_implement_resolves_to_standard_not_frontier(_load_real_config: None) -> None:
+    for provider in _raw()["model_aliases"]:
+        resolved = resolve_archetype_for_phase("IMPLEMENT", {}, provider=provider)
 
-    assert resolved.archetype == "implementer"
-    assert resolved.model == "sonnet"
+        assert resolved.archetype == "implementer"
+        assert resolved.model == _alias_model(provider, "standard")

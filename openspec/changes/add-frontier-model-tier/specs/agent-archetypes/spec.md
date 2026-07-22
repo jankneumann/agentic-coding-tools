@@ -14,6 +14,17 @@ error only when the `premium` mapping is also absent.
 The provider model map contract SHALL live at `openspec/schemas/provider-model-map.schema.json`
 (`schema_version: 2`), and contract tests SHALL resolve it from that stable path.
 
+Tier entries SHALL be either a bare model-id string or an object pairing a model id with a
+thinking/reasoning level (`{model, thinking}`), because thinking level materially shifts both
+cost and capability — tiers are tuned for cost per successful task, not cost per token, and
+the same model id MAY serve two tiers at different thinking levels. Resolution SHALL surface
+the thinking level alongside the model id so dispatch adapters can translate it to
+vendor-specific flags.
+
+Tests SHALL derive expected models and thinking levels from the configured map
+(`archetypes.yaml` / the default map) rather than asserting model-id literals, so tier tuning
+does not invalidate tests.
+
 #### Scenario: Archetype requests frontier from a provider that defines it
 
 - **GIVEN** the `architect` archetype with `model: frontier`
@@ -32,3 +43,12 @@ The provider model map contract SHALL live at `openspec/schemas/provider-model-m
 - **WHEN** `archetypes.yaml` `model_aliases` is validated
 - **THEN** a provider entry without `frontier` SHALL validate
 - **AND** a provider entry missing any base tier SHALL fail validation
+
+#### Scenario: Tier entry pairs a model with a thinking level
+
+- **GIVEN** a provider whose `frontier` and `premium` tiers name the same model id at
+  different thinking levels
+- **WHEN** each tier resolves for that provider
+- **THEN** both SHALL resolve to that model id
+- **AND** the resolved thinking levels SHALL differ, distinguishing the tiers
+- **AND** a bare-string tier entry SHALL resolve with no thinking level

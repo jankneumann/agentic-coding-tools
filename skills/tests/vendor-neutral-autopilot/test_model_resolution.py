@@ -15,6 +15,7 @@ from src.agents_config import (
     resolve_archetype_for_phase,
     resolve_model,
     resolve_provider_model,
+    resolve_provider_model_spec,
 )
 
 
@@ -23,6 +24,23 @@ def _reset() -> None:
     reset_archetypes_config()
     yield
     reset_archetypes_config()
+
+
+# Tests derive expected models from the configured map — never from literals —
+# so tuning tier entries (model or thinking level) does not invalidate tests.
+
+def _entry(provider: str, tier: str) -> dict | str:
+    return DEFAULT_PROVIDER_MODEL_MAP["providers"][provider][tier]
+
+
+def _entry_model(provider: str, tier: str) -> str:
+    entry = _entry(provider, tier)
+    return entry["model"] if isinstance(entry, dict) else entry
+
+
+def _entry_thinking(provider: str, tier: str) -> str | None:
+    entry = _entry(provider, tier)
+    return entry.get("thinking") if isinstance(entry, dict) else None
 
 
 def test_default_provider_model_map_includes_first_class_providers() -> None:
@@ -38,20 +56,23 @@ def test_default_provider_model_map_includes_first_class_providers() -> None:
             "standard",
             "economy",
         }
-    assert DEFAULT_PROVIDER_MODEL_MAP["providers"]["claude_code"]["frontier"] == "fable"
-    assert DEFAULT_PROVIDER_MODEL_MAP["providers"]["codex"]["frontier"] == "gpt-5.6-sol"
+    # Structural expectations only — which providers carry a frontier slot.
+    assert "frontier" in DEFAULT_PROVIDER_MODEL_MAP["providers"]["claude_code"]
+    assert "frontier" in DEFAULT_PROVIDER_MODEL_MAP["providers"]["codex"]
     assert "frontier" not in DEFAULT_PROVIDER_MODEL_MAP["providers"]["gemini"]
 
 
 def test_frontier_tier_resolves_for_providers_that_define_it() -> None:
-    assert resolve_provider_model("frontier", provider="claude_code") == "fable"
-    assert resolve_provider_model("frontier", provider="codex") == "gpt-5.6-sol"
+    for provider in ("claude_code", "codex"):
+        assert resolve_provider_model("frontier", provider=provider) == _entry_model(
+            provider, "frontier"
+        )
 
 
 def test_frontier_tier_falls_back_to_premium_when_unmapped() -> None:
     model = resolve_provider_model("frontier", provider="gemini")
 
-    assert model == "gemini-3.1-pro-preview"
+    assert model == _entry_model("gemini", "premium")
 
 
 def test_frontier_fallback_raises_when_premium_also_missing() -> None:
@@ -61,24 +82,49 @@ def test_frontier_fallback_raises_when_premium_also_missing() -> None:
             "tiers": ["premium", "standard", "economy"],
             "providers": {
                 "codex": {
-                    "standard": "gpt-5.4",
-                    "economy": "gpt-5.4-mini",
+                    "standard": "some-standard-model",
+                    "economy": "some-economy-model",
                 },
             },
         })
 
 
+def test_spec_resolution_carries_thinking_level() -> None:
+    for provider, tier in (("codex", "frontier"), ("codex", "premium")):
+        spec = resolve_provider_model_spec(tier, provider=provider)
+
+        assert spec.model == _entry_model(provider, tier)
+        assert spec.thinking == _entry_thinking(provider, tier)
+
+
+def test_same_model_in_two_tiers_is_distinguished_by_thinking() -> None:
+    """Thinking level is part of the model definition (cost per successful
+    task): the same model id may serve two tiers at different thinking."""
+    frontier = resolve_provider_model_spec("frontier", provider="codex")
+    premium = resolve_provider_model_spec("premium", provider="codex")
+
+    if frontier.model == premium.model:
+        assert frontier.thinking != premium.thinking
+
+
+def test_string_tier_entries_have_no_thinking_level() -> None:
+    spec = resolve_provider_model_spec("standard", provider="claude_code")
+
+    assert spec.model == _entry_model("claude_code", "standard")
+    assert spec.thinking is None
+
+
 def test_legacy_claude_alias_resolves_to_codex_model() -> None:
     model = resolve_provider_model("opus", provider="codex")
 
-    assert model == "gpt-5.5"
+    assert model == _entry_model("codex", "premium")
     assert model not in {"opus", "sonnet", "haiku"}
 
 
 def test_legacy_claude_alias_resolves_to_latest_gemini_model() -> None:
     model = resolve_provider_model("sonnet", provider="gemini")
 
-    assert model == "gemini-3-flash-preview"
+    assert model == _entry_model("gemini", "standard")
     assert model not in {"opus", "sonnet", "haiku"}
 
 
@@ -89,8 +135,8 @@ def test_unknown_non_claude_mapping_raises_structured_error() -> None:
             "tiers": ["premium", "standard", "economy"],
             "providers": {
                 "codex": {
-                    "standard": "gpt-5.4",
-                    "economy": "gpt-5.4-mini",
+                    "standard": "some-standard-model",
+                    "economy": "some-economy-model",
                 },
             },
         })
@@ -124,7 +170,7 @@ def test_resolve_model_maps_escalated_tier_for_gemini_provider() -> None:
         return_reasons=True,
     )
 
-    assert model == "gemini-3.1-pro-preview"
+    assert model == _entry_model("gemini", "premium")
     assert any("loc_estimate" in reason for reason in reasons)
 
 
@@ -150,4 +196,5 @@ def test_resolve_archetype_for_phase_accepts_provider(tmp_path: Path) -> None:
     resolved = resolve_archetype_for_phase("PLAN", {}, provider="codex")
 
     assert resolved.archetype == "architect"
-    assert resolved.model == "gpt-5.5"
+    assert resolved.model == _entry_model("codex", "premium")
+    assert resolved.thinking == _entry_thinking("codex", "premium")

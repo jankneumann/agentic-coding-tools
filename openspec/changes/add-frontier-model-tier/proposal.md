@@ -21,8 +21,22 @@ vocabulary (each new vendor decides whether to define `frontier`) instead of ret
   provider; `frontier` MAY be omitted. Resolution falls back to that provider's `premium`
   model when `frontier` is unmapped — archetypes can request frontier-class reasoning without
   every provider carrying one.
-- **ADD** `frontier` aliases: `claude_code: fable`, `codex: gpt-5.6-sol`. `gemini` defines
-  none (fallback path; it is being retired by the in-flight harness change anyway).
+- **ADD** structured tier entries: a tier is either a bare model id or `{model, thinking}`.
+  Thinking level is part of the model definition — it shifts cost and capability enough that
+  the same model at different thinking levels can sit in different tiers (e.g. a standard
+  model at xhigh thinking out-costs a premium model at medium). Tiers optimize **cost per
+  successful task, not cost per token**; `ResolvedArchetype`/the resolve endpoint surface
+  `thinking` additively so dispatch adapters can translate it to vendor flags
+  (`model_reasoning_effort`, thinking budgets, …) — that translation is follow-up plumbing.
+- **ADD** `frontier` aliases and refresh the roster: `claude_code: fable`;
+  `codex: {gpt-5.6-sol, xhigh}` frontier / `{gpt-5.6-sol, medium}` premium /
+  `gpt-5.6-terra` standard / `gpt-5.6-luna` economy; gemini standard/economy →
+  `gemini-3.6-flash` / `gemini-3.6-flash-lite`. `gemini` defines no frontier (fallback path;
+  it is being retired by the in-flight harness change anyway). Exact strings are
+  operator-tunable YAML.
+- **REFACTOR** tests to derive expected models and thinking levels from the configured map
+  instead of asserting literals — tier tuning must never invalidate tests (this fixed one
+  more literal assertion in `test_audit_capability_gaps.py`).
 - **UPDATE** `architect` archetype `model: premium` → `model: frontier`. PLAN, PLAN_ITERATE,
   and PLAN_FIX now think at frontier tier; `implementer` stays `standard` with `premium`
   escalation, `reviewer`/`gatekeeper` stay `premium`. Frontier spend is planning-only.
