@@ -79,11 +79,16 @@ CLI_REVIEW_ENABLED=true
 if [[ "$ARGUMENTS" == *"--no-review"* ]]; then
   CLI_REVIEW_ENABLED=false
 fi
-# Also disable if no vendor CLIs are installed (non-interactive/cloud environment)
-python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py" --check-vendors
-if [[ $? -ne 0 ]]; then
+# Also disable if fewer than 2 vendors are dispatchable (non-interactive/cloud
+# environment). --check-vendors exits 0 at quorum, 2 below it.
+#
+# Run it BARE — do not pipe. A pipeline's $? is the LAST stage's status, so
+# `... --check-vendors | tail` would report tail's 0 even when the probe fails,
+# silently enabling review with no vendors behind it.
+if ! python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py" \
+     --check-vendors --min-vendors 2; then
   CLI_REVIEW_ENABLED=false
-  echo "[autopilot] No vendor CLIs detected — multi-vendor review disabled"
+  echo "[autopilot] Fewer than 2 vendor CLIs detected — multi-vendor review disabled"
 fi
 ```
 

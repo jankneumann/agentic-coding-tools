@@ -1526,6 +1526,62 @@ class ReviewOrchestrator:
 # CLI entry point
 # ---------------------------------------------------------------------------
 
+# Exit code for "fewer dispatchable vendors than the requested quorum". Distinct
+# from 1 (operational failure) so a caller can tell "below quorum" from "the
+# probe itself broke" — both are non-zero, so a caller that only checks
+# truthiness still degrades safely.
+CHECK_VENDORS_BELOW_QUORUM = 2
+
+
+def _check_vendors(
+    *,
+    agents_yaml: str | None = None,
+    exclude_vendor: str | None = None,
+    min_vendors: int = 2,
+    dispatch_mode: str = "review",
+) -> int:
+    """Report whether enough vendors are dispatchable for multi-vendor review.
+
+    Returns 0 when at least *min_vendors* reviewers are available, else
+    :data:`CHECK_VENDORS_BELOW_QUORUM`. Orchestrators use the exit status to
+    decide whether to enable CLI review — so this MUST fail closed: any error
+    resolving the roster reports "below quorum" rather than passing silently.
+    """
+    try:
+        if agents_yaml:
+            orch = ReviewOrchestrator.from_agents_yaml(Path(agents_yaml))
+        else:
+            orch = ReviewOrchestrator.from_coordinator()
+            if not orch.adapters:
+                orch = ReviewOrchestrator.from_agents_yaml()
+        reviewers = orch.discover_reviewers(
+            exclude_vendor=exclude_vendor,
+            dispatch_mode=dispatch_mode,
+        )
+    except Exception as exc:  # noqa: BLE001 — fail closed on any resolution error
+        print(
+            f"check-vendors: unable to resolve vendor roster ({exc})",
+            file=sys.stderr,
+        )
+        return CHECK_VENDORS_BELOW_QUORUM
+
+    names = sorted({r.vendor for r in reviewers})
+    # flush so the summary precedes the stderr diagnostic when both are captured
+    print(
+        f"check-vendors: {len(names)}/{min_vendors} available: "
+        f"{', '.join(names) or '(none)'}",
+        flush=True,
+    )
+    if len(names) < min_vendors:
+        print(
+            f"check-vendors: below quorum ({len(names)} < {min_vendors}) — "
+            f"multi-vendor review unavailable",
+            file=sys.stderr,
+        )
+        return CHECK_VENDORS_BELOW_QUORUM
+    return 0
+
+
 def main() -> int:
     """Dispatch reviews to vendor CLIs and collect results.
 
@@ -1545,6 +1601,21 @@ def main() -> int:
     parser.add_argument(
         "--list-agents", action="store_true",
         help="List available agents with CLI dispatch configs and exit",
+    )
+    parser.add_argument(
+        "--check-vendors", action="store_true",
+        help=(
+            "Exit 0 if at least --min-vendors reviewers are dispatchable, 2 "
+            "otherwise. For orchestrator CLI-mode detection; honors "
+            "--exclude-vendor."
+        ),
+    )
+    parser.add_argument(
+        "--min-vendors", type=int, default=2,
+        help=(
+            "Quorum required by --check-vendors (default: 2, the minimum for "
+            "multi-vendor convergence)"
+        ),
     )
     parser.add_argument(
         "--review-type",
@@ -1578,6 +1649,17 @@ def main() -> int:
         "--agents-yaml", help="Path to agents.yaml (default: auto-detect)",
     )
     args = parser.parse_args()
+
+    # --check-vendors: quorum probe for orchestrator CLI-mode detection.
+    # Exits 0 (quorum met) or 2 (below quorum / no config) so callers can
+    # branch on the exit status. Never dispatches; never writes.
+    if args.check_vendors:
+        return _check_vendors(
+            agents_yaml=args.agents_yaml,
+            exclude_vendor=args.exclude_vendor,
+            min_vendors=args.min_vendors,
+            dispatch_mode=args.mode,
+        )
 
     # --list-agents: show available agents and exit
     if args.list_agents:
