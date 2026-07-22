@@ -109,3 +109,27 @@ def test_validator_system_prompt_has_no_read_only_markers() -> None:
     ]
     hits = [phrase for phrase in forbidden if phrase in prompt]
     assert not hits, f"validator system_prompt contains read-only markers: {hits}"
+
+
+# ---------------------------------------------------------------------------
+# Frontier tier — planning archetypes think at frontier, implementer does not
+# ---------------------------------------------------------------------------
+
+
+def test_architect_resolves_frontier_per_provider(_load_real_config: None) -> None:
+    plan_claude = resolve_archetype_for_phase("PLAN", {}, provider="claude_code")
+    plan_codex = resolve_archetype_for_phase("PLAN", {}, provider="codex")
+    # gemini defines no frontier alias: graceful fallback to its premium model.
+    plan_gemini = resolve_archetype_for_phase("PLAN", {}, provider="gemini")
+
+    assert plan_claude.archetype == "architect"
+    assert plan_claude.model == "fable"
+    assert plan_codex.model == "gpt-5.6-sol"
+    assert plan_gemini.model == "gemini-3.1-pro-preview"
+
+
+def test_implement_does_not_resolve_to_frontier(_load_real_config: None) -> None:
+    resolved = resolve_archetype_for_phase("IMPLEMENT", {}, provider="claude_code")
+
+    assert resolved.archetype == "implementer"
+    assert resolved.model == "sonnet"

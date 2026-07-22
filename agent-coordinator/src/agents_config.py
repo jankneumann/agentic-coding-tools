@@ -24,21 +24,28 @@ logger = logging.getLogger(__name__)
 # aliases or logical tiers; dispatch resolves them against this map only when a
 # provider is selected.
 MODEL_TIERS: tuple[str, ...] = ("premium", "standard", "economy")
+# Optional tiers a provider MAY define. Resolution falls back to "premium"
+# when a provider has no mapping for an optional tier, so archetypes can
+# request frontier-class reasoning without every provider carrying one.
+OPTIONAL_MODEL_TIERS: tuple[str, ...] = ("frontier",)
+ALL_MODEL_TIERS: tuple[str, ...] = OPTIONAL_MODEL_TIERS + MODEL_TIERS
 LEGACY_CLAUDE_ALIAS_TO_TIER: dict[str, str] = {
     "opus": "premium",
     "sonnet": "standard",
     "haiku": "economy",
 }
 DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
-    "schema_version": 1,
-    "tiers": list(MODEL_TIERS),
+    "schema_version": 2,
+    "tiers": list(ALL_MODEL_TIERS),
     "providers": {
         "claude_code": {
+            "frontier": "fable",
             "premium": "opus",
             "standard": "sonnet",
             "economy": "haiku",
         },
         "codex": {
+            "frontier": "gpt-5.6-sol",
             "premium": "gpt-5.5",
             "standard": "gpt-5.4",
             "economy": "gpt-5.4-mini",
@@ -113,9 +120,12 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
             "type": ["object", "null"],
             "additionalProperties": {
                 "type": "object",
+                # Base tiers stay required; optional tiers (frontier) may be
+                # omitted per provider — resolution falls back to premium.
                 "required": list(MODEL_TIERS),
                 "additionalProperties": False,
                 "properties": {
+                    "frontier": {"type": "string", "minLength": 1},
                     "premium": {"type": "string", "minLength": 1},
                     "standard": {"type": "string", "minLength": 1},
                     "economy": {"type": "string", "minLength": 1},
@@ -136,7 +146,7 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
                     "model": {
                         "type": "string",
                         "enum": [
-                            "premium", "standard", "economy",
+                            "frontier", "premium", "standard", "economy",
                             "opus", "sonnet", "haiku",
                         ],
                     },
@@ -151,7 +161,7 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
                             "escalate_to": {
                                 "type": "string",
                                 "enum": [
-                                    "premium", "standard", "economy",
+                                    "frontier", "premium", "standard", "economy",
                                     "opus", "sonnet", "haiku",
                                 ],
                             },
@@ -1047,8 +1057,8 @@ def _normalize_provider_model_map(raw_map: dict[str, Any] | None) -> dict[str, A
     if "providers" in raw_map:
         return raw_map
     return {
-        "schema_version": 1,
-        "tiers": list(MODEL_TIERS),
+        "schema_version": 2,
+        "tiers": list(ALL_MODEL_TIERS),
         "providers": {
             provider: dict(mapping)
             for provider, mapping in raw_map.items()
@@ -1086,7 +1096,7 @@ def resolve_provider_model(
         raise ProviderModelMappingError(provider, model)
 
     tier: str | None
-    if model in MODEL_TIERS:
+    if model in ALL_MODEL_TIERS:
         tier = model
     else:
         tier = LEGACY_CLAUDE_ALIAS_TO_TIER.get(model)
@@ -1095,6 +1105,16 @@ def resolve_provider_model(
         candidate = provider_map.get(tier)
         if isinstance(candidate, str) and candidate:
             return candidate
+        if tier in OPTIONAL_MODEL_TIERS:
+            # Optional tiers degrade gracefully: a provider without a
+            # frontier model serves its premium model instead of failing.
+            fallback = provider_map.get("premium")
+            if isinstance(fallback, str) and fallback:
+                logger.info(
+                    "Provider %r has no %r mapping; falling back to premium (%s)",
+                    provider, tier, fallback,
+                )
+                return fallback
         raise ProviderModelMappingError(provider, model, tier)
 
     if model in provider_map.values():
