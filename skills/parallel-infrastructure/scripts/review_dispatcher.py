@@ -1547,6 +1547,13 @@ def main() -> int:
         help="List available agents with CLI dispatch configs and exit",
     )
     parser.add_argument(
+        "--check-vendors", action="store_true",
+        help=(
+            "Exit zero when at least one vendor can dispatch a review; "
+            "otherwise exit non-zero"
+        ),
+    )
+    parser.add_argument(
         "--review-type",
         choices=["plan", "implementation"],
     )
@@ -1578,6 +1585,22 @@ def main() -> int:
         "--agents-yaml", help="Path to agents.yaml (default: auto-detect)",
     )
     args = parser.parse_args()
+
+    # --check-vendors: quiet, script-friendly availability probe used by
+    # autopilot during INIT. Unlike --list-agents, the exit status reflects
+    # actual dispatchability rather than the presence of configured adapters.
+    if args.check_vendors:
+        if args.agents_yaml:
+            orch = ReviewOrchestrator.from_agents_yaml(Path(args.agents_yaml))
+        else:
+            orch = ReviewOrchestrator.from_coordinator()
+            if not orch.adapters and not orch.sdk_adapters:
+                orch = ReviewOrchestrator.from_agents_yaml()
+        reviewers = orch.discover_reviewers(dispatch_mode="review")
+        if any(reviewer.available for reviewer in reviewers):
+            return 0
+        print("No vendors available (no CLI or SDK dispatch)", file=sys.stderr)
+        return 1
 
     # --list-agents: show available agents and exit
     if args.list_agents:
@@ -1621,7 +1644,11 @@ def main() -> int:
         return 0
 
     if not args.review_type:
-        print("Error: --review-type required (or use --list-agents)", file=sys.stderr)
+        print(
+            "Error: --review-type required "
+            "(or use --list-agents/--check-vendors)",
+            file=sys.stderr,
+        )
         return 1
 
     # Load prompt

@@ -145,7 +145,9 @@ def _build_parser() -> argparse.ArgumentParser:
             "orchestrator is the sole writer of phase transitions. By default the "
             "command errors if --phase does not match loop-state's current_phase; "
             "pass --allow-phase-mismatch to apply anyway (current_phase is still "
-            "left untouched)."
+            "left untouched). GATEKEEPER outcomes likewise do not set gate_verdict "
+            "or val_review_enabled; after this command succeeds, the orchestrator "
+            "records those fields and transitions the phase."
         ),
     )
     ao.add_argument("--change-id", required=True)

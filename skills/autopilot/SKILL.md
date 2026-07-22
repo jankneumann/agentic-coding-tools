@@ -75,15 +75,14 @@ If `loop-state.json` exists and `current_phase == "ESCALATE"`:
 
 ```bash
 # CLI mode: vendor CLIs are available for multi-vendor review dispatch
-CLI_REVIEW_ENABLED=true
 if [[ "$ARGUMENTS" == *"--no-review"* ]]; then
   CLI_REVIEW_ENABLED=false
-fi
-# Also disable if no vendor CLIs are installed (non-interactive/cloud environment)
-python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py" --check-vendors
-if [[ $? -ne 0 ]]; then
+elif ! python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py" --check-vendors; then
+  # Also disable if no vendor CLI or SDK can dispatch reviews
   CLI_REVIEW_ENABLED=false
-  echo "[autopilot] No vendor CLIs detected — multi-vendor review disabled"
+  echo "[autopilot] No review vendors detected — multi-vendor review disabled"
+else
+  CLI_REVIEW_ENABLED=true
 fi
 ```
 
@@ -177,16 +176,31 @@ Dispatch protocol (3 steps — same provider-neutral path as other phases; read
      --outcome <outcome> --handoff-id <handoff_id>
    ```
 
+   Apply `apply-outcome` while `current_phase` is still `GATEKEEPER` and check
+   that it exits zero. The command records the handoff, history, and archetype;
+   it deliberately does not set `gate_verdict`, `val_review_enabled`, or
+   `current_phase`. Its phase-mismatch rejection is a sequencing guard, not a
+   transition mechanism.
+
 **Fallback (permissive)**: If `build-dispatch` returns `archetype: null` OR no
 dispatch adapter is available (headless CI, coordinator down), do NOT block —
 derive a permissive verdict from `state.gate_signals`: `proceed_with_review`
 when any risk signal (db migration, security, broad scope) is present,
 otherwise `proceed`. Record `phase_archetype = null` via `apply-outcome`.
 
-**If `proceed`**: transition to PLAN.
-**If `proceed_with_review`**: set `state.val_review_enabled = true`, transition to PLAN.
-**If `escalate`**: transition to ESCALATE (the change is judged unverifiable or
-too risky for autonomous execution; resolve and resume, or re-run with `--force`).
+Only after `apply-outcome` exits zero, the orchestrator records
+`state.gate_verdict = outcome` and performs the state transition:
+
+- **If `proceed`**: transition to PLAN.
+- **If `proceed_with_review`**: set `state.val_review_enabled = true`, then
+  transition to PLAN.
+- **If `escalate`**: transition to ESCALATE (the change is judged unverifiable
+  or too risky for autonomous execution; resolve and resume, or re-run with
+  `--force`).
+
+On a non-zero `apply-outcome` exit, do not apply the verdict or advance to
+PLAN; use `apply_outcome_or_escalate()` so the bookkeeping failure is retained
+and the loop parks in ESCALATE.
 
 ### 2. PLAN Phase
 

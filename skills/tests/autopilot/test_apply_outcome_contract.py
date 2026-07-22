@@ -78,6 +78,31 @@ def test_apply_outcome_match_updates_handoff_not_phase(chdir_tmp: Path) -> None:
     assert state["phase_history"][-1]["outcome"] == "complete"
 
 
+def test_gatekeeper_apply_outcome_does_not_apply_orchestrator_side_effects(
+    chdir_tmp: Path,
+) -> None:
+    state_path = _seed_state(
+        chdir_tmp,
+        "demo",
+        current_phase="GATEKEEPER",
+        gate_verdict=None,
+        val_review_enabled=False,
+    )
+
+    phase_agent.apply_phase_outcome(
+        change_id="demo",
+        phase="GATEKEEPER",
+        outcome="proceed_with_review",
+        handoff_id="h-gate",
+    )
+
+    state = json.loads(state_path.read_text())
+    assert state["phase_history"][-1]["outcome"] == "proceed_with_review"
+    assert state["gate_verdict"] is None
+    assert state["val_review_enabled"] is False
+    assert state["current_phase"] == "GATEKEEPER"
+
+
 # ---------------------------------------------------------------------------
 # 7.3 — mismatch errors out, mentions --allow-phase-mismatch, state untouched
 # ---------------------------------------------------------------------------
