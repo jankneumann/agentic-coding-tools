@@ -1,0 +1,95 @@
+schema_version: 1
+roadmap_id: roadmap-model-routing-platform
+source_proposal: openspec/roadmaps/model-routing-platform/proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+items:
+  - item_id: ri-01
+    title: Land the agy/grok/pi vendor roster
+    description: Maps to change add-agy-grok-pi-harnesses. Registers the agy, grok, and pi harnesses and removes gemini across agents.yaml, archetype model_aliases, DEFAULT_PROVIDER_MODEL_MAP, the ~13 hardcoded {claude,codex,gemini} allow-lists (including skills/autopilot-roadmap/scripts/orchestrator.py and policy.py), eval backends, collect-transcripts adapters, and the kanban VendorSwimlanes; pi is a CLI vendor routed to OpenRouter with default model qwen/qwen3-coder.
+    rationale: This is the roster foundation every downstream routing component reads from; landing it first fixes the canonical vendor set so no later change edits an allow-list or adapter against a stale {claude,codex,gemini} roster, which is the collision-free-sequencing goal of the epic.
+    status: candidate
+    priority: 1
+    effort: XL
+    depends_on: []
+    acceptance_outcomes:
+      - agents.yaml, archetype model_aliases, and DEFAULT_PROVIDER_MODEL_MAP list agy/grok/pi and no longer list gemini.
+      - All ~13 hardcoded {claude,codex,gemini} allow-lists (including orchestrator.py and policy.py) resolve to the new roster with zero remaining gemini references.
+      - pi dispatches as a CLI vendor through OpenRouter with default model qwen/qwen3-coder, and kanban VendorSwimlanes render the new roster.
+  - item_id: ri-02
+    title: Stand up the live vendor capability and cost registry
+    description: Maps to change add-live-vendor-capability-and-cost-registry. Adds a coordinator vendor_registry holding static capabilities from agents.yaml plus dynamic availability and rate-limit windows, plus a versioned real cost table that replaces the policy.py stub tiers; exposes GET /vendors and GET /vendors/{id}/availability, teaches coordination_bridge.py the same, and deletes the hardcoded vendor list in orchestrator.py.
+    rationale: This registry deletes the same orchestrator.py vendor list and replaces the same policy.py cost stub that the roster change (ri-01) edits, so it must merge after the roster to avoid a collision on shared edit sites; it becomes the single capability and cost source the routers read. PRICING OWNERSHIP (operator decision, review-driven) - ri-02 owns VENDOR-level availability, capability, and the coarse vendor cost facade; ri-04 owns MODEL-level pricing and MUST extend these tables rather than replace them. This resolves the verified conflict where ri-02 and ri-04 both claimed to replace the policy.py cost stub.
+    status: candidate
+    priority: 1
+    effort: L
+    depends_on: [ri-01]
+    acceptance_outcomes:
+      - GET /vendors returns the roster (agy, grok, pi, claude, codex) with capabilities and no gemini, sourced from the registry rather than any hardcoded list.
+      - Taking a vendor offline or hitting its rate limit is visible in the registry within one probe interval and changes routing output.
+      - evaluate_policy receives live availability and real cost deltas from the registry, and no hardcoded vendor list remains in orchestrator.py.
+      - The vendor cost table is declared the VENDOR-level pricing authority with a versioned schema that ri-04 extends for model-level pricing; exactly one pricing source of truth exists at each level.
+      - A migration/cutover seam exists - registry validation, deterministic fallback during rollout, and a CI check preventing reintroduction of hardcoded vendor or cost tables.
+  - item_id: ri-03
+    title: Implement the task router (vendor x location x model)
+    description: Maps to change implement-the-task-router-vendor-x-location-x-model. Adds POST /route/task and a bridge function as a superset of /archetypes/resolve_for_phase, taking a task routing profile and returning vendor, location, model, isolation, dispatch_mode, and rationale from deterministic rules versioned in routing.yaml, recording every decision as a routing audit event with a local static fallback table when the coordinator is down.
+    rationale: The task router reads vendor capabilities and costs from the registry, so it depends on ri-02; concentrating the three routing axes in one coordinator resolver keeps a single decision point, config file, and test surface for every harness. ROUTER COMPOSITION (operator decision, review-driven) - ri-03 owns the vendor x location x model decision point and the versioned route-decision contract; ri-04 EXTENDS it by refining the model axis. Review confirmed ri-03 and ri-04 currently contain zero cross-references, so this boundary must be explicit before either executes.
+    status: candidate
+    priority: 2
+    effort: L
+    depends_on: [ri-02]
+    acceptance_outcomes:
+      - Given a synthetic task profile, POST /route/task returns a deterministic, explainable decision covering vendor, location, model, isolation, and dispatch_mode.
+      - Editing routing.yaml changes decisions with no code edits.
+      - Every autopilot phase dispatch logs a routing record with rationale to the audit log, and a coordinator-down path resolves against the local static fallback table.
+      - A VERSIONED route-decision contract (task profile -> decision -> dispatch context, with schema version, IDs, fallback semantics, and audit correlation) is published as a named deliverable that ri-04 and ri-05 consume rather than reinvent.
+  - item_id: ri-04
+    title: Build the adaptive model router and spend controls
+    description: Maps to change add-adaptive-model-router. Adds tier-aware model/vendor selection (select_model_for_task / POST /routing/select_model), a coordinator-Postgres model catalog and feedback ledger, an OpenAI-compatible base_url dispatch adapter (openai_compat_adapter.py) for OpenRouter and local Ollama/vLLM under a monthly spend ceiling, and replaces the policy.py cost stub with real catalog pricing.
+    rationale: This change supersedes and absorbs cross-vendor-arbitrage-instrument (confirmed correct by all four reviewers) and currently also usage-stats-multi-model (3 of 4 reviewers flagged this second absorption as questionable - see OPEN QUESTION below); it reads the registry's capabilities and costs, so it depends on ri-02. ROUTER COMPOSITION (operator decision) - ri-04 EXTENDS ri-03's route-decision contract by refining the model axis; it does NOT create a competing decision point, hence depends_on ri-03. PRICING (operator decision) - ri-04 owns MODEL-level pricing and extends ri-02's vendor-level cost tables rather than replacing them. OPEN QUESTION - whether usage-stats-multi-model stays absorbed or is re-homed as a separate telemetry substrate item.
+    status: candidate
+    priority: 2
+    effort: XL
+    depends_on: [ri-02, ri-03]
+    acceptance_outcomes:
+      - select_model_for_task returns a benchmark-and-posterior-scored model choice, and autopilot/quick-task runs complete with no manual model picks.
+      - The openai_compat_adapter dispatches metered OpenRouter and local Ollama/vLLM traffic under an enforced monthly spend ceiling, with policy.py cost estimates read from real catalog pricing that EXTENDS ri-02's vendor-level cost tables (no second pricing source of truth).
+      - The absorbed usage/cost dashboard and signal ledger read the router's coordinator-Postgres ledger, and the two absorbed draft changes are archived with pointers to this change.
+  - item_id: ri-05
+    title: Make the orchestrator obey the router
+    description: Maps to change make-the-orchestrator-obey-the-router. Calls route/task before each dispatch_fn and passes the decision into the dispatch context as a contract, executes vendor-switch decisions with ledger-verified re-dispatch to the alternate vendor, adds a global iteration cap and no-progress detector, un-stubs _estimate_cost_delta/_estimate_wait_seconds against the registry, and turns the silent apply_phase_outcome no-op on a missing state file into an error.
+    rationale: This closes the decide-but-don't-act gap by executing routing decisions; it depends on the task router (ri-03) and the registry (ri-02) for cost/wait estimates, and on the structured result channel (ri-06) whose completion ledger is the required input for ledger-verified re-dispatch. ri-04 added as a dependency (3 of 4 reviewers) because the orchestrator must obey adaptive/spend decisions too - without this edge the DAG permitted ri-05 to land before ri-04, leaving adaptive routing with no consumer.
+    status: candidate
+    priority: 3
+    effort: M
+    depends_on: [ri-02, ri-03, ri-04, ri-06]
+    acceptance_outcomes:
+      - An induced rate-limit on the preferred vendor causes an observed, ledger-verified dispatch to the alternate vendor.
+      - Cost and latency deltas are persisted in checkpoint.json as the roadmap-orchestration spec specifies, with _estimate_cost_delta/_estimate_wait_seconds reading the registry.
+      - A stuck dispatch_fn trips the global iteration cap or no-progress detector, and a missing apply_phase_outcome state file raises an error instead of a silent no-op.
+  - item_id: ri-06
+    title: Build the structured vendor result channel
+    description: Maps to change build-structured-vendor-result-channel. Switches every CLI adapter to its vendor's structured JSON output mode with typed envelopes, replaces stdout-regex completion polling with a coordinator completion ledger (submit_work/complete_work as the single source of dispatch state), adds GET /locks?agent_id= plus bulk release to fix the cloud lock leak, and extends or documents SdkVendorAdapter coverage.
+    rationale: Structured results are the required input for the router, the orchestrator's ledger-verified switching, and the cloud lane; it rewrites the same CLI adapter edit sites the roster change touches, so it sequences after ri-01 to operate on the final vendor set collision-free. Depends on ri-01 ONLY - a reviewer claim that ri-06 also touches orchestrator.py/policy.py (and therefore needs ri-02) was checked against the change and found unsupported; file overlap alone is not a semantic dependency. Merging ri-06 after ri-02 remains optional hygiene, not a required edge.
+    status: candidate
+    priority: 1
+    effort: L
+    depends_on: [ri-01]
+    acceptance_outcomes:
+      - No task_id_pattern or success_pattern regex remains on the primary result path for any vendor, and every CLI adapter emits typed JSON envelopes.
+      - A VERSIONED structured-result schema (vendor, model identity, usage, cost, termination status, errors) is frozen and published as a named deliverable that ri-04, ri-05, and ri-07 consume.
+      - A vendor CLI output-format change degrades to a loud structured error rather than a silent hang.
+      - Killed cloud sessions release their locks via the new GET /locks?agent_id= list-and-bulk-release endpoints instead of waiting out the 120-minute TTL.
+  - item_id: ri-07
+    title: Add the coordinator LLM gateway data plane
+    description: Maps to change add-coordinator-llm-gateway. Adds a self-hosted LiteLLM proxy deployable (docker/llm-gateway/) fronting OpenRouter and local Ollama/vLLM, with a coordinator control surface for virtual-key issuance, inline budget enforcement, spend accounting into the router's ledger, and an /embeddings endpoint; gated by LLM_GATEWAY_ENABLED, off by default.
+    rationale: The gateway is the data-plane valve that enforces the router's decisions inline, drawing budgets from and returning spend to the add-adaptive-model-router policy engine and ledger, so it depends on ri-04; it turns the router's advisory spend ceiling into real-time enforcement for the meterable traffic slice.
+    status: candidate
+    priority: 3
+    effort: XL
+    depends_on: [ri-04]
+    acceptance_outcomes:
+      - issue_llm_key mints a short-lived LiteLLM virtual key scoped to a budget and model allowlist from bao-vault master keys, and revoke_llm_key/get_llm_budget/get_llm_spend operate against it.
+      - A proxied call is blocked inline when its virtual key's budget is exhausted, and the gateway spend callback flows back into the single add-adaptive-model-router ledger with no second spend system.
+      - The gateway /embeddings route serves a coordinator-issued key as a reachable embedder, and subscription-CLI dispatch stays on vendor auth as an explicit non-goal.
