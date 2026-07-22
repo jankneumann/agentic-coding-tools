@@ -50,6 +50,7 @@ packages:
     scope:
       write_allow:
         - "openspec/changes/add-agy-grok-pi-harnesses/contracts/**"
+        - "openspec/changes/add-agy-grok-pi-harnesses/scripts/**"
       read_allow:
         - "**"
     worktree:
@@ -117,9 +118,17 @@ packages:
     verification:
       tier_required: C
       steps:
-        - name: "Empirical findings table has no pending rows"
+        - name: "All three CLIs are on PATH before any fact is claimed"
           kind: command
-          command: "! grep -q '| pending |' openspec/changes/add-agy-grok-pi-harnesses/design.md"
+          command: "command -v agy && command -v grok && command -v pi"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["clis_on_path"]
+        - name: "Every empirical fact E1-E8 is confirmed or refuted with recorded evidence"
+          kind: command
+          command: "skills/.venv/bin/python openspec/changes/add-agy-grok-pi-harnesses/scripts/check_empirical_facts.py"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -184,7 +193,7 @@ packages:
       steps:
         - name: "Coordinator config tests pass and no gemini remains in registry files"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_agents_config_isolation.py agent-coordinator/tests/test_differential_policy.py -q && ! grep -ril gemini agent-coordinator/agents.yaml agent-coordinator/archetypes.yaml agent-coordinator/src/agents_config.py"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_agents_config_isolation.py agent-coordinator/tests/test_differential_policy.py -q && test -z \"$(git grep -lIi gemini -- agent-coordinator/agents.yaml agent-coordinator/archetypes.yaml agent-coordinator/src/agents_config.py)\""
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -258,7 +267,7 @@ packages:
       steps:
         - name: "Dispatch suites pass and no gemini remains in the dispatch surface"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/vendor-neutral-autopilot skills/tests/parallel-infrastructure skills/tests/autopilot skills/tests/autopilot-roadmap -q && ! grep -ril gemini skills/autopilot skills/autopilot-roadmap skills/parallel-infrastructure skills/quick-task skills/review-artifacts scripts/impl_review_driver.py scripts/impl_review_handoff.py"
+          command: "skills/.venv/bin/python -m pytest skills/tests/vendor-neutral-autopilot skills/tests/parallel-infrastructure skills/tests/autopilot skills/tests/autopilot-roadmap -q && test -z \"$(git grep -lIi gemini -- skills/autopilot skills/autopilot-roadmap skills/parallel-infrastructure skills/quick-task skills/review-artifacts scripts/impl_review_driver.py scripts/impl_review_handoff.py ':!*/SKILL.md')\""
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -311,7 +320,7 @@ packages:
       steps:
         - name: "Eval suite passes and gemini_jules is gone"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -k evaluation -q && test ! -f agent-coordinator/evaluation/backends/gemini_jules.py && ! grep -ril gemini agent-coordinator/evaluation"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -k evaluation -q && test ! -f agent-coordinator/evaluation/backends/gemini_jules.py && test -z \"$(git grep -lIi gemini -- agent-coordinator/evaluation)\""
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -363,7 +372,7 @@ packages:
       steps:
         - name: "Transcript suite passes and gemini adapter is gone"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/collect-transcripts/tests -q && test ! -f skills/collect-transcripts/scripts/adapters/gemini_cli.py && ! grep -ril gemini skills/collect-transcripts"
+          command: "skills/.venv/bin/python -m pytest skills/collect-transcripts/tests -q && test ! -f skills/collect-transcripts/scripts/adapters/gemini_cli.py && test -z \"$(git grep -lIi gemini -- skills/collect-transcripts ':!*/SKILL.md')\""
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -419,9 +428,9 @@ packages:
     verification:
       tier_required: B
       steps:
-        - name: "Kanban frontend and endpoint tests pass with the new roster"
+        - name: "Kanban frontend AND backend endpoint tests pass with the new roster"
           kind: command
-          command: "cd apps/kanban-viz && npm test -- --run"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_kanban_viz_endpoints.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py -q && (cd apps/kanban-viz && npm test -- --run)"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -452,7 +461,9 @@ packages:
     title: "Cleanup — delete .gemini/, gemini_wrapper.sh, and residual roster references"
     task_type: backend
     description: |
-      Delete the repo-root .gemini/ directory and gemini_wrapper.sh, drop
+      Remove the gemini make targets FIRST (mcp-setup depends on gemini-mcp-setup;
+      gemini-wrapper-install symlinks the wrapper), then delete the repo-root .gemini/
+      directory and gemini_wrapper.sh, drop
       `.gemini` from the three tech-debt-analysis skip-directory lists, and
       retarget residual references in fetch-vendor-skills.sh, langfuse
       install-mcp.sh, openspec/config.yaml, and packages/agent-scenarios/.
@@ -463,6 +474,7 @@ packages:
     locks:
       files:
         - ".gemini"
+        - "agent-coordinator/Makefile"
         - "agent-coordinator/scripts/gemini_wrapper.sh"
       keys:
         - "contract:gemini-runtime-dir"
@@ -471,6 +483,7 @@ packages:
     scope:
       write_allow:
         - ".gemini/**"
+        - "agent-coordinator/Makefile"
         - "agent-coordinator/scripts/gemini_wrapper.sh"
         - "skills/tech-debt-analysis/**"
         - "skills/fetch-vendor-skills.sh"
@@ -490,7 +503,7 @@ packages:
       steps:
         - name: "Retired artifacts are gone and agent-scenarios tests pass"
           kind: command
-          command: "test ! -d .gemini && test ! -f agent-coordinator/scripts/gemini_wrapper.sh && skills/.venv/bin/python -m pytest packages/agent-scenarios/tests -q"
+          command: "test ! -d .gemini && test ! -f agent-coordinator/scripts/gemini_wrapper.sh && make -n -C agent-coordinator mcp-setup >/dev/null && uv run --project packages/agent-scenarios pytest tests -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -533,7 +546,15 @@ packages:
         - "README.md"
         - "docs/**"
         - "agent-coordinator/CLAUDE.md"
+        - "agent-coordinator/README.md"
+        - "agent-coordinator/.secrets.yaml.example"
+        - "agent-coordinator/config.yaml.example"
+        - "skills/collect-transcripts/config.yaml.example"
         - "skills/*/SKILL.md"
+      deny:
+        - "docs/merge-logs/**"
+        - "docs/decisions/**"
+        - "docs/archive/**"
       read_allow:
         - "**"
     worktree:
@@ -547,7 +568,7 @@ packages:
       steps:
         - name: "OpenSpec validates and the grok citation is present"
           kind: command
-          command: "openspec validate --all --strict && grep -rq 'docs.x.ai/build/features/skills-plugins-marketplaces' docs/"
+          command: "openspec validate --all --strict && git grep -q 'docs.x.ai/build/features/skills-plugins-marketplaces' -- docs/ && test -z \"$(git grep -lIi gemini -- README.md agent-coordinator/README.md agent-coordinator/CLAUDE.md agent-coordinator/.secrets.yaml.example agent-coordinator/config.yaml.example skills/collect-transcripts/config.yaml.example skills/setup-coordinator/SKILL.md docs/agent-coordinator.md docs/skills-workflow.md docs/autopilot-provider-smoke.md docs/openbao-secret-management.md)\""
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -602,17 +623,18 @@ packages:
     verification:
       tier_required: A
       steps:
-        - name: "Scope inventory returns empty"
+        - name: "Roster migration complete: in-scope clean, carve-outs intact"
           kind: command
-          command: "test -z \"$(grep -rl 'gemini\\|Gemini\\|GEMINI' --include='*.py' --include='*.ts' --include='*.tsx' --include='*.yaml' --include='*.yml' --include='*.sh' --include='*.json' . | sed 's|^\\./||' | grep -vE '^(\\.claude|\\.agents|\\.codex|node_modules|openspec/changes|openspec/specs|openspec/roadmaps|docs/feature-discovery)/')\""
+          command: "skills/.venv/bin/python openspec/changes/add-agy-grok-pi-harnesses/scripts/check_roster_residue.py --base main"
           cwd: "."
           expect_exit_code: 0
           evidence:
-            artifacts: []
-            result_keys: ["zero_gemini_references"]
+            artifacts:
+              - "openspec/changes/add-agy-grok-pi-harnesses/scripts/in-scope.txt"
+            result_keys: ["zero_gemini_references", "carve_outs_intact"]
         - name: "Full test suite passes"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration' && skills/.venv/bin/python -m pytest skills/tests -q && cd apps/kanban-viz && npm test -- --run"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration' && skills/.venv/bin/python -m pytest skills/tests -q && uv run --project packages/agent-scenarios pytest tests -q && (cd apps/kanban-viz && npm test -- --run)"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -624,5 +646,5 @@ packages:
       package_kind: integration
     inputs: {}
     outputs:
-      result_keys: ["zero_gemini_references", "full_suite_green"]
+      result_keys: ["zero_gemini_references", "carve_outs_intact", "full_suite_green"]
       artifacts: []

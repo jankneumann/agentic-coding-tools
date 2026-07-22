@@ -1,0 +1,119 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The authoritative inventory command in design.md is not factual for this checkout. Run as written it returns 240 files because it scans agent-coordinator/.venv and skills/.venv; even after excluding those venvs it returns 69 extension-matched live files, not 68. It also misses live non-extension files such as agent-coordinator/Makefile. Fix the inventory and task 10.2 command to exclude venvs, include every live file type that can carry roster references, and recalculate the measured scope before dispatching packages.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/design.md",
+      "line_range": {
+        "start": 5,
+        "end": 14
+      }
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The plan deletes agent-coordinator/scripts/gemini_wrapper.sh but never assigns agent-coordinator/Makefile, which still defines gemini-mcp-setup and gemini-wrapper-install targets that invoke the retired gemini CLI and the wrapper being deleted. That leaves make mcp-setup and make hooks-setup broken and keeps Gemini user-facing. Add agent-coordinator/Makefile to tasks.md and to the relevant work package write_allow, either removing the Gemini targets or replacing them with supported-harness setup targets.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 471,
+        "end": 479
+      }
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Several live documentation/config/template files with Gemini references are outside every docs write scope and are invisible to the integration grep because it only scans selected code/config extensions. Examples include agent-coordinator/README.md, agent-coordinator/config.yaml.example, skills/collect-transcripts/config.yaml.example, skills/langfuse/references/mcp-setup.md, skills/langfuse/references/stop-hook.md, openspec/schemas/feature-workflow/templates/session-log.md, skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/session-log.md, and skills/plan-roadmap/templates/generation-prompt.md. Add explicit tasks/write_allow entries for these live surfaces or explicitly classify historical files that should remain unchanged, and expand the final residue scan accordingly.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 531,
+        "end": 537
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Phase 2 does not empirically verify all CLI assumptions that downstream packages consume. It checks agy model slugs, grok stdin, pi OPENROUTER_API_KEY passthrough, and re-login commands, but the plan also asserts agy --print/stdin/--mode plan behavior, grok --output-format json and --json-schema behavior plus the grok-4.5 default model, and pi trailing-positional prompt delivery/output shape. Add Phase 2 tasks for those facts and make registry/eval/transcript/dispatch tasks depend on them before hardcoding CLI args or backend parsers.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 37,
+        "end": 60
+      }
+    },
+    {
+      "id": 5,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: wp-empirical's verification can pass vacuously. The command only checks that the literal string '| pending |' is absent from design.md, so deleting the table or replacing pending with unknown/failed would pass without proving any CLI fact. Replace it with checks that each required fact row is present with a non-pending status and recorded evidence for agy model slugs, grok stdin, pi env passthrough, and re-login commands.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 117,
+        "end": 127
+      }
+    },
+    {
+      "id": 6,
+      "type": "behavioral_failure",
+      "criticality": "medium",
+      "description": "Critical: The wp-kanban verification step is named 'Kanban frontend and endpoint tests pass' but only runs npm test inside apps/kanban-viz. It does not run agent-coordinator/tests/test_kanban_viz_endpoints.py or skills/tests/agent-coordinator/test_kanban_viz_endpoints.py, even though task 7.3 edits those endpoint fixtures. Add those pytest commands to the work-package verification so backend/schema regressions cannot slip to integration.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 422,
+        "end": 425
+      }
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Critical: provider-model-map.schema.json closes the provider key set but does not require the full roster. providers has minProperties: 1 and propertyNames.enum, so a map containing only claude_code would validate even though the configuration spec says the default provider map SHALL include claude_code, codex, antigravity, grok, and pi. Add a providers.required list for all five canonical keys and update the contract verification with a positive full-roster fixture and a negative missing-provider fixture.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/contracts/provider-model-map.schema.json",
+      "line_range": {
+        "start": 23,
+        "end": 30
+      }
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: tasks.md omits apps/kanban-viz/src/lib/coordinator-types.ts from the kanban fixture list even though that file contains a Gemini reference in a public type comment. wp-kanban's broad apps/kanban-viz/** write_allow technically permits the edit, but the task list does not give the package explicit ownership, so this will likely be found only by the final residue scan. Add coordinator-types.ts to task 7.3 or to a residual-reference task.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 236,
+        "end": 244
+      }
+    }
+  ]
+}

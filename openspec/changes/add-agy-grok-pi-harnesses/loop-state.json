@@ -1,0 +1,230 @@
+{
+  "blocking_findings": [
+    {
+      "confirmed_by": [
+        "claude_code",
+        "codex"
+      ],
+      "criticality": "critical",
+      "id": "C1",
+      "summary": "scope-inventory command returns 240 under system grep (171 in .venv); task 10.2 gate unpassable outside the ugrep shim. git grep -lI gives the real answer: 69."
+    },
+    {
+      "confirmed_by": [
+        "claude_code",
+        "codex"
+      ],
+      "criticality": "high",
+      "id": "C2",
+      "summary": "agent-coordinator/Makefile unassigned; task 8.1 deletes gemini_wrapper.sh leaving gemini-wrapper-install and make mcp-setup broken."
+    },
+    {
+      "confirmed_by": [
+        "claude_code",
+        "codex"
+      ],
+      "criticality": "high",
+      "id": "C3",
+      "summary": "inventory --include omits *.md and extensionless files; 64 tracked files (53 md + Makefile etc) invisible to scope and to the terminal gate."
+    },
+    {
+      "confirmed_by": [
+        "claude_code",
+        "codex"
+      ],
+      "criticality": "high",
+      "id": "C4",
+      "summary": "Phase 2 does not verify grok model slugs, grok --json-schema, agy --print/--mode plan, or pi trailing-positional, yet Phase 3/5 consume all four."
+    },
+    {
+      "confirmed_by": [
+        "claude_code",
+        "codex"
+      ],
+      "criticality": "high",
+      "id": "C5",
+      "summary": "wp-empirical gate '! grep -q | pending |' passes vacuously; deleting the table satisfies it. No PATH precondition either."
+    },
+    {
+      "confirmed_by": [
+        "claude_code",
+        "codex"
+      ],
+      "criticality": "medium",
+      "id": "C6",
+      "summary": "wp-kanban verification runs only npm test; never exercises the two Python endpoint test files or the seeder it edits."
+    },
+    {
+      "confirmed_by": [
+        "claude_code",
+        "codex"
+      ],
+      "criticality": "medium",
+      "id": "C7",
+      "summary": "apps/kanban-viz/src/lib/coordinator-types.ts absent from task 7.3; verified as the one file the shim-based inventory missed."
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "high",
+      "id": "U1",
+      "summary": "skills/tests/vendor-neutral-autopilot points at archived change dir; 5 failed today on main. wp-dispatch gate unpassable.",
+      "verified_by_orchestrator": true
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "high",
+      "id": "U2",
+      "summary": "contract says schema_version 2; agents_config.py emits 1 and the fixture asserts 1. No task bumps either."
+    },
+    {
+      "confirmed_by": [
+        "codex"
+      ],
+      "criticality": "medium",
+      "id": "U3",
+      "summary": "provider-model-map schema closes the key set but does not require all five providers; a claude_code-only map validates."
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "high",
+      "id": "U4",
+      "summary": "wp-cleanup runs agent-scenarios via skills/.venv: 6 collection errors today. Gate unpassable.",
+      "verified_by_orchestrator": true
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "high",
+      "id": "U5",
+      "summary": "wp-integration runs pytest skills/tests: collection interrupted (fastapi.testclient missing). Gate unpassable.",
+      "verified_by_orchestrator": true
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "low",
+      "id": "U6",
+      "summary": "grep -ril without -I can match __pycache__ binaries; 0 today, latent after any test run."
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "medium",
+      "id": "U7",
+      "summary": "wp-dispatch grep gate sweeps skills/*/SKILL.md owned by wp-docs; package cannot pass without editing another's files."
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "medium",
+      "id": "U8",
+      "summary": ".secrets.yaml.example and config.yaml.example outside every write_allow; OPENROUTER_API_KEY never added despite proposal commitment."
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "medium",
+      "id": "U9",
+      "summary": "useCoordinator.ts/coordinator-types.ts gemini refs are review-provenance history; rewriting them falsifies the record."
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "low",
+      "id": "U10",
+      "summary": "task 4.1 Files list omits skills/parallel-infrastructure/tests/test_vendor_diversity.py."
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "low",
+      "id": "U11",
+      "summary": "design.md claims install.sh overwrites .codex/; it does not (install.sh:188-189)."
+    },
+    {
+      "confirmed_by": [
+        "claude_code"
+      ],
+      "criticality": "low",
+      "id": "U12",
+      "summary": "kanban spec delta retains 'vendor name and color' while D5 forbids a roster in the component; unsatisfiable as written."
+    }
+  ],
+  "change_id": "add-agy-grok-pi-harnesses",
+  "cli_review_enabled": true,
+  "current_phase": "PLAN_REVIEW",
+  "error": null,
+  "escalation_reason": null,
+  "findings_trend": [
+    26
+  ],
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 9,
+    "total_loc_estimate": 1520
+  },
+  "gate_verdict": "proceed_with_review",
+  "handoff_ids": [
+    "local-inline-gatekeeper",
+    "local-skipped-fresh-plan",
+    "local-round-1"
+  ],
+  "implementation_strategy": {},
+  "iteration": 0,
+  "last_handoff_id": "local-round-1",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "phase_archetype": null,
+  "phase_history": [
+    {
+      "at": "2026-07-22T13:12:41.879553+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-07-22T13:23:44.386794+00:00",
+      "note": "skipped by operator: plan was authored and human-approved at Gate 2 in this same session; self-review would re-apply axes already applied during authoring",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-07-22T13:54:12.305553+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    }
+  ],
+  "phase_started_at": "2026-07-22T13:11:30.154358+00:00",
+  "previous_phase": "PLAN_ITERATE",
+  "schema_version": 4,
+  "started_at": "2026-07-22T13:11:30.154358+00:00",
+  "total_iterations": 0,
+  "val_review_enabled": true,
+  "vendor_availability": {
+    "claude": true,
+    "codex": true,
+    "gemini": true
+  }
+}
