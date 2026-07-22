@@ -10,7 +10,6 @@ Design decisions: D1 (convergence via iterate-on-plan, not new skill).
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 

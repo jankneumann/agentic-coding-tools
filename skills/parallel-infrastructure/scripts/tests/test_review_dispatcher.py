@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from review_dispatcher import (
     CliConfig,
     CliVendorAdapter,
@@ -349,7 +348,6 @@ class TestOrchestrator:
         assert reviewers[0].vendor == "gemini"
 
     def test_write_manifest(self, tmp_path: Path) -> None:
-        from review_dispatcher import ReviewResult
         orch = ReviewOrchestrator({})
         results = [
             ReviewResult(vendor="codex", success=True, model_used="gpt-5.4",

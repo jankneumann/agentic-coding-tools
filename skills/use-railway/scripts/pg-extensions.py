@@ -23,7 +23,7 @@ import argparse
 import json
 import sys
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from dal import confirm_with_user, error, info, run_psql_query
 

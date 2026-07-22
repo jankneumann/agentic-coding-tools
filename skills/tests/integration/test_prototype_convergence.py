@@ -44,10 +44,6 @@ for sub in (
 
 from collect_outcomes import build_descriptor, write_findings_file
 from prototype_context import PrototypeContextMissing, load_prototype_context
-from variant_descriptor import (
-    VariantDescriptor,
-    synthesize_variants,
-)
 
 CHANGE_DIR_TEMPLATE = "openspec/changes/{change_id}"
 SCHEMA_DIR = REPO_ROOT / "openspec" / "changes" / "add-prototyping-stage" / "contracts" / "schemas"

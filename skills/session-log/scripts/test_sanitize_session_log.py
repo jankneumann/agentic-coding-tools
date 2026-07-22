@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from sanitize_session_log import (
     HIGH_ENTROPY_THRESHOLD,
     is_allowlisted,

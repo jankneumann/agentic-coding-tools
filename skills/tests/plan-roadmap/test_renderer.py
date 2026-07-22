@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from models import (
     DepEdge,
     DepEdgeSource,
@@ -11,7 +10,6 @@ from models import (
     Roadmap,
     RoadmapItem,
     RoadmapStatus,
-    Scope,
 )
 from renderer import (
     check_roadmap_sync,

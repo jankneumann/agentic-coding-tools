@@ -12,7 +12,7 @@ Source of truth: openspec/changes/add-adaptive-model-router/contracts/openapi/v1
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 

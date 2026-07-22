@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import ast
 import time
-from collections import deque
 from pathlib import Path
 
 from models import AnalyzerResult, TechDebtFinding

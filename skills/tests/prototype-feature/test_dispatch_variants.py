@@ -34,7 +34,6 @@ from dispatch_variants import (
     DEFAULT_ANGLES,
     MAX_VARIANTS,
     MIN_VARIANTS,
-    VariantPlan,
     VariantPlanError,
     plan_variants,
     resolve_vendor_assignment,

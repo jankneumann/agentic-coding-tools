@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Any
 
 import autopilot
-import pytest
 
 
 def _seed_state(repo_root: Path, **overrides: Any) -> autopilot.LoopState:

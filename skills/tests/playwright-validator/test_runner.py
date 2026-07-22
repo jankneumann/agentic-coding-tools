@@ -16,7 +16,6 @@ import pytest
 from auth_flow import MissingEnvVar
 from runner import (
     EXIT_CLI_MISSING,
-    PlaywrightFailure,
     PlaywrightRunResult,
     _enforce_local_bind,
     check_playwright_available,

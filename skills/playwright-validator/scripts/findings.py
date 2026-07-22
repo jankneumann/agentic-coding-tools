@@ -74,7 +74,7 @@ def _atomic_write_json(output_path, document):
             pass
         raise
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Sequence
 
 
 # ---------------------------------------------------------------------------

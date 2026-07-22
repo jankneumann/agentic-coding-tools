@@ -37,7 +37,6 @@ from _helpers import (
     parse_pr_numbers,
     run_gh,
     run_gh_unchecked,
-    safe_author,
 )
 
 # Use a longer timeout for merge operations which can be slow

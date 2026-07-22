@@ -1,0 +1,2702 @@
+# Fix Scrub Report
+
+## Fixes Applied
+
+- **Auto-fixes**: 229 verified (ruff --fix; 386 baseline errors reduced to 157)
+- **Agent-fixes**: 0 (6 proposed marker fixes were test-fixture false positives)
+- **Manual-only**: 2535 (reported, not fixed)
+
+The executor's raw resolved count was 280. Direct before/after Ruff comparison is
+authoritative here: line-number shifts caused its finding-ID matcher to overcount,
+and the source branch had already resolved one finding after the scrub report was
+generated. The 157 remaining Ruff findings have no safe automatic fix.
+
+## Files Reported Resolved by Orchestrator
+
+The list below is the orchestrator's finding-resolution list. The Git diff contains
+131 changed files.
+
+- `openspec/changes/add-adaptive-model-router/contracts/generated/models.py`
+- `scripts/ai_dora_snapshot.py`
+- `scripts/impl_review_driver.py`
+- `skills/agent-metrics/tests/test_agent_metrics.py`
+- `skills/autopilot/tests/test_convergence_escalation.py`
+- `skills/autopilot/tests/test_convergence_metrics.py`
+- `skills/bug-scrub/tests/test_aggregate.py`
+- `skills/bug-scrub/tests/test_collect_ci.py`
+- `skills/bug-scrub/tests/test_collect_deferred.py`
+- `skills/bug-scrub/tests/test_collect_reports.py`
+- `skills/bug-scrub/tests/test_parallel_runner.py`
+- `skills/changelog-version/scripts/changelog.py`
+- `skills/changelog-version/tests/test_changelog.py`
+- `skills/collect-transcripts/scripts/adapters/base.py`
+- `skills/collect-transcripts/scripts/adapters/claude_code_web.py`
+- `skills/collect-transcripts/scripts/adapters/codex_web.py`
+- `skills/collect-transcripts/scripts/adapters/gemini_cli.py`
+- `skills/collect-transcripts/scripts/normalize.py`
+- `skills/collect-transcripts/scripts/sanitize_events.py`
+- `skills/collect-transcripts/scripts/triage.py`
+- `skills/collect-transcripts/tests/test_adapter_base.py`
+- `skills/collect-transcripts/tests/test_claude_code_cli.py`
+- `skills/collect-transcripts/tests/test_claude_code_web.py`
+- `skills/collect-transcripts/tests/test_codex_cli.py`
+- `skills/collect-transcripts/tests/test_codex_web.py`
+- `skills/collect-transcripts/tests/test_deep_analyze.py`
+- `skills/collect-transcripts/tests/test_end_to_end.py`
+- `skills/collect-transcripts/tests/test_normalize.py`
+- `skills/collect-transcripts/tests/test_sanitize_events.py`
+- `skills/collect-transcripts/tests/test_triage.py`
+- `skills/expedite/scripts/tests/test_expedite.py`
+- `skills/explore-feature/tests/test_archive_index.py`
+- `skills/fix-scrub/scripts/classify.py`
+- `skills/fix-scrub/scripts/fix_models.py`
+- `skills/fix-scrub/scripts/main.py`
+- `skills/fix-scrub/scripts/render_fix_report.py`
+- `skills/fix-scrub/scripts/track_completions.py`
+- `skills/fix-scrub/tests/test_execute_auto.py`
+- `skills/fix-scrub/tests/test_parallel_verify.py`
+- `skills/fix-scrub/tests/test_plan_fixes.py`
+- `skills/fix-scrub/tests/test_track_completions.py`
+- `skills/improve-harness/scripts/analyze_failures.py`
+- `skills/improve-harness/scripts/generate_report.py`
+- `skills/improve-harness/tests/test_improve_harness.py`
+- `skills/improve-harness/tests/test_multi_source.py`
+- `skills/improve-harness/tests/test_transcript_source.py`
+- `skills/iterate-on-implementation/tests/test_rework_consumption.py`
+- `skills/merge-pull-requests/scripts/auto_rollback.py`
+- `skills/merge-pull-requests/scripts/merge_backend.py`
+- `skills/merge-pull-requests/scripts/merge_pr.py`
+- `skills/merge-pull-requests/scripts/post_merge_pipeline.py`
+- `skills/merge-pull-requests/scripts/tests/test_auto_rebase.py`
+- `skills/merge-pull-requests/scripts/tests/test_auto_rollback.py`
+- `skills/merge-pull-requests/scripts/tests/test_force_approval.py`
+- `skills/merge-pull-requests/scripts/tests/test_integration.py`
+- `skills/merge-pull-requests/scripts/tests/test_merge_backend.py`
+- `skills/merge-pull-requests/scripts/tests/test_merge_events.py`
+- `skills/merge-pull-requests/scripts/tests/test_merge_metrics.py`
+- `skills/merge-pull-requests/scripts/tests/test_merge_watcher.py`
+- `skills/merge-pull-requests/scripts/tests/test_post_merge_pipeline.py`
+- `skills/parallel-infrastructure/scripts/circuit_breaker.py`
+- `skills/parallel-infrastructure/scripts/tests/test_api_key_resolver.py`
+- `skills/parallel-infrastructure/scripts/tests/test_dag_scheduler.py`
+- `skills/parallel-infrastructure/scripts/tests/test_package_executor.py`
+- `skills/parallel-infrastructure/scripts/tests/test_result_validator.py`
+- `skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py`
+- `skills/parallel-infrastructure/scripts/tests/test_scope_checker.py`
+- `skills/parallel-infrastructure/scripts/variant_descriptor.py`
+- `skills/parallel-infrastructure/tests/test_vendor_diversity.py`
+- `skills/plan-roadmap/scripts/renderer.py`
+- `skills/playwright-validator/scripts/cli.py`
+- `skills/playwright-validator/scripts/findings.py`
+- `skills/playwright-validator/scripts/generator.py`
+- `skills/quick-task/tests/test_quick_task.py`
+- `skills/refresh-architecture/scripts/arch_utils/diagnostics.py`
+- `skills/refresh-architecture/scripts/arch_utils/graph_io.py`
+- `skills/refresh-architecture/scripts/diff_architecture.py`
+- `skills/refresh-architecture/scripts/insights/graph_builder.py`
+- `skills/refresh-architecture/scripts/parallel_zones.py`
+- `skills/refresh-architecture/scripts/rpc_server.py`
+- `skills/refresh-architecture/scripts/tests/test_affected_tests.py`
+- `skills/refresh-architecture/scripts/tests/test_analyze_sql_treesitter.py`
+- `skills/refresh-architecture/scripts/tests/test_enrich_with_treesitter.py`
+- `skills/refresh-architecture/scripts/tests/test_parallel_zones_packages.py`
+- `skills/session-bootstrap/scripts/calibrate_token_proxy.py`
+- `skills/session-log/scripts/test_extract_session_log.py`
+- `skills/session-log/scripts/test_sanitize_session_log.py`
+- `skills/session-log/tests/test_capability_gaps.py`
+- `skills/session-log/tests/test_memory_tag_conventions.py`
+- `skills/session-log/tests/test_sanitize_json_blob.py`
+- `skills/tech-debt-analysis/scripts/analyze_imports.py`
+- `skills/tech-debt-analysis/tests/test_analyze_complexity.py`
+- `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py`
+- `skills/tests/autopilot-roadmap/test_orchestrator.py`
+- `skills/tests/autopilot-roadmap/test_policy.py`
+- `skills/tests/autopilot/test_dispatch_prohibitions.py`
+- `skills/tests/autopilot/test_phase_transitions.py`
+- `skills/tests/cleanup-feature/test_sync_submodules.py`
+- `skills/tests/install_sh/test_references_rsync.py`
+- `skills/tests/integration/test_prototype_convergence.py`
+- `skills/tests/iterate-on-plan/test_prototype_context.py`
+- `skills/tests/iterate-on-plan/test_prototype_recommended.py`
+- `skills/tests/phase-record-compaction/test_phase_agent.py`
+- `skills/tests/plan-roadmap/test_decomposer.py`
+- `skills/tests/plan-roadmap/test_renderer.py`
+- `skills/tests/plan-roadmap/test_scaffolder.py`
+- `skills/tests/playwright-validator/test_findings.py`
+- `skills/tests/playwright-validator/test_generator.py`
+- `skills/tests/playwright-validator/test_parser.py`
+- `skills/tests/playwright-validator/test_runner.py`
+- `skills/tests/prototype-feature/test_dispatch_variants.py`
+- `skills/tests/prototype-feature/test_skill_invariants.py`
+- `skills/tests/roadmap-runtime/test_checkpoint.py`
+- `skills/tests/roadmap-runtime/test_context.py`
+- `skills/tests/roadmap-runtime/test_learning.py`
+- `skills/tests/roadmap-runtime/test_models.py`
+- `skills/tests/roadmap-runtime/test_sanitizer.py`
+- `skills/tests/validate-feature/test_gen_eval_mode_selection.py`
+- `skills/tests/worktree/test_setup_prototype.py`
+- `skills/use-railway/scripts/analyze-mongo.py`
+- `skills/use-railway/scripts/analyze-mysql.py`
+- `skills/use-railway/scripts/analyze-postgres.py`
+- `skills/use-railway/scripts/analyze-redis.py`
+- `skills/use-railway/scripts/dal.py`
+- `skills/use-railway/scripts/pg-extensions.py`
+- `skills/validate-feature/scripts/tests/test_gate_logic.py`
+- `skills/validate-feature/scripts/tests/test_holdout_gates.py`
+- `skills/validate-feature/scripts/tests/test_neon_branch.py`
+- `skills/validate-feature/scripts/tests/test_pg_dump_seed.py`
+- `skills/validate-feature/scripts/tests/test_phase_smoke.py`
+- `skills/validate-feature/scripts/tests/test_run_architecture_linters.py`
+- `skills/worktree/scripts/tests/test_worktree.py`
+
+## Quality Checks
+
+| Tool | Result |
+|------|--------|
+| skills pytest | pass — 837 passed |
+| script pytest | pass — 28 passed |
+| coordinator pytest | baseline — 2025 passed, 1 skipped, 3 pre-existing Docker-manager failures |
+| mypy | baseline command invalid for the monorepo root (`agent-coordinator` is not a valid package name) |
+| ruff | improved — 386 errors reduced to 157; remaining findings are not safely auto-fixable |
+| openspec | pass — 51 validated |
+
+The three coordinator failures reproduce on `openspec/bug-scrub-2026-07-22` and
+are unrelated to the files changed by this remediation.
+
+## Manual Action Items
+
+- [MEDIUM] FIXME: in b\n") (skills/bug-scrub/tests/test_collect_markers.py:135) — Insufficient context for automated fix
+- [MEDIUM] FIXME: broken") (skills/refresh-architecture/scripts/tests/test_enrich_with_treesitter.py:92) — Insufficient context for automated fix
+- [MEDIUM] [reachability] Entrypoint 'gen_eval_list_scenarios' has no downstream dependencies (coordination_api.py:2372) — Requires design decision or manual review
+- [MEDIUM] [reachability] Entrypoint 'get_sync_points_status' has no downstream dependencies (coordination_api.py:2695) — Requires design decision or manual review
+- [MEDIUM] [reachability] Entrypoint 'get_active_worktrees' has no downstream dependencies (coordination_api.py:2708) — Requires design decision or manual review
+- [MEDIUM] [reachability] Entrypoint 'live' has no downstream dependencies (coordination_api.py:3086) — Requires design decision or manual review
+- [MEDIUM] [reachability] Entrypoint 'get_gen_eval_coverage' has no downstream dependencies (coordination_mcp.py:2986) — Requires design decision or manual review
+- [MEDIUM] [reachability] Entrypoint 'get_gen_eval_report' has no downstream dependencies (coordination_mcp.py:3018) — Requires design decision or manual review
+- [MEDIUM] [reachability] Entrypoint 'coordinate_file_edit' has no downstream dependencies (coordination_mcp.py:3065) — Requires design decision or manual review
+- [MEDIUM] [reachability] Entrypoint 'start_work_session' has no downstream dependencies (coordination_mcp.py:3087) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'request_permission_endpoint' has no frontend callers (coordination_api.py:2521) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'check_policy' has no frontend callers (coordination_api.py:1363) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'request_approval_endpoint' has no frontend callers (coordination_api.py:2560) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_gen_eval_report' has no frontend callers (coordination_mcp.py:3018) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'search_issues' has no frontend callers (coordination_api.py:2479) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'remove_from_merge_queue_endpoint' has no frontend callers (coordination_api.py:1816) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_current_profile' has no frontend callers (coordination_mcp.py:2683) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'kick_agent' has no frontend callers (coordination_api.py:2892) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'ready' has no frontend callers (coordination_api.py:3091) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'list_pending_approvals' has no frontend callers (coordination_api.py:1492) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_recent_memories' has no frontend callers (coordination_mcp.py:2624) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'comment_issue' has no frontend callers (coordination_api.py:1129) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'create_issue' has no frontend callers (coordination_api.py:970) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'list_policy_versions_endpoint' has no frontend callers (coordination_api.py:1530) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'release_ports' has no frontend callers (coordination_api.py:1443) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'compose_train_endpoint' has no frontend callers (coordination_api.py:1839) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_my_profile' has no frontend callers (coordination_api.py:1197) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'stream_work_events' has no frontend callers (coordination_api.py:2753) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'port_status' has no frontend callers (coordination_api.py:1452) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'eject_from_train_endpoint' has no frontend callers (coordination_api.py:1893) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'query_memories' has no frontend callers (coordination_api.py:779) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'start_work_session' has no frontend callers (coordination_mcp.py:3087) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'help_overview' has no frontend callers (coordination_api.py:2658) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_next_merge_endpoint' has no frontend callers (coordination_api.py:1751) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'force_release_lock' has no frontend callers (coordination_api.py:2856) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'read_handoff' has no frontend callers (coordination_api.py:1329) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'resolve_archetype_for_phase_endpoint' has no frontend callers (coordination_api.py:2034) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'gen_eval_list_scenarios' has no frontend callers (coordination_api.py:2372) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_active_features_resource' has no frontend callers (coordination_mcp.py:2748) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'live' has no frontend callers (coordination_api.py:3086) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'report_spec_result_endpoint' has no frontend callers (coordination_api.py:1972) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'acquire_lock' has no frontend callers (coordination_api.py:656) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'enqueue_merge_endpoint' has no frontend callers (coordination_api.py:1695) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_train_status_endpoint' has no frontend callers (coordination_api.py:1942) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_current_locks' has no frontend callers (coordination_mcp.py:2525) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'write_handoff' has no frontend callers (coordination_api.py:1301) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_merge_queue_endpoint' has no frontend callers (coordination_api.py:1728) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'mint_events_token' has no frontend callers (coordination_api.py:2720) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_active_worktrees' has no frontend callers (coordination_api.py:2708) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_feature_endpoint' has no frontend callers (coordination_api.py:1623) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'blocked_issues_early' has no frontend callers (coordination_api.py:1031) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'show_issue' has no frontend callers (coordination_api.py:1048) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'affected_tests_endpoint' has no frontend callers (coordination_api.py:2011) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'report_status' has no frontend callers (coordination_api.py:2107) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'check_lock_status' has no frontend callers (coordination_api.py:722) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'run_pre_merge_checks_endpoint' has no frontend callers (coordination_api.py:1772) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'health' has no frontend callers (coordination_api.py:3103) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'discovery_heartbeat' has no frontend callers (coordination_api.py:2308) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_agent_dispatch_configs' has no frontend callers (coordination_api.py:1227) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'put_saved_view' has no frontend callers (coordination_api.py:3013) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'register_feature_endpoint' has no frontend callers (coordination_api.py:1562) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'analyze_feature_conflicts_endpoint' has no frontend callers (coordination_api.py:1671) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'release_lock' has no frontend callers (coordination_api.py:693) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'discovery_register' has no frontend callers (coordination_api.py:2243) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_sync_points_status' has no frontend callers (coordination_api.py:2695) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'store_memory' has no frontend callers (coordination_api.py:747) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'update_issue' has no frontend callers (coordination_api.py:1065) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'gen_eval_validate' has no frontend callers (coordination_api.py:2400) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'allocate_ports' has no frontend callers (coordination_api.py:1421) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_pending_work' has no frontend callers (coordination_mcp.py:2592) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'validate_cedar_policy' has no frontend callers (coordination_api.py:1390) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'deregister_feature_endpoint' has no frontend callers (coordination_api.py:1596) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'test_notification' has no frontend callers (coordination_api.py:2189) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'list_active_features_endpoint' has no frontend callers (coordination_api.py:1647) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_merge_queue_resource' has no frontend callers (coordination_mcp.py:2780) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_task_endpoint' has no frontend callers (coordination_api.py:923) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'patch_issue_labels' has no frontend callers (coordination_api.py:2804) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'submit_work' has no frontend callers (coordination_api.py:888) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'close_issue' has no frontend callers (coordination_api.py:1097) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'discovery_cleanup' has no frontend callers (coordination_api.py:2335) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_recent_handoffs' has no frontend callers (coordination_mcp.py:2551) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'gen_eval_run' has no frontend callers (coordination_api.py:2449) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'claim_work' has no frontend callers (coordination_api.py:822) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'list_issues' has no frontend callers (coordination_api.py:1004) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'notifications_status' has no frontend callers (coordination_api.py:2226) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'discovery_agents' has no frontend callers (coordination_api.py:2274) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'coordinate_file_edit' has no frontend callers (coordination_mcp.py:3065) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'check_guardrails' has no frontend callers (coordination_api.py:1151) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'ready_issues' has no frontend callers (coordination_api.py:2495) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_guardrail_patterns' has no frontend callers (coordination_mcp.py:2653) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'rollback_policy_endpoint' has no frontend callers (coordination_api.py:1543) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'post_kanban_audit' has no frontend callers (coordination_api.py:3050) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'help_topic' has no frontend callers (coordination_api.py:2668) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'check_approval_endpoint' has no frontend callers (coordination_api.py:2599) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_recent_audit' has no frontend callers (coordination_mcp.py:2719) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'query_audit' has no frontend callers (coordination_api.py:1241) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'get_gen_eval_coverage' has no frontend callers (coordination_mcp.py:2986) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'complete_work' has no frontend callers (coordination_api.py:856) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'decide_approval' has no frontend callers (coordination_api.py:1503) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'gen_eval_create' has no frontend callers (coordination_api.py:2424) — Requires design decision or manual review
+- [MEDIUM] [disconnected_flow] Backend route 'mark_merged_endpoint' has no frontend callers (coordination_api.py:1797) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PollConfig' has no corresponding test references (agents_config.py:322) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ModeConfig' has no corresponding test references (agents_config.py:340) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'CliConfig' has no corresponding test references (agents_config.py:349) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'SdkConfig' has no corresponding test references (agents_config.py:364) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AgentEntry' has no corresponding test references (agents_config.py:381) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'EscalationConfig' has no corresponding test references (agents_config.py:404) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ArchetypeConfig' has no corresponding test references (agents_config.py:418) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PhaseMappingEntry' has no corresponding test references (agents_config.py:432) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ResolvedArchetype' has no corresponding test references (agents_config.py:446) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ProviderModelMappingError' has no corresponding test references (agents_config.py:460) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ApprovalRequest' has no corresponding test references (approval.py:15) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ApprovalService' has no corresponding test references (approval.py:32) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AuditEntry' has no corresponding test references (audit.py:18) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AuditResult' has no corresponding test references (audit.py:56) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AuditService' has no corresponding test references (audit.py:72) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AuditTimer' has no corresponding test references (audit.py:179) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'SupabaseConfig' has no corresponding test references (config.py:50) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AgentConfig' has no corresponding test references (config.py:75) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'LockConfig' has no corresponding test references (config.py:99) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PostgresConfig' has no corresponding test references (config.py:113) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'DatabaseConfig' has no corresponding test references (config.py:130) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GuardrailsConfig' has no corresponding test references (config.py:145) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ProfilesConfig' has no corresponding test references (config.py:165) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AuditConfig' has no corresponding test references (config.py:189) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'NetworkPolicyConfig' has no corresponding test references (config.py:204) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PolicyEngineConfig' has no corresponding test references (config.py:217) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'OpenBaoConfig' has no corresponding test references (config.py:241) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ObservabilityConfig' has no corresponding test references (config.py:323) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'LangfuseConfig' has no corresponding test references (config.py:340) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PortAllocatorConfig' has no corresponding test references (config.py:374) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ApiConfig' has no corresponding test references (config.py:393) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ApprovalConfig' has no corresponding test references (config.py:448) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PolicySyncConfig' has no corresponding test references (config.py:471) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'RiskScoringConfig' has no corresponding test references (config.py:493) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'SessionGrantsConfig' has no corresponding test references (config.py:520) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'Config' has no corresponding test references (config.py:574) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'LockAcquireRequest' has no corresponding test references (coordination_api.py:31) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'LockReleaseRequest' has no corresponding test references (coordination_api.py:40) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MemoryStoreRequest' has no corresponding test references (coordination_api.py:45) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MemoryQueryRequest' has no corresponding test references (coordination_api.py:56) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'WorkClaimRequest' has no corresponding test references (coordination_api.py:63) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'WorkCompleteRequest' has no corresponding test references (coordination_api.py:69) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'WorkSubmitRequest' has no corresponding test references (coordination_api.py:77) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'WorkGetTaskRequest' has no corresponding test references (coordination_api.py:86) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'IssueCreateRequest' has no corresponding test references (coordination_api.py:90) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'IssueListRequest' has no corresponding test references (coordination_api.py:101) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'IssueUpdateRequest' has no corresponding test references (coordination_api.py:110) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'IssueCloseRequest' has no corresponding test references (coordination_api.py:121) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'IssueCommentRequest' has no corresponding test references (coordination_api.py:127) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GuardrailsCheckRequest' has no corresponding test references (coordination_api.py:132) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AuditQueryParams' has no corresponding test references (coordination_api.py:137) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'HandoffWriteRequest' has no corresponding test references (coordination_api.py:143) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'HandoffReadRequest' has no corresponding test references (coordination_api.py:155) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PolicyCheckRequest' has no corresponding test references (coordination_api.py:160) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PolicyValidateRequest' has no corresponding test references (coordination_api.py:168) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PortAllocateRequest' has no corresponding test references (coordination_api.py:172) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PortReleaseRequest' has no corresponding test references (coordination_api.py:176) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ApprovalDecisionRequest' has no corresponding test references (coordination_api.py:180) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PolicyRollbackRequest' has no corresponding test references (coordination_api.py:186) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'FeatureRegisterRequest' has no corresponding test references (coordination_api.py:190) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'FeatureDeregisterRequest' has no corresponding test references (coordination_api.py:200) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'FeatureConflictsRequest' has no corresponding test references (coordination_api.py:205) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'StatusReportRequest' has no corresponding test references (coordination_api.py:210) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ResolveForPhaseRequest' has no corresponding test references (coordination_api.py:233) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MergeQueueEnqueueRequest' has no corresponding test references (coordination_api.py:255) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'DiscoveryRegisterRequest' has no corresponding test references (coordination_api.py:260) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'DiscoveryHeartbeatRequest' has no corresponding test references (coordination_api.py:270) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'DiscoveryCleanupRequest' has no corresponding test references (coordination_api.py:276) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GenEvalValidateRequest' has no corresponding test references (coordination_api.py:282) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GenEvalCreateRequest' has no corresponding test references (coordination_api.py:286) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GenEvalRunRequest' has no corresponding test references (coordination_api.py:294) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'IssueSearchRequest' has no corresponding test references (coordination_api.py:300) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'IssueReadyRequest' has no corresponding test references (coordination_api.py:307) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PermissionRequestRequest' has no corresponding test references (coordination_api.py:314) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ApprovalSubmitRequest' has no corresponding test references (coordination_api.py:321) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MergeTrainEjectRequest' has no corresponding test references (coordination_api.py:330) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MergeTrainReportResultRequest' has no corresponding test references (coordination_api.py:335) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AffectedTestsRequest' has no corresponding test references (coordination_api.py:341) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'EventsAuthRequest' has no corresponding test references (coordination_api.py:347) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PatchLabelsRequest' has no corresponding test references (coordination_api.py:352) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'KickAgentRequest' has no corresponding test references (coordination_api.py:357) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'SavedViewRequest' has no corresponding test references (coordination_api.py:371) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'KanbanAuditRequest' has no corresponding test references (coordination_api.py:375) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'DatabaseClient' has no corresponding test references (db.py:25) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'SupabaseClient' has no corresponding test references (db.py:73) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'DirectPostgresClient' has no corresponding test references (db_postgres.py:78) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AgentInfo' has no corresponding test references (discovery.py:20) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'RegisterResult' has no corresponding test references (discovery.py:61) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'DiscoverResult' has no corresponding test references (discovery.py:76) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'HeartbeatResult' has no corresponding test references (discovery.py:88) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'CleanupResult' has no corresponding test references (discovery.py:105) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'DiscoveryService' has no corresponding test references (discovery.py:121) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'CoordinatorEvent' has no corresponding test references (event_bus.py:37) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'EventBusService' has no corresponding test references (event_bus.py:110) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'FlagsConfigError' has no corresponding test references (feature_flags.py:61) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'InvalidFlagNameError' has no corresponding test references (feature_flags.py:69) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'Flag' has no corresponding test references (feature_flags.py:79) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'FeatureFlagService' has no corresponding test references (feature_flags.py:153) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'Feasibility' has no corresponding test references (feature_registry.py:26) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'Feature' has no corresponding test references (feature_registry.py:35) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'RegisterResult' has no corresponding test references (feature_registry.py:75) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'DeregisterResult' has no corresponding test references (feature_registry.py:94) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ConflictReport' has no corresponding test references (feature_registry.py:113) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'FeatureRegistryService' has no corresponding test references (feature_registry.py:124) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'InvalidRefNameError' has no corresponding test references (git_adapter.py:51) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GitVersionError' has no corresponding test references (git_adapter.py:55) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MergeTreeResult' has no corresponding test references (git_adapter.py:65) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'FastForwardResult' has no corresponding test references (git_adapter.py:79) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ChangedFiles' has no corresponding test references (git_adapter.py:88) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GitAdapter' has no corresponding test references (git_adapter.py:102) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'SubprocessGitAdapter' has no corresponding test references (git_adapter.py:176) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'BranchInfo' has no corresponding test references (github_coordination.py:30) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'LabelLock' has no corresponding test references (github_coordination.py:61) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'WebhookSyncResult' has no corresponding test references (github_coordination.py:69) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GitHubCoordinationService' has no corresponding test references (github_coordination.py:89) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GuardrailPattern' has no corresponding test references (guardrails.py:140) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GuardrailViolation' has no corresponding test references (guardrails.py:161) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GuardrailResult' has no corresponding test references (guardrails.py:184) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GuardrailsService' has no corresponding test references (guardrails.py:203) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'HandoffDocument' has no corresponding test references (handoffs.py:22) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'WriteHandoffResult' has no corresponding test references (handoffs.py:59) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ReadHandoffResult' has no corresponding test references (handoffs.py:80) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'HandoffService' has no corresponding test references (handoffs.py:93) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'HelpTopic' has no corresponding test references (help_service.py:20) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'HttpProxyConfig' has no corresponding test references (http_proxy.py:92) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'Issue' has no corresponding test references (issue_service.py:47) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'Comment' has no corresponding test references (issue_service.py:154) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'IssueService' has no corresponding test references (issue_service.py:186) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'SchemaValidationError' has no corresponding test references (kanban_viz_files.py:107) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'LangfuseTracingMiddleware' has no corresponding test references (langfuse_middleware.py:29) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'Lock' has no corresponding test references (locks.py:89) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'LockResult' has no corresponding test references (locks.py:119) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'LockService' has no corresponding test references (locks.py:149) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'EpisodicMemory' has no corresponding test references (memory.py:20) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MemoryResult' has no corresponding test references (memory.py:56) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'RecallResult' has no corresponding test references (memory.py:75) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MemoryService' has no corresponding test references (memory.py:89) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MergeStatus' has no corresponding test references (merge_queue.py:37) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PreMergeCheckResult' has no corresponding test references (merge_queue.py:49) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MergeQueueEntry' has no corresponding test references (merge_queue.py:60) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MergeQueueService' has no corresponding test references (merge_queue.py:88) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'TrainAuthorizationError' has no corresponding test references (merge_train.py:69) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'TrainDeadlockError' has no corresponding test references (merge_train.py:77) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PartitionResult' has no corresponding test references (merge_train.py:92) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'EjectResult' has no corresponding test references (merge_train.py:622) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_MergeNode' has no corresponding test references (merge_train.py:851) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'WaveMergeResult' has no corresponding test references (merge_train.py:868) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'CrashRecoveryResult' has no corresponding test references (merge_train.py:1121) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MergeTrainService' has no corresponding test references (merge_train_service.py:115) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MergeTrainSweeper' has no corresponding test references (merge_train_service.py:419) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'MergeTrainStatus' has no corresponding test references (merge_train_types.py:58) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'TrainEntry' has no corresponding test references (merge_train_types.py:98) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'TrainPartition' has no corresponding test references (merge_train_types.py:151) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'CrossPartitionEntry' has no corresponding test references (merge_train_types.py:169) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'TrainComposition' has no corresponding test references (merge_train_types.py:183) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AccessDecision' has no corresponding test references (network_policies.py:15) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'NetworkPolicyService' has no corresponding test references (network_policies.py:33) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'NotificationChannel' has no corresponding test references (notifications/base.py:11) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GmailChannelFake' has no corresponding test references (notifications/base.py:29) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'GmailChannel' has no corresponding test references (notifications/gmail.py:46) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'NotifierService' has no corresponding test references (notifications/notifier.py:30) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'TelegramChannel' has no corresponding test references (notifications/telegram.py:20) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'WebhookChannel' has no corresponding test references (notifications/webhook.py:18) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PolicyDecision' has no corresponding test references (policy_engine.py:83) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ValidationResult' has no corresponding test references (policy_engine.py:101) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'NativePolicyEngine' has no corresponding test references (policy_engine.py:108) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'CedarPolicyEngine' has no corresponding test references (policy_engine.py:454) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PolicySyncService' has no corresponding test references (policy_sync.py:17) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PgListenNotifyPolicySyncService' has no corresponding test references (policy_sync.py:37) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PortAllocation' has no corresponding test references (port_allocator.py:24) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PortAllocatorService' has no corresponding test references (port_allocator.py:52) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AgentProfile' has no corresponding test references (profiles.py:20) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ProfileResult' has no corresponding test references (profiles.py:53) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'OperationCheck' has no corresponding test references (profiles.py:77) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ProfilesService' has no corresponding test references (profiles.py:91) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'RefreshClientUnavailable' has no corresponding test references (refresh_rpc_client.py:59) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_Runner' has no corresponding test references (refresh_rpc_client.py:78) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'RefreshRpcClient' has no corresponding test references (refresh_rpc_client.py:124) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'RiskScore' has no corresponding test references (risk_scorer.py:33) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'RiskScorer' has no corresponding test references (risk_scorer.py:41) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'PermissionGrant' has no corresponding test references (session_grants.py:14) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'SessionGrantService' has no corresponding test references (session_grants.py:27) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_TokenRedactionFilter' has no corresponding test references (sse_log_redaction.py:31) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'AgentDefinition' has no corresponding test references (teams.py:48) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'TeamsConfig' has no corresponding test references (teams.py:58) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_NoOpSpan' has no corresponding test references (telemetry.py:210) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'WatchdogService' has no corresponding test references (watchdog.py:31) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'Task' has no corresponding test references (work_queue.py:68) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ClaimResult' has no corresponding test references (work_queue.py:120) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'CompleteResult' has no corresponding test references (work_queue.py:157) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'SubmitResult' has no corresponding test references (work_queue.py:180) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'WorkQueueService' has no corresponding test references (work_queue.py:198) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (agents_config.py:463) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_default_agents_path' has no corresponding test references (agents_config.py:484) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_default_secrets_path' has no corresponding test references (agents_config.py:488) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'load_agents_config' has no corresponding test references (agents_config.py:492) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_parse_mode' has no corresponding test references (agents_config.py:545) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_resolve_api_key_from_openbao' has no corresponding test references (agents_config.py:618) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_api_key_identities' has no corresponding test references (agents_config.py:669) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_mcp_env' has no corresponding test references (agents_config.py:726) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_agents_config' has no corresponding test references (agents_config.py:764) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_agent_config' has no corresponding test references (agents_config.py:780) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_agents_config' has no corresponding test references (agents_config.py:788) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_dispatch_configs' has no corresponding test references (agents_config.py:798) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_agent_isolation' has no corresponding test references (agents_config.py:864) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_default_archetypes_path' has no corresponding test references (agents_config.py:880) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'load_archetypes_config' has no corresponding test references (agents_config.py:884) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_archetype' has no corresponding test references (agents_config.py:967) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_phase_mapping' has no corresponding test references (agents_config.py:981) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_archetypes_config' has no corresponding test references (agents_config.py:993) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_normalize_provider_model_map' has no corresponding test references (agents_config.py:1001) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_provider_model_map' has no corresponding test references (agents_config.py:1028) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'resolve_provider_model' has no corresponding test references (agents_config.py:1035) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'compose_prompt' has no corresponding test references (agents_config.py:1079) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_unique_dir_prefixes' has no corresponding test references (agents_config.py:1095) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'resolve_model' has no corresponding test references (agents_config.py:1114) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_finalize' has no corresponding test references (agents_config.py:1143) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'resolve_archetype_for_phase' has no corresponding test references (agents_config.py:1196) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (approval.py:35) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (approval.py:39) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'submit_request' has no corresponding test references (approval.py:44) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_request' has no corresponding test references (approval.py:89) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'decide_request' has no corresponding test references (approval.py:99) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'expire_stale_requests' has no corresponding test references (approval.py:137) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_pending' has no corresponding test references (approval.py:154) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_row_to_request' has no corresponding test references (approval.py:166) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_parse_dt' has no corresponding test references (approval.py:186) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_approval_service' has no corresponding test references (approval.py:199) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_approval_service' has no corresponding test references (approval.py:207) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (audit.py:34) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (audit.py:64) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (audit.py:75) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (audit.py:79) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'log_operation' has no corresponding test references (audit.py:84) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_insert_audit_entry' has no corresponding test references (audit.py:124) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'query' has no corresponding test references (audit.py:132) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'timed' has no corresponding test references (audit.py:174) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (audit.py:182) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__aenter__' has no corresponding test references (audit.py:187) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__aexit__' has no corresponding test references (audit.py:191) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_audit_service' has no corresponding test references (audit.py:210) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:58) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:83) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:106) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:121) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:137) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:152) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:173) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:196) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:210) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:226) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:263) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_enabled' has no corresponding test references (config.py:274) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_client' has no corresponding test references (config.py:278) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:331) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:360) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:383) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:405) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_default_workdir_root' has no corresponding test references (config.py:537) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'resolve_workdir_path' has no corresponding test references (config.py:552) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (config.py:610) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_config' has no corresponding test references (config.py:665) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_config' has no corresponding test references (config.py:673) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'verify_api_key' has no corresponding test references (coordination_api.py:385) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'resolve_identity' has no corresponding test references (coordination_api.py:423) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'authorize_operation' has no corresponding test references (coordination_api.py:453) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'resolve_trust_level' has no corresponding test references (coordination_api.py:474) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_coordination_api' has no corresponding test references (coordination_api.py:495) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'lifespan' has no corresponding test references (coordination_api.py:517) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'acquire_lock' has no corresponding test references (coordination_api.py:656) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'release_lock' has no corresponding test references (coordination_api.py:693) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_lock_status' has no corresponding test references (coordination_api.py:722) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'store_memory' has no corresponding test references (coordination_api.py:747) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'query_memories' has no corresponding test references (coordination_api.py:779) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'claim_work' has no corresponding test references (coordination_api.py:822) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'complete_work' has no corresponding test references (coordination_api.py:856) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'submit_work' has no corresponding test references (coordination_api.py:888) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_task_endpoint' has no corresponding test references (coordination_api.py:923) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_issue' has no corresponding test references (coordination_api.py:970) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_issues' has no corresponding test references (coordination_api.py:1004) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'blocked_issues_early' has no corresponding test references (coordination_api.py:1031) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'show_issue' has no corresponding test references (coordination_api.py:1048) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'update_issue' has no corresponding test references (coordination_api.py:1065) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'close_issue' has no corresponding test references (coordination_api.py:1097) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'comment_issue' has no corresponding test references (coordination_api.py:1129) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_guardrails' has no corresponding test references (coordination_api.py:1151) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_my_profile' has no corresponding test references (coordination_api.py:1197) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_agent_dispatch_configs' has no corresponding test references (coordination_api.py:1227) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'query_audit' has no corresponding test references (coordination_api.py:1241) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'write_handoff' has no corresponding test references (coordination_api.py:1301) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'read_handoff' has no corresponding test references (coordination_api.py:1329) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_policy' has no corresponding test references (coordination_api.py:1363) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate_cedar_policy' has no corresponding test references (coordination_api.py:1390) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'allocate_ports' has no corresponding test references (coordination_api.py:1421) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'release_ports' has no corresponding test references (coordination_api.py:1443) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'port_status' has no corresponding test references (coordination_api.py:1452) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_approval_to_dict' has no corresponding test references (coordination_api.py:1474) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_pending_approvals' has no corresponding test references (coordination_api.py:1492) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'decide_approval' has no corresponding test references (coordination_api.py:1503) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_policy_versions_endpoint' has no corresponding test references (coordination_api.py:1530) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'rollback_policy_endpoint' has no corresponding test references (coordination_api.py:1543) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'register_feature_endpoint' has no corresponding test references (coordination_api.py:1562) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'deregister_feature_endpoint' has no corresponding test references (coordination_api.py:1596) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_feature_endpoint' has no corresponding test references (coordination_api.py:1623) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_active_features_endpoint' has no corresponding test references (coordination_api.py:1647) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'analyze_feature_conflicts_endpoint' has no corresponding test references (coordination_api.py:1671) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'enqueue_merge_endpoint' has no corresponding test references (coordination_api.py:1695) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_merge_queue_endpoint' has no corresponding test references (coordination_api.py:1728) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_next_merge_endpoint' has no corresponding test references (coordination_api.py:1751) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'run_pre_merge_checks_endpoint' has no corresponding test references (coordination_api.py:1772) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'mark_merged_endpoint' has no corresponding test references (coordination_api.py:1797) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'remove_from_merge_queue_endpoint' has no corresponding test references (coordination_api.py:1816) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'compose_train_endpoint' has no corresponding test references (coordination_api.py:1839) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'eject_from_train_endpoint' has no corresponding test references (coordination_api.py:1893) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_train_status_endpoint' has no corresponding test references (coordination_api.py:1942) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'report_spec_result_endpoint' has no corresponding test references (coordination_api.py:1972) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'affected_tests_endpoint' has no corresponding test references (coordination_api.py:2011) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'resolve_archetype_for_phase_endpoint' has no corresponding test references (coordination_api.py:2034) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'report_status' has no corresponding test references (coordination_api.py:2107) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'test_notification' has no corresponding test references (coordination_api.py:2189) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'notifications_status' has no corresponding test references (coordination_api.py:2226) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'discovery_register' has no corresponding test references (coordination_api.py:2243) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'discovery_agents' has no corresponding test references (coordination_api.py:2274) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'discovery_heartbeat' has no corresponding test references (coordination_api.py:2308) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'discovery_cleanup' has no corresponding test references (coordination_api.py:2335) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'gen_eval_list_scenarios' has no corresponding test references (coordination_api.py:2372) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'gen_eval_validate' has no corresponding test references (coordination_api.py:2400) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'gen_eval_create' has no corresponding test references (coordination_api.py:2424) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'gen_eval_run' has no corresponding test references (coordination_api.py:2449) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'search_issues' has no corresponding test references (coordination_api.py:2479) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ready_issues' has no corresponding test references (coordination_api.py:2495) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'request_permission_endpoint' has no corresponding test references (coordination_api.py:2521) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'request_approval_endpoint' has no corresponding test references (coordination_api.py:2560) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_approval_endpoint' has no corresponding test references (coordination_api.py:2599) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_database_health' has no corresponding test references (coordination_api.py:2630) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'help_overview' has no corresponding test references (coordination_api.py:2658) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'help_topic' has no corresponding test references (coordination_api.py:2668) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_sync_points_status' has no corresponding test references (coordination_api.py:2695) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_active_worktrees' has no corresponding test references (coordination_api.py:2708) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'mint_events_token' has no corresponding test references (coordination_api.py:2720) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'stream_work_events' has no corresponding test references (coordination_api.py:2753) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'patch_issue_labels' has no corresponding test references (coordination_api.py:2804) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'force_release_lock' has no corresponding test references (coordination_api.py:2856) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'kick_agent' has no corresponding test references (coordination_api.py:2892) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'put_saved_view' has no corresponding test references (coordination_api.py:3013) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'post_kanban_audit' has no corresponding test references (coordination_api.py:3050) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'live' has no corresponding test references (coordination_api.py:3086) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ready' has no corresponding test references (coordination_api.py:3091) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'health' has no corresponding test references (coordination_api.py:3103) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'main' has no corresponding test references (coordination_api.py:3117) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_run' has no corresponding test references (coordination_cli.py:22) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_output' has no corresponding test references (coordination_cli.py:27) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_print_dict' has no corresponding test references (coordination_cli.py:46) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_error' has no corresponding test references (coordination_cli.py:70) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_health' has no corresponding test references (coordination_cli.py:81) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_feature_register' has no corresponding test references (coordination_cli.py:108) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_feature_deregister' has no corresponding test references (coordination_cli.py:131) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_feature_show' has no corresponding test references (coordination_cli.py:148) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_feature_list' has no corresponding test references (coordination_cli.py:169) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_feature_conflicts' has no corresponding test references (coordination_cli.py:189) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_mq_enqueue' has no corresponding test references (coordination_cli.py:210) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_mq_status' has no corresponding test references (coordination_cli.py:229) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_mq_next' has no corresponding test references (coordination_cli.py:248) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_mq_check' has no corresponding test references (coordination_cli.py:265) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_mq_merged' has no corresponding test references (coordination_cli.py:280) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_mq_remove' has no corresponding test references (coordination_cli.py:289) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_lock_acquire' has no corresponding test references (coordination_cli.py:301) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_lock_release' has no corresponding test references (coordination_cli.py:322) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_lock_status' has no corresponding test references (coordination_cli.py:338) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_work_submit' has no corresponding test references (coordination_cli.py:361) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_work_claim' has no corresponding test references (coordination_cli.py:378) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_work_complete' has no corresponding test references (coordination_cli.py:398) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_work_get' has no corresponding test references (coordination_cli.py:418) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_handoff_write' has no corresponding test references (coordination_cli.py:441) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_handoff_read' has no corresponding test references (coordination_cli.py:457) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_memory_store' has no corresponding test references (coordination_cli.py:481) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_memory_query' has no corresponding test references (coordination_cli.py:499) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_guardrails_check' has no corresponding test references (coordination_cli.py:524) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_audit_query' has no corresponding test references (coordination_cli.py:545) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cmd_help' has no corresponding test references (coordination_cli.py:571) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'build_parser' has no corresponding test references (coordination_cli.py:648) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'main' has no corresponding test references (coordination_cli.py:834) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_agent_id' has no corresponding test references (coordination_mcp.py:67) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_agent_type' has no corresponding test references (coordination_mcp.py:72) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'acquire_lock' has no corresponding test references (coordination_mcp.py:83) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'release_lock' has no corresponding test references (coordination_mcp.py:137) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_locks' has no corresponding test references (coordination_mcp.py:165) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_work' has no corresponding test references (coordination_mcp.py:201) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'complete_work' has no corresponding test references (coordination_mcp.py:244) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'submit_work' has no corresponding test references (coordination_mcp.py:292) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_task' has no corresponding test references (coordination_mcp.py:357) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'issue_create' has no corresponding test references (coordination_mcp.py:413) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'issue_list' has no corresponding test references (coordination_mcp.py:491) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'issue_show' has no corresponding test references (coordination_mcp.py:548) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'issue_update' has no corresponding test references (coordination_mcp.py:575) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'issue_close' has no corresponding test references (coordination_mcp.py:643) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'issue_comment' has no corresponding test references (coordination_mcp.py:696) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'issue_ready' has no corresponding test references (coordination_mcp.py:731) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'issue_blocked' has no corresponding test references (coordination_mcp.py:773) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'issue_search' has no corresponding test references (coordination_mcp.py:801) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'write_handoff' has no corresponding test references (coordination_mcp.py:844) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'read_handoff' has no corresponding test references (coordination_mcp.py:907) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'register_session' has no corresponding test references (coordination_mcp.py:972) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'discover_agents' has no corresponding test references (coordination_mcp.py:1018) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'heartbeat' has no corresponding test references (coordination_mcp.py:1071) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cleanup_dead_agents' has no corresponding test references (coordination_mcp.py:1095) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'remember' has no corresponding test references (coordination_mcp.py:1134) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'recall' has no corresponding test references (coordination_mcp.py:1189) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_guardrails' has no corresponding test references (coordination_mcp.py:1249) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_my_profile' has no corresponding test references (coordination_mcp.py:1320) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_agent_dispatch_configs' has no corresponding test references (coordination_mcp.py:1357) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'query_audit' has no corresponding test references (coordination_mcp.py:1381) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_policy' has no corresponding test references (coordination_mcp.py:1436) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate_cedar_policy' has no corresponding test references (coordination_mcp.py:1483) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'allocate_ports' has no corresponding test references (coordination_mcp.py:1527) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'release_ports' has no corresponding test references (coordination_mcp.py:1576) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ports_status' has no corresponding test references (coordination_mcp.py:1603) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'request_approval' has no corresponding test references (coordination_mcp.py:1648) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_approval' has no corresponding test references (coordination_mcp.py:1680) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_policy_versions' has no corresponding test references (coordination_mcp.py:1706) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'request_permission' has no corresponding test references (coordination_mcp.py:1726) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'register_feature' has no corresponding test references (coordination_mcp.py:1759) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'deregister_feature' has no corresponding test references (coordination_mcp.py:1815) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_feature' has no corresponding test references (coordination_mcp.py:1850) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_active_features' has no corresponding test references (coordination_mcp.py:1884) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'analyze_feature_conflicts' has no corresponding test references (coordination_mcp.py:1914) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'enqueue_merge' has no corresponding test references (coordination_mcp.py:1955) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_merge_queue' has no corresponding test references (coordination_mcp.py:1996) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_next_merge' has no corresponding test references (coordination_mcp.py:2025) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'run_pre_merge_checks' has no corresponding test references (coordination_mcp.py:2054) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'mark_merged' has no corresponding test references (coordination_mcp.py:2084) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'remove_from_merge_queue' has no corresponding test references (coordination_mcp.py:2106) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_current_trust_level' has no corresponding test references (coordination_mcp.py:2131) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'compose_train' has no corresponding test references (coordination_mcp.py:2146) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'eject_from_train' has no corresponding test references (coordination_mcp.py:2205) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_train_status' has no corresponding test references (coordination_mcp.py:2263) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'report_spec_result' has no corresponding test references (coordination_mcp.py:2296) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'affected_tests' has no corresponding test references (coordination_mcp.py:2339) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'report_status' has no corresponding test references (coordination_mcp.py:2377) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'help' has no corresponding test references (coordination_mcp.py:2478) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_current_locks' has no corresponding test references (coordination_mcp.py:2525) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_recent_handoffs' has no corresponding test references (coordination_mcp.py:2551) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_pending_work' has no corresponding test references (coordination_mcp.py:2592) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_recent_memories' has no corresponding test references (coordination_mcp.py:2624) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_guardrail_patterns' has no corresponding test references (coordination_mcp.py:2653) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_current_profile' has no corresponding test references (coordination_mcp.py:2683) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_recent_audit' has no corresponding test references (coordination_mcp.py:2719) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_active_features_resource' has no corresponding test references (coordination_mcp.py:2748) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_merge_queue_resource' has no corresponding test references (coordination_mcp.py:2780) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_scenarios' has no corresponding test references (coordination_mcp.py:2810) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate_scenario' has no corresponding test references (coordination_mcp.py:2854) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_scenario' has no corresponding test references (coordination_mcp.py:2889) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'run_gen_eval' has no corresponding test references (coordination_mcp.py:2940) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_gen_eval_coverage' has no corresponding test references (coordination_mcp.py:2986) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_gen_eval_report' has no corresponding test references (coordination_mcp.py:3018) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'coordinate_file_edit' has no corresponding test references (coordination_mcp.py:3065) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'start_work_session' has no corresponding test references (coordination_mcp.py:3087) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'main' has no corresponding test references (coordination_mcp.py:3109) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'rpc' has no corresponding test references (db.py:32) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'query' has no corresponding test references (db.py:36) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'insert' has no corresponding test references (db.py:45) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'update' has no corresponding test references (db.py:54) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'delete' has no corresponding test references (db.py:64) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'close' has no corresponding test references (db.py:68) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (db.py:80) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'config' has no corresponding test references (db.py:85) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'client' has no corresponding test references (db.py:96) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_headers' has no corresponding test references (db.py:101) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'rpc' has no corresponding test references (db.py:109) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'query' has no corresponding test references (db.py:130) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'insert' has no corresponding test references (db.py:154) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'update' has no corresponding test references (db.py:184) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'delete' has no corresponding test references (db.py:217) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'close' has no corresponding test references (db.py:237) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_db_client' has no corresponding test references (db.py:244) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_db' has no corresponding test references (db.py:271) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'close_db' has no corresponding test references (db.py:279) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_db' has no corresponding test references (db.py:287) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_coerce_filter_value' has no corresponding test references (db_postgres.py:25) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_validate_identifier' has no corresponding test references (db_postgres.py:46) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_validate_select_clause' has no corresponding test references (db_postgres.py:54) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_serialize_for_asyncpg' has no corresponding test references (db_postgres.py:66) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (db_postgres.py:85) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_get_pool' has no corresponding test references (db_postgres.py:89) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'rpc' has no corresponding test references (db_postgres.py:98) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'query' has no corresponding test references (db_postgres.py:128) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'insert' has no corresponding test references (db_postgres.py:217) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'update' has no corresponding test references (db_postgres.py:245) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'delete' has no corresponding test references (db_postgres.py:287) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'close' has no corresponding test references (db_postgres.py:309) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (discovery.py:38) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'parse_dt' has no corresponding test references (discovery.py:39) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (discovery.py:68) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (discovery.py:82) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (discovery.py:96) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (discovery.py:113) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (discovery.py:124) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (discovery.py:128) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'register' has no corresponding test references (discovery.py:133) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'discover' has no corresponding test references (discovery.py:184) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'heartbeat' has no corresponding test references (discovery.py:208) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cleanup_dead_agents' has no corresponding test references (discovery.py:266) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_discovery_service' has no corresponding test references (discovery.py:309) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_colima_installed' has no corresponding test references (docker_manager.py:29) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_colima_running' has no corresponding test references (docker_manager.py:34) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_ensure_colima_vm' has no corresponding test references (docker_manager.py:47) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'detect_runtime' has no corresponding test references (docker_manager.py:100) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_container_running' has no corresponding test references (docker_manager.py:168) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'start_container' has no corresponding test references (docker_manager.py:182) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'wait_for_healthy' has no corresponding test references (docker_manager.py:267) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__post_init__' has no corresponding test references (event_bus.py:50) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'to_json' has no corresponding test references (event_bus.py:57) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_json' has no corresponding test references (event_bus.py:71) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'classify_urgency' has no corresponding test references (event_bus.py:96) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (event_bus.py:119) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'running' has no corresponding test references (event_bus.py:140) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'failed' has no corresponding test references (event_bus.py:144) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'on_event' has no corresponding test references (event_bus.py:148) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'off_event' has no corresponding test references (event_bus.py:159) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'start' has no corresponding test references (event_bus.py:188) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'stop' has no corresponding test references (event_bus.py:206) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'restart' has no corresponding test references (event_bus.py:225) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_listen_loop' has no corresponding test references (event_bus.py:230) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_connect_and_listen' has no corresponding test references (event_bus.py:262) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_notification_handler' has no corresponding test references (event_bus.py:275) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_dispatch' has no corresponding test references (event_bus.py:306) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_safe_callback' has no corresponding test references (event_bus.py:329) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_event_bus' has no corresponding test references (event_bus.py:343) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_event_bus' has no corresponding test references (event_bus.py:351) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_get_signing_key' has no corresponding test references (event_stream.py:46) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_signing_key_or_503' has no corresponding test references (event_stream.py:51) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'mint_events_token' has no corresponding test references (event_stream.py:64) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate_events_token' has no corresponding test references (event_stream.py:111) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_prune_nonces' has no corresponding test references (event_stream.py:153) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_build_snapshot' has no corresponding test references (event_stream.py:163) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'sse_event_generator' has no corresponding test references (event_stream.py:203) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_normalize_status' has no corresponding test references (event_stream.py:232) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_make_transition' has no corresponding test references (event_stream.py:237) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_make_audit' has no corresponding test references (event_stream.py:258) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_on_task_event' has no corresponding test references (event_stream.py:271) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_on_audit_event' has no corresponding test references (event_stream.py:276) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_enabled' has no corresponding test references (feature_flags.py:89) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'to_yaml_dict' has no corresponding test references (feature_flags.py:92) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_yaml_dict' has no corresponding test references (feature_flags.py:106) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_parse' has no corresponding test references (feature_flags.py:107) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'normalize_flag_name' has no corresponding test references (feature_flags.py:129) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (feature_flags.py:164) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'load' has no corresponding test references (feature_flags.py:173) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_unlocked' has no corresponding test references (feature_flags.py:183) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_get_registry' has no corresponding test references (feature_flags.py:242) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'resolve_flag' has no corresponding test references (feature_flags.py:250) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_enabled' has no corresponding test references (feature_flags.py:283) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_undeclared_env_vars' has no corresponding test references (feature_flags.py:287) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_flag' has no corresponding test references (feature_flags.py:308) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'enable_flag' has no corresponding test references (feature_flags.py:347) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_write_registry' has no corresponding test references (feature_flags.py:363) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_feature_flag_service' has no corresponding test references (feature_flags.py:393) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_feature_flag_service' has no corresponding test references (feature_flags.py:402) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_flag' has no corresponding test references (feature_flags.py:409) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'enable_flag' has no corresponding test references (feature_flags.py:417) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'resolve_flag' has no corresponding test references (feature_flags.py:421) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_enabled' has no corresponding test references (feature_flags.py:425) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (feature_registry.py:51) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'parse_dt' has no corresponding test references (feature_registry.py:52) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (feature_registry.py:84) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (feature_registry.py:103) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (feature_registry.py:131) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (feature_registry.py:135) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'register' has no corresponding test references (feature_registry.py:140) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'deregister' has no corresponding test references (feature_registry.py:198) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_feature' has no corresponding test references (feature_registry.py:233) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_active_features' has no corresponding test references (feature_registry.py:248) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'analyze_conflicts' has no corresponding test references (feature_registry.py:260) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_feature_registry_service' has no corresponding test references (feature_registry.py:320) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_speculative_ref' has no corresponding test references (git_adapter.py:108) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'delete_speculative_refs' has no corresponding test references (git_adapter.py:115) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'fast_forward_main' has no corresponding test references (git_adapter.py:117) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_changed_files' has no corresponding test references (git_adapter.py:119) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_speculative_refs' has no corresponding test references (git_adapter.py:121) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate_speculative_ref_name' has no corresponding test references (git_adapter.py:129) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate_branch_name' has no corresponding test references (git_adapter.py:143) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'parse_git_version' has no corresponding test references (git_adapter.py:159) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (git_adapter.py:183) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_ensure_git_version' has no corresponding test references (git_adapter.py:189) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_run' has no corresponding test references (git_adapter.py:212) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_speculative_ref' has no corresponding test references (git_adapter.py:225) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'delete_speculative_refs' has no corresponding test references (git_adapter.py:317) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'fast_forward_main' has no corresponding test references (git_adapter.py:342) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_changed_files' has no corresponding test references (git_adapter.py:372) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_speculative_refs' has no corresponding test references (git_adapter.py:406) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_parse_conflict_files' has no corresponding test references (git_adapter.py:426) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'parse' has no corresponding test references (github_coordination.py:39) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (github_coordination.py:79) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (github_coordination.py:92) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (github_coordination.py:96) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'parse_lock_labels' has no corresponding test references (github_coordination.py:101) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'parse_branch' has no corresponding test references (github_coordination.py:121) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'sync_label_locks' has no corresponding test references (github_coordination.py:132) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'sync_branch_tracking' has no corresponding test references (github_coordination.py:212) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'handle_push_webhook' has no corresponding test references (github_coordination.py:265) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'handle_issues_webhook' has no corresponding test references (github_coordination.py:294) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_github_coordination_service' has no corresponding test references (github_coordination.py:328) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_ensure_guardrail_instruments' has no corresponding test references (guardrails.py:27) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_guardrail_instruments' has no corresponding test references (guardrails.py:49) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (guardrails.py:150) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (guardrails.py:172) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (guardrails.py:192) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (guardrails.py:206) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (guardrails.py:212) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_patterns' has no corresponding test references (guardrails.py:217) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_operation' has no corresponding test references (guardrails.py:243) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_guardrails_service' has no corresponding test references (guardrails.py:379) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (handoffs.py:37) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (handoffs.py:67) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (handoffs.py:86) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (handoffs.py:96) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (handoffs.py:100) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'write' has no corresponding test references (handoffs.py:105) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'read' has no corresponding test references (handoffs.py:187) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_recent' has no corresponding test references (handoffs.py:226) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_handoff_service' has no corresponding test references (handoffs.py:249) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_register' has no corresponding test references (help_service.py:40) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_help_overview' has no corresponding test references (help_service.py:611) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_help_topic' has no corresponding test references (help_service.py:632) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_topic_names' has no corresponding test references (help_service.py:655) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_validate_url' has no corresponding test references (http_proxy.py:41) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_env' has no corresponding test references (http_proxy.py:104) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'probe_database' has no corresponding test references (http_proxy.py:141) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'probe_http_api' has no corresponding test references (http_proxy.py:165) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'select_transport' has no corresponding test references (http_proxy.py:181) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'init_client' has no corresponding test references (http_proxy.py:212) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_config' has no corresponding test references (http_proxy.py:223) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_client' has no corresponding test references (http_proxy.py:230) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'shutdown_client' has no corresponding test references (http_proxy.py:237) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_build_default_headers' has no corresponding test references (http_proxy.py:245) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_error_response' has no corresponding test references (http_proxy.py:257) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_request' has no corresponding test references (http_proxy.py:264) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_agent_identity' has no corresponding test references (http_proxy.py:332) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_acquire_lock' has no corresponding test references (http_proxy.py:350) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_release_lock' has no corresponding test references (http_proxy.py:365) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_check_locks' has no corresponding test references (http_proxy.py:374) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_get_work' has no corresponding test references (http_proxy.py:425) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_complete_work' has no corresponding test references (http_proxy.py:436) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_submit_work' has no corresponding test references (http_proxy.py:453) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_get_task' has no corresponding test references (http_proxy.py:472) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_issue_create' has no corresponding test references (http_proxy.py:486) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_issue_list' has no corresponding test references (http_proxy.py:511) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_issue_show' has no corresponding test references (http_proxy.py:532) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_issue_update' has no corresponding test references (http_proxy.py:537) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_issue_close' has no corresponding test references (http_proxy.py:562) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_issue_comment' has no corresponding test references (http_proxy.py:577) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_issue_search' has no corresponding test references (http_proxy.py:590) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_issue_ready' has no corresponding test references (http_proxy.py:603) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_issue_blocked' has no corresponding test references (http_proxy.py:616) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_write_handoff' has no corresponding test references (http_proxy.py:626) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_read_handoff' has no corresponding test references (http_proxy.py:647) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_register_session' has no corresponding test references (http_proxy.py:665) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_discover_agents' has no corresponding test references (http_proxy.py:680) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_heartbeat' has no corresponding test references (http_proxy.py:693) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_cleanup_dead_agents' has no corresponding test references (http_proxy.py:699) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_remember' has no corresponding test references (http_proxy.py:715) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_recall' has no corresponding test references (http_proxy.py:736) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_check_guardrails' has no corresponding test references (http_proxy.py:758) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_get_my_profile' has no corresponding test references (http_proxy.py:771) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_get_agent_dispatch_configs' has no corresponding test references (http_proxy.py:776) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_query_audit' has no corresponding test references (http_proxy.py:781) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_check_policy' has no corresponding test references (http_proxy.py:800) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_validate_cedar_policy' has no corresponding test references (http_proxy.py:815) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_list_policy_versions' has no corresponding test references (http_proxy.py:824) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_request_permission' has no corresponding test references (http_proxy.py:836) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_request_approval' has no corresponding test references (http_proxy.py:849) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_check_approval' has no corresponding test references (http_proxy.py:864) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_allocate_ports' has no corresponding test references (http_proxy.py:874) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_release_ports' has no corresponding test references (http_proxy.py:883) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_ports_status' has no corresponding test references (http_proxy.py:892) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_register_feature' has no corresponding test references (http_proxy.py:909) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_deregister_feature' has no corresponding test references (http_proxy.py:930) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_get_feature' has no corresponding test references (http_proxy.py:943) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_list_active_features' has no corresponding test references (http_proxy.py:948) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_analyze_feature_conflicts' has no corresponding test references (http_proxy.py:953) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_enqueue_merge' has no corresponding test references (http_proxy.py:971) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_get_merge_queue' has no corresponding test references (http_proxy.py:984) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_get_next_merge' has no corresponding test references (http_proxy.py:989) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_run_pre_merge_checks' has no corresponding test references (http_proxy.py:994) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_mark_merged' has no corresponding test references (http_proxy.py:1003) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_remove_from_merge_queue' has no corresponding test references (http_proxy.py:1012) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_report_status' has no corresponding test references (http_proxy.py:1022) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_list_scenarios' has no corresponding test references (http_proxy.py:1049) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_validate_scenario' has no corresponding test references (http_proxy.py:1073) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_create_scenario' has no corresponding test references (http_proxy.py:1082) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'proxy_run_gen_eval' has no corresponding test references (http_proxy.py:1101) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_row' has no corresponding test references (issue_service.py:72) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'parse_dt' has no corresponding test references (issue_service.py:73) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'to_dict' has no corresponding test references (issue_service.py:108) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_row' has no corresponding test references (issue_service.py:164) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'to_dict' has no corresponding test references (issue_service.py:176) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (issue_service.py:189) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (issue_service.py:193) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create' has no corresponding test references (issue_service.py:198) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_issues' has no corresponding test references (issue_service.py:251) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'show' has no corresponding test references (issue_service.py:306) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'update' has no corresponding test references (issue_service.py:344) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'close' has no corresponding test references (issue_service.py:410) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'comment' has no corresponding test references (issue_service.py:453) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ready' has no corresponding test references (issue_service.py:479) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'blocked' has no corresponding test references (issue_service.py:525) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'search' has no corresponding test references (issue_service.py:554) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_issue_service' has no corresponding test references (issue_service.py:594) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_schema' has no corresponding test references (kanban_viz_files.py:69) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (kanban_viz_files.py:115) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_validate_against' has no corresponding test references (kanban_viz_files.py:124) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_validate_slug' has no corresponding test references (kanban_viz_files.py:135) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_git_sha' has no corresponding test references (kanban_viz_files.py:142) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_atomic_write' has no corresponding test references (kanban_viz_files.py:156) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'write_saved_view' has no corresponding test references (kanban_viz_files.py:171) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'write_audit_event' has no corresponding test references (kanban_viz_files.py:211) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'dispatch' has no corresponding test references (langfuse_middleware.py:44) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_resolve_agent_id' has no corresponding test references (langfuse_middleware.py:98) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_finalize_trace' has no corresponding test references (langfuse_middleware.py:114) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_is_enabled' has no corresponding test references (langfuse_tracing.py:30) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'init_langfuse' has no corresponding test references (langfuse_tracing.py:34) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_langfuse' has no corresponding test references (langfuse_tracing.py:79) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'shutdown_langfuse' has no corresponding test references (langfuse_tracing.py:84) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_trace' has no corresponding test references (langfuse_tracing.py:102) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'create_span' has no corresponding test references (langfuse_tracing.py:130) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'end_span' has no corresponding test references (langfuse_tracing.py:153) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'trace_operation' has no corresponding test references (langfuse_tracing.py:175) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_langfuse' has no corresponding test references (langfuse_tracing.py:229) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_get_instruments' has no corresponding test references (locks.py:29) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_ensure_instruments' has no corresponding test references (locks.py:58) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_valid_lock_key' has no corresponding test references (locks.py:81) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (locks.py:101) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_parse_dt' has no corresponding test references (locks.py:102) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (locks.py:131) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (locks.py:152) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (locks.py:156) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'acquire' has no corresponding test references (locks.py:161) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'release' has no corresponding test references (locks.py:276) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check' has no corresponding test references (locks.py:341) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'extend' has no corresponding test references (locks.py:368) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_locked' has no corresponding test references (locks.py:392) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'force_release' has no corresponding test references (locks.py:404) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_lock_service' has no corresponding test references (locks.py:465) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (memory.py:35) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (memory.py:65) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (memory.py:81) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (memory.py:92) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (memory.py:96) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'remember' has no corresponding test references (memory.py:101) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'recall' has no corresponding test references (memory.py:181) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_memory_service' has no corresponding test references (memory.py:219) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_feature' has no corresponding test references (merge_queue.py:73) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (merge_queue.py:99) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (merge_queue.py:108) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'registry' has no corresponding test references (merge_queue.py:114) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'enqueue' has no corresponding test references (merge_queue.py:119) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_queue' has no corresponding test references (merge_queue.py:210) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_next_to_merge' has no corresponding test references (merge_queue.py:246) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'run_pre_merge_checks' has no corresponding test references (merge_queue.py:260) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'mark_merged' has no corresponding test references (merge_queue.py:349) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'remove_from_queue' has no corresponding test references (merge_queue.py:376) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_parse_dt' has no corresponding test references (merge_queue.py:404) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_merge_queue_service' has no corresponding test references (merge_queue.py:417) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_entry_prefix_set' has no corresponding test references (merge_train.py:114) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_find_cycles_in_cross_partition_graph' has no corresponding test references (merge_train.py:137) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_dfs' has no corresponding test references (merge_train.py:176) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'compute_partitions' has no corresponding test references (merge_train.py:212) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_speculative_ref_name' has no corresponding test references (merge_train.py:294) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_sort_entries_by_priority' has no corresponding test references (merge_train.py:299) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_handle_conflict' has no corresponding test references (merge_train.py:304) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_handle_speculative_success' has no corresponding test references (merge_train.py:318) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'compose_train' has no corresponding test references (merge_train.py:339) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_speculate' has no corresponding test references (merge_train.py:445) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_declared_namespaces' has no corresponding test references (merge_train.py:547) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate_post_speculation_claims' has no corresponding test references (merge_train.py:557) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_caller_is_authorized_to_eject' has no corresponding test references (merge_train.py:644) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'eject_from_train' has no corresponding test references (merge_train.py:659) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_blocked_entry' has no corresponding test references (merge_train.py:768) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_abandoned_entry' has no corresponding test references (merge_train.py:811) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_build_merge_graph' has no corresponding test references (merge_train.py:884) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_compute_wave_order' has no corresponding test references (merge_train.py:974) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'execute_wave_merge' has no corresponding test references (merge_train.py:1017) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_group_refs_by_train_id' has no corresponding test references (merge_train.py:1137) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cleanup_orphaned_speculative_refs' has no corresponding test references (merge_train.py:1157) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'gc_aged_speculative_refs' has no corresponding test references (merge_train.py:1206) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_parse_dt' has no corresponding test references (merge_train_service.py:66) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_feature_to_train_entry' has no corresponding test references (merge_train_service.py:77) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (merge_train_service.py:123) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (merge_train_service.py:138) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'registry' has no corresponding test references (merge_train_service.py:144) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'git_adapter' has no corresponding test references (merge_train_service.py:150) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'refresh_client' has no corresponding test references (merge_train_service.py:160) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_entries' has no corresponding test references (merge_train_service.py:167) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_save_entry' has no corresponding test references (merge_train_service.py:177) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_persist_entries' has no corresponding test references (merge_train_service.py:197) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_probe_and_maybe_refresh' has no corresponding test references (merge_train_service.py:208) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'compose_train' has no corresponding test references (merge_train_service.py:256) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'eject_from_train' has no corresponding test references (merge_train_service.py:288) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_train_status' has no corresponding test references (merge_train_service.py:338) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'report_spec_result' has no corresponding test references (merge_train_service.py:343) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_merge_train_service' has no corresponding test references (merge_train_service.py:396) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_merge_train_service' has no corresponding test references (merge_train_service.py:404) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (merge_train_service.py:438) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'service' has no corresponding test references (merge_train_service.py:457) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'running' has no corresponding test references (merge_train_service.py:463) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'run_once' has no corresponding test references (merge_train_service.py:466) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'start' has no corresponding test references (merge_train_service.py:484) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'stop' has no corresponding test references (merge_train_service.py:494) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_loop' has no corresponding test references (merge_train_service.py:506) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_merge_train_sweeper' has no corresponding test references (merge_train_service.py:521) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_merge_train_sweeper' has no corresponding test references (merge_train_service.py:529) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_terminal' has no corresponding test references (merge_train_types.py:127) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'to_metadata_dict' has no corresponding test references (merge_train_types.py:130) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'all_passed' has no corresponding test references (merge_train_types.py:162) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'new_train_id' has no corresponding test references (merge_train_types.py:202) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'all_entries' has no corresponding test references (merge_train_types.py:206) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'total_entry_count' has no corresponding test references (merge_train_types.py:213) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'file_path_to_namespaces' has no corresponding test references (merge_train_types.py:252) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'claim_prefix' has no corresponding test references (merge_train_types.py:287) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'discover_migrations' has no corresponding test references (migrations.py:35) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_checksum' has no corresponding test references (migrations.py:50) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'run_migrations' has no corresponding test references (migrations.py:55) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'ensure_schema' has no corresponding test references (migrations.py:146) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (network_policies.py:24) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (network_policies.py:36) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (network_policies.py:40) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_domain' has no corresponding test references (network_policies.py:45) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_network_policy_service' has no corresponding test references (network_policies.py:85) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'send' has no corresponding test references (notifications/base.py:16) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'test' has no corresponding test references (notifications/base.py:20) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'supports_reply' has no corresponding test references (notifications/base.py:24) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (notifications/base.py:34) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'send' has no corresponding test references (notifications/base.py:37) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'test' has no corresponding test references (notifications/base.py:41) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'supports_reply' has no corresponding test references (notifications/base.py:44) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (notifications/gmail.py:55) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'send' has no corresponding test references (notifications/gmail.py:71) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'test' has no corresponding test references (notifications/gmail.py:128) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'supports_reply' has no corresponding test references (notifications/gmail.py:143) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'start_imap_listener' has no corresponding test references (notifications/gmail.py:148) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'stop_imap_listener' has no corresponding test references (notifications/gmail.py:214) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_process_imap_message' has no corresponding test references (notifications/gmail.py:222) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_send_reply_email' has no corresponding test references (notifications/gmail.py:348) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_render' has no corresponding test references (notifications/gmail.py:368) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_thread_message_id' has no corresponding test references (notifications/gmail.py:380) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_gmail_channel' has no corresponding test references (notifications/gmail.py:387) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (notifications/notifier.py:33) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'register_channel' has no corresponding test references (notifications/notifier.py:38) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'enabled' has no corresponding test references (notifications/notifier.py:43) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'start_digest_loop' has no corresponding test references (notifications/notifier.py:47) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'stop_digest_loop' has no corresponding test references (notifications/notifier.py:54) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_digest_loop' has no corresponding test references (notifications/notifier.py:67) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_flush_digest' has no corresponding test references (notifications/notifier.py:77) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'send' has no corresponding test references (notifications/notifier.py:110) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_send_with_retry' has no corresponding test references (notifications/notifier.py:169) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_passes_filter' has no corresponding test references (notifications/notifier.py:208) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_notifier' has no corresponding test references (notifications/notifier.py:223) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_notifier' has no corresponding test references (notifications/notifier.py:231) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'extract_token' has no corresponding test references (notifications/relay.py:29) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'parse_reply' has no corresponding test references (notifications/relay.py:39) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate_sender' has no corresponding test references (notifications/relay.py:72) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'clean_reply_body' has no corresponding test references (notifications/relay.py:82) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'route_reply' has no corresponding test references (notifications/relay.py:109) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (notifications/telegram.py:28) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'client' has no corresponding test references (notifications/telegram.py:39) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_api_url' has no corresponding test references (notifications/telegram.py:44) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'send' has no corresponding test references (notifications/telegram.py:47) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'test' has no corresponding test references (notifications/telegram.py:106) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'supports_reply' has no corresponding test references (notifications/telegram.py:122) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_escape_markdown' has no corresponding test references (notifications/telegram.py:126) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_format_message' has no corresponding test references (notifications/telegram.py:131) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_telegram_channel' has no corresponding test references (notifications/telegram.py:148) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_esc' has no corresponding test references (notifications/templates.py:10) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_sanitize_header' has no corresponding test references (notifications/templates.py:15) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_wrap' has no corresponding test references (notifications/templates.py:46) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_change_label' has no corresponding test references (notifications/templates.py:56) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_field' has no corresponding test references (notifications/templates.py:61) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'render_approval_email' has no corresponding test references (notifications/templates.py:71) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'render_status_email' has no corresponding test references (notifications/templates.py:100) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'render_escalation_email' has no corresponding test references (notifications/templates.py:119) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'render_stale_agent_email' has no corresponding test references (notifications/templates.py:147) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'render_digest_email' has no corresponding test references (notifications/templates.py:165) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (notifications/webhook.py:26) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'client' has no corresponding test references (notifications/webhook.py:37) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'send' has no corresponding test references (notifications/webhook.py:42) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'test' has no corresponding test references (notifications/webhook.py:83) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'supports_reply' has no corresponding test references (notifications/webhook.py:109) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_webhook_channel' has no corresponding test references (notifications/webhook.py:113) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_ensure_policy_instruments' has no corresponding test references (policy_engine.py:29) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'allow' has no corresponding test references (policy_engine.py:92) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'deny' has no corresponding test references (policy_engine.py:96) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (policy_engine.py:115) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (policy_engine.py:119) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_operation' has no corresponding test references (policy_engine.py:124) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_do_check_operation' has no corresponding test references (policy_engine.py:165) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_network_access' has no corresponding test references (policy_engine.py:350) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_policy_versions' has no corresponding test references (policy_engine.py:373) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'rollback_policy' has no corresponding test references (policy_engine.py:392) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_log_policy_decision' has no corresponding test references (policy_engine.py:418) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (policy_engine.py:464) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (policy_engine.py:480) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_default_policies' has no corresponding test references (policy_engine.py:485) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_schema' has no corresponding test references (policy_engine.py:499) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_policies' has no corresponding test references (policy_engine.py:517) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_build_entity' has no corresponding test references (policy_engine.py:572) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_build_resource_entity' has no corresponding test references (policy_engine.py:609) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_determine_resource_type' has no corresponding test references (policy_engine.py:636) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_operation' has no corresponding test references (policy_engine.py:648) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_do_check_operation' has no corresponding test references (policy_engine.py:689) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_network_access' has no corresponding test references (policy_engine.py:778) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate_policy' has no corresponding test references (policy_engine.py:797) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_policies' has no corresponding test references (policy_engine.py:818) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'invalidate_cache' has no corresponding test references (policy_engine.py:837) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'list_policy_versions' has no corresponding test references (policy_engine.py:842) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'rollback_policy' has no corresponding test references (policy_engine.py:861) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_log_policy_decision' has no corresponding test references (policy_engine.py:888) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_policy_engine' has no corresponding test references (policy_engine.py:928) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_policy_engine' has no corresponding test references (policy_engine.py:945) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_policy_instruments' has no corresponding test references (policy_engine.py:951) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'start' has no corresponding test references (policy_sync.py:21) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'stop' has no corresponding test references (policy_sync.py:25) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'on_policy_change' has no corresponding test references (policy_sync.py:29) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (policy_sync.py:45) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'running' has no corresponding test references (policy_sync.py:60) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'on_policy_change' has no corresponding test references (policy_sync.py:64) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'start' has no corresponding test references (policy_sync.py:67) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'stop' has no corresponding test references (policy_sync.py:79) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_listen_loop' has no corresponding test references (policy_sync.py:93) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_connect_and_listen' has no corresponding test references (policy_sync.py:121) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_notification_handler' has no corresponding test references (policy_sync.py:127) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_safe_callback' has no corresponding test references (policy_sync.py:149) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_policy_sync_service' has no corresponding test references (policy_sync.py:163) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_policy_sync_service' has no corresponding test references (policy_sync.py:171) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'env_snippet' has no corresponding test references (port_allocator.py:37) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (port_allocator.py:55) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'allocate' has no corresponding test references (port_allocator.py:74) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'release' has no corresponding test references (port_allocator.py:132) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'status' has no corresponding test references (port_allocator.py:141) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_cleanup_expired' has no corresponding test references (port_allocator.py:151) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_compose_project_name' has no corresponding test references (port_allocator.py:166) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_port_allocator' has no corresponding test references (port_allocator.py:178) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_port_allocator' has no corresponding test references (port_allocator.py:189) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'deep_merge' has no corresponding test references (profile_loader.py:64) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_secrets_file' has no corresponding test references (profile_loader.py:87) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_secrets_openbao' has no corresponding test references (profile_loader.py:114) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_secrets' has no corresponding test references (profile_loader.py:159) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'resolve_dynamic_dsn' has no corresponding test references (profile_loader.py:171) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'interpolate' has no corresponding test references (profile_loader.py:231) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_replace' has no corresponding test references (profile_loader.py:239) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_interpolate_tree' has no corresponding test references (profile_loader.py:260) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_resolve_profile' has no corresponding test references (profile_loader.py:277) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_flatten' has no corresponding test references (profile_loader.py:311) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_inject_env' has no corresponding test references (profile_loader.py:323) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'load_profile' has no corresponding test references (profile_loader.py:339) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'apply_profile' has no corresponding test references (profile_loader.py:372) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (profiles.py:36) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (profiles.py:63) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (profiles.py:84) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (profiles.py:94) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (profiles.py:99) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_profile' has no corresponding test references (profiles.py:104) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'check_operation' has no corresponding test references (profiles.py:153) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_log_denial' has no corresponding test references (profiles.py:214) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_profiles_service' has no corresponding test references (profiles.py:237) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__repr__' has no corresponding test references (refresh_rpc_client.py:69) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__call__' has no corresponding test references (refresh_rpc_client.py:85) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (refresh_rpc_client.py:134) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'is_graph_stale' has no corresponding test references (refresh_rpc_client.py:150) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'trigger_refresh' has no corresponding test references (refresh_rpc_client.py:164) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_refresh_status' has no corresponding test references (refresh_rpc_client.py:174) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_invoke' has no corresponding test references (refresh_rpc_client.py:183) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'compute_affected_tests' has no corresponding test references (refresh_rpc_client.py:277) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (risk_scorer.py:44) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (risk_scorer.py:56) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'compute_score' has no corresponding test references (risk_scorer.py:61) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_violation_count' has no corresponding test references (risk_scorer.py:108) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_trust_factor' has no corresponding test references (risk_scorer.py:125) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_operation_factor' has no corresponding test references (risk_scorer.py:130) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_resource_factor' has no corresponding test references (risk_scorer.py:141) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_violation_factor' has no corresponding test references (risk_scorer.py:152) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_session_age_factor' has no corresponding test references (risk_scorer.py:161) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_risk_scorer' has no corresponding test references (risk_scorer.py:174) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_risk_scorer' has no corresponding test references (risk_scorer.py:182) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (session_grants.py:30) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (session_grants.py:34) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'request_grant' has no corresponding test references (session_grants.py:39) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_active_grants' has no corresponding test references (session_grants.py:70) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'has_grant' has no corresponding test references (session_grants.py:78) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'revoke_grants' has no corresponding test references (session_grants.py:86) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_row_to_grant' has no corresponding test references (session_grants.py:100) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_parse_dt' has no corresponding test references (session_grants.py:113) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_session_grant_service' has no corresponding test references (session_grants.py:125) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_session_grant_service' has no corresponding test references (session_grants.py:133) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'filter' has no corresponding test references (sse_log_redaction.py:39) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_scrub' has no corresponding test references (sse_log_redaction.py:58) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'install_token_redaction_filter' has no corresponding test references (sse_log_redaction.py:64) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'redact_token' has no corresponding test references (sse_log_redaction.py:79) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'generate_token' has no corresponding test references (status.py:12) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'store_token' has no corresponding test references (status.py:17) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate_token' has no corresponding test references (status.py:52) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'lookup_token_failure' has no corresponding test references (status.py:80) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cleanup_expired_tokens' has no corresponding test references (status.py:100) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_parse_iso' has no corresponding test references (sync_points.py:35) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_load_registry' has no corresponding test references (sync_points.py:45) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_check_active_worktrees' has no corresponding test references (sync_points.py:60) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_sync_points_status' has no corresponding test references (sync_points.py:81) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_file' has no corresponding test references (teams.py:69) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (teams.py:93) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_agent' has no corresponding test references (teams.py:129) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_agents_with_capability' has no corresponding test references (teams.py:143) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'validate' has no corresponding test references (teams.py:154) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_teams_config' has no corresponding test references (teams.py:180) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_teams_config' has no corresponding test references (teams.py:200) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_metrics_enabled' has no corresponding test references (telemetry.py:33) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_traces_enabled' has no corresponding test references (telemetry.py:37) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_prometheus_enabled' has no corresponding test references (telemetry.py:41) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'init_telemetry' has no corresponding test references (telemetry.py:45) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_init_metrics' has no corresponding test references (telemetry.py:74) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_init_traces' has no corresponding test references (telemetry.py:138) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_lock_meter' has no corresponding test references (telemetry.py:185) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_queue_meter' has no corresponding test references (telemetry.py:190) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_policy_meter' has no corresponding test references (telemetry.py:195) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_tracer' has no corresponding test references (telemetry.py:200) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'set_attribute' has no corresponding test references (telemetry.py:213) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'set_status' has no corresponding test references (telemetry.py:216) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'record_exception' has no corresponding test references (telemetry.py:219) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__enter__' has no corresponding test references (telemetry.py:222) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__exit__' has no corresponding test references (telemetry.py:225) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'start_span' has no corresponding test references (telemetry.py:232) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_prometheus_app' has no corresponding test references (telemetry.py:245) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_telemetry' has no corresponding test references (telemetry.py:267) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (watchdog.py:34) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (watchdog.py:55) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'running' has no corresponding test references (watchdog.py:61) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'start' has no corresponding test references (watchdog.py:64) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'stop' has no corresponding test references (watchdog.py:72) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'run_once' has no corresponding test references (watchdog.py:84) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_loop' has no corresponding test references (watchdog.py:93) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_check_stale_agents' has no corresponding test references (watchdog.py:107) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_check_aging_approvals' has no corresponding test references (watchdog.py:166) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_check_expiring_locks' has no corresponding test references (watchdog.py:207) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_cleanup_expired_tokens' has no corresponding test references (watchdog.py:235) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_check_event_bus_health' has no corresponding test references (watchdog.py:252) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_check_vendor_health' has no corresponding test references (watchdog.py:275) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_emit_event' has no corresponding test references (watchdog.py:346) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_watchdog' has no corresponding test references (watchdog.py:391) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_watchdog' has no corresponding test references (watchdog.py:399) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_ensure_instruments' has no corresponding test references (work_queue.py:30) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (work_queue.py:88) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'parse_dt' has no corresponding test references (work_queue.py:89) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (work_queue.py:133) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (work_queue.py:166) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'from_dict' has no corresponding test references (work_queue.py:187) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '__init__' has no corresponding test references (work_queue.py:201) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'db' has no corresponding test references (work_queue.py:205) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_resolve_trust_level' has no corresponding test references (work_queue.py:210) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'claim' has no corresponding test references (work_queue.py:225) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'complete' has no corresponding test references (work_queue.py:442) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'submit' has no corresponding test references (work_queue.py:593) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_pending' has no corresponding test references (work_queue.py:729) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_task' has no corresponding test references (work_queue.py:753) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_my_tasks' has no corresponding test references (work_queue.py:765) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'cancel_task_convention' has no corresponding test references (work_queue.py:789) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_work_queue_service' has no corresponding test references (work_queue.py:822) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'reset_instruments' has no corresponding test references (work_queue.py:830) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_repo_root' has no corresponding test references (worktrees_view.py:24) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function '_parse_dt' has no corresponding test references (worktrees_view.py:29) — Requires design decision or manual review
+- [MEDIUM] [test_coverage] Function 'get_active_worktrees' has no corresponding test references (worktrees_view.py:41) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (__init__.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'agents_config' is unreachable from any entrypoint or test (agents_config.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'approval' is unreachable from any entrypoint or test (approval.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'assurance' is unreachable from any entrypoint or test (assurance.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'audit' is unreachable from any entrypoint or test (audit.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'config' is unreachable from any entrypoint or test (config.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'coordination_api' is unreachable from any entrypoint or test (coordination_api.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'coordination_cli' is unreachable from any entrypoint or test (coordination_cli.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'coordination_mcp' is unreachable from any entrypoint or test (coordination_mcp.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (db.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db_postgres' is unreachable from any entrypoint or test (db_postgres.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'discovery' is unreachable from any entrypoint or test (discovery.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'docker_manager' is unreachable from any entrypoint or test (docker_manager.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'event_bus' is unreachable from any entrypoint or test (event_bus.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'event_stream' is unreachable from any entrypoint or test (event_stream.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'feature_flags' is unreachable from any entrypoint or test (feature_flags.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'feature_registry' is unreachable from any entrypoint or test (feature_registry.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'git_adapter' is unreachable from any entrypoint or test (git_adapter.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'github_coordination' is unreachable from any entrypoint or test (github_coordination.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'guardrails' is unreachable from any entrypoint or test (guardrails.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'handoffs' is unreachable from any entrypoint or test (handoffs.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'help_service' is unreachable from any entrypoint or test (help_service.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'http_proxy' is unreachable from any entrypoint or test (http_proxy.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'issue_service' is unreachable from any entrypoint or test (issue_service.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'kanban_viz_files' is unreachable from any entrypoint or test (kanban_viz_files.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'langfuse_middleware' is unreachable from any entrypoint or test (langfuse_middleware.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'langfuse_tracing' is unreachable from any entrypoint or test (langfuse_tracing.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'locks' is unreachable from any entrypoint or test (locks.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'memory' is unreachable from any entrypoint or test (memory.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'merge_queue' is unreachable from any entrypoint or test (merge_queue.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'merge_train' is unreachable from any entrypoint or test (merge_train.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'merge_train_service' is unreachable from any entrypoint or test (merge_train_service.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'merge_train_types' is unreachable from any entrypoint or test (merge_train_types.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'migrations' is unreachable from any entrypoint or test (migrations.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'network_policies' is unreachable from any entrypoint or test (network_policies.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'notifications' is unreachable from any entrypoint or test (notifications/__init__.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'notifications.base' is unreachable from any entrypoint or test (notifications/base.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'notifications.gmail' is unreachable from any entrypoint or test (notifications/gmail.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'notifications.notifier' is unreachable from any entrypoint or test (notifications/notifier.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'notifications.relay' is unreachable from any entrypoint or test (notifications/relay.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'notifications.telegram' is unreachable from any entrypoint or test (notifications/telegram.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'notifications.templates' is unreachable from any entrypoint or test (notifications/templates.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'notifications.webhook' is unreachable from any entrypoint or test (notifications/webhook.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'policy_engine' is unreachable from any entrypoint or test (policy_engine.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'policy_sync' is unreachable from any entrypoint or test (policy_sync.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'port_allocator' is unreachable from any entrypoint or test (port_allocator.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'profile_loader' is unreachable from any entrypoint or test (profile_loader.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'profiles' is unreachable from any entrypoint or test (profiles.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'refresh_rpc_client' is unreachable from any entrypoint or test (refresh_rpc_client.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'risk_scorer' is unreachable from any entrypoint or test (risk_scorer.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'session_grants' is unreachable from any entrypoint or test (session_grants.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'sse_log_redaction' is unreachable from any entrypoint or test (sse_log_redaction.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'status' is unreachable from any entrypoint or test (status.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'sync_points' is unreachable from any entrypoint or test (sync_points.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'teams' is unreachable from any entrypoint or test (teams.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'telemetry' is unreachable from any entrypoint or test (telemetry.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'watchdog' is unreachable from any entrypoint or test (watchdog.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'work_queue' is unreachable from any entrypoint or test (work_queue.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'worktrees_view' is unreachable from any entrypoint or test (worktrees_view.py:1) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PollConfig' is unreachable from any entrypoint or test (agents_config.py:322) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ModeConfig' is unreachable from any entrypoint or test (agents_config.py:340) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'CliConfig' is unreachable from any entrypoint or test (agents_config.py:349) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'SdkConfig' is unreachable from any entrypoint or test (agents_config.py:364) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AgentEntry' is unreachable from any entrypoint or test (agents_config.py:381) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'EscalationConfig' is unreachable from any entrypoint or test (agents_config.py:404) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ArchetypeConfig' is unreachable from any entrypoint or test (agents_config.py:418) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PhaseMappingEntry' is unreachable from any entrypoint or test (agents_config.py:432) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ResolvedArchetype' is unreachable from any entrypoint or test (agents_config.py:446) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ProviderModelMappingError' is unreachable from any entrypoint or test (agents_config.py:460) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ApprovalRequest' is unreachable from any entrypoint or test (approval.py:15) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ApprovalService' is unreachable from any entrypoint or test (approval.py:32) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AuditEntry' is unreachable from any entrypoint or test (audit.py:18) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AuditResult' is unreachable from any entrypoint or test (audit.py:56) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AuditService' is unreachable from any entrypoint or test (audit.py:72) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AuditTimer' is unreachable from any entrypoint or test (audit.py:179) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'SupabaseConfig' is unreachable from any entrypoint or test (config.py:50) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AgentConfig' is unreachable from any entrypoint or test (config.py:75) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'LockConfig' is unreachable from any entrypoint or test (config.py:99) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PostgresConfig' is unreachable from any entrypoint or test (config.py:113) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'DatabaseConfig' is unreachable from any entrypoint or test (config.py:130) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GuardrailsConfig' is unreachable from any entrypoint or test (config.py:145) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ProfilesConfig' is unreachable from any entrypoint or test (config.py:165) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AuditConfig' is unreachable from any entrypoint or test (config.py:189) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'NetworkPolicyConfig' is unreachable from any entrypoint or test (config.py:204) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PolicyEngineConfig' is unreachable from any entrypoint or test (config.py:217) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'OpenBaoConfig' is unreachable from any entrypoint or test (config.py:241) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ObservabilityConfig' is unreachable from any entrypoint or test (config.py:323) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'LangfuseConfig' is unreachable from any entrypoint or test (config.py:340) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PortAllocatorConfig' is unreachable from any entrypoint or test (config.py:374) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ApiConfig' is unreachable from any entrypoint or test (config.py:393) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ApprovalConfig' is unreachable from any entrypoint or test (config.py:448) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PolicySyncConfig' is unreachable from any entrypoint or test (config.py:471) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'RiskScoringConfig' is unreachable from any entrypoint or test (config.py:493) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'SessionGrantsConfig' is unreachable from any entrypoint or test (config.py:520) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'Config' is unreachable from any entrypoint or test (config.py:574) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'LockAcquireRequest' is unreachable from any entrypoint or test (coordination_api.py:31) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'LockReleaseRequest' is unreachable from any entrypoint or test (coordination_api.py:40) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MemoryStoreRequest' is unreachable from any entrypoint or test (coordination_api.py:45) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MemoryQueryRequest' is unreachable from any entrypoint or test (coordination_api.py:56) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'WorkClaimRequest' is unreachable from any entrypoint or test (coordination_api.py:63) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'WorkCompleteRequest' is unreachable from any entrypoint or test (coordination_api.py:69) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'WorkSubmitRequest' is unreachable from any entrypoint or test (coordination_api.py:77) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'WorkGetTaskRequest' is unreachable from any entrypoint or test (coordination_api.py:86) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'IssueCreateRequest' is unreachable from any entrypoint or test (coordination_api.py:90) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'IssueListRequest' is unreachable from any entrypoint or test (coordination_api.py:101) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'IssueUpdateRequest' is unreachable from any entrypoint or test (coordination_api.py:110) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'IssueCloseRequest' is unreachable from any entrypoint or test (coordination_api.py:121) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'IssueCommentRequest' is unreachable from any entrypoint or test (coordination_api.py:127) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GuardrailsCheckRequest' is unreachable from any entrypoint or test (coordination_api.py:132) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AuditQueryParams' is unreachable from any entrypoint or test (coordination_api.py:137) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'HandoffWriteRequest' is unreachable from any entrypoint or test (coordination_api.py:143) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'HandoffReadRequest' is unreachable from any entrypoint or test (coordination_api.py:155) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PolicyCheckRequest' is unreachable from any entrypoint or test (coordination_api.py:160) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PolicyValidateRequest' is unreachable from any entrypoint or test (coordination_api.py:168) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PortAllocateRequest' is unreachable from any entrypoint or test (coordination_api.py:172) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PortReleaseRequest' is unreachable from any entrypoint or test (coordination_api.py:176) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ApprovalDecisionRequest' is unreachable from any entrypoint or test (coordination_api.py:180) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PolicyRollbackRequest' is unreachable from any entrypoint or test (coordination_api.py:186) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'FeatureRegisterRequest' is unreachable from any entrypoint or test (coordination_api.py:190) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'FeatureDeregisterRequest' is unreachable from any entrypoint or test (coordination_api.py:200) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'FeatureConflictsRequest' is unreachable from any entrypoint or test (coordination_api.py:205) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'StatusReportRequest' is unreachable from any entrypoint or test (coordination_api.py:210) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ResolveForPhaseRequest' is unreachable from any entrypoint or test (coordination_api.py:233) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MergeQueueEnqueueRequest' is unreachable from any entrypoint or test (coordination_api.py:255) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'DiscoveryRegisterRequest' is unreachable from any entrypoint or test (coordination_api.py:260) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'DiscoveryHeartbeatRequest' is unreachable from any entrypoint or test (coordination_api.py:270) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'DiscoveryCleanupRequest' is unreachable from any entrypoint or test (coordination_api.py:276) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GenEvalValidateRequest' is unreachable from any entrypoint or test (coordination_api.py:282) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GenEvalCreateRequest' is unreachable from any entrypoint or test (coordination_api.py:286) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GenEvalRunRequest' is unreachable from any entrypoint or test (coordination_api.py:294) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'IssueSearchRequest' is unreachable from any entrypoint or test (coordination_api.py:300) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'IssueReadyRequest' is unreachable from any entrypoint or test (coordination_api.py:307) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PermissionRequestRequest' is unreachable from any entrypoint or test (coordination_api.py:314) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ApprovalSubmitRequest' is unreachable from any entrypoint or test (coordination_api.py:321) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MergeTrainEjectRequest' is unreachable from any entrypoint or test (coordination_api.py:330) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MergeTrainReportResultRequest' is unreachable from any entrypoint or test (coordination_api.py:335) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AffectedTestsRequest' is unreachable from any entrypoint or test (coordination_api.py:341) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'EventsAuthRequest' is unreachable from any entrypoint or test (coordination_api.py:347) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PatchLabelsRequest' is unreachable from any entrypoint or test (coordination_api.py:352) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'KickAgentRequest' is unreachable from any entrypoint or test (coordination_api.py:357) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'SavedViewRequest' is unreachable from any entrypoint or test (coordination_api.py:371) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'KanbanAuditRequest' is unreachable from any entrypoint or test (coordination_api.py:375) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'DatabaseClient' is unreachable from any entrypoint or test (db.py:25) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'SupabaseClient' is unreachable from any entrypoint or test (db.py:73) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'DirectPostgresClient' is unreachable from any entrypoint or test (db_postgres.py:78) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AgentInfo' is unreachable from any entrypoint or test (discovery.py:20) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'RegisterResult' is unreachable from any entrypoint or test (discovery.py:61) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'DiscoverResult' is unreachable from any entrypoint or test (discovery.py:76) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'HeartbeatResult' is unreachable from any entrypoint or test (discovery.py:88) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'CleanupResult' is unreachable from any entrypoint or test (discovery.py:105) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'DiscoveryService' is unreachable from any entrypoint or test (discovery.py:121) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'CoordinatorEvent' is unreachable from any entrypoint or test (event_bus.py:37) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'EventBusService' is unreachable from any entrypoint or test (event_bus.py:110) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'FlagsConfigError' is unreachable from any entrypoint or test (feature_flags.py:61) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'InvalidFlagNameError' is unreachable from any entrypoint or test (feature_flags.py:69) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'Flag' is unreachable from any entrypoint or test (feature_flags.py:79) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'FeatureFlagService' is unreachable from any entrypoint or test (feature_flags.py:153) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'Feasibility' is unreachable from any entrypoint or test (feature_registry.py:26) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'Feature' is unreachable from any entrypoint or test (feature_registry.py:35) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'RegisterResult' is unreachable from any entrypoint or test (feature_registry.py:75) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'DeregisterResult' is unreachable from any entrypoint or test (feature_registry.py:94) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ConflictReport' is unreachable from any entrypoint or test (feature_registry.py:113) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'FeatureRegistryService' is unreachable from any entrypoint or test (feature_registry.py:124) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'InvalidRefNameError' is unreachable from any entrypoint or test (git_adapter.py:51) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GitVersionError' is unreachable from any entrypoint or test (git_adapter.py:55) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MergeTreeResult' is unreachable from any entrypoint or test (git_adapter.py:65) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'FastForwardResult' is unreachable from any entrypoint or test (git_adapter.py:79) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ChangedFiles' is unreachable from any entrypoint or test (git_adapter.py:88) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GitAdapter' is unreachable from any entrypoint or test (git_adapter.py:102) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'SubprocessGitAdapter' is unreachable from any entrypoint or test (git_adapter.py:176) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'BranchInfo' is unreachable from any entrypoint or test (github_coordination.py:30) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'LabelLock' is unreachable from any entrypoint or test (github_coordination.py:61) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'WebhookSyncResult' is unreachable from any entrypoint or test (github_coordination.py:69) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GitHubCoordinationService' is unreachable from any entrypoint or test (github_coordination.py:89) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GuardrailPattern' is unreachable from any entrypoint or test (guardrails.py:140) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GuardrailViolation' is unreachable from any entrypoint or test (guardrails.py:161) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GuardrailResult' is unreachable from any entrypoint or test (guardrails.py:184) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GuardrailsService' is unreachable from any entrypoint or test (guardrails.py:203) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'HandoffDocument' is unreachable from any entrypoint or test (handoffs.py:22) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'WriteHandoffResult' is unreachable from any entrypoint or test (handoffs.py:59) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ReadHandoffResult' is unreachable from any entrypoint or test (handoffs.py:80) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'HandoffService' is unreachable from any entrypoint or test (handoffs.py:93) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'HelpTopic' is unreachable from any entrypoint or test (help_service.py:20) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'HttpProxyConfig' is unreachable from any entrypoint or test (http_proxy.py:92) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'Issue' is unreachable from any entrypoint or test (issue_service.py:47) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'Comment' is unreachable from any entrypoint or test (issue_service.py:154) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'IssueService' is unreachable from any entrypoint or test (issue_service.py:186) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'SchemaValidationError' is unreachable from any entrypoint or test (kanban_viz_files.py:107) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'LangfuseTracingMiddleware' is unreachable from any entrypoint or test (langfuse_middleware.py:29) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'Lock' is unreachable from any entrypoint or test (locks.py:89) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'LockResult' is unreachable from any entrypoint or test (locks.py:119) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'LockService' is unreachable from any entrypoint or test (locks.py:149) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'EpisodicMemory' is unreachable from any entrypoint or test (memory.py:20) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MemoryResult' is unreachable from any entrypoint or test (memory.py:56) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'RecallResult' is unreachable from any entrypoint or test (memory.py:75) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MemoryService' is unreachable from any entrypoint or test (memory.py:89) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MergeStatus' is unreachable from any entrypoint or test (merge_queue.py:37) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PreMergeCheckResult' is unreachable from any entrypoint or test (merge_queue.py:49) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MergeQueueEntry' is unreachable from any entrypoint or test (merge_queue.py:60) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MergeQueueService' is unreachable from any entrypoint or test (merge_queue.py:88) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'TrainAuthorizationError' is unreachable from any entrypoint or test (merge_train.py:69) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'TrainDeadlockError' is unreachable from any entrypoint or test (merge_train.py:77) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PartitionResult' is unreachable from any entrypoint or test (merge_train.py:92) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'EjectResult' is unreachable from any entrypoint or test (merge_train.py:622) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_MergeNode' is unreachable from any entrypoint or test (merge_train.py:851) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'WaveMergeResult' is unreachable from any entrypoint or test (merge_train.py:868) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'CrashRecoveryResult' is unreachable from any entrypoint or test (merge_train.py:1121) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MergeTrainService' is unreachable from any entrypoint or test (merge_train_service.py:115) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MergeTrainSweeper' is unreachable from any entrypoint or test (merge_train_service.py:419) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'MergeTrainStatus' is unreachable from any entrypoint or test (merge_train_types.py:58) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'TrainEntry' is unreachable from any entrypoint or test (merge_train_types.py:98) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'TrainPartition' is unreachable from any entrypoint or test (merge_train_types.py:151) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'CrossPartitionEntry' is unreachable from any entrypoint or test (merge_train_types.py:169) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'TrainComposition' is unreachable from any entrypoint or test (merge_train_types.py:183) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AccessDecision' is unreachable from any entrypoint or test (network_policies.py:15) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'NetworkPolicyService' is unreachable from any entrypoint or test (network_policies.py:33) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'NotificationChannel' is unreachable from any entrypoint or test (notifications/base.py:11) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GmailChannelFake' is unreachable from any entrypoint or test (notifications/base.py:29) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'GmailChannel' is unreachable from any entrypoint or test (notifications/gmail.py:46) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'NotifierService' is unreachable from any entrypoint or test (notifications/notifier.py:30) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'TelegramChannel' is unreachable from any entrypoint or test (notifications/telegram.py:20) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'WebhookChannel' is unreachable from any entrypoint or test (notifications/webhook.py:18) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PolicyDecision' is unreachable from any entrypoint or test (policy_engine.py:83) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ValidationResult' is unreachable from any entrypoint or test (policy_engine.py:101) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'NativePolicyEngine' is unreachable from any entrypoint or test (policy_engine.py:108) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'CedarPolicyEngine' is unreachable from any entrypoint or test (policy_engine.py:454) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PolicySyncService' is unreachable from any entrypoint or test (policy_sync.py:17) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PgListenNotifyPolicySyncService' is unreachable from any entrypoint or test (policy_sync.py:37) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PortAllocation' is unreachable from any entrypoint or test (port_allocator.py:24) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PortAllocatorService' is unreachable from any entrypoint or test (port_allocator.py:52) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AgentProfile' is unreachable from any entrypoint or test (profiles.py:20) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ProfileResult' is unreachable from any entrypoint or test (profiles.py:53) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'OperationCheck' is unreachable from any entrypoint or test (profiles.py:77) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ProfilesService' is unreachable from any entrypoint or test (profiles.py:91) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'RefreshClientUnavailable' is unreachable from any entrypoint or test (refresh_rpc_client.py:59) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_Runner' is unreachable from any entrypoint or test (refresh_rpc_client.py:78) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'RefreshRpcClient' is unreachable from any entrypoint or test (refresh_rpc_client.py:124) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'RiskScore' is unreachable from any entrypoint or test (risk_scorer.py:33) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'RiskScorer' is unreachable from any entrypoint or test (risk_scorer.py:41) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'PermissionGrant' is unreachable from any entrypoint or test (session_grants.py:14) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'SessionGrantService' is unreachable from any entrypoint or test (session_grants.py:27) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_TokenRedactionFilter' is unreachable from any entrypoint or test (sse_log_redaction.py:31) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'AgentDefinition' is unreachable from any entrypoint or test (teams.py:48) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'TeamsConfig' is unreachable from any entrypoint or test (teams.py:58) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_NoOpSpan' is unreachable from any entrypoint or test (telemetry.py:210) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'WatchdogService' is unreachable from any entrypoint or test (watchdog.py:31) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'Task' is unreachable from any entrypoint or test (work_queue.py:68) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ClaimResult' is unreachable from any entrypoint or test (work_queue.py:120) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'CompleteResult' is unreachable from any entrypoint or test (work_queue.py:157) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'SubmitResult' is unreachable from any entrypoint or test (work_queue.py:180) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'WorkQueueService' is unreachable from any entrypoint or test (work_queue.py:198) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (agents_config.py:463) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_resolve_api_key_from_openbao' is unreachable from any entrypoint or test (agents_config.py:618) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_api_key_identities' is unreachable from any entrypoint or test (agents_config.py:669) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_mcp_env' is unreachable from any entrypoint or test (agents_config.py:726) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_agent_config' is unreachable from any entrypoint or test (agents_config.py:780) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_agents_config' is unreachable from any entrypoint or test (agents_config.py:788) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_agent_isolation' is unreachable from any entrypoint or test (agents_config.py:864) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_default_archetypes_path' is unreachable from any entrypoint or test (agents_config.py:880) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'load_archetypes_config' is unreachable from any entrypoint or test (agents_config.py:884) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_archetype' is unreachable from any entrypoint or test (agents_config.py:967) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_phase_mapping' is unreachable from any entrypoint or test (agents_config.py:981) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_archetypes_config' is unreachable from any entrypoint or test (agents_config.py:993) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_normalize_provider_model_map' is unreachable from any entrypoint or test (agents_config.py:1001) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_provider_model_map' is unreachable from any entrypoint or test (agents_config.py:1028) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'resolve_provider_model' is unreachable from any entrypoint or test (agents_config.py:1035) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'compose_prompt' is unreachable from any entrypoint or test (agents_config.py:1079) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_unique_dir_prefixes' is unreachable from any entrypoint or test (agents_config.py:1095) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'resolve_model' is unreachable from any entrypoint or test (agents_config.py:1114) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_finalize' is unreachable from any entrypoint or test (agents_config.py:1143) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'resolve_archetype_for_phase' is unreachable from any entrypoint or test (agents_config.py:1196) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (approval.py:35) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (approval.py:39) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'submit_request' is unreachable from any entrypoint or test (approval.py:44) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_request' is unreachable from any entrypoint or test (approval.py:89) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'decide_request' is unreachable from any entrypoint or test (approval.py:99) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'expire_stale_requests' is unreachable from any entrypoint or test (approval.py:137) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'list_pending' is unreachable from any entrypoint or test (approval.py:154) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_row_to_request' is unreachable from any entrypoint or test (approval.py:166) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_parse_dt' is unreachable from any entrypoint or test (approval.py:186) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_approval_service' is unreachable from any entrypoint or test (approval.py:207) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (audit.py:34) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (audit.py:64) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (audit.py:75) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (audit.py:79) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'log_operation' is unreachable from any entrypoint or test (audit.py:84) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_insert_audit_entry' is unreachable from any entrypoint or test (audit.py:124) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'query' is unreachable from any entrypoint or test (audit.py:132) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'timed' is unreachable from any entrypoint or test (audit.py:174) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (audit.py:182) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__aenter__' is unreachable from any entrypoint or test (audit.py:187) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__aexit__' is unreachable from any entrypoint or test (audit.py:191) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:58) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:83) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:106) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:121) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:137) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:152) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:173) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:196) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:210) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:226) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:263) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_enabled' is unreachable from any entrypoint or test (config.py:274) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'create_client' is unreachable from any entrypoint or test (config.py:278) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:331) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:360) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:383) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:405) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (config.py:610) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_config' is unreachable from any entrypoint or test (config.py:673) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'verify_api_key' is unreachable from any entrypoint or test (coordination_api.py:385) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'create_coordination_api' is unreachable from any entrypoint or test (coordination_api.py:495) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'lifespan' is unreachable from any entrypoint or test (coordination_api.py:517) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'main' is unreachable from any entrypoint or test (coordination_api.py:3117) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_run' is unreachable from any entrypoint or test (coordination_cli.py:22) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_output' is unreachable from any entrypoint or test (coordination_cli.py:27) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_print_dict' is unreachable from any entrypoint or test (coordination_cli.py:46) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_error' is unreachable from any entrypoint or test (coordination_cli.py:70) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_health' is unreachable from any entrypoint or test (coordination_cli.py:81) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_feature_register' is unreachable from any entrypoint or test (coordination_cli.py:108) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_feature_deregister' is unreachable from any entrypoint or test (coordination_cli.py:131) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_feature_show' is unreachable from any entrypoint or test (coordination_cli.py:148) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_feature_list' is unreachable from any entrypoint or test (coordination_cli.py:169) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_feature_conflicts' is unreachable from any entrypoint or test (coordination_cli.py:189) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_mq_enqueue' is unreachable from any entrypoint or test (coordination_cli.py:210) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_mq_status' is unreachable from any entrypoint or test (coordination_cli.py:229) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_mq_next' is unreachable from any entrypoint or test (coordination_cli.py:248) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_mq_check' is unreachable from any entrypoint or test (coordination_cli.py:265) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_mq_merged' is unreachable from any entrypoint or test (coordination_cli.py:280) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_mq_remove' is unreachable from any entrypoint or test (coordination_cli.py:289) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_lock_acquire' is unreachable from any entrypoint or test (coordination_cli.py:301) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_lock_release' is unreachable from any entrypoint or test (coordination_cli.py:322) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_lock_status' is unreachable from any entrypoint or test (coordination_cli.py:338) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_work_submit' is unreachable from any entrypoint or test (coordination_cli.py:361) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_work_claim' is unreachable from any entrypoint or test (coordination_cli.py:378) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_work_complete' is unreachable from any entrypoint or test (coordination_cli.py:398) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_work_get' is unreachable from any entrypoint or test (coordination_cli.py:418) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_handoff_write' is unreachable from any entrypoint or test (coordination_cli.py:441) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_handoff_read' is unreachable from any entrypoint or test (coordination_cli.py:457) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_memory_store' is unreachable from any entrypoint or test (coordination_cli.py:481) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_memory_query' is unreachable from any entrypoint or test (coordination_cli.py:499) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_guardrails_check' is unreachable from any entrypoint or test (coordination_cli.py:524) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_audit_query' is unreachable from any entrypoint or test (coordination_cli.py:545) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cmd_help' is unreachable from any entrypoint or test (coordination_cli.py:571) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'build_parser' is unreachable from any entrypoint or test (coordination_cli.py:648) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'main' is unreachable from any entrypoint or test (coordination_cli.py:834) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_agent_id' is unreachable from any entrypoint or test (coordination_mcp.py:67) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_agent_type' is unreachable from any entrypoint or test (coordination_mcp.py:72) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'acquire_lock' is unreachable from any entrypoint or test (coordination_mcp.py:83) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'release_lock' is unreachable from any entrypoint or test (coordination_mcp.py:137) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_locks' is unreachable from any entrypoint or test (coordination_mcp.py:165) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_work' is unreachable from any entrypoint or test (coordination_mcp.py:201) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'complete_work' is unreachable from any entrypoint or test (coordination_mcp.py:244) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'submit_work' is unreachable from any entrypoint or test (coordination_mcp.py:292) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_task' is unreachable from any entrypoint or test (coordination_mcp.py:357) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'issue_create' is unreachable from any entrypoint or test (coordination_mcp.py:413) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'issue_list' is unreachable from any entrypoint or test (coordination_mcp.py:491) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'issue_show' is unreachable from any entrypoint or test (coordination_mcp.py:548) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'issue_update' is unreachable from any entrypoint or test (coordination_mcp.py:575) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'issue_close' is unreachable from any entrypoint or test (coordination_mcp.py:643) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'issue_comment' is unreachable from any entrypoint or test (coordination_mcp.py:696) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'issue_ready' is unreachable from any entrypoint or test (coordination_mcp.py:731) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'issue_blocked' is unreachable from any entrypoint or test (coordination_mcp.py:773) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'issue_search' is unreachable from any entrypoint or test (coordination_mcp.py:801) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'write_handoff' is unreachable from any entrypoint or test (coordination_mcp.py:844) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'read_handoff' is unreachable from any entrypoint or test (coordination_mcp.py:907) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'register_session' is unreachable from any entrypoint or test (coordination_mcp.py:972) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'discover_agents' is unreachable from any entrypoint or test (coordination_mcp.py:1018) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'heartbeat' is unreachable from any entrypoint or test (coordination_mcp.py:1071) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cleanup_dead_agents' is unreachable from any entrypoint or test (coordination_mcp.py:1095) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'remember' is unreachable from any entrypoint or test (coordination_mcp.py:1134) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'recall' is unreachable from any entrypoint or test (coordination_mcp.py:1189) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_guardrails' is unreachable from any entrypoint or test (coordination_mcp.py:1249) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_my_profile' is unreachable from any entrypoint or test (coordination_mcp.py:1320) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_agent_dispatch_configs' is unreachable from any entrypoint or test (coordination_mcp.py:1357) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'query_audit' is unreachable from any entrypoint or test (coordination_mcp.py:1381) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_policy' is unreachable from any entrypoint or test (coordination_mcp.py:1436) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'validate_cedar_policy' is unreachable from any entrypoint or test (coordination_mcp.py:1483) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'allocate_ports' is unreachable from any entrypoint or test (coordination_mcp.py:1527) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'release_ports' is unreachable from any entrypoint or test (coordination_mcp.py:1576) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ports_status' is unreachable from any entrypoint or test (coordination_mcp.py:1603) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'request_approval' is unreachable from any entrypoint or test (coordination_mcp.py:1648) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_approval' is unreachable from any entrypoint or test (coordination_mcp.py:1680) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'list_policy_versions' is unreachable from any entrypoint or test (coordination_mcp.py:1706) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'request_permission' is unreachable from any entrypoint or test (coordination_mcp.py:1726) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'register_feature' is unreachable from any entrypoint or test (coordination_mcp.py:1759) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'deregister_feature' is unreachable from any entrypoint or test (coordination_mcp.py:1815) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_feature' is unreachable from any entrypoint or test (coordination_mcp.py:1850) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'list_active_features' is unreachable from any entrypoint or test (coordination_mcp.py:1884) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'analyze_feature_conflicts' is unreachable from any entrypoint or test (coordination_mcp.py:1914) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'enqueue_merge' is unreachable from any entrypoint or test (coordination_mcp.py:1955) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_merge_queue' is unreachable from any entrypoint or test (coordination_mcp.py:1996) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_next_merge' is unreachable from any entrypoint or test (coordination_mcp.py:2025) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'run_pre_merge_checks' is unreachable from any entrypoint or test (coordination_mcp.py:2054) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'mark_merged' is unreachable from any entrypoint or test (coordination_mcp.py:2084) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'remove_from_merge_queue' is unreachable from any entrypoint or test (coordination_mcp.py:2106) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_current_trust_level' is unreachable from any entrypoint or test (coordination_mcp.py:2131) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'compose_train' is unreachable from any entrypoint or test (coordination_mcp.py:2146) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'eject_from_train' is unreachable from any entrypoint or test (coordination_mcp.py:2205) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_train_status' is unreachable from any entrypoint or test (coordination_mcp.py:2263) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'report_spec_result' is unreachable from any entrypoint or test (coordination_mcp.py:2296) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'affected_tests' is unreachable from any entrypoint or test (coordination_mcp.py:2339) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'report_status' is unreachable from any entrypoint or test (coordination_mcp.py:2377) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'help' is unreachable from any entrypoint or test (coordination_mcp.py:2478) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'list_scenarios' is unreachable from any entrypoint or test (coordination_mcp.py:2810) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'validate_scenario' is unreachable from any entrypoint or test (coordination_mcp.py:2854) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'create_scenario' is unreachable from any entrypoint or test (coordination_mcp.py:2889) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'run_gen_eval' is unreachable from any entrypoint or test (coordination_mcp.py:2940) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'main' is unreachable from any entrypoint or test (coordination_mcp.py:3109) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'rpc' is unreachable from any entrypoint or test (db.py:32) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'query' is unreachable from any entrypoint or test (db.py:36) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'insert' is unreachable from any entrypoint or test (db.py:45) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'update' is unreachable from any entrypoint or test (db.py:54) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'delete' is unreachable from any entrypoint or test (db.py:64) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'close' is unreachable from any entrypoint or test (db.py:68) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (db.py:80) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'config' is unreachable from any entrypoint or test (db.py:85) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'client' is unreachable from any entrypoint or test (db.py:96) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_headers' is unreachable from any entrypoint or test (db.py:101) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'rpc' is unreachable from any entrypoint or test (db.py:109) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'query' is unreachable from any entrypoint or test (db.py:130) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'insert' is unreachable from any entrypoint or test (db.py:154) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'update' is unreachable from any entrypoint or test (db.py:184) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'delete' is unreachable from any entrypoint or test (db.py:217) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'close' is unreachable from any entrypoint or test (db.py:237) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'close_db' is unreachable from any entrypoint or test (db.py:279) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_db' is unreachable from any entrypoint or test (db.py:287) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_coerce_filter_value' is unreachable from any entrypoint or test (db_postgres.py:25) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_validate_identifier' is unreachable from any entrypoint or test (db_postgres.py:46) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_validate_select_clause' is unreachable from any entrypoint or test (db_postgres.py:54) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_serialize_for_asyncpg' is unreachable from any entrypoint or test (db_postgres.py:66) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (db_postgres.py:85) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_get_pool' is unreachable from any entrypoint or test (db_postgres.py:89) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'rpc' is unreachable from any entrypoint or test (db_postgres.py:98) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'query' is unreachable from any entrypoint or test (db_postgres.py:128) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'insert' is unreachable from any entrypoint or test (db_postgres.py:217) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'update' is unreachable from any entrypoint or test (db_postgres.py:245) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'delete' is unreachable from any entrypoint or test (db_postgres.py:287) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'close' is unreachable from any entrypoint or test (db_postgres.py:309) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (discovery.py:38) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'parse_dt' is unreachable from any entrypoint or test (discovery.py:39) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (discovery.py:68) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (discovery.py:82) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (discovery.py:96) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (discovery.py:113) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (discovery.py:124) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (discovery.py:128) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'register' is unreachable from any entrypoint or test (discovery.py:133) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'discover' is unreachable from any entrypoint or test (discovery.py:184) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'heartbeat' is unreachable from any entrypoint or test (discovery.py:208) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cleanup_dead_agents' is unreachable from any entrypoint or test (discovery.py:266) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_colima_installed' is unreachable from any entrypoint or test (docker_manager.py:29) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_colima_running' is unreachable from any entrypoint or test (docker_manager.py:34) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_ensure_colima_vm' is unreachable from any entrypoint or test (docker_manager.py:47) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'detect_runtime' is unreachable from any entrypoint or test (docker_manager.py:100) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_container_running' is unreachable from any entrypoint or test (docker_manager.py:168) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'start_container' is unreachable from any entrypoint or test (docker_manager.py:182) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'wait_for_healthy' is unreachable from any entrypoint or test (docker_manager.py:267) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__post_init__' is unreachable from any entrypoint or test (event_bus.py:50) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'to_json' is unreachable from any entrypoint or test (event_bus.py:57) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_json' is unreachable from any entrypoint or test (event_bus.py:71) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (event_bus.py:119) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'running' is unreachable from any entrypoint or test (event_bus.py:140) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'failed' is unreachable from any entrypoint or test (event_bus.py:144) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'on_event' is unreachable from any entrypoint or test (event_bus.py:148) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'off_event' is unreachable from any entrypoint or test (event_bus.py:159) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'start' is unreachable from any entrypoint or test (event_bus.py:188) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'stop' is unreachable from any entrypoint or test (event_bus.py:206) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'restart' is unreachable from any entrypoint or test (event_bus.py:225) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_listen_loop' is unreachable from any entrypoint or test (event_bus.py:230) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_connect_and_listen' is unreachable from any entrypoint or test (event_bus.py:262) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_notification_handler' is unreachable from any entrypoint or test (event_bus.py:275) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_dispatch' is unreachable from any entrypoint or test (event_bus.py:306) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_safe_callback' is unreachable from any entrypoint or test (event_bus.py:329) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_event_bus' is unreachable from any entrypoint or test (event_bus.py:351) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'mint_events_token' is unreachable from any entrypoint or test (event_stream.py:64) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_prune_nonces' is unreachable from any entrypoint or test (event_stream.py:153) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_on_task_event' is unreachable from any entrypoint or test (event_stream.py:271) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_on_audit_event' is unreachable from any entrypoint or test (event_stream.py:276) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_enabled' is unreachable from any entrypoint or test (feature_flags.py:89) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'to_yaml_dict' is unreachable from any entrypoint or test (feature_flags.py:92) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_yaml_dict' is unreachable from any entrypoint or test (feature_flags.py:106) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_parse' is unreachable from any entrypoint or test (feature_flags.py:107) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'normalize_flag_name' is unreachable from any entrypoint or test (feature_flags.py:129) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (feature_flags.py:164) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'load' is unreachable from any entrypoint or test (feature_flags.py:173) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_load_unlocked' is unreachable from any entrypoint or test (feature_flags.py:183) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_get_registry' is unreachable from any entrypoint or test (feature_flags.py:242) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'resolve_flag' is unreachable from any entrypoint or test (feature_flags.py:250) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_enabled' is unreachable from any entrypoint or test (feature_flags.py:283) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_undeclared_env_vars' is unreachable from any entrypoint or test (feature_flags.py:287) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'create_flag' is unreachable from any entrypoint or test (feature_flags.py:308) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'enable_flag' is unreachable from any entrypoint or test (feature_flags.py:347) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_write_registry' is unreachable from any entrypoint or test (feature_flags.py:363) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_feature_flag_service' is unreachable from any entrypoint or test (feature_flags.py:393) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_feature_flag_service' is unreachable from any entrypoint or test (feature_flags.py:402) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'create_flag' is unreachable from any entrypoint or test (feature_flags.py:409) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'enable_flag' is unreachable from any entrypoint or test (feature_flags.py:417) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'resolve_flag' is unreachable from any entrypoint or test (feature_flags.py:421) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_enabled' is unreachable from any entrypoint or test (feature_flags.py:425) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (feature_registry.py:51) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'parse_dt' is unreachable from any entrypoint or test (feature_registry.py:52) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (feature_registry.py:84) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (feature_registry.py:103) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (feature_registry.py:131) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (feature_registry.py:135) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'register' is unreachable from any entrypoint or test (feature_registry.py:140) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'deregister' is unreachable from any entrypoint or test (feature_registry.py:198) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_feature' is unreachable from any entrypoint or test (feature_registry.py:233) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_active_features' is unreachable from any entrypoint or test (feature_registry.py:248) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'analyze_conflicts' is unreachable from any entrypoint or test (feature_registry.py:260) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'create_speculative_ref' is unreachable from any entrypoint or test (git_adapter.py:108) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'delete_speculative_refs' is unreachable from any entrypoint or test (git_adapter.py:115) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'fast_forward_main' is unreachable from any entrypoint or test (git_adapter.py:117) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_changed_files' is unreachable from any entrypoint or test (git_adapter.py:119) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'list_speculative_refs' is unreachable from any entrypoint or test (git_adapter.py:121) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'validate_speculative_ref_name' is unreachable from any entrypoint or test (git_adapter.py:129) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'validate_branch_name' is unreachable from any entrypoint or test (git_adapter.py:143) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'parse_git_version' is unreachable from any entrypoint or test (git_adapter.py:159) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (git_adapter.py:183) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_ensure_git_version' is unreachable from any entrypoint or test (git_adapter.py:189) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_run' is unreachable from any entrypoint or test (git_adapter.py:212) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'create_speculative_ref' is unreachable from any entrypoint or test (git_adapter.py:225) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'delete_speculative_refs' is unreachable from any entrypoint or test (git_adapter.py:317) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'fast_forward_main' is unreachable from any entrypoint or test (git_adapter.py:342) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_changed_files' is unreachable from any entrypoint or test (git_adapter.py:372) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'list_speculative_refs' is unreachable from any entrypoint or test (git_adapter.py:406) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_parse_conflict_files' is unreachable from any entrypoint or test (git_adapter.py:426) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'parse' is unreachable from any entrypoint or test (github_coordination.py:39) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (github_coordination.py:79) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (github_coordination.py:92) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (github_coordination.py:96) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'parse_lock_labels' is unreachable from any entrypoint or test (github_coordination.py:101) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'parse_branch' is unreachable from any entrypoint or test (github_coordination.py:121) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'sync_label_locks' is unreachable from any entrypoint or test (github_coordination.py:132) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'sync_branch_tracking' is unreachable from any entrypoint or test (github_coordination.py:212) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'handle_push_webhook' is unreachable from any entrypoint or test (github_coordination.py:265) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'handle_issues_webhook' is unreachable from any entrypoint or test (github_coordination.py:294) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_github_coordination_service' is unreachable from any entrypoint or test (github_coordination.py:328) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_ensure_guardrail_instruments' is unreachable from any entrypoint or test (guardrails.py:27) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_guardrail_instruments' is unreachable from any entrypoint or test (guardrails.py:49) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (guardrails.py:150) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (guardrails.py:172) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (guardrails.py:192) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (guardrails.py:206) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (guardrails.py:212) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_load_patterns' is unreachable from any entrypoint or test (guardrails.py:217) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_operation' is unreachable from any entrypoint or test (guardrails.py:243) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (handoffs.py:37) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (handoffs.py:67) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (handoffs.py:86) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (handoffs.py:96) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (handoffs.py:100) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'write' is unreachable from any entrypoint or test (handoffs.py:105) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'read' is unreachable from any entrypoint or test (handoffs.py:187) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_recent' is unreachable from any entrypoint or test (handoffs.py:226) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_register' is unreachable from any entrypoint or test (help_service.py:40) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_validate_url' is unreachable from any entrypoint or test (http_proxy.py:41) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_env' is unreachable from any entrypoint or test (http_proxy.py:104) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'probe_database' is unreachable from any entrypoint or test (http_proxy.py:141) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'probe_http_api' is unreachable from any entrypoint or test (http_proxy.py:165) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'select_transport' is unreachable from any entrypoint or test (http_proxy.py:181) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'init_client' is unreachable from any entrypoint or test (http_proxy.py:212) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_config' is unreachable from any entrypoint or test (http_proxy.py:223) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_client' is unreachable from any entrypoint or test (http_proxy.py:230) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'shutdown_client' is unreachable from any entrypoint or test (http_proxy.py:237) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_build_default_headers' is unreachable from any entrypoint or test (http_proxy.py:245) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_error_response' is unreachable from any entrypoint or test (http_proxy.py:257) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_request' is unreachable from any entrypoint or test (http_proxy.py:264) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_agent_identity' is unreachable from any entrypoint or test (http_proxy.py:332) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_acquire_lock' is unreachable from any entrypoint or test (http_proxy.py:350) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_release_lock' is unreachable from any entrypoint or test (http_proxy.py:365) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_check_locks' is unreachable from any entrypoint or test (http_proxy.py:374) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_get_work' is unreachable from any entrypoint or test (http_proxy.py:425) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_complete_work' is unreachable from any entrypoint or test (http_proxy.py:436) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_submit_work' is unreachable from any entrypoint or test (http_proxy.py:453) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_get_task' is unreachable from any entrypoint or test (http_proxy.py:472) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_issue_create' is unreachable from any entrypoint or test (http_proxy.py:486) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_issue_list' is unreachable from any entrypoint or test (http_proxy.py:511) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_issue_show' is unreachable from any entrypoint or test (http_proxy.py:532) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_issue_update' is unreachable from any entrypoint or test (http_proxy.py:537) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_issue_close' is unreachable from any entrypoint or test (http_proxy.py:562) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_issue_comment' is unreachable from any entrypoint or test (http_proxy.py:577) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_issue_search' is unreachable from any entrypoint or test (http_proxy.py:590) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_issue_ready' is unreachable from any entrypoint or test (http_proxy.py:603) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_issue_blocked' is unreachable from any entrypoint or test (http_proxy.py:616) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_write_handoff' is unreachable from any entrypoint or test (http_proxy.py:626) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_read_handoff' is unreachable from any entrypoint or test (http_proxy.py:647) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_register_session' is unreachable from any entrypoint or test (http_proxy.py:665) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_discover_agents' is unreachable from any entrypoint or test (http_proxy.py:680) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_heartbeat' is unreachable from any entrypoint or test (http_proxy.py:693) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_cleanup_dead_agents' is unreachable from any entrypoint or test (http_proxy.py:699) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_remember' is unreachable from any entrypoint or test (http_proxy.py:715) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_recall' is unreachable from any entrypoint or test (http_proxy.py:736) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_check_guardrails' is unreachable from any entrypoint or test (http_proxy.py:758) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_get_my_profile' is unreachable from any entrypoint or test (http_proxy.py:771) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_get_agent_dispatch_configs' is unreachable from any entrypoint or test (http_proxy.py:776) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_query_audit' is unreachable from any entrypoint or test (http_proxy.py:781) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_check_policy' is unreachable from any entrypoint or test (http_proxy.py:800) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_validate_cedar_policy' is unreachable from any entrypoint or test (http_proxy.py:815) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_list_policy_versions' is unreachable from any entrypoint or test (http_proxy.py:824) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_request_permission' is unreachable from any entrypoint or test (http_proxy.py:836) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_request_approval' is unreachable from any entrypoint or test (http_proxy.py:849) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_check_approval' is unreachable from any entrypoint or test (http_proxy.py:864) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_allocate_ports' is unreachable from any entrypoint or test (http_proxy.py:874) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_release_ports' is unreachable from any entrypoint or test (http_proxy.py:883) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_ports_status' is unreachable from any entrypoint or test (http_proxy.py:892) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_register_feature' is unreachable from any entrypoint or test (http_proxy.py:909) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_deregister_feature' is unreachable from any entrypoint or test (http_proxy.py:930) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_get_feature' is unreachable from any entrypoint or test (http_proxy.py:943) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_list_active_features' is unreachable from any entrypoint or test (http_proxy.py:948) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_analyze_feature_conflicts' is unreachable from any entrypoint or test (http_proxy.py:953) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_enqueue_merge' is unreachable from any entrypoint or test (http_proxy.py:971) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_get_merge_queue' is unreachable from any entrypoint or test (http_proxy.py:984) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_get_next_merge' is unreachable from any entrypoint or test (http_proxy.py:989) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_run_pre_merge_checks' is unreachable from any entrypoint or test (http_proxy.py:994) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_mark_merged' is unreachable from any entrypoint or test (http_proxy.py:1003) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_remove_from_merge_queue' is unreachable from any entrypoint or test (http_proxy.py:1012) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_report_status' is unreachable from any entrypoint or test (http_proxy.py:1022) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_list_scenarios' is unreachable from any entrypoint or test (http_proxy.py:1049) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_validate_scenario' is unreachable from any entrypoint or test (http_proxy.py:1073) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_create_scenario' is unreachable from any entrypoint or test (http_proxy.py:1082) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'proxy_run_gen_eval' is unreachable from any entrypoint or test (http_proxy.py:1101) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_row' is unreachable from any entrypoint or test (issue_service.py:72) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'parse_dt' is unreachable from any entrypoint or test (issue_service.py:73) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'to_dict' is unreachable from any entrypoint or test (issue_service.py:108) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_row' is unreachable from any entrypoint or test (issue_service.py:164) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'to_dict' is unreachable from any entrypoint or test (issue_service.py:176) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (issue_service.py:189) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (issue_service.py:193) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'create' is unreachable from any entrypoint or test (issue_service.py:198) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'list_issues' is unreachable from any entrypoint or test (issue_service.py:251) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'show' is unreachable from any entrypoint or test (issue_service.py:306) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'update' is unreachable from any entrypoint or test (issue_service.py:344) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'close' is unreachable from any entrypoint or test (issue_service.py:410) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'comment' is unreachable from any entrypoint or test (issue_service.py:453) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ready' is unreachable from any entrypoint or test (issue_service.py:479) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'blocked' is unreachable from any entrypoint or test (issue_service.py:525) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'search' is unreachable from any entrypoint or test (issue_service.py:554) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_load_schema' is unreachable from any entrypoint or test (kanban_viz_files.py:69) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (kanban_viz_files.py:115) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'dispatch' is unreachable from any entrypoint or test (langfuse_middleware.py:44) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_resolve_agent_id' is unreachable from any entrypoint or test (langfuse_middleware.py:98) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_finalize_trace' is unreachable from any entrypoint or test (langfuse_middleware.py:114) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_is_enabled' is unreachable from any entrypoint or test (langfuse_tracing.py:30) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'init_langfuse' is unreachable from any entrypoint or test (langfuse_tracing.py:34) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_langfuse' is unreachable from any entrypoint or test (langfuse_tracing.py:79) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'shutdown_langfuse' is unreachable from any entrypoint or test (langfuse_tracing.py:84) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'create_trace' is unreachable from any entrypoint or test (langfuse_tracing.py:102) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'create_span' is unreachable from any entrypoint or test (langfuse_tracing.py:130) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'end_span' is unreachable from any entrypoint or test (langfuse_tracing.py:153) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'trace_operation' is unreachable from any entrypoint or test (langfuse_tracing.py:175) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_langfuse' is unreachable from any entrypoint or test (langfuse_tracing.py:229) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_get_instruments' is unreachable from any entrypoint or test (locks.py:29) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_ensure_instruments' is unreachable from any entrypoint or test (locks.py:58) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_valid_lock_key' is unreachable from any entrypoint or test (locks.py:81) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (locks.py:101) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_parse_dt' is unreachable from any entrypoint or test (locks.py:102) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (locks.py:131) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (locks.py:152) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (locks.py:156) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'acquire' is unreachable from any entrypoint or test (locks.py:161) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'release' is unreachable from any entrypoint or test (locks.py:276) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check' is unreachable from any entrypoint or test (locks.py:341) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'extend' is unreachable from any entrypoint or test (locks.py:368) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_locked' is unreachable from any entrypoint or test (locks.py:392) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'force_release' is unreachable from any entrypoint or test (locks.py:404) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (memory.py:35) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (memory.py:65) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (memory.py:81) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (memory.py:92) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (memory.py:96) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'remember' is unreachable from any entrypoint or test (memory.py:101) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'recall' is unreachable from any entrypoint or test (memory.py:181) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_feature' is unreachable from any entrypoint or test (merge_queue.py:73) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (merge_queue.py:99) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (merge_queue.py:108) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'registry' is unreachable from any entrypoint or test (merge_queue.py:114) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'enqueue' is unreachable from any entrypoint or test (merge_queue.py:119) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_queue' is unreachable from any entrypoint or test (merge_queue.py:210) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_next_to_merge' is unreachable from any entrypoint or test (merge_queue.py:246) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'run_pre_merge_checks' is unreachable from any entrypoint or test (merge_queue.py:260) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'mark_merged' is unreachable from any entrypoint or test (merge_queue.py:349) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'remove_from_queue' is unreachable from any entrypoint or test (merge_queue.py:376) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_parse_dt' is unreachable from any entrypoint or test (merge_queue.py:404) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_entry_prefix_set' is unreachable from any entrypoint or test (merge_train.py:114) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_find_cycles_in_cross_partition_graph' is unreachable from any entrypoint or test (merge_train.py:137) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_dfs' is unreachable from any entrypoint or test (merge_train.py:176) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'compute_partitions' is unreachable from any entrypoint or test (merge_train.py:212) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_speculative_ref_name' is unreachable from any entrypoint or test (merge_train.py:294) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_sort_entries_by_priority' is unreachable from any entrypoint or test (merge_train.py:299) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_handle_conflict' is unreachable from any entrypoint or test (merge_train.py:304) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_handle_speculative_success' is unreachable from any entrypoint or test (merge_train.py:318) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'compose_train' is unreachable from any entrypoint or test (merge_train.py:339) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_speculate' is unreachable from any entrypoint or test (merge_train.py:445) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_declared_namespaces' is unreachable from any entrypoint or test (merge_train.py:547) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'validate_post_speculation_claims' is unreachable from any entrypoint or test (merge_train.py:557) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_caller_is_authorized_to_eject' is unreachable from any entrypoint or test (merge_train.py:644) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'eject_from_train' is unreachable from any entrypoint or test (merge_train.py:659) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_blocked_entry' is unreachable from any entrypoint or test (merge_train.py:768) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_abandoned_entry' is unreachable from any entrypoint or test (merge_train.py:811) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_build_merge_graph' is unreachable from any entrypoint or test (merge_train.py:884) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_compute_wave_order' is unreachable from any entrypoint or test (merge_train.py:974) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'execute_wave_merge' is unreachable from any entrypoint or test (merge_train.py:1017) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_group_refs_by_train_id' is unreachable from any entrypoint or test (merge_train.py:1137) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cleanup_orphaned_speculative_refs' is unreachable from any entrypoint or test (merge_train.py:1157) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'gc_aged_speculative_refs' is unreachable from any entrypoint or test (merge_train.py:1206) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_parse_dt' is unreachable from any entrypoint or test (merge_train_service.py:66) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_feature_to_train_entry' is unreachable from any entrypoint or test (merge_train_service.py:77) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (merge_train_service.py:123) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (merge_train_service.py:138) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'registry' is unreachable from any entrypoint or test (merge_train_service.py:144) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'git_adapter' is unreachable from any entrypoint or test (merge_train_service.py:150) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'refresh_client' is unreachable from any entrypoint or test (merge_train_service.py:160) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_load_entries' is unreachable from any entrypoint or test (merge_train_service.py:167) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_save_entry' is unreachable from any entrypoint or test (merge_train_service.py:177) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_persist_entries' is unreachable from any entrypoint or test (merge_train_service.py:197) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_probe_and_maybe_refresh' is unreachable from any entrypoint or test (merge_train_service.py:208) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'compose_train' is unreachable from any entrypoint or test (merge_train_service.py:256) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'eject_from_train' is unreachable from any entrypoint or test (merge_train_service.py:288) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_train_status' is unreachable from any entrypoint or test (merge_train_service.py:338) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'report_spec_result' is unreachable from any entrypoint or test (merge_train_service.py:343) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_merge_train_service' is unreachable from any entrypoint or test (merge_train_service.py:404) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (merge_train_service.py:438) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'service' is unreachable from any entrypoint or test (merge_train_service.py:457) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'running' is unreachable from any entrypoint or test (merge_train_service.py:463) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'run_once' is unreachable from any entrypoint or test (merge_train_service.py:466) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'start' is unreachable from any entrypoint or test (merge_train_service.py:484) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'stop' is unreachable from any entrypoint or test (merge_train_service.py:494) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_loop' is unreachable from any entrypoint or test (merge_train_service.py:506) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_merge_train_sweeper' is unreachable from any entrypoint or test (merge_train_service.py:521) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_merge_train_sweeper' is unreachable from any entrypoint or test (merge_train_service.py:529) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_terminal' is unreachable from any entrypoint or test (merge_train_types.py:127) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'to_metadata_dict' is unreachable from any entrypoint or test (merge_train_types.py:130) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'all_passed' is unreachable from any entrypoint or test (merge_train_types.py:162) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'new_train_id' is unreachable from any entrypoint or test (merge_train_types.py:202) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'all_entries' is unreachable from any entrypoint or test (merge_train_types.py:206) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'total_entry_count' is unreachable from any entrypoint or test (merge_train_types.py:213) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'file_path_to_namespaces' is unreachable from any entrypoint or test (merge_train_types.py:252) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'claim_prefix' is unreachable from any entrypoint or test (merge_train_types.py:287) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'discover_migrations' is unreachable from any entrypoint or test (migrations.py:35) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_checksum' is unreachable from any entrypoint or test (migrations.py:50) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'run_migrations' is unreachable from any entrypoint or test (migrations.py:55) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'ensure_schema' is unreachable from any entrypoint or test (migrations.py:146) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (network_policies.py:24) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (network_policies.py:36) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (network_policies.py:40) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_domain' is unreachable from any entrypoint or test (network_policies.py:45) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_network_policy_service' is unreachable from any entrypoint or test (network_policies.py:85) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'send' is unreachable from any entrypoint or test (notifications/base.py:16) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'test' is unreachable from any entrypoint or test (notifications/base.py:20) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'supports_reply' is unreachable from any entrypoint or test (notifications/base.py:24) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (notifications/base.py:34) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'send' is unreachable from any entrypoint or test (notifications/base.py:37) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'test' is unreachable from any entrypoint or test (notifications/base.py:41) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'supports_reply' is unreachable from any entrypoint or test (notifications/base.py:44) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (notifications/gmail.py:55) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'send' is unreachable from any entrypoint or test (notifications/gmail.py:71) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'test' is unreachable from any entrypoint or test (notifications/gmail.py:128) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'supports_reply' is unreachable from any entrypoint or test (notifications/gmail.py:143) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'start_imap_listener' is unreachable from any entrypoint or test (notifications/gmail.py:148) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'stop_imap_listener' is unreachable from any entrypoint or test (notifications/gmail.py:214) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_process_imap_message' is unreachable from any entrypoint or test (notifications/gmail.py:222) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_send_reply_email' is unreachable from any entrypoint or test (notifications/gmail.py:348) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_render' is unreachable from any entrypoint or test (notifications/gmail.py:368) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_thread_message_id' is unreachable from any entrypoint or test (notifications/gmail.py:380) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_gmail_channel' is unreachable from any entrypoint or test (notifications/gmail.py:387) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (notifications/notifier.py:33) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'register_channel' is unreachable from any entrypoint or test (notifications/notifier.py:38) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'enabled' is unreachable from any entrypoint or test (notifications/notifier.py:43) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'start_digest_loop' is unreachable from any entrypoint or test (notifications/notifier.py:47) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'stop_digest_loop' is unreachable from any entrypoint or test (notifications/notifier.py:54) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_digest_loop' is unreachable from any entrypoint or test (notifications/notifier.py:67) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_flush_digest' is unreachable from any entrypoint or test (notifications/notifier.py:77) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'send' is unreachable from any entrypoint or test (notifications/notifier.py:110) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_send_with_retry' is unreachable from any entrypoint or test (notifications/notifier.py:169) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_passes_filter' is unreachable from any entrypoint or test (notifications/notifier.py:208) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_notifier' is unreachable from any entrypoint or test (notifications/notifier.py:223) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_notifier' is unreachable from any entrypoint or test (notifications/notifier.py:231) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'extract_token' is unreachable from any entrypoint or test (notifications/relay.py:29) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'parse_reply' is unreachable from any entrypoint or test (notifications/relay.py:39) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'validate_sender' is unreachable from any entrypoint or test (notifications/relay.py:72) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'clean_reply_body' is unreachable from any entrypoint or test (notifications/relay.py:82) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'route_reply' is unreachable from any entrypoint or test (notifications/relay.py:109) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (notifications/telegram.py:28) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'client' is unreachable from any entrypoint or test (notifications/telegram.py:39) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_api_url' is unreachable from any entrypoint or test (notifications/telegram.py:44) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'send' is unreachable from any entrypoint or test (notifications/telegram.py:47) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'test' is unreachable from any entrypoint or test (notifications/telegram.py:106) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'supports_reply' is unreachable from any entrypoint or test (notifications/telegram.py:122) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_escape_markdown' is unreachable from any entrypoint or test (notifications/telegram.py:126) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_format_message' is unreachable from any entrypoint or test (notifications/telegram.py:131) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_telegram_channel' is unreachable from any entrypoint or test (notifications/telegram.py:148) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_esc' is unreachable from any entrypoint or test (notifications/templates.py:10) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_sanitize_header' is unreachable from any entrypoint or test (notifications/templates.py:15) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_wrap' is unreachable from any entrypoint or test (notifications/templates.py:46) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_change_label' is unreachable from any entrypoint or test (notifications/templates.py:56) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_field' is unreachable from any entrypoint or test (notifications/templates.py:61) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'render_approval_email' is unreachable from any entrypoint or test (notifications/templates.py:71) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'render_status_email' is unreachable from any entrypoint or test (notifications/templates.py:100) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'render_escalation_email' is unreachable from any entrypoint or test (notifications/templates.py:119) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'render_stale_agent_email' is unreachable from any entrypoint or test (notifications/templates.py:147) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'render_digest_email' is unreachable from any entrypoint or test (notifications/templates.py:165) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (notifications/webhook.py:26) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'client' is unreachable from any entrypoint or test (notifications/webhook.py:37) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'send' is unreachable from any entrypoint or test (notifications/webhook.py:42) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'test' is unreachable from any entrypoint or test (notifications/webhook.py:83) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'supports_reply' is unreachable from any entrypoint or test (notifications/webhook.py:109) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_webhook_channel' is unreachable from any entrypoint or test (notifications/webhook.py:113) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_ensure_policy_instruments' is unreachable from any entrypoint or test (policy_engine.py:29) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'allow' is unreachable from any entrypoint or test (policy_engine.py:92) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'deny' is unreachable from any entrypoint or test (policy_engine.py:96) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (policy_engine.py:115) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (policy_engine.py:119) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_operation' is unreachable from any entrypoint or test (policy_engine.py:124) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_do_check_operation' is unreachable from any entrypoint or test (policy_engine.py:165) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_network_access' is unreachable from any entrypoint or test (policy_engine.py:350) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'list_policy_versions' is unreachable from any entrypoint or test (policy_engine.py:373) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'rollback_policy' is unreachable from any entrypoint or test (policy_engine.py:392) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_log_policy_decision' is unreachable from any entrypoint or test (policy_engine.py:418) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (policy_engine.py:464) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (policy_engine.py:480) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_load_default_policies' is unreachable from any entrypoint or test (policy_engine.py:485) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_load_schema' is unreachable from any entrypoint or test (policy_engine.py:499) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_load_policies' is unreachable from any entrypoint or test (policy_engine.py:517) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_build_entity' is unreachable from any entrypoint or test (policy_engine.py:572) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_build_resource_entity' is unreachable from any entrypoint or test (policy_engine.py:609) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_determine_resource_type' is unreachable from any entrypoint or test (policy_engine.py:636) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_operation' is unreachable from any entrypoint or test (policy_engine.py:648) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_do_check_operation' is unreachable from any entrypoint or test (policy_engine.py:689) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_network_access' is unreachable from any entrypoint or test (policy_engine.py:778) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'validate_policy' is unreachable from any entrypoint or test (policy_engine.py:797) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'list_policies' is unreachable from any entrypoint or test (policy_engine.py:818) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'invalidate_cache' is unreachable from any entrypoint or test (policy_engine.py:837) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'list_policy_versions' is unreachable from any entrypoint or test (policy_engine.py:842) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'rollback_policy' is unreachable from any entrypoint or test (policy_engine.py:861) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_log_policy_decision' is unreachable from any entrypoint or test (policy_engine.py:888) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_policy_engine' is unreachable from any entrypoint or test (policy_engine.py:945) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_policy_instruments' is unreachable from any entrypoint or test (policy_engine.py:951) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'start' is unreachable from any entrypoint or test (policy_sync.py:21) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'stop' is unreachable from any entrypoint or test (policy_sync.py:25) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'on_policy_change' is unreachable from any entrypoint or test (policy_sync.py:29) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (policy_sync.py:45) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'running' is unreachable from any entrypoint or test (policy_sync.py:60) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'on_policy_change' is unreachable from any entrypoint or test (policy_sync.py:64) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'start' is unreachable from any entrypoint or test (policy_sync.py:67) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'stop' is unreachable from any entrypoint or test (policy_sync.py:79) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_listen_loop' is unreachable from any entrypoint or test (policy_sync.py:93) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_connect_and_listen' is unreachable from any entrypoint or test (policy_sync.py:121) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_notification_handler' is unreachable from any entrypoint or test (policy_sync.py:127) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_safe_callback' is unreachable from any entrypoint or test (policy_sync.py:149) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_policy_sync_service' is unreachable from any entrypoint or test (policy_sync.py:163) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_policy_sync_service' is unreachable from any entrypoint or test (policy_sync.py:171) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'env_snippet' is unreachable from any entrypoint or test (port_allocator.py:37) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (port_allocator.py:55) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'allocate' is unreachable from any entrypoint or test (port_allocator.py:74) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'release' is unreachable from any entrypoint or test (port_allocator.py:132) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'status' is unreachable from any entrypoint or test (port_allocator.py:141) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_cleanup_expired' is unreachable from any entrypoint or test (port_allocator.py:151) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_compose_project_name' is unreachable from any entrypoint or test (port_allocator.py:166) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_port_allocator' is unreachable from any entrypoint or test (port_allocator.py:189) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'deep_merge' is unreachable from any entrypoint or test (profile_loader.py:64) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_load_secrets_openbao' is unreachable from any entrypoint or test (profile_loader.py:114) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_load_secrets' is unreachable from any entrypoint or test (profile_loader.py:159) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'resolve_dynamic_dsn' is unreachable from any entrypoint or test (profile_loader.py:171) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_replace' is unreachable from any entrypoint or test (profile_loader.py:239) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_interpolate_tree' is unreachable from any entrypoint or test (profile_loader.py:260) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_resolve_profile' is unreachable from any entrypoint or test (profile_loader.py:277) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_flatten' is unreachable from any entrypoint or test (profile_loader.py:311) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_inject_env' is unreachable from any entrypoint or test (profile_loader.py:323) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'load_profile' is unreachable from any entrypoint or test (profile_loader.py:339) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'apply_profile' is unreachable from any entrypoint or test (profile_loader.py:372) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (profiles.py:36) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (profiles.py:63) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (profiles.py:84) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (profiles.py:94) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (profiles.py:99) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_profile' is unreachable from any entrypoint or test (profiles.py:104) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'check_operation' is unreachable from any entrypoint or test (profiles.py:153) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_log_denial' is unreachable from any entrypoint or test (profiles.py:214) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__repr__' is unreachable from any entrypoint or test (refresh_rpc_client.py:69) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__call__' is unreachable from any entrypoint or test (refresh_rpc_client.py:85) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (refresh_rpc_client.py:134) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'is_graph_stale' is unreachable from any entrypoint or test (refresh_rpc_client.py:150) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'trigger_refresh' is unreachable from any entrypoint or test (refresh_rpc_client.py:164) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_refresh_status' is unreachable from any entrypoint or test (refresh_rpc_client.py:174) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_invoke' is unreachable from any entrypoint or test (refresh_rpc_client.py:183) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (risk_scorer.py:44) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (risk_scorer.py:56) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'compute_score' is unreachable from any entrypoint or test (risk_scorer.py:61) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_violation_count' is unreachable from any entrypoint or test (risk_scorer.py:108) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_trust_factor' is unreachable from any entrypoint or test (risk_scorer.py:125) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_operation_factor' is unreachable from any entrypoint or test (risk_scorer.py:130) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_resource_factor' is unreachable from any entrypoint or test (risk_scorer.py:141) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_violation_factor' is unreachable from any entrypoint or test (risk_scorer.py:152) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_session_age_factor' is unreachable from any entrypoint or test (risk_scorer.py:161) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_risk_scorer' is unreachable from any entrypoint or test (risk_scorer.py:174) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_risk_scorer' is unreachable from any entrypoint or test (risk_scorer.py:182) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (session_grants.py:30) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (session_grants.py:34) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'request_grant' is unreachable from any entrypoint or test (session_grants.py:39) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_active_grants' is unreachable from any entrypoint or test (session_grants.py:70) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'has_grant' is unreachable from any entrypoint or test (session_grants.py:78) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'revoke_grants' is unreachable from any entrypoint or test (session_grants.py:86) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_row_to_grant' is unreachable from any entrypoint or test (session_grants.py:100) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_parse_dt' is unreachable from any entrypoint or test (session_grants.py:113) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_session_grant_service' is unreachable from any entrypoint or test (session_grants.py:133) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'filter' is unreachable from any entrypoint or test (sse_log_redaction.py:39) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_scrub' is unreachable from any entrypoint or test (sse_log_redaction.py:58) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'install_token_redaction_filter' is unreachable from any entrypoint or test (sse_log_redaction.py:64) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'redact_token' is unreachable from any entrypoint or test (sse_log_redaction.py:79) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'generate_token' is unreachable from any entrypoint or test (status.py:12) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'store_token' is unreachable from any entrypoint or test (status.py:17) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'validate_token' is unreachable from any entrypoint or test (status.py:52) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'lookup_token_failure' is unreachable from any entrypoint or test (status.py:80) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cleanup_expired_tokens' is unreachable from any entrypoint or test (status.py:100) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_parse_iso' is unreachable from any entrypoint or test (sync_points.py:35) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_load_registry' is unreachable from any entrypoint or test (sync_points.py:45) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_check_active_worktrees' is unreachable from any entrypoint or test (sync_points.py:60) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_sync_points_status' is unreachable from any entrypoint or test (sync_points.py:81) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_file' is unreachable from any entrypoint or test (teams.py:69) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (teams.py:93) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_agent' is unreachable from any entrypoint or test (teams.py:129) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_agents_with_capability' is unreachable from any entrypoint or test (teams.py:143) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_teams_config' is unreachable from any entrypoint or test (teams.py:180) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_teams_config' is unreachable from any entrypoint or test (teams.py:200) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_metrics_enabled' is unreachable from any entrypoint or test (telemetry.py:33) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_traces_enabled' is unreachable from any entrypoint or test (telemetry.py:37) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_prometheus_enabled' is unreachable from any entrypoint or test (telemetry.py:41) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'init_telemetry' is unreachable from any entrypoint or test (telemetry.py:45) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_init_metrics' is unreachable from any entrypoint or test (telemetry.py:74) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_init_traces' is unreachable from any entrypoint or test (telemetry.py:138) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_lock_meter' is unreachable from any entrypoint or test (telemetry.py:185) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_queue_meter' is unreachable from any entrypoint or test (telemetry.py:190) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_policy_meter' is unreachable from any entrypoint or test (telemetry.py:195) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_tracer' is unreachable from any entrypoint or test (telemetry.py:200) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'set_attribute' is unreachable from any entrypoint or test (telemetry.py:213) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'set_status' is unreachable from any entrypoint or test (telemetry.py:216) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'record_exception' is unreachable from any entrypoint or test (telemetry.py:219) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__enter__' is unreachable from any entrypoint or test (telemetry.py:222) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__exit__' is unreachable from any entrypoint or test (telemetry.py:225) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'start_span' is unreachable from any entrypoint or test (telemetry.py:232) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_prometheus_app' is unreachable from any entrypoint or test (telemetry.py:245) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_telemetry' is unreachable from any entrypoint or test (telemetry.py:267) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (watchdog.py:34) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (watchdog.py:55) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'running' is unreachable from any entrypoint or test (watchdog.py:61) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'start' is unreachable from any entrypoint or test (watchdog.py:64) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'stop' is unreachable from any entrypoint or test (watchdog.py:72) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'run_once' is unreachable from any entrypoint or test (watchdog.py:84) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_loop' is unreachable from any entrypoint or test (watchdog.py:93) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_check_stale_agents' is unreachable from any entrypoint or test (watchdog.py:107) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_check_aging_approvals' is unreachable from any entrypoint or test (watchdog.py:166) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_check_expiring_locks' is unreachable from any entrypoint or test (watchdog.py:207) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_cleanup_expired_tokens' is unreachable from any entrypoint or test (watchdog.py:235) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_check_event_bus_health' is unreachable from any entrypoint or test (watchdog.py:252) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_check_vendor_health' is unreachable from any entrypoint or test (watchdog.py:275) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_emit_event' is unreachable from any entrypoint or test (watchdog.py:346) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_watchdog' is unreachable from any entrypoint or test (watchdog.py:391) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_watchdog' is unreachable from any entrypoint or test (watchdog.py:399) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_ensure_instruments' is unreachable from any entrypoint or test (work_queue.py:30) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (work_queue.py:88) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'parse_dt' is unreachable from any entrypoint or test (work_queue.py:89) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (work_queue.py:133) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (work_queue.py:166) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'from_dict' is unreachable from any entrypoint or test (work_queue.py:187) — Requires design decision or manual review
+- [MEDIUM] [orphan] '__init__' is unreachable from any entrypoint or test (work_queue.py:201) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'db' is unreachable from any entrypoint or test (work_queue.py:205) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_resolve_trust_level' is unreachable from any entrypoint or test (work_queue.py:210) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'claim' is unreachable from any entrypoint or test (work_queue.py:225) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'complete' is unreachable from any entrypoint or test (work_queue.py:442) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'submit' is unreachable from any entrypoint or test (work_queue.py:593) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_pending' is unreachable from any entrypoint or test (work_queue.py:729) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_task' is unreachable from any entrypoint or test (work_queue.py:753) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_my_tasks' is unreachable from any entrypoint or test (work_queue.py:765) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'cancel_task_convention' is unreachable from any entrypoint or test (work_queue.py:789) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'reset_instruments' is unreachable from any entrypoint or test (work_queue.py:830) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_repo_root' is unreachable from any entrypoint or test (worktrees_view.py:24) — Requires design decision or manual review
+- [MEDIUM] [orphan] '_parse_dt' is unreachable from any entrypoint or test (worktrees_view.py:29) — Requires design decision or manual review
+- [MEDIUM] [orphan] 'get_active_worktrees' is unreachable from any entrypoint or test (worktrees_view.py:41) — Requires design decision or manual review
+- [MEDIUM] 2.1 Write integration tests for routing migrations — additive-only, idempotent re-apply [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.2 Create migration `00X_model_routing.sql` per DB contract [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.3 Write tests for catalog service — CRUD, no-external-call read path, staleness flag [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.4 Implement `src/model_routing/catalog.py` — catalog service over routing tables [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.5 Write tests for OpenRouter refresher — price update, failure keeps rows, staleness [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.6 Implement OpenRouter REST refresher with standing-key auth [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.7 Write tests for local endpoint health probe — unhealthy exclusion, latency capture [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.8 Implement local endpoint registration plus health probe [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.9 Write tests for spend/counterfactual ledger — actual vs baseline, estimate labelling [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.10 Implement `src/model_routing/ledger.py` — spend accrual, counterfactual computation [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.11 Wire refresher, probes, ledger rollup into WatchdogService schedules [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.4 Implement Cedar feasibility policies plus vendor attribute schema [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.7 Write tests for routing API endpoints plus MCP tool parity [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.8 Expose resolver via HTTP endpoints plus MCP tool [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.9 Write tests for archetype delegation — flag off equals static result; timeout fallback signal [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.10 Implement `ROUTING_ADAPTIVE` delegation in `agents_config.resolve_archetype_for_phase` [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.11 Add `endpoint_kind`/`base_url` fields to agents.yaml schema with validation [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.6 Enforce exploration gating in roadmap dispatch path [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.4 Wire learning-log writers to POST `/routing/feedback` (best-effort, non-blocking) [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.5 Write tests for gen-eval calibration seeding of local-model priors [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.6 Implement gen-eval calibration suite runner seeding local priors [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.1 Write tests for ToS monitor — hash diff emits signal, vendor freeze until ack [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.2 Implement ToS monitor probe [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.3 Write tests for model canary — fingerprint drift invalidates posteriors [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.4 Implement model canary probe [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.5 Write tests for tripwire evaluation — economic kill, posture-flip signals [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.7 Write tests for quota probe — quota-axi JSON normalized to signal, resilience down-rank, graceful degrade [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.8 Implement optional quota probe (quota-axi subprocess adapter, off by default) [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.6 Implement tripwire evaluator with posture flips as signals [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope, verify quota probe degrades cleanly (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 7.1 Write component tests for usage dashboard — scoreboard render, estimate labelling [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 7.2 Scaffold `apps/usage-viz` from kanban-viz conventions (auth, SSE/poll hooks) [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 7.3 Implement spend, savings, scoreboard, exploration burn-down views [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 7.4 Write tests for routing telemetry emission — fallback label present [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 7.5 Emit routing OTel measurements on `coordinator.signal` meter [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 8.1 Run full test suite across coordinator plus skills venvs [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 8.2 E2E: flag-on routed quick-task to local endpoint; flag-off parity check [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 8.3 Archive absorbed changes with superseded-by pointers (`cross-vendor-arbitrage-instrument`, `usage-stats-multi-model` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 8.4 Register OpenRouter MCP server in `.mcp.json` as dev-time tool with setup docs [XS] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 8.5 Write ADR for adaptive routing placement plus objective-profile semantics [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.1 (S) Confirm the `add-adaptive-model-router` ledger + policy interfaces this consumes (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1 (S) Validate `contracts/openapi/v1.yaml`; generate Pydantic models into (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: openapi validates, models import (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1 (S) Write a smoke test that starts the gateway container and asserts `/health` + (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.2 (M) Add `docker/llm-gateway/` — pinned LiteLLM proxy compose service + (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: gateway starts; embedding round-trips against a test upstream (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.1 (M) Write tests for `llm_gateway.py` — trust-bounded issuance, vault-unavailable (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.2 (M) Implement `agent-coordinator/src/llm_gateway.py` — DI service over (vault, gateway (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (agent-coordinator only) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.3 (S) Write surface tests — flag off hides MCP tools + 404s HTTP routes; op-kind (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.4 (S) Register `issue_llm_key/revoke_llm_key/get_llm_budget/get_llm_spend` in (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.1 (S) Migration test — `llm_gateway_keys` additive shape; asserts NO spend columns (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.2 (S) Add additive migration `NNN_llm_gateway_keys.sql` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.3 (M) Wire the gateway spend callback → router ledger; buffer-and-reconcile on ledger (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.1 (S) Repoint `code_search.py`'s embedder at the gateway `/embeddings` behind a config (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.2 (S) Docs: `docs/guides/llm-gateway.md` — control/data-plane split, the coverage (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.3 (M) End-to-end (where a gateway + model are reachable): issue a key, embed via the (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: suite green, diff maps to tasks, scope verified (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Planning (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implementation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Testing (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Done (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Define detailed requirements (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implement core functionality (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Write tests (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Update documentation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review and merge (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1 Write tests for the merge-plan schema and its producer (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.2 Add `build_plan.py` (or extend the analysis round) to emit `merge-plan.json` from `discover_prs` + `check_staleness` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.3 Derive dependency edges from file overlap + base-branch relationships between PR nodes (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.4 Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1 Write tests for the `merge-plan.md` renderer (fidelity + non-mutation) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.2 Implement the `merge-plan.md` renderer as a pure projection of `merge-plan.json` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.1 Write tests for tier selection degrading to the file when no coordinator is available (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.2 Wire plan storage to `merge_backend.py` detection so file tier is authoritative absent a coordinator; stub the coord (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.3 Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.1 Write tests for `--execute <plan> --pr <n>`: live re-check, gate halt, security-backstop deferral, outcome write-bac (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.2 Implement `--execute --pr <n>` in the skill entrypoint: load plan, re-check live PR/CI, refresh if stale, run `vendo (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.3 On successful merge, flag downstream nodes (`needs_revalidation=true`) and recompute mergeability before executing a (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.4 Enforce canonical `skills/...` helper paths in the executor (no `.claude/skills` mirror dependence) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.5 Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.1 Write tests for inserting a discovered prerequisite node and for the comment-addressing delegation hand-off (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.2 Implement plan amendment: insert prerequisite node + edges with a reason; block affected nodes until it merges (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.3 Implement the comment-addressing seam: record unresolved comments on the node and offer delegation to `iterate-on-im (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.4 Checkpoint: run tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.1 Update `merge-pull-requests/SKILL.md`: document the plan artifact, `--execute --pr <n>`, gates, and the fresh-contex (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.2 Sync runtime mirrors (`bash skills/install.sh --mode rsync --force --deps none --python-tools none`) and run the ski (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] P2.1 Coordinator system-of-record: model plan nodes as `work_queue` (`task_type=pr_merge`, `blockedBy`) + `merge_queue`  (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] P2.2 Event-driven re-validation over `event_bus` LISTEN/NOTIFY (design.md D4) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] P2.3 Cross-host dispatch of per-PR executors with worktree isolation (design.md D5) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] P2.4 Auth scoping for cloud-SDK plan endpoints (design.md D10) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] P2.5 Automated comment-addressing via worktree-isolated sub-agents (out of scope here; design.md D8) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.1 Create `skills/references/prioritization-frameworks.md` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.2 Extend the proposal template with optional discovery sections (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.3 Extend the roadmap schema/templates with optional `outcome` / `okr` fields (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.4 Create the 12 new test dirs (each with a placeholder `test_skill_md.py` containing a (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.5 Stub the "Product discovery" group in `docs/skills-catalogue.md` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1.1 Tests for `create-prd` and `opportunity-solution-tree` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1.2 Author `skills/create-prd/SKILL.md` (output renders as a valid `proposal.md`) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1.3 Author `skills/opportunity-solution-tree/SKILL.md` (leaves = change candidates) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.2.1 Tests for `prioritize-features` and `identify-assumptions` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.2.2 Author `skills/prioritize-features/SKILL.md` (cites `references/prioritization-frameworks.md`) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.2.3 Author `skills/identify-assumptions/SKILL.md` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.3.1 Tests for `strategy-red-team` and `pre-mortem` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.3.2 Author `skills/strategy-red-team/SKILL.md` (findings in `iterate-on-plan` shape) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.3.3 Author `skills/pre-mortem/SKILL.md` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.4.1 Tests for `user-stories` and `test-scenarios` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.4.2 Author `skills/user-stories/SKILL.md` (output includes WHEN/THEN blocks) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.4.3 Author `skills/test-scenarios/SKILL.md` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.5.1 Tests for `intended-vs-implemented` (user-invocable) and `shipping-artifacts` (infra, exempt) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.5.2 Author `skills/intended-vs-implemented/SKILL.md` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.5.3 Author `skills/shipping-artifacts/SKILL.md` (`user_invocable: false`, no tail block) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.6.1 Tests for `outcome-roadmap` and `brainstorm-okrs` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.6.2 Author `skills/outcome-roadmap/SKILL.md` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.6.3 Author `skills/brainstorm-okrs/SKILL.md` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1.1 Wire `explore-feature/SKILL.md` to consume `opportunity-solution-tree` output + outcome framing (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1.2 Wire `plan-feature/SKILL.md` Gate-1 discovery to incorporate `identify-assumptions` + `strategy-red-team` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1.3 Wire seam 1 producer→consumer: `plan-roadmap`, `plan-feature`, and the proposal template consume `create-prd` / `o (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1.4 Wire seam 3's `iterate-on-plan` consumer: `iterate-on-plan/SKILL.md` consumes `pre-mortem` findings (using the exi (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1.5 Wire seam 4: `plan-feature` spec generation and `validate-feature` consume `user-stories` / `test-scenarios` so ge (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.2.1 Wire `prioritize-proposals/SKILL.md` to compose `prioritize-features` scoring axes (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.3.1 Wire `validate-feature/SKILL.md` (+ a note in the OpenSpec verification workflow docs under `docs/guides/` — there (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.3.2 Wire `autopilot-roadmap` / `roadmap-runtime` to reference optional `okr` fields (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.1 Run `skills/install.sh --mode rsync` dry run; confirm all 12 skills + the reference install (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.2 Confirm every new skill's `related:` targets resolve (install warns on none) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.3 `cd skills && uv run pytest skills/tests/<12 new dirs>` green (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.4 Fill the 12 rows in the `docs/skills-catalogue.md` "Product discovery" group; update counts (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.5 `openspec validate add-product-management-skills --strict` passes (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.6 Write the session log (decisions, deviations) per the session-log skill (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Done (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.1 Orchestrator review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.2 Merge (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1 Write tests for the skill-inventory scanner (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.2 Implement `skill_scanner.py` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.3 Write tests for the spec-inventory scanner (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.4 Implement `spec_scanner.py` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.5 Write tests for the docs-inventory scanner (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.6 Implement `docs_scanner.py` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1 Write tests for the marker-insertion engine (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.2 Implement `marker_engine.py` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.3 Write tests for per-target renderers (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.4 Implement `renderers.py` (readme, claude_md, catalogue) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.1 Write tests for the cross-link checker (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.2 Implement `link_checker.py` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.3 Write tests for the CLI and exit codes (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.4 Implement `sync_docs.py` (CLI entry point) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.5 Write tests for the JSON report (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.6 Implement `report_writer.py` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.1 Author `skills/update-documentation/SKILL.md` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.2 Update `.githooks/pre-commit` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.3 Update `.githooks/post-merge` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.4 Wire `/cleanup-feature` pre-merge gate (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.5 Expose `/validate-feature --phase docs` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.6 Run the skill against the live repo and commit the resulting sync (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.7 Update `docs/skills-catalogue.md:165` note (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1 Write tests for `annotations.py`: record construction, 240-char text truncation, artifact-header population, round-t (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.2 Implement `skills/shared/plan_review/annotations.py` — `Annotation` dataclass, `append(change_id, record)` (running  (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1 Write tests for `render.py`: proposal.md + `specs/**/spec.md` deltas + tasks.md → HTML with a `data-plan-anchor` on  (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.2 Implement `skills/shared/plan_review/render.py` — parse the change's `proposal.md`, its `specs/**/spec.md` delta req (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.1 Write tests for `server.py`: loopback binding, long-poll returns queued annotations, a terminal `complete` event end (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.2 Implement `skills/shared/plan_review/server.py` — serve the artifact on `127.0.0.1`; require a per-session random to (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.1 Wire `--visual-review` into `plan-feature` **after `tasks.md` is generated (Step 6)** so the task DAG is populated:  (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.2 Teach `parallel-review-plan` to attach `plan-annotations.json` (when present) to reviewer context (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.3 Update `skills/plan-feature/SKILL.md` and `skills/parallel-review-plan/SKILL.md` docs; run `skills/install.sh` to re (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.1 Integration test: full loop on a fixture change — render, queue two annotations (one anchored, one text-range), poll (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.2 Run `openspec validate add-visual-plan-review --strict`; run skill test suite; update this change's `session-log.md` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] G1 Confirm the `warning`-severity layout policy (Decision D / D4): warnings render normally and are surfaced as annotati (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.1 Write characterization test for `convergence_loop.converge()` capturing (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.2 Write unit tests for the `refine-core` primitive surface (iterate, (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.3 Extract `refine_core.py` in `skills/parallel-infrastructure/scripts/` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.4 Re-point `convergence_loop.converge()` to delegate to `refine-core`; (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.5 Checkpoint: run convergence + refine-core tests, review diff, verify (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1 Write tests for `post-commit` hook behavior: enqueues on commit, exits (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.2 Write tests for the ambient review runner: single-vendor dispatch, (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.3 Add `ambient` to the `review_type` enum in (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.4 Implement `.githooks/post-commit` mirroring the `post-merge` resolution (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.5 Implement the ambient review runner (single-vendor dispatch via the (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.6 Wire the kill-switch (`REVIEW_AMBIENT=0` / config flag) and update the (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.7 Checkpoint: run hook + runner tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1 Write tests for ledger read/write: local-first source of truth, write (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.2 Write tests for lifecycle transitions (`open`→`addressed`→`retired`) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.3 Author `contracts/review-ledger.schema.json` and a ledger-entry model [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.4 Implement the ledger library: local-first store, stable-id keying, (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.5 Implement `compact` re-verification reusing `consensus_synthesizer` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.6 Checkpoint: run ledger + compact tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.7 Write test for gate skills reading the ledger as warm context without (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.8 Wire gate-time review skills to load outstanding ledger findings as (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.1 Write tests for the standalone refine entry point: runs over a commit (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.2 Implement the standalone refine entry point over `refine-core`, (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.3 Checkpoint: run refine tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.1 Write tests for issue sync: blocking confirmed finding files one issue, (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.2 Implement issue sync over the GitHub MCP tools: file on (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.3 Checkpoint: run issue-sync tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.1 Write component tests for the ledger swimlane: renders cards by (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.2 Add the SSE event payload for ledger changes (server side) [S] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.3 Implement the review-ledger swimlane component in `apps/kanban-viz` [M] (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.4 Checkpoint: run kanban-viz tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.1 End-to-end test: commit → ambient review → ledger → compact → issue (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.2 Document the ambient-review-ledger workflow including the kill-switch (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.3 Checkpoint: full test suite, review cumulative diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.1 Pilot `--format=toon` behind a flag on the tabular list commands and A/B the token delta vs. JSON (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.2 Update any human-facing docs / skill prompts that show example `feature list` output to reflect the envelope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Done (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Live multi-vendor execution on the GX10 (real CLIs + keys) — nightly (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 10-scenario suite + nightly cadence + `/improve-harness` wiring (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Incident auto-seeding (`auto-seed-scenarios-from-incidents`) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Done (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.4 Review and merge (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Planning (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implementation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Testing (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Done (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Define detailed requirements (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implement core functionality (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Write tests (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Update documentation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review and merge (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1 Validate the four contract schemas parse as JSON Schema 2020-12 and add a schema-lint test (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.2 Add fixture instances (one valid + one invalid) per contract schema for downstream tests to reuse (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.3 Checkpoint: run schema-lint + fixtures, review diff, verify scope (contracts/ only) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1 Write tests for `arbitrage_signal` recording — five families, async non-blocking, no-op when disabled (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.2 Create `agent-coordinator/src/arbitrage_signal.py` — record via `AuditService.log_operation` (operation `arbitrage.s (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.3 Register the `coordinator.signal` OTel meter in `telemetry.py` and emit labelled measurements (vendor/model/modality (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.4 Checkpoint: run coordinator unit tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.5 Write tests for the kill-switch flag `ARBITRAGE_INSTRUMENT_ENABLED` — default off no-ops recording + telemetry (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.6 Implement the feature-flag gate in `arbitrage_signal` and a shared `is_enabled()` helper (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.7 Write tests for Cedar eligibility — programmatic-ineligible vendor rejected; eligibility change takes effect without (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.8 Extend `cedar/schema.cedarschema` with Agent attributes `vendor` / `modality` / `data_residency` and add `forbid()`  (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.9 Add eligibility values to `agents.yaml` / `agent_profiles.metadata` (mutable, NOTIFY-invalidated) — Claude lead-elig (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.10 Checkpoint: run coordinator unit + policy tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.1 Write tests for the ToS monitor — changed content hash emits a compliance signal; unchanged emits none (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.2 Create `agent-coordinator/src/probes/tos_monitor.py` — fetch + hash + diff the configured automation-clause URLs; re (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.3 Write tests for the model canary — changed fingerprint emits a quality_drift signal (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.4 Create `agent-coordinator/src/probes/model_canary.py` — fixed prompt per model, fingerprint response, record signal  (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.5 Checkpoint: run probe tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.6 Register both probes as `WatchdogService` periodic jobs; verify they do not schedule when the instrument flag is off (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.1 Write tests for the cost ledger — actual + counterfactual recorded; missing usage flagged estimated; headline metric (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.2 Create `skills/vendor-arbitrage/scripts/ledger.py` + `eligibility.py` — load the versioned pricing/eligibility confi (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.3 Write tests for the static-priority router — cheapest eligible tier; spill on 429; provenance recorded; rejects infe (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.4 Create `skills/vendor-arbitrage/scripts/router.py` — `select_assignment(work_unit, feasible_set)`; feasibility via c (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.5 Checkpoint: run skill tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.6 Write tests for tripwires — ToS-diff freezes a vendor; economic-kill fires below maintenance threshold; each writes  (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.7 Create `skills/vendor-arbitrage/scripts/tripwires.py` — declarative thresholds; flip posture flag (vendor freeze) ho (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.8 Write tests for the digest — reports net savings with/without estimates and lists fired tripwires (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.9 Create `skills/vendor-arbitrage/scripts/digest.py` + `SKILL.md` — assemble the landscape report from the signal subs (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.10 Checkpoint: run skill tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.1 Write an end-to-end test: feature-flag off ⇒ dispatch identical to baseline; flag on ⇒ a routed unit produces a ledg (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.2 Cross-reference the new spec: mark the `observability` cost requirement fulfilled and the `symphony` `token-rate-lim (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.3 Wire the `vendor-arbitrage` skill into `skills/install.sh` sync and add the kill-switch flag to docs (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.4 Checkpoint: run full suite (coordinator + skills), `openspec validate --strict`, review cumulative diff, verify no s (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 8.1 Run full `validate-feature` end-to-end on the sample frontend: deploy → smoke → gen-eval (Playwright path) → securit (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 8.3 Verify `harness-engineering-features` rebases cleanly: cherry-pick its open commits onto this branch's HEAD and conf (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 10.3 Commit on `openspec/fix-autopilot-archetype-and-apply-outcome` with subject `fix(autopilot): introduce validator ar (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 10.4 Push to origin. (Left for the orchestrator.) (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 11.1 (Out of scope for the change; done after merge:) update `docs/parallel-agentic-development.md` with the new dispatc (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 11.2 (Out of scope:) consider whether structural enforcement of the loop-state.json contract (filesystem permissions, gi (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 11.3 (Out of scope:) consider whether harness-silent-no-op detection (separate failure mode noted in proposal "Out of Sc (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.1 Commit on `openspec/fix-compact-hook-phase-boundary-detection` with subject `fix(session-bootstrap): gate compact-ho (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.2 Push to origin. (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 6.3 (Out of scope for this change — done after merge to main:) update `docs/lessons-learned.md` if the gate semantics su (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Planning (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implementation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Testing (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Done (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Define detailed requirements (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implement core functionality (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Write tests (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Update documentation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review and merge (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Planning (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implementation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Testing (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Done (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Define detailed requirements (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implement core functionality (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Write tests (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Update documentation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review and merge (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Planning (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implementation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Testing (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Done (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Define detailed requirements (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implement core functionality (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Write tests (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Update documentation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review and merge (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Planning (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implementation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Testing (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Done (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Define detailed requirements (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implement core functionality (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Write tests (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Update documentation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review and merge (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Planning (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implementation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Testing (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Done (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Define detailed requirements (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Implement core functionality (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Write tests (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Update documentation (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Review and merge (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 0.1 (S) Validate `contracts/db/schema.sql`, `contracts/openapi/v1.yaml`, (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1 (S) Write migration test: applying `026_usage_stats.sql` creates (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.2 (S) Create `agent-coordinator/database/migrations/026_usage_stats.sql` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.3 (M) Write tests for `UsageRecord` schema + `record_hash` stability and (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.4 (M) Implement `collector/schema.py` (`UsageRecord` + `record_hash`) and (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run migration + schema/pricing tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.5 (M) Write tests for the Claude adapter against fixture JSONL (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.6 (M) Implement `collector/adapters/base.py` (adapter protocol + (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.7 (M) Write tests for `collector/store.py`: incremental watermark resume, (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.8 (M) Implement `collector/store.py` (watermark, dedupe, spool) and the (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run collector test suite, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1 (M) Write API tests: `/usage/ingest` idempotent batch, `/usage/summary` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.2 (M) Implement `/usage/*` routes in `coordination_api.py` (reuse Bearer (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.3 (S) Add `GET /events/usage` SSE endpoint (Bearer-auth, optional (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run API + SSE tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.1 (M) Scaffold `apps/usage-stats/` from the kanban-viz Vite/TS config; (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.2 (M) Implement `useUsage.ts` (Bearer fetch, SSE primary, polling (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.3 (M) Write component tests, then implement chart components (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run frontend test suite, typecheck, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.1 (S) Write a test that the session-end hook invokes the collector and (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.2 (S) Wire collector invocation into session-end (`skills/session-bootstrap` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.3 (M) Write Codex adapter tests against fixture `rollout-*.jsonl` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: run hook + Codex tests, review diff, verify scope (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.4 (M) Write Gemini adapter tests against fixture `telemetry.log` OTEL (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.5 (S) Implement `collector/adapters/antigravity.py` as an explicit (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.1 (M) Merge packages; run full backend + frontend suites; end-to-end (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.2 (S) Document at `docs/usage-stats/README.md` (collector run, vendor (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] Checkpoint: full suite green, review cumulative diff, verify all scopes (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.1 Write contract test at two levels: (a) `review-findings.schema.json` is (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.2 Add a new self-contained (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.3 Write test for shared `emit_finding()` and `record_phase_status()` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.4 Implement `emit_finding()` + `record_phase_status()` (e.g. (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.5 Write test for the fixability classifier: mechanical finding-types (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.6 Implement the classifier with a mechanical-type allowlist; default (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.7 Write test for the narrow single-finding auto-fix step: one `auto-fix` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.8 Implement the narrow single-finding fixer: map a finding class to its (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.9 Write test: the report renderer produces `validation-report.md` from (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.10 Refactor SKILL.md §11/§12 report step to render from the findings file; (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 1.C **Checkpoint**: `pytest skills/tests/validate-feature/` green; a sample (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.1 Write test for the critical-subset runner: it executes only `smoke`, spec (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.2 Implement the critical-subset runner reusing the existing phase scripts (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.3 Write tests for wiring + inert-until-enabled + kill-switch: (a) fresh (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.4 Add the `.githooks/pre-push` hook (inert no-op unless the (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.5 Document the gate (install, kill-switch, `--no-verify`) in SKILL.md and (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 2.C **Checkpoint**: with the hook installed, a drifted `tasks.md` blocks a (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.1 Write test: on a clean tree `--ephemeral` runs in a scratch worktree (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.2 Implement `--ephemeral` (+ `--include-dirty`) over the `worktree` skill (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.3 Write test: under a stubbed cloud-harness `detect()`, `--ephemeral` (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.4 Implement the cloud-harness fallback via `environment_profile.detect()`. (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 3.C **Checkpoint**: after an `--ephemeral` run, `git status` on the branch (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.1 Write test for the `triage_state` apply/render path: `approve` / `fix` / (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.2 Implement the shared `triage_state` apply/render path (single source for (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.3 Write test for `--auto` / `-y`: deterministic defaults — resolved (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.4 Implement `--triage` (AskUserQuestion in-harness / CLI prompt loop) and (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.5 Document `--triage` / `--auto` and the fixability/triage_state lifecycle in SKILL.md. (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 4.C **Checkpoint**: a triage session marks a finding `skip`; a re-run skips (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.1 Run `openspec validate validate-feature-findings-gate --strict` and fix (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.2 Update `skills/validate-feature/SKILL.md` argument list + phase table to (N/A) — No clear proposed fix — requires investigation
+- [MEDIUM] 5.3 Sync runtime skill copies via `install.sh` (per CLAUDE.md skills guide). (N/A) — No clear proposed fix — requires investigation

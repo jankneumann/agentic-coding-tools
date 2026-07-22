@@ -10,7 +10,6 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -19,7 +18,6 @@ sys.path.insert(
 )
 from sync_submodules import (
     SubmoduleChange,
-    SyncResult,
     detect_changed_submodules,
     detect_submodule_feature_branch,
     sync_submodule,
@@ -103,7 +101,7 @@ def repo_with_submodule(tmp_path: Path) -> tuple[Path, Path, Path]:
     new_sub_sha = _sha(str(sub_in_parent))
 
     # Push the feature branch to sub_origin so it has the commit
-    _git(["push", "origin", f"openspec/test-feature"], str(sub_in_parent))
+    _git(["push", "origin", "openspec/test-feature"], str(sub_in_parent))
 
     # 5. Bump the submodule SHA in parent (simulating the merge)
     _git(["add", "my-sub"], str(parent))

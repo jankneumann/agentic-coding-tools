@@ -15,7 +15,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 
 _RUNNER_SCRIPT = str(
     Path(__file__).resolve().parents[1] / "run_architecture_linters.py"
