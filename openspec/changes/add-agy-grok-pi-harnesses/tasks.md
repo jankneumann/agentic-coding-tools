@@ -33,13 +33,16 @@ roster work. They are labeled here — not laundered into roster tasks — per D
   directly into the venv — `uv sync` regenerates the venv and would discard it.
   **Dependencies**: None
 
-- [ ] 0.2 Rebase this branch on `add-frontier-model-tier` (PR #262) and confirm
+- [x] 0.2 Rebase this branch on `add-frontier-model-tier` (PR #262) and confirm
   `pytest skills/tests/vendor-neutral-autopilot` is green (XS)
   **Why**: PR #262 absorbed the original repairs (schema promoted to
   `openspec/schemas/provider-model-map.schema.json`, contract-doc path repointed to the
-  archive, `write_capable` fixture fixed). If #262 is not yet merged when implementation
-  starts, apply its repairs from that branch rather than re-deriving them.
+  archive, `write_capable` fixture fixed).
   **Dependencies**: 0.1
+  **Done 2026-07-22**: PR #262 merged to main (`c5081542`); this branch rebased onto it.
+  `skills/.venv/bin/python -m pytest skills/tests/vendor-neutral-autopilot` → **32 passed**
+  (was 19 passed / 5 failed). Task 0.1 remains open — `skills/tests` as a whole still stops
+  at `Interrupted: 1 error during collection` for the missing `fastapi.testclient`.
 
 - [ ] 0.3 Checkpoint: `skills/.venv/bin/python -m pytest skills/tests -q` passes with the
   roster unmodified
