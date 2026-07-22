@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info:
+  title: add-agy-grok-pi-harnesses
+  version: "1.0.0"
+  description: |
+    Intentionally empty. This change adds no HTTP endpoints and modifies no
+    request/response shapes — it is a vendor-roster and allow-list migration.
+
+    The real coordination boundary for this change is ../roster.md (canonical
+    vendor strings and dispatch shapes) and ../provider-model-map.schema.json
+    (the closed provider key set).
+
+    This file exists because work-packages.schema.json requires
+    contracts.openapi.primary. See ../README.md for the full sub-type evaluation.
+paths: {}
+components:
+  schemas: {}

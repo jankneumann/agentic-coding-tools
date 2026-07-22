@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/contracts/provider-model-map.schema.json",
+  "title": "ProviderModelMap",
+  "description": "Provider tier-to-model mapping. Schema version 2 closes the open provider key set: only roster members are accepted, so a retired harness cannot be reintroduced by config alone.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "providers", "tiers"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "tiers": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "string",
+        "enum": ["premium", "standard", "economy"]
+      },
+      "uniqueItems": true
+    },
+    "providers": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Keyed by canonical provider key. `antigravity` is the canonical key for the agy CLI (proposal D3); `agy` is not a valid key. `gemini` is retired and rejected.",
+      "propertyNames": {
+        "enum": ["claude_code", "codex", "antigravity", "grok", "pi"]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["premium", "standard", "economy"],
+        "properties": {
+          "premium": { "type": "string", "minLength": 1 },
+          "standard": { "type": "string", "minLength": 1 },
+          "economy": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 2,
+      "tiers": ["premium", "standard", "economy"],
+      "providers": {
+        "claude_code": { "premium": "opus", "standard": "sonnet", "economy": "haiku" },
+        "codex": { "premium": "gpt-5.5", "standard": "gpt-5.4", "economy": "gpt-5.4-mini" },
+        "pi": {
+          "premium": "qwen/qwen3-coder",
+          "standard": "qwen/qwen3-coder",
+          "economy": "qwen/qwen3-coder"
+        }
+      }
+    }
+  ]
+}

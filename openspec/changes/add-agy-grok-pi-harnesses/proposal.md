@@ -108,6 +108,84 @@ if `--prompt-file /dev/stdin` proves unreliable during VALIDATE. Matches all fou
 decisions (full OpenSpec flow, gemini removed entirely, Core + peripheral scope, pi CLI →
 OpenRouter).
 
+### Selected Approach
+
+**Approach A — config-driven via the generic `CliVendorAdapter`** (Gate 1, approved by
+operator during roadmap item `ri-01` execution). Approach B stays available as a narrow
+fallback for grok only, if `--prompt-file /dev/stdin` proves unreliable under a subprocess
+pipe during VALIDATE. Approach C is rejected: it couples this change to the unmerged
+`add-adaptive-model-router` proposal (roadmap `ri-04`) and contradicts the operator decision
+to dispatch pi through its CLI.
+
+Two decisions were settled at Gate 1 that the original proposal left open:
+
+#### D1. Spec delta covers the full gemini surface, not just the normative roster
+
+Gemini appears in **37 requirements across 8 specs**. Roughly a third are *normative* — they
+declare the supported vendor roster contractually (`configuration` provider discovery and
+model mapping, `coordinator-kanban-viz` swimlanes and seeding, `agent-archetypes`,
+`agent-identity` `gemini-cloud` profile seeding, `evaluation-framework` backend abstraction,
+and the `skill-workflow` requirements naming gemini as a supported provider). The remainder
+are *illustrative* — gemini appears as a stand-in vendor name in WHEN/THEN scenario prose
+(`Cross-Vendor Finding Matching`, `Consensus Synthesizer`, `Vendor Diversity`,
+`Total Failure Warning`, and similar).
+
+**Decision**: rewrite both categories in this change. Leaving illustrative prose behind would
+keep a discontinued CLI referenced across the spec tree as if it were a live dispatch target,
+which is precisely the silent-failure class this change exists to remove. The scenario-hygiene
+edits are mechanical substitutions and are isolated into their own work package so they do not
+gate the normative roster edits.
+
+#### D2. No per-vendor runtime asset directories — `.gemini/` is deleted, nothing replaces it
+
+The original proposal removed the repo-root `.gemini/` harness config dir without saying
+whether agy/grok/pi need equivalents. They do not.
+
+- **grok** reads Claude Code assets with no configuration: *"Grok is fully compatible with
+  Claude Code with zero configuration needed. Grok automatically reads Claude Code
+  marketplaces, plugins, skills, MCPs, agents, hooks, and instruction files (`CLAUDE.md`, …)
+  alongside `.grok/`."* — https://docs.x.ai/build/features/skills-plugins-marketplaces
+  `install.sh` already writes `.claude/skills/`, so grok is served today.
+- **agy** and **pi** read `.agents/skills/`, which is already an `install.sh` target
+  (`skills/install.sh:189`).
+- Pointing grok additionally at the project's `.agents/skills/` requires `[skills] paths` in
+  `~/.grok/config.toml` — a **machine-local operator file outside the repository**. Per the
+  same xAI page, grok's automatic `~/.agents/skills/` discovery is *user-level* only, not the
+  project tree. This is therefore documented as optional operator setup, **not** a repo change.
+
+#### D3. `antigravity` is the single canonical provider key; `agy` is only a binary name
+
+The proposal originally wrote `antigravity-local` while roadmap `ri-01`'s acceptance criteria
+wrote `agy`. Existing provider keys follow product names, not binaries — `claude_code` for the
+`claude` binary, `codex`, `gemini` (`agent-coordinator/src/agents_config.py:36-50`).
+
+**Decision**: `antigravity` is the one canonical string. It is used for the
+`DEFAULT_PROVIDER_MODEL_MAP` provider key, the `archetypes.yaml` `model_aliases` key, the
+`agents.yaml` entry `antigravity-local` and its `type:`, the transcript adapter
+(`antigravity_cli.py`), the kanban vendor label, and every allow-list. `agy` appears **only**
+as `cli.command`. No short form, no alias — a second string for one vendor would reintroduce
+exactly the roster-drift class this change removes. Roadmap `ri-01`'s acceptance wording is
+updated to match.
+
+#### D4. Eval backends reach full roster parity in this change
+
+The proposal left new eval backends as "or record as an explicit follow-up".
+
+**Decision**: remove `gemini_jules.py` **and** add `AgentBackend` implementations for
+`grok`, `pi`, and `antigravity`, with tests. Rationale: `evaluation-framework`'s
+*Agent Backend Abstraction* requirement enumerates a backend per first-class provider, so
+shipping the roster without backends would land the spec and the code in disagreement — the
+same drift D3 exists to prevent. grok is cheapest (native `--output-format json` +
+`--json-schema`); pi and antigravity follow the generic CLI shape.
+
+**Consequence**: this change also corrects a pre-existing spec drift. `skill-workflow`'s
+*Canonical Skill Distribution* requirement names runtime trees `.claude/skills/`,
+`.codex/skills/`, `.gemini/skills/` and an `install.sh --agents claude,codex,gemini`
+invocation. `install.sh` supports only `claude` → `.claude/skills` and `agents` →
+`.agents/skills` (`skills/install.sh:188-189`), and `.gemini/` contains only `commands/opsx`
+— no skills tree ever existed there. The requirement is realigned to what `install.sh`
+actually does.
+
 ## Risks / Overlap with in-flight changes
 
 This change edits surfaces that several **active (unmerged) proposals** also target. On `main`
@@ -123,9 +201,13 @@ the hardcoded lists still exist, so these edits are valid today; whoever merges 
 **Recommendation**: proceed now (additive roster change, orthogonal intent), record this overlap
 in the session log, and coordinate merge order with the registry/router changes.
 
-## Open Decisions (to confirm at Gate 1)
-1. **Default OpenRouter model for `pi`** (pay-per-token). Recommended: a strong non-Claude,
-   non-OpenAI, non-Gemini, non-xAI model to maximize vendor diversity (the whole point of pi).
-2. **Exact `agy --model` slug strings** — `agy models` prints display names ("Claude Sonnet
-   4.6 (Thinking)", "Gemini 3.1 Pro (High)", …); the precise `--model` value is verified
-   empirically during IMPLEMENT/VALIDATE.
+## Open Decisions
+
+1. ~~**Default OpenRouter model for `pi`**~~ — **RESOLVED**: `qwen/qwen3-coder`, fixed by
+   roadmap item `ri-01` in `openspec/roadmaps/model-routing-platform/roadmap.yaml`. Satisfies
+   the diversity goal (non-Claude, non-OpenAI, non-Gemini, non-xAI).
+2. **Exact `agy --model` slug strings** — still open. `agy models` prints display names
+   ("Claude Sonnet 4.6 (Thinking)", "Gemini 3.1 Pro (High)", …); the precise `--model` value
+   must be verified empirically during IMPLEMENT/VALIDATE. Tracked as task 2.4.
+3. **grok `--prompt-file /dev/stdin` under a subprocess pipe** — still open, verified in
+   VALIDATE. If it fails, fall back to Approach B for grok only (task 2.5).
