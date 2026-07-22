@@ -35,10 +35,10 @@ def test_provider_model_map_schema_accepts_all_first_class_providers() -> None:
                 "economy": "haiku",
             },
             "codex": {
-                "frontier": "gpt-5.6-sol",
-                "premium": "gpt-5.5",
-                "standard": "gpt-5.4",
-                "economy": "gpt-5.4-mini",
+                "frontier": {"model": "gpt-5.6-sol", "thinking": "xhigh"},
+                "premium": {"model": "gpt-5.6-sol", "thinking": "medium"},
+                "standard": "gpt-5.6-terra",
+                "economy": "gpt-5.6-luna",
             },
             "gemini": {
                 "premium": "gemini-3.1-pro-preview",

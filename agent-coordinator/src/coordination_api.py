@@ -2208,6 +2208,9 @@ def create_coordination_api() -> FastAPI:
             "reasons": list(resolved.reasons),
             "provider": resolved.provider,
             "write_capable": resolved.write_capable,
+            # Optional thinking/reasoning level from the tier entry. Additive:
+            # older clients ignore it; adapters translate it to CLI flags.
+            "thinking": resolved.thinking,
         }
 
     # --------------------------------------------------------------------- #

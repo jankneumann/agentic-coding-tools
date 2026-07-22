@@ -34,6 +34,12 @@ LEGACY_CLAUDE_ALIAS_TO_TIER: dict[str, str] = {
     "sonnet": "standard",
     "haiku": "economy",
 }
+# Tier entries are either a bare model-id string or {"model": ..., "thinking": ...}.
+# Thinking level is part of the model definition, not a dispatch afterthought:
+# it shifts both cost and capability enough that a standard model at xhigh
+# thinking can out-cost a premium model at medium. Cost-per-successful-task
+# tuning happens by editing these entries — never by editing tests, which must
+# derive expectations from this map / archetypes.yaml rather than literals.
 DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
     "schema_version": 2,
     "tiers": list(ALL_MODEL_TIERS),
@@ -45,15 +51,15 @@ DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
             "economy": "haiku",
         },
         "codex": {
-            "frontier": "gpt-5.6-sol",
-            "premium": "gpt-5.5",
-            "standard": "gpt-5.4",
-            "economy": "gpt-5.4-mini",
+            "frontier": {"model": "gpt-5.6-sol", "thinking": "xhigh"},
+            "premium": {"model": "gpt-5.6-sol", "thinking": "medium"},
+            "standard": "gpt-5.6-terra",
+            "economy": "gpt-5.6-luna",
         },
         "gemini": {
             "premium": "gemini-3.1-pro-preview",
-            "standard": "gemini-3-flash-preview",
-            "economy": "gemini-3-flash-lite",
+            "standard": "gemini-3.6-flash",
+            "economy": "gemini-3.6-flash-lite",
         },
     },
 }
@@ -63,6 +69,25 @@ DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 ARCHETYPE_NAME_PATTERN = r"^[a-z][a-z0-9_-]{0,31}$"
+
+# A tier entry: bare model-id string, or model paired with a thinking level.
+# Thinking vocabularies are vendor-specific (Claude effort tiers, Codex
+# model_reasoning_effort, grok thinking budgets), so the value is a free
+# string — the dispatching adapter owns translation to CLI flags.
+_TIER_VALUE_SCHEMA: dict[str, Any] = {
+    "oneOf": [
+        {"type": "string", "minLength": 1},
+        {
+            "type": "object",
+            "required": ["model"],
+            "additionalProperties": False,
+            "properties": {
+                "model": {"type": "string", "minLength": 1},
+                "thinking": {"type": "string", "minLength": 1},
+            },
+        },
+    ],
+}
 
 # Autopilot phases that produce files, artifacts, or handoffs and therefore
 # MUST resolve to a `write_capable: true` archetype (design D7 canonical list).
@@ -125,10 +150,10 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
                 "required": list(MODEL_TIERS),
                 "additionalProperties": False,
                 "properties": {
-                    "frontier": {"type": "string", "minLength": 1},
-                    "premium": {"type": "string", "minLength": 1},
-                    "standard": {"type": "string", "minLength": 1},
-                    "economy": {"type": "string", "minLength": 1},
+                    "frontier": _TIER_VALUE_SCHEMA,
+                    "premium": _TIER_VALUE_SCHEMA,
+                    "standard": _TIER_VALUE_SCHEMA,
+                    "economy": _TIER_VALUE_SCHEMA,
                 },
             },
         },
@@ -481,6 +506,20 @@ class PhaseMappingEntry:
     signals: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class ModelSpec:
+    """A dispatchable model: id plus optional thinking/reasoning level.
+
+    Thinking level is part of the model definition because it materially
+    shifts both cost and capability; tier selection optimizes cost per
+    successful task, not cost per token. ``thinking`` is a vendor-specific
+    free string; the dispatching adapter translates it to CLI flags.
+    """
+
+    model: str
+    thinking: str | None = None
+
+
 @dataclass
 class ResolvedArchetype:
     """Result of :func:`resolve_archetype_for_phase`.
@@ -495,6 +534,7 @@ class ResolvedArchetype:
     reasons: list[str]
     provider: str | None = None
     write_capable: bool = False
+    thinking: str | None = None
 
 
 class ProviderModelMappingError(ValueError):
@@ -1073,21 +1113,37 @@ def get_provider_model_map() -> dict[str, Any]:
     return _provider_model_map
 
 
-def resolve_provider_model(
+def _tier_entry_to_spec(entry: Any) -> ModelSpec | None:
+    """Coerce a provider-map tier entry (string or object form) to a spec."""
+    if isinstance(entry, str) and entry:
+        return ModelSpec(model=entry)
+    if isinstance(entry, dict):
+        name = entry.get("model")
+        if isinstance(name, str) and name:
+            thinking = entry.get("thinking")
+            return ModelSpec(
+                model=name,
+                thinking=thinking if isinstance(thinking, str) and thinking else None,
+            )
+    return None
+
+
+def resolve_provider_model_spec(
     model: str,
     *,
     provider: str | None,
     model_map: dict[str, Any] | None = None,
-) -> str:
-    """Resolve a logical/legacy model value for *provider*.
+) -> ModelSpec:
+    """Resolve a logical/legacy model value for *provider* to a ModelSpec.
 
-    Without a provider, current behavior is preserved and the source model is
-    returned unchanged. With a provider, logical tiers and legacy Claude aliases
-    are translated through the provider map. Exact provider-specific model IDs
-    already present in that provider's mapping are accepted as explicit aliases.
+    Without a provider, the source model passes through with no thinking
+    level. With a provider, logical tiers and legacy Claude aliases are
+    translated through the provider map. Exact provider-specific model IDs
+    already present in that provider's mapping are accepted as explicit
+    aliases (their tier's thinking level applies).
     """
     if not provider:
-        return model
+        return ModelSpec(model=model)
 
     normalized = _normalize_provider_model_map(model_map or get_provider_model_map())
     providers = normalized.get("providers") or {}
@@ -1102,25 +1158,43 @@ def resolve_provider_model(
         tier = LEGACY_CLAUDE_ALIAS_TO_TIER.get(model)
 
     if tier:
-        candidate = provider_map.get(tier)
-        if isinstance(candidate, str) and candidate:
-            return candidate
+        spec = _tier_entry_to_spec(provider_map.get(tier))
+        if spec is not None:
+            return spec
         if tier in OPTIONAL_MODEL_TIERS:
             # Optional tiers degrade gracefully: a provider without a
             # frontier model serves its premium model instead of failing.
-            fallback = provider_map.get("premium")
-            if isinstance(fallback, str) and fallback:
+            fallback = _tier_entry_to_spec(provider_map.get("premium"))
+            if fallback is not None:
                 logger.info(
                     "Provider %r has no %r mapping; falling back to premium (%s)",
-                    provider, tier, fallback,
+                    provider, tier, fallback.model,
                 )
                 return fallback
         raise ProviderModelMappingError(provider, model, tier)
 
-    if model in provider_map.values():
-        return model
+    for entry in provider_map.values():
+        spec = _tier_entry_to_spec(entry)
+        if spec is not None and spec.model == model:
+            return spec
 
     raise ProviderModelMappingError(provider, model)
+
+
+def resolve_provider_model(
+    model: str,
+    *,
+    provider: str | None,
+    model_map: dict[str, Any] | None = None,
+) -> str:
+    """Resolve a logical/legacy model value for *provider* (name only).
+
+    Backward-compatible wrapper over :func:`resolve_provider_model_spec` for
+    callers that only need the model id.
+    """
+    return resolve_provider_model_spec(
+        model, provider=provider, model_map=model_map,
+    ).model
 
 
 # ---------------------------------------------------------------------------
@@ -1191,15 +1265,38 @@ def resolve_model(
     Returns:
         The resolved model string, or (model, reasons) if *return_reasons*.
     """
-    def _finalize(source_model: str, reasons: list[str]) -> str | tuple[str, list[str]]:
-        resolved = resolve_provider_model(
+    spec, reasons = _resolve_model_spec(
+        archetype,
+        package_metadata,
+        phase=phase,
+        provider=provider,
+        model_map=model_map,
+    )
+    return (spec.model, reasons) if return_reasons else spec.model
+
+
+def _resolve_model_spec(
+    archetype: ArchetypeConfig,
+    package_metadata: dict[str, Any],
+    *,
+    phase: str | None = None,
+    provider: str | None = None,
+    model_map: dict[str, Any] | None = None,
+) -> tuple[ModelSpec, list[str]]:
+    """Escalation pipeline returning the full ModelSpec (model + thinking)."""
+    def _finalize(source_model: str, reasons: list[str]) -> tuple[ModelSpec, list[str]]:
+        spec = resolve_provider_model_spec(
             source_model,
             provider=provider,
             model_map=model_map,
         )
-        if provider and resolved != source_model:
-            reasons = [*reasons, f"provider={provider} mapped {source_model} to {resolved}"]
-        return (resolved, reasons) if return_reasons else resolved
+        if provider and spec.model != source_model:
+            suffix = f" (thinking={spec.thinking})" if spec.thinking else ""
+            reasons = [
+                *reasons,
+                f"provider={provider} mapped {source_model} to {spec.model}{suffix}",
+            ]
+        return spec, reasons
 
     if not archetype.escalation:
         return _finalize(archetype.model, [])
@@ -1308,18 +1405,12 @@ def resolve_archetype_for_phase(
         k: v for k, v in (signals or {}).items() if k in entry.signals
     }
 
-    model_result = resolve_model(
+    spec, escalation_reasons = _resolve_model_spec(
         archetype,
         filtered,
-        return_reasons=True,
         phase=phase,
         provider=provider,
     )
-    # When return_reasons=True, the return type is the tuple branch.
-    assert isinstance(model_result, tuple), (
-        "resolve_model with return_reasons=True must return tuple"
-    )
-    model, escalation_reasons = model_result
 
     reasons: list[str] = [
         f"phase={phase} maps to archetype={archetype.name}",
@@ -1329,10 +1420,11 @@ def resolve_archetype_for_phase(
         reasons.append("no escalation triggered")
 
     return ResolvedArchetype(
-        model=model,
+        model=spec.model,
         system_prompt=archetype.system_prompt,
         archetype=archetype.name,
         reasons=reasons,
         provider=provider,
         write_capable=archetype.write_capable,
+        thinking=spec.thinking,
     )

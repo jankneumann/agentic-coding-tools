@@ -2,6 +2,13 @@ schema_version: 3
 
 # `frontier` is an OPTIONAL tier: providers that omit it resolve frontier
 # requests to their premium model (graceful degradation in agents_config).
+#
+# A tier entry is either a bare model id or {model, thinking}. Thinking level
+# is part of the model definition — it shifts cost and capability enough that
+# tiers are tuned for cost per successful task, not cost per token (the same
+# model at different thinking levels can sit in different tiers). Thinking
+# vocabularies are vendor-specific; the dispatch adapter translates them.
+# Tests derive expectations from this file — tune tiers here freely.
 model_aliases:
   claude_code:
     frontier: fable
@@ -9,14 +16,18 @@ model_aliases:
     standard: sonnet
     economy: haiku
   codex:
-    frontier: gpt-5.6-sol
-    premium: gpt-5.5
-    standard: gpt-5.4
-    economy: gpt-5.4-mini
+    frontier:
+      model: gpt-5.6-sol
+      thinking: xhigh
+    premium:
+      model: gpt-5.6-sol
+      thinking: medium
+    standard: gpt-5.6-terra
+    economy: gpt-5.6-luna
   gemini:
     premium: gemini-3.1-pro-preview
-    standard: gemini-3-flash-preview
-    economy: gemini-3-flash-lite
+    standard: gemini-3.6-flash
+    economy: gemini-3.6-flash-lite
 
 archetypes:
   # Every archetype declares `write_capable` explicitly. The runner's archetype
