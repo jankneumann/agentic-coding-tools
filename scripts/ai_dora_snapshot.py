@@ -28,12 +28,11 @@ import json
 import os
 import re
 import sys
-from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Iterable, Protocol
+from typing import Callable, Protocol
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 

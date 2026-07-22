@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import jsonschema
-import pytest
 
 from findings import (
     BehavioralFinding,

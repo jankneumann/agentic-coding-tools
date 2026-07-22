@@ -5,13 +5,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from analyze_complexity import (
     _count_complexity,
-    _function_line_count,
     _max_nesting,
     _param_count,
     _should_skip,

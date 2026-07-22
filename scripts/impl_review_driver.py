@@ -37,7 +37,6 @@ logging.basicConfig(
 log = logging.getLogger("impl_review")
 
 # Import after path manipulation.
-import consensus_synthesizer  # noqa: E402
 from consensus_synthesizer import Finding  # noqa: E402
 from convergence_loop import converge  # noqa: E402
 

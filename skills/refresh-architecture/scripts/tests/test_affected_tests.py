@@ -29,7 +29,6 @@ from affected_tests import (  # noqa: E402
     MAX_TRAVERSAL_NODES,
     affected_tests,
     is_graph_stale,
-    load_graph_with_mtime,
 )
 
 

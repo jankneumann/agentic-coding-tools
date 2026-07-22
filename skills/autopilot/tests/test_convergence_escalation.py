@@ -22,7 +22,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 # Ensure the convergence_loop module can find its dependencies
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent / "scripts")
@@ -43,7 +42,6 @@ from consensus_synthesizer import (
 from convergence_loop import (
     _is_blocking,
     converge,
-    ConvergenceResult,
 )
 from review_dispatcher import ReviewResult
 

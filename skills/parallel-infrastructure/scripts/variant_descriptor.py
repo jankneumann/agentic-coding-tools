@@ -22,7 +22,7 @@ published schemas to catch drift.
 from __future__ import annotations
 
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Final, Literal
 
 ASPECTS: Final[tuple[str, str, str, str]] = ("data_model", "api", "tests", "layout")

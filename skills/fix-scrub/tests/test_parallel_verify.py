@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from parallel_verify import verify_parallel
-from verify import VerificationResult, verify
+from verify import verify
 
 
 # ---------------------------------------------------------------------------
