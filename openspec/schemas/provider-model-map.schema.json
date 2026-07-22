@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/provider-model-map.schema.json",
+  "title": "ProviderModelMap",
+  "description": "Stable home for the provider model map contract. v2 adds the optional 'frontier' tier: providers MAY define it; resolution falls back to 'premium' when absent. Tests must resolve this path, never a schema inside a change directory (change dirs move on archive).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "providers",
+    "tiers"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "tiers": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "string",
+        "enum": [
+          "frontier",
+          "premium",
+          "standard",
+          "economy"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "providers": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "premium",
+          "standard",
+          "economy"
+        ],
+        "properties": {
+          "frontier": {
+            "type": "string",
+            "minLength": 1
+          },
+          "premium": {
+            "type": "string",
+            "minLength": 1
+          },
+          "standard": {
+            "type": "string",
+            "minLength": 1
+          },
+          "economy": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

@@ -31,12 +31,41 @@ def test_default_provider_model_map_includes_first_class_providers() -> None:
         "codex",
         "gemini",
     }
+    # Base tiers are required on every provider; frontier is optional.
     for provider in ("claude_code", "codex", "gemini"):
-        assert set(DEFAULT_PROVIDER_MODEL_MAP["providers"][provider]) == {
+        assert set(DEFAULT_PROVIDER_MODEL_MAP["providers"][provider]) >= {
             "premium",
             "standard",
             "economy",
         }
+    assert DEFAULT_PROVIDER_MODEL_MAP["providers"]["claude_code"]["frontier"] == "fable"
+    assert DEFAULT_PROVIDER_MODEL_MAP["providers"]["codex"]["frontier"] == "gpt-5.6-sol"
+    assert "frontier" not in DEFAULT_PROVIDER_MODEL_MAP["providers"]["gemini"]
+
+
+def test_frontier_tier_resolves_for_providers_that_define_it() -> None:
+    assert resolve_provider_model("frontier", provider="claude_code") == "fable"
+    assert resolve_provider_model("frontier", provider="codex") == "gpt-5.6-sol"
+
+
+def test_frontier_tier_falls_back_to_premium_when_unmapped() -> None:
+    model = resolve_provider_model("frontier", provider="gemini")
+
+    assert model == "gemini-3.1-pro-preview"
+
+
+def test_frontier_fallback_raises_when_premium_also_missing() -> None:
+    with pytest.raises(ProviderModelMappingError):
+        resolve_provider_model("frontier", provider="codex", model_map={
+            "schema_version": 2,
+            "tiers": ["premium", "standard", "economy"],
+            "providers": {
+                "codex": {
+                    "standard": "gpt-5.4",
+                    "economy": "gpt-5.4-mini",
+                },
+            },
+        })
 
 
 def test_legacy_claude_alias_resolves_to_codex_model() -> None:
@@ -106,9 +135,11 @@ def test_resolve_archetype_for_phase_accepts_provider(tmp_path: Path) -> None:
         archetypes:
           architect:
             model: premium
+            write_capable: true
             system_prompt: "You are a software architect."
           runner:
             model: economy
+            write_capable: false
             system_prompt: "Execute and report."
         phase_mapping:
           PLAN: {archetype: architect}

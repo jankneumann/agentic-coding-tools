@@ -1,11 +1,15 @@
 schema_version: 3
 
+# `frontier` is an OPTIONAL tier: providers that omit it resolve frontier
+# requests to their premium model (graceful degradation in agents_config).
 model_aliases:
   claude_code:
+    frontier: fable
     premium: opus
     standard: sonnet
     economy: haiku
   codex:
+    frontier: gpt-5.6-sol
     premium: gpt-5.5
     standard: gpt-5.4
     economy: gpt-5.4-mini
@@ -21,7 +25,9 @@ archetypes:
   # an archetype with `write_capable: true`; the resolver fails fast otherwise.
   architect:
     write_capable: true
-    model: premium
+    # frontier: planning is where weaker models get lost; implementer stays
+    # standard (with premium escalation), so frontier spend is planning-only.
+    model: frontier
     system_prompt: |
       You are a software architect. Focus on cross-cutting concerns, dependency
       ordering, interface contracts, and long-term maintainability. Think deeply
