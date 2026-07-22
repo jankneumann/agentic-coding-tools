@@ -60,9 +60,20 @@ items onto these change-ids; read each change's `proposal.md` under `openspec/ch
   every such pair in `depends_on` or in the item rationale.
 - **Foundation first**: the correct vendor roster and the vendor registry are prerequisites for
   any router that enumerates vendors or reads cost/capability.
-- **Absorbed changes**: `cross-vendor-arbitrage-instrument` and `usage-stats-multi-model` are
-  already absorbed by `add-adaptive-model-router` — represent them as superseded, not as
-  separate roadmap items.
+- **Absorbed changes**: `cross-vendor-arbitrage-instrument` is absorbed by
+  `add-adaptive-model-router` (arbitrage is that item's signal layer) — represent it as
+  superseded, not as a separate roadmap item. **`usage-stats-multi-model` is NOT absorbed**:
+  a four-vendor roadmap review (3 of 4 reviewers, independently) found that burying multi-model
+  usage telemetry inside an XL router item enlarges the critical path and couples router
+  completion to unrelated dashboard delivery. It is re-homed as its own item (ri-08), a shared
+  telemetry substrate that `add-adaptive-model-router` and the gateway both consume.
+- **One pricing authority per level**: the vendor registry owns VENDOR-level availability,
+  capability, and cost; the adaptive router owns MODEL-level pricing and must EXTEND the
+  registry's tables rather than replace them. (Both changes originally claimed to replace the
+  same `policy.py` cost stub — a verified conflict.)
+- **One routing decision point**: the task router owns the vendor × location × model decision
+  and publishes a versioned route-decision contract; the adaptive router refines the model axis
+  within it rather than creating a competing router.
 - **Each item is an existing change**: map roadmap items to the seven change-ids above; the
   roadmap sequences them, it does not create new implementation scope.
 

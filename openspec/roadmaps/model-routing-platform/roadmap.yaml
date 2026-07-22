@@ -47,15 +47,16 @@ items:
   - item_id: ri-04
     title: Build the adaptive model router and spend controls
     description: Maps to change add-adaptive-model-router. Adds tier-aware model/vendor selection (select_model_for_task / POST /routing/select_model), a coordinator-Postgres model catalog and feedback ledger, an OpenAI-compatible base_url dispatch adapter (openai_compat_adapter.py) for OpenRouter and local Ollama/vLLM under a monthly spend ceiling, and replaces the policy.py cost stub with real catalog pricing.
-    rationale: This change supersedes and absorbs cross-vendor-arbitrage-instrument (confirmed correct by all four reviewers) and currently also usage-stats-multi-model (3 of 4 reviewers flagged this second absorption as questionable - see OPEN QUESTION below); it reads the registry's capabilities and costs, so it depends on ri-02. ROUTER COMPOSITION (operator decision) - ri-04 EXTENDS ri-03's route-decision contract by refining the model axis; it does NOT create a competing decision point, hence depends_on ri-03. PRICING (operator decision) - ri-04 owns MODEL-level pricing and extends ri-02's vendor-level cost tables rather than replacing them. OPEN QUESTION - whether usage-stats-multi-model stays absorbed or is re-homed as a separate telemetry substrate item.
+    rationale: This change absorbs cross-vendor-arbitrage-instrument (confirmed correct by all four reviewers - arbitrage is the adaptive control loop's signal layer). usage-stats-multi-model is NO LONGER absorbed - it is split out as ri-08 per operator decision and 3-of-4 reviewer consensus, because telemetry is a shared substrate that should not sit on this item's critical path. ROUTER COMPOSITION (operator decision) - ri-04 EXTENDS ri-03's route-decision contract by refining the model axis; it does NOT create a competing decision point, hence depends_on ri-03. PRICING (operator decision) - ri-04 owns MODEL-level pricing and extends ri-02's vendor-level cost tables rather than replacing them. Effort reduced XL->L now that the usage/cost dashboard is out of scope.
     status: candidate
     priority: 2
-    effort: XL
-    depends_on: [ri-02, ri-03]
+    effort: L
+    depends_on: [ri-02, ri-03, ri-08]
     acceptance_outcomes:
       - select_model_for_task returns a benchmark-and-posterior-scored model choice, and autopilot/quick-task runs complete with no manual model picks.
       - The openai_compat_adapter dispatches metered OpenRouter and local Ollama/vLLM traffic under an enforced monthly spend ceiling, with policy.py cost estimates read from real catalog pricing that EXTENDS ri-02's vendor-level cost tables (no second pricing source of truth).
-      - The absorbed usage/cost dashboard and signal ledger read the router's coordinator-Postgres ledger, and the two absorbed draft changes are archived with pointers to this change.
+      - The arbitrage signal ledger and decision provenance read the router's coordinator-Postgres ledger, and cross-vendor-arbitrage-instrument is archived with a pointer to this change.
+      - Model selection consumes ri-08's usage telemetry for feedback posteriors and spend reconciliation rather than defining a second usage/cost store.
   - item_id: ri-05
     title: Make the orchestrator obey the router
     description: Maps to change make-the-orchestrator-obey-the-router. Calls route/task before each dispatch_fn and passes the decision into the dispatch context as a contract, executes vendor-switch decisions with ledger-verified re-dispatch to the alternate vendor, adds a global iteration cap and no-progress detector, un-stubs _estimate_cost_delta/_estimate_wait_seconds against the registry, and turns the silent apply_phase_outcome no-op on a missing state file into an error.
@@ -93,3 +94,16 @@ items:
       - issue_llm_key mints a short-lived LiteLLM virtual key scoped to a budget and model allowlist from bao-vault master keys, and revoke_llm_key/get_llm_budget/get_llm_spend operate against it.
       - A proxied call is blocked inline when its virtual key's budget is exhausted, and the gateway spend callback flows back into the single add-adaptive-model-router ledger with no second spend system.
       - The gateway /embeddings route serves a coordinator-issued key as a reachable embedder, and subscription-CLI dispatch stays on vendor auth as an explicit non-goal.
+  - item_id: ri-08
+    title: Land the multi-model usage telemetry substrate
+    description: Maps to change usage-stats-multi-model, split back out of add-adaptive-model-router. Delivers durable cross-vendor usage events, aggregation, and per-vendor/per-model cost attribution in coordinator-Postgres, plus the usage/cost dashboard, as a substrate consumed by the adaptive router, the orchestrator, and the gateway.
+    rationale: Split out of ri-04 by operator decision after 3 of 4 reviewers (grok, gpt-5.6-sol, codex) independently flagged the absorption as harmful - usage telemetry is a shared substrate that is useful before adaptive control exists and is a prerequisite for trustworthy spend controls and gateway accounting, so burying it inside an XL router item enlarged the critical path and coupled router completion to unrelated dashboard delivery. Depends on ri-01 for the correct vendor roster and ri-06 for the structured result envelopes that carry reliable usage and cost fields.
+    status: candidate
+    priority: 2
+    effort: M
+    depends_on: [ri-01, ri-06]
+    acceptance_outcomes:
+      - Durable usage events are recorded per dispatch with vendor, model, token counts, and cost attribution, queryable across vendors from a single coordinator-Postgres store.
+      - The usage/cost dashboard reports spend by vendor and model over a time range, and its acceptance criteria are testable independently of any router behaviour.
+      - ri-04 spend reconciliation and ri-07 gateway spend callbacks write to this single ledger, with no second usage or spend store anywhere in the platform.
+      - usage-stats-multi-model is archived with a pointer to this roadmap item once delivered.
