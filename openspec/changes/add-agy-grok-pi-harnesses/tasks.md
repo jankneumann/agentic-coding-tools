@@ -44,8 +44,38 @@ roster work. They are labeled here — not laundered into roster tasks — per D
   (was 19 passed / 5 failed). Task 0.1 remains open — `skills/tests` as a whole still stops
   at `Interrupted: 1 error during collection` for the missing `fastapi.testclient`.
 
-- [ ] 0.3 Checkpoint: `skills/.venv/bin/python -m pytest skills/tests -q` passes with the
-  roster unmodified
+- [ ] 0.3 Repair the 3 macOS-only `test_docker_manager.py` failures so the wp-coordinator
+  gate can pass (S)
+  **Why**: added in PLAN_FIX round 3 (codex finding R3-1, confirmed). `wp-coordinator`'s gate
+  runs the full non-e2e coordinator suite, which is **3 failed, 2027 passed** before any
+  roster work — an unpassable gate, the exact class D7/D8.2 exist to prevent.
+  **Diagnosis (verified)**: not environmental and not flaky. `TestDetectRuntime.
+  test_auto_falls_back_to_podman` (and the two `TestStartContainer` cases) patch
+  `shutil.which` with `lambda name: f"/usr/bin/{name}"`, which returns a path for **every**
+  binary — including `colima`. So `is_colima_installed()` returns True, `detect_runtime`
+  takes the macOS Colima branch (`docker_manager.py:152-162`) and returns `"docker"` instead
+  of falling through to `"podman"`. Proven: with `is_colima_installed` forced False the same
+  call returns `"podman"`. The production code is correct; the **test mock is over-broad**.
+  Linux CI passes only because `sys.platform != "darwin"` skips the branch entirely.
+  **Fix**: narrow the `_which` mocks to the binaries under test (return `None` for `colima`),
+  or patch `src.docker_manager.is_colima_installed` to False. Do NOT deselect the tests —
+  scoping a gate around breakage is what D7 rejects.
+  **Dependencies**: None
+
+- [ ] 0.4 Install frontend dependencies so the kanban gates test the roster, not the
+  environment: run `npm ci` in `apps/kanban-viz` (XS)
+  **Why**: added in PLAN_FIX round 3 (codex finding R3-2, confirmed). A fresh worktree has no
+  `apps/kanban-viz/node_modules`, so `npm test -- --run` exits with
+  `sh: vitest: command not found`. Phases 4 and 6 both invoke `npm test` with no install
+  step, so `wp-frontend` and the final full-suite gate would fail on setup rather than on
+  roster behavior.
+  **Dependencies**: None
+
+- [ ] 0.5 Checkpoint: `skills/.venv/bin/python -m pytest skills/tests -q` passes with the
+  roster unmodified; `agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q
+  -m 'not e2e and not integration'` is green; `(cd apps/kanban-viz && npm test -- --run)` is
+  green. **All three baselines must be green before any roster edit** — otherwise every
+  downstream gate inherits a failure it did not cause.
 
 ## Phase 1 — Empirical CLI facts (resolves proposal open decisions 2 and 3)
 
@@ -156,7 +186,7 @@ calls is on record in `design.md`.
   `skills/tests/integration/test_prototype_convergence.py`,
   `skills/autopilot/scripts/tests/test_implementation_strategy_selector.py` (L)
   **Spec scenarios**: skill-workflow.4, .5, .6, .20, .24
-  **Dependencies**: 0.3, 1.4
+  **Dependencies**: 0.5, 1.4
 
 - [ ] 3.2 Update `_SUPPORTED_PROVIDERS` in `skills/autopilot/scripts/provider_dispatch.py` and
   the argparse `choices` in `token_budget_check.py` + `smoke_provider_dispatch.py` (S)
@@ -241,7 +271,8 @@ calls is on record in `design.md`.
   `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` (S)
   **Dependencies**: 2.7, 0.1
 
-- [ ] 4.3 Checkpoint: `npm test -- --run` in `apps/kanban-viz` green;
+- [ ] 4.3 Checkpoint: `npm test -- --run` in `apps/kanban-viz` green (deps installed
+  by task 0.4; re-run `npm ci` first if the worktree is fresh);
   `git grep -lIi gemini -- apps/kanban-viz` lists exactly the three provenance files;
   `git diff --quiet main -- apps/kanban-viz/src/components/VendorSwimlanes.tsx` exits 0
 
@@ -282,6 +313,18 @@ calls is on record in `design.md`.
   explicitly, so deferring them would make the spec unsatisfiable by this change. The ~12
   remaining SKILL.md files with narrative gemini mentions stay deferred (D6).
 
+- [ ] 5.5a Update the agent-type roster in the session-log templates:
+  `openspec/schemas/feature-workflow/templates/session-log.md:52` and its mirrored copy
+  `skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/session-log.md:52`
+  (both read `| Agent Type | <!-- claude, codex, gemini, other --> |`) (S)
+  **Dependencies**: 3.12
+  **Note**: added in PLAN_FIX round 3 (codex finding R3-3, confirmed). These are live edit
+  sites that instruct an agent to record `gemini` as its type, but **no package owned them**
+  — `wp-skills` allows only two specific `openspec/schemas/` files and explicitly denies
+  `skills/plan-feature/install_assets/**`. Ownership moved to `wp-docs-finalize`, which
+  already owns the template surface. Edit both copies: `install_assets/` is the source
+  `install.sh` distributes, so fixing only the canonical one reintroduces the drift.
+
 - [ ] 5.6 Document the optional `~/.grok/config.toml` `[skills] paths` setup as operator-level,
   citing https://docs.x.ai/build/features/skills-plugins-marketplaces (S)
   **Spec scenarios**: skill-workflow.1
@@ -304,7 +347,7 @@ calls is on record in `design.md`.
   `agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration'`;
   `skills/.venv/bin/python -m pytest skills/tests -q`;
   `uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q`;
-  `cd apps/kanban-viz && npm test -- --run` (M)
+  `cd apps/kanban-viz && npm ci && npm test -- --run` (M)
   **Dependencies**: 6.1
 
 - [ ] 6.3 Live smoke dispatch against each of antigravity, grok, and pi (operator-authorized;

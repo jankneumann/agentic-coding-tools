@@ -1,0 +1,52 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: The wp-coordinator verification gate runs the full non-e2e/non-integration coordinator suite, but that suite is already red before any roster changes. Verified with agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration': 3 failed, 2027 passed, 1 skipped, 90 deselected; failures are TestDetectRuntime.test_auto_falls_back_to_podman, TestStartContainer.test_successful_start, and TestStartContainer.test_compose_up_fails in agent-coordinator/tests/test_docker_manager.py. Phase 0 only repairs skills-test baselines, so tasks 2.1-2.10 cannot satisfy the gate as written.",
+      "resolution": "Add a Phase 0 coordinator baseline repair for the docker_manager failures, make wp-coordinator depend on it, and keep task 2.10/work-package verification on the same suite after the repair is proven green.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 142,
+        "end": 145
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: The frontend verification commands assume installed Node dependencies, but a clean checkout/worktree has no apps/kanban-viz/node_modules. Verified by running npm test -- --run in apps/kanban-viz: it exits 127 with sh: vitest: command not found; package.json only declares vitest in devDependencies. Neither Phase 4 nor Phase 6 runs npm ci/npm install before invoking npm test, so wp-frontend and the final full-suite gate can fail for environment setup rather than roster behavior.",
+      "resolution": "Add an explicit frontend dependency setup step, preferably npm ci in apps/kanban-viz, before the Phase 4 and Phase 6 npm test invocations, or document and gate a checked prerequisite that node_modules is present in every verification worktree.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 276,
+        "end": 278
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "description": "Nit: The authoritative inventory still has a live session-log template edit site with Gemini in the agent-type roster, but no package owns it. Verified with git grep -nIi gemini -- openspec/schemas/feature-workflow/templates/session-log.md skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/session-log.md: both files contain | Agent Type | <!-- claude, codex, gemini, other --> | at line 52. wp-skills only allows two specific openspec/schemas files and denies the plan-feature install_assets tree, while wp-docs-finalize does not allow openspec/schemas, so this task has nowhere to write.",
+      "resolution": "Add a task and write scope for openspec/schemas/feature-workflow/templates/session-log.md and its skills/plan-feature/install_assets mirror, changing the template roster to the supported provider set or provider-neutral wording.",
+      "disposition": "fix",
+      "file_path": "openspec/schemas/feature-workflow/templates/session-log.md",
+      "line_range": {
+        "start": 52,
+        "end": 52
+      }
+    }
+  ]
+}
