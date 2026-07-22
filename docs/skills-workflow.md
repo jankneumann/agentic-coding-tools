@@ -433,7 +433,7 @@ Performs a comprehensive project health check by collecting signals from CI tool
 - Aggregates, sorts by severity/age, and generates actionable recommendations
 - Reports committed to `docs/bug-scrub/` for cross-agent access
 
-**Produces**: `docs/bug-scrub/bug-scrub-report.md` (human-readable) and `docs/bug-scrub/bug-scrub-report.json` (machine-readable for `/fix-scrub`).
+**Produces**: Date-stamped `docs/bug-scrub/bug-scrub-report-YYYY-MM-DD.{md,json}` artifacts plus regular-file `docs/bug-scrub/latest.{md,json}` mirrors. `/fix-scrub` consumes `latest.json` by default; earlier dated reports remain available for tracking.
 
 **Gate**: None (diagnostic/support step).
 

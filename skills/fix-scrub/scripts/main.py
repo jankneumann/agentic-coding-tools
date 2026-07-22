@@ -107,7 +107,7 @@ def run(
 
     # Plan
     fix_plan = plan(classified, max_agent_fixes=max_agent_fixes, dry_run=dry_run)
-    print(f"\nFix Plan:")
+    print("\nFix Plan:")
     print(f"  Auto: {fix_plan.summary.get('auto', 0)}")
     print(f"  Agent: {fix_plan.summary.get('agent', 0)}")
     print(f"  Manual: {fix_plan.summary.get('manual', 0)}")
@@ -195,12 +195,13 @@ def run(
     return 1 if (verification.regressions or fix_plan.manual_findings) else 0
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """Build the fix-scrub command-line parser."""
     parser = argparse.ArgumentParser(description="Fix-scrub: remediation from bug-scrub report")
     parser.add_argument(
         "--report",
         type=str,
-        default="docs/bug-scrub/bug-scrub-report.json",
+        default="docs/bug-scrub/latest.json",
         help="Path to bug-scrub JSON report",
     )
     parser.add_argument(
@@ -250,7 +251,11 @@ def main() -> None:
         default=None,
         help="Comma-separated vendor names for multi-vendor agent dispatch",
     )
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    args = build_parser().parse_args()
 
     tiers = args.tier.split(",")
     vendor_list = args.vendors.split(",") if args.vendors else None

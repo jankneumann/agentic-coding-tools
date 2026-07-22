@@ -443,8 +443,11 @@ Valid signal source names: `pytest`, `ruff`, `mypy`, `openspec`, `architecture`,
 - **WHEN** the user invokes `/bug-scrub`
 - **THEN** the skill SHALL collect signals from all available sources in parallel
 - **AND** normalize findings into a unified schema with severity, source, affected files, and category
-- **AND** produce a prioritized markdown report at `docs/bug-scrub/bug-scrub-report.md`
-- **AND** produce a machine-readable JSON report at `docs/bug-scrub/bug-scrub-report.json`
+- **AND** produce a prioritized markdown report at `docs/bug-scrub/bug-scrub-report-YYYY-MM-DD.md`
+- **AND** produce a machine-readable JSON report at `docs/bug-scrub/bug-scrub-report-YYYY-MM-DD.json`
+- **AND** rewrite `docs/bug-scrub/latest.md` and `docs/bug-scrub/latest.json` as byte-identical regular-file mirrors of that run
+- **AND** preserve earlier dated reports for historical tracking
+- **AND** SHALL NOT create symlinks for the latest mirrors
 
 #### Scenario: Selective source execution
 
@@ -637,7 +640,7 @@ The bug-scrub skill SHALL produce a structured report that prioritizes findings 
 The system SHALL provide a `fix-scrub` skill that consumes the bug-scrub report and applies fixes with clean separation from the diagnostic phase. The skill classifies findings into three fixability tiers, applies fixes in parallel where safe, and verifies quality after changes.
 
 The skill SHALL accept the following arguments:
-- `--report <path>` (optional; default: `docs/bug-scrub/bug-scrub-report.json`)
+- `--report <path>` (optional; default: `docs/bug-scrub/latest.json`)
 - `--tier <list>` (optional; comma-separated tiers to apply; default: `auto,agent`; values: `auto`, `agent`, `manual`)
 - `--severity <level>` (optional; minimum severity to fix; default: "medium")
 - `--dry-run` (optional; plan fixes without applying them)
@@ -4394,4 +4397,3 @@ Shipped skills SHALL prefer explicit paths, environment variables, and public HT
 - **WHEN** no explicit configuration and no source-repository fallback exists
 - **THEN** the skill SHALL emit an actionable missing-configuration diagnostic or disable only the optional feature
 - **AND** SHALL NOT fail with `ModuleNotFoundError` or a fabricated repository path
-

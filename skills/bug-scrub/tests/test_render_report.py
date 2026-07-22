@@ -284,33 +284,43 @@ class TestEmptyReport:
 
 
 class TestWriteReport:
-    def test_write_creates_md_and_json(
+    def test_write_creates_dated_and_latest_md_and_json(
         self, tmp_path: Path, mixed_report: BugScrubReport
     ) -> None:
         written = write_report(mixed_report, str(tmp_path), fmt="both")
-        assert len(written) == 2
-        md_path = tmp_path / "bug-scrub-report.md"
-        json_path = tmp_path / "bug-scrub-report.json"
+        assert len(written) == 4
+        md_path = tmp_path / "bug-scrub-report-2026-02-21.md"
+        json_path = tmp_path / "bug-scrub-report-2026-02-21.json"
+        latest_md = tmp_path / "latest.md"
+        latest_json = tmp_path / "latest.json"
         assert md_path.exists()
         assert json_path.exists()
+        assert latest_md.exists()
+        assert latest_json.exists()
         assert str(md_path) in written
         assert str(json_path) in written
+        assert str(latest_md) in written
+        assert str(latest_json) in written
+        assert latest_md.read_bytes() == md_path.read_bytes()
+        assert latest_json.read_bytes() == json_path.read_bytes()
 
     def test_md_file_content(
         self, tmp_path: Path, mixed_report: BugScrubReport
     ) -> None:
         write_report(mixed_report, str(tmp_path), fmt="md")
-        md_path = tmp_path / "bug-scrub-report.md"
+        md_path = tmp_path / "bug-scrub-report-2026-02-21.md"
         content = md_path.read_text()
         assert "# Bug Scrub Report" in content
+        assert (tmp_path / "latest.md").read_text() == content
 
     def test_json_file_content(
         self, tmp_path: Path, mixed_report: BugScrubReport
     ) -> None:
         write_report(mixed_report, str(tmp_path), fmt="json")
-        json_path = tmp_path / "bug-scrub-report.json"
+        json_path = tmp_path / "bug-scrub-report-2026-02-21.json"
         parsed = json.loads(json_path.read_text())
         assert parsed["timestamp"] == "2026-02-21T10:00:00Z"
+        assert (tmp_path / "latest.json").read_bytes() == json_path.read_bytes()
 
     def test_creates_output_directory(
         self, tmp_path: Path, empty_report: BugScrubReport
@@ -319,8 +329,46 @@ class TestWriteReport:
         assert not nested.exists()
         write_report(empty_report, str(nested), fmt="both")
         assert nested.exists()
-        assert (nested / "bug-scrub-report.md").exists()
-        assert (nested / "bug-scrub-report.json").exists()
+        assert (nested / "bug-scrub-report-2026-02-21.md").exists()
+        assert (nested / "bug-scrub-report-2026-02-21.json").exists()
+        assert (nested / "latest.md").exists()
+        assert (nested / "latest.json").exists()
+
+    def test_new_run_preserves_prior_dated_report_and_rewrites_latest(
+        self, tmp_path: Path, mixed_report: BugScrubReport
+    ) -> None:
+        write_report(mixed_report, str(tmp_path), fmt="both")
+        newer_report = BugScrubReport(
+            timestamp="2026-02-22T01:02:03Z",
+            sources_used=["pytest"],
+            severity_filter="high",
+        )
+
+        write_report(newer_report, str(tmp_path), fmt="both")
+
+        prior_json = tmp_path / "bug-scrub-report-2026-02-21.json"
+        newer_json = tmp_path / "bug-scrub-report-2026-02-22.json"
+        assert prior_json.exists()
+        assert newer_json.exists()
+        assert (tmp_path / "latest.json").read_bytes() == newer_json.read_bytes()
+        assert (tmp_path / "latest.md").read_bytes() == (
+            tmp_path / "bug-scrub-report-2026-02-22.md"
+        ).read_bytes()
+
+    def test_write_replaces_existing_latest_symlink_with_regular_file(
+        self, tmp_path: Path, mixed_report: BugScrubReport
+    ) -> None:
+        stale_target = tmp_path / "stale.json"
+        stale_target.write_text("stale", encoding="utf-8")
+        latest_json = tmp_path / "latest.json"
+        latest_json.symlink_to(stale_target)
+
+        write_report(mixed_report, str(tmp_path), fmt="json")
+
+        dated_json = tmp_path / "bug-scrub-report-2026-02-21.json"
+        assert not latest_json.is_symlink()
+        assert latest_json.read_bytes() == dated_json.read_bytes()
+        assert stale_target.read_text(encoding="utf-8") == "stale"
 
 
 # ---------------------------------------------------------------------------
@@ -331,26 +379,36 @@ class TestWriteReport:
 class TestFormatOptions:
     def test_md_only(self, tmp_path: Path, mixed_report: BugScrubReport) -> None:
         written = write_report(mixed_report, str(tmp_path), fmt="md")
-        assert len(written) == 1
-        assert written[0].endswith("bug-scrub-report.md")
-        assert not (tmp_path / "bug-scrub-report.json").exists()
+        assert len(written) == 2
+        assert written[0].endswith("bug-scrub-report-2026-02-21.md")
+        assert written[1].endswith("latest.md")
+        assert not (tmp_path / "bug-scrub-report-2026-02-21.json").exists()
+        assert not (tmp_path / "latest.json").exists()
 
     def test_json_only(self, tmp_path: Path, mixed_report: BugScrubReport) -> None:
         written = write_report(mixed_report, str(tmp_path), fmt="json")
-        assert len(written) == 1
-        assert written[0].endswith("bug-scrub-report.json")
-        assert not (tmp_path / "bug-scrub-report.md").exists()
+        assert len(written) == 2
+        assert written[0].endswith("bug-scrub-report-2026-02-21.json")
+        assert written[1].endswith("latest.json")
+        assert not (tmp_path / "bug-scrub-report-2026-02-21.md").exists()
+        assert not (tmp_path / "latest.md").exists()
 
     def test_both(self, tmp_path: Path, mixed_report: BugScrubReport) -> None:
         written = write_report(mixed_report, str(tmp_path), fmt="both")
-        assert len(written) == 2
-        extensions = {Path(p).suffix for p in written}
-        assert extensions == {".md", ".json"}
+        assert len(written) == 4
+        assert {Path(p).name for p in written} == {
+            "bug-scrub-report-2026-02-21.md",
+            "bug-scrub-report-2026-02-21.json",
+            "latest.md",
+            "latest.json",
+        }
 
     def test_default_is_both(
         self, tmp_path: Path, mixed_report: BugScrubReport
     ) -> None:
         written = write_report(mixed_report, str(tmp_path))
-        assert len(written) == 2
-        assert (tmp_path / "bug-scrub-report.md").exists()
-        assert (tmp_path / "bug-scrub-report.json").exists()
+        assert len(written) == 4
+        assert (tmp_path / "bug-scrub-report-2026-02-21.md").exists()
+        assert (tmp_path / "bug-scrub-report-2026-02-21.json").exists()
+        assert (tmp_path / "latest.md").exists()
+        assert (tmp_path / "latest.json").exists()

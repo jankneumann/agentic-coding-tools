@@ -58,9 +58,14 @@ python3 <agent-skills-dir>/bug-scrub/scripts/main.py \
 
 ### 2. Review Report
 
-The orchestrator produces:
-- `docs/bug-scrub/bug-scrub-report.md` — human-readable prioritized report
-- `docs/bug-scrub/bug-scrub-report.json` — machine-readable for `/fix-scrub`
+The orchestrator persists each run as date-stamped event artifacts and refreshes
+regular-file latest mirrors (never symlinks):
+- `docs/bug-scrub/bug-scrub-report-YYYY-MM-DD.md` — tracked human-readable report
+- `docs/bug-scrub/bug-scrub-report-YYYY-MM-DD.json` — tracked machine-readable report
+- `docs/bug-scrub/latest.md` — byte-identical mirror of the newest Markdown report
+- `docs/bug-scrub/latest.json` — byte-identical mirror consumed by `/fix-scrub`
+
+Earlier dated reports remain in place when a later run refreshes `latest.*`.
 
 ### 3. Interpret Results
 
@@ -103,14 +108,15 @@ python3 -m pytest <agent-skills-dir>/bug-scrub/tests -q
 
 ## Red Flags
 
-- A `bug-scrub-report.json` older than 7 days being used as input to `/plan-feature` or `/fix-scrub` without a refresh — staleness warning was ignored.
+- A `docs/bug-scrub/latest.json` report older than 7 days being used as input to `/plan-feature` or `/fix-scrub` without a refresh — staleness warning was ignored.
 - A report that shows zero findings from `pytest`, `ruff`, AND `mypy` simultaneously — almost certainly the collectors did not actually execute (missing tools, wrong project-dir).
 - The `deferred` source returns zero entries on a project with multiple active OpenSpec changes — the OpenSpec CLI was not on the PATH or `--project-dir` pointed outside the repo.
 - A planning session referencing "the bug-scrub report" without anyone able to produce the file path — the report exists only in chat, not on disk.
 
 ## Verification
 
-1. Confirm the report was generated within the last 7 days: `stat -c %y docs/bug-scrub/bug-scrub-report.json` (or equivalent) returns a recent timestamp.
+1. Confirm the report was generated within the last 7 days: `stat -c %y docs/bug-scrub/latest.json` (or equivalent) returns a recent timestamp.
 2. Confirm at least three sources contributed findings (the report's `sources` field has length ≥ 3) — a single-source report is incomplete.
 3. Confirm the report path was cited (with file path and severity filter) in any downstream plan or fix-scrub invocation that claims to act on it.
 4. Confirm the markers source was not trivially empty: a non-trivial codebase with zero TODO/FIXME/HACK/XXX is suspicious; either the markers collector was disabled or `--project-dir` was wrong.
+5. Confirm `latest.md` and `latest.json` are regular files and byte-identical to the newest matching dated artifacts.

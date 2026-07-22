@@ -17,7 +17,7 @@ Consume the bug-scrub report and apply fixes with clean separation from the diag
 ## Arguments
 
 `$ARGUMENTS` - Optional flags:
-- `--report <path>` (default: `docs/bug-scrub/bug-scrub-report.json`)
+- `--report <path>` (default: `docs/bug-scrub/latest.json`)
 - `--tier <list>` (comma-separated; default: `auto,agent`; values: `auto`, `agent`, `manual`)
 - `--severity <level>` (minimum severity; default: `medium`)
 - `--dry-run` (plan fixes without applying — skips branch creation)
@@ -202,7 +202,7 @@ Automated fix-scrub remediation from bug-scrub report.
 - [ ] ruff passing
 - [ ] openspec validate passing
 
-Source report: `docs/bug-scrub/bug-scrub-report.json`
+Source report: `docs/bug-scrub/latest.json`
 
 ---
 🤖 Generated with Claude Code

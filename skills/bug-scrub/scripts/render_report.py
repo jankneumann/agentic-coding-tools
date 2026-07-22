@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 
 from models import BugScrubReport, severity_rank
@@ -133,6 +135,26 @@ def render_json(report: BugScrubReport) -> str:
     return json.dumps(report.to_dict(), indent=2)
 
 
+def _report_date(timestamp: str) -> str:
+    """Return the UTC calendar date encoded by a report timestamp."""
+    try:
+        generated_at = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"invalid bug-scrub report timestamp: {timestamp!r}") from exc
+
+    if generated_at.tzinfo is not None:
+        generated_at = generated_at.astimezone(timezone.utc)
+    return generated_at.date().isoformat()
+
+
+def _write_with_latest(dated_path: Path, latest_path: Path, content: str) -> None:
+    """Write a dated artifact and refresh its regular-file latest mirror."""
+    dated_path.write_text(content, encoding="utf-8")
+    if latest_path.is_symlink():
+        latest_path.unlink()
+    shutil.copyfile(dated_path, latest_path)
+
+
 def write_report(
     report: BugScrubReport,
     out_dir: str,
@@ -149,18 +171,20 @@ def write_report(
         List of file paths written.
     """
     os.makedirs(out_dir, exist_ok=True)
+    output_dir = Path(out_dir)
+    report_date = _report_date(report.timestamp)
     written: list[str] = []
 
     if fmt in ("md", "both"):
-        md_path = str(Path(out_dir) / "bug-scrub-report.md")
-        with open(md_path, "w") as f:
-            f.write(render_markdown(report))
-        written.append(md_path)
+        md_path = output_dir / f"bug-scrub-report-{report_date}.md"
+        latest_md = output_dir / "latest.md"
+        _write_with_latest(md_path, latest_md, render_markdown(report))
+        written.extend((str(md_path), str(latest_md)))
 
     if fmt in ("json", "both"):
-        json_path = str(Path(out_dir) / "bug-scrub-report.json")
-        with open(json_path, "w") as f:
-            f.write(render_json(report))
-        written.append(json_path)
+        json_path = output_dir / f"bug-scrub-report-{report_date}.json"
+        latest_json = output_dir / "latest.json"
+        _write_with_latest(json_path, latest_json, render_json(report))
+        written.extend((str(json_path), str(latest_json)))
 
     return written
