@@ -1,0 +1,628 @@
+schema_version: 1
+
+feature:
+  id: add-agy-grok-pi-harnesses
+  title: "Add antigravity / grok / pi harnesses, retire Gemini across the vendor roster"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-agy-grok-pi-harnesses/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/add-agy-grok-pi-harnesses/contracts/openapi/v1.yaml"
+      - "openspec/changes/add-agy-grok-pi-harnesses/contracts/roster.md"
+      - "openspec/changes/add-agy-grok-pi-harnesses/contracts/provider-model-map.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-contracts — canonical roster + closed provider key set (DAG root)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-contracts
+    title: "Contracts — canonical vendor roster and closed provider-model-map key set"
+    task_type: contracts
+    description: |
+      Finalize contracts/roster.md (the one-string-per-vendor table, dispatch
+      shapes, runtime skill directories) and contracts/provider-model-map.schema.json
+      at schema_version 2 with propertyNames.enum closing the provider key set.
+      Establishes the coordination boundary every other package writes against.
+      Implements tasks.md 1.1-1.3.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/add-agy-grok-pi-harnesses/contracts"
+      keys:
+        - "contract:vendor-roster"
+        - "contract:provider-model-map"
+      ttl_minutes: 60
+      reason: "Vendor roster contract for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/add-agy-grok-pi-harnesses/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: agy-roster-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Schema is valid JSON Schema and rejects gemini"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import json,jsonschema; s=json.load(open('openspec/changes/add-agy-grok-pi-harnesses/contracts/provider-model-map.schema.json')); jsonschema.Draft202012Validator.check_schema(s); assert 'gemini' not in s['properties']['providers']['propertyNames']['enum']\""
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["contracts_valid"]
+    metadata:
+      loc_estimate: 0
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["contracts_valid"]
+      artifacts:
+        - "openspec/changes/add-agy-grok-pi-harnesses/contracts/roster.md"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-empirical — resolve CLI facts before any config is written
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-empirical
+    title: "Empirical CLI verification — agy model slugs, grok stdin, pi env, re-login commands"
+    task_type: backend
+    description: |
+      Run the three new CLIs and record facts that every downstream package
+      depends on: exact `agy --model` slug strings, whether
+      `grok --prompt-file /dev/stdin` survives a subprocess pipe, whether pi
+      resolves OPENROUTER_API_KEY from the subprocess environment, and the
+      re-login commands for agy and pi. Writes findings into design.md.
+      Deliberately gates the config packages so no adapter is written against a
+      guessed flag. Implements tasks.md 2.1-2.5.
+    role: runner
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/add-agy-grok-pi-harnesses/design.md"
+      keys:
+        - "contract:empirical-cli-findings"
+      ttl_minutes: 60
+      reason: "Records empirical CLI facts consumed by all config packages"
+    scope:
+      write_allow:
+        - "openspec/changes/add-agy-grok-pi-harnesses/design.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: agy-roster-wp-empirical
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Empirical findings table has no pending rows"
+          kind: command
+          command: "! grep -q '| pending |' openspec/changes/add-agy-grok-pi-harnesses/design.md"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["empirical_findings_recorded"]
+    metadata:
+      loc_estimate: 0
+      complexity: medium
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["empirical_findings_recorded"]
+      artifacts:
+        - "openspec/changes/add-agy-grok-pi-harnesses/design.md"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-registry — agents.yaml, archetypes.yaml, provider model map
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-registry
+    title: "Registry — agents.yaml entries, DEFAULT_PROVIDER_MODEL_MAP, archetype model_aliases"
+    task_type: backend
+    description: |
+      Add antigravity-local / grok-local / pi-local to agents.yaml with
+      dispatch_modes, remove gemini-local and gemini-remote, retarget
+      DEFAULT_PROVIDER_MODEL_MAP and archetypes.yaml model_aliases, and update
+      the coordinator's own roster references. Implements tasks.md 3.1-3.9.
+    role: implementer
+    priority: 2
+    depends_on: [wp-contracts, wp-empirical]
+    locks:
+      files:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/src/agents_config.py"
+      keys:
+        - "contract:agents-yaml-roster"
+        - "contract:provider-model-map-impl"
+        - "contract:archetype-model-aliases"
+      ttl_minutes: 120
+      reason: "Canonical vendor registry edits"
+    scope:
+      write_allow:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/scripts/setup_cloud.py"
+        - "agent-coordinator/tests/test_agents_config.py"
+        - "agent-coordinator/tests/test_agents_config_isolation.py"
+        - "agent-coordinator/tests/test_differential_policy.py"
+        - "agent-coordinator/tests/model_routing/test_feedback.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: agy-roster-wp-registry
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coordinator config tests pass and no gemini remains in registry files"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_agents_config_isolation.py agent-coordinator/tests/test_differential_policy.py -q && ! grep -ril gemini agent-coordinator/agents.yaml agent-coordinator/archetypes.yaml agent-coordinator/src/agents_config.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["registry_updated"]
+    metadata:
+      loc_estimate: 220
+      complexity: medium
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["registry_updated"]
+      artifacts:
+        - "agent-coordinator/agents.yaml"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-dispatch — the ~13 hardcoded allow-lists across skills/
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-dispatch
+    title: "Dispatch allow-lists — provider_dispatch, orchestrator, policy, review_dispatcher"
+    task_type: backend
+    description: |
+      Retarget every hardcoded {claude,codex,gemini} allow-list in skills/ and
+      scripts/ to the new roster: _SUPPORTED_PROVIDERS, argparse choices,
+      orchestrator.py's available list (line 319), policy.py _STATIC_COST_TIERS,
+      _RELOGIN_COMMANDS, and the Gemini -o json envelope-unwrap special case.
+      Keeps the orchestrator list and cost-tier structures stable so ri-02 can
+      delete them cleanly. Implements tasks.md 4.1-4.11.
+    role: implementer
+    priority: 2
+    depends_on: [wp-contracts, wp-empirical]
+    locks:
+      files:
+        - "skills/autopilot/scripts/provider_dispatch.py"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/autopilot-roadmap/scripts/policy.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      keys:
+        - "contract:supported-providers"
+        - "contract:relogin-commands"
+        - "contract:static-cost-tiers"
+      ttl_minutes: 120
+      reason: "Hardcoded provider allow-list migration"
+    scope:
+      write_allow:
+        - "skills/autopilot/**"
+        - "skills/autopilot-roadmap/**"
+        - "skills/parallel-infrastructure/**"
+        - "skills/quick-task/**"
+        - "skills/review-artifacts/**"
+        - "skills/fix-scrub/tests/**"
+        - "skills/tests/autopilot/**"
+        - "skills/tests/autopilot-roadmap/**"
+        - "skills/tests/parallel-infrastructure/**"
+        - "skills/tests/vendor-neutral-autopilot/**"
+        - "skills/tests/prototype-feature/**"
+        - "skills/tests/integration/**"
+        - "scripts/impl_review_driver.py"
+        - "scripts/impl_review_handoff.py"
+        - "openspec/schemas/consensus-report.schema.json"
+      read_allow:
+        - "**"
+    worktree:
+      name: agy-roster-wp-dispatch
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Dispatch suites pass and no gemini remains in the dispatch surface"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/vendor-neutral-autopilot skills/tests/parallel-infrastructure skills/tests/autopilot skills/tests/autopilot-roadmap -q && ! grep -ril gemini skills/autopilot skills/autopilot-roadmap skills/parallel-infrastructure skills/quick-task skills/review-artifacts scripts/impl_review_driver.py scripts/impl_review_handoff.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["dispatch_allowlists_updated"]
+    metadata:
+      loc_estimate: 380
+      complexity: high
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["dispatch_allowlists_updated"]
+      artifacts:
+        - "skills/autopilot/scripts/provider_dispatch.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-eval — AgentBackend parity for the new roster (D4)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-eval
+    title: "Eval backends — add antigravity/grok/pi, remove gemini_jules"
+    task_type: backend
+    description: |
+      Implement AgentBackend for antigravity, grok (via --output-format json),
+      and pi, with tests; then delete gemini_jules.py and its __all__ export and
+      retarget the roster references in evaluation/__init__.py, config.py, and
+      backends/base.py. Implements tasks.md 5.1-5.8.
+    role: implementer
+    priority: 3
+    depends_on: [wp-registry]
+    locks:
+      files:
+        - "agent-coordinator/evaluation/backends"
+      keys:
+        - "contract:evaluation-backends"
+      ttl_minutes: 120
+      reason: "Eval backend roster parity"
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: agy-roster-wp-eval
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Eval suite passes and gemini_jules is gone"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -k evaluation -q && test ! -f agent-coordinator/evaluation/backends/gemini_jules.py && ! grep -ril gemini agent-coordinator/evaluation"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["eval_backends_updated"]
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["eval_backends_updated"]
+      artifacts:
+        - "agent-coordinator/evaluation/backends/__init__.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-transcripts — collect-transcripts adapters
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-transcripts
+    title: "Transcript adapters — add antigravity_cli/grok_cli/pi_cli, remove gemini_cli"
+    task_type: backend
+    description: |
+      Add the three transcript adapters with fixtures and tests, register them in
+      normalize.py, then delete gemini_cli.py, its test, and its fixture
+      directory. Implements tasks.md 6.1-6.5.
+    role: implementer
+    priority: 3
+    depends_on: [wp-contracts, wp-empirical]
+    locks:
+      files:
+        - "skills/collect-transcripts/scripts/adapters"
+      keys:
+        - "contract:transcript-adapters"
+      ttl_minutes: 120
+      reason: "Transcript adapter roster migration"
+    scope:
+      write_allow:
+        - "skills/collect-transcripts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: agy-roster-wp-transcripts
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Transcript suite passes and gemini adapter is gone"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/collect-transcripts/tests -q && test ! -f skills/collect-transcripts/scripts/adapters/gemini_cli.py && ! grep -ril gemini skills/collect-transcripts"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["transcript_adapters_updated"]
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["transcript_adapters_updated"]
+      artifacts:
+        - "skills/collect-transcripts/scripts/normalize.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-kanban — seeder + fixtures (component itself needs no change, D5)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-kanban
+    title: "Kanban — seeder vendor roster and frontend/endpoint fixtures"
+    task_type: frontend
+    description: |
+      Update VENDORS in seed_kanban_board.py and the vendor fixtures in the
+      kanban-viz tests, useCoordinator hook, saved-view schema, and both
+      kanban endpoint test files. VendorSwimlanes.tsx is deliberately NOT
+      modified — it derives the vendor from the agent_id suffix and holds no
+      roster (design D5). Implements tasks.md 7.1-7.4.
+    role: implementer
+    priority: 3
+    depends_on: [wp-registry]
+    locks:
+      files:
+        - "agent-coordinator/scripts/seed_kanban_board.py"
+      keys:
+        - "contract:kanban-seed-vendors"
+      ttl_minutes: 90
+      reason: "Kanban vendor roster fixtures"
+    scope:
+      write_allow:
+        - "apps/kanban-viz/**"
+        - "agent-coordinator/scripts/seed_kanban_board.py"
+        - "agent-coordinator/src/schemas/kanban_viz/**"
+        - "agent-coordinator/tests/test_kanban_viz_endpoints.py"
+        - "skills/tests/agent-coordinator/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: agy-roster-wp-kanban
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Kanban frontend and endpoint tests pass with the new roster"
+          kind: command
+          command: "cd apps/kanban-viz && npm test -- --run"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["kanban_roster_updated"]
+        - name: "VendorSwimlanes.tsx is unmodified"
+          kind: command
+          command: "git diff --quiet main -- apps/kanban-viz/src/components/VendorSwimlanes.tsx"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["swimlanes_untouched"]
+    metadata:
+      loc_estimate: 120
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["kanban_roster_updated", "swimlanes_untouched"]
+      artifacts:
+        - "agent-coordinator/scripts/seed_kanban_board.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-cleanup — removals and residual references
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-cleanup
+    title: "Cleanup — delete .gemini/, gemini_wrapper.sh, and residual roster references"
+    task_type: backend
+    description: |
+      Delete the repo-root .gemini/ directory and gemini_wrapper.sh, drop
+      `.gemini` from the three tech-debt-analysis skip-directory lists, and
+      retarget residual references in fetch-vendor-skills.sh, langfuse
+      install-mcp.sh, openspec/config.yaml, and packages/agent-scenarios/.
+      Implements tasks.md 8.1-8.7.
+    role: implementer
+    priority: 4
+    depends_on: [wp-dispatch, wp-registry]
+    locks:
+      files:
+        - ".gemini"
+        - "agent-coordinator/scripts/gemini_wrapper.sh"
+      keys:
+        - "contract:gemini-runtime-dir"
+      ttl_minutes: 90
+      reason: "Retired harness removal"
+    scope:
+      write_allow:
+        - ".gemini/**"
+        - "agent-coordinator/scripts/gemini_wrapper.sh"
+        - "skills/tech-debt-analysis/**"
+        - "skills/fetch-vendor-skills.sh"
+        - "skills/langfuse/scripts/install-mcp.sh"
+        - "openspec/config.yaml"
+        - "packages/agent-scenarios/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: agy-roster-wp-cleanup
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Retired artifacts are gone and agent-scenarios tests pass"
+          kind: command
+          command: "test ! -d .gemini && test ! -f agent-coordinator/scripts/gemini_wrapper.sh && skills/.venv/bin/python -m pytest packages/agent-scenarios/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["cleanup_complete"]
+    metadata:
+      loc_estimate: 90
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["cleanup_complete"]
+      artifacts: []
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-docs — prose roster updates
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-docs
+    title: "Docs — supported-vendor prose, grok config note, lifecycle SKILL.md roster"
+    task_type: docs
+    description: |
+      Update the supported-vendor roster in README.md, agent-coordinator/CLAUDE.md,
+      docs/skills-workflow.md, and docs/autopilot-provider-smoke.md; document the
+      optional ~/.grok/config.toml [skills] paths setup as operator-level with a
+      citation; and retarget lifecycle SKILL.md provider prose. Implements
+      tasks.md 9.1-9.5.
+    role: documenter
+    priority: 5
+    depends_on: [wp-cleanup, wp-eval, wp-transcripts, wp-kanban]
+    locks:
+      files:
+        - "README.md"
+        - "docs"
+      keys:
+        - "contract:supported-vendor-roster"
+      ttl_minutes: 60
+      reason: "Vendor roster documentation"
+    scope:
+      write_allow:
+        - "README.md"
+        - "docs/**"
+        - "agent-coordinator/CLAUDE.md"
+        - "skills/*/SKILL.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: agy-roster-wp-docs
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "OpenSpec validates and the grok citation is present"
+          kind: command
+          command: "openspec validate --all --strict && grep -rq 'docs.x.ai/build/features/skills-plugins-marketplaces' docs/"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["docs_updated"]
+    metadata:
+      loc_estimate: 150
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["docs_updated"]
+      artifacts:
+        - "README.md"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-integration — merge, sync mirrors, prove zero residue
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-integration
+    title: "Integration — sync mirrors, prove zero live gemini references, full suite + live smoke"
+    task_type: integration
+    description: |
+      Merge all package branches, run install.sh in rsync mode so the generated
+      mirrors carry the new roster, prove the design.md scope-inventory command
+      returns empty, run the full test suite across all four trees, and perform a
+      live smoke dispatch against antigravity, grok, and pi.
+      Implements tasks.md 10.1-10.4.
+    role: runner
+    priority: 6
+    depends_on: [wp-docs]
+    locks:
+      files:
+        - ".claude/skills"
+        - ".agents/skills"
+      keys:
+        - "contract:runtime-skill-mirrors"
+      ttl_minutes: 120
+      reason: "Mirror sync and full-suite integration"
+    scope:
+      write_allow:
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+        - "openspec/changes/add-agy-grok-pi-harnesses/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: agy-roster-wp-integration
+      mode: shared
+    timeout_minutes: 150
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Scope inventory returns empty"
+          kind: command
+          command: "test -z \"$(grep -rl 'gemini\\|Gemini\\|GEMINI' --include='*.py' --include='*.ts' --include='*.tsx' --include='*.yaml' --include='*.yml' --include='*.sh' --include='*.json' . | sed 's|^\\./||' | grep -vE '^(\\.claude|\\.agents|\\.codex|node_modules|openspec/changes|openspec/specs|openspec/roadmaps|docs/feature-discovery)/')\""
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["zero_gemini_references"]
+        - name: "Full test suite passes"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration' && skills/.venv/bin/python -m pytest skills/tests -q && cd apps/kanban-viz && npm test -- --run"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["full_suite_green"]
+    metadata:
+      loc_estimate: 0
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["zero_gemini_references", "full_suite_green"]
+      artifacts: []
