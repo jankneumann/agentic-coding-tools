@@ -1,0 +1,112 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: C5 is not actually fixed: `check_empirical_facts.py` only requires each E1-E8 row to say `confirmed` or `refuted` and have any non-empty evidence cell. I defeated it with a synthetic table whose evidence was just `made-up evidence`, with no CLI invocation, and the script exited 0. This still allows downstream packages to hardcode guessed CLI flags. Fix by validating that each evidence cell records the expected command family for that fact and an output excerpt, or by requiring durable per-fact evidence artifacts produced by the Phase 2 commands.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-empirical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/scripts/check_empirical_facts.py",
+      "line_range": {
+        "start": 74,
+        "end": 84
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: C4 is only partially fixed. The fact table says E6 is consumed by task 5.2, E7 by 5.3, and E8 by 5.5, but those eval-backend tasks depend on the older facts 2.2, 2.1, and 2.3 instead of 2.7, 2.8, and 2.9. A task scheduler can therefore start the grok, antigravity, and pi backends before the exact CLI shapes they encode have been verified. Fix the dependencies to `5.2: 5.1, 2.7`, `5.3: 5.1, 2.8`, and `5.5: 5.1, 2.9` while keeping any existing model/env dependencies that are genuinely consumed.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-eval",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 238,
+        "end": 250
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: U1's repair is incomplete. Running `skills/.venv/bin/python -m pytest skills/tests/vendor-neutral-autopilot -q` produces the expected archived-change failures, but it also fails `test_model_resolution.py::test_resolve_archetype_for_phase_accepts_provider` because the fixture omits the now-required `write_capable` field. Task 4.12 only repoints `test_contracts.py`, and 4.13 only changes `schema_version`, so 4.14 can still fail after the named repair lands. Add a repair task for the `test_model_resolution.py` fixture or include that fixture correction explicitly in 4.13.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 219,
+        "end": 229
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: U4's replacement command is not a working invocation from the package cwd declared in the work package. With `cwd: \".\"`, `uv run --project packages/agent-scenarios pytest tests -q` collects the repository root `tests/` directory and fails on `tests/test_architecture/test_analysis.py`, while `uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q` passes. Fix task 8.8 and both work-package verification commands to use the package test path or set the command cwd to `packages/agent-scenarios`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-cleanup",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 504,
+        "end": 507
+      }
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: U5 repairs the local virtualenv, not the repository contract. `skills/tests` currently fails because `fastapi` is missing, but task 10.5 says to add `fastapi.testclient` to `skills/.venv`; `wp-integration` cannot write `skills/pyproject.toml` or `skills/uv.lock`, so the fix is not durable and will disappear in clean worktrees or CI. Fix by adding a task/package scope that updates `skills/pyproject.toml` and lockfile with `fastapi`/compatible `httpx`, then run the skills suite from that declared dependency set.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 610,
+        "end": 637
+      }
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The terminal residue gate can pass while task 9.4 and the `skill-workflow` delta remain undone. The spec explicitly applies the no-Gemini/Jules dispatch-provider requirement to eight lifecycle `SKILL.md` files, and all eight currently contain Gemini/Jules references, but neither `scripts/in-scope.txt` nor the `wp-docs` verification grep includes them. Add the lifecycle files named in the spec to the manifest and to the docs gate, or explicitly carve them out with a follow-up spec change; as written, the plan can satisfy task 10.2 while violating `skill-workflow.23`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-docs",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 569,
+        "end": 571
+      }
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Critical: `check_roster_residue.py` treats every missing manifest path as success, even though most in-scope paths are docs, templates, or config files that must be updated rather than deleted. That lets the terminal gate pass after accidental deletion of files such as `README.md`, `agent-coordinator/config.yaml.example`, or `skills/setup-coordinator/SKILL.md`. Fix the manifest format to distinguish expected deletions from must-exist update paths, and fail when a must-exist path is absent.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/scripts/check_roster_residue.py",
+      "line_range": {
+        "start": 94,
+        "end": 99
+      }
+    }
+  ]
+}

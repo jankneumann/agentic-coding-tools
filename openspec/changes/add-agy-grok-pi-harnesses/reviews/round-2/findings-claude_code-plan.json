@@ -1,0 +1,333 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Tasks 4.12 and 4.13 are mutually contradictory and will leave wp-dispatch's gate red. 4.12 repoints `skills/tests/vendor-neutral-autopilot/test_contracts.py:10` at `openspec/changes/archive/2026-05-16-vendor-neutral-autopilot`, whose `contracts/provider-model-map.schema.json` declares `\"schema_version\": {\"const\": 1}`. Task 4.13 then bumps that test's fixture from 1 to 2. Verified empirically: validating `{\"schema_version\": 2, ...}` against the archived schema yields `ValidationError: '1 was expected'`. The archived schema cannot be edited (design.md \u00a7 Carve-outs forbids `openspec/changes/archive/**`), so the two tasks cannot both be satisfied. Fix: repoint 4.12 at THIS change's `openspec/changes/add-agy-grok-pi-harnesses/contracts/` (which is already schema_version 2, closes the provider key set, and rejects gemini) instead of the archive \u2014 that is coherent with 4.13, with task 1.2, and with the roster change. Drop the archive-repoint idea entirely.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 219,
+        "end": 228
+      }
+    },
+    {
+      "id": 2,
+      "type": "behavioral_failure",
+      "criticality": "critical",
+      "description": "The U4/D7 repair command is wrong and fails today. `uv run --project packages/agent-scenarios pytest tests` does NOT change the working directory \u2014 `--project` only selects the environment. Run from the prescribed `cwd: \".\"` it collects the repo-root `tests/` directory and dies with `ImportError ... No module named 'analyze_postgres'` / `Interrupted: 1 error during collection`. Verified by running it. The correct invocation is `uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests` (verified: 36 passed, 1 skipped). This bad command appears in four places: task 8.8, task 10.3's Verification block, wp-cleanup's verification step (work-packages.yaml:506), and wp-integration's full-suite step (work-packages.yaml:637). So D7's claim that task 8.8 makes wp-cleanup's gate passable is false \u2014 the gate remains unpassable, and wp-integration's is too.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-cleanup",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 504,
+        "end": 508
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The C2 fix is incomplete \u2014 it repairs `mcp-setup` but leaves the identical breakage on `hooks-setup`. `agent-coordinator/Makefile:232` reads `hooks-setup: claude-hooks-setup codex-hooks-setup gemini-wrapper-install`, and `:237` echoes the gemini wrapper path. Task 8.1a removes the `gemini-wrapper-install` target but its text only says to drop `gemini-mcp-setup` from \"the aggregate `mcp-setup` prerequisite list\". After 8.1a+8.1b as written, `make hooks-setup` fails with `No rule to make target 'gemini-wrapper-install'`. Checkpoint 8.1c only dry-runs `mcp-setup`, and wp-cleanup's gate only runs `make -n -C agent-coordinator mcp-setup`, so neither catches it. Verified: `make -n -C agent-coordinator hooks-setup` exits 0 today and would exit 2 after the planned edit. Fix: extend 8.1a to drop `gemini-wrapper-install` from the `hooks-setup` prerequisite list and remove the Gemini echo line at :237; extend 8.1c and wp-cleanup's gate to `make -n -C agent-coordinator mcp-setup hooks-setup`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-cleanup",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 314,
+        "end": 330
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The terminal gate `check_roster_residue.py` passes vacuously when run from any directory where the manifest's relative paths don't resolve. `existing = [p for p in in_scope if Path(p).exists()]` is CWD-relative and the failure branch only fires when `existing` is non-empty. Verified: run from `skills/` it prints `OK: all 0 in-scope files are free of gemini references` / `OK: 0 carve-out path(s) unmodified` and exits 0 with zero work done. Run from `agent-coordinator/` it checks exactly one file \u2014 and the wrong one (`agent-coordinator/README.md` matching the manifest entry `README.md`). For a gate whose entire job is proving the migration complete, this is a silent false-green. Fix: anchor to the repo root via `git rev-parse --show-toplevel` and `os.chdir()` to it at startup, and fail hard if `len(existing) == 0` or if any manifest path neither exists nor is a file the change deletes.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/scripts/check_roster_residue.py",
+      "line_range": {
+        "start": 94,
+        "end": 104
+      }
+    },
+    {
+      "id": 5,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "D7's diagnosis of wp-dispatch's gate is incomplete on two counts, so task 4.12 does not make it passable. Running `skills/.venv/bin/python -m pytest skills/tests/vendor-neutral-autopilot skills/tests/parallel-infrastructure skills/tests/autopilot skills/tests/autopilot-roadmap -q` today yields `5 failed, 5 errors`. (a) Only 4 of the 5 failures are in `test_contracts.py`; the fifth is `test_model_resolution.py::test_resolve_archetype_for_phase_accepts_provider`, which fails because `ARCHETYPES_SCHEMA` now requires `write_capable` and the test's inline YAML omits it \u2014 nothing to do with the archived-path constant, and no task repairs it. (b) Five further ERRORs come from `skills/tests/autopilot/test_phase_archetype_e2e.py` (`ModuleNotFoundError: No module named 'fastapi'`) \u2014 the same root cause as U5, but the fastapi repair is task 10.5 in Phase 10, long after wp-dispatch runs. Fix: add a task adding `write_capable` to the test_model_resolution fixture, and either move the skills/.venv fastapi fix ahead of wp-dispatch or add `-m 'not integration'` to wp-dispatch's gate.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/design.md",
+      "line_range": {
+        "start": 145,
+        "end": 155
+      }
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The C4 fix added fact rows E6/E7/E8 but did not wire the consuming tasks to them, so the exact defect C4 named survives. `contracts/roster.md:67-70` states \"Task 5.2 builds grok's eval backend on that assumption; if 2.7 refutes it, 5.2 must be re-scoped to text parsing **before it starts**\" \u2014 yet tasks.md 5.2's `Dependencies: 5.1, 2.2` names the stdin fact (E2), not 2.7 (E6). Identically, 5.3 (`Dependencies: 5.1, 2.1`) consumes E7 but does not depend on 2.8, and 5.5 (`Dependencies: 5.1, 2.3`) consumes E8 but does not depend on 2.9. The design table's own 'Consumed by' column and tasks 2.7-2.9's 'Consumed by' lines say otherwise. Fix: change 5.2 to depend on 5.1+2.2+2.7, 5.3 on 5.1+2.1+2.8, 5.5 on 5.1+2.3+2.9.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-eval",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 238,
+        "end": 250
+      }
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "The terminal gate's carve-out assertion is both false-positive-prone and silently skippable. (a) It uses a two-dot diff `git diff --name-only main -- <carve-outs>`, not the merge base its own docstring claims. Once `main` advances \u2014 and `docs/merge-logs/` + `docs/decisions/` gained 12 files there in the last 30 days alone \u2014 every new merge-log on main shows up as a 'modified carve-out' and fails the gate for a reason unrelated to this change. Use `git diff --name-only main...HEAD` or `$(git merge-base HEAD main)`. (b) The result is guarded by `if code == 0 and out:`. Verified: `git diff --name-only no-such-ref -- ...` exits 128 with empty stdout, so in any checkout without a local `main` ref (shallow CI clone, cloud harness) the entire carve-out assertion is skipped while the script still prints `OK: N carve-out path(s) unmodified against main`. Fix: fail on non-zero git exit rather than ignoring it.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/scripts/check_roster_residue.py",
+      "line_range": {
+        "start": 106,
+        "end": 115
+      }
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "SKILL.md files that operationally instruct dispatch to gemini are excluded from the gate, and U7's fix moved responsibility to a package that never asserts it. 21 tracked `skills/*/SKILL.md` files reference gemini, including `skills/quick-task/SKILL.md:31` (`--vendor <name> ... e.g. codex, claude, gemini`), `skills/autopilot/SKILL.md:30` (`At least 2 vendor CLIs available (claude, codex, gemini)`), and `skills/parallel-review-plan/SKILL.md:35`. These match D6's stated scope verbatim \u2014 \"anything that instructs a human or a script to invoke gemini\" \u2014 and task 9.4 claims to cover them. But only `skills/setup-coordinator/SKILL.md` appears in `in-scope.txt`, wp-docs' gate greps only that one, and wp-dispatch's gate explicitly excludes `':!*/SKILL.md'` on the grounds that wp-docs owns them (finding U7). Net effect: task 9.4 is entirely ungated, its target set is undefined ('lifecycle SKILL.md'), and both gates can go green with `skills/quick-task/SKILL.md` still documenting a `--vendor gemini` flag that `provider_dispatch.py` no longer accepts. Fix: enumerate the operational SKILL.md set in `in-scope.txt` and name it in task 9.4.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-docs",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/scripts/in-scope.txt",
+      "line_range": {
+        "start": 73,
+        "end": 85
+      }
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Task 10.5's repair is not durable and falls outside every package's write_allow. It says to add `fastapi`/`httpx` \"to `skills/.venv`\", but that venv is generated by `uv sync --all-extras` from `skills/pyproject.toml` (CI does exactly this in the `test-infra-skills` and `test-skills` jobs). An ad-hoc `uv pip install` into the venv is discarded on the next sync, so the U5 failure returns in CI. The durable fix is adding the dependency to `skills/pyproject.toml` (`[project.optional-dependencies] test`) plus regenerating `skills/uv.lock` \u2014 and neither file appears in ANY package's `write_allow` (wp-integration's is `.claude/skills/**`, `.agents/skills/**`, `openspec/changes/add-agy-grok-pi-harnesses/**`). Fix: retarget 10.5 at `skills/pyproject.toml` + `skills/uv.lock` and add both to a package's write_allow.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 430,
+        "end": 436
+      }
+    },
+    {
+      "id": 10,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Task 5.1 (\"Write failing tests for antigravity, grok, and pi AgentBackend implementations\") has nowhere to write. The evaluation test suite lives in `agent-coordinator/tests/test_evaluation/` (test_registry.py, test_config.py, test_harness.py, \u2026); there is no test directory under `agent-coordinator/evaluation/`. wp-eval's `write_allow` is `agent-coordinator/evaluation/**` only, and wp-registry's enumerates specific `agent-coordinator/tests/*.py` files, none under `test_evaluation/`. So the package's first, TDD-gating task is a scope violation and no package can perform it. Fix: add `agent-coordinator/tests/test_evaluation/**` to wp-eval's write_allow.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "package_id": "wp-eval",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 307,
+        "end": 311
+      }
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "wp-cleanup is the only package with no residue check in its verification step. Its gate is `test ! -d .gemini && test ! -f gemini_wrapper.sh && make -n mcp-setup && <agent-scenarios pytest>`. Tasks 8.1a (Makefile variables/targets), 8.3 (three tech-debt-analysis skip lists), 8.5 (fetch-vendor-skills.sh, langfuse install-mcp.sh, openspec/config.yaml) and 8.6 (four agent-scenarios files) can all be skipped entirely and the gate still exits 0 \u2014 nothing fails until the Phase-10 terminal gate, three packages later. Every peer package (wp-registry, wp-dispatch, wp-eval, wp-transcripts, wp-docs) has a scoped `test -z \"$(git grep -lIi gemini -- ...)\"`. Fix: add the same for wp-cleanup's write_allow paths.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-cleanup",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 501,
+        "end": 511
+      }
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "wp-integration's full-suite step applies the marker filter inconsistently: `agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration' && skills/.venv/bin/python -m pytest skills/tests -q && ...`. The second command has no `-m` filter, so it runs integration-marked suites such as `skills/tests/autopilot/test_phase_archetype_e2e.py` (`pytestmark = pytest.mark.integration`), which need a live coordinator/DB \u2014 exactly what CI excludes repo-wide. After task 10.5 supplies fastapi these will collect and then fail on connectivity, making the gate unpassable on any machine without a running coordinator. Fix: add `-m 'not e2e and not integration'` to the skills/tests invocation (and to task 10.3's Verification block).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 635,
+        "end": 642
+      }
+    },
+    {
+      "id": 13,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "`contracts/roster.md`'s canonical-strings table is wrong for the one row that can be checked against reality: it gives `claude-local` a `type:` of `claude`, but `agent-coordinator/agents.yaml:50,73` actually declare `type: claude_code`. Since the table's stated purpose is \"Exactly one string identifies each vendor ... if a package needs a string not listed here, that is a planning defect\", an implementer following it would rewrite `type: claude_code` \u2192 `type: claude`, breaking the `AGENT_TYPE`/profile convention used by hooks, `COORDINATION_API_KEY_IDENTITIES`, and the coordinator's own registration. The `claude`/`claude_code` duality is also real elsewhere (the kanban spec delta's roster is `claude, codex, antigravity, grok, pi` from the agent_id suffix). Fix: correct the row to `claude_code` and add a note distinguishing the `type:`/provider key from the agent_id vendor suffix.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/contracts/roster.md",
+      "line_range": {
+        "start": 11,
+        "end": 17
+      }
+    },
+    {
+      "id": 14,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Every package's `description` still declares a stale task range, so all 20 PLAN_FIX-inserted tasks fall outside their package's stated assignment. wp-empirical says \"Implements tasks.md 2.1-2.5\" (phase is now 2.1-2.10); wp-registry \"3.1-3.9\" (now 3.1-3.17, including the new 3.16/3.17 schema_version bump that 4.13 depends on); wp-dispatch \"4.1-4.11\" (now 4.1-4.14, excluding the new 4.12/4.13/4.14); wp-cleanup \"8.1-8.7\" (excludes 8.8); wp-docs \"9.1-9.5\" (excludes the new 9.6/9.7/9.8/9.9); wp-integration \"10.1-10.4\" (excludes 10.5). The description is the implementing agent's task assignment, so repair tasks that the round-1 review specifically added are the ones most likely to be dropped. Fix: update every `description` range and add the new tasks to the package narratives.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 89,
+        "end": 96
+      }
+    },
+    {
+      "id": 15,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Task 8.8 instructs the implementer to \"record the working invocation in `design.md`\", but wp-cleanup's `write_allow` is `.gemini/**`, `agent-coordinator/Makefile`, `agent-coordinator/scripts/gemini_wrapper.sh`, `skills/tech-debt-analysis/**`, `skills/fetch-vendor-skills.sh`, `skills/langfuse/scripts/install-mcp.sh`, `openspec/config.yaml`, `packages/agent-scenarios/**` \u2014 design.md is absent, and it is additionally lock-held by wp-empirical (`locks.files: openspec/changes/add-agy-grok-pi-harnesses/design.md`). The task as written is a guaranteed scope violation. Fix: either add design.md to wp-cleanup's write_allow (accepting the lock contention, which is safe since wp-empirical completes first) or drop the design.md write and record the invocation in the package's result_keys instead.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "package_id": "wp-cleanup",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 353,
+        "end": 359
+      }
+    },
+    {
+      "id": 16,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The C1/C3/C7 fix corrected the inventory *command* but the numbers derived from it are still wrong and now mutually inconsistent across three artifacts. Running the design's own authoritative command yields **124** tracked live files (not 133): 69 code/config + 55 non-code. In-scope is 78 = 66 code/config (69 minus the 3 carve-outs) + 12 docs; deferred is **43**. But design.md \u00a7 Measured surface says 133 total and 53 deferred; tasks.md:6-8 says 133 total, \"69 are code/config\" (the manifest holds 66) and 44 deferred; `check_roster_residue.py`'s docstring says 44. Given that the whole point of C1 was \"a scope measurement is only as trustworthy as the tool that produced it\", shipping three different unverified totals repeats the finding. Fix: recompute all three from the committed command and make design.md's table distinguish measured-69 from in-scope-66.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/design.md",
+      "line_range": {
+        "start": 26,
+        "end": 33
+      }
+    },
+    {
+      "id": 17,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "`check_empirical_facts.py` is a real improvement over `! grep -q '| pending |'` but is still defeatable without invoking any CLI: the evidence check is `if not evidence`, so any non-empty string \u2014 `x`, `-`, `see above`, `TBD but confirmed` \u2014 satisfies it. Since Phases 3-8 all hang off these facts, a rushed agent can green the gate by typing `confirmed | ok` in eight cells. The design text itself asks for \"the exact command run and the relevant output excerpt\"; the script doesn't enforce that. Fix: require the evidence cell to contain a backticked command that starts with the relevant vendor binary (`agy`/`grok`/`pi`) plus a minimum length, and assert the cell for a `refuted` row also names the fallback taken. (Also: an evidence cell containing a shell pipe, e.g. `` `agy models | head` ``, produces >6 split cells \u2014 harmless today but the `len(cells) < 6` guard implies exact-6 parsing.)",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-empirical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/scripts/check_empirical_facts.py",
+      "line_range": {
+        "start": 74,
+        "end": 84
+      }
+    },
+    {
+      "id": 18,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The retired harness's SDK dependency survives the change, invisible to every gate. `agent-coordinator/pyproject.toml:53` and `skills/pyproject.toml:22` both declare `google-generativeai>=0.8.6`, pulled in solely for `agents.yaml`'s `gemini-remote` `sdk:` block (`package: google-generativeai`, `model: gemini-3.1-pro-preview`), which task 3.3 deletes. Because the string `google-generativeai` does not contain `gemini`, `git grep -lI 'gemini\\|Gemini\\|GEMINI'` cannot see it, so neither `in-scope.txt` nor the terminal gate covers it \u2014 and neither pyproject.toml is in any package's `write_allow`. The change ships claiming the harness is retired while its SDK (and its transitive `google-api-python-client`/`httplib2` chain, already carrying a PYSEC override in skills/pyproject.toml) stays installed and audited. Fix: add a task removing the dependency from both pyprojects plus `uv lock`, add the files to wp-registry/wp-cleanup write_allow, and decide whether pi needs an OpenRouter SDK equivalent in the `sdk` extra.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "agent-coordinator/pyproject.toml",
+      "line_range": {
+        "start": 53,
+        "end": 53
+      }
+    },
+    {
+      "id": 19,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The phase-to-phase ordering the plan depends on is not expressed in the dependency graph, because every cross-phase edge terminates on a checkpoint task that itself declares no `Dependencies:` line. 4.1/5.1/7.1 depend on 3.15; 8.1a/8.2/8.6 on 4.11; 9.1/9.2 on 8.7; 10.1 on 9.5; and \u2014 most importantly \u2014 3.1 depends on 2.10, the checkpoint asserting E1-E8 are confirmed. A scheduler honouring only declared edges can order 2.10 (and therefore 3.1, and therefore everything) at time zero, which defeats design.md \u00a7 \"Why the empirical phase runs before config\". Today only the package-level `depends_on` graph actually enforces it. Fix: give every checkpoint an explicit `Dependencies:` line listing the tasks it checkpoints (e.g. 2.10 \u2190 2.1-2.9; 3.15 \u2190 3.10-3.14; 4.11 \u2190 4.9,4.10).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 90,
+        "end": 99
+      }
+    },
+    {
+      "id": 20,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 7.3a instructs the implementer to \"add each to the terminal gate's carve-out list\", but the carve-out list lives in `openspec/changes/add-agy-grok-pi-harnesses/scripts/check_roster_residue.py`, and wp-kanban's `write_allow` (`apps/kanban-viz/**`, `agent-coordinator/scripts/seed_kanban_board.py`, `agent-coordinator/src/schemas/kanban_viz/**`, `agent-coordinator/tests/test_kanban_viz_endpoints.py`, `skills/tests/agent-coordinator/**`) does not include it \u2014 only wp-contracts and wp-integration can write `scripts/**`. The three paths are already present in `CARVE_OUTS`, so the instruction is a no-op that will read as a scope violation to the agent. Fix: reword 7.3a to \"verify the three paths are already in the gate's CARVE_OUTS list and leave the files unchanged\".",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "package_id": "wp-kanban",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 300,
+        "end": 307
+      }
+    },
+    {
+      "id": 21,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The `coordinator-kanban-viz` spec delta's Vendor Swimlanes requirement cites \"extracted per design.md D4: canonical source is the `agent_id` suffix after `--`\", but in THIS change's design.md D4 is \"Eval backends reach full roster parity\" and the swimlane decision is D5. The delta text is merged verbatim into the canonical spec on archive, so the dangling cross-reference becomes permanent. Fix: change the citation to D5, or drop the design-doc reference and inline the rule (the requirement already states it two paragraphs later).",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "package_id": "wp-kanban",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/specs/coordinator-kanban-viz/spec.md",
+      "line_range": {
+        "start": 7,
+        "end": 7
+      }
+    },
+    {
+      "id": 22,
+      "type": "observability",
+      "criticality": "low",
+      "description": "`check_roster_residue.py`'s deferred-set report double-counts the review-provenance carve-outs and so cannot be reconciled against the plan's stated figure. `DEFERRED_EXCLUDE_PREFIXES` omits the three `apps/kanban-viz/...` carve-out paths (they are in `CARVE_OUTS` but not in the exclude tuple) and omits the `EXCL` regex's `docs/feature-discovery/` sibling categories inconsistently, so the printed INFO count (46 from repo root) matches neither design.md's 53 nor tasks.md's 44 nor the measured 43. Since the whole purpose of property 3 is \"the follow-up's size stays visible instead of silently drifting\", a number nobody can reconcile provides no signal. Fix: derive the deferred set as `all_hits - in_scope - CARVE_OUTS - DEFERRED_EXCLUDE_PREFIXES` and record the expected value in tasks.md so drift is detectable.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/scripts/check_roster_residue.py",
+      "line_range": {
+        "start": 56,
+        "end": 62
+      }
+    }
+  ]
+}
