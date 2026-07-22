@@ -183,10 +183,11 @@ calls is on record in `design.md`.
   "gemini", so no grep gate can ever catch it — which is why it is an explicit task with an
   explicit verification, not a gate assumption.
 
-- [ ] 2.10 Checkpoint: full coordinator suite green
-  (`agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration'`);
-  `git grep -lIi gemini -- agent-coordinator ':!agent-coordinator/database/migrations' ':!agent-coordinator/README.md' ':!agent-coordinator/CLAUDE.md' ':!agent-coordinator/.secrets.yaml.example' ':!agent-coordinator/config.yaml.example'`
-  returns nothing; `grep google-generativeai agent-coordinator/pyproject.toml` returns nothing
+- [ ] 2.10 Checkpoint: run **`wp-coordinator`'s verification step** in
+  `work-packages.yaml` and confirm it exits 0. That command is the single authority for this
+  phase — coordinator suite green, owned tree free of live gemini references, the
+  `google-generativeai` dependency gone, and `make -n mcp-setup hooks-setup` resolving. Do not
+  restate it here; a second copy is what drifted in round 3.
 
 ## Phase 3 — Skills, dispatch allow-lists, adapters, agent-scenarios
 
@@ -265,11 +266,12 @@ calls is on record in `design.md`.
 - [ ] 3.11 Remove `google-generativeai` from `skills/pyproject.toml` and run `uv lock` (S)
   **Dependencies**: 3.2
 
-- [ ] 3.12 Checkpoint: `skills/.venv/bin/python -m pytest skills/tests -q` green; agent-scenarios
-  suite green via the 3.10 invocation;
-  `git grep -lIi gemini -- skills scripts packages ':!*SKILL.md' ':!skills/langfuse/references' ':!skills/plan-feature/install_assets' ':!skills/plan-roadmap/templates' ':!skills/collect-transcripts/config.yaml.example'`
-  returns nothing (SKILL.md prose and the config example are Phase 5's; the three excluded
-  narrative paths are deferred per D6)
+- [ ] 3.12 Checkpoint: run **`wp-skills`'s verification step** in `work-packages.yaml` and
+  confirm it exits 0 — skills suites (including the four test dirs outside `skills/tests`),
+  agent-scenarios via its own project, owned-tree residue clean, and `google-generativeai`
+  gone from `skills/pyproject.toml`. SKILL.md prose and the config example belong to Phase 5;
+  `skills/tests/agent-coordinator` belongs to `wp-frontend`; the excluded narrative paths are
+  deferred per D6. The gate command lives only in `work-packages.yaml`.
 
 ## Phase 4 — Kanban frontend
 
@@ -291,10 +293,13 @@ calls is on record in `design.md`.
   to `wp-frontend`'s `write_allow` and removed from `wp-skills`'.
   **Dependencies**: 2.7, 0.1
 
-- [ ] 4.3 Checkpoint: `npm test -- --run` in `apps/kanban-viz` green (deps installed
-  by task 0.4; re-run `npm ci` first if the worktree is fresh);
-  `git grep -lIi gemini -- apps/kanban-viz` lists exactly the three provenance files;
-  `git diff --quiet main -- apps/kanban-viz/src/components/VendorSwimlanes.tsx` exits 0
+- [ ] 4.3 Checkpoint: run **`wp-frontend`'s verification step** in `work-packages.yaml` and
+  confirm it exits 0 — frontend tests green, the new roster present in both fixture files,
+  and `VendorSwimlanes.tsx` plus all three review-provenance files unmodified against `main`.
+  **The gemini fixture in `VendorSwimlanes.test.tsx` stays**: the
+  `coordinator-kanban-viz` *Historical vendor still renders* scenario requires it, and it is
+  the only mechanical evidence that the component consults no roster allow-list (D5). The
+  gate command lives only in `work-packages.yaml`.
 
 ## Phase 5 — Docs, templates, SKILL.md prose, runtime-dir removal
 
@@ -350,21 +355,31 @@ calls is on record in `design.md`.
   already owns the template surface. Edit both copies: `install_assets/` is the source
   `install.sh` distributes, so fixing only the canonical one reintroduces the drift.
 
-- [ ] 5.6 Document the optional `~/.grok/config.toml` `[skills] paths` setup as operator-level,
-  citing https://docs.x.ai/build/features/skills-plugins-marketplaces (S)
+- [ ] 5.6 Document the optional `~/.grok/config.toml` `[skills] paths` setup as operator-level
+  in **`docs/skills-workflow.md`**, citing
+  https://docs.x.ai/build/features/skills-plugins-marketplaces (S)
+  **Note**: the target file is named because `wp-docs-finalize`'s gate greps for the citation
+  under `docs/` only — writing it into a SKILL.md instead would satisfy the task's prose and
+  fail the gate (finding R4-C7).
   **Spec scenarios**: skill-workflow.1
   **Design decisions**: D2
   **Dependencies**: 5.3
 
-- [ ] 5.7 Checkpoint: `openspec validate --all --strict` passes; the in-scope doc grep (the
-  exact file list in work-packages `wp-docs-finalize` verification) returns nothing; no
-  carve-out file appears in `git diff --name-only main...HEAD`
+- [ ] 5.7 Checkpoint: run **`wp-docs-finalize`'s first verification step** in
+  `work-packages.yaml` and confirm it exits 0 — `openspec validate --all --strict`, the grok
+  citation present, `.gemini/` gone, and the in-scope doc/template/SKILL.md file list free of
+  gemini. Additionally confirm no carve-out file appears in
+  `git diff --name-only main...HEAD`. The file list lives only in `work-packages.yaml`.
 
 ## Phase 6 — Integration and validation
 
 - [ ] 6.1 Run `bash skills/install.sh --mode rsync --force --deps none --python-tools none`;
-  confirm the mirrors carry no live gemini references
-  (`git grep -lIi gemini -- .claude/skills .agents/skills ':!*SKILL.md' ':!*/references/*' ':!*/templates/*' ':!*/install_assets/*'` empty) (S)
+  then run **`wp-docs-finalize`'s second verification step** in `work-packages.yaml`, which
+  re-syncs the mirrors and proves they carry no live gemini references (S)
+  **Note**: the mirror check MUST use plain `grep -rIl`, never `git grep`.
+  `.claude/skills/` and `.agents/skills/` are gitignored (`.gitignore:271-272`), so `git grep`
+  searches zero tracked files there and passes unconditionally — it was vacuous in revision 2
+  (finding R3-C2). The working command lives only in `work-packages.yaml`.
   **Spec scenarios**: skill-workflow.3
   **Dependencies**: 5.7
 

@@ -226,7 +226,7 @@ packages:
       steps:
         - name: "Skills + agent-scenarios suites green; no live gemini in owned trees"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests -q && uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q && test -z \"$(git grep -lIi gemini -- skills scripts packages ':!*SKILL.md' ':!skills/langfuse/references' ':!skills/plan-feature/install_assets' ':!skills/plan-roadmap/templates' ':!skills/collect-transcripts/config.yaml.example')\" && ! grep -q google-generativeai skills/pyproject.toml"
+          command: "skills/.venv/bin/python -m pytest skills/tests skills/parallel-infrastructure/scripts/tests skills/parallel-infrastructure/tests skills/collect-transcripts/tests skills/autopilot/scripts/tests -q && uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q && test -z \"$(git grep -lIi gemini -- skills scripts packages ':!*SKILL.md' ':!skills/langfuse/references' ':!skills/plan-feature/install_assets' ':!skills/plan-roadmap/templates' ':!skills/collect-transcripts/config.yaml.example' ':!skills/tests/agent-coordinator')\" && ! grep -q google-generativeai skills/pyproject.toml"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -289,7 +289,7 @@ packages:
       steps:
         - name: "Frontend green; only 3 provenance files mention gemini; component untouched"
           kind: command
-          command: "(cd apps/kanban-viz && npm ci && npm test -- --run) && diff <(git grep -lIi gemini -- apps/kanban-viz | sort) <(printf '%s\\n' apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx apps/kanban-viz/src/__tests__/useCoordinator.test.tsx apps/kanban-viz/src/hooks/useCoordinator.ts apps/kanban-viz/src/lib/coordinator-types.ts | sort) && git diff --quiet main... -- apps/kanban-viz/src/components/VendorSwimlanes.tsx"
+          command: "(cd apps/kanban-viz && npm ci && npm test -- --run) && grep -q antigravity apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx && grep -q grok apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx && grep -q 'pi' apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx && grep -qi gemini apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx && grep -q antigravity skills/tests/agent-coordinator/test_kanban_viz_endpoints.py && git diff --quiet main... -- apps/kanban-viz/src/components/VendorSwimlanes.tsx apps/kanban-viz/src/hooks/useCoordinator.ts apps/kanban-viz/src/__tests__/useCoordinator.test.tsx apps/kanban-viz/src/lib/coordinator-types.ts"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -371,7 +371,7 @@ packages:
       steps:
         - name: "OpenSpec valid; in-scope doc surface clean; grok citation present; .gemini gone"
           kind: command
-          command: "openspec validate --all --strict && git grep -q 'docs.x.ai/build/features/skills-plugins-marketplaces' -- docs/ && test ! -d .gemini && test -z \"$(git grep -lIi gemini -- README.md openspec/config.yaml agent-coordinator/README.md agent-coordinator/CLAUDE.md agent-coordinator/.secrets.yaml.example agent-coordinator/config.yaml.example skills/collect-transcripts/config.yaml.example docs/agent-coordinator.md docs/skills-workflow.md docs/autopilot-provider-smoke.md docs/openbao-secret-management.md skills/autopilot/SKILL.md skills/plan-feature/SKILL.md skills/implement-feature/SKILL.md skills/iterate-on-plan/SKILL.md skills/iterate-on-implementation/SKILL.md skills/parallel-review-plan/SKILL.md skills/parallel-review-implementation/SKILL.md skills/validate-feature/SKILL.md skills/setup-coordinator/SKILL.md skills/collect-transcripts/SKILL.md)\""
+          command: "openspec validate --all --strict && git grep -q 'docs.x.ai/build/features/skills-plugins-marketplaces' -- docs/ && test ! -d .gemini && test -z \"$(git grep -lIi gemini -- README.md openspec/config.yaml agent-coordinator/README.md agent-coordinator/CLAUDE.md agent-coordinator/.secrets.yaml.example agent-coordinator/config.yaml.example skills/collect-transcripts/config.yaml.example docs/agent-coordinator.md docs/skills-workflow.md docs/autopilot-provider-smoke.md docs/openbao-secret-management.md docs/cross-repo-setup.md openspec/schemas/feature-workflow/templates/session-log.md skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/session-log.md skills/autopilot/SKILL.md skills/plan-feature/SKILL.md skills/implement-feature/SKILL.md skills/iterate-on-plan/SKILL.md skills/iterate-on-implementation/SKILL.md skills/parallel-review-plan/SKILL.md skills/parallel-review-implementation/SKILL.md skills/validate-feature/SKILL.md skills/setup-coordinator/SKILL.md skills/collect-transcripts/SKILL.md)\""
           cwd: "."
           expect_exit_code: 0
           evidence:

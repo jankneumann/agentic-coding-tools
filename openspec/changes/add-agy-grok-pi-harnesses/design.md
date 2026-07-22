@@ -206,6 +206,54 @@ a change directory that later archives (the round-2 `const: 1` contradiction); a
 `google-generativeai` dependency — invisible to any gemini-grep — is an explicit task with an
 explicit inline check in both trees (tasks 2.9, 3.11).
 
+## PLAN_REVIEW round 4 — findings resolution (plan revision 2)
+
+**Findings trend: 26 → 29 → 13 → 9** (claude 7, codex 2). Full 2/2 quorum, both vendors
+granted Bash so both could execute. Every finding cites a command its author ran.
+
+The round has one dominant theme, and it is not about the change: **7 of 9 findings are
+round-3 fixes that were applied to one artifact and not its counterpart.** Gate commands were
+written in *both* `tasks.md` (as checkpoint prose) and `work-packages.yaml` (as verification
+steps). Round 3 corrected the YAML and left the prose stale, so `tasks.md` still instructed
+the implementer to run the exact vacuous and self-contradictory checks the round had just
+removed.
+
+| ID | Criticality | Finding | Resolution |
+|---|---|---|---|
+| R4-C1 | critical | **`wp-skills`' gate was unpassable by `wp-skills`.** Round-3 fix #7 moved `skills/tests/agent-coordinator/**` to `wp-frontend` and denied it to `wp-skills`, but `wp-skills`' residue grep still covered `skills` broadly — demanding a file be clean that the package may not write | Added `':!skills/tests/agent-coordinator'` to the grep. Verified: 45 → 44 matches, denied path excluded, still non-zero so the gate still fails before the work |
+| R4-C2 | high | Task 4.3's checkpoint contradicted both `wp-frontend`'s gate and the *Historical vendor still renders* scenario — round-3 fix #4 landed in the YAML only | Checkpoint rewritten as a reference to the package gate, with the gemini-fixture requirement stated explicitly |
+| R4-C3 | high | **No gate executes three of the test directories tasks 3.1/3.4/3.8 write.** `pytest skills/tests` collects 1249 tests and zero from `skills/parallel-infrastructure/scripts/tests`, `skills/collect-transcripts/tests`, `skills/autopilot/scripts/tests` | All four directories added to `wp-skills`' gate |
+| R4-C4 / R4-X1 | high | **The frontend gate was decoration.** Round-3 fix #4 replaced a hardcoded count with an expected-**set** `diff` — but the set was built *from the current tree*, so it asserted "nothing changed" and passed unmodified | Replaced with a gate asserting what the work **produces**: the new roster present in both fixture files, carve-outs and `VendorSwimlanes.tsx` unmodified. Verified it now **fails** on the unmodified tree |
+| R4-C5 | medium | Round-3 fixes #3 and #9 added tasks and write-scopes but no verification — the session-log templates and `docs/cross-repo-setup.md` were ungated | All three paths added to `wp-docs-finalize`'s residue file list |
+| R4-C6 | medium | Round-3 fix #10 was incomplete **within the paragraph it repaired**: the first sentence was renumbered to "Tasks 1.1-1.3", the second still read "Phase 2 verification calls" | Corrected to Phase 1 |
+| R4-C7 | low | Task 5.6 named no target file while its gate greps `docs/` only — satisfying the prose by writing into a SKILL.md would fail the gate | Task now names `docs/skills-workflow.md` and says why |
+| R4-X2 | medium | Task 6.1 still instructed the vacuous `git grep` over gitignored mirror dirs after the YAML was fixed in round 3 | Rewritten as a gate reference, with the `git grep`-is-vacuous reason recorded inline |
+
+### The structural fix — one command, one home
+
+Patching each drifted copy would have guaranteed a round 5 with the same shape. The
+duplication itself was the defect: a verification command written in two places is a
+consistency finding waiting to happen, which is exactly what round 2 said about task ranges
+in package descriptions. The same lesson arrived twice because it was only applied where it
+was first noticed.
+
+**Every checkpoint in `tasks.md` is now a reference to its package's verification step**
+("run `wp-coordinator`'s verification step and confirm it exits 0"), and no verification
+command appears anywhere except `work-packages.yaml`. Checkpoints keep the *reasoning* that
+prose is good at — why the gemini fixture must survive, why the mirror check cannot use
+`git grep` — and delegate the executable text to its single home.
+
+### The invariant this round establishes
+
+Round 3 killed two gates that were decoration. Round 4 killed a third — **and it was the
+replacement written for one of the first two.** A gate rewritten under time pressure inherits
+the defect it was meant to remove unless someone runs it.
+
+So: **a gate must be executed against an unmodified tree before it is committed, and it must
+fail there.** A gate that passes before the work is done cannot detect the work not being
+done. Both new gates in this round were checked that way — `wp-frontend`'s now fails on
+`grep -q antigravity` (absent until task 4.1), and `wp-skills`' still reports 44 files.
+
 ## PLAN_REVIEW round 3 — findings resolution (plan revision 2)
 
 First review round against the restructured plan. **Findings trend: 26 → 29 → 13**
@@ -376,7 +424,7 @@ subcommand in `--help`; `_RELOGIN_COMMANDS` already falls back to `f"{command} l
 **Operator authorization (recorded 2026-07-22):** live dispatch against `agy`, `grok`,
 and `pi` is approved. **Tasks 1.1-1.3** may invoke these CLIs with real prompts, which
 consumes subscription quota (agy, grok) and OpenRouter tokens (pi). No further approval
-is required for the Phase 2 verification calls.
+is required for the Phase 1 verification calls.
 
 > Populated by Phase 1. Until every row below reads `confirmed` or `refuted` with evidence,
 > **no package may hardcode a CLI flag, model slug, or output-parsing assumption.**
