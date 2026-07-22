@@ -1,447 +1,313 @@
-# Tasks — add-agy-grok-pi-harnesses
+# Tasks — add-agy-grok-pi-harnesses (plan revision 2)
 
 Implements Approach A (config-driven via the generic `CliVendorAdapter`) per proposal Gate 1.
 Canonical provider key is `antigravity` (D3); `agy` appears only as `cli.command`.
 
-**Measured scope** (corrected in PLAN_REVIEW round 1): **133** tracked files reference gemini.
-Of those, **69** are code/config and **11** are user-facing docs/templates/Makefile — together
-the 78-path in-scope set in `scripts/in-scope.txt`. The remaining 44 narrative-prose files are
-deferred to a follow-up (design D6), and a further set is carved out as historical record
-(design § Carve-outs) — applied SQL migrations and review-provenance annotations MUST NOT be
-edited.
+**Plan revision 2** restructures the plan after the ESCALATE halt (see `design.md` § D8).
+The bespoke gate scripts and manifest are deleted; every verification below is either an
+existing test suite, a one-line `git grep` written inline, or an explicitly human-reviewed
+checkpoint. Task numbers from revision 1 no longer apply — historical references to them
+(review findings, round-1 resolution tables) are records of that revision, not of this file.
 
-The proposal's original enumeration listed ~15 sites; an earlier inventory claimed 68 and was
-wrong (it used `grep -r` under a `.gitignore`-aware shell wrapper). Authoritative gate:
-`scripts/check_roster_residue.py`.
-
-Task sizes follow the plan-feature sizing table. No task is XL. One task is L (4.1) and is
-flagged; its decomposition rationale is in `design.md`.
+**Measured scope** (2026-07-22, informational — the gates below are authoritative, not these
+counts): `git grep -lI "gemini\|Gemini\|GEMINI"` minus the carve-out directories yields
+**124** tracked files. In scope: **66** code/config files, **12** user-facing
+docs/templates/Makefile, and **10** SKILL.md files (the 8 lifecycle skills named by the
+`skill-workflow` delta, plus `setup-coordinator` and `collect-transcripts`). Explicitly
+untouched: **3** review-provenance annotations in `apps/kanban-viz` (design § Carve-outs).
+Deferred to a follow-up change: **~33** narrative/historical prose files (design D6) — list
+them any time with the inventory command in `design.md` § Scope inventory.
 
 ---
 
-## Phase 1 — Contracts and roster definition
+## Phase 0 — Baseline repair (pre-existing failures the gates depend on)
 
-- [ ] 1.1 Write `contracts/roster.md` naming the five canonical provider keys and the one
-  string per vendor rule (S)
-  **Spec scenarios**: configuration.1 (provider map includes all first-class providers),
-  agent-archetypes.1 (archetype resolves for antigravity/grok/pi)
-  **Design decisions**: D3 (single canonical key)
+These failures exist on `main` today and would turn every downstream gate red regardless of
+roster work. They are labeled here — not laundered into roster tasks — per D8.4.
+
+- [ ] 0.1 Add `fastapi` and `httpx` to `skills/pyproject.toml` (test dependencies) and re-sync
+  `skills/.venv` via `uv sync`; confirm `skills/.venv/bin/python -m pytest skills/tests -q`
+  collects without `Interrupted` (S)
+  **Why**: `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py:31` imports
+  `fastapi.testclient`, absent from the venv. The dependency goes in `pyproject.toml`, never
+  directly into the venv — `uv sync` regenerates the venv and would discard it.
   **Dependencies**: None
 
-- [ ] 1.2 Update `contracts/provider-model-map.schema.json` to accept the five roster keys and
-  reject `gemini` (S)
-  **Spec scenarios**: configuration.1, configuration.2 (pi maps to OpenRouter slugs)
-  **Dependencies**: 1.1
+- [ ] 0.2 Repair `skills/tests/vendor-neutral-autopilot` (5 failures today): repoint
+  `test_contracts.py:10` at `openspec/changes/archive/2026-05-16-vendor-neutral-autopilot`,
+  and fix the missing `write_capable` field failure in `test_model_resolution.py` (S)
+  **Why**: the constant resolves a change directory archived months ago. This task restores
+  green against the *current* roster; task 3.6 later repoints the schema at its new stable
+  home. Two touches of the same file, deliberately: every intermediate commit stays green.
+  **Dependencies**: 0.1
 
-- [ ] 1.3 Checkpoint: run `openspec validate add-agy-grok-pi-harnesses --strict`, review diff,
-  verify scope
+- [ ] 0.3 Checkpoint: `skills/.venv/bin/python -m pytest skills/tests -q` passes with the
+  roster unmodified
 
-## Phase 2 — Empirical CLI verification (resolves proposal open decisions 2 and 3)
+## Phase 1 — Empirical CLI facts (resolves proposal open decisions 2 and 3)
 
-These tasks produce facts that Phases 3-7 depend on. They are deliberately first: guessing
-CLI flags is the failure mode this phase exists to prevent.
+Each task records its facts as `confirmed` or `refuted` **with the exact command and output
+excerpt** in `design.md` § Empirical CLI findings. Whether the CLIs were genuinely invoked is
+**not mechanically verifiable** — two scripted attempts at it were both defeated in review —
+so checkpoint 1.4 is a human review, by design (D8.2). Operator authorization for live billed
+calls is on record in `design.md`.
 
-- [ ] 2.1 Record `agy models` output and resolve the exact `--model` slug strings for the
-  antigravity premium/standard/economy tiers (S)
-  **Dependencies**: None
-  **Output**: `design.md` § Empirical CLI findings
-
-- [ ] 2.2 Verify `grok --prompt-file /dev/stdin` delivers a prompt correctly under a
-  subprocess pipe (S)
-  **Spec scenarios**: skill-workflow.15 (prompt delivered via stdin when configured)
-  **Dependencies**: None
-  **On failure**: apply Approach B narrowly to grok only; record the decision in `design.md`
-
-- [ ] 2.3 Verify `pi --provider openrouter` resolves `OPENROUTER_API_KEY` from the subprocess
-  environment (S)
-  **Spec scenarios**: configuration.2
+- [ ] 1.1 antigravity: record `agy models` output and resolve exact `--model` slugs for
+  premium/standard/economy (E1); verify `--print` + stdin + `--mode plan` behave Claude-shaped
+  (E7); record the re-login command or confirm the `agy login` fallback (E4a) (S)
   **Dependencies**: None
 
-- [ ] 2.4 Record the re-login command for `agy` and `pi`, or confirm the
-  `<command> login` fallback is correct (XS)
-  **Spec scenarios**: skill-workflow.18 (vendor without a confirmed re-login command)
-  **Dependencies**: None
-  **Note**: `grok login` is already confirmed ("Sign in to Grok")
-
-- [ ] 2.5 Checkpoint: fold facts E1-E4 into `design.md` § Empirical CLI findings with evidence
-
-- [ ] 2.6 Record `grok` model slug strings for premium/standard/economy (fact E5) (S)
-  **Consumed by**: 3.5, 3.8
-  **Dependencies**: None
-  **Note**: added in PLAN_FIX (finding C4). `contracts/roster.md` previously claimed task 2.2
-  resolved these; 2.2 only verifies stdin delivery.
-
-- [ ] 2.7 Verify `grok --output-format json` with `--json-schema` pointed at
-  `review-findings.schema.json` emits a conforming envelope (fact E6) (S)
-  **Consumed by**: 5.2, 3.2
-  **Dependencies**: None
-  **On failure**: grok's eval backend and review dispatch fall back to text parsing; record in
-  `design.md` and re-scope task 5.2
-
-- [ ] 2.8 Verify `agy --print` + stdin + `--mode plan` behave Claude-shaped (fact E7) (S)
-  **Consumed by**: 3.2, 5.3
+- [ ] 1.2 grok: verify `--prompt-file /dev/stdin` delivers a prompt under a subprocess pipe
+  (E2); record model slugs for the three tiers (E5); verify `--output-format json` +
+  `--json-schema review-findings.schema.json` emits a conforming envelope (E6) (S)
+  **On failure of E2**: apply Approach B (thin wrapper) narrowly to grok; record in design.md.
+  **On failure of E6**: grok's eval backend and review dispatch fall back to text parsing;
+  re-scope task 2.6 before starting it.
   **Dependencies**: None
 
-- [ ] 2.9 Verify `pi` accepts the prompt as a trailing positional and record its output shape
-  (fact E8) (S)
-  **Consumed by**: 3.2, 5.5
+- [ ] 1.3 pi: verify `OPENROUTER_API_KEY` resolves from the subprocess environment with
+  `--provider openrouter` (E3); verify the prompt passes as a trailing positional and record
+  the output shape (E8); record the re-login command or confirm `pi login` fallback (E4b) (S)
   **Dependencies**: None
 
-- [ ] 2.10 Checkpoint: confirm all eight rows E1-E8 in `design.md` read `confirmed` or
-  `refuted` with evidence; no row may remain `pending`
+- [ ] 1.4 Checkpoint (**human review**): every row E1–E8 in `design.md` reads `confirmed` or
+  `refuted` with command + output evidence. No package may hardcode a CLI flag, model slug, or
+  output-parsing assumption for these vendors until this checkpoint passes.
 
-## Phase 3 — Registry and provider config
+## Phase 2 — Coordinator (registry, model map, eval backends, seeder, Makefile)
 
-- [ ] 3.1 Write failing tests for the new roster in `agent-coordinator/tests/test_agents_config.py`
+- [ ] 2.1 Write failing tests for the new roster in `agent-coordinator/tests/test_agents_config.py`
   and `test_agents_config_isolation.py` (M)
   **Spec scenarios**: configuration.1, configuration.2, agent-archetypes.1, agent-archetypes.2
-  **Contracts**: `contracts/provider-model-map.schema.json`
-  **Dependencies**: 1.2, 2.10
+  **Contracts**: `contracts/roster.md`
+  **Dependencies**: 1.4
 
-- [ ] 3.2 Add `antigravity-local`, `grok-local`, `pi-local` entries to `agents.yaml` with
-  `cli.dispatch_modes` for review/alternative/quick (M)
-  **Spec scenarios**: skill-workflow.15 (dispatch modes from config)
-  **Dependencies**: 3.1
+- [ ] 2.2 Add `antigravity-local`, `grok-local`, `pi-local` to `agents.yaml` with
+  `cli.dispatch_modes` for review/alternative/quick; remove `gemini-local` and `gemini-remote` (M)
+  **Spec scenarios**: skill-workflow.15, configuration.1
+  **Dependencies**: 2.1
 
-- [ ] 3.3 Remove `gemini-local` and `gemini-remote` from `agents.yaml` (S)
-  **Spec scenarios**: configuration.1
-  **Dependencies**: 3.1
+- [ ] 2.3 Update `DEFAULT_PROVIDER_MODEL_MAP` (`src/agents_config.py`) and `model_aliases`
+  (`archetypes.yaml`): add antigravity/grok/pi tiers first, then remove gemini; bump
+  `schema_version` and `_normalize_provider_model_map` to `2` (M)
+  **Spec scenarios**: configuration.2, agent-archetypes.1
+  **Dependencies**: 2.1
+  **Note**: add-before-remove keeps every intermediate commit dispatchable.
 
-- [ ] 3.4 Checkpoint: run `agent-coordinator/.venv/bin/python -m pytest tests/test_agents_config*.py`,
-  review diff, verify scope
-
-- [ ] 3.5 Add antigravity/grok/pi tier maps to `DEFAULT_PROVIDER_MODEL_MAP`
-  (`src/agents_config.py`) (S)
-  **Spec scenarios**: configuration.2
-  **Dependencies**: 3.1, 2.1, 2.6
-
-- [ ] 3.6 Remove the `gemini` entry from `DEFAULT_PROVIDER_MODEL_MAP` (XS)
-  **Spec scenarios**: configuration.2
-  **Dependencies**: 3.5
-  **Note**: split from 3.5 deliberately — adding before removing keeps every intermediate
-  commit dispatchable, which is the safe migration order
-
-- [ ] 3.7 Checkpoint: run `test_agents_config.py`, review diff, verify scope
-
-- [ ] 3.8 Add antigravity/grok/pi `model_aliases` to `archetypes.yaml` (S)
-  **Spec scenarios**: agent-archetypes.1, agent-archetypes.2
-  **Dependencies**: 3.1, 2.1, 2.6
-
-- [ ] 3.9 Remove the gemini `model_aliases` from `archetypes.yaml` (XS)
-  **Spec scenarios**: agent-archetypes.1
-  **Dependencies**: 3.8
-
-- [ ] 3.10 Update roster references in `src/coordination_api.py` (S)
-  **Spec scenarios**: agent-coordinator.1 (runtime and transport matrix)
-  **Dependencies**: 3.6
-
-- [ ] 3.11 Checkpoint: run the coordinator config suite, review diff, verify scope
-
-- [ ] 3.12 Update roster references in `scripts/setup_cloud.py` (S)
+- [ ] 2.4 Update roster references in `src/coordination_api.py`, `scripts/setup_cloud.py`, and
+  the fixtures in `tests/test_differential_policy.py` and `tests/model_routing/test_feedback.py` (M)
   **Spec scenarios**: agent-coordinator.1
-  **Dependencies**: 3.6
+  **Dependencies**: 2.2, 2.3
 
-- [ ] 3.13 Update `tests/test_differential_policy.py` fixtures to the new roster (S)
-  **Dependencies**: 3.6, 3.9
+- [ ] 2.5 Checkpoint: run the coordinator config suite, review diff, verify scope
 
-- [ ] 3.14 Update `tests/model_routing/test_feedback.py` fixtures to the new roster (S)
-  **Dependencies**: 3.6, 3.9
+- [ ] 2.6 Eval backends (proposal D4): write failing tests in
+  `agent-coordinator/tests/test_evaluation/`, implement `AgentBackend` for grok
+  (via `--output-format json`), antigravity, and pi, then delete
+  `evaluation/backends/gemini_jules.py`, its `__all__` export, and roster references in
+  `evaluation/__init__.py`, `evaluation/config.py`, `evaluation/backends/base.py` (L — flagged;
+  single package, single suite, one reviewer sees the whole backend surface at once)
+  **Spec scenarios**: evaluation-framework.1 (all vendor scenarios; retired backend absent)
+  **Dependencies**: 2.5
 
-- [ ] 3.15 Checkpoint: run the full `agent-coordinator` suite, review diff, verify scope
+- [ ] 2.7 Kanban seeder + coordinator-side fixtures: write a failing five-vendor seeder test,
+  update `VENDORS` in `scripts/seed_kanban_board.py`, update
+  `tests/test_kanban_viz_endpoints.py` and `src/schemas/kanban_viz/saved-view.json` (M)
+  **Spec scenarios**: coordinator-kanban-viz.1, coordinator-kanban-viz.2
+  **Dependencies**: 2.5
 
-- [ ] 3.16 Bump `DEFAULT_PROVIDER_MODEL_MAP["schema_version"]` and
-  `_normalize_provider_model_map` to `2`, matching the contract (S)
-  **Spec scenarios**: configuration.1
-  **Dependencies**: 3.6
-  **Note**: added in PLAN_FIX (finding U2). The contract declares `const: 2` while
-  `agents_config.py:33` and `:1050` emit `1`; without this the contract and implementation
-  ship in disagreement.
+- [ ] 2.8 `agent-coordinator/Makefile`: remove the `gemini-mcp-setup` and
+  `gemini-wrapper-install` targets, drop them from **both** the `mcp-setup` and `hooks-setup`
+  prerequisite lists, delete the `GEMINI_AGENT_ID` / `GEMINI_AGENT_TYPE` /
+  `GEMINI_MCP_ENV_FLAGS` variables, **then** delete `scripts/gemini_wrapper.sh`;
+  confirm `make -n mcp-setup hooks-setup` resolves (M)
+  **Spec scenarios**: agent-coordinator.1
+  **Dependencies**: 2.5
+  **Note**: `hooks-setup` (Makefile:232) has the same dependency `mcp-setup` had — the round-1
+  fix missed it. Targets go before the wrapper file, in one task, so no intermediate state breaks.
 
-- [ ] 3.17 Checkpoint: run the coordinator suite, confirm schema_version 2 round-trips
+- [ ] 2.9 Remove `google-generativeai` from `agent-coordinator/pyproject.toml` and run
+  `uv lock` (S)
+  **Dependencies**: 2.6
+  **Note**: declared solely for the retired `gemini-remote` SDK block. The string contains no
+  "gemini", so no grep gate can ever catch it — which is why it is an explicit task with an
+  explicit verification, not a gate assumption.
 
-## Phase 4 — Dispatch allow-lists
+- [ ] 2.10 Checkpoint: full coordinator suite green
+  (`agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration'`);
+  `git grep -lIi gemini -- agent-coordinator ':!agent-coordinator/database/migrations' ':!agent-coordinator/README.md' ':!agent-coordinator/CLAUDE.md' ':!agent-coordinator/.secrets.yaml.example' ':!agent-coordinator/config.yaml.example'`
+  returns nothing; `grep google-generativeai agent-coordinator/pyproject.toml` returns nothing
 
-- [ ] 4.1 Write failing tests for the new roster across the dispatch test surface (L — flagged;
-  see `design.md` § Why 4.1 stays L) (L)
-  **Spec scenarios**: skill-workflow.4 (review dispatcher protocol), .5 (reviewer discovery
-  fallback), .6 (vendor diversity), .20 (review convergence loop), .24 (manual provider smoke path)
-  **Files**: `skills/tests/vendor-neutral-autopilot/*.py`,
-  `skills/tests/parallel-infrastructure/*.py`, `skills/tests/autopilot*/*.py`,
-  `skills/parallel-infrastructure/scripts/tests/*.py`, `skills/fix-scrub/tests/test_vendor_dispatch.py`,
+## Phase 3 — Skills, dispatch allow-lists, adapters, agent-scenarios
+
+- [ ] 3.1 Write failing tests for the new roster across the dispatch test surface (L — flagged;
+  every file asserts against the same roster constant; splitting them hides inconsistency):
+  `skills/tests/vendor-neutral-autopilot/`, `skills/tests/parallel-infrastructure/`,
+  `skills/tests/autopilot*/`, `skills/parallel-infrastructure/scripts/tests/`,
+  `skills/parallel-infrastructure/tests/test_vendor_diversity.py`,
+  `skills/fix-scrub/tests/test_vendor_dispatch.py`,
   `skills/tests/prototype-feature/test_dispatch_variants.py`,
   `skills/tests/integration/test_prototype_convergence.py`,
-  `skills/parallel-infrastructure/tests/test_vendor_diversity.py`,
-  `skills/autopilot/scripts/tests/test_implementation_strategy_selector.py`
-  **Dependencies**: 3.15
+  `skills/autopilot/scripts/tests/test_implementation_strategy_selector.py` (L)
+  **Spec scenarios**: skill-workflow.4, .5, .6, .20, .24
+  **Dependencies**: 0.3, 1.4
 
-- [ ] 4.2 Update `_SUPPORTED_PROVIDERS` in `skills/autopilot/scripts/provider_dispatch.py` (S)
-  **Spec scenarios**: skill-workflow.23 (lifecycle skills use provider-neutral terminology)
-  **Dependencies**: 4.1
+- [ ] 3.2 Update `_SUPPORTED_PROVIDERS` in `skills/autopilot/scripts/provider_dispatch.py` and
+  the argparse `choices` in `token_budget_check.py` + `smoke_provider_dispatch.py` (S)
+  **Spec scenarios**: skill-workflow.23, .24
+  **Dependencies**: 3.1
 
-- [ ] 4.3 Update argparse `choices` in `token_budget_check.py` and `smoke_provider_dispatch.py` (S)
-  **Spec scenarios**: skill-workflow.24
-  **Dependencies**: 4.1
-
-- [ ] 4.4 Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/vendor-neutral-autopilot/`,
-  review diff, verify scope
-
-- [ ] 4.5 Replace the hardcoded `available = ["claude", "codex", "gemini"]` list in
-  `skills/autopilot-roadmap/scripts/orchestrator.py:319` (S)
+- [ ] 3.3 Update `available = [...]` in `skills/autopilot-roadmap/scripts/orchestrator.py:319`
+  and `_STATIC_COST_TIERS` in `skills/autopilot-roadmap/scripts/policy.py`, keeping both
+  structures shape-stable for `ri-02`'s clean deletion (S)
   **Spec scenarios**: skill-workflow.6
-  **Dependencies**: 4.1
-  **Note**: `ri-02` later deletes this list entirely in favour of the vendor registry; this
-  change keeps its structure so that deletion stays a clean removal
+  **Dependencies**: 3.1
 
-- [ ] 4.6 Update `_STATIC_COST_TIERS` in `skills/autopilot-roadmap/scripts/policy.py` (S)
-  **Dependencies**: 4.1
-  **Note**: `ri-02` replaces this stub with the real cost table; keep the shape stable
+- [ ] 3.4 Update `_RELOGIN_COMMANDS` in
+  `skills/parallel-infrastructure/scripts/review_dispatcher.py` (using E4 facts) and drop the
+  Gemini `-o json` envelope-unwrap special case (M)
+  **Spec scenarios**: skill-workflow.18
+  **Dependencies**: 3.1
 
-- [ ] 4.7 Update `_RELOGIN_COMMANDS` in `skills/parallel-infrastructure/scripts/review_dispatcher.py`
-  and drop the Gemini `-o json` envelope-unwrap special case (M)
-  **Spec scenarios**: skill-workflow.18 (auth error surfacing)
-  **Dependencies**: 4.1, 2.4
-
-- [ ] 4.8 Checkpoint: run the parallel-infrastructure suite, review diff, verify scope
-
-- [ ] 4.9 Update roster references in `consensus_synthesizer.py`,
-  `openspec/schemas/consensus-report.schema.json`, and the mirrored
-  `skills/parallel-infrastructure/install_assets/` copy (S)
-  **Spec scenarios**: skill-workflow.7 (consensus synthesizer)
-  **Dependencies**: 4.1
-
-- [ ] 4.10 Update roster references in `skills/quick-task/scripts/quick_task.py`,
+- [ ] 3.5 Update roster references in `consensus_synthesizer.py`,
+  `openspec/schemas/consensus-report.schema.json`, the mirrored
+  `skills/parallel-infrastructure/install_assets/` copy, `skills/quick-task/scripts/quick_task.py`,
   `skills/review-artifacts/scripts/open_artifacts.py`, `scripts/impl_review_driver.py`, and
-  `scripts/impl_review_handoff.py` (S)
-  **Dependencies**: 4.1
+  `scripts/impl_review_handoff.py` (M)
+  **Spec scenarios**: skill-workflow.7
+  **Dependencies**: 3.1
 
-- [ ] 4.11 Checkpoint: run the full skills suite, review diff, verify scope
+- [ ] 3.6 Promote the provider-model-map contract to its stable home: copy
+  `contracts/provider-model-map.schema.json` (schema_version 2, `propertyNames.enum` closed to
+  the five keys, all five `required`) to `openspec/schemas/provider-model-map.schema.json`;
+  repoint `skills/tests/vendor-neutral-autopilot/test_contracts.py` at that path and update its
+  fixtures to the v2 roster (M)
+  **Spec scenarios**: configuration.1
+  **Dependencies**: 3.1
+  **Note**: resolves the round-2 contradiction (archived schema pins `const: 1` and cannot be
+  edited). Tests must never resolve schemas inside change directories — those move on archive;
+  `openspec/schemas/` does not. Coordinate with 2.3 (code emits version 2).
 
-- [ ] 4.12 Repoint `skills/tests/vendor-neutral-autopilot/test_contracts.py:10` at
-  `openspec/changes/archive/2026-05-16-vendor-neutral-autopilot` (S)
-  **Dependencies**: 4.1
-  **Note**: added in PLAN_FIX (finding U1, decision D7). The constant resolves a change
-  directory archived months ago; `pytest skills/tests/vendor-neutral-autopilot` reports
-  **5 failed** on this branch today, so wp-dispatch's gate is unpassable until this lands.
+- [ ] 3.7 Checkpoint: dispatch suites green, review diff, verify scope
 
-- [ ] 4.13 Update the `schema_version` fixture in `test_contracts.py` from 1 to 2 (XS)
-  **Dependencies**: 4.12, 3.16
-
-- [ ] 4.14 Checkpoint: confirm `pytest skills/tests/vendor-neutral-autopilot` is green
-
-## Phase 5 — Eval backends (proposal decision D4)
-
-- [ ] 5.1 Write failing tests for antigravity, grok, and pi `AgentBackend` implementations (M)
-  **Spec scenarios**: evaluation-framework.1 (agent backend abstraction), and its
-  antigravity/grok/pi scenarios
-  **Dependencies**: 3.15
-
-- [ ] 5.2 Implement the grok backend using `--output-format json` (M)
-  **Spec scenarios**: evaluation-framework.1 (grok backend)
-  **Dependencies**: 5.1, 2.2
-
-- [ ] 5.3 Implement the antigravity backend (M)
-  **Spec scenarios**: evaluation-framework.1 (antigravity backend)
-  **Dependencies**: 5.1, 2.1
-
-- [ ] 5.4 Checkpoint: run the evaluation suite, review diff, verify scope
-
-- [ ] 5.5 Implement the pi backend (M)
-  **Spec scenarios**: evaluation-framework.1 (pi backend)
-  **Dependencies**: 5.1, 2.3
-
-- [ ] 5.6 Delete `evaluation/backends/gemini_jules.py` and its `__all__` export (S)
-  **Spec scenarios**: evaluation-framework.1 (retired Gemini/Jules backend is absent)
-  **Dependencies**: 5.2, 5.3, 5.5
-
-- [ ] 5.7 Update roster references in `evaluation/__init__.py`, `evaluation/config.py`, and
-  `evaluation/backends/base.py` (S)
-  **Dependencies**: 5.6
-
-- [ ] 5.8 Checkpoint: run the evaluation suite, review diff, verify scope
-
-## Phase 6 — Transcript adapters
-
-- [ ] 6.1 Write failing tests plus fixtures for `antigravity_cli`, `grok_cli`, and `pi_cli`
-  adapters (M)
+- [ ] 3.8 Transcript adapters: write failing tests + fixtures for `antigravity_cli`,
+  `grok_cli`, `pi_cli`; implement the three adapters under
+  `skills/collect-transcripts/scripts/adapters/`; register them in `normalize.py`; then delete
+  `gemini_cli.py`, `tests/test_gemini_cli.py`, and `tests/fixtures/gemini_cli/` (L — flagged;
+  the three adapters share the event-schema surface and land against one suite)
   **Spec scenarios**: skill-workflow.4
-  **Dependencies**: 2.10
+  **Dependencies**: 1.4
+  **Note**: E7/E8 output shapes feed the antigravity/pi fixtures.
 
-- [ ] 6.2 Implement the three adapters under `skills/collect-transcripts/scripts/adapters/` (M)
+- [ ] 3.9 Update `.gemini` skip-directory entries in `skills/tech-debt-analysis/scripts/`
+  (`analyze_complexity.py`, `analyze_duplication.py`, `analyze_imports.py`), plus roster
+  references in `skills/fetch-vendor-skills.sh` and `skills/langfuse/scripts/install-mcp.sh` (S)
+  **Spec scenarios**: codebase-analysis.1, codebase-analysis.2
+  **Dependencies**: 3.1
+
+- [ ] 3.10 Update `packages/agent-scenarios/`: `executor.py`,
+  `scenarios/plan-feature-basic.scenario.yaml`, `tests/test_runner.py`,
+  `tests/test_findings_emitter.py`; verify via
+  `uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q` (M)
+  **Dependencies**: 3.1
+  **Note**: the path argument is explicit — `uv run --project` does **not** change the working
+  directory, so a bare `pytest tests` would collect the repo-root `tests/`.
+
+- [ ] 3.11 Remove `google-generativeai` from `skills/pyproject.toml` and run `uv lock` (S)
+  **Dependencies**: 3.2
+
+- [ ] 3.12 Checkpoint: `skills/.venv/bin/python -m pytest skills/tests -q` green; agent-scenarios
+  suite green via the 3.10 invocation;
+  `git grep -lIi gemini -- skills scripts packages ':!*SKILL.md' ':!skills/langfuse/references' ':!skills/plan-feature/install_assets' ':!skills/plan-roadmap/templates' ':!skills/collect-transcripts/config.yaml.example'`
+  returns nothing (SKILL.md prose and the config example are Phase 5's; the three excluded
+  narrative paths are deferred per D6)
+
+## Phase 4 — Kanban frontend
+
+- [ ] 4.1 Update roster fixtures in `apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx`.
+  `VendorSwimlanes.tsx` is NOT modified — it derives the vendor from the `agent_id` suffix and
+  holds no roster (design D5). Leave the review-provenance annotations in
+  `src/hooks/useCoordinator.ts:244`, `src/__tests__/useCoordinator.test.tsx:278`, and
+  `src/lib/coordinator-types.ts:266` unchanged — they are history, not roster data (S)
+  **Spec scenarios**: coordinator-kanban-viz.1
+  **Dependencies**: 2.7
+
+- [ ] 4.2 Update the skills-tree kanban endpoint fixtures in
+  `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` (S)
+  **Dependencies**: 2.7, 0.1
+
+- [ ] 4.3 Checkpoint: `npm test -- --run` in `apps/kanban-viz` green;
+  `git grep -lIi gemini -- apps/kanban-viz` lists exactly the three provenance files;
+  `git diff --quiet main -- apps/kanban-viz/src/components/VendorSwimlanes.tsx` exits 0
+
+## Phase 5 — Docs, templates, SKILL.md prose, runtime-dir removal
+
+- [ ] 5.1 Delete the repo-root `.gemini/` directory (XS)
+  **Spec scenarios**: skill-workflow.1
+  **Design decisions**: D2
+  **Dependencies**: 2.8
+
+- [ ] 5.2 Update the supported-vendor roster in `README.md`, `agent-coordinator/CLAUDE.md`,
+  and `agent-coordinator/README.md` (including the make targets removed in 2.8) (S)
+  **Spec scenarios**: agent-coordinator.1
+  **Dependencies**: 2.8
+
+- [ ] 5.3 Update `docs/skills-workflow.md`, `docs/autopilot-provider-smoke.md`,
+  `docs/agent-coordinator.md`; replace `GEMINI_API_KEY` with `OPENROUTER_API_KEY` in
+  `docs/openbao-secret-management.md` (M)
+  **Spec scenarios**: skill-workflow.23, .24, agent-coordinator.1, configuration.2
+  **Dependencies**: 2.8
+
+- [ ] 5.4 Update templates: `agent-coordinator/.secrets.yaml.example` (add
+  `OPENROUTER_API_KEY`, remove `GEMINI_API_KEY`), `agent-coordinator/config.yaml.example`
+  (provider enumeration + tier example), `skills/collect-transcripts/config.yaml.example`
+  (adapter block), and the vendor list in `openspec/config.yaml` (S)
+  **Spec scenarios**: configuration.2
+  **Dependencies**: 2.8
+
+- [ ] 5.5 Update provider prose in the 8 lifecycle SKILL.md files named by the
+  `skill-workflow` delta (`autopilot`, `plan-feature`, `implement-feature`, `iterate-on-plan`,
+  `iterate-on-implementation`, `parallel-review-plan`, `parallel-review-implementation`,
+  `validate-feature`) plus `skills/setup-coordinator/SKILL.md` and
+  `skills/collect-transcripts/SKILL.md` (M)
+  **Spec scenarios**: skill-workflow.23 (no lifecycle skill doc names Gemini/Jules as a
+  dispatch provider)
+  **Dependencies**: 3.12
+  **Note**: these 10 files are IN scope (D8.3) — the spec delta names the 8 lifecycle files
+  explicitly, so deferring them would make the spec unsatisfiable by this change. The ~12
+  remaining SKILL.md files with narrative gemini mentions stay deferred (D6).
+
+- [ ] 5.6 Document the optional `~/.grok/config.toml` `[skills] paths` setup as operator-level,
+  citing https://docs.x.ai/build/features/skills-plugins-marketplaces (S)
+  **Spec scenarios**: skill-workflow.1
+  **Design decisions**: D2
+  **Dependencies**: 5.3
+
+- [ ] 5.7 Checkpoint: `openspec validate --all --strict` passes; the in-scope doc grep (the
+  exact file list in work-packages `wp-docs-finalize` verification) returns nothing; no
+  carve-out file appears in `git diff --name-only main...HEAD`
+
+## Phase 6 — Integration and validation
+
+- [ ] 6.1 Run `bash skills/install.sh --mode rsync --force --deps none --python-tools none`;
+  confirm the mirrors carry no live gemini references
+  (`git grep -lIi gemini -- .claude/skills .agents/skills ':!*SKILL.md' ':!*/references/*' ':!*/templates/*' ':!*/install_assets/*'` empty) (S)
+  **Spec scenarios**: skill-workflow.3
+  **Dependencies**: 5.7
+
+- [ ] 6.2 Run the four suites with their own interpreters:
+  `agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration'`;
+  `skills/.venv/bin/python -m pytest skills/tests -q`;
+  `uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q`;
+  `cd apps/kanban-viz && npm test -- --run` (M)
   **Dependencies**: 6.1
 
-- [ ] 6.3 Register the new adapters in `skills/collect-transcripts/scripts/normalize.py` (S)
+- [ ] 6.3 Live smoke dispatch against each of antigravity, grok, and pi (operator-authorized;
+  see design.md § Empirical CLI findings) (M)
+  **Spec scenarios**: skill-workflow.24
   **Dependencies**: 6.2
 
-- [ ] 6.4 Checkpoint: run the collect-transcripts suite, review diff, verify scope
-
-- [ ] 6.5 Delete `adapters/gemini_cli.py`, `tests/test_gemini_cli.py`, and
-  `tests/fixtures/gemini_cli/` (S)
-  **Dependencies**: 6.3
-
-## Phase 7 — Kanban seeder
-
-- [ ] 7.1 Write a failing test asserting the seeder covers the five-vendor roster (S)
-  **Spec scenarios**: coordinator-kanban-viz.2 (seed covers the full vendor roster)
-  **Dependencies**: 3.15
-
-- [ ] 7.2 Update `VENDORS` in `agent-coordinator/scripts/seed_kanban_board.py` (S)
-  **Spec scenarios**: coordinator-kanban-viz.2
-  **Dependencies**: 7.1
-
-- [ ] 7.3 Update roster fixtures in `apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx`,
-  `agent-coordinator/src/schemas/kanban_viz/saved-view.json`,
-  `agent-coordinator/tests/test_kanban_viz_endpoints.py`, and
-  `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` (M)
-  **Spec scenarios**: coordinator-kanban-viz.1 (vendor swimlanes)
-  **Dependencies**: 7.1
-  **Note**: `VendorSwimlanes.tsx` needs no change — it derives the vendor from the `agent_id`
-  suffix and holds no roster (design D5).
-
-- [ ] 7.3a Leave the review-provenance annotations in `src/hooks/useCoordinator.ts:244`,
-  `src/__tests__/useCoordinator.test.tsx:278`, and `src/lib/coordinator-types.ts:266`
-  UNCHANGED, and add each to the terminal gate's carve-out list (S)
-  **Dependencies**: 7.1
-  **Note**: added in PLAN_FIX (findings C7, U9). These strings name the vendor that raised a
-  past finding (`IMPL_REVIEW claude#4/gemini#1`) — they are history, not roster data.
-  Rewriting them falsifies the record. `coordinator-types.ts` was missing from the plan
-  entirely; it is the one file the original inventory command failed to surface.
-
-- [ ] 7.4 Checkpoint: run `npm test` in `apps/kanban-viz` plus the kanban endpoint tests,
-  review diff, verify scope
-
-## Phase 8 — Removal and residual references
-
-- [ ] 8.1a Remove the `gemini-mcp-setup` and `gemini-wrapper-install` targets from
-  `agent-coordinator/Makefile`, drop `gemini-mcp-setup` from the aggregate `mcp-setup`
-  prerequisite list, and delete the `GEMINI_AGENT_ID` / `GEMINI_AGENT_TYPE` /
-  `GEMINI_MCP_ENV_FLAGS` variables (M)
-  **Spec scenarios**: agent-coordinator.1
-  **Dependencies**: 4.11
-  **Note**: added in PLAN_FIX (finding C2, confirmed by both vendors). `Makefile:184` makes
-  `mcp-setup` depend on `gemini-mcp-setup`, and `Makefile:216` chmods/symlinks
-  `gemini_wrapper.sh`. Deleting the wrapper first (old task 8.1) breaks `make mcp-setup` and
-  `make gemini-wrapper-install`. **This task MUST precede 8.1b.**
-
-- [ ] 8.1b Delete `agent-coordinator/scripts/gemini_wrapper.sh` (XS)
-  **Dependencies**: 8.1a
-
-- [ ] 8.1c Checkpoint: run `make -n mcp-setup` in `agent-coordinator/` and confirm it resolves
-  with no gemini target and no missing prerequisite
-
-- [ ] 8.2 Delete the repo-root `.gemini/` directory (XS)
-  **Spec scenarios**: skill-workflow.1 (no per-vendor runtime directory is committed)
-  **Design decisions**: D2
-  **Dependencies**: 4.11
-
-- [ ] 8.3 Remove `.gemini` from the skip-directory lists in
-  `skills/tech-debt-analysis/scripts/analyze_complexity.py`, `analyze_duplication.py`, and
-  `analyze_imports.py` (S)
-  **Spec scenarios**: codebase-analysis.1, codebase-analysis.2
-  **Dependencies**: 8.2
-
-- [ ] 8.4 Checkpoint: run the tech-debt-analysis suite, review diff, verify scope
-
-- [ ] 8.5 Update roster references in `skills/fetch-vendor-skills.sh`,
-  `skills/langfuse/scripts/install-mcp.sh`, and `openspec/config.yaml` (S)
-  **Dependencies**: 8.2
-
-- [ ] 8.6 Update roster references in `packages/agent-scenarios/` — `executor.py`,
-  `scenarios/plan-feature-basic.scenario.yaml`, `tests/test_runner.py`,
-  `tests/test_findings_emitter.py` (M)
-  **Dependencies**: 4.11
-
-- [ ] 8.8 Run the agent-scenarios suite through its own environment
-  (`uv run --project packages/agent-scenarios pytest tests`) and record the working
-  invocation in `design.md` (S)
-  **Dependencies**: 8.6
-  **Note**: added in PLAN_FIX (finding U4, decision D7). `skills/.venv/bin/python -m pytest
-  packages/agent-scenarios/tests` produces **6 collection errors** today — that venv lacks the
-  package's dependencies, so wp-cleanup's gate as originally written could never pass.
-
-- [ ] 8.7 Checkpoint: run the agent-scenarios suite via the corrected invocation, review diff
-
-## Phase 9 — Documentation
-
-- [ ] 9.1 Update the supported-vendor roster in `README.md` and `agent-coordinator/CLAUDE.md` (S)
-  **Spec scenarios**: agent-coordinator.1
-  **Dependencies**: 8.7
-
-- [ ] 9.2 Update `docs/skills-workflow.md` and `docs/autopilot-provider-smoke.md` (S)
-  **Spec scenarios**: skill-workflow.23, skill-workflow.24
-  **Dependencies**: 8.7
-
-- [ ] 9.3 Document the optional `~/.grok/config.toml` `[skills] paths` setup as operator-level,
-  citing https://docs.x.ai/build/features/skills-plugins-marketplaces (S)
-  **Spec scenarios**: skill-workflow.1 (canonical skill distribution)
-  **Design decisions**: D2
-  **Dependencies**: 8.2
-
-- [ ] 9.6 Replace `GEMINI_API_KEY` with `OPENROUTER_API_KEY` in
-  `agent-coordinator/.secrets.yaml.example` and in `docs/openbao-secret-management.md` (S)
-  **Spec scenarios**: configuration.2
-  **Dependencies**: 8.2
-  **Note**: added in PLAN_FIX (finding U8). `proposal.md` commits to making
-  `OPENROUTER_API_KEY` resolvable for pi, but no task added it to the secrets template and the
-  file sat outside every package's `write_allow`.
-
-- [ ] 9.7 Update the provider enumerations in `agent-coordinator/config.yaml.example`
-  (`One of: claude_code, codex, gemini` plus the gemini tier example) and remove the
-  `gemini_cli` adapter block from `skills/collect-transcripts/config.yaml.example` (S)
-  **Dependencies**: 8.2
-
-- [ ] 9.8 Update the roster and setup instructions in `agent-coordinator/README.md`,
-  `docs/agent-coordinator.md`, and `skills/setup-coordinator/SKILL.md` (M)
-  **Spec scenarios**: agent-coordinator.1
-  **Dependencies**: 8.1c
-  **Note**: `agent-coordinator/README.md` documents the make targets removed in 8.1a.
-
-- [ ] 9.9 Checkpoint: confirm the 11-file in-scope doc set in `design.md` § In-scope
-  user-facing set is fully covered, and that no carve-out file was modified
-
-- [ ] 9.4 Update lifecycle SKILL.md provider prose to the new roster (M)
-  **Spec scenarios**: skill-workflow.23
-  **Dependencies**: 9.1
-
-- [ ] 9.5 Checkpoint: run `openspec validate --all --strict`, review diff, verify scope
-
-## Phase 10 — Integration
-
-- [ ] 10.1 Run `bash skills/install.sh --mode rsync --force --deps none --python-tools none`
-  and confirm mirrors carry no gemini references (S)
-  **Spec scenarios**: skill-workflow.3 (infrastructure skills are synced)
-  **Dependencies**: 9.5
-
-- [ ] 10.2 Confirm zero gemini references remain in the in-scope set (S)
-  **Dependencies**: 10.1
-  **Verification**: `skills/.venv/bin/python openspec/changes/add-agy-grok-pi-harnesses/scripts/check_roster_residue.py --base main` exits 0
-  **Note**: rewritten in PLAN_FIX (findings C1, C3, C6, U6). The original used `grep -rl` with
-  an `--include` allow-list, which returns **240** files under system grep (171 inside
-  `.venv`) and omitted `*.md` and extensionless files. The gate was unpassable and the scope
-  under-measured. `git grep -lI` searches tracked files only and skips binaries.
-
-- [ ] 10.2a Confirm no carve-out file was modified (S)
-  **Dependencies**: 10.2
-  **Verification**: covered by `check_roster_residue.py`'s carve-out check (same script,
-  second assertion) — kept as a distinct task so the reviewer sees it named explicitly
-  **Note**: added in PLAN_FIX. Applied SQL migrations seed `gemini_local` profile rows;
-  rewriting them desynchronizes deployed databases from their migration history. A
-  zero-references gate without this counter-check invites exactly that error.
-
-- [ ] 10.5 Add `fastapi.testclient` (via `fastapi`/`httpx`) to `skills/.venv` so
-  `pytest skills/tests` collects (S)
-  **Dependencies**: 10.1
-  **Note**: added in PLAN_FIX (finding U5, decision D7). `skills/tests/agent-coordinator/
-  test_kanban_viz_endpoints.py:31` imports `fastapi.testclient`, which is absent — pytest
-  reports `Interrupted: 1 error during collection` and exits non-zero after running 0 tests,
-  making wp-integration's gate unpassable.
-
-- [ ] 10.3 Run the full test suite with the per-tree interpreters recorded in `design.md` (M)
-  **Dependencies**: 10.2a, 10.5
-  **Verification**: `agent-coordinator/.venv` for `agent-coordinator/tests`,
-  `skills/.venv` for `skills/tests`, `uv run --project packages/agent-scenarios` for
-  agent-scenarios, `npm test -- --run` for `apps/kanban-viz`
-
-- [ ] 10.4 Run a live smoke dispatch against each of antigravity, grok, and pi (M)
-  **Spec scenarios**: skill-workflow.24
-  **Dependencies**: 10.3
-  **Note**: operator has authorized live billed calls (see `design.md` § Empirical CLI findings)
+- [ ] 6.4 Record the deferred-narrative follow-up: run the design.md inventory command, save
+  the remaining file list into the session log, and note it in the PR description as an
+  explicit follow-up change (XS)
+  **Dependencies**: 6.2

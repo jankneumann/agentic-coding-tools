@@ -46,3 +46,27 @@
 ### Context
 Completed planning for the agy/grok/pi harness roster change, resumed from Step 6 against a pre-existing proposal. Produced spec deltas covering all 37 gemini-bearing requirements across 8 specs, a 67-task tasks.md, a 9-package work-package DAG, and a roster contract. Planning measured the live edit surface at 68 files versus the proposal's ~15, and corrected two factual errors in the proposal.
 
+
+## Phase: Plan Revision 2 — ESCALATE resolution (2026-07-22)
+
+### Summary
+Autopilot halted at ESCALATE after PLAN_REVIEW round 2 (findings trend [26, 29], rising; 21
+of 29 round-2 findings targeted the plan's own verification machinery). The operator delegated
+the four escalated structural decisions; they were resolved in the direction of less
+apparatus and applied as plan revision 2.
+
+### Decisions
+1. **Work packages collapse 9 → 5 along venv/test-suite boundaries** `architectural: plan-structure` — Hand-maintained per-file write scopes over a cross-cutting rename guaranteed scope conflicts (tasks with nowhere to write, gates sweeping other packages' files). Ownership by tree (wp-empirical / wp-coordinator / wp-skills / wp-frontend / wp-docs-finalize) with coarse write_allow + explicit deny eliminates the class. (D-A → design.md D8.1)
+2. **Both bespoke gate scripts and the manifest are deleted** `architectural: verification` — check_empirical_facts.py and check_roster_residue.py were each defeated by both review vendors; each was a second-order instance of the vacuous-gate defect it replaced. Mechanically checkable assertions are now inline one-liners (git grep -lI over owned trees, dep absence, make -n); "were the CLIs genuinely invoked" is an explicit human checkpoint (kind: manual) because it is not mechanically verifiable. (D-B → D8.2)
+3. **Spec delta stands; the 8 named lifecycle SKILL.md files come into scope** `architectural: scope` — The skill-workflow delta names them explicitly, so deferring them made the spec unsatisfiable by this change. Mechanical prose swaps, task 5.5. (D-C → D8.3)
+4. **No split; pre-existing test repairs quarantined as Phase 0** `architectural: scope` — Splitting into ri-01a/ri-01b would double the plan apparatus — the thing failing review. The three baseline failures (fastapi missing, archived-dir test constant, write_capable fixture) are labeled Phase 0 baseline repair. (D-D → D8.4)
+5. **provider-model-map schema promoted to openspec/schemas/** `architectural: contracts` — Contract tests must never resolve schemas inside change directories; those move on archive (the round-2 const:1 contradiction). Task 3.6.
+
+### Trade-offs
+- Accepted informational (non-gating) scope counts over manifest-enforced counts because derived numbers duplicated across three artifacts were a consistency-finding generator; the package gates are authoritative.
+- Accepted a human checkpoint for empirical CLI facts over a third scripted gate because two scripted attempts were defeated the same way and a third would be too.
+
+### Next Steps
+- Resume `/autopilot add-agy-grok-pi-harnesses`: ESCALATE resolves to previous_phase PLAN_REVIEW for one fresh round against revision 2 (findings trend reset; expect a sharp drop).
+- On convergence, IMPLEMENT dispatches the 5 packages with opus 4.8 / codex 5.6-sol as implementation vendors.
+- Follow-up change (recorded by task 6.4): ~33 deferred narrative files still referencing gemini.
