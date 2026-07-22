@@ -208,6 +208,6 @@ in the session log, and coordinate merge order with the registry/router changes.
    the diversity goal (non-Claude, non-OpenAI, non-Gemini, non-xAI).
 2. **Exact `agy --model` slug strings** — still open. `agy models` prints display names
    ("Claude Sonnet 4.6 (Thinking)", "Gemini 3.1 Pro (High)", …); the precise `--model` value
-   must be verified empirically during IMPLEMENT/VALIDATE. Tracked as task 2.4.
+   must be verified empirically during IMPLEMENT/VALIDATE. Tracked as task 1.1 (E1).
 3. **grok `--prompt-file /dev/stdin` under a subprocess pipe** — still open, verified in
-   VALIDATE. If it fails, fall back to Approach B for grok only (task 2.5).
+   VALIDATE. If it fails, fall back to Approach B for grok only (task 1.2, fact E2).

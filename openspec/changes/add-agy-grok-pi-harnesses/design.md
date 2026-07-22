@@ -25,12 +25,19 @@ git grep -lI "gemini\|Gemini\|GEMINI" | grep -vE "$EXCL"
 
 ### Measured surface
 
+> Counts re-measured 2026-07-22 (plan revision 2). They are **informational** — the package
+> gates, not these numbers, are authoritative (D8.1). Round 2 found the previous figures
+> (133/69/11/53) mutually inconsistent across three artifacts; keeping derived numbers out of
+> gates removes that failure class.
+
 | Set | Count | Handling |
 |---|---|---|
-| Tracked live files referencing gemini | **133** | — |
-| Code / config (`.py .ts .tsx .yaml .yml .sh .json`) | **69** | Phases 3–8, all packages |
-| User-facing docs, templates, Makefile | **11** (see below) | Phase 9, `wp-docs` |
-| Remaining narrative/historical prose | 53 | **Out of scope** — follow-up change |
+| Tracked live files referencing gemini | **124** | — |
+| Code / config edited (`.py .ts .tsx .yaml .yml .sh .json`, Makefile) | **66** | Phases 2–4, `wp-coordinator` / `wp-skills` / `wp-frontend` |
+| User-facing docs, templates | **12** (see below) | Phase 5, `wp-docs-finalize` |
+| SKILL.md files in scope (8 spec-named lifecycle + setup-coordinator + collect-transcripts) | **10** | Phase 5, `wp-docs-finalize` (D8.3) |
+| Review-provenance annotations (untouched by design) | 3 | Carve-out |
+| Remaining narrative/historical prose | ~33 | **Out of scope** — follow-up change (task 6.4 records the list) |
 
 ### In-scope user-facing set (operator decision, PLAN_FIX)
 
@@ -62,7 +69,7 @@ defect, not a completion. The terminal gate excludes them by construction.
 | `docs/archive/**` | Archived exploration documents. |
 | `openspec/changes/archive/**` | Change history. |
 | `.claude/`, `.agents/`, `.codex/` | Generated mirrors — `install.sh` rewrites them (task 10.1). `.codex/` is **not** written by `install.sh` (it holds only `hooks.json`); it is excluded because it carries no live roster config, not because it is regenerated (finding U11). |
-| Review-provenance annotations | `apps/kanban-viz/src/hooks/useCoordinator.ts:244`, `src/__tests__/useCoordinator.test.tsx:278`, and `src/lib/coordinator-types.ts:266` name the vendor that raised a past finding (`IMPL_REVIEW claude#4/gemini#1`). These are history, not roster data — rewriting them falsifies the record (finding U9). Task 7.3 reclassifies them. |
+| Review-provenance annotations | `apps/kanban-viz/src/hooks/useCoordinator.ts:244`, `src/__tests__/useCoordinator.test.tsx:278`, and `src/lib/coordinator-types.ts:266` name the vendor that raised a past finding (`IMPL_REVIEW claude#4/gemini#1`). These are history, not roster data — rewriting them falsifies the record (finding U9). Tasks 4.1/4.3 leave them unchanged and `wp-frontend` denies writes to them. |
 | `openspec/specs/` | Handled by the spec deltas, not by code edits. |
 
 ### Why the first inventory was wrong
@@ -134,26 +141,77 @@ change and would drag in review-provenance annotations and applied SQL migration
 be rewritten.
 
 **Decision**: scope is "anything that instructs a human or a script to invoke gemini" — the
-11-file set in § In-scope user-facing set, of which `agent-coordinator/Makefile` is mandatory
-because task 8.1 actively breaks it. The remaining 53 narrative files are a tracked follow-up.
+doc set in § In-scope user-facing set (Makefile is mandatory because task 2.8 actively
+changes what it documents), **plus** the 10 SKILL.md files added by D8.3. The remaining ~33
+narrative files are a tracked follow-up (task 6.4 records the list).
 
-Consequently the terminal gate asserts zero references **in a defined set**, not repo-wide. A
-repo-wide assertion would be unsatisfiable without editing history (see § Carve-outs).
+Consequently residue gates assert zero references **in trees or file lists each package
+owns**, not repo-wide. A repo-wide assertion would be unsatisfiable without editing history
+(see § Carve-outs).
 
 ### D7 — Pre-existing broken gates are repaired here (PLAN_FIX, operator decision)
 
 Three work-package verification commands could never pass, for reasons predating this change:
 
-| Gate | Failure today | Repair |
+| Gate | Failure today | Repair (revision 2) |
 |---|---|---|
-| `wp-dispatch` → `pytest skills/tests/vendor-neutral-autopilot` | **5 failed** — `test_contracts.py:10` resolves `openspec/changes/vendor-neutral-autopilot`, archived to `openspec/changes/archive/2026-05-16-vendor-neutral-autopilot` | Repoint the constant at the archived path (task 4.12) |
-| `wp-cleanup` → `skills/.venv … pytest packages/agent-scenarios/tests` | **6 collection errors** — that venv lacks agent-scenarios' dependencies | Run through the package's own environment (task 8.8) |
-| `wp-integration` → `pytest skills/tests` | **collection interrupted** — `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py:31` imports `fastapi.testclient`, absent from `skills/.venv` | Add the dependency to the skills venv (task 10.5) |
+| `pytest skills/tests/vendor-neutral-autopilot` | **5 failed** — `test_contracts.py:10` resolves `openspec/changes/vendor-neutral-autopilot`, archived to `openspec/changes/archive/2026-05-16-vendor-neutral-autopilot`; plus a missing `write_capable` field in `test_model_resolution.py` | Phase 0 task 0.2 repoints the constant and fixes the fixture; task 3.6 later moves the schema to its stable home in `openspec/schemas/` |
+| `pytest packages/agent-scenarios/tests` via `skills/.venv` | **6 collection errors** — that venv lacks agent-scenarios' dependencies | Run through the package's own environment with an explicit path: `uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests` (`--project` does not change cwd — round 2 caught the pathless form collecting the repo-root `tests/`) |
+| `pytest skills/tests` | **collection interrupted** — `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py:31` imports `fastapi.testclient`, absent from `skills/.venv` | Phase 0 task 0.1 adds `fastapi`/`httpx` to `skills/pyproject.toml` (the venv is regenerated by `uv sync`, so a venv-only install would be discarded — round 2) |
 
 The alternative — scoping gates around the breakage — was rejected: it reintroduces exactly the
 vacuous-verification problem the review flagged. A gate nobody expects to pass carries no signal.
+These repairs are grouped in Phase 0 and labeled as baseline repair, not laundered into roster
+tasks (D8.4).
+
+### D8 — Plan revision 2: less apparatus, not better apparatus (ESCALATE resolution, 2026-07-22)
+
+Autopilot halted at ESCALATE after PLAN_REVIEW round 2 with a rising findings trend
+`[26, 29]`; 21 of 29 round-2 findings targeted the plan's own verification machinery rather
+than the roster work. The structural cause: each PLAN_FIX **grew the reviewable surface faster
+than it removed defects** — 20 inserted tasks, 2 bespoke gate scripts, a manifest, and fact
+tables duplicated across three artifacts, each duplication a consistency finding waiting to
+happen. The four escalated decisions (REVIEW-PACKAGE § 4) were resolved as follows:
+
+**D8.1 (was D-A) — 9 work packages collapse to 5** along venv/test-suite boundaries
+(`wp-empirical`, `wp-coordinator`, `wp-skills`, `wp-frontend`, `wp-docs-finalize`), with
+coarse directory-level `write_allow` plus explicit `deny` lists. Hand-maintained per-file
+scopes over a cross-cutting rename guaranteed scope conflicts (a task with nowhere to write,
+a gate sweeping another package's files); ownership by tree eliminates the class. Gates are
+existing test suites plus inline one-line `git grep` checks — no derived numbers, no scripts.
+
+**D8.2 (was D-B) — both gate scripts and the manifest are deleted.**
+`check_empirical_facts.py` and `check_roster_residue.py` were each defeated by both review
+vendors; each was a second-order instance of the vacuous-gate defect they were written to fix.
+What is mechanically checkable is now checked inline (`git grep -lI` over owned trees, dep
+absence, `make -n`). What is not mechanically checkable — "were the CLIs genuinely invoked" —
+is now an explicit **human checkpoint** (task 1.4, `kind: manual`), because two scripted
+attempts at it failed and a third would fail the same way.
+
+**D8.3 (was D-C) — the spec delta stands; the 8 lifecycle SKILL.md files come into scope.**
+The `skill-workflow` delta names them explicitly, so deferring them made the spec
+unsatisfiable by this change. The edits are mechanical provider-prose swaps (task 5.5).
+`setup-coordinator` and `collect-transcripts` SKILL.md join them; the ~12 remaining SKILL.md
+files with narrative mentions stay deferred under D6.
+
+**D8.4 (was D-D) — one change, not a split.** Splitting into `ri-01a`/`ri-01b` would double
+the plan apparatus — the very thing failing review — for a change whose parts (roster,
+backends, adapters, docs) land against one spec delta set. The three pre-existing test
+repairs stay in this change but are quarantined as **Phase 0 — baseline repair**, explicitly
+labeled, because the package gates cannot go green without them.
+
+Two further round-2 resolutions folded in: the provider-model-map schema moves to
+`openspec/schemas/provider-model-map.schema.json` (task 3.6) so contract tests never resolve
+a change directory that later archives (the round-2 `const: 1` contradiction); and the
+`google-generativeai` dependency — invisible to any gemini-grep — is an explicit task with an
+explicit inline check in both trees (tasks 2.9, 3.11).
 
 ## PLAN_REVIEW round 1 — findings resolution
+
+> **Historical record.** Task numbers in this table refer to **plan revision 1**, which
+> revision 2 (D8) replaced wholesale. The substantive findings all survive in revision 2's
+> tasks; the apparatus the resolutions built (gate scripts, manifest, fact-consumer wiring)
+> was deleted by D8.2.
 
 26 findings from 2 vendors (claude 18, codex 8); 7 confirmed by both. Every load-bearing claim
 was independently verified by the orchestrator before acceptance. Verdict: **not converged**,
@@ -181,22 +239,24 @@ resolved by PLAN_FIX.
 | U11 | claude | `.codex/` rationale corrected in § Carve-outs |
 | U12 | claude | `coordinator-kanban-viz` delta drops the unsatisfiable colour clause |
 
-## Why 4.1 stays L
+## Why 3.1 (and 2.6, 3.8) stay L
 
-Task 4.1 writes failing tests across 8 test files in one package. The sizing table says L should
-be decomposed into 2–3 M tasks where that reduces risk. Here it does not: every one of those
-files asserts against the same roster constant, so splitting them creates 3 tasks that must land
-together to keep the suite green, and an agent holding only a third of the surface cannot tell
-whether the roster is consistently applied. The risk being managed is *inconsistency across the
-dispatch surface*, and that risk is lowest when one agent sees all of it at once.
+Task 3.1 writes failing tests across ~9 test files in one package. The sizing table says L
+should be decomposed into 2–3 M tasks where that reduces risk. Here it does not: every one of
+those files asserts against the same roster constant, so splitting them creates tasks that must
+land together to keep the suite green, and an agent holding only a third of the surface cannot
+tell whether the roster is consistently applied. The risk being managed is *inconsistency
+across the dispatch surface*, and that risk is lowest when one agent sees all of it at once.
+The same argument covers 2.6 (three eval backends against one suite) and 3.8 (three adapters
+against one event schema).
 
-It is flagged rather than split, per the sizing table's "keep but flag" instruction for L.
+They are flagged rather than split, per the sizing table's "keep but flag" instruction for L.
 
 ## Why the empirical phase runs before config
 
-Phase 2 produces facts — `agy --model` slugs, whether `grok --prompt-file /dev/stdin` survives a
+Phase 1 produces facts — `agy --model` slugs, whether `grok --prompt-file /dev/stdin` survives a
 subprocess pipe, whether `pi` resolves `OPENROUTER_API_KEY` from the subprocess environment,
-and the re-login commands. Phases 3–7 consume them.
+and the re-login commands. Phases 2–3 consume them.
 
 Ordering these last would mean writing `agents.yaml` entries against guessed flags and
 discovering the mistake during VALIDATE, after the config has propagated into tier maps,
@@ -205,7 +265,7 @@ plan makes that verification a gating task rather than a hope.
 
 `grok login` was confirmed during planning ("Sign in to Grok"). `agy` and `pi` show no login
 subcommand in `--help`; `_RELOGIN_COMMANDS` already falls back to `f"{command} login"`
-(`review_dispatcher.py:271`), so task 2.4 confirms rather than invents.
+(`review_dispatcher.py:271`), so tasks 1.1/1.3 confirm rather than invent.
 
 ## Empirical CLI findings
 
@@ -222,20 +282,20 @@ is required for the Phase 2 verification calls.
 
 Each row MUST be filled with `confirmed` or `refuted` **plus the observed evidence** (the exact
 command run and the relevant output excerpt). `pending`, `unknown`, `n/a`, and a deleted table
-are all failures — `wp-empirical`'s gate checks for evidence, not for the absence of the word
-"pending" (finding C5).
+are all failures. Whether the evidence is genuine is checked by a **human** at checkpoint 1.4
+(`wp-empirical`'s manual verification step) — not by a script (D8.2).
 
 | # | Fact | Consumed by | Task | Status | Evidence |
 |---|---|---|---|---|---|
-| E1 | `agy --model` slug strings for premium/standard/economy | 3.5, 3.8 | 2.1 | pending | |
-| E2 | `grok --prompt-file /dev/stdin` survives a subprocess pipe | 3.2 | 2.2 | pending | |
-| E3 | `pi` resolves `OPENROUTER_API_KEY` from the subprocess env | 3.2, 8.5 | 2.3 | pending | |
-| E4 | `agy` / `pi` re-login commands | 4.7 | 2.4 | pending | |
-| E5 ✚ | `grok` model slugs for premium/standard/economy | 3.5, 3.8 | 2.6 | pending | |
-| E6 ✚ | `grok --output-format json` + `--json-schema` emit a conforming envelope | 5.2, 3.2 | 2.7 | pending | |
-| E7 ✚ | `agy --print` + stdin + `--mode plan` behave Claude-shaped | 3.2, 5.3 | 2.8 | pending | |
-| E8 ✚ | `pi` accepts the prompt as a trailing positional; output shape | 3.2, 5.5 | 2.9 | pending | |
-| — | `grok login` | 4.7 | — | **confirmed** | `grok --help` → `login  Sign in to Grok` |
+| E1 | `agy --model` slug strings for premium/standard/economy | 2.3 | 1.1 | pending | |
+| E2 | `grok --prompt-file /dev/stdin` survives a subprocess pipe | 2.2 | 1.2 | pending | |
+| E3 | `pi` resolves `OPENROUTER_API_KEY` from the subprocess env | 2.2, 5.4 | 1.3 | pending | |
+| E4 | `agy` / `pi` re-login commands | 3.4 | 1.1, 1.3 | pending | |
+| E5 | `grok` model slugs for premium/standard/economy | 2.3 | 1.2 | pending | |
+| E6 | `grok --output-format json` + `--json-schema` emit a conforming envelope | 2.6, 2.2 | 1.2 | pending | |
+| E7 | `agy --print` + stdin + `--mode plan` behave Claude-shaped | 2.2, 2.6, 3.8 | 1.1 | pending | |
+| E8 | `pi` accepts the prompt as a trailing positional; output shape | 2.2, 2.6, 3.8 | 1.3 | pending | |
+| — | `grok login` | 3.4 | — | **confirmed** | `grok --help` → `login  Sign in to Grok` |
 
 **Operator authorization is on record** (above), so these tasks may make live billed calls.
 
@@ -246,10 +306,13 @@ lands first and fixes the roster before anything else reads it.
 
 | Roadmap item | Overlap | Handling |
 |---|---|---|
-| `ri-02` add-live-vendor-capability-and-cost-registry | Deletes `orchestrator.py`'s vendor list; replaces `policy.py`'s cost stub | Keep both structures stable (tasks 4.5, 4.6) so `ri-02` is a clean removal |
+| `ri-02` add-live-vendor-capability-and-cost-registry | Deletes `orchestrator.py`'s vendor list; replaces `policy.py`'s cost stub | Keep both structures stable (task 3.3) so `ri-02` is a clean removal |
 | `ri-04` add-adaptive-model-router | Touches `agents.yaml` / `archetypes.yaml` tiers; adds `openai_compat_adapter.py` | Roster additions are additive to tier maps; no schema change |
 | `ri-06` build-structured-vendor-result-channel | Switches every CLI adapter to structured JSON envelopes | grok already emits `--output-format json`; this change aligns rather than conflicts |
 
 The `provider-model-map.schema.json` bump to `schema_version: 2` closes the provider key set via
-`propertyNames.enum`. Version 1 used open `additionalProperties`, which would have accepted a
-reintroduced `gemini` key silently — the failure mode this change exists to remove.
+`propertyNames.enum` and requires all five keys. Version 1 used open `additionalProperties`,
+which would have accepted a reintroduced `gemini` key silently — the failure mode this change
+exists to remove. The schema's runtime home is `openspec/schemas/provider-model-map.schema.json`
+(task 3.6): contract tests must never resolve schemas inside change directories, because those
+move on archive.

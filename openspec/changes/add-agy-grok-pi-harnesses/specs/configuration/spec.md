@@ -38,7 +38,7 @@ Discovery order SHALL be:
 
 Provider dispatch configuration SHALL define model mappings for Claude Code, Codex, antigravity, grok, and pi so logical archetypes can resolve to provider-specific model IDs.
 
-The model mapping SHALL conform to `contracts/provider-model-map.schema.json`.
+The model mapping SHALL conform to `openspec/schemas/provider-model-map.schema.json` (schema_version 2: provider key set closed to the five roster keys, all five required).
 
 The `pi` provider SHALL resolve to OpenRouter model slugs, and its default model SHALL be `qwen/qwen3-coder`, selected so the roster reaches models outside the subscription harnesses.
 

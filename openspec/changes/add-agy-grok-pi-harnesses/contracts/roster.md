@@ -10,7 +10,7 @@ the ~13 drifting allow-lists this change removes, so aliases are prohibited (pro
 
 | Provider key | CLI binary | `agents.yaml` entry | `type:` | Auth model |
 |---|---|---|---|---|
-| `claude_code` | `claude` | `claude-local` | `claude` | subscription |
+| `claude_code` | `claude` | `claude-local` | `claude_code` | subscription |
 | `codex` | `codex` | `codex-local` | `codex` | subscription |
 | `antigravity` | `agy` | `antigravity-local` | `antigravity` | subscription |
 | `grok` | `grok` | `grok-local` | `grok` | subscription (xAI/X) |
@@ -28,14 +28,13 @@ rather than falling back.
 `pi` resolves to OpenRouter slugs in `<publisher>/<model>` form; its `standard` tier is
 `qwen/qwen3-coder`, fixed by roadmap item `ri-01`.
 
-`antigravity` tier slugs are resolved by task **2.1**; `grok` tier slugs by task **2.6**. Both
-are recorded in `design.md` § Empirical CLI findings. **No package may hardcode a tier slug for
-these two vendors before task 2.10 completes.**
+`antigravity` tier slugs are resolved by task **1.1** (E1); `grok` tier slugs by task **1.2**
+(E5). Both are recorded in `design.md` § Empirical CLI findings. **No package may hardcode a
+tier slug for these two vendors before checkpoint 1.4 (human review) passes.**
 
-> Corrected in PLAN_REVIEW round 1 (finding C6/C4, confirmed by both vendors). This section
-> previously credited tasks 2.1 and 2.2 with resolving both vendors' slugs. Task 2.2 verifies
-> grok's *stdin delivery*, not its model names — so grok's slugs had no empirical source at all
-> while tasks 3.5 and 3.8 depended on having them. Task 2.6 was added to close the gap.
+> Round 1 found this section crediting a stdin-delivery task with resolving model slugs; the
+> slug facts (E1, E5) now have their own tasks. In revision 2 each vendor has one empirical
+> task carrying all its facts (tasks 1.1–1.3), reviewed together at checkpoint 1.4.
 
 ## Runtime skill directories
 
@@ -51,22 +50,22 @@ No per-vendor runtime directory is committed. `install.sh` writes `.claude/skill
 
 Pointing `grok` at the project's `.agents/skills/` additionally requires `[skills] paths` in
 `~/.grok/config.toml`. That file is machine-local and outside the repository; it is documented
-as optional operator setup (task 9.3), never committed.
+as optional operator setup (task 5.6), never committed.
 
 ## Dispatch shape
 
 Every row below is a **hypothesis until its empirical task confirms it**. No package may encode
-these shapes before task 2.10 completes.
+these shapes before checkpoint 1.4 (human review) passes.
 
 | Vendor | Prompt delivery | Verified by | Structured output | Verified by |
 |---|---|---|---|---|
-| `antigravity` | `--print` + stdin (Claude-shaped) | task 2.8 (E7) | none declared | — |
-| `grok` | `--prompt-file /dev/stdin`, `prompt_via_stdin: true` | task 2.2 (E2) | `--output-format json`, `--json-schema` | task 2.7 (E6) |
-| `pi` | trailing positional, `--provider openrouter` | task 2.9 (E8) | none declared | — |
+| `antigravity` | `--print` + stdin (Claude-shaped) | task 1.1 (E7) | none declared | — |
+| `grok` | `--prompt-file /dev/stdin`, `prompt_via_stdin: true` | task 1.2 (E2) | `--output-format json`, `--json-schema` | task 1.2 (E6) |
+| `pi` | trailing positional, `--provider openrouter` | task 1.3 (E8) | none declared | — |
 
 `grok`'s `--json-schema` is pointed at `review-findings.schema.json` for review dispatch —
-**subject to task 2.7 confirming it emits a conforming envelope.** Task 5.2 builds grok's eval
-backend on that assumption; if 2.7 refutes it, 5.2 must be re-scoped to text parsing before it
+**subject to task 1.2 confirming it emits a conforming envelope (E6).** Task 2.6 builds grok's eval
+backend on that assumption; if E6 is refuted, 2.6 must be re-scoped to text parsing before it
 starts.
 
 > The "Verified by" columns were added in PLAN_REVIEW round 1 (finding C4/C10, confirmed by

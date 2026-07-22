@@ -130,7 +130,32 @@ Autopilot resumes from `loop-state.json`. After you decide, either:
 Roadmap `ri-01` remains `in_progress` at checkpoint phase `implementing`; the roadmap
 orchestrator is parked and will resume when this change completes.
 
-## 8. Honest assessment
+## 8. Resolution (2026-07-22, operator-delegated — decided and applied in plan revision 2)
+
+All four decisions were resolved in the direction of **less apparatus**; full rationale in
+`design.md` § D8.
+
+| Decision | Resolution |
+|---|---|
+| **D-A** | Collapse 9 packages → **5** (`wp-empirical`, `wp-coordinator`, `wp-skills`, `wp-frontend`, `wp-docs-finalize`) along venv/test-suite boundaries, coarse `write_allow` + explicit `deny`. Gates are existing suites + inline one-line `git grep` checks. |
+| **D-B** | **Both gate scripts and `in-scope.txt` deleted.** Mechanically checkable things are inline one-liners; "were the CLIs genuinely invoked" is a human checkpoint (`kind: manual`), because it is not mechanically verifiable — two scripted attempts proved that. |
+| **D-C** | **Spec delta stands; the 8 named lifecycle SKILL.md files come into scope** (task 5.5, mechanical prose swaps). Narrative SKILL.md files stay deferred. |
+| **D-D** | **No split.** One change; the 3 pre-existing test repairs are quarantined as labeled Phase 0 baseline repair. Splitting would double the plan apparatus — the thing failing review. |
+
+The 10 substantive findings in § 5 are all folded into revision 2's tasks: R2-18 → tasks
+2.9/3.11 (explicit dep removal + inline check), R2-3 → task 2.8 (`hooks-setup` included),
+R2-1 → task 3.6 (schema promoted to `openspec/schemas/`, ending the archived-dir class),
+R2-2/R2-4 → task 3.10 (explicit path), R2-9/R2-5 → task 0.1 (`skills/pyproject.toml`),
+R2-6/R2-2 → moot (fact-consumer wiring deleted with the fact gate; consumers listed
+informationally in design.md), R2-5/R2-3 → task 0.2 (`write_capable`), R2-13 → fixed in
+`contracts/roster.md` (`type: claude_code`), R1-C2 → task 2.8, R1-C1 → recorded in design.md
+§ Why the first inventory was wrong.
+
+`loop-state.json`: findings trend reset for the revised plan; phase remains ESCALATE with
+`previous_phase: PLAN_REVIEW`, so resuming `/autopilot add-agy-grok-pi-harnesses` re-enters
+PLAN_REVIEW for one fresh round against revision 2 before implementation.
+
+## 9. Honest assessment
 
 The multi-vendor review paid for itself twice over — it found a measurement error I could not
 have found myself, because my own tooling produced it. But my two attempts to fix the
