@@ -180,7 +180,9 @@ packages:
       agent-scenarios, skills-tree kanban fixtures, and google-generativeai
       removal from skills/pyproject.toml. Baseline repair for this tree is task 0.1
       (fastapi/httpx into skills/pyproject.toml) and MUST land before the gate.
-      Implements tasks 0.1, 3.1-3.12, 4.2.
+      Implements tasks 0.1 and 3.1-3.12. (Task 4.2 moved to wp-frontend: it
+      depends on 2.7, which wp-coordinator owns, and only wp-frontend declares
+      that dependency.)
     role: implementer
     priority: 2
     depends_on: [wp-empirical]
@@ -206,6 +208,7 @@ packages:
         - "openspec/schemas/provider-model-map.schema.json"
       deny:
         - "skills/*/SKILL.md"
+        - "skills/tests/agent-coordinator/**"
         - "skills/langfuse/references/**"
         - "skills/plan-feature/install_assets/**"
         - "skills/plan-roadmap/templates/**"
@@ -251,7 +254,9 @@ packages:
       design D5). The three review-provenance annotations are NOT modified
       (history, not roster data). Baseline repair for this tree is task 0.4
       (npm ci — a fresh worktree has no node_modules, so npm test exits 127).
-      Implements tasks 0.4, 4.1, 4.3.
+      Also owns task 4.2 (skills-tree kanban endpoint fixtures), moved here
+      because it depends on task 2.7 in wp-coordinator and only this package
+      declares that edge. Implements tasks 0.4, 4.1, 4.2, 4.3.
     role: implementer
     priority: 3
     depends_on: [wp-coordinator]
@@ -265,6 +270,7 @@ packages:
     scope:
       write_allow:
         - "apps/kanban-viz/**"
+        - "skills/tests/agent-coordinator/**"
       deny:
         - "apps/kanban-viz/src/components/VendorSwimlanes.tsx"
         - "apps/kanban-viz/src/hooks/useCoordinator.ts"
@@ -283,7 +289,7 @@ packages:
       steps:
         - name: "Frontend green; only 3 provenance files mention gemini; component untouched"
           kind: command
-          command: "(cd apps/kanban-viz && npm ci && npm test -- --run) && test \"$(git grep -lIi gemini -- apps/kanban-viz | wc -l | tr -d ' ')\" = \"3\" && git diff --quiet main... -- apps/kanban-viz/src/components/VendorSwimlanes.tsx"
+          command: "(cd apps/kanban-viz && npm ci && npm test -- --run) && diff <(git grep -lIi gemini -- apps/kanban-viz | sort) <(printf '%s\\n' apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx apps/kanban-viz/src/__tests__/useCoordinator.test.tsx apps/kanban-viz/src/hooks/useCoordinator.ts apps/kanban-viz/src/lib/coordinator-types.ts | sort) && git diff --quiet main... -- apps/kanban-viz/src/components/VendorSwimlanes.tsx"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -373,7 +379,7 @@ packages:
             result_keys: ["docs_updated"]
         - name: "Mirrors synced and clean; full suite green across the four trees"
           kind: command
-          command: "bash skills/install.sh --mode rsync --force --deps none --python-tools none && test -z \"$(git grep -lIi gemini -- .claude/skills .agents/skills ':!*SKILL.md' ':!*/references/*' ':!*/templates/*' ':!*/install_assets/*')\" && agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration' && skills/.venv/bin/python -m pytest skills/tests -q && uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q && (cd apps/kanban-viz && npm ci && npm test -- --run)"
+          command: "bash skills/install.sh --mode rsync --force --deps none --python-tools none && test -z \"$(grep -rIl -i gemini .claude/skills .agents/skills --exclude='*SKILL.md' --exclude-dir=references --exclude-dir=templates --exclude-dir=install_assets)\" && agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration' && skills/.venv/bin/python -m pytest skills/tests -q && uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q && (cd apps/kanban-viz && npm ci && npm test -- --run)"
           cwd: "."
           expect_exit_code: 0
           evidence:

@@ -2,10 +2,14 @@
   "schema_version": 4,
   "change_id": "add-agy-grok-pi-harnesses",
   "current_phase": "PLAN_REVIEW",
-  "iteration": 0,
+  "iteration": 1,
   "total_iterations": 0,
   "max_phase_iterations": 3,
-  "findings_trend": [],
+  "findings_trend": [
+    26,
+    29,
+    13
+  ],
   "blocking_findings": [],
   "vendor_availability": {
     "claude": true,

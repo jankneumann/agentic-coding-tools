@@ -25,12 +25,18 @@ them any time with the inventory command in `design.md` § Scope inventory.
 These failures exist on `main` today and would turn every downstream gate red regardless of
 roster work. They are labeled here — not laundered into roster tasks — per D8.4.
 
-- [ ] 0.1 Add `fastapi` and `httpx` to `skills/pyproject.toml` (test dependencies) and re-sync
-  `skills/.venv` via `uv sync`; confirm `skills/.venv/bin/python -m pytest skills/tests -q`
+- [ ] 0.1 Add `fastapi` and `httpx` to the **`test` extra** in `skills/pyproject.toml`
+  (`[project.optional-dependencies] test`, alongside `pytest`), then re-sync with
+  **`uv sync --all-extras`**; confirm `skills/.venv/bin/python -m pytest skills/tests -q`
   collects without `Interrupted` (S)
   **Why**: `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py:31` imports
   `fastapi.testclient`, absent from the venv. The dependency goes in `pyproject.toml`, never
   directly into the venv — `uv sync` regenerates the venv and would discard it.
+  **The extra and the `--all-extras` flag are both load-bearing** (PLAN_FIX round 3, claude
+  finding R3-C3, verified): `pytest>=9.0.3` lives in the `test` extra, not in
+  `[project] dependencies`, so a **bare `uv sync` removes pytest from `skills/.venv`** and
+  breaks every skills gate this task exists to repair. Putting the new deps in `dependencies`
+  instead would ship test-only packages to every skill consumer.
   **Dependencies**: None
 
 - [x] 0.2 Rebase this branch on `add-frontier-model-tier` (PR #262) and confirm
@@ -116,9 +122,17 @@ calls is on record in `design.md`.
   **Dependencies**: 1.4
 
 - [ ] 2.2 Add `antigravity-local`, `grok-local`, `pi-local` to `agents.yaml` with
-  `cli.dispatch_modes` for review/alternative/quick; remove `gemini-local` and `gemini-remote` (M)
-  **Spec scenarios**: skill-workflow.15, configuration.1
+  `cli.dispatch_modes` for review/alternative/quick **and a `profile:` + `trust_level:` on
+  each entry**; remove `gemini-local` and `gemini-remote` (M)
+  **Spec scenarios**: skill-workflow.15, configuration.1, **agent-identity.1** (profile
+  seeding: "WHEN `agents.yaml` defines `grok-local` with `profile: grok_local` and
+  `trust_level: 3`")
   **Dependencies**: 2.1
+  **Note**: the `profile:`/`trust_level:` requirement was added in PLAN_FIX round 3 (claude
+  finding R3-C8). The `agent-identity` spec delta was the only one of the 8 capabilities no
+  task referenced — its seeding scenarios name `grok-local`'s `profile`/`trust_level` fields,
+  which nothing in the plan created. Seeding is additive by contract, so retiring gemini does
+  NOT delete its seeded rows and no migration is needed (design § Carve-outs).
 
 - [ ] 2.3 Update `DEFAULT_PROVIDER_MODEL_MAP` (`src/agents_config.py`) and `model_aliases`
   (`archetypes.yaml`): add antigravity/grok/pi base tiers first, then remove gemini (M)
@@ -269,6 +283,12 @@ calls is on record in `design.md`.
 
 - [ ] 4.2 Update the skills-tree kanban endpoint fixtures in
   `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` (S)
+  **Owner**: `wp-frontend` (moved from `wp-skills` in PLAN_FIX round 3, claude finding
+  R3-C7). This task depends on 2.7, which `wp-coordinator` owns; `wp-skills` declares
+  `depends_on: [wp-empirical]` only, so the DAG did not express the edge and a scheduler
+  could have run 4.2 before its prerequisite. `wp-frontend` already depends on
+  `wp-coordinator`, so moving the task makes the declared dependency real. The path is added
+  to `wp-frontend`'s `write_allow` and removed from `wp-skills`'.
   **Dependencies**: 2.7, 0.1
 
 - [ ] 4.3 Checkpoint: `npm test -- --run` in `apps/kanban-viz` green (deps installed
@@ -289,10 +309,15 @@ calls is on record in `design.md`.
   **Dependencies**: 2.8
 
 - [ ] 5.3 Update `docs/skills-workflow.md`, `docs/autopilot-provider-smoke.md`,
-  `docs/agent-coordinator.md`; replace `GEMINI_API_KEY` with `OPENROUTER_API_KEY` in
-  `docs/openbao-secret-management.md` (M)
+  `docs/agent-coordinator.md`, **`docs/cross-repo-setup.md`**; replace `GEMINI_API_KEY` with
+  `OPENROUTER_API_KEY` in `docs/openbao-secret-management.md` (M)
   **Spec scenarios**: skill-workflow.23, .24, agent-coordinator.1, configuration.2
-  **Dependencies**: 2.8
+  **Dependencies**: 2.8, 3.9
+  **Note**: `docs/cross-repo-setup.md` added in PLAN_FIX round 3 (claude finding R3-C9). It
+  documents `install-mcp.sh`'s `--no-gemini` skip flag and a `~/.gemini/settings.json` target
+  (lines 348, 366, 384, 386) — it instructs a human to invoke gemini tooling, which is D6's
+  own inclusion criterion, and task 3.9 edits the very script it documents. Hence the added
+  dependency on 3.9: the doc must follow the script, not lead it.
 
 - [ ] 5.4 Update templates: `agent-coordinator/.secrets.yaml.example` (add
   `OPENROUTER_API_KEY`, remove `GEMINI_API_KEY`), `agent-coordinator/config.yaml.example`
