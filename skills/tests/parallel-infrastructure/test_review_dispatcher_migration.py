@@ -35,10 +35,12 @@ from checkpoint_findings import read_manifest, read_vendor_findings  # type: ign
 def _vendor_finding(idx: int) -> dict[str, Any]:
     return {
         "id": idx,
-        "type": "logic-error",
+        "type": "correctness",
         "criticality": "medium",
         "description": f"Finding {idx}",
         "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
     }
 
 
@@ -277,6 +279,60 @@ def test_cli_round_trip_via_helper(
     assert set(loaded) == {"claude_code", "codex"}
     assert len(loaded["claude_code"]) == 2
     assert loaded["codex"][0]["id"] == 10
+
+
+def test_cli_persists_raw_and_parsed_output_before_schema_failure(
+    tmp_path: Path,
+) -> None:
+    """An invalid vendor review remains recoverable and is marked failed."""
+    from review_dispatcher import main as cli_main
+
+    invalid = ReviewResult(
+        vendor="claude_code",
+        success=True,
+        findings={
+            "review_type": "plan",
+            "target": "change-123",
+            "findings": [{
+                "id": 1,
+                "type": "correctness",
+                "criticality": "high",
+                "description": "Missing required classifications",
+                "disposition": "fix",
+            }],
+        },
+        raw_output='{"findings":[{"id":1}]}',
+    )
+    output_dir = tmp_path / "reviews"
+    with (
+        patch.object(ReviewOrchestrator, "from_coordinator", return_value=ReviewOrchestrator({})),
+        patch.object(ReviewOrchestrator, "from_agents_yaml", return_value=ReviewOrchestrator({})),
+        patch.object(ReviewOrchestrator, "discover_reviewers") as mock_discover,
+        patch.object(ReviewOrchestrator, "dispatch_and_wait", return_value=[invalid]),
+        patch("sys.argv", [
+            "review_dispatcher.py",
+            "--review-type", "plan",
+            "--target", "change-123",
+            "--prompt", "review context",
+            "--cwd", str(tmp_path),
+            "--output-dir", str(output_dir),
+        ]),
+    ):
+        from unittest.mock import MagicMock
+
+        mock_discover.return_value = [
+            MagicMock(agent_id="claude", dispatch_tier="cli", available=True, vendor="claude_code")
+        ]
+        exit_code = cli_main()
+
+    assert exit_code == 1
+    assert (output_dir / "raw-claude_code-plan.txt").read_text() == invalid.raw_output
+    persisted = json.loads((output_dir / "findings-claude_code-plan.json").read_text())
+    assert persisted["findings"] == invalid.findings["findings"]
+    manifest = read_manifest(output_dir)
+    assert manifest["vendors"] == []
+    assert manifest["dispatches"][0]["success"] is False
+    assert "Persisted invalid review findings" in manifest["dispatches"][0]["error"]
 
 
 # ---------------------------------------------------------------------------

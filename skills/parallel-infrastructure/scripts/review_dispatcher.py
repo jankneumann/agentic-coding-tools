@@ -153,6 +153,8 @@ class ReviewResult:
     error_class: ErrorClass | None = None
     async_dispatch: bool = False
     task_id: str | None = None
+    # Exact vendor response, retained so parse/schema failures are recoverable.
+    raw_output: str | None = None
     # OpenRouter/OpenAI-compatible generation id for spend reconciliation
     # (OpenSpec add-adaptive-model-router, D7/D10). None for CLI/SDK adapters.
     generation_id: str | None = None
@@ -260,6 +262,7 @@ class CliVendorAdapter:
                         models_attempted=models_attempted,
                         elapsed_seconds=elapsed,
                         error=None if findings else "Invalid JSON output",
+                        raw_output=result.stdout,
                     )
 
                 # Non-zero exit — classify error
@@ -281,6 +284,7 @@ class CliVendorAdapter:
                         elapsed_seconds=time.monotonic() - start,
                         error=f"Auth expired. Run: {relogin}",
                         error_class=ErrorClass.AUTH,
+                        raw_output=result.stdout,
                     )
 
                 if last_error_class == ErrorClass.CAPACITY:
@@ -567,6 +571,7 @@ class CliVendorAdapter:
                     elapsed_seconds=time.monotonic() - start,
                     error=None if findings else "Task completed but no findings JSON in output",
                     task_id=task_id,
+                    raw_output=result.stdout,
                 )
 
             # Still running — wait and retry
@@ -605,6 +610,7 @@ class SdkVendorAdapter:
         self.vendor = vendor
         self.sdk_config = sdk_config
         self.openbao_role_id = openbao_role_id
+        self._last_raw_output: str | None = None
 
     def can_dispatch(self, mode: str) -> bool:
         """Check if SDK dispatch is available for the given mode.
@@ -652,6 +658,7 @@ class SdkVendorAdapter:
         for model in models_to_try:
             models_attempted.append(model)
             try:
+                self._last_raw_output = None
                 findings = self._call_sdk(
                     prompt=prompt,
                     model=model,
@@ -666,6 +673,7 @@ class SdkVendorAdapter:
                     models_attempted=models_attempted,
                     elapsed_seconds=time.monotonic() - dispatch_start,
                     error=None if findings else "Invalid JSON in SDK response",
+                    raw_output=self._last_raw_output,
                 )
             except _SdkCapacityError:
                 logger.info(
@@ -731,6 +739,7 @@ class SdkVendorAdapter:
                 messages=[{"role": "user", "content": prompt}],
             )
             text = response.content[0].text if response.content else ""
+            self._last_raw_output = text
             return CliVendorAdapter._parse_findings(text)
         except anthropic.RateLimitError:
             raise _SdkCapacityError()
@@ -757,6 +766,7 @@ class SdkVendorAdapter:
                 ],
             )
             text = response.choices[0].message.content or ""
+            self._last_raw_output = text
             return CliVendorAdapter._parse_findings(text)
         except openai.RateLimitError:
             raise _SdkCapacityError()
@@ -782,6 +792,7 @@ class SdkVendorAdapter:
                 ),
             )
             text = response.text if response.text else ""
+            self._last_raw_output = text
             return CliVendorAdapter._parse_findings(text)
         except Exception as exc:  # noqa: BLE001
             err_lower = str(exc).lower()
@@ -1357,6 +1368,7 @@ class ReviewOrchestrator:
         cwd: Path,
         timeout_seconds: int = 300,
         exclude_vendor: str | None = None,
+        target: str | None = None,
     ) -> list[ReviewResult]:
         """Dispatch reviews to available vendors and collect results.
 
@@ -1378,6 +1390,17 @@ class ReviewOrchestrator:
                 ApiKeyResolver = mod.ApiKeyResolver  # type: ignore[no-redef] # noqa: N806
             else:
                 raise
+
+        effective_prompt = prompt
+        if dispatch_mode == "review":
+            from review_prompt import build_review_prompt, is_schema_derived_prompt
+
+            if not is_schema_derived_prompt(prompt):
+                effective_prompt = build_review_prompt(
+                    review_type=review_type,
+                    target=target or f"{review_type}-review",
+                    context=prompt,
+                )
 
         reviewers = self.discover_reviewers(
             exclude_vendor=exclude_vendor,
@@ -1411,7 +1434,7 @@ class ReviewOrchestrator:
                         review_type, reviewer.agent_id,
                     )
                     submit_result = adapter.dispatch_async(
-                        mode=dispatch_mode, prompt=prompt, cwd=cwd,
+                        mode=dispatch_mode, prompt=effective_prompt, cwd=cwd,
                     )
                     if submit_result.success and submit_result.task_id and mode_config.poll:
                         poll_result = adapter.poll_for_result(
@@ -1427,7 +1450,7 @@ class ReviewOrchestrator:
                     )
                     result = adapter.dispatch(
                         mode=dispatch_mode,
-                        prompt=prompt,
+                        prompt=effective_prompt,
                         cwd=cwd,
                         timeout_seconds=timeout_seconds,
                     )
@@ -1455,7 +1478,7 @@ class ReviewOrchestrator:
 
                 result = sdk_adapter.dispatch(
                     mode=dispatch_mode,
-                    prompt=prompt,
+                    prompt=effective_prompt,
                     cwd=cwd,
                     timeout_seconds=timeout_seconds,
                     api_key=api_key,
@@ -1568,6 +1591,10 @@ def main() -> int:
         help="Directory for per-vendor findings and manifest",
     )
     parser.add_argument(
+        "--target", default="cli-dispatch",
+        help="Review target embedded in the schema-derived prompt and artifacts",
+    )
+    parser.add_argument(
         "--exclude-vendor", help="Exclude this vendor type from dispatch",
     )
     parser.add_argument(
@@ -1663,28 +1690,46 @@ def main() -> int:
         cwd=cwd,
         timeout_seconds=args.timeout,
         exclude_vendor=args.exclude_vendor,
+        target=args.target,
     )
 
     # Write results via the shared checkpoint_findings helper. Per-vendor
     # files preserve the existing wrapper-object shape and path layout; the
     # manifest gains the superset fields needed by the in-process converge()
     # caller while preserving everything legacy callers parse.
-    from checkpoint_findings import write_vendor_findings as _cf_write_vendor_findings
+    from checkpoint_findings import (
+        FindingsValidationError as _FindingsValidationError,
+        write_vendor_findings as _cf_write_vendor_findings,
+        write_vendor_raw_output as _cf_write_vendor_raw_output,
+    )
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     vendors_index: list[dict[str, Any]] = []
     for result in results:
-        if result.success and result.findings:
-            findings_array = result.findings.get("findings", [])
-            _cf_write_vendor_findings(
+        if result.raw_output is not None:
+            _cf_write_vendor_raw_output(
                 output_dir,
                 vendor=result.vendor,
                 review_type=args.review_type,
-                target="cli-dispatch",
-                findings=findings_array,
+                raw_output=result.raw_output,
             )
+        if result.success and result.findings:
+            findings_array = result.findings.get("findings", [])
+            try:
+                _cf_write_vendor_findings(
+                    output_dir,
+                    vendor=result.vendor,
+                    review_type=args.review_type,
+                    target=args.target,
+                    findings=findings_array,
+                )
+            except _FindingsValidationError as exc:
+                result.success = False
+                result.error = str(exc)
+                print(f"[INVALID] {result.vendor}: {exc}")
+                continue
             vendors_index.append({
                 "name": result.vendor,
                 "findings_path": f"findings-{result.vendor}-{args.review_type}.json",
@@ -1699,7 +1744,7 @@ def main() -> int:
     # Write manifest with the vendor index pointing at per-vendor files
     manifest_path = output_dir / "review-manifest.json"
     orch.write_manifest(
-        results, manifest_path, args.review_type, "cli-dispatch",
+        results, manifest_path, args.review_type, args.target,
         vendors=vendors_index,
     )
     print(f"\nManifest: {manifest_path}")

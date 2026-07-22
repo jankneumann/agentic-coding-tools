@@ -40,7 +40,15 @@ def _make_review_result(
     """Create a ReviewResult with optional findings."""
     findings_dict = None
     if findings is not None:
-        findings_dict = {"findings": findings}
+        normalized = []
+        for finding in findings:
+            item = dict(finding)
+            if item.get("type") == "bug":
+                item["type"] = "correctness"
+            item.setdefault("axis", "correctness")
+            item.setdefault("severity", "critical")
+            normalized.append(item)
+        findings_dict = {"findings": normalized}
     return ReviewResult(
         vendor=vendor,
         success=success,
@@ -618,7 +626,7 @@ class TestBuildReviewPrompt:
     def test_basic_prompt(self, tmp_path: Path) -> None:
         prompt = build_review_prompt(tmp_path, 2)
         assert "Round 2" in prompt
-        assert "findings" in prompt.lower()
+        assert "schema-derived JSON output contract" in prompt
 
     def test_with_proposal(self, tmp_path: Path) -> None:
         (tmp_path / "proposal.md").write_text("# My Proposal\nDetails here.")

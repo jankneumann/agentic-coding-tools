@@ -179,7 +179,9 @@ Generate findings as a JSON array conforming to `review-findings.schema.json`:
       "criticality": "high",
       "description": "Requirement R3 lacks error handling specification for 429 rate limit responses",
       "resolution": "Add a requirement specifying retry-after header handling",
-      "disposition": "fix"
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
     }
   ]
 }
@@ -230,7 +232,16 @@ If `CAN_HANDOFF=true`, write a review handoff with:
 
 After writing your own findings, dispatch reviews to other vendor CLIs and synthesize consensus.
 
-**Write the review prompt** to `openspec/changes/<change-id>/reviews/review-prompt.md` — include instructions to read the plan artifacts and output only valid JSON conforming to `review-findings.schema.json`.
+**Generate the review prompt** from the canonical schema. Supply only review-specific context and focus:
+
+```bash
+python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_prompt.py" \
+  --review-type plan \
+  --target "<change-id>" \
+  --context "Review the OpenSpec plan artifacts in openspec/changes/<change-id>/. Read proposal.md, tasks.md, design.md when present, and all spec deltas." \
+  --focus "Specification completeness, contract consistency, architecture alignment, security, and work package validity." \
+  --output "openspec/changes/<change-id>/reviews/review-prompt.md"
+```
 
 **Adversarial mode**: If `--adversarial` flag was passed, wrap the review prompt with adversarial framing before dispatch:
 
@@ -246,6 +257,7 @@ The dispatch still uses `--mode review` (unchanged) — only the prompt content 
 ```bash
 python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py" \
   --review-type plan \
+  --target "<change-id>" \
   --mode review \
   --prompt-file "openspec/changes/<change-id>/reviews/review-prompt.md" \
   --cwd "$(pwd)" \
@@ -258,7 +270,7 @@ This dispatches to all available vendors configured in `agents.yaml` with `cli` 
 
 **Agent discovery resolution chain**: The dispatcher resolves agents via the coordination MCP server configured in `~/.claude.json` → `mcpServers.coordination`. It extracts the `agent-coordinator/` directory from the MCP server args and runs `get_dispatch_configs.py` to load `agents.yaml`. If the coordinator is not configured, pass `--agents-yaml <path>` explicitly as fallback. Use `--list-agents` to verify available agents.
 
-**Troubleshooting dispatch failures**: Run `python3 <script> --list-agents` to verify agent discovery. Common issues: (1) `~/.claude.json` has no `mcpServers.coordination` entry — run `/setup-coordinator`, (2) async/remote agents may time out — local agents are more reliable, (3) some vendors may return non-JSON output — check `review-manifest.json` for error details.
+**Troubleshooting dispatch failures**: Run `python3 <script> --list-agents` to verify agent discovery. Common issues: (1) `~/.claude.json` has no `mcpServers.coordination` entry — run `/setup-coordinator`, (2) async/remote agents may time out — local agents are more reliable, (3) some vendors may return non-JSON or schema-invalid output — check `review-manifest.json`, `raw-<vendor>-<review-type>.txt`, and the persisted `findings-<vendor>-<review-type>.json` for recovery details.
 
 **Synthesize consensus** from all findings (yours + vendor results):
 
@@ -299,7 +311,7 @@ When this skill is dispatched *to* another vendor by the orchestrator, only Step
 
 | Rationalization | Why it's wrong |
 |---|---|
-| "I only found one issue, so I'll skip the axis/severity classification — the description is enough" | The schema rejects findings without `axis` and `severity`; cross-vendor consensus relies on these fields to match equivalent findings. Skipping = the dispatcher discards your review. |
+| "I only found one issue, so I'll skip the axis/severity classification — the description is enough" | The schema rejects findings without `axis` and `severity`; cross-vendor consensus relies on these fields to match equivalent findings. The dispatcher preserves the invalid output for recovery but excludes it from quorum. |
 | "This finding spans two axes — I'll just pick one" | Pick the dominant axis and split the rest into separate findings. Mashing two axes into one description means consensus matching cannot deduplicate against another vendor who split them. |
 | "The plan looks fine — I'll just emit zero findings" | A review with zero findings is suspicious. At minimum, emit `severity: none` positive observations naming what the plan got right; this signals the review actually happened rather than timed out. |
 | "The orchestrator will catch contradictions between `severity` and `disposition`" | It won't — the orchestrator routes by `disposition`. Inconsistent severity/disposition pairs survive into the consensus and confuse downstream automation. Make them coherent at write time. |

@@ -59,6 +59,8 @@ def _scrutiny_finding(
         "criticality": criticality,
         "description": f"{vendor} finding {fid} in {file_path}",
         "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
         "file_path": file_path,
     }
 
@@ -73,6 +75,8 @@ def _behavioral_finding(
         "criticality": criticality,
         "description": f"behavioral failure {fid}",
         "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
         "file_path": file_path,
         "line_range": {"start": line_start, "end": line_start + 5},
     }

@@ -7,8 +7,9 @@ format is identical regardless of caller. After dispatch returns, every
 vendor's findings are durably persisted; a synthesis crash leaves the data
 intact for manual or postmortem analysis.
 
-Schema reference (in this proposal's contracts/ dir):
-- ``finding.schema.json`` — per-vendor file shape (wrapper object + findings[])
+Schema reference:
+- skill-owned ``install_assets/openspec/schemas/review-findings.schema.json``
+  — canonical per-vendor wrapper and finding shape
 - ``review-cache-layout.schema.json`` — manifest superset shape
 
 Caller contract:
@@ -28,8 +29,11 @@ import logging
 import os
 import re
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +49,24 @@ _FINDINGS_PATH_RE = re.compile(
     r"^findings-[A-Za-z0-9_-]+-(plan|implementation)\.json$"
 )
 
-# Per-finding required fields and enum values. The full JSON Schema lives in
-# contracts/finding.schema.json (documentation); this module enforces the
-# load-bearing subset at write time without pulling jsonschema at runtime.
-_FINDING_REQUIRED_FIELDS = ("id", "type", "criticality", "description", "disposition")
-_CRITICALITY_VALUES = frozenset({"low", "medium", "high", "critical"})
-_DISPOSITION_VALUES = frozenset({"fix", "regenerate", "accept", "escalate"})
+_REVIEW_FINDINGS_SCHEMA_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "install_assets"
+    / "openspec"
+    / "schemas"
+    / "review-findings.schema.json"
+)
+
+
+class FindingsValidationError(ValueError):
+    """A persisted vendor checkpoint does not satisfy the canonical schema."""
+
+    def __init__(self, path: Path, errors: list[str]) -> None:
+        self.path = path
+        self.errors = errors
+        super().__init__(
+            f"Persisted invalid review findings at {path}: " + "; ".join(errors)
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +145,34 @@ def _atomic_write_json(path: Path, payload: Any) -> None:
         os.close(fd)
 
 
+def _atomic_write_text(path: Path, payload: str) -> None:
+    """Atomically and durably write raw vendor output without parsing it."""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
+    try:
+        fd = os.open(path.parent, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        try:
+            os.fsync(fd)
+        except OSError:
+            pass
+    finally:
+        os.close(fd)
+
+
 # ---------------------------------------------------------------------------
 # Path safety
 # ---------------------------------------------------------------------------
@@ -156,26 +200,46 @@ def _validate_path_safety(
     return Path(artifacts_dir).resolve(strict=False)
 
 
-def _validate_finding(finding: dict[str, Any]) -> None:
-    """Validate one finding has the required fields and enum values.
+@lru_cache(maxsize=1)
+def _review_findings_schema() -> dict[str, Any]:
+    """Load the skill-owned canonical schema used by installed runtimes."""
+    with open(_REVIEW_FINDINGS_SCHEMA_PATH, encoding="utf-8") as schema_file:
+        schema = cast(dict[str, Any], json.load(schema_file))
+    Draft202012Validator.check_schema(schema)
+    return schema
 
-    Lightweight runtime guard — full JSON Schema is in
-    ``contracts/finding.schema.json``.
-    """
-    missing = [k for k in _FINDING_REQUIRED_FIELDS if k not in finding]
-    if missing:
+
+def _format_validation_error(error: Any) -> str:
+    path = ".".join(str(part) for part in error.absolute_path)
+    return f"{path}: {error.message}" if path else error.message
+
+
+def _validation_errors(payload: dict[str, Any]) -> list[str]:
+    validator = Draft202012Validator(_review_findings_schema())
+    errors = sorted(
+        validator.iter_errors(payload),
+        key=lambda error: (
+            tuple(str(part) for part in error.absolute_path),
+            error.message,
+        ),
+    )
+    return [_format_validation_error(error) for error in errors]
+
+
+def _validate_finding(finding: dict[str, Any]) -> None:
+    """Validate one finding against the canonical schema's item contract."""
+    schema = _review_findings_schema()
+    item_schema = schema["properties"]["findings"]["items"]
+    errors = sorted(
+        Draft202012Validator(item_schema).iter_errors(finding),
+        key=lambda error: (
+            tuple(str(part) for part in error.absolute_path),
+            error.message,
+        ),
+    )
+    if errors:
         raise ValueError(
-            f"Finding missing required fields: {missing}"
-        )
-    if finding["criticality"] not in _CRITICALITY_VALUES:
-        raise ValueError(
-            f"Finding criticality {finding['criticality']!r} not in "
-            f"{sorted(_CRITICALITY_VALUES)}"
-        )
-    if finding["disposition"] not in _DISPOSITION_VALUES:
-        raise ValueError(
-            f"Finding disposition {finding['disposition']!r} not in "
-            f"{sorted(_DISPOSITION_VALUES)}"
+            "; ".join(_format_validation_error(error) for error in errors)
         )
 
 
@@ -198,13 +262,12 @@ def write_vendor_findings(
     Wrapper shape: ``{review_type, target, reviewer_vendor, findings: [...]}``.
     Path: ``out_dir / "findings-{vendor}-{review_type}.json"``.
 
-    Keyword-only after ``out_dir`` to prevent positional confusion. Validates
-    vendor name, review_type, and each finding BEFORE any disk operation —
-    a malformed input never produces a partial file.
+    Keyword-only after ``out_dir`` to prevent positional confusion. Path inputs
+    are validated before I/O. The vendor payload is then durably persisted
+    before full canonical-schema validation, so malformed reviews remain
+    recoverable for diagnosis or repair.
     """
     safe_dir = _validate_path_safety(out_dir, vendor, review_type)
-    for finding in findings:
-        _validate_finding(finding)
     safe_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         "review_type": review_type,
@@ -214,7 +277,25 @@ def write_vendor_findings(
     }
     fpath = safe_dir / f"findings-{vendor}-{review_type}.json"
     _atomic_write_json(fpath, payload)
+    errors = _validation_errors(payload)
+    if errors:
+        raise FindingsValidationError(fpath, errors)
     return fpath
+
+
+def write_vendor_raw_output(
+    out_dir: Path,
+    *,
+    vendor: str,
+    review_type: str,
+    raw_output: str,
+) -> Path:
+    """Durably persist unparsed vendor output for recovery and postmortems."""
+    safe_dir = _validate_path_safety(out_dir, vendor, review_type)
+    safe_dir.mkdir(parents=True, exist_ok=True)
+    path = safe_dir / f"raw-{vendor}-{review_type}.txt"
+    _atomic_write_text(path, raw_output)
+    return path
 
 
 def read_vendor_findings(out_dir: Path) -> dict[str, list[dict[str, Any]]]:

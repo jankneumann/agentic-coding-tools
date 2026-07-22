@@ -232,7 +232,9 @@ Generate findings as JSON conforming to `review-findings.schema.json`:
       "description": "POST /v1/users returns 200 but OpenAPI spec declares 201",
       "resolution": "Change response status code to 201 Created",
       "disposition": "fix",
-      "package_id": "wp-backend"
+      "package_id": "wp-backend",
+      "axis": "correctness",
+      "severity": "critical"
     }
   ]
 }

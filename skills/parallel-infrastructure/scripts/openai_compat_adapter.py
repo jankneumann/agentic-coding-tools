@@ -152,6 +152,7 @@ class OpenAICompatAdapter:
                     model_used=model, models_attempted=models_attempted,
                     elapsed_seconds=time.monotonic() - start,
                     generation_id=resp.get("id"),
+                    raw_output=content,
                 )
             # Parse the model output into the dispatcher's review-findings shape
             # ({"findings": [...]}) using the same extractor the CLI/SDK adapters use.
@@ -166,6 +167,7 @@ class OpenAICompatAdapter:
                     model_used=model, models_attempted=models_attempted,
                     elapsed_seconds=time.monotonic() - start,
                     generation_id=resp.get("id"),
+                    raw_output=content,
                 )
             return ReviewResult(
                 vendor=self.vendor,
@@ -176,6 +178,7 @@ class OpenAICompatAdapter:
                 elapsed_seconds=time.monotonic() - start,
                 error=None,
                 generation_id=resp.get("id"),
+                raw_output=content,
             )
 
         return ReviewResult(

@@ -28,6 +28,23 @@ Work package execution protocol for coordinated-tier worker agents.
 
 Multi-vendor review dispatch — sends review prompts to configured vendor CLIs and collects findings.
 
+Every `review`-mode dispatch wraps caller-supplied review context with a strict output contract generated from the skill-owned `review-findings.schema.json`. Callers provide only the target-specific context and focus; they do not hand-author JSON examples or required-field lists.
+
+Vendor stdout is saved as `raw-<vendor>-<review-type>.txt`. Parsed findings are atomically persisted before canonical-schema validation. Invalid files remain on disk for recovery, while the dispatch is marked failed and excluded from quorum.
+
+### `<skill-base-dir>/scripts/review_prompt.py`
+
+Standalone schema-derived prompt generator. Use this instead of hand-writing a review output contract:
+
+```bash
+python3 "<skill-base-dir>/scripts/review_prompt.py" \
+  --review-type plan \
+  --target "$CHANGE_ID" \
+  --context "Review the OpenSpec plan artifacts under openspec/changes/$CHANGE_ID/." \
+  --focus "Specification completeness, contract consistency, architecture, and security." \
+  --output "openspec/changes/$CHANGE_ID/reviews/review-prompt.md"
+```
+
 ### `<skill-base-dir>/scripts/consensus_synthesizer.py`
 
 Synthesizes review findings from multiple vendors into a consensus report with confirmed/unconfirmed/disagreement classifications.

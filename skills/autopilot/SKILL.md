@@ -358,7 +358,7 @@ PLAN_REVIEW — convergence_loop never overwrites the field.
 
 #### Convergence Durability Contract
 
-`converge()` writes per-vendor findings AND a manifest to `<artifacts_dir>/.review-cache/round-N/` BEFORE invoking the consensus synthesizer. If synthesis raises, the original exception propagates to the caller and the persisted findings remain on disk for postmortem analysis. **This is durability, not automatic recovery** — the proposal does not introduce subprocess fallback. The synthesizer now accepts both dict and string `line_range` shapes for replaying checkpointed vendor findings.
+`converge()` writes raw vendor output and parsed per-vendor findings to `<artifacts_dir>/.review-cache/round-N/` before canonical-schema validation and consensus synthesis. Schema-invalid files remain on disk for postmortem analysis but are marked failed and excluded from quorum. If synthesis raises, the original exception propagates and all valid checkpoints remain recoverable. **This is durability, not automatic recovery** — malformed fields such as a string-valued `line_range` are preserved but not accepted as valid findings.
 
 `ConvergenceResult.checkpoint_dir: Path | None` points at the most-recent round's checkpoint directory. Recovery-aware callers read this field to locate persisted findings; existing callers ignore it (defaults to `None` for backward compatibility).
 
@@ -366,6 +366,7 @@ PLAN_REVIEW — convergence_loop never overwrites the field.
 
 - `convergence.synthesis_failed_with_checkpoint` — synthesis (or upstream `Finding.from_dict()`) raised. Payload includes `checkpoint_dir` for manual recovery.
 - `convergence.checkpoint_write_failed` — OSError/PermissionError during checkpoint write. Original exception still propagates.
+- `convergence.vendor_findings_invalid` — parsed vendor output was persisted but failed canonical-schema validation. Payload includes `findings_path` and `validation_errors`.
 
 Synthesis failures will continue to surface to the autopilot caller. The value
 of this contract is durability for postmortem and manual recovery, not

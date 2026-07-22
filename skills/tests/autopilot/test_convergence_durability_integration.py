@@ -1,11 +1,9 @@
-"""Integration test: durable checkpoint supports string line_range replay.
+"""Integration test: invalid vendor output remains durably recoverable.
 
 Reproduces the original failure mode that motivated the parser fix: vendor
-findings with ``line_range: "10-20"`` used to crash
-``Finding.from_dict()`` because the synthesizer assumed every non-empty
-``line_range`` was a dict. The parser now accepts that string shape, so the
-in-process convergence path and manual checkpoint replay both succeed while
-preserving the original vendor payload on disk.
+Findings with ``line_range: "10-20"`` violate the canonical schema. The
+checkpoint writer must persist them before validation, exclude them from
+quorum, and retain the exact payload for diagnosis or repair.
 
 Spec scenarios: skill-workflow.R2.S2, skill-workflow.R4.S1.
 """
@@ -14,8 +12,6 @@ from __future__ import annotations
 
 import json
 import logging
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -23,14 +19,7 @@ import pytest
 
 from convergence_loop import converge  # type: ignore[import-untyped]
 from review_dispatcher import ReviewResult  # type: ignore[import-untyped]
-from checkpoint_findings import read_manifest, read_vendor_findings  # type: ignore[import-untyped]
-
-
-# Path to the parallel-infrastructure scripts dir, used for subprocess invocation.
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_SYNTHESIZER_PATH = (
-    _REPO_ROOT / "skills" / "parallel-infrastructure" / "scripts" / "consensus_synthesizer.py"
-)
+from checkpoint_findings import read_manifest  # type: ignore[import-untyped]
 
 
 class _StringLineRangeVendorOrchestrator:
@@ -52,10 +41,12 @@ class _StringLineRangeVendorOrchestrator:
                     "target": "test-feature",
                     "findings": [{
                         "id": 1,
-                        "type": "logic-error",
+                        "type": "correctness",
                         "criticality": "high",
                         "description": "Off-by-one in pagination",
                         "disposition": "fix",
+                        "axis": "correctness",
+                        "severity": "critical",
                         "file_path": "src/paginate.py",
                         # NOTE: the malformed string shape — this is the bug.
                         "line_range": "10-20",
@@ -73,10 +64,12 @@ class _StringLineRangeVendorOrchestrator:
                     "target": "test-feature",
                     "findings": [{
                         "id": 100,
-                        "type": "logic-error",
+                        "type": "correctness",
                         "criticality": "high",
                         "description": "Off-by-one in pagination",
                         "disposition": "fix",
+                        "axis": "correctness",
+                        "severity": "critical",
                         "file_path": "src/paginate.py",
                         "line_range": "10-20",  # Same malformed shape.
                     }],
@@ -85,10 +78,10 @@ class _StringLineRangeVendorOrchestrator:
         ]
 
 
-def test_string_line_range_replays_from_durable_checkpoint(
+def test_invalid_string_line_range_is_persisted_then_rejected(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """String line ranges no longer crash synthesis or checkpoint replay."""
+    """Schema-invalid findings survive on disk but do not count for quorum."""
 
     orch = _StringLineRangeVendorOrchestrator()
 
@@ -104,9 +97,8 @@ def test_string_line_range_replays_from_durable_checkpoint(
         )
 
     assert result.converged is False
-    assert result.reason == "max_rounds"
-    assert result.consensus is not None
-    assert result.consensus["summary"]["confirmed_count"] == 1
+    assert result.reason == "quorum_lost"
+    assert result.consensus is None
 
     checkpoint_dir = tmp_path / ".review-cache" / "round-1"
     assert checkpoint_dir.exists()
@@ -115,48 +107,26 @@ def test_string_line_range_replays_from_durable_checkpoint(
     assert manifest["change_id"] == "test-feature"
     assert manifest["review_type"] == "plan"
     assert manifest["schema_version"] == 1
-    assert {v["name"] for v in manifest["vendors"]} == {"claude_code", "codex"}
+    assert manifest["vendors"] == []
+    assert manifest["quorum_received"] == 0
 
-    loaded = read_vendor_findings(checkpoint_dir)
-    assert set(loaded) == {"claude_code", "codex"}
-    # Findings array preserved verbatim, including the malformed line_range.
-    assert loaded["claude_code"][0]["line_range"] == "10-20"
-    assert loaded["codex"][0]["line_range"] == "10-20"
+    for vendor in ("claude_code", "codex"):
+        data = json.loads(
+            (checkpoint_dir / f"findings-{vendor}-plan.json").read_text()
+        )
+        assert data["findings"][0]["line_range"] == "10-20"
 
-    findings_files = sorted(str(p) for p in checkpoint_dir.glob("findings-*-plan.json"))
-    assert len(findings_files) == 2
-    output_path = tmp_path / "consensus-replay.json"
-    proc = subprocess.run(
-        [
-            sys.executable,
-            str(_SYNTHESIZER_PATH),
-            "--review-type", "plan",
-            "--target", "test-feature",
-            "--findings", *findings_files,
-            "--output", str(output_path),
-            "--quorum", "2",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert proc.returncode == 0, proc.stderr
-    replayed = json.loads(output_path.read_text())
-    assert replayed["summary"]["confirmed_count"] == 1
-
-    assert not [
+    invalid_events = [
         r for r in caplog.records
-        if getattr(r, "event", None) == "convergence.synthesis_failed_with_checkpoint"
+        if getattr(r, "event", None) == "convergence.vendor_findings_invalid"
     ]
+    assert len(invalid_events) == 2
 
 
-def test_checkpoint_findings_round_trip_against_real_synthesizer_input_format(
+def test_invalid_checkpoint_keeps_wrapper_shape_for_manual_recovery(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """The on-disk format the helper writes is exactly what
-    consensus_synthesizer.py's CLI consumes — no shape adaptation needed
-    between the two paths. Any vendor that produces a wrapper-object the
-    in-process path accepts can be replayed from the checkpoint."""
+    """A rejected checkpoint still preserves the standard wrapper shape."""
     orch = _StringLineRangeVendorOrchestrator()
 
     converge(

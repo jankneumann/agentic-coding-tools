@@ -497,19 +497,20 @@ After the iterate loop converges (all findings below threshold) or max iteration
 Write a review prompt and dispatch to other vendor CLIs:
 
 ```bash
-# Create review prompt for vendor dispatch
+# Generate the review prompt from the canonical schema
 mkdir -p openspec/changes/$CHANGE_ID/reviews
 
-cat > openspec/changes/$CHANGE_ID/reviews/review-prompt.md <<'PROMPT'
-Review the OpenSpec plan artifacts in openspec/changes/$CHANGE_ID/.
-Read proposal.md, tasks.md, design.md (if present), and all spec deltas.
-Output ONLY valid JSON conforming to review-findings.schema.json.
-Focus on: specification completeness, contract consistency, architecture alignment, security, and work package validity.
-PROMPT
+python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_prompt.py" \
+  --review-type plan \
+  --target "$CHANGE_ID" \
+  --context "Review the OpenSpec plan artifacts in openspec/changes/$CHANGE_ID/. Read proposal.md, tasks.md, design.md when present, and all spec deltas." \
+  --focus "Specification completeness, contract consistency, architecture alignment, security, and work package validity." \
+  --output "openspec/changes/$CHANGE_ID/reviews/review-prompt.md"
 
 # Dispatch to other vendors (excludes current agent's vendor)
 python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py" \
   --review-type plan \
+  --target "$CHANGE_ID" \
   --mode review \
   --prompt-file "openspec/changes/$CHANGE_ID/reviews/review-prompt.md" \
   --cwd "$(pwd)" \

@@ -61,7 +61,8 @@ VALID_FINDINGS_JSON = json.dumps({
     "reviewer_vendor": "test",
     "findings": [
         {"id": 1, "type": "security", "criticality": "high",
-         "description": "test", "disposition": "fix"},
+         "description": "test", "disposition": "fix",
+         "axis": "security", "severity": "critical"},
     ],
 })
 
@@ -88,6 +89,21 @@ class TestErrorClassification:
 
     def test_unknown(self) -> None:
         assert classify_error("Some random error message") == ErrorClass.UNKNOWN
+
+
+def test_cli_adapter_retains_raw_output_for_recovery(tmp_path: Path) -> None:
+    raw = "review preface\n" + VALID_FINDINGS_JSON
+    adapter = _adapter()
+    with patch(
+        "subprocess.run",
+        return_value=subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=raw, stderr="",
+        ),
+    ):
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+
+    assert result.success is True
+    assert result.raw_output == raw
 
     def test_auth_takes_priority_over_capacity(self) -> None:
         # If both patterns match, auth should win (checked first)
@@ -366,6 +382,82 @@ class TestOrchestrator:
         assert data["quorum_received"] == 1
         assert data["dispatches"][0]["success"] is True
         assert data["dispatches"][1]["error_class"] == "capacity_exhausted"
+
+    def test_review_dispatch_wraps_context_with_schema_prompt(
+        self, tmp_path: Path
+    ) -> None:
+        adapter = _adapter()
+        orch = ReviewOrchestrator({"codex-local": adapter})
+        with (
+            patch("shutil.which", return_value="/usr/bin/codex"),
+            patch.object(
+                adapter,
+                "dispatch",
+                return_value=ReviewResult(vendor="codex", success=True),
+            ) as dispatch,
+        ):
+            orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Read proposal.md and find gaps.",
+                target="change-123",
+                cwd=tmp_path,
+            )
+
+        rendered = dispatch.call_args.kwargs["prompt"]
+        assert '"review_type": "plan"' in rendered
+        assert '"target": "change-123"' in rendered
+        assert '"axis"' in rendered
+        assert '"severity"' in rendered
+        assert "Read proposal.md and find gaps." in rendered
+
+    def test_non_review_dispatch_does_not_wrap_prompt(self, tmp_path: Path) -> None:
+        adapter = _adapter()
+        orch = ReviewOrchestrator({"codex-local": adapter})
+        with (
+            patch("shutil.which", return_value="/usr/bin/codex"),
+            patch.object(
+                adapter,
+                "dispatch",
+                return_value=ReviewResult(vendor="codex", success=True),
+            ) as dispatch,
+        ):
+            orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="alternative",
+                prompt="Implement this task.",
+                cwd=tmp_path,
+            )
+
+        assert dispatch.call_args.kwargs["prompt"] == "Implement this task."
+
+    def test_schema_derived_prompt_is_not_wrapped_twice(self, tmp_path: Path) -> None:
+        from review_prompt import build_review_prompt
+
+        adapter = _adapter()
+        orch = ReviewOrchestrator({"codex-local": adapter})
+        generated = build_review_prompt(
+            review_type="plan",
+            target="change-123",
+            context="Review proposal.md.",
+        )
+        with (
+            patch("shutil.which", return_value="/usr/bin/codex"),
+            patch.object(
+                adapter,
+                "dispatch",
+                return_value=ReviewResult(vendor="codex", success=True),
+            ) as dispatch,
+        ):
+            orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt=generated,
+                target="change-123",
+                cwd=tmp_path,
+            )
+
+        assert dispatch.call_args.kwargs["prompt"] == generated
 
 
 # ---------------------------------------------------------------------------

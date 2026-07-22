@@ -36,10 +36,12 @@ from review_dispatcher import ReviewResult  # type: ignore[import-untyped]
 def _vendor_finding(idx: int, criticality: str = "low") -> dict[str, Any]:
     return {
         "id": idx,
-        "type": "logic-error",
+        "type": "correctness",
         "criticality": criticality,
         "description": f"Finding {idx}",
         "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
     }
 
 

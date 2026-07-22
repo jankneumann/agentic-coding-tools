@@ -56,9 +56,11 @@ from review_dispatcher import (  # noqa: E402
 # ``convergence_loop.cf_write_vendor_findings``. The bare imports also make
 # the dependency direction explicit (autopilot → parallel-infrastructure).
 from checkpoint_findings import (  # noqa: E402
+    FindingsValidationError as CfFindingsValidationError,
     _safe_log_error as cf_safe_log_error,
     write_manifest as cf_write_manifest,
     write_vendor_findings as cf_write_vendor_findings,
+    write_vendor_raw_output as cf_write_vendor_raw_output,
 )
 
 logger = logging.getLogger(__name__)
@@ -129,9 +131,8 @@ def build_review_prompt(artifacts_dir: Path, round_num: int) -> str:
 
     parts.extend([
         "### Instructions",
-        "Return findings as JSON with a top-level `findings` array.",
-        "Each finding must have: id, type, criticality, description, "
-        "disposition (fix/accept/escalate/regenerate), and optionally file_path and line_range.",
+        "Identify actionable issues and cite relevant artifact paths where possible.",
+        "The dispatcher will append the canonical schema-derived JSON output contract.",
         "",
         f"This is round {round_num}. Focus on remaining issues.",
     ])
@@ -382,6 +383,7 @@ def converge(
             dispatch_mode="review",
             prompt=prompt,
             cwd=worktree_path,
+            target=change_id,
         )
 
         # 2aa. Durably checkpoint vendor findings BEFORE synthesis. This is
@@ -394,6 +396,41 @@ def converge(
             vendors_index: list[dict[str, Any]] = []
             dispatches: list[dict[str, Any]] = []
             for r in results:
+                if r.raw_output is not None:
+                    cf_write_vendor_raw_output(
+                        checkpoint_dir,
+                        vendor=r.vendor,
+                        review_type=review_type,
+                        raw_output=r.raw_output,
+                    )
+                if r.success and r.findings:
+                    findings_array = r.findings.get("findings", [])
+                    try:
+                        cf_write_vendor_findings(
+                            checkpoint_dir,
+                            vendor=r.vendor,
+                            review_type=review_type,
+                            target=change_id,
+                            findings=findings_array,
+                            reviewer_vendor=r.vendor,
+                        )
+                    except CfFindingsValidationError as exc:
+                        r.success = False
+                        r.error = str(exc)
+                        cf_safe_log_error(
+                            "convergence.vendor_findings_invalid",
+                            change_id=change_id,
+                            review_type=review_type,
+                            vendor=r.vendor,
+                            findings_path=str(exc.path),
+                            validation_errors=exc.errors,
+                        )
+                    else:
+                        vendors_index.append({
+                            "name": r.vendor,
+                            "findings_path": f"findings-{r.vendor}-{review_type}.json",
+                            "finding_count": len(findings_array),
+                        })
                 dispatches.append({
                     "vendor": r.vendor,
                     "success": r.success,
@@ -403,21 +440,6 @@ def converge(
                     "error": r.error,
                     "error_class": r.error_class.value if r.error_class else None,
                 })
-                if r.success and r.findings:
-                    findings_array = r.findings.get("findings", [])
-                    cf_write_vendor_findings(
-                        checkpoint_dir,
-                        vendor=r.vendor,
-                        review_type=review_type,
-                        target=change_id,
-                        findings=findings_array,
-                        reviewer_vendor=r.vendor,
-                    )
-                    vendors_index.append({
-                        "name": r.vendor,
-                        "findings_path": f"findings-{r.vendor}-{review_type}.json",
-                        "finding_count": len(findings_array),
-                    })
             cf_write_manifest(
                 checkpoint_dir,
                 review_type=review_type,

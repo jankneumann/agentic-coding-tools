@@ -182,7 +182,7 @@ def check_review_eligibility(
 # ---------------------------------------------------------------------------
 
 def build_review_prompt(pr_number: int, pr_size: dict) -> str:
-    """Build a review prompt for vendor dispatch."""
+    """Build PR-specific context; the dispatcher adds the schema contract."""
     files_list = "\n".join(f"  - {f}" for f in pr_size.get("files", []))
     return f"""Review pull request #{pr_number}.
 
@@ -198,26 +198,6 @@ Review checklist:
 4. **Performance**: Inefficient algorithms, N+1 queries, missing indexes, resource leaks
 5. **Style**: Naming conventions, code organization, dead code
 
-For each finding, output JSON conforming to this structure:
-{{
-  "review_type": "pr",
-  "target": "PR #{pr_number}",
-  "reviewer_vendor": "<your-vendor-name>",
-  "findings": [
-    {{
-      "id": 1,
-      "type": "correctness|security|architecture|performance|style|spec_gap|contract_mismatch|observability|compatibility|resilience",
-      "criticality": "low|medium|high|critical",
-      "description": "What the issue is",
-      "resolution": "How to fix it",
-      "disposition": "fix|accept",
-      "file_path": "path/to/file",
-      "line_range": {{"start": 10, "end": 20}}
-    }}
-  ]
-}}
-
-Output ONLY the JSON object, no additional text.
 Use `gh pr diff {pr_number}` to read the actual diff before reviewing.
 """
 
@@ -307,12 +287,13 @@ def dispatch_vendor_reviews(
     cwd = Path.cwd()
 
     results: list[ReviewResult] = orch.dispatch_and_wait(
-        review_type="pr",
+        review_type="implementation",
         dispatch_mode="review",
         prompt=prompt,
         cwd=cwd,
         timeout_seconds=timeout_seconds,
         exclude_vendor="claude_code",
+        target=f"PR #{pr_number}",
     )
 
     # Collect successful vendor results for consensus
@@ -345,7 +326,7 @@ def dispatch_vendor_reviews(
     if vendor_results:
         synth = ConsensusSynthesizer(quorum=1)  # quorum=1 since single vendor is acceptable for PR review
         report = synth.synthesize(
-            review_type="pr",
+            review_type="implementation",
             target=f"PR #{pr_number}",
             vendor_results=vendor_results,
         )

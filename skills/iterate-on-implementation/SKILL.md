@@ -477,19 +477,19 @@ done
 **Whole-branch dispatch** (no work packages):
 
 ```bash
-# Create review prompt for the full implementation diff
+# Generate the review prompt from the canonical schema
 mkdir -p openspec/changes/$CHANGE_ID/reviews
 
-cat > openspec/changes/$CHANGE_ID/reviews/review-prompt.md <<'PROMPT'
-Review the implementation on this branch against the OpenSpec proposal.
-Run: git diff main..HEAD to see all changes.
-Read openspec/changes/$CHANGE_ID/proposal.md and spec deltas for requirements.
-Output ONLY valid JSON conforming to review-findings.schema.json.
-Focus on: correctness, security, contract compliance, test coverage, and performance.
-PROMPT
+python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_prompt.py" \
+  --review-type implementation \
+  --target "$CHANGE_ID" \
+  --context "Review the implementation on this branch against the OpenSpec proposal. Run git diff main..HEAD and read openspec/changes/$CHANGE_ID/proposal.md plus its spec deltas." \
+  --focus "Correctness, security, contract compliance, test coverage, and performance." \
+  --output "openspec/changes/$CHANGE_ID/reviews/review-prompt.md"
 
 python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py" \
   --review-type implementation \
+  --target "$CHANGE_ID" \
   --mode review \
   --prompt-file "openspec/changes/$CHANGE_ID/reviews/review-prompt.md" \
   --cwd "$(pwd)" \

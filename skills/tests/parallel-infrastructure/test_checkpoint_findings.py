@@ -19,6 +19,7 @@ import pytest
 # checkpoint_findings is on sys.path via conftest.py's SKILL_SCRIPTS injection
 import checkpoint_findings  # type: ignore[import-untyped]
 from checkpoint_findings import (  # type: ignore[import-untyped]
+    FindingsValidationError,
     MANIFEST_SCHEMA_VERSION,
     _atomic_write_json,
     _safe_log_error,
@@ -27,6 +28,7 @@ from checkpoint_findings import (  # type: ignore[import-untyped]
     read_manifest,
     read_vendor_findings,
     write_manifest,
+    write_vendor_raw_output,
     write_vendor_findings,
 )
 
@@ -40,10 +42,12 @@ from checkpoint_findings import (  # type: ignore[import-untyped]
 def good_finding() -> dict[str, Any]:
     return {
         "id": 1,
-        "type": "logic-error",
+        "type": "correctness",
         "criticality": "high",
         "description": "Off-by-one in pagination",
         "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
     }
 
 
@@ -508,10 +512,12 @@ def test_validate_finding_disposition_enum(good_finding: dict[str, Any]) -> None
         _validate_finding(bad)
 
 
-def test_write_vendor_findings_rejects_invalid_finding(tmp_path: Path, good_finding: dict[str, Any]) -> None:
+def test_write_vendor_findings_persists_before_rejecting_invalid_finding(
+    tmp_path: Path, good_finding: dict[str, Any]
+) -> None:
     bad = dict(good_finding)
     bad["criticality"] = "blocking"
-    with pytest.raises(ValueError):
+    with pytest.raises(FindingsValidationError) as exc_info:
         write_vendor_findings(
             tmp_path,
             vendor="claude_code",
@@ -519,8 +525,47 @@ def test_write_vendor_findings_rejects_invalid_finding(tmp_path: Path, good_find
             target="x",
             findings=[good_finding, bad],
         )
-    # No file should have been created
-    assert list(tmp_path.glob("findings-*.json")) == []
+    persisted = tmp_path / "findings-claude_code-plan.json"
+    assert exc_info.value.path == persisted
+    assert json.loads(persisted.read_text())["findings"] == [good_finding, bad]
+
+
+def test_write_vendor_findings_uses_complete_canonical_schema(
+    tmp_path: Path, good_finding: dict[str, Any]
+) -> None:
+    missing_axis_and_severity = {
+        key: value
+        for key, value in good_finding.items()
+        if key not in {"axis", "severity"}
+    }
+
+    with pytest.raises(FindingsValidationError, match="axis.*severity"):
+        write_vendor_findings(
+            tmp_path,
+            vendor="claude_code",
+            review_type="plan",
+            target="x",
+            findings=[missing_axis_and_severity],
+        )
+
+    persisted = json.loads(
+        (tmp_path / "findings-claude_code-plan.json").read_text()
+    )
+    assert persisted["findings"] == [missing_axis_and_severity]
+
+
+def test_write_vendor_raw_output_preserves_unparseable_review(tmp_path: Path) -> None:
+    raw = "analysis before JSON\n{ definitely-not-json }\n"
+
+    path = write_vendor_raw_output(
+        tmp_path,
+        vendor="claude_code",
+        review_type="plan",
+        raw_output=raw,
+    )
+
+    assert path == tmp_path / "raw-claude_code-plan.txt"
+    assert path.read_text() == raw
 
 
 def test_write_vendor_findings_accepts_optional_fields(
