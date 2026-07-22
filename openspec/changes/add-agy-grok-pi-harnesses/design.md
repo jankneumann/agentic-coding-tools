@@ -45,7 +45,7 @@ Scope is "anything that instructs a human or a script to invoke gemini". That se
 
 | File | Why it must change |
 |---|---|
-| `agent-coordinator/Makefile` | `gemini-mcp-setup` / `gemini-wrapper-install` targets; `mcp-setup` depends on the former, and task 8.1 deletes the wrapper the latter symlinks |
+| `agent-coordinator/Makefile` | `gemini-mcp-setup` / `gemini-wrapper-install` targets; `mcp-setup` depends on the former, and task 2.8 deletes the wrapper the latter symlinks |
 | `agent-coordinator/README.md` | documents those make targets |
 | `agent-coordinator/CLAUDE.md` | supported-vendor roster |
 | `agent-coordinator/.secrets.yaml.example` | `GEMINI_API_KEY` entry; must gain `OPENROUTER_API_KEY` for pi |
@@ -68,7 +68,7 @@ defect, not a completion. The terminal gate excludes them by construction.
 | `docs/merge-logs/**`, `docs/decisions/**` | Historical records. `docs/decisions/` is *generated* from `openspec/changes/archive/` via `make decisions`; hand-editing it is overwritten on the next regen. |
 | `docs/archive/**` | Archived exploration documents. |
 | `openspec/changes/archive/**` | Change history. |
-| `.claude/`, `.agents/`, `.codex/` | Generated mirrors — `install.sh` rewrites them (task 10.1). `.codex/` is **not** written by `install.sh` (it holds only `hooks.json`); it is excluded because it carries no live roster config, not because it is regenerated (finding U11). |
+| `.claude/`, `.agents/`, `.codex/` | Generated mirrors — `install.sh` rewrites them (task 6.1). `.codex/` is **not** written by `install.sh` (it holds only `hooks.json`); it is excluded because it carries no live roster config, not because it is regenerated (finding U11). |
 | Review-provenance annotations | `apps/kanban-viz/src/hooks/useCoordinator.ts:244`, `src/__tests__/useCoordinator.test.tsx:278`, and `src/lib/coordinator-types.ts:266` name the vendor that raised a past finding (`IMPL_REVIEW claude#4/gemini#1`). These are history, not roster data — rewriting them falsifies the record (finding U9). Tasks 4.1/4.3 leave them unchanged and `wp-frontend` denies writes to them. |
 | `openspec/specs/` | Handled by the spec deltas, not by code edits. |
 
@@ -208,10 +208,75 @@ explicit inline check in both trees (tasks 2.9, 3.11).
 
 ## PLAN_REVIEW round 3 — findings resolution (plan revision 2)
 
-First review round against the restructured plan. **Findings trend: 26 → 29 → 3.** Codex
-returned 3 findings, every one empirically verified with a command rather than reasoned; all
-3 were independently reproduced by the orchestrator and all 3 are accepted. Zero findings
-targeted the plan's apparatus — the D8 restructuring did what it was meant to do.
+First review round against the restructured plan. **Findings trend: 26 → 29 → 13**
+(codex 3, claude 10). Every accepted finding was empirically verified by its author with a
+command actually run, and independently reproduced by the orchestrator before acceptance.
+
+The character of the findings changed completely, which is the signal that matters: round 2
+had 21 of 29 findings pointed at the plan's own apparatus. Round 3 has **zero**. Every
+round-3 finding is about whether the described work will actually succeed.
+
+### Dispatch note — a harness defect nearly lost half the round
+
+Claude's first dispatch was recorded as `[FAIL] Invalid JSON output`. It had not failed: it
+wrote a well-formed findings file to `review-findings-plan.json` — the path
+`parallel-review-plan/SKILL.md` documents — while `review_dispatcher.py` reads **stdout
+only** and discards the raw text on parse failure. 13 findings sat on disk, reported as a
+vendor failure. Re-dispatched with an explicit stdout-only contract and raw capture, claude
+returned 10 findings as valid JSON.
+
+Two things follow, both filed rather than fixed here:
+
+1. The dispatcher's contract and the review skill's instructions disagree about where
+   findings go. Either the dispatcher should read the documented file path as a fallback, or
+   the skill should stop telling vendors to write one.
+2. Claude's configured `review` dispatch mode allows only `Read,Grep,Glob` — **no Bash** — so
+   it physically cannot run the verification commands that produced codex's strongest
+   findings. The re-dispatch granted Bash, and the difference is stark: 8 of its 10 findings
+   open with `VERIFIED:` and name the command run. This also casts doubt on
+   verification-flavored claims in rounds 1–2, which were made without the ability to execute
+   anything.
+
+| ID | Criticality | Finding | Resolution |
+|---|---|---|---|
+| R3-1 | high | `wp-coordinator`'s gate runs the full non-e2e coordinator suite, **3 failed** before any roster work | Task **0.3** repairs the tests; gate left strict (D7 forbids scoping around breakage) |
+| R3-2 | high | `npm test -- --run` exits `127` in a fresh worktree — no `node_modules` | Task **0.4** (`npm ci`); `npm ci &&` prepended to both gates invoking `npm test` |
+| R3-3 | medium | Both session-log templates carry `gemini` at line 52; **no package owned either** | Task **5.5a**; both paths added to `wp-docs-finalize` |
+| R3-C1 | high | **The frontend gate contradicts the spec delta.** `coordinator-kanban-viz`'s *Historical vendor still renders* scenario requires `VendorSwimlanes.test.tsx` to keep a gemini fixture (proving D5's roster-agnosticism), but the gate asserted exactly 3 gemini-bearing files in `apps/kanban-viz` when there are **4**. Passing it required deleting the evidence for the scenario | Numeric count replaced with an explicit expected-**set** `diff`, naming all four files. Removes the derived-number gate D8.1 rejected |
+| R3-C2 | medium | **Vacuous gate (orchestrator-authored, revision 2).** The mirror-residue check greps `.claude/skills` / `.agents/skills` with `git grep` — both are **gitignored** (`.gitignore:271-272`), so it searched zero tracked files and passed unconditionally, even if `install.sh` did nothing | Switched to plain `grep -rIl`. Verified non-vacuous: it now returns 4 real files, so it can fail |
+| R3-C3 | high | **Task 0.1's own remediation would break what it repairs.** `pytest` lives in the `test` extra, not `[project] dependencies`, so the prescribed bare `uv sync` **removes pytest from `skills/.venv`** | Task 0.1 now specifies the `test` extra and `uv sync --all-extras`, with the reasoning inline |
+| R3-C7 | medium | Task 4.2 sat in `wp-skills` (`depends_on: [wp-empirical]`) but depends on task 2.7 in `wp-coordinator` — an edge the package DAG never expressed | Task 4.2 moved to `wp-frontend`, which already depends on `wp-coordinator`; path granted there and denied in `wp-skills` |
+| R3-C8 | medium | `agent-identity` was the only one of 8 spec deltas **no task referenced**; its seeding scenarios name `grok-local`'s `profile`/`trust_level`, which nothing created | Task 2.2 now requires `profile:` + `trust_level:` on each new `agents.yaml` entry, and cites `agent-identity.1` |
+| R3-C9 | medium | `docs/cross-repo-setup.md` documents `install-mcp.sh`'s `--no-gemini` flag and a `~/.gemini/settings.json` target — it meets D6's own inclusion criterion but was out of scope, while task 3.9 edits the script it documents | Added to task 5.3, with a dependency on 3.9 so the doc follows the script |
+| R3-C10 | low | Revision-1 task numbers survive in **live** design.md sections (outside the labeled historical table). Most seriously, the operator live-billing authorization named "Tasks 2.1-2.4" — now the *coordinator config* tasks — granting billing authority to the wrong tasks and withholding it from the CLI-invoking ones | All live references renumbered (1.1-1.3, Phase 1, 2.8, 6.1). The historical round-1 table is left alone by design |
+
+### R3-1 diagnosis — the docker failures are a test defect, not the environment
+
+Worth recording because it was mischaracterized twice during this session, including by the
+orchestrator, on nothing more than the failures' shape:
+
+`TestDetectRuntime.test_auto_falls_back_to_podman` patches `shutil.which` with
+`lambda name: f"/usr/bin/{name}"` — which returns a path for **every** binary, including
+`colima`. So `is_colima_installed()` returns True, `detect_runtime` takes the macOS Colima
+branch (`docker_manager.py:152-162`) and returns `"docker"` where the test expects
+`"podman"`. Proven by re-running the same call with `is_colima_installed` forced False: it
+returns `"podman"`. **The production code is correct; the test mock is over-broad.** Linux CI
+passes only because `sys.platform != "darwin"` skips the branch, which is why this reads as
+"environmental" — it is deterministic on macOS and deterministic on Linux, in opposite
+directions.
+
+The general lesson, and the reason the fix is a task rather than a deselect: *a failure that
+reproduces on main is not automatically out of scope.* It is out of scope only once someone
+has read it. "Pre-existing" describes provenance, not triviality.
+
+### The two gates this round killed were both authored in revision 2
+
+R3-C1 and R3-C2 were introduced by the restructuring that was meant to eliminate exactly this
+class — a hardcoded derived count and a gate that searches nothing. D8.2's claim was that
+inline one-liners are safer than bespoke scripts; that remains true, but the round shows the
+real invariant is narrower: **a gate is only worth having if you have watched it fail.** Both
+defects were invisible to reading and obvious to running. Every gate in this plan should be
+run against an unmodified tree at least once, and one that passes there is not a gate.
 
 | ID | Criticality | Finding | Resolution |
 |---|---|---|---|
@@ -309,11 +374,11 @@ subcommand in `--help`; `_RELOGIN_COMMANDS` already falls back to `f"{command} l
 ## Empirical CLI findings
 
 **Operator authorization (recorded 2026-07-22):** live dispatch against `agy`, `grok`,
-and `pi` is approved. Tasks 2.1-2.4 may invoke these CLIs with real prompts, which
+and `pi` is approved. **Tasks 1.1-1.3** may invoke these CLIs with real prompts, which
 consumes subscription quota (agy, grok) and OpenRouter tokens (pi). No further approval
 is required for the Phase 2 verification calls.
 
-> Populated by Phase 2. Until every row below reads `confirmed` or `refuted` with evidence,
+> Populated by Phase 1. Until every row below reads `confirmed` or `refuted` with evidence,
 > **no package may hardcode a CLI flag, model slug, or output-parsing assumption.**
 
 > **Expanded in PLAN_REVIEW round 1** (finding C4, confirmed by both vendors). The original
