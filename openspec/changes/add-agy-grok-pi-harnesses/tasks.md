@@ -33,12 +33,12 @@ roster work. They are labeled here — not laundered into roster tasks — per D
   directly into the venv — `uv sync` regenerates the venv and would discard it.
   **Dependencies**: None
 
-- [ ] 0.2 Repair `skills/tests/vendor-neutral-autopilot` (5 failures today): repoint
-  `test_contracts.py:10` at `openspec/changes/archive/2026-05-16-vendor-neutral-autopilot`,
-  and fix the missing `write_capable` field failure in `test_model_resolution.py` (S)
-  **Why**: the constant resolves a change directory archived months ago. This task restores
-  green against the *current* roster; task 3.6 later repoints the schema at its new stable
-  home. Two touches of the same file, deliberately: every intermediate commit stays green.
+- [ ] 0.2 Rebase this branch on `add-frontier-model-tier` (PR #262) and confirm
+  `pytest skills/tests/vendor-neutral-autopilot` is green (XS)
+  **Why**: PR #262 absorbed the original repairs (schema promoted to
+  `openspec/schemas/provider-model-map.schema.json`, contract-doc path repointed to the
+  archive, `write_capable` fixture fixed). If #262 is not yet merged when implementation
+  starts, apply its repairs from that branch rather than re-deriving them.
   **Dependencies**: 0.1
 
 - [ ] 0.3 Checkpoint: `skills/.venv/bin/python -m pytest skills/tests -q` passes with the
@@ -88,11 +88,14 @@ calls is on record in `design.md`.
   **Dependencies**: 2.1
 
 - [ ] 2.3 Update `DEFAULT_PROVIDER_MODEL_MAP` (`src/agents_config.py`) and `model_aliases`
-  (`archetypes.yaml`): add antigravity/grok/pi tiers first, then remove gemini; bump
-  `schema_version` and `_normalize_provider_model_map` to `2` (M)
+  (`archetypes.yaml`): add antigravity/grok/pi base tiers first, then remove gemini (M)
   **Spec scenarios**: configuration.2, agent-archetypes.1
   **Dependencies**: 2.1
-  **Note**: add-before-remove keeps every intermediate commit dispatchable.
+  **Note**: add-before-remove keeps every intermediate commit dispatchable. The
+  `schema_version: 2` bump landed in `add-frontier-model-tier` — do not re-bump. Preserve the
+  existing `frontier` entries for claude_code/codex; the new vendors' `frontier` is OPTIONAL —
+  define it only if the empirical phase (E1/E5) surfaces a clearly stronger reasoning model,
+  otherwise omit and let resolution fall back to premium.
 
 - [ ] 2.4 Update roster references in `src/coordination_api.py`, `scripts/setup_cloud.py`, and
   the fixtures in `tests/test_differential_policy.py` and `tests/model_routing/test_feedback.py` (M)
@@ -177,16 +180,15 @@ calls is on record in `design.md`.
   **Spec scenarios**: skill-workflow.7
   **Dependencies**: 3.1
 
-- [ ] 3.6 Promote the provider-model-map contract to its stable home: copy
-  `contracts/provider-model-map.schema.json` (schema_version 2, `propertyNames.enum` closed to
-  the five keys, all five `required`) to `openspec/schemas/provider-model-map.schema.json`;
-  repoint `skills/tests/vendor-neutral-autopilot/test_contracts.py` at that path and update its
-  fixtures to the v2 roster (M)
+- [ ] 3.6 Tighten the provider key set in the already-promoted
+  `openspec/schemas/provider-model-map.schema.json` (landed via `add-frontier-model-tier`):
+  close `providers` to the five roster keys (`propertyNames.enum` + `required`), preserving
+  the optional `frontier` tier property; update the
+  `skills/tests/vendor-neutral-autopilot/test_contracts.py` fixtures to the v2 roster (S)
   **Spec scenarios**: configuration.1
-  **Dependencies**: 3.1
-  **Note**: resolves the round-2 contradiction (archived schema pins `const: 1` and cannot be
-  edited). Tests must never resolve schemas inside change directories — those move on archive;
-  `openspec/schemas/` does not. Coordinate with 2.3 (code emits version 2).
+  **Dependencies**: 3.1, 0.2
+  **Note**: the promotion itself, the `const: 2` bump, and the test repoint are already done —
+  this task only encodes the roster closure this change is about.
 
 - [ ] 3.7 Checkpoint: dispatch suites green, review diff, verify scope
 
