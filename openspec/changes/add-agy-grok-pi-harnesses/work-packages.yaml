@@ -105,7 +105,11 @@ packages:
       eval backends (add antigravity/grok/pi, delete gemini_jules), kanban
       seeder + coordinator-side fixtures, Makefile gemini targets (mcp-setup AND
       hooks-setup prerequisites) then gemini_wrapper.sh, and the
-      google-generativeai dependency removal + uv lock. Implements tasks 2.1-2.10.
+      google-generativeai dependency removal + uv lock. Baseline repair for this
+      tree is task 0.3 (narrow the over-broad shutil.which mocks in
+      tests/test_docker_manager.py; 3 macOS-only failures make this package's
+      gate unpassable) and MUST land before the gate.
+      Implements tasks 0.3, 2.1-2.10.
     role: implementer
     priority: 2
     depends_on: [wp-empirical]
@@ -174,7 +178,9 @@ packages:
       preserved), transcript adapters (add three, delete gemini_cli),
       tech-debt skip lists, fetch-vendor-skills, langfuse install-mcp,
       agent-scenarios, skills-tree kanban fixtures, and google-generativeai
-      removal from skills/pyproject.toml. Implements tasks 0.1-0.3, 3.1-3.12, 4.2.
+      removal from skills/pyproject.toml. Baseline repair for this tree is task 0.1
+      (fastapi/httpx into skills/pyproject.toml) and MUST land before the gate.
+      Implements tasks 0.1, 3.1-3.12, 4.2.
     role: implementer
     priority: 2
     depends_on: [wp-empirical]
@@ -243,7 +249,9 @@ packages:
       Update VendorSwimlanes.test.tsx fixtures to the new roster.
       VendorSwimlanes.tsx is NOT modified (derives vendor from agent_id suffix,
       design D5). The three review-provenance annotations are NOT modified
-      (history, not roster data). Implements tasks 4.1, 4.3.
+      (history, not roster data). Baseline repair for this tree is task 0.4
+      (npm ci — a fresh worktree has no node_modules, so npm test exits 127).
+      Implements tasks 0.4, 4.1, 4.3.
     role: implementer
     priority: 3
     depends_on: [wp-coordinator]
@@ -275,7 +283,7 @@ packages:
       steps:
         - name: "Frontend green; only 3 provenance files mention gemini; component untouched"
           kind: command
-          command: "(cd apps/kanban-viz && npm test -- --run) && test \"$(git grep -lIi gemini -- apps/kanban-viz | wc -l | tr -d ' ')\" = \"3\" && git diff --quiet main... -- apps/kanban-viz/src/components/VendorSwimlanes.tsx"
+          command: "(cd apps/kanban-viz && npm ci && npm test -- --run) && test \"$(git grep -lIi gemini -- apps/kanban-viz | wc -l | tr -d ' ')\" = \"3\" && git diff --quiet main... -- apps/kanban-viz/src/components/VendorSwimlanes.tsx"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -304,8 +312,9 @@ packages:
       files plus setup-coordinator and collect-transcripts, document the
       optional grok config.toml operator setup with citation, then run
       install.sh rsync sync, the four test suites, the live smoke dispatch, and
-      record the deferred-narrative follow-up list. Implements tasks 5.1-5.7 and
-      6.1-6.4.
+      record the deferred-narrative follow-up list. Also owns the two session-log
+      templates (task 5.5a) — live edit sites no package previously owned.
+      Implements tasks 5.1-5.7 (incl. 5.5a) and 6.1-6.4.
     role: integrator
     priority: 6
     depends_on: [wp-coordinator, wp-skills, wp-frontend]
@@ -333,6 +342,8 @@ packages:
         - "skills/collect-transcripts/config.yaml.example"
         - "skills/*/SKILL.md"
         - "openspec/config.yaml"
+        - "openspec/schemas/feature-workflow/templates/session-log.md"
+        - "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/session-log.md"
         - ".claude/skills/**"
         - ".agents/skills/**"
         - "openspec/changes/add-agy-grok-pi-harnesses/**"
@@ -362,7 +373,7 @@ packages:
             result_keys: ["docs_updated"]
         - name: "Mirrors synced and clean; full suite green across the four trees"
           kind: command
-          command: "bash skills/install.sh --mode rsync --force --deps none --python-tools none && test -z \"$(git grep -lIi gemini -- .claude/skills .agents/skills ':!*SKILL.md' ':!*/references/*' ':!*/templates/*' ':!*/install_assets/*')\" && agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration' && skills/.venv/bin/python -m pytest skills/tests -q && uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q && (cd apps/kanban-viz && npm test -- --run)"
+          command: "bash skills/install.sh --mode rsync --force --deps none --python-tools none && test -z \"$(git grep -lIi gemini -- .claude/skills .agents/skills ':!*SKILL.md' ':!*/references/*' ':!*/templates/*' ':!*/install_assets/*')\" && agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration' && skills/.venv/bin/python -m pytest skills/tests -q && uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q && (cd apps/kanban-viz && npm ci && npm test -- --run)"
           cwd: "."
           expect_exit_code: 0
           evidence:

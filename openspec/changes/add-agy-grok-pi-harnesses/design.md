@@ -206,6 +206,45 @@ a change directory that later archives (the round-2 `const: 1` contradiction); a
 `google-generativeai` dependency — invisible to any gemini-grep — is an explicit task with an
 explicit inline check in both trees (tasks 2.9, 3.11).
 
+## PLAN_REVIEW round 3 — findings resolution (plan revision 2)
+
+First review round against the restructured plan. **Findings trend: 26 → 29 → 3.** Codex
+returned 3 findings, every one empirically verified with a command rather than reasoned; all
+3 were independently reproduced by the orchestrator and all 3 are accepted. Zero findings
+targeted the plan's apparatus — the D8 restructuring did what it was meant to do.
+
+| ID | Criticality | Finding | Resolution |
+|---|---|---|---|
+| R3-1 | high | `wp-coordinator`'s gate runs the full non-e2e coordinator suite, which is **3 failed, 2027 passed** before any roster work — an unpassable gate | Task **0.3** repairs the tests. The gate is left strict: scoping it around the breakage is what D7 rejects |
+| R3-2 | high | `npm test -- --run` exits `127 sh: vitest: command not found` in a fresh worktree — no `node_modules`. Phases 4 and 6 invoke it with no install step, so gates fail on setup, not roster behavior | Task **0.4** (`npm ci`); `npm ci &&` prepended in both gates that invoke `npm test` |
+| R3-3 | medium | Both session-log templates carry `gemini` in the agent-type roster at line 52, and **no package owned either file** — `wp-skills` allows only two specific `openspec/schemas/` files and denies `plan-feature/install_assets/**` | Task **5.5a**; both paths added to `wp-docs-finalize`'s `write_allow` |
+
+### R3-1 diagnosis — the docker failures are a test defect, not the environment
+
+Worth recording because it was mischaracterized twice during this session, including by the
+orchestrator, on nothing more than the failures' shape:
+
+`TestDetectRuntime.test_auto_falls_back_to_podman` patches `shutil.which` with
+`lambda name: f"/usr/bin/{name}"` — which returns a path for **every** binary, including
+`colima`. So `is_colima_installed()` returns True, `detect_runtime` takes the macOS Colima
+branch (`docker_manager.py:152-162`) and returns `"docker"` where the test expects
+`"podman"`. Proven by re-running the same call with `is_colima_installed` forced False: it
+returns `"podman"`. **The production code is correct; the test mock is over-broad.** Linux CI
+passes only because `sys.platform != "darwin"` skips the branch, which is why this reads as
+"environmental" — it is deterministic on macOS and deterministic on Linux, in opposite
+directions.
+
+The general lesson, and the reason the fix is a task rather than a deselect: *a failure that
+reproduces on main is not automatically out of scope.* It is out of scope only once someone
+has read it. "Pre-existing" describes provenance, not triviality.
+
+### Phase 0 ownership
+
+Baseline repair is no longer a single block — each package repairs the baseline **inside its
+own tree** before its own gate runs (0.1 → `wp-skills`, 0.3 → `wp-coordinator`,
+0.4 → `wp-frontend`). This keeps every repair inside an existing `write_allow` with no
+cross-package writes, and each package's gate becomes passable by that package's own work.
+
 ## PLAN_REVIEW round 1 — findings resolution
 
 > **Historical record.** Task numbers in this table refer to **plan revision 1**, which
