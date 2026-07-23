@@ -7,8 +7,15 @@ from pathlib import Path
 
 import pytest
 
-CHANGE_DIR = Path(__file__).resolve().parents[3].parent / "openspec" / "changes" / "add-prototyping-stage"
-SCHEMA_DIR = CHANGE_DIR / "contracts" / "schemas"
+# Contracts live in the stable, capability-scoped location (openspec/contracts/)
+# so they survive archival of the originating change. See openspec/contracts/README.md.
+SCHEMA_DIR = (
+    Path(__file__).resolve().parents[4]
+    / "openspec"
+    / "contracts"
+    / "prototyping"
+    / "schemas"
+)
 
 
 @pytest.fixture(scope="session")

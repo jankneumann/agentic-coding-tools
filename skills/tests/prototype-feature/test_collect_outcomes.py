@@ -39,13 +39,15 @@ from collect_outcomes import (
 )
 from variant_descriptor import VariantDescriptor
 
-CHANGE_DIR = (
+# Stable, capability-scoped contract location (openspec/contracts/) — survives
+# archival of the originating change. See openspec/contracts/README.md.
+SCHEMA_DIR = (
     Path(__file__).resolve().parents[3]
     / "openspec"
-    / "changes"
-    / "add-prototyping-stage"
+    / "contracts"
+    / "prototyping"
+    / "schemas"
 )
-SCHEMA_DIR = CHANGE_DIR / "contracts" / "schemas"
 
 
 @pytest.fixture(scope="module")
