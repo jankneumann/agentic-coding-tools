@@ -130,20 +130,16 @@ CLAUDE_AGENT_ID   ?= claude-code-1
 CLAUDE_AGENT_TYPE ?= claude_code
 CODEX_AGENT_ID    ?= codex-1
 CODEX_AGENT_TYPE  ?= codex
-GEMINI_AGENT_ID   ?= gemini-1
-GEMINI_AGENT_TYPE ?= gemini
 
 # Backward compatibility: callers that pass AGENT_ID/AGENT_TYPE explicitly
 # still get the old "same identity for every target" behavior.
 ifneq ($(origin AGENT_ID), undefined)
 CLAUDE_AGENT_ID := $(AGENT_ID)
 CODEX_AGENT_ID := $(AGENT_ID)
-GEMINI_AGENT_ID := $(AGENT_ID)
 endif
 ifneq ($(origin AGENT_TYPE), undefined)
 CLAUDE_AGENT_TYPE := $(AGENT_TYPE)
 CODEX_AGENT_TYPE := $(AGENT_TYPE)
-GEMINI_AGENT_TYPE := $(AGENT_TYPE)
 endif
 
 # Env vars shared across all MCP registrations, plus provider-specific identity.
@@ -155,9 +151,6 @@ CLAUDE_MCP_ENV_FLAGS := $(COMMON_MCP_ENV_FLAGS) \
 CODEX_MCP_ENV_FLAGS := $(COMMON_MCP_ENV_FLAGS) \
 	--env AGENT_ID=$(CODEX_AGENT_ID) \
 	--env AGENT_TYPE=$(CODEX_AGENT_TYPE)
-GEMINI_MCP_ENV_FLAGS := $(COMMON_MCP_ENV_FLAGS) \
-	--env AGENT_ID=$(GEMINI_AGENT_ID) \
-	--env AGENT_TYPE=$(GEMINI_AGENT_TYPE)
 
 .PHONY: claude-mcp-setup
 claude-mcp-setup: ## Register coordination MCP server with Claude Code
@@ -173,15 +166,8 @@ codex-mcp-setup: ## Register coordination MCP server with Codex CLI
 	@echo "Coordination MCP server registered. Restart Codex to activate."
 	@echo "  DSN: $(POSTGRES_DSN)"
 
-.PHONY: gemini-mcp-setup
-gemini-mcp-setup: ## Register coordination MCP server with Gemini CLI
-	gemini mcp add --scope user $(GEMINI_MCP_ENV_FLAGS) \
-		coordination $(CURDIR)/.venv/bin/python -m src.coordination_mcp
-	@echo "Coordination MCP server registered. Restart Gemini to activate."
-	@echo "  DSN: $(POSTGRES_DSN)"
-
 .PHONY: mcp-setup
-mcp-setup: claude-mcp-setup codex-mcp-setup gemini-mcp-setup ## Register coordination MCP server with all CLI agents
+mcp-setup: claude-mcp-setup codex-mcp-setup ## Register coordination MCP server with all CLI agents
 
 # ---------------------------------------------------------------------------
 # Phase: Hooks & Notification Integration
@@ -211,30 +197,12 @@ codex-hooks-setup: ## Install coordinator hooks into Codex CLI (user scope, work
 	@echo "  Scripts point to: $(SCRIPTS_ABS)/"
 	@echo "  Hooks: SessionStart, Stop"
 
-.PHONY: gemini-wrapper-install
-gemini-wrapper-install: ## Install Gemini status wrapper (symlink gemini-coord to ~/.local/bin)
-	@chmod +x $(SCRIPTS_ABS)/gemini_wrapper.sh
-	@mkdir -p ~/.local/bin
-	@ln -sf $(SCRIPTS_ABS)/gemini_wrapper.sh ~/.local/bin/gemini-coord
-	@echo "Installed ~/.local/bin/gemini-coord -> $(SCRIPTS_ABS)/gemini_wrapper.sh"
-	@echo ""
-	@echo "Usage (from any repo):"
-	@echo "  gemini-coord \"your prompt here\""
-	@echo "  gemini-coord -p \"fix the test\" -y"
-	@echo ""
-	@echo "Ensure ~/.local/bin is in your PATH."
-	@echo "Set env vars for coordinator connection:"
-	@echo "  export COORDINATION_API_URL=http://localhost:$(API_PORT)"
-	@echo "  export AGENT_ID=$(GEMINI_AGENT_ID)"
-	@echo "  export AGENT_TYPE=$(GEMINI_AGENT_TYPE)"
-
 .PHONY: hooks-setup
-hooks-setup: claude-hooks-setup codex-hooks-setup gemini-wrapper-install ## Install coordinator hooks/wrappers for ALL agents (user scope)
+hooks-setup: claude-hooks-setup codex-hooks-setup ## Install coordinator hooks/wrappers for ALL agents (user scope)
 	@echo ""
 	@echo "All agents configured for coordinator status reporting."
 	@echo "  Claude Code: ~/.claude/settings.json  (SessionStart, Stop, SessionEnd)"
 	@echo "  Codex CLI:   ~/.codex/hooks.json      (SessionStart, Stop)"
-	@echo "  Gemini CLI:  ~/.local/bin/gemini-coord (wrapper script)"
 
 # ---------------------------------------------------------------------------
 # Phase: Cloud Setup
