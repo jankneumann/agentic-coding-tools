@@ -60,7 +60,8 @@ Lifecycle states are:
 pending -> indexing -> ready
                     -> failed
                     -> not_configured
-pending/indexing/failed/not_configured -> deleting -> deleted
+pending/indexing/ready/failed/not_configured -> deleting -> deleted
+expired deleting lease                 -> deleting -> deleted
 ```
 
 `ensure_index` uses `INSERT ... ON CONFLICT ... RETURNING` on the natural key,
@@ -95,9 +96,11 @@ An index is eligible only when all are true:
 - state is terminal or abandoned after lease expiry.
 
 The operation claims a candidate by moving it to `deleting`, invokes an injected
-storage deleter using `storage_key`, then marks it `deleted`. A deletion failure
-returns the row to `failed` with `last_error` so it remains inspectable and
-retryable. Main rows are excluded in both SQL and application validation.
+idempotent storage deleter using `storage_key`, then marks it `deleted`. An
+expired `deleting` lease can be reclaimed so a crash before deletion or between
+storage deletion and registry tombstoning cannot strand the record. A deletion
+failure returns the row to `failed` with `last_error` so it remains inspectable
+and retryable. Main rows are excluded in both SQL and application validation.
 
 ### D7 — Preserve the legacy path as explicitly non-authoritative
 
@@ -111,7 +114,8 @@ will make `canonical_index_id` and exact-revision lookup authoritative.
 
 ```text
 packages/code-search/src/code_search_pkg/
-  registry.py        # types, validation, async registry operations
+  registry_models.py # pure identity, lifecycle, and record contracts
+  registry.py        # async registry operations and persistence
   identifiers.py     # legacy repo slug + new storage-key table naming
 
 agent-coordinator/database/migrations/

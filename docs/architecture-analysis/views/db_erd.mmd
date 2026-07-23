@@ -107,6 +107,41 @@ erDiagram
         TEXT status
         TIMESTAMPTZ updated_at
     }
+    public__code_search_indexes {
+        code_search_indexes_natural_key CONSTRAINT
+        INTEGER attempt_count
+        INTEGER chunk_count
+        TIMESTAMPTZ completed_at
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ deleted_at
+        TEXT embedder_model
+        INTEGER embedding_dim
+        UUID index_id
+        TEXT last_error
+        TIMESTAMPTZ lease_expires_at
+        TEXT lease_owner
+        UUID lease_token
+        TEXT namespace_key
+        TEXT namespace_kind
+        TEXT repo_slug
+        TIMESTAMPTZ retention_until
+        TEXT source_revision
+        TIMESTAMPTZ started_at
+        TEXT status
+        TEXT storage_key
+        TIMESTAMPTZ updated_at
+    }
+    public__code_search_registry {
+        NOT_EXISTS_canonical_index_id_UUID IF
+        INTEGER chunk_count
+        TIMESTAMPTZ created_at
+        TEXT embedder_model
+        INTEGER embedding_dim
+        TEXT last_indexed_commit
+        TEXT repo_root
+        TEXT repo_slug
+        TIMESTAMPTZ updated_at
+    }
     public__feature_registry {
         TEXT branch_name
         TIMESTAMPTZ completed_at
@@ -154,6 +189,13 @@ erDiagram
         JSONB relevant_files
         TEXT session_id
         TEXT summary
+    }
+    public__issue_comments {
+        TEXT author
+        TEXT body
+        TIMESTAMPTZ created_at
+        UUID id
+        UUID issue_id
     }
     public__memory_episodic {
         TEXT agent_id
@@ -265,6 +307,7 @@ erDiagram
         verification_tier tier
     }
     public__work_queue {
+        NOT_EXISTS_labels_TEXT__ IF
         INTEGER attempt_count
         TIMESTAMPTZ claimed_at
         TEXT claimed_by

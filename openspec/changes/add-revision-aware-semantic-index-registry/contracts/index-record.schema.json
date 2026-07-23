@@ -199,6 +199,24 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "deleted"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
     }
   ]
 }

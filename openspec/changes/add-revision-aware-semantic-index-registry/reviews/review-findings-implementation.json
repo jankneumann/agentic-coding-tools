@@ -1,0 +1,119 @@
+{
+  "review_type": "implementation",
+  "target": "wp-migration+wp-registry",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: the canonical-pointer trigger validates a candidate only when code_search_registry.canonical_index_id changes. After promotion, direct SQL can change the referenced code_search_indexes row away from ready/main/same-repository while the canonical pointer remains intact, contradicting the contract's database-level invariant for callers that bypass the Python repository.",
+      "resolution": "Add a database constraint trigger on relevant code_search_indexes updates that rejects changes making a referenced canonical row non-ready, non-main, or cross-repository. Add a live test that promotes an index and then attempts each invalid mutation.",
+      "disposition": "fix",
+      "package_id": "wp-migration",
+      "file_path": "agent-coordinator/database/migrations/029_revision_aware_code_search_indexes.sql",
+      "line_range": {
+        "start": 136,
+        "end": 188
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: garbage-collection candidate selection and claiming exclude records already in deleting state. If a collector crashes after acquiring the deleting lease but before recording success or failure, the expired lease can never be reclaimed and the record remains permanently stuck.",
+      "resolution": "Allow an expired deleting lease to be reclaimed atomically with a new token, define storage deletion as idempotent for recovery after delete-before-tombstone crashes, and add tests for crashes before deletion and after storage deletion.",
+      "disposition": "fix",
+      "package_id": "wp-registry",
+      "file_path": "packages/code-search/src/code_search_pkg/registry.py",
+      "line_range": {
+        "start": 398,
+        "end": 454
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: ensure_index documents a missing repository as IndexNotFoundError, but the INSERT references code_search_registry directly. PostgreSQL raises ForeignKeyViolationError before fetchrow can return None, so the intended typed error branch is unreachable with a real asyncpg connection.",
+      "resolution": "Use INSERT ... SELECT from the repository row so a missing repository yields no returned row, or catch the specific asyncpg foreign-key violation and translate it without masking unrelated constraint failures. Add a live missing-repository test.",
+      "disposition": "fix",
+      "package_id": "wp-registry",
+      "file_path": "packages/code-search/src/code_search_pkg/registry.py",
+      "line_range": {
+        "start": 228,
+        "end": 257
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Critical: index-record.schema.json does not encode the deleted-state invariant. It accepts status deleted with deleted_at null even though the SQL constraint and SemanticIndexRecord reject that shape, so downstream contract validation can approve a record the implementation cannot decode.",
+      "resolution": "Add a deleted-status conditional requiring deleted_at to be a date-time, and add negative schema tests for deleted_at null plus positive coverage for every lifecycle state.",
+      "disposition": "fix",
+      "package_id": "wp-registry",
+      "file_path": "openspec/changes/add-revision-aware-semantic-index-registry/contracts/index-record.schema.json",
+      "line_range": {
+        "start": 178,
+        "end": 202
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: the focused suites pass locally, but both live PostgreSQL migration tests were skipped because POSTGRES_DSN was unavailable. The highest-risk trigger and asyncpg behaviors therefore remain unexecuted in this review environment.",
+      "resolution": "Run task 5.3 with POSTGRES_DSN before integration, including the new regression cases from the fix findings.",
+      "disposition": "accept",
+      "package_id": "wp-migration",
+      "file_path": "agent-coordinator/tests/test_revision_aware_code_search_registry.py",
+      "line_range": {
+        "start": 107,
+        "end": 251
+      },
+      "axis": "correctness",
+      "severity": "fyi"
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: registry values are bound through asyncpg parameters, lifecycle status interpolation is restricted to internal constants, and physical storage identifiers are derived from UUIDs rather than human-controlled namespace keys.",
+      "resolution": "Preserve parameter binding and UUID-derived storage naming in downstream indexing work.",
+      "disposition": "accept",
+      "package_id": "wp-registry",
+      "file_path": "packages/code-search/src/code_search_pkg/registry.py",
+      "line_range": {
+        "start": 220,
+        "end": 381
+      },
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 7,
+      "type": "performance",
+      "criticality": "low",
+      "description": "none: garbage collection is bounded by an explicit positive limit, ordered deterministically, and supported by a partial retention/status index restricted to non-main namespaces.",
+      "resolution": "Preserve bounded scans and the partial index when adding expired deleting-lease recovery.",
+      "disposition": "accept",
+      "package_id": "wp-migration",
+      "file_path": "agent-coordinator/database/migrations/029_revision_aware_code_search_indexes.sql",
+      "line_range": {
+        "start": 109,
+        "end": 114
+      },
+      "axis": "performance",
+      "severity": "none"
+    }
+  ]
+}

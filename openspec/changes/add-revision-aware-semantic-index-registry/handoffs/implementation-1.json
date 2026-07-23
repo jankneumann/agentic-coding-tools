@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-23T18:57:11.056825+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-autopilot-roadmap",
+    "session_id": null,
+    "summary": "Implemented and independently reviewed the revision-aware semantic index registry. Four blocking lifecycle and contract findings were fixed with regression tests; package, migration, schema, type, lint, OpenSpec, and architecture checks now pass, while live PostgreSQL cases remain environment-deferred.",
+    "completed_work": [
+      "Added migration 029 and canonical invariants",
+      "Implemented exact identity, leases, compare-and-swap promotion, and retryable garbage collection",
+      "Fixed four independent review findings with RED/GREEN evidence",
+      "Refreshed architecture artifacts and cleared structural findings"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Preserve canonical validity from both sides of the pointer",
+        "rationale": "Deferrable triggers on the repository pointer and referenced index prevent direct SQL from invalidating a promoted canonical main index.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Recover expired garbage-collection leases with idempotent deletion",
+        "rationale": "A replacement collector can safely repeat storage deletion after crashes before or after the storage effect, then durably tombstone the registry row.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Separate pure registry models from persistence operations",
+        "rationale": "The extraction preserves the public API while keeping both modules below the structural file-size limit.",
+        "capability": "code-search",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Create change-context, architecture-impact, and validation-report artifacts",
+      "Publish the branch and open a PR after GitHub CLI authentication and sync-point guards are available"
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/database/migrations/029_revision_aware_code_search_indexes.sql",
+        "description": "additive registry schema and canonical constraint triggers"
+      },
+      {
+        "path": "packages/code-search/src/code_search_pkg/registry.py",
+        "description": "async lifecycle repository"
+      },
+      {
+        "path": "packages/code-search/src/code_search_pkg/registry_models.py",
+        "description": "pure identity and record contracts"
+      },
+      {
+        "path": "openspec/changes/add-revision-aware-semantic-index-registry/reviews/review-findings-implementation.json",
+        "description": "independent review findings"
+      }
+    ]
+  }
+}

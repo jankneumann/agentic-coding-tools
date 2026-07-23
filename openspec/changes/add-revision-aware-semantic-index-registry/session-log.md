@@ -42,3 +42,45 @@
 
 ### Context
 Planned the revision-aware semantic index registry as an additive foundation for the project-context refresh lifecycle. The user's explicit autopilot-roadmap command is recorded as inherited approval of both the roadmap-selected direction and this implementation-ready plan.
+
+---
+
+## Phase: Implementation (2026-07-23)
+
+**Agent**: codex-autopilot-roadmap | **Session**: N/A
+
+### Decisions
+1. **Preserve canonical validity from both sides of the pointer** `architectural: code-search` — Deferrable triggers on the repository pointer and referenced index prevent direct SQL from invalidating a promoted canonical main index.
+2. **Recover expired garbage-collection leases with idempotent deletion** `architectural: code-search` — A replacement collector can safely repeat storage deletion after crashes before or after the storage effect, then durably tombstone the registry row.
+3. **Separate pure registry models from persistence operations** `architectural: code-search` — The extraction preserves the public API while keeping both modules below the structural file-size limit.
+
+### Alternatives Considered
+- Translate asyncpg foreign-key exceptions: rejected because INSERT SELECT yields a typed missing-repository outcome without coupling the light registry module to driver-specific exception classes
+
+### Trade-offs
+- Accepted an additive compatibility overlap over an immediate legacy reader migration because dependent indexing and fail-closed query items can adopt the registry boundary independently
+
+### Capability Gaps Observed
+- **tooling_gap**: The architecture Makefile points validation at a removed script path and its default Python analyzer excludes packages/code-search, so validation required direct sibling-skill invocation and only the migration appeared in the canonical graph. (skill: refresh-architecture, severity: medium)
+
+### Open Questions
+- [ ] Run the live PostgreSQL trigger, concurrency, and lease cases when POSTGRES_DSN is available.
+
+### Completed Work
+- Added migration 029 and canonical invariants
+- Implemented exact identity, leases, compare-and-swap promotion, and retryable garbage collection
+- Fixed four independent review findings with RED/GREEN evidence
+- Refreshed architecture artifacts and cleared structural findings
+
+### Next Steps
+- Create change-context, architecture-impact, and validation-report artifacts
+- Publish the branch and open a PR after GitHub CLI authentication and sync-point guards are available
+
+### Relevant Files
+- `agent-coordinator/database/migrations/029_revision_aware_code_search_indexes.sql` — additive registry schema and canonical constraint triggers
+- `packages/code-search/src/code_search_pkg/registry.py` — async lifecycle repository
+- `packages/code-search/src/code_search_pkg/registry_models.py` — pure identity and record contracts
+- `openspec/changes/add-revision-aware-semantic-index-registry/reviews/review-findings-implementation.json` — independent review findings
+
+### Context
+Implemented and independently reviewed the revision-aware semantic index registry. Four blocking lifecycle and contract findings were fixed with regression tests; package, migration, schema, type, lint, OpenSpec, and architecture checks now pass, while live PostgreSQL cases remain environment-deferred.

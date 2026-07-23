@@ -14,6 +14,7 @@ class FakeRegistryPool:
     def __init__(self) -> None:
         self.repositories: dict[str, UUID | None] = {}
         self.indexes: dict[UUID, dict[str, Any]] = {}
+        self.executed_sql: list[str] = []
         self._lock = asyncio.Lock()
 
     def add_repository(self, repo_slug: str) -> None:
@@ -22,7 +23,15 @@ class FakeRegistryPool:
     async def fetchrow(self, query: str, *args: Any) -> dict[str, Any] | None:
         async with self._lock:
             sql = query
+            self.executed_sql.append(sql)
             if "/* registry:ensure */" in sql:
+                if (
+                    args[2] not in self.repositories
+                    and "FROM code_search_registry" not in sql
+                ):
+                    raise FakeForeignKeyViolation(
+                        "direct INSERT reached the repository foreign key"
+                    )
                 return self._ensure(*args)
             if "/* registry:get */" in sql:
                 return self._copy(self.indexes.get(args[0]))
@@ -47,6 +56,7 @@ class FakeRegistryPool:
     async def fetch(self, query: str, *args: Any) -> list[dict[str, Any]]:
         async with self._lock:
             sql = query
+            self.executed_sql.append(sql)
             if "/* registry:gc_candidates */" not in sql:
                 raise AssertionError(f"unexpected SQL: {sql}")
             now, limit = args
@@ -57,9 +67,16 @@ class FakeRegistryPool:
                 and row["retention_until"] is not None
                 and row["retention_until"] <= now
                 and row["status"]
-                in {"pending", "ready", "failed", "not_configured", "indexing"}
+                in {
+                    "pending",
+                    "ready",
+                    "failed",
+                    "not_configured",
+                    "indexing",
+                    "deleting",
+                }
                 and not (
-                    row["status"] == "indexing"
+                    row["status"] in {"indexing", "deleting"}
                     and row["lease_expires_at"] is not None
                     and row["lease_expires_at"] > now
                 )
@@ -221,9 +238,16 @@ class FakeRegistryPool:
             or row["retention_until"] is None
             or row["retention_until"] > now
             or row["status"]
-            not in {"pending", "ready", "failed", "not_configured", "indexing"}
+            not in {
+                "pending",
+                "ready",
+                "failed",
+                "not_configured",
+                "indexing",
+                "deleting",
+            }
             or (
-                row["status"] == "indexing"
+                row["status"] in {"indexing", "deleting"}
                 and row["lease_expires_at"] is not None
                 and row["lease_expires_at"] > now
             )
@@ -284,3 +308,7 @@ class FakeRegistryPool:
             row["embedder_model"],
             row["embedding_dim"],
         )
+
+
+class FakeForeignKeyViolation(RuntimeError):
+    """Raised when test SQL would hit the real repository foreign key."""

@@ -65,6 +65,20 @@ def test_concurrent_ensure_returns_one_authoritative_record() -> None:
     asyncio.run(scenario())
 
 
+def test_ensure_missing_repository_returns_typed_not_found_without_fk_error() -> None:
+    async def scenario() -> None:
+        pool = FakeRegistryPool()
+        repo = registry(pool)
+
+        with pytest.raises(IndexNotFoundError):
+            await repo.ensure_index(identity(repo="missing"))
+
+        assert pool.indexes == {}
+        assert "FROM code_search_registry" in pool.executed_sql[-1]
+
+    asyncio.run(scenario())
+
+
 def test_missing_identity_is_distinct_from_an_illegal_claim_transition() -> None:
     async def scenario() -> None:
         pool = FakeRegistryPool()
@@ -267,6 +281,42 @@ def test_gc_is_storage_first_excludes_protected_rows_and_retries_failures() -> N
         assert pool.indexes[deletable.index_id]["status"] == "deleted"
         assert pool.indexes[failing.index_id]["status"] == "failed"
         assert pool.indexes[failing.index_id]["last_error"] == "storage unavailable"
+
+    asyncio.run(scenario())
+
+
+def test_gc_reclaims_expired_deleting_lease_after_storage_delete_crash() -> None:
+    async def scenario() -> None:
+        pool = FakeRegistryPool()
+        pool.add_repository("repo")
+        repo = registry(pool)
+        expired = NOW - timedelta(days=1)
+        candidate = await repo.ensure_index(
+            identity(kind=NamespaceKind.FEATURE, key="feature/crashed"),
+            retention_until=expired,
+        )
+        row = pool.indexes[candidate.index_id]
+        row.update(
+            status="deleting",
+            lease_token=UUID("ffffffff-ffff-4fff-8fff-ffffffffffff"),
+            lease_owner="crashed-gc",
+            lease_expires_at=NOW - timedelta(seconds=1),
+        )
+        storage_that_still_exists: set[str] = set()
+        delete_calls: list[str] = []
+
+        async def idempotent_delete(storage_key: str) -> None:
+            delete_calls.append(storage_key)
+            storage_that_still_exists.discard(storage_key)
+
+        result = await repo.collect_garbage(idempotent_delete)
+
+        assert result == GarbageCollectionResult(
+            deleted=(candidate.index_id,), failed=()
+        )
+        assert delete_calls == [candidate.storage_key]
+        assert pool.indexes[candidate.index_id]["status"] == "deleted"
+        assert pool.indexes[candidate.index_id]["deleted_at"] == NOW
 
     asyncio.run(scenario())
 

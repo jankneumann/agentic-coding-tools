@@ -188,6 +188,57 @@ BEGIN
 END;
 $migration$;
 
+-- Preserve the invariant after promotion too. The registry-side trigger checks a
+-- candidate when the pointer changes; this index-side trigger prevents later direct
+-- SQL from changing that referenced candidate away from same-repository/main/ready.
+CREATE OR REPLACE FUNCTION code_search_indexes_validate_canonical_target()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $function$
+DECLARE
+    registry code_search_registry%ROWTYPE;
+BEGIN
+    SELECT *
+    INTO registry
+    FROM code_search_registry
+    WHERE code_search_registry.canonical_index_id = NEW.index_id;
+
+    IF NOT FOUND THEN
+        RETURN NEW;
+    END IF;
+
+    IF NEW.repo_slug <> registry.repo_slug
+       OR NEW.namespace_kind <> 'main'
+       OR NEW.status <> 'ready' THEN
+        RAISE EXCEPTION
+            'canonical semantic index must remain a ready main index for repository %',
+            registry.repo_slug
+            USING ERRCODE = '23514';
+    END IF;
+
+    RETURN NEW;
+END;
+$function$;
+
+DO $migration$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'code_search_indexes_validate_canonical_target'
+          AND tgrelid = 'code_search_indexes'::regclass
+          AND NOT tgisinternal
+    ) THEN
+        EXECUTE
+            'CREATE CONSTRAINT TRIGGER code_search_indexes_validate_canonical_target '
+            'AFTER UPDATE OF repo_slug, namespace_kind, status ON code_search_indexes '
+            'DEFERRABLE INITIALLY IMMEDIATE '
+            'FOR EACH ROW EXECUTE FUNCTION '
+            'code_search_indexes_validate_canonical_target()';
+    END IF;
+END;
+$migration$;
+
 COMMENT ON TABLE code_search_indexes IS
     'Authoritative revision-aware semantic-index lifecycle registry. '
     'One row identifies one repository/namespace/revision/embedder contract.';

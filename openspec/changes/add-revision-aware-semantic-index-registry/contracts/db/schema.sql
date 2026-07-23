@@ -88,11 +88,12 @@ ALTER TABLE code_search_registry
 --
 --   'i_' || replace(index_id::text, '-', '')
 --
--- and a DEFERRABLE constraint trigger on code_search_registry that rejects a
--- canonical pointer unless the target row:
+-- and DEFERRABLE constraint triggers on both code_search_registry and
+-- code_search_indexes. They reject a canonical pointer, or a later mutation of
+-- its target, unless the target row:
 --   1. has the same repo_slug,
 --   2. has namespace_kind = 'main', and
 --   3. has status = 'ready'.
 --
--- The Python registry additionally uses SELECT ... FOR UPDATE and an
--- expected_current_index_id comparison for canonical promotion.
+-- The Python registry additionally performs canonical promotion as one guarded
+-- UPDATE with an expected_current_index_id compare-and-swap predicate.

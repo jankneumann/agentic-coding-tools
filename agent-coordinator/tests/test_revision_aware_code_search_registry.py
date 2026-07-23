@@ -43,8 +43,7 @@ def test_migration_is_additive_and_preserves_legacy_columns() -> None:
 
     assert "create table if not exists code_search_indexes" in sql
     assert (
-        "alter table code_search_registry add column if not exists "
-        "canonical_index_id uuid"
+        "alter table code_search_registry add column if not exists canonical_index_id uuid"
     ) in sql
     assert "last_indexed_commit" not in sql
     assert "repo_root" not in sql
@@ -122,6 +121,18 @@ def test_canonical_pointer_has_fk_and_deferrable_safety_trigger() -> None:
     assert "candidate.status <> 'ready'" in sql
 
 
+def test_canonical_target_has_deferrable_invariant_preservation_trigger() -> None:
+    sql = _normalized_sql()
+
+    assert "create constraint trigger code_search_indexes_validate_canonical_target" in sql
+    assert "after update of repo_slug, namespace_kind, status" in sql
+    assert "deferrable initially immediate" in sql
+    assert "registry.canonical_index_id = new.index_id" in sql
+    assert "new.repo_slug <> registry.repo_slug" in sql
+    assert "new.namespace_kind <> 'main'" in sql
+    assert "new.status <> 'ready'" in sql
+
+
 async def _apply_migrations(conn: object) -> None:
     await conn.execute(LEGACY_MIGRATION.read_text(encoding="utf-8"))
     await conn.execute(MIGRATION.read_text(encoding="utf-8"))
@@ -186,10 +197,13 @@ async def test_live_migration_is_idempotent_and_concurrent_ensure_is_unique() ->
 
         assert first["index_id"] == second["index_id"]
         assert first["storage_key"] == f"i_{first['index_id'].hex}"
-        assert await conn.fetchval(
-            "SELECT count(*) FROM code_search_indexes WHERE repo_slug = $1",
-            repo_slug,
-        ) == 1
+        assert (
+            await conn.fetchval(
+                "SELECT count(*) FROM code_search_indexes WHERE repo_slug = $1",
+                repo_slug,
+            )
+            == 1
+        )
     finally:
         await _cleanup_repositories(conn, [repo_slug])
         await peer.close()
@@ -248,22 +262,19 @@ async def test_live_canonical_trigger_and_compare_and_swap_are_guarded() -> None
         cross_repo = await ready_index(other_slug, "main", "main", "e" * 40)
 
         await conn.execute(
-            "UPDATE code_search_registry SET canonical_index_id = $2 "
-            "WHERE repo_slug = $1",
+            "UPDATE code_search_registry SET canonical_index_id = $2 WHERE repo_slug = $1",
             repo_slug,
             main_a,
         )
         with pytest.raises(asyncpg.exceptions.CheckViolationError):
             await conn.execute(
-                "UPDATE code_search_registry SET canonical_index_id = $2 "
-                "WHERE repo_slug = $1",
+                "UPDATE code_search_registry SET canonical_index_id = $2 WHERE repo_slug = $1",
                 repo_slug,
                 feature,
             )
         with pytest.raises(asyncpg.exceptions.CheckViolationError):
             await conn.execute(
-                "UPDATE code_search_registry SET canonical_index_id = $2 "
-                "WHERE repo_slug = $1",
+                "UPDATE code_search_registry SET canonical_index_id = $2 WHERE repo_slug = $1",
                 repo_slug,
                 cross_repo,
             )
@@ -277,10 +288,13 @@ async def test_live_canonical_trigger_and_compare_and_swap_are_guarded() -> None
             uuid.uuid4(),
         )
         assert stale_result is None
-        assert await conn.fetchval(
-            "SELECT canonical_index_id FROM code_search_registry WHERE repo_slug = $1",
-            repo_slug,
-        ) == main_a
+        assert (
+            await conn.fetchval(
+                "SELECT canonical_index_id FROM code_search_registry WHERE repo_slug = $1",
+                repo_slug,
+            )
+            == main_a
+        )
 
         promoted = await conn.fetchval(
             "UPDATE code_search_registry SET canonical_index_id = $2 "
@@ -291,6 +305,86 @@ async def test_live_canonical_trigger_and_compare_and_swap_are_guarded() -> None
             main_a,
         )
         assert promoted == main_b
+    finally:
+        await _cleanup_repositories(conn, [repo_slug, other_slug])
+        await conn.close()
+
+
+@pytest.mark.skipif(
+    not os.environ.get("POSTGRES_DSN"),
+    reason="requires live PostgreSQL/ParadeDB via POSTGRES_DSN",
+)
+@pytest.mark.asyncio
+async def test_live_promoted_canonical_rejects_invariant_breaking_updates() -> None:
+    import asyncpg
+
+    dsn = os.environ["POSTGRES_DSN"]
+    repo_slug = f"target_{uuid.uuid4().hex[:12]}"
+    other_slug = f"target_other_{uuid.uuid4().hex[:8]}"
+    conn = await asyncpg.connect(dsn)
+    try:
+        await _apply_migrations(conn)
+        for slug in (repo_slug, other_slug):
+            await conn.execute(
+                "INSERT INTO code_search_registry "
+                "(repo_slug, repo_root, embedder_model, embedding_dim) "
+                "VALUES ($1, $2, 'test-embedder', 384)",
+                slug,
+                f"/tmp/{slug}",
+            )
+
+        index_id = await conn.fetchval(
+            """
+            INSERT INTO code_search_indexes (
+                repo_slug, namespace_kind, namespace_key, source_revision,
+                embedder_model, embedding_dim
+            )
+            VALUES ($1, 'main', 'main', $2, 'test-embedder', 384)
+            RETURNING index_id
+            """,
+            repo_slug,
+            "f" * 40,
+        )
+        await conn.execute(
+            "UPDATE code_search_indexes "
+            "SET status = 'ready', chunk_count = 1, completed_at = now() "
+            "WHERE index_id = $1",
+            index_id,
+        )
+        await conn.execute(
+            "UPDATE code_search_registry SET canonical_index_id = $2 WHERE repo_slug = $1",
+            repo_slug,
+            index_id,
+        )
+
+        for column, value in (
+            ("status", "failed"),
+            ("namespace_kind", "feature"),
+            ("repo_slug", other_slug),
+        ):
+            with pytest.raises(asyncpg.exceptions.CheckViolationError):
+                await conn.execute(
+                    f"UPDATE code_search_indexes SET {column} = $2 WHERE index_id = $1",
+                    index_id,
+                    value,
+                )
+
+        persisted = await conn.fetchrow(
+            "SELECT repo_slug, namespace_kind, status FROM code_search_indexes WHERE index_id = $1",
+            index_id,
+        )
+        assert dict(persisted) == {
+            "repo_slug": repo_slug,
+            "namespace_kind": "main",
+            "status": "ready",
+        }
+        assert (
+            await conn.fetchval(
+                "SELECT canonical_index_id FROM code_search_registry WHERE repo_slug = $1",
+                repo_slug,
+            )
+            == index_id
+        )
     finally:
         await _cleanup_repositories(conn, [repo_slug, other_slug])
         await conn.close()

@@ -153,6 +153,7 @@ packages:
     locks:
       files:
         - "packages/code-search/src/code_search_pkg/registry.py"
+        - "packages/code-search/src/code_search_pkg/registry_models.py"
         - "packages/code-search/src/code_search_pkg/identifiers.py"
         - "packages/code-search/src/code_search_pkg/__init__.py"
         - "packages/code-search/tests"
@@ -163,6 +164,7 @@ packages:
     scope:
       write_allow:
         - "packages/code-search/src/code_search_pkg/registry.py"
+        - "packages/code-search/src/code_search_pkg/registry_models.py"
         - "packages/code-search/src/code_search_pkg/identifiers.py"
         - "packages/code-search/src/code_search_pkg/__init__.py"
         - "packages/code-search/tests/**"
@@ -200,6 +202,7 @@ packages:
         - "registry_tests_pass"
       artifacts:
         - "packages/code-search/src/code_search_pkg/registry.py"
+        - "packages/code-search/src/code_search_pkg/registry_models.py"
 
   - package_id: wp-integration
     title: "Document registry operations and validate compatibility"
