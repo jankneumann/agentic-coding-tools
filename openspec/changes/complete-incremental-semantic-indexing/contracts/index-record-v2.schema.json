@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-coding-tools:code-search:index-record:v2",
+  "title": "SemanticIndexRecordV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "index_id",
+    "storage_key",
+    "repo_slug",
+    "namespace_kind",
+    "namespace_key",
+    "source_revision",
+    "embedder_model",
+    "embedding_dim",
+    "policy_fingerprint",
+    "pipeline_fingerprint",
+    "embedder_fingerprint",
+    "parent_index_id",
+    "status",
+    "attempt_count",
+    "chunk_count",
+    "last_error",
+    "lease_token",
+    "lease_owner",
+    "lease_expires_at",
+    "retention_until",
+    "started_at",
+    "completed_at",
+    "deleted_at",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "index_id": {"type": "string", "format": "uuid"},
+    "storage_key": {"type": "string", "pattern": "^i_[0-9a-f]{32}$"},
+    "repo_slug": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,50}$"},
+    "namespace_kind": {"enum": ["main", "feature", "work_package"]},
+    "namespace_key": {"type": "string", "minLength": 1, "maxLength": 255},
+    "source_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+    },
+    "embedder_model": {"type": "string", "minLength": 1},
+    "embedding_dim": {"type": "integer", "minimum": 1},
+    "policy_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "pipeline_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "embedder_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "parent_index_id": {"type": ["string", "null"], "format": "uuid"},
+    "status": {
+      "enum": [
+        "pending",
+        "indexing",
+        "ready",
+        "failed",
+        "not_configured",
+        "deleting",
+        "deleted"
+      ]
+    },
+    "attempt_count": {"type": "integer", "minimum": 0},
+    "chunk_count": {"type": ["integer", "null"], "minimum": 0},
+    "last_error": {"type": ["string", "null"], "maxLength": 1000},
+    "lease_token": {"type": ["string", "null"], "format": "uuid"},
+    "lease_owner": {"type": ["string", "null"], "maxLength": 255},
+    "lease_expires_at": {"type": ["string", "null"], "format": "date-time"},
+    "retention_until": {"type": ["string", "null"], "format": "date-time"},
+    "started_at": {"type": ["string", "null"], "format": "date-time"},
+    "completed_at": {"type": ["string", "null"], "format": "date-time"},
+    "deleted_at": {"type": ["string", "null"], "format": "date-time"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"namespace_kind": {"const": "main"}},
+        "required": ["namespace_kind"]
+      },
+      "then": {"properties": {"namespace_key": {"const": "main"}}}
+    },
+    {
+      "if": {
+        "properties": {"status": {"enum": ["indexing", "deleting"]}},
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "lease_token": {"type": "string", "format": "uuid"},
+          "lease_owner": {"type": "string", "minLength": 1},
+          "lease_expires_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "else": {
+        "properties": {
+          "lease_token": {"type": "null"},
+          "lease_owner": {"type": "null"},
+          "lease_expires_at": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"status": {"const": "ready"}},
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "chunk_count": {"type": "integer", "minimum": 0},
+          "last_error": {"type": "null"},
+          "completed_at": {"type": "string", "format": "date-time"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"status": {"const": "deleted"}},
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "deleted_at": {"type": "string", "format": "date-time"}
+        }
+      }
+    }
+  ]
+}

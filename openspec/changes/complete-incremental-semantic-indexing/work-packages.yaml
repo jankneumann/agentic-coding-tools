@@ -1,0 +1,579 @@
+schema_version: 1
+
+feature:
+  id: complete-incremental-semantic-indexing
+  title: "Complete incremental semantic indexing"
+  plan_revision: 1
+  created_by: codex-autopilot-roadmap
+  created_at: "2026-07-23T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    # No network API; README is the repository-standard contract entrypoint.
+    primary: "openspec/changes/complete-incremental-semantic-indexing/contracts/README.md"
+    files:
+      - "openspec/changes/complete-incremental-semantic-indexing/contracts/README.md"
+      - "openspec/changes/complete-incremental-semantic-indexing/contracts/index-request.schema.json"
+      - "openspec/changes/complete-incremental-semantic-indexing/contracts/index-execution-result.schema.json"
+      - "openspec/changes/complete-incremental-semantic-indexing/contracts/index-record-v2.schema.json"
+      - "openspec/changes/complete-incremental-semantic-indexing/contracts/target-strategy.md"
+      - "openspec/changes/complete-incremental-semantic-indexing/contracts/db/schema.sql"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contract-spike
+    title: "Freeze indexing contracts and prove copy-forward compatibility"
+    task_type: contracts
+    description: |
+      Tasks 0.1-0.2. Validate the request/result/database contracts and run the
+      two-revision CocoIndex compatibility test. Freeze either the built-in
+      user-managed Postgres target behavior or the thin target-adapter boundary;
+      do not select a full-rebuild fallback.
+    role: contracts-author
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/complete-incremental-semantic-indexing/contracts"
+        - "packages/code-search/pyproject.toml"
+        - "packages/code-search/tests/test_storage_contract.py"
+        - "packages/code-search/tests/test_cocoindex_revision_compat.py"
+      keys:
+        - "contract:incremental-code-search"
+        - "feature:complete-incremental-semantic-indexing:contracts"
+      ttl_minutes: 120
+      reason: "Freeze revision indexing boundary and upstream target behavior"
+    scope:
+      write_allow:
+        - "openspec/changes/complete-incremental-semantic-indexing/contracts/**"
+        - "packages/code-search/pyproject.toml"
+        - "packages/code-search/tests/test_storage_contract.py"
+        - "packages/code-search/tests/test_cocoindex_revision_compat.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: incremental-index-contract-spike
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Indexing JSON contracts parse"
+          kind: command
+          command: "uv run --project skills python -m json.tool openspec/changes/complete-incremental-semantic-indexing/contracts/index-request.schema.json && uv run --project skills python -m json.tool openspec/changes/complete-incremental-semantic-indexing/contracts/index-record-v2.schema.json && uv run --project skills python -m json.tool openspec/changes/complete-incremental-semantic-indexing/contracts/index-execution-result.schema.json"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+        - name: "Fenced target contract passes without optional resources"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests/test_storage_contract.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "copy_forward_strategy_frozen"
+    metadata:
+      loc_estimate: 180
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      dependency_change: add-revision-aware-semantic-index-registry
+    outputs:
+      result_keys:
+        - "contracts_valid"
+        - "copy_forward_strategy_frozen"
+      artifacts:
+        - "openspec/changes/complete-incremental-semantic-indexing/contracts/README.md"
+        - "openspec/changes/complete-incremental-semantic-indexing/contracts/target-strategy.md"
+        - "packages/code-search/tests/test_storage_contract.py"
+        - "packages/code-search/tests/test_cocoindex_revision_compat.py"
+
+  - package_id: wp-registry-manifest
+    title: "Add fingerprinted identity, file manifests, and lease heartbeat"
+    task_type: migration
+    description: |
+      Tasks 1.1-1.2. Add migration 030 plus structural/live tests, then extend
+      registry models and operations with computation fingerprints, compatible
+      parent lookup, per-revision file manifests, and current-token lease renewal.
+    role: database-engineer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contract-spike
+    locks:
+      files:
+        - "agent-coordinator/database/migrations/030_incremental_code_search_indexes.sql"
+        - "agent-coordinator/tests/test_incremental_code_search_registry.py"
+        - "packages/code-search/src/code_search_pkg/registry.py"
+        - "packages/code-search/src/code_search_pkg/registry_models.py"
+        - "packages/code-search/tests/test_incremental_registry.py"
+      keys:
+        - "db:schema:code_search_indexes"
+        - "db:schema:code_search_index_files"
+        - "feature:complete-incremental-semantic-indexing:registry"
+      ttl_minutes: 120
+      reason: "Extend exact-index persistence for safe incremental reuse"
+    scope:
+      write_allow:
+        - "agent-coordinator/database/migrations/030_incremental_code_search_indexes.sql"
+        - "agent-coordinator/tests/test_incremental_code_search_registry.py"
+        - "packages/code-search/src/code_search_pkg/registry.py"
+        - "packages/code-search/src/code_search_pkg/registry_models.py"
+        - "packages/code-search/tests/test_incremental_registry.py"
+      read_allow:
+        - "agent-coordinator/**"
+        - "packages/code-search/**"
+        - "openspec/changes/add-revision-aware-semantic-index-registry/**"
+        - "openspec/changes/complete-incremental-semantic-indexing/**"
+    worktree:
+      name: incremental-index-registry
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Incremental registry suites pass"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests/test_incremental_registry.py -q && uv run --project agent-coordinator pytest agent-coordinator/tests/test_incremental_code_search_registry.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "registry_manifest_tests_pass"
+    metadata:
+      loc_estimate: 500
+      complexity: medium
+      package_kind: data_model
+    inputs:
+      contract_revision: 1
+      contract_package: wp-contract-spike
+    outputs:
+      result_keys:
+        - "registry_manifest_tests_pass"
+      artifacts:
+        - "agent-coordinator/database/migrations/030_incremental_code_search_indexes.sql"
+        - "packages/code-search/src/code_search_pkg/registry.py"
+
+  - package_id: wp-source-policy
+    title: "Prove exact source and enforce index-time eligibility"
+    task_type: backend
+    description: |
+      Tasks 2.1-2.2. Build light, pure source-proof and eligibility modules with
+      tests for exact clean revisions, containment, gitignore, scope intersection,
+      deny precedence, secret/generated exclusions, and canonical fingerprints.
+    role: security-engineer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contract-spike
+    locks:
+      files:
+        - "packages/code-search/src/code_search_pkg/source_proof.py"
+        - "packages/code-search/src/code_search_pkg/indexing_policy.py"
+        - "packages/code-search/src/code_search_pkg/secret_scanner.py"
+        - "packages/code-search/tests/test_source_proof.py"
+        - "packages/code-search/tests/test_indexing_policy.py"
+        - "packages/code-search/tests/test_secret_scanner.py"
+      keys:
+        - "feature:complete-incremental-semantic-indexing:source"
+        - "feature:complete-incremental-semantic-indexing:policy"
+      ttl_minutes: 120
+      reason: "Prevent mislabeled or forbidden content from reaching embedding"
+    scope:
+      write_allow:
+        - "packages/code-search/src/code_search_pkg/source_proof.py"
+        - "packages/code-search/src/code_search_pkg/indexing_policy.py"
+        - "packages/code-search/src/code_search_pkg/secret_scanner.py"
+        - "packages/code-search/tests/test_source_proof.py"
+        - "packages/code-search/tests/test_indexing_policy.py"
+        - "packages/code-search/tests/test_secret_scanner.py"
+      read_allow:
+        - "packages/code-search/**"
+        - "agent-coordinator/src/code_search.py"
+        - "skills/parallel-infrastructure/scripts/scope_checker.py"
+        - "openspec/changes/complete-incremental-semantic-indexing/**"
+    worktree:
+      name: incremental-index-source-policy
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Source and policy suites pass"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests/test_source_proof.py packages/code-search/tests/test_indexing_policy.py packages/code-search/tests/test_secret_scanner.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "source_policy_tests_pass"
+    metadata:
+      loc_estimate: 420
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      contract_package: wp-contract-spike
+    outputs:
+      result_keys:
+        - "source_policy_tests_pass"
+      artifacts:
+        - "packages/code-search/src/code_search_pkg/source_proof.py"
+        - "packages/code-search/src/code_search_pkg/indexing_policy.py"
+        - "packages/code-search/src/code_search_pkg/secret_scanner.py"
+
+  - package_id: wp-embedding-protocol
+    title: "Freeze the provider-independent embedding boundary"
+    task_type: backend
+    description: |
+      Tasks 2.3-2.4. Define and test the light EmbeddingProvider protocol,
+      canonical whitelisted indexing parameters, readiness/error taxonomy,
+      sanitized credential references, and deterministic fingerprints consumed
+      by both the CocoIndex adapter and concrete provider configuration.
+    role: python-engineer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contract-spike
+    locks:
+      files:
+        - "packages/code-search/src/code_search_pkg/embedding_protocol.py"
+        - "packages/code-search/tests/test_embedding_protocol.py"
+      keys:
+        - "contract:code-search-embedding-provider"
+        - "feature:complete-incremental-semantic-indexing:embedding"
+      ttl_minutes: 60
+      reason: "Freeze the light provider boundary before adapter implementation"
+    scope:
+      write_allow:
+        - "packages/code-search/src/code_search_pkg/embedding_protocol.py"
+        - "packages/code-search/tests/test_embedding_protocol.py"
+      read_allow:
+        - "packages/code-search/**"
+        - "openspec/changes/add-coordinator-llm-gateway/**"
+        - "openspec/changes/complete-incremental-semantic-indexing/**"
+    worktree:
+      name: incremental-index-embedding-protocol
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Embedding protocol suite passes"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests/test_embedding_protocol.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "embedding_protocol_tests_pass"
+    metadata:
+      loc_estimate: 180
+      complexity: low
+      package_kind: data_model
+    inputs:
+      contract_revision: 1
+      contract_package: wp-contract-spike
+    outputs:
+      result_keys:
+        - "embedding_protocol_tests_pass"
+      artifacts:
+        - "packages/code-search/src/code_search_pkg/embedding_protocol.py"
+
+  - package_id: wp-incremental-adapter
+    title: "Build CocoIndex v1 changed-file adapter and isolated storage verifier"
+    task_type: backend
+    description: |
+      Tasks 3.1-3.2. Implement the heavy CocoIndex adapter selected by the
+      compatibility package: stable App contexts, path-aware chunks, parent-row
+      copy-forward, changed-file processing, deletion/ineligibility omission,
+      manifest output, and independent target verification.
+    role: python-engineer
+    archetype: implementer
+    priority: 3
+    depends_on:
+      - wp-contract-spike
+      - wp-registry-manifest
+      - wp-source-policy
+      - wp-embedding-protocol
+    locks:
+      files:
+        - "packages/code-search/src/code_search_pkg/indexer_pg.py"
+        - "packages/code-search/src/code_search_pkg/storage_pg.py"
+        - "packages/code-search/src/code_search_pkg/schema.py"
+        - "packages/code-search/src/code_search_pkg/identifiers.py"
+        - "packages/code-search/tests/test_incremental_adapter.py"
+        - "packages/code-search/tests/test_storage_pg.py"
+      keys:
+        - "feature:complete-incremental-semantic-indexing:adapter"
+        - "db:schema:code_chunks"
+      ttl_minutes: 120
+      reason: "Create complete immutable targets while embedding only changed files"
+    scope:
+      write_allow:
+        - "packages/code-search/src/code_search_pkg/indexer_pg.py"
+        - "packages/code-search/src/code_search_pkg/storage_pg.py"
+        - "packages/code-search/src/code_search_pkg/schema.py"
+        - "packages/code-search/src/code_search_pkg/identifiers.py"
+        - "packages/code-search/tests/test_incremental_adapter.py"
+        - "packages/code-search/tests/test_storage_pg.py"
+      read_allow:
+        - "packages/code-search/**"
+        - "agent-coordinator/database/migrations/**"
+        - "openspec/changes/complete-incremental-semantic-indexing/**"
+    worktree:
+      name: incremental-index-adapter
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Incremental adapter suite passes"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests/test_incremental_adapter.py packages/code-search/tests/test_storage_pg.py packages/code-search/tests/test_storage_contract.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "incremental_adapter_tests_pass"
+    metadata:
+      loc_estimate: 600
+      complexity: high
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      registry_package: wp-registry-manifest
+      policy_package: wp-source-policy
+    outputs:
+      result_keys:
+        - "incremental_adapter_tests_pass"
+      artifacts:
+        - "packages/code-search/src/code_search_pkg/indexer_pg.py"
+        - "packages/code-search/src/code_search_pkg/storage_pg.py"
+        - "packages/code-search/src/code_search_pkg/schema.py"
+
+  - package_id: wp-operation-cli
+    title: "Orchestrate durable indexing and replace the placeholder CLI"
+    task_type: backend
+    description: |
+      Tasks 4.1-5.2. Add dependency-injected lifecycle orchestration, heartbeat,
+      provider configuration, structured results, safe full rebuild, lazy heavy
+      imports, exact CLI inputs, and explicit local/OpenAI-compatible gateway
+      behavior. Replace the legacy upsert and NotImplementedError.
+    role: python-engineer
+    archetype: implementer
+    priority: 4
+    depends_on:
+      - wp-registry-manifest
+      - wp-source-policy
+      - wp-incremental-adapter
+      - wp-embedding-protocol
+    locks:
+      files:
+        - "packages/code-search/src/code_search_pkg/indexing_runtime.py"
+        - "packages/code-search/src/code_search_pkg/embedding_config.py"
+        - "packages/code-search/src/code_search_pkg/cli.py"
+        - "packages/code-search/src/code_search_pkg/__init__.py"
+        - "packages/code-search/tests/test_indexing_runtime.py"
+        - "packages/code-search/tests/test_embedding_config.py"
+        - "packages/code-search/tests/test_cli.py"
+      keys:
+        - "feature:complete-incremental-semantic-indexing:operation"
+        - "feature:complete-incremental-semantic-indexing:cli"
+      ttl_minutes: 120
+      reason: "Expose one durable operation boundary over registry and adapter"
+    scope:
+      write_allow:
+        - "packages/code-search/src/code_search_pkg/indexing_runtime.py"
+        - "packages/code-search/src/code_search_pkg/embedding_config.py"
+        - "packages/code-search/src/code_search_pkg/cli.py"
+        - "packages/code-search/src/code_search_pkg/__init__.py"
+        - "packages/code-search/tests/test_indexing_runtime.py"
+        - "packages/code-search/tests/test_embedding_config.py"
+        - "packages/code-search/tests/test_cli.py"
+      read_allow:
+        - "packages/code-search/**"
+        - "agent-coordinator/**"
+        - "openspec/changes/add-coordinator-llm-gateway/**"
+        - "openspec/changes/complete-incremental-semantic-indexing/**"
+    worktree:
+      name: incremental-index-operation-cli
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Operation and CLI suites pass"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests/test_indexing_runtime.py packages/code-search/tests/test_embedding_config.py packages/code-search/tests/test_cli.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "operation_cli_tests_pass"
+    metadata:
+      loc_estimate: 650
+      complexity: high
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      registry_package: wp-registry-manifest
+      adapter_package: wp-incremental-adapter
+    outputs:
+      result_keys:
+        - "operation_cli_tests_pass"
+      artifacts:
+        - "packages/code-search/src/code_search_pkg/indexing_runtime.py"
+        - "packages/code-search/src/code_search_pkg/cli.py"
+
+  - package_id: wp-live-docs
+    title: "Prove live behavior and document the indexing lifecycle"
+    task_type: integration
+    description: |
+      Tasks 6.1-6.3. Replace placeholder E2E tests with a real fixture and
+      resource-gated live assertions for schema, HNSW, delta behavior, deletion,
+      safety scope, isolation, retry, and optional gateway compatibility. Update
+      the operator guide and run full change validation.
+    role: integration-engineer
+    archetype: implementer
+    priority: 5
+    depends_on:
+      - wp-contract-spike
+      - wp-registry-manifest
+      - wp-source-policy
+      - wp-embedding-protocol
+      - wp-incremental-adapter
+      - wp-operation-cli
+    locks:
+      files:
+        - "packages/code-search/tests/test_indexer_e2e.py"
+        - "packages/code-search/tests/fixtures/sample_repo"
+        - "docs/guides/code-search.md"
+        - "docs/architecture-analysis"
+      keys:
+        - "feature:complete-incremental-semantic-indexing:live"
+        - "feature:complete-incremental-semantic-indexing:docs"
+      ttl_minutes: 120
+      reason: "Finalize live evidence and operator handoff"
+    scope:
+      write_allow:
+        - "packages/code-search/tests/test_indexer_e2e.py"
+        - "packages/code-search/tests/fixtures/sample_repo/**"
+        - "docs/guides/code-search.md"
+        - "docs/architecture-analysis/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: incremental-index-live-docs
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Strict OpenSpec validation passes"
+          kind: command
+          command: "openspec validate complete-incremental-semantic-indexing --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "strict_openspec_valid"
+        - name: "Code-search suite passes"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "code_search_tests_pass"
+        - name: "Work-package DAG remains valid"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/complete-incremental-semantic-indexing/work-packages.yaml"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "work_packages_valid"
+        - name: "Changed Python passes Ruff and Pyright"
+          kind: command
+          command: "uv run --project packages/code-search ruff check packages/code-search/src packages/code-search/tests && uv run --project packages/code-search pyright packages/code-search/src"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "static_checks_pass"
+        - name: "Architecture artifacts refresh for code-search and migrations"
+          kind: command
+          command: "skills/.venv/bin/python skills/refresh-architecture/scripts/run_architecture.py --target-dir . --python-src-dir packages/code-search/src --migrations-dir agent-coordinator/database/migrations --arch-dir docs/architecture-analysis --quick"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "docs/architecture-analysis/architecture.json"
+            result_keys:
+              - "architecture_refresh_pass"
+        - name: "Live E2E passes or records an explicit environment deferral"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests/test_indexer_e2e.py packages/code-search/tests/test_cocoindex_revision_compat.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "live_evidence_classified"
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      operation_package: wp-operation-cli
+    outputs:
+      result_keys:
+        - "strict_openspec_valid"
+        - "code_search_tests_pass"
+        - "work_packages_valid"
+        - "static_checks_pass"
+        - "architecture_refresh_pass"
+        - "live_evidence_classified"
+      artifacts:
+        - "packages/code-search/tests/test_indexer_e2e.py"
+        - "docs/guides/code-search.md"
+        - "docs/architecture-analysis/architecture.json"
