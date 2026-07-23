@@ -77,11 +77,11 @@ roster work. They are labeled here — not laundered into roster tasks — per D
   roster behavior.
   **Dependencies**: None
 
-- [ ] 0.5 Checkpoint: `skills/.venv/bin/python -m pytest skills/tests -q` passes with the
-  roster unmodified; `agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q
-  -m 'not e2e and not integration'` is green; `(cd apps/kanban-viz && npm test -- --run)` is
-  green. **All three baselines must be green before any roster edit** — otherwise every
-  downstream gate inherits a failure it did not cause.
+- [ ] 0.5 Checkpoint: with the roster unmodified, run the **verification step of each of
+  `wp-coordinator`, `wp-skills`, and `wp-frontend`** (in `work-packages.yaml`) and confirm all
+  three pass on the baseline-repaired tree. **All three baselines must be green before any
+  roster edit** — otherwise every downstream gate inherits a failure it did not cause. The
+  suite commands live only in `work-packages.yaml`; do not restate them here.
 
 ## Phase 1 — Empirical CLI facts (resolves proposal open decisions 2 and 3)
 
@@ -368,8 +368,8 @@ calls is on record in `design.md`.
 - [ ] 5.7 Checkpoint: run **`wp-docs-finalize`'s first verification step** in
   `work-packages.yaml` and confirm it exits 0 — `openspec validate --all --strict`, the grok
   citation present, `.gemini/` gone, and the in-scope doc/template/SKILL.md file list free of
-  gemini. Additionally confirm no carve-out file appears in
-  `git diff --name-only main...HEAD`. The file list lives only in `work-packages.yaml`.
+  gemini, and — folded into the same gate — that no carve-out file appears in the change's
+  diff against `main`. The gate command and its file list live only in `work-packages.yaml`.
 
 ## Phase 6 — Integration and validation
 
@@ -383,11 +383,11 @@ calls is on record in `design.md`.
   **Spec scenarios**: skill-workflow.3
   **Dependencies**: 5.7
 
-- [ ] 6.2 Run the four suites with their own interpreters:
-  `agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration'`;
-  `skills/.venv/bin/python -m pytest skills/tests -q`;
-  `uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q`;
-  `cd apps/kanban-viz && npm ci && npm test -- --run` (M)
+- [ ] 6.2 Run **`wp-docs-finalize`'s second verification step** (already invoked in 6.1) and
+  confirm the full four-tree suite passes end-to-end after the mirror sync. That step is the
+  single home for the full-suite command — it covers `agent-coordinator/tests`, the skills
+  tree (including the four dirs `pytest skills/tests` alone does not collect), agent-scenarios
+  via its own project, and the kanban frontend. Do not restate the suite commands here. (M)
   **Dependencies**: 6.1
 
 - [ ] 6.3 Live smoke dispatch against each of antigravity, grok, and pi (operator-authorized;

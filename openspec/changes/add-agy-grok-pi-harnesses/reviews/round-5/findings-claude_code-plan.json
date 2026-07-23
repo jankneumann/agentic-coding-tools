@@ -1,0 +1,25 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "description": "Incomplete propagation of R4-C3 into the integration gate. R4-C3 established (and I re-verified) that `pytest skills/tests` collects ZERO tests from skills/parallel-infrastructure/scripts/tests (11 files), skills/parallel-infrastructure/tests (4 files, incl. test_vendor_diversity.py), skills/collect-transcripts/tests (12 files), and skills/autopilot/scripts/tests (5 files) \u2014 so wp-skills' gate lists all five paths explicitly. But wp-docs-finalize's SECOND verification step (work-packages.yaml:382) and task 6.2 (tasks.md:386-390) run `skills/.venv/bin/python -m pytest skills/tests -q` ONLY. Passing an explicit positional path makes pytest ignore `testpaths`, so those four sibling dirs are not collected. The gate is titled 'full suite green across the four trees' and 'the full suite', but for the skills tree it omits exactly the dispatch/adapter/vendor-diversity tests (tasks 3.1/3.4/3.8) that gate this change's core behavior. Additionally, the integration phase re-runs NO skills-tree residue grep \u2014 wp-docs-finalize's first gate greps only the doc/SKILL.md list. Net effect: a gemini reintroduction or roster regression in skills dispatch code, reintroduced during the merge of wp-skills into the feature branch (wp-docs-finalize runs in a shared worktree after all three merge), would pass every wp-docs-finalize gate. Verified: all four dirs exist and are siblings of, not under, skills/tests. Fix: add the four dirs (and ideally a skills-tree residue grep) to the final gate and task 6.2, matching wp-skills' invocation."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "description": "Orphaned verification instruction outside work-packages.yaml. Checkpoint 5.7 (tasks.md:368-372) says: run wp-docs-finalize's first gate 'and confirm it exits 0 ... Additionally confirm no carve-out file appears in `git diff --name-only main...HEAD`.' That 'additionally confirm' clause is an executable verification command that lives ONLY in tasks.md \u2014 I grepped work-packages.yaml and there is no `git diff --name-only` check anywhere in it. This directly violates the round-4 invariant design.md asserts (lines 240-244: 'no verification command appears anywhere except work-packages.yaml'), reintroducing the drift class round 4 claimed to eliminate. It also reveals a real gap: no package GATE mechanically verifies the doc/migration carve-outs (agent-coordinator/database/migrations/**, docs/decisions/**, docs/merge-logs/**, docs/archive/**) are unmodified \u2014 only the scheduler deny-lists prevent edits, and the checkpoint's manual git-diff is the only 'verification', un-automated. Harmless in the normal path (redundant with deny-lists), but the checkpoint reads as verifying carve-out integrity while delegating to an un-gated manual step. Fix: either encode the carve-out diff as a command inside wp-docs-finalize's gate, or drop the clause and state that deny-lists enforce it."
+    }
+  ]
+}
