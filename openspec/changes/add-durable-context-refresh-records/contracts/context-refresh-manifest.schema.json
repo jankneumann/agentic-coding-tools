@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/context-refresh-manifest.schema.json",
+  "title": "Project Context Refresh Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation_id",
+    "repository_id",
+    "source_revision",
+    "operation_created_at",
+    "refresh_status",
+    "producer_results",
+    "repository_artifacts",
+    "validations",
+    "semantic_index",
+    "degraded_fallbacks"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "operation_id": {
+      "type": "string",
+      "pattern": "^pcr-[0-9a-f]{24}$"
+    },
+    "repository_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "source_revision": {
+      "$ref": "./context-refresh-types.schema.json#/$defs/GitRevision"
+    },
+    "operation_created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "refresh_status": {
+      "type": "string",
+      "enum": ["succeeded", "degraded", "failed"]
+    },
+    "producer_results": {
+      "type": "array",
+      "items": {
+        "$ref": "./context-refresh-types.schema.json#/$defs/ProducerResult"
+      }
+    },
+    "repository_artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "./context-refresh-types.schema.json#/$defs/RepositoryArtifact"
+      }
+    },
+    "validations": {
+      "type": "array",
+      "items": {
+        "$ref": "./context-refresh-types.schema.json#/$defs/ValidationResult"
+      }
+    },
+    "semantic_index": {
+      "$ref": "./context-refresh-types.schema.json#/$defs/SemanticIndexReference"
+    },
+    "degraded_fallbacks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["producer_id", "fallback"],
+        "properties": {
+          "producer_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[a-z][a-z0-9._-]*$"
+          },
+          "fallback": {
+            "$ref": "./context-refresh-types.schema.json#/$defs/Fallback"
+          }
+        }
+      }
+    }
+  }
+}

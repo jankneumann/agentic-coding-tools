@@ -1,14 +1,14 @@
 schema_version: 1
 roadmap_id: project-context-refresh-lifecycle
 source_proposal: openspec/roadmaps/project-context-refresh-lifecycle/proposal.md
-status: planning
+status: in_progress
 policy:
   default_action: wait_if_budget_exceeded
   max_switch_attempts_per_item: 2
 items:
 - item_id: ri-01
   title: Add revision-aware semantic index registry
-  status: candidate
+  status: in_progress
   priority: 1
   effort: M
   depends_on: []
@@ -30,7 +30,7 @@ items:
     without deleting the canonical main index.
 - item_id: ri-02
   title: Complete incremental semantic indexing
-  status: candidate
+  status: approved
   priority: 2
   effort: L
   depends_on:
@@ -56,7 +56,7 @@ items:
     when available without making embeddings a production-default requirement.
 - item_id: ri-03
   title: Expose fail-closed semantic code search
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -78,10 +78,11 @@ items:
   - Query scope filters enforce the caller's read_allow and deny boundaries.
 - item_id: ri-04
   title: Make architecture refresh revision-aware
-  status: candidate
+  status: approved
   priority: 4
   effort: M
-  depends_on: []
+  depends_on:
+  - ri-06
   description: Replace mtime-based architecture freshness and subprocess-local operation
     state with deterministic input tracking tied to a Git revision and durable cross-process
     status. Preserve refresh-architecture as the canonical architecture producer.
@@ -100,10 +101,11 @@ items:
     and no second diff.
 - item_id: ri-05
   title: Add deterministic context producer checks
-  status: candidate
+  status: approved
   priority: 5
   effort: L
-  depends_on: []
+  depends_on:
+  - ri-06
   description: Add reproducible generation and check modes for documentation inventories,
     API contracts and generated bindings, decision timelines, and OpenSpec projections.
     Reuse update-specs, documentation-and-adrs, and the existing documentation-sync
@@ -122,7 +124,7 @@ items:
     testable through their canonical owners.
 - item_id: ri-06
   title: Add durable context refresh records
-  status: candidate
+  status: approved
   priority: 6
   effort: M
   depends_on: []
@@ -146,7 +148,7 @@ items:
     operation identity.
 - item_id: ri-07
   title: Implement project context refresh orchestration
-  status: candidate
+  status: approved
   priority: 7
   effort: L
   depends_on:
@@ -173,7 +175,7 @@ items:
   - No refresh path independently writes main outside an authorized sync-point operation.
 - item_id: ri-08
   title: Add work-package context impact declarations
-  status: candidate
+  status: approved
   priority: 8
   effort: M
   depends_on: []
@@ -195,7 +197,7 @@ items:
     and context injection.
 - item_id: ri-09
   title: Add branch-local context checkpoints
-  status: candidate
+  status: approved
   priority: 9
   effort: L
   depends_on:
@@ -219,7 +221,7 @@ items:
   - Checkpoint execution enforces the work package's read_allow and deny scopes.
 - item_id: ri-10
   title: Add deterministic context drift gates
-  status: candidate
+  status: approved
   priority: 10
   effort: M
   depends_on:
@@ -242,7 +244,7 @@ items:
   - A clean checkout at the recorded revision passes regeneration checks with no diff.
 - item_id: ri-11
   title: Integrate main context convergence
-  status: candidate
+  status: approved
   priority: 11
   effort: L
   depends_on:
@@ -269,7 +271,7 @@ items:
     status for the final pushed main SHA.
 - item_id: ri-12
   title: Inject scoped semantic context into coding jobs
-  status: candidate
+  status: approved
   priority: 12
   effort: L
   depends_on:
@@ -295,7 +297,7 @@ items:
     exact-search fallback without blocking the coding job.
 - item_id: ri-13
   title: Gate semantic context default enablement
-  status: candidate
+  status: approved
   priority: 13
   effort: M
   depends_on:

@@ -1,0 +1,309 @@
+schema_version: 1
+
+feature:
+  id: make-architecture-refresh-revision-aware
+  title: "Make architecture refresh revision-aware"
+  plan_revision: 2
+  created_by: autopilot-roadmap
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/make-architecture-refresh-revision-aware/contracts/README.md"
+    files:
+      - "openspec/changes/make-architecture-refresh-revision-aware/contracts/README.md"
+      - "openspec/changes/make-architecture-refresh-revision-aware/contracts/architecture-provenance.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Publish architecture provenance contract"
+    task_type: contracts
+    description: |
+      Tasks 1.1–1.2. Test and publish only the architecture-specific provenance
+      schema. Validate integration with ri-06's installed canonical ProducerResult
+      types without copying shared operation/result contracts.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/schemas/architecture-provenance.schema.json"
+      keys:
+        - "contract:architecture-provenance"
+      ttl_minutes: 60
+      reason: "Publish architecture-specific deterministic provenance"
+    scope:
+      write_allow:
+        - "openspec/schemas/architecture-provenance.schema.json"
+        - "skills/tests/refresh-architecture-contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: architecture-refresh-contracts
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Architecture refresh schemas validate"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/refresh-architecture-contracts -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "architecture_refresh_contracts_valid"
+    metadata:
+      loc_estimate: 180
+      alternatives_count: 3
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys:
+        - "architecture_refresh_contracts_valid"
+      artifacts:
+        - "openspec/schemas/architecture-provenance.schema.json"
+
+  - package_id: wp-provenance
+    title: "Deterministic provenance and check mode"
+    task_type: implementation
+    description: |
+      Tasks 2.1–2.5. Implement relevant-input and producer identity, deterministic
+      clock/serialization, staged promotion, manifest emission, read-only check
+      mode, and manifest-gated affected-test selection using test-first steps.
+    role: backend-implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/refresh-architecture/scripts/run_architecture.py"
+        - "skills/refresh-architecture/scripts/refresh_architecture.sh"
+        - "skills/refresh-architecture/scripts/affected_tests.py"
+      keys:
+        - "feature:architecture-refresh:provenance"
+      ttl_minutes: 120
+      reason: "Deterministic architecture producer and freshness truth"
+    scope:
+      write_allow:
+        - "skills/refresh-architecture/scripts/arch_utils/**"
+        - "skills/refresh-architecture/scripts/run_architecture.py"
+        - "skills/refresh-architecture/scripts/refresh_architecture.sh"
+        - "skills/refresh-architecture/scripts/affected_tests.py"
+        - "skills/refresh-architecture/scripts/analyze_python.py"
+        - "skills/refresh-architecture/scripts/analyze_postgres.py"
+        - "skills/refresh-architecture/scripts/analyze_sql_treesitter.py"
+        - "skills/refresh-architecture/scripts/enrich_with_treesitter.py"
+        - "skills/refresh-architecture/scripts/compile_architecture_graph.py"
+        - "skills/refresh-architecture/scripts/generate_views.py"
+        - "skills/refresh-architecture/scripts/parallel_zones.py"
+        - "skills/refresh-architecture/scripts/reports/architecture_report.py"
+        - "skills/refresh-architecture/scripts/insights/**"
+        - "skills/refresh-architecture/scripts/tests/conftest.py"
+        - "skills/refresh-architecture/scripts/tests/test_provenance.py"
+        - "skills/refresh-architecture/scripts/tests/test_run_architecture.py"
+        - "skills/refresh-architecture/scripts/tests/test_pipeline_integration.py"
+        - "skills/refresh-architecture/scripts/tests/test_affected_tests.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/refresh-architecture/scripts/rpc_server.py"
+        - "skills/refresh-architecture/scripts/context_runtime_adapter.py"
+        - "agent-coordinator/**"
+        - "Makefile"
+    worktree:
+      name: architecture-refresh-provenance
+      mode: isolated
+    timeout_minutes: 150
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Provenance and pipeline tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/refresh-architecture/scripts/tests/test_provenance.py skills/refresh-architecture/scripts/tests/test_run_architecture.py skills/refresh-architecture/scripts/tests/test_pipeline_integration.py skills/refresh-architecture/scripts/tests/test_affected_tests.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "architecture_provenance_tests_passed"
+    metadata:
+      loc_estimate: 650
+      alternatives_count: 3
+      complexity: high
+      package_kind: algorithm
+    inputs:
+      result_keys:
+        - "architecture_refresh_contracts_valid"
+    outputs:
+      result_keys:
+        - "architecture_provenance_tests_passed"
+      artifacts:
+        - "skills/refresh-architecture/scripts/arch_utils/provenance.py"
+
+  - package_id: wp-adapter
+    title: "Project-context runtime adapter and RPC projection"
+    task_type: implementation
+    description: |
+      Tasks 3.1–3.4. Adapt architecture refresh to ri-06's supported runtime,
+      remove module-local status ownership, project the canonical architecture
+      ProducerResult through RPC, and preserve coordinator fallback behavior.
+    role: backend-implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/refresh-architecture/scripts/rpc_server.py"
+        - "skills/refresh-architecture/scripts/context_runtime_adapter.py"
+        - "agent-coordinator/src/refresh_rpc_client.py"
+      keys:
+        - "feature:architecture-refresh:adapter"
+      ttl_minutes: 120
+      reason: "Architecture adapter over canonical project-context records"
+    scope:
+      write_allow:
+        - "skills/refresh-architecture/scripts/rpc_server.py"
+        - "skills/refresh-architecture/scripts/context_runtime_adapter.py"
+        - "skills/refresh-architecture/scripts/tests/test_rpc_server.py"
+        - "skills/refresh-architecture/scripts/tests/test_context_runtime_adapter.py"
+        - "agent-coordinator/src/refresh_rpc_client.py"
+        - "agent-coordinator/tests/test_refresh_rpc_client.py"
+        - "agent-coordinator/tests/test_merge_train_service.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/refresh-architecture/scripts/arch_utils/**"
+        - "skills/refresh-architecture/scripts/run_architecture.py"
+        - "skills/refresh-architecture/scripts/refresh_architecture.sh"
+        - "Makefile"
+    worktree:
+      name: architecture-refresh-adapter
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Runtime adapter and RPC tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/refresh-architecture/scripts/tests/test_context_runtime_adapter.py skills/refresh-architecture/scripts/tests/test_rpc_server.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "architecture_adapter_rpc_tests_passed"
+        - name: "Coordinator refresh client tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_refresh_rpc_client.py agent-coordinator/tests/test_merge_train_service.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "architecture_operation_client_tests_passed"
+    metadata:
+      loc_estimate: 520
+      alternatives_count: 3
+      complexity: high
+      package_kind: integration
+    inputs:
+      result_keys:
+        - "architecture_refresh_contracts_valid"
+    outputs:
+      result_keys:
+        - "architecture_adapter_rpc_tests_passed"
+        - "architecture_operation_client_tests_passed"
+      artifacts:
+        - "skills/refresh-architecture/scripts/context_runtime_adapter.py"
+
+  - package_id: wp-integration
+    title: "Architecture refresh integration and documentation"
+    task_type: integration
+    description: |
+      Tasks 4.1–4.3. Exercise the complete generate/status/check flow, expose
+      operator commands, update skill and architecture-artifact guidance, then
+      run the full scoped verification matrix.
+    role: integrator
+    priority: 3
+    depends_on:
+      - wp-provenance
+      - wp-adapter
+    locks:
+      files:
+        - "Makefile"
+        - "skills/refresh-architecture/SKILL.md"
+        - "docs/architecture-artifacts.md"
+      keys:
+        - "feature:architecture-refresh:integration"
+      ttl_minutes: 90
+      reason: "Integrate deterministic producer and durable operation paths"
+    scope:
+      write_allow:
+        - "Makefile"
+        - "skills/refresh-architecture/SKILL.md"
+        - "docs/architecture-artifacts.md"
+        - "skills/refresh-architecture/scripts/tests/test_revision_aware_refresh.py"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "openspec/schemas/**"
+    worktree:
+      name: architecture-refresh-integration
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "End-to-end revision-aware refresh passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/refresh-architecture/scripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "architecture_refresh_e2e_passed"
+        - name: "Coordinator refresh regression passes"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_refresh_rpc_client.py agent-coordinator/tests/test_merge_train_service.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_refresh_regression_passed"
+    metadata:
+      loc_estimate: 260
+      alternatives_count: 3
+      complexity: medium
+      package_kind: integration
+    inputs:
+      result_keys:
+        - "architecture_provenance_tests_passed"
+        - "architecture_adapter_rpc_tests_passed"
+        - "architecture_operation_client_tests_passed"
+    outputs:
+      result_keys:
+        - "architecture_refresh_e2e_passed"
+        - "coordinator_refresh_regression_passed"
+      artifacts:
+        - "docs/architecture-artifacts.md"

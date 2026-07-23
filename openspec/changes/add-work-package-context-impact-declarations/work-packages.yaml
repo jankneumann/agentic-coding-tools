@@ -1,0 +1,173 @@
+schema_version: 1
+
+feature:
+  id: add-work-package-context-impact-declarations
+  title: "Work-package context impact declarations"
+  plan_revision: 1
+  created_by: codex-autopilot-roadmap
+  created_at: "2026-07-23T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-work-package-context-impact-declarations/contracts/README.md"
+    files:
+      - "openspec/changes/add-work-package-context-impact-declarations/contracts/README.md"
+      - "openspec/changes/add-work-package-context-impact-declarations/contracts/context-impact-handoff.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-schema-template
+    title: "Context-impact schema and planning template"
+    task_type: contracts
+    description: |
+      Tasks 1.1-1.3. Add the optional six-surface declaration contract to
+      canonical and installed schemas and make new feature plans emit it.
+    role: contracts-author
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/schemas/work-packages.schema.json"
+        - "openspec/schemas/feature-workflow/templates/work-packages.yaml"
+      keys:
+        - "contract:work-packages-context"
+    scope:
+      write_allow:
+        - "openspec/schemas/work-packages.schema.json"
+        - "openspec/schemas/feature-workflow/**"
+        - "skills/validate-packages/install_assets/openspec/schemas/work-packages.schema.json"
+        - "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/work-packages.yaml"
+        - "skills/plan-feature/SKILL.md"
+        - "skills/tests/validate-packages/**"
+        - "skills/tests/plan-feature/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: context-impact-schema
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Schema and template tests"
+          kind: command
+          command: "uv run --project skills pytest skills/tests/validate-packages skills/tests/plan-feature -q -k 'schema or template or context_impact'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["schema_tests"]
+    metadata:
+      loc_estimate: 350
+      complexity: medium
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["schema_tests"]
+
+  - package_id: wp-inference-validator
+    title: "Deterministic inference, validation, and handoff"
+    task_type: implementation
+    description: |
+      Tasks 2.1-4.3. Infer impact from explicit changed paths/contracts/locks,
+      validate declarations and reviewed exceptions, support compatibility and
+      strict modes, and emit normalized scope-preserving JSON.
+    role: python-engineer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-schema-template]
+    locks:
+      files:
+        - "skills/validate-packages/scripts/validate_work_packages.py"
+      keys:
+        - "feature:context-impact:validator"
+    scope:
+      write_allow:
+        - "skills/validate-packages/scripts/**"
+        - "skills/tests/validate-packages/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+    worktree:
+      name: context-impact-validator
+      mode: isolated
+    timeout_minutes: 150
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Inference and CLI tests"
+          kind: command
+          command: "uv run --project skills pytest skills/validate-packages/scripts/tests skills/tests/validate-packages -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["validator_tests"]
+    metadata:
+      loc_estimate: 700
+      complexity: high
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys: ["validator_tests"]
+
+  - package_id: wp-integration
+    title: "Migration fixtures and install parity"
+    task_type: validation
+    description: |
+      Tasks 5.1-5.3. Prove legacy/default and strict behavior, canonical/install
+      schema parity, overlap validation, and documentation of the migration.
+    role: integration-engineer
+    archetype: validator
+    priority: 3
+    depends_on: [wp-inference-validator]
+    locks:
+      files: []
+      keys:
+        - "feature:context-impact:integration"
+    scope:
+      write_allow:
+        - "skills/validate-packages/**"
+        - "skills/tests/validate-packages/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+    worktree:
+      name: context-impact-integration
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Full package validation suite"
+          kind: command
+          command: "uv run --project skills pytest skills/validate-packages/scripts/tests skills/tests/validate-packages -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["integration_tests"]
+    metadata:
+      loc_estimate: 250
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["integration_tests"]
