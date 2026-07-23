@@ -50,7 +50,7 @@ roster work. They are labeled here — not laundered into roster tasks — per D
   (was 19 passed / 5 failed). Task 0.1 remains open — `skills/tests` as a whole still stops
   at `Interrupted: 1 error during collection` for the missing `fastapi.testclient`.
 
-- [ ] 0.3 Repair the 3 macOS-only `test_docker_manager.py` failures so the wp-coordinator
+- [x] 0.3 Repair the 3 macOS-only `test_docker_manager.py` failures so the wp-coordinator
   gate can pass (S)
   **Why**: added in PLAN_FIX round 3 (codex finding R3-1, confirmed). `wp-coordinator`'s gate
   runs the full non-e2e coordinator suite, which is **3 failed, 2027 passed** before any
