@@ -1,0 +1,161 @@
+{
+  "review_type": "plan",
+  "target": "complete-incremental-semantic-indexing",
+  "reviewer_vendor": "codex-independent",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "compatibility",
+      "criticality": "critical",
+      "description": "Critical: The initial migration contract added NOT NULL fingerprint columns before backfilling ri-01 rows and named the old natural-key constraint incorrectly, so migration 030 could not safely apply over existing registry data.",
+      "resolution": "Freeze nullable-add, legacy backfill, NOT NULL/check, correctly named constraint replacement, and populated-029 migration tests.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/contracts/db/schema.sql"
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "resilience",
+      "criticality": "critical",
+      "description": "Critical: Registry lease checks alone do not fence late writes to a shared isolated table after takeover; a stale worker could corrupt storage after a replacement verifies or marks it ready.",
+      "resolution": "Use attempt-specific staging tables/manifests and a current-token, attempt-generation checked atomic publish transaction; test a late stale write after replacement publication.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/design.md"
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: Full rebuild semantics initially implied mutation of a ready ri-01 identity even though ready records are immutable and cannot be reclaimed.",
+      "resolution": "Limit full rebuild to clean staging for an unready attempt; identical ready requests remain no-op and replacement requires a changed pipeline fingerprint.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/specs/code-search/spec.md"
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: The core copy-forward compatibility package could report success when its resource-gated test skipped, leaving the storage strategy unproven.",
+      "resolution": "Require a deterministic non-skipping target-contract test and freeze the thin fenced storage adapter; keep live Postgres/CocoIndex as classified integration evidence.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/work-packages.yaml"
+    },
+    {
+      "id": 5,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The initial database contract omitted the physical chunk table, per-file ownership, copy, retry, verification, and publication behavior required by the selected architecture.",
+      "resolution": "Add final/attempt naming, row shape, path-aware identity, per-file transaction, HNSW, copy rules, verification, and fenced publish to the storage contract and target strategy.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/contracts/target-strategy.md"
+    },
+    {
+      "id": 6,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The initial package DAG scheduled concrete embedding configuration after the CocoIndex adapter that needed the provider protocol.",
+      "resolution": "Add an independent early embedding-protocol package consumed by both the adapter and downstream concrete provider configuration.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/work-packages.yaml"
+    },
+    {
+      "id": 7,
+      "axis": "security",
+      "severity": "critical",
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: Secret scanning and gitignore semantics lacked a pinned local protocol, timeout/error behavior, dependency scope, and sanitized evidence contract.",
+      "resolution": "Define a bounded built-in local-only scanner that fails the operation closed, add matcher dependency scope, and give tests/modules to the source-policy package.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/design.md"
+    },
+    {
+      "id": 8,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: A wholly absent embedding model/dimension could not produce the natural key required for the proposed durable not-configured result.",
+      "resolution": "Distinguish ephemeral preflight not-configured for an absent contract from durable not-configured for a declared contract whose package, credential, or endpoint is unavailable.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/specs/code-search/spec.md"
+    },
+    {
+      "id": 9,
+      "axis": "security",
+      "severity": "critical",
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: Arbitrary indexing parameters could serialize secrets and make embedder fingerprints nondeterministic.",
+      "resolution": "Whitelist supported non-secret parameters, constrain credential references, define canonical JSON hashing, and reject secret-like or noncanonical values.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/contracts/index-request.schema.json"
+    },
+    {
+      "id": 10,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: Extending the strict ri-01 record in prose contradicted its additionalProperties false v1 schema.",
+      "resolution": "Publish an explicit strict v2 record schema, preserve v1 legacy decoding, and require ri-03 to consume v2 while excluding legacy sentinel rows.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/contracts/index-record-v2.schema.json"
+    },
+    {
+      "id": 11,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The initial execution-result schema admitted impossible ready/non-durable, promoted/non-main, reused/non-ready, and partial-parent combinations.",
+      "resolution": "Add conditional invariants for durability, identity, readiness, promotion, reuse, and parent id/revision pairing plus negative schema tests.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/contracts/index-execution-result.schema.json"
+    },
+    {
+      "id": 12,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: Parent linkage and retry behavior initially depended only on application convention and did not prevent self/incompatible parents or explain partial-attempt repair.",
+      "resolution": "Guard parent compatibility/immutability in persistence, verify Git ancestry in application code, and use clean generation-specific retry staging with failure-injection tests.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/contracts/db/schema.sql"
+    },
+    {
+      "id": 13,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Nit: Final package verification initially omitted explicit work-package, static-analysis, architecture, and live-evidence classification gates promised by task prose.",
+      "resolution": "Add explicit result-keyed verification steps and require reports to distinguish live passage from environment deferral.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/work-packages.yaml"
+    },
+    {
+      "id": 14,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Positive: Copy-forward from a compatible ready Git ancestor preserves immutable revision storage while making changed-file embedding directly measurable.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/complete-incremental-semantic-indexing/design.md"
+    }
+  ]
+}

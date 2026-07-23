@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-coding-tools:code-search:index-execution-result:v1",
+  "title": "IndexExecutionResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "durable",
+    "reused",
+    "repo_slug",
+    "source_revision",
+    "namespace_kind",
+    "namespace_key",
+    "index_id",
+    "storage_key",
+    "parent_index_id",
+    "parent_revision",
+    "promoted",
+    "counts",
+    "error"
+  ],
+  "properties": {
+    "status": {"enum": ["ready", "not_configured", "failed", "conflict"]},
+    "durable": {"type": "boolean"},
+    "reused": {"type": "boolean"},
+    "repo_slug": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,50}$"},
+    "source_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+    },
+    "namespace_kind": {"enum": ["main", "feature", "work_package"]},
+    "namespace_key": {"type": "string", "minLength": 1, "maxLength": 255},
+    "index_id": {"type": ["string", "null"], "format": "uuid"},
+    "storage_key": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^i_[0-9a-f]{32}$"}
+      ]
+    },
+    "parent_index_id": {"type": ["string", "null"], "format": "uuid"},
+    "parent_revision": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+        }
+      ]
+    },
+    "promoted": {"type": "boolean"},
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eligible_files",
+        "copied_files",
+        "changed_files",
+        "removed_files",
+        "skipped_files",
+        "embedded_chunks",
+        "chunks"
+      ],
+      "properties": {
+        "eligible_files": {"type": "integer", "minimum": 0},
+        "copied_files": {"type": "integer", "minimum": 0},
+        "changed_files": {"type": "integer", "minimum": 0},
+        "removed_files": {"type": "integer", "minimum": 0},
+        "skipped_files": {"type": "integer", "minimum": 0},
+        "embedded_chunks": {"type": "integer", "minimum": 0},
+        "chunks": {"type": "integer", "minimum": 0}
+      }
+    },
+    "error": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"},
+            "message": {"type": "string", "minLength": 1, "maxLength": 1000}
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"durable": {"const": true}}, "required": ["durable"]},
+      "then": {
+        "properties": {
+          "index_id": {"type": "string", "format": "uuid"},
+          "storage_key": {"type": "string", "pattern": "^i_[0-9a-f]{32}$"}
+        }
+      },
+      "else": {
+        "properties": {
+          "index_id": {"type": "null"},
+          "storage_key": {"type": "null"},
+          "parent_index_id": {"type": "null"},
+          "parent_revision": {"type": "null"},
+          "promoted": {"const": false},
+          "reused": {"const": false}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "ready"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "durable": {"const": true},
+          "error": {"type": "null"}
+        }
+      },
+      "else": {
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"]
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"promoted": {"const": true}}, "required": ["promoted"]},
+      "then": {
+        "properties": {
+          "status": {"const": "ready"},
+          "namespace_kind": {"const": "main"},
+          "namespace_key": {"const": "main"},
+          "durable": {"const": true}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"reused": {"const": true}}, "required": ["reused"]},
+      "then": {
+        "properties": {
+          "status": {"const": "ready"},
+          "durable": {"const": true}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"parent_index_id": {"type": "string"}},
+        "required": ["parent_index_id"]
+      },
+      "then": {
+        "properties": {
+          "parent_revision": {"type": "string"},
+          "status": {"const": "ready"},
+          "durable": {"const": true}
+        }
+      },
+      "else": {"properties": {"parent_revision": {"type": "null"}}}
+    }
+  ]
+}
