@@ -36,9 +36,17 @@ adapters:
     # base_dir: null
   codex_web:
     enabled: true
-  gemini_cli:
+  antigravity_cli:
     enabled: true
-    # Override base directory (default: ~/.gemini/tmp)
+    # Override base directory (default: ~/.antigravity/projects)
+    # base_dir: null
+  grok_cli:
+    enabled: true
+    # Override base directory (default: ~/.grok/sessions)
+    # base_dir: null
+  pi_cli:
+    enabled: true
+    # Override base directory (default: ~/.pi/sessions)
     # base_dir: null
 
 # Output configuration

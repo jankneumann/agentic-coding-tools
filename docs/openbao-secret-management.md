@@ -120,7 +120,7 @@ OPENAI_API_KEY: sk-your-openai-key-here
 GOOGLE_API_KEY: your-google-api-key
 CLAUDE_WEB_API_KEY: your-claude-web-key
 CODEX_API_KEY: your-codex-api-key
-GEMINI_API_KEY: your-gemini-api-key
+OPENROUTER_API_KEY: your-openrouter-api-key
 EOF
 ```
 
@@ -142,7 +142,7 @@ BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token \
 
 The seed script:
 - Writes all keys from `.secrets.yaml` to `secret/coordinator` (KV v2)
-- Creates AppRoles for each HTTP-transport agent in `agents.yaml` (`claude-code-web`, `codex-cloud`, `gemini-cloud`)
+- Creates AppRoles for each HTTP-transport agent in `agents.yaml` (`claude-code-web`, `codex-cloud`)
 - Each AppRole gets a read-only policy on the secrets path
 
 ### 3. Verify

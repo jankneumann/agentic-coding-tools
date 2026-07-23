@@ -1,6 +1,6 @@
 # Agent Coordinator
 
-Multi-agent coordination system for AI coding assistants. Enables Claude Code, Codex, Gemini, and other AI agents to collaborate safely on shared codebases.
+Multi-agent coordination system for AI coding assistants. Enables Claude Code, Codex, Antigravity, Grok, Pi, and other AI agents to collaborate safely on shared codebases.
 
 ## Features
 
@@ -81,13 +81,12 @@ cp .env.example .env
 ### 4. Register MCP Server with CLI Agents
 
 ```bash
-# Register with all agents (Claude Code, Codex CLI, Gemini CLI)
+# Register with all agents (Claude Code, Codex CLI)
 make mcp-setup
 
 # Or individually:
 make claude-mcp-setup   # Claude Code
 make codex-mcp-setup    # Codex CLI
-make gemini-mcp-setup   # Gemini CLI
 ```
 
 This registers the coordination MCP server at user scope. Restart the CLI to activate.
@@ -101,7 +100,6 @@ make hooks-setup
 # Or individually:
 make claude-hooks-setup      # ~/.claude/settings.json
 make codex-hooks-setup       # ~/.codex/hooks.json
-make gemini-wrapper-install  # ~/.local/bin/gemini-coord
 ```
 
 Hooks provide:
@@ -114,11 +112,6 @@ Claude and Codex hook commands inherit `COORDINATION_API_URL` and
 the coordinator config, the coordinator resolves `agent_id` / `agent_type` from
 that key instead of requiring hooks to set provider-specific identity variables.
 Codex installs to `~/.codex/hooks.json` and currently wires `SessionStart` and `Stop`.
-
-Gemini CLI has no hooks, so a wrapper script (`gemini-coord`) is installed instead:
-```bash
-gemini-coord "your prompt"   # Wraps gemini with register/report/deregister
-```
 
 ### 6. Configure Notifications (Optional)
 
