@@ -25,7 +25,7 @@
         "properties": {
           "vendor": {
             "type": "string",
-            "enum": ["claude", "codex", "gemini"]
+            "enum": ["claude", "codex", "antigravity", "grok", "pi"]
           },
           "agent_id": {
             "type": "string"

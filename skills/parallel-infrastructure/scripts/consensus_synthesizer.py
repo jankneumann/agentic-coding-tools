@@ -13,7 +13,7 @@ Usage:
         target="my-feature",
         vendor_results=[
             VendorResult(vendor="codex", findings=codex_findings),
-            VendorResult(vendor="gemini", findings=gemini_findings),
+            VendorResult(vendor="grok", findings=grok_findings),
         ],
     )
 """
@@ -592,7 +592,7 @@ def main() -> int:
     Usage:
         python consensus_synthesizer.py \\
             --review-type plan --target my-feature \\
-            --findings findings-codex.json findings-gemini.json \\
+            --findings findings-codex.json findings-grok.json \\
             --output consensus.json
     """
     import argparse

@@ -78,7 +78,7 @@ class TestMatchScore:
 
     def test_exact_location_match(self) -> None:
         a = _finding(file_path="src/api.py", line_start=42, line_end=45)
-        b = _finding(file_path="src/api.py", line_start=43, line_end=50, vendor="gemini")
+        b = _finding(file_path="src/api.py", line_start=43, line_end=50, vendor="grok")
         score, basis = match_score(a, b)
         assert score >= 0.9
         assert basis == "location+type"
@@ -91,7 +91,7 @@ class TestMatchScore:
         b = _finding(
             file_path="src/api.py",
             description="Input validation missing for user creation API endpoint",
-            vendor="gemini",
+            vendor="grok",
         )
         score, basis = match_score(a, b)
         assert score >= 0.5
@@ -101,7 +101,7 @@ class TestMatchScore:
         a = _finding(description="SQL injection risk in query builder module")
         b = _finding(
             description="SQL injection vulnerability in the query builder",
-            vendor="gemini",
+            vendor="grok",
         )
         score, basis = match_score(a, b)
         assert score >= 0.3
@@ -109,7 +109,7 @@ class TestMatchScore:
 
     def test_no_match_different_descriptions(self) -> None:
         a = _finding(description="Missing rate limiting")
-        b = _finding(description="CSS alignment issue in header", vendor="gemini")
+        b = _finding(description="CSS alignment issue in header", vendor="grok")
         score, _ = match_score(a, b)
         assert score < 0.3
 
@@ -129,8 +129,8 @@ class TestConsensusSynthesizer:
                 VendorResult(vendor="codex", findings=[
                     _finding(id=1, file_path="src/api.py", line_start=42, line_end=45, description="Missing auth check on user endpoint", disposition="fix"),
                 ]),
-                VendorResult(vendor="gemini", findings=[
-                    _finding(id=1, file_path="src/api.py", line_start=42, line_end=50, description="Auth check missing on user endpoint", disposition="fix", vendor="gemini"),
+                VendorResult(vendor="grok", findings=[
+                    _finding(id=1, file_path="src/api.py", line_start=42, line_end=50, description="Auth check missing on user endpoint", disposition="fix", vendor="grok"),
                 ]),
             ],
         )
@@ -148,8 +148,8 @@ class TestConsensusSynthesizer:
                 VendorResult(vendor="codex", findings=[
                     _finding(id=1, description="Unique codex-only finding about frobnication"),
                 ]),
-                VendorResult(vendor="gemini", findings=[
-                    _finding(id=1, description="Completely different concern about widgets", vendor="gemini"),
+                VendorResult(vendor="grok", findings=[
+                    _finding(id=1, description="Completely different concern about widgets", vendor="grok"),
                 ]),
             ],
         )
@@ -166,8 +166,8 @@ class TestConsensusSynthesizer:
                 VendorResult(vendor="codex", findings=[
                     _finding(id=1, file_path="src/handler.py", line_start=10, description="Missing error handling for edge case", disposition="fix"),
                 ]),
-                VendorResult(vendor="gemini", findings=[
-                    _finding(id=1, file_path="src/handler.py", line_start=10, description="Error handling missing for edge case scenario", disposition="accept", vendor="gemini"),
+                VendorResult(vendor="grok", findings=[
+                    _finding(id=1, file_path="src/handler.py", line_start=10, description="Error handling missing for edge case scenario", disposition="accept", vendor="grok"),
                 ]),
             ],
         )
@@ -175,7 +175,7 @@ class TestConsensusSynthesizer:
         cf = result.consensus_findings[0]
         assert cf.status == "disagreement"
         assert cf.recommended_disposition == "escalate"
-        assert cf.vendor_dispositions == {"codex": "fix", "gemini": "accept"}
+        assert cf.vendor_dispositions == {"codex": "fix", "grok": "accept"}
 
     def test_quorum_met(self) -> None:
         """Quorum met when enough vendors respond."""
@@ -185,7 +185,7 @@ class TestConsensusSynthesizer:
             target="test-feature",
             vendor_results=[
                 VendorResult(vendor="codex", findings=[]),
-                VendorResult(vendor="gemini", findings=[]),
+                VendorResult(vendor="grok", findings=[]),
             ],
         )
         assert result.quorum_met is True
@@ -199,7 +199,7 @@ class TestConsensusSynthesizer:
             target="test-feature",
             vendor_results=[
                 VendorResult(vendor="codex", findings=[]),
-                VendorResult(vendor="gemini", findings=[], success=False, error="429 capacity"),
+                VendorResult(vendor="grok", findings=[], success=False, error="429 capacity"),
             ],
         )
         assert result.quorum_met is False
@@ -213,7 +213,7 @@ class TestConsensusSynthesizer:
             target="test-feature",
             vendor_results=[
                 VendorResult(vendor="codex", findings=[]),
-                VendorResult(vendor="gemini", findings=[]),
+                VendorResult(vendor="grok", findings=[]),
             ],
         )
         assert result.total_unique == 0
@@ -229,8 +229,8 @@ class TestConsensusSynthesizer:
                 VendorResult(vendor="codex", findings=[
                     _finding(id=1, criticality="medium", description="Input validation missing for API", file_path="src/api.py", line_start=10),
                 ]),
-                VendorResult(vendor="gemini", findings=[
-                    _finding(id=1, criticality="high", description="Missing input validation for API endpoint", vendor="gemini", file_path="src/api.py", line_start=10),
+                VendorResult(vendor="grok", findings=[
+                    _finding(id=1, criticality="high", description="Missing input validation for API endpoint", vendor="grok", file_path="src/api.py", line_start=10),
                 ]),
             ],
         )
@@ -249,9 +249,9 @@ class TestConsensusSynthesizer:
                     _finding(id=1, description="Security issue with authentication", disposition="fix", file_path="src/auth.py", line_start=5),
                     _finding(id=2, description="Performance concern with database query", disposition="fix", type="performance", file_path="src/db.py", line_start=20),
                 ]),
-                VendorResult(vendor="gemini", findings=[
-                    _finding(id=1, description="Authentication security vulnerability", disposition="fix", vendor="gemini", file_path="src/auth.py", line_start=5),
-                    _finding(id=2, description="Database query performance issue", disposition="accept", vendor="gemini", type="performance", file_path="src/db.py", line_start=20),
+                VendorResult(vendor="grok", findings=[
+                    _finding(id=1, description="Authentication security vulnerability", disposition="fix", vendor="grok", file_path="src/auth.py", line_start=5),
+                    _finding(id=2, description="Database query performance issue", disposition="accept", vendor="grok", type="performance", file_path="src/db.py", line_start=20),
                 ]),
             ],
         )

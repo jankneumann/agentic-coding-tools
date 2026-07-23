@@ -7,7 +7,8 @@ fake, or one vendor for another, is a constructor argument, not a code change.
 Two implementations ship:
 
 * :class:`CLIVendorExecutor` — the real adapter. It materializes the fixture,
-  shells to a per-vendor CLI (``claude -p`` / ``codex exec`` / ``gemini`` …),
+  shells to a per-vendor CLI (``claude -p`` / ``codex exec`` / ``agy --prompt`` /
+  ``grok`` / ``pi`` …),
   and normalizes the emitted transcript via ``collect-transcripts``. It is
   *wired but not live-tested in-container* (no vendor CLIs or keys here); it is
   exercised for real on the GX10.

@@ -31,22 +31,22 @@ def _agents_yaml(tmp_path: Path) -> Path:
                   args: ["exec", "-s", "read-only"]
               model_flag: "-m"
               model: gpt-5.5
-          gemini-local:
-            type: gemini
-            profile: gemini_local
+          grok-local:
+            type: grok
+            profile: grok_local
             trust_level: 3
             transport: mcp
             isolation: worktree
             capabilities: [lock, queue]
             archetypes: [implementer, reviewer]
-            description: Local Gemini
+            description: Local Grok
             cli:
-              command: gemini
+              command: grok
               dispatch_modes:
                 review:
-                  args: ["-p", ""]
+                  args: ["--prompt-file", "/dev/stdin", "--output-format", "json"]
               model_flag: "-m"
-              model: gemini-3-flash-preview
+              model: grok-4.5
     """))
     return path
 
@@ -74,7 +74,7 @@ def test_explicit_agents_yaml_env_wins(monkeypatch: pytest.MonkeyPatch, tmp_path
 
     orch = review_dispatcher.ReviewOrchestrator.from_coordinator()
 
-    assert set(orch.adapters) == {"codex-local", "gemini-local"}
+    assert set(orch.adapters) == {"codex-local", "grok-local"}
 
 
 def test_local_agents_yaml_fallback_without_claude_config(
@@ -92,7 +92,7 @@ def test_local_agents_yaml_fallback_without_claude_config(
     orch = review_dispatcher.ReviewOrchestrator.from_coordinator()
 
     assert path.exists()
-    assert set(orch.adapters) == {"codex-local", "gemini-local"}
+    assert set(orch.adapters) == {"codex-local", "grok-local"}
 
 
 def test_bridge_warning_includes_provider_context(

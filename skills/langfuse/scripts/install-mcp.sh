@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-mcp.sh — register the Langfuse MCP server with Claude Code, Codex, and Gemini.
+# install-mcp.sh — register the Langfuse MCP server with Claude Code, Codex, and Grok.
 #
 # Targets and idempotency:
 #   - Claude Code: <repo>/.mcp.json (project-scoped, committed). Uses ${LANGFUSE_BASIC_AUTH}
@@ -7,15 +7,15 @@
 #   - Codex CLI:   ~/.codex/config.toml (USER-GLOBAL — Codex has no project-scope MCP file).
 #     Stores the resolved Basic-auth token literally because Codex's TOML reader
 #     does not interpolate env vars in header values.
-#   - Gemini CLI:  ~/.gemini/settings.json (USER-GLOBAL). Stores the resolved Basic-auth
-#     token literally for the same reason.
+#   - Grok CLI:    ~/.grok/config.toml (USER-GLOBAL). Stores the resolved Basic-auth
+#     token literally for the same reason (TOML, mirrors the Codex target).
 #
 # Re-running this script overwrites only the langfuse entry in each target.
 #
 # Usage:
 #   bash "<skill-base-dir>/scripts/install-mcp.sh" [options]
 #
-# Credentials (Codex/Gemini only — Claude Code uses env var reference):
+# Credentials (Codex/Grok only — Claude Code uses env var reference):
 #   Resolved from LANGFUSE_PUBLIC_KEY+LANGFUSE_SECRET_KEY (preferred) or LANGFUSE_BASIC_AUTH.
 #   Easiest source is the OpenBao bridge:
 #     eval "$("<skill-base-dir>/../bao-vault/scripts/langfuse_env.sh")"
@@ -36,7 +36,7 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 SKILLS_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 BAO_HELPER="$SKILLS_ROOT/bao-vault/scripts/langfuse_env.sh"
 WRITE_CODEX=1
-WRITE_GEMINI=1
+WRITE_GROK=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -45,8 +45,8 @@ while [[ $# -gt 0 ]]; do
     --url) CUSTOM_URL="$2"; shift 2 ;;
     --repo-root) REPO_ROOT="$2"; shift 2 ;;
     --no-codex) WRITE_CODEX=0; shift ;;
-    --no-gemini) WRITE_GEMINI=0; shift ;;
-    --claude-only) WRITE_CODEX=0; WRITE_GEMINI=0; shift ;;
+    --no-grok) WRITE_GROK=0; shift ;;
+    --claude-only) WRITE_CODEX=0; WRITE_GROK=0; shift ;;
     -h|--help)
       sed -n '2,32p' "$0"; exit 0 ;;
     *) echo "Unknown arg: $1" >&2; exit 2 ;;
@@ -112,13 +112,13 @@ resolve_auth_token() {
     AUTH_TOKEN="$LANGFUSE_BASIC_AUTH"
   else
     cat >&2 <<'EOF'
-ERROR: Codex/Gemini install needs a resolved Basic-auth token.
+ERROR: Codex/Grok install needs a resolved Basic-auth token.
        Set LANGFUSE_PUBLIC_KEY+LANGFUSE_SECRET_KEY or LANGFUSE_BASIC_AUTH first.
 
        From OpenBao, evaluate the sibling bao-vault langfuse_env.sh helper.
 
        Or skip these targets:
-         --no-codex --no-gemini   (or --claude-only)
+         --no-codex --no-grok   (or --claude-only)
 EOF
     exit 1
   fi
@@ -152,30 +152,34 @@ EOF
 fi
 
 # ---------------------------------------------------------------------------
-# Gemini (~/.gemini/settings.json — USER-GLOBAL)
+# Grok (~/.grok/config.toml — USER-GLOBAL)
 # ---------------------------------------------------------------------------
 
-if [[ "$WRITE_GEMINI" -eq 1 ]]; then
+if [[ "$WRITE_GROK" -eq 1 ]]; then
   resolve_auth_token
-  GEMINI_FILE="$HOME/.gemini/settings.json"
-  mkdir -p "$(dirname "$GEMINI_FILE")"
+  GROK_FILE="$HOME/.grok/config.toml"
+  mkdir -p "$(dirname "$GROK_FILE")"
+  touch "$GROK_FILE"
 
-  GEMINI_ENTRY=$(jq -n --arg url "$MCP_URL" --arg auth "Basic $AUTH_TOKEN" '{
-    httpUrl: $url,
-    headers: { Authorization: $auth }
-  }')
+  python3 - "$GROK_FILE" <<'PY'
+import re, sys, pathlib
+p = pathlib.Path(sys.argv[1])
+text = p.read_text() if p.exists() else ""
+# Strip [mcp_servers.langfuse] and any [mcp_servers.langfuse.<sub>] sections.
+pattern = re.compile(r'(?ms)^\[mcp_servers\.langfuse(?:\.[^\]]+)?\][^\[]*?(?=^\[|\Z)')
+text = pattern.sub('', text).rstrip()
+p.write_text(text + ('\n' if text else ''))
+PY
 
-  if [[ -f "$GEMINI_FILE" ]]; then
-    jq --argjson entry "$GEMINI_ENTRY" \
-      '.mcpServers = ((.mcpServers // {}) + { langfuse: $entry })' \
-      "$GEMINI_FILE" > "$GEMINI_FILE.tmp"
-    mv "$GEMINI_FILE.tmp" "$GEMINI_FILE"
-  else
-    jq -n --argjson entry "$GEMINI_ENTRY" \
-      '{ mcpServers: { langfuse: $entry } }' \
-      > "$GEMINI_FILE"
-  fi
-  echo "Updated $GEMINI_FILE (USER-GLOBAL; contains literal Basic-auth token)"
+  cat >> "$GROK_FILE" <<EOF
+
+[mcp_servers.langfuse]
+url = "$MCP_URL"
+
+[mcp_servers.langfuse.headers]
+Authorization = "Basic $AUTH_TOKEN"
+EOF
+  echo "Updated $GROK_FILE (USER-GLOBAL; contains literal Basic-auth token)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -217,8 +221,8 @@ cat <<EOF
 
 Done. Targets:
   - Claude Code  : $MCP_FILE (project-scoped; uses \${LANGFUSE_BASIC_AUTH})
-$([[ "$WRITE_CODEX"  -eq 1 ]] && echo "  - Codex CLI    : \$HOME/.codex/config.toml (user-global; literal token)")
-$([[ "$WRITE_GEMINI" -eq 1 ]] && echo "  - Gemini CLI   : \$HOME/.gemini/settings.json (user-global; literal token)")
+$([[ "$WRITE_CODEX" -eq 1 ]] && echo "  - Codex CLI    : \$HOME/.codex/config.toml (user-global; literal token)")
+$([[ "$WRITE_GROK"  -eq 1 ]] && echo "  - Grok CLI     : \$HOME/.grok/config.toml (user-global; literal token)")
 
 Next:
   1. Ensure Claude Code can resolve \${LANGFUSE_BASIC_AUTH}:

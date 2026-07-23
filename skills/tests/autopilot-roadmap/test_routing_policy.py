@@ -28,7 +28,7 @@ from policy import (  # noqa: E402
 # ── D7: catalog-priced cost model with static fallback + source labelling ─────
 
 def test_static_fallback_when_no_catalog():
-    delta, source = _estimate_cost_delta_with_source("gemini", "openai")
+    delta, source = _estimate_cost_delta_with_source("antigravity", "openai")
     assert source == "static"
     assert delta == 0.6  # 1.2 - 0.6
 
@@ -59,16 +59,16 @@ def test_unknown_vendor_yields_none():
 
 def test_module_level_catalog_hook_roundtrip():
     try:
-        set_catalog_pricing({"claude": 5.0, "gemini": 2.0}.get)
-        delta, source = _estimate_cost_delta_with_source("claude", "gemini")
+        set_catalog_pricing({"claude": 5.0, "antigravity": 2.0}.get)
+        delta, source = _estimate_cost_delta_with_source("claude", "antigravity")
         assert source == "catalog"
         assert delta == -3.0
         # Legacy entrypoint reflects the wired catalog too.
-        assert policy_mod._estimate_cost_delta("claude", "gemini") == -3.0
+        assert policy_mod._estimate_cost_delta("claude", "antigravity") == -3.0
     finally:
         set_catalog_pricing(None)  # restore default (Rule 4 safe default)
     # After reset, static tiers apply again.
-    _, source = _estimate_cost_delta_with_source("claude", "gemini")
+    _, source = _estimate_cost_delta_with_source("claude", "antigravity")
     assert source == "static"
 
 

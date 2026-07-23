@@ -25,7 +25,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--vendor",
         default=None,
-        help="Dispatch to a specific vendor type (e.g., codex, claude, gemini)",
+        help="Dispatch to a specific vendor type (e.g., codex, claude, antigravity, grok, pi)",
     )
     parser.add_argument(
         "--timeout",

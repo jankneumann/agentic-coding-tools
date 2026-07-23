@@ -56,11 +56,38 @@ _CAPACITY_PATTERNS = ["429", "resource_exhausted", "capacity", "rate limit", "ra
 _AUTH_PATTERNS = ["401", "unauthenticated", "token expired", "login required", "unauthorized"]
 _TRANSIENT_PATTERNS = ["500", "503", "unavailable", "internal server error"]
 
+# Re-login command per CLI binary, keyed by ``cli.command`` (E4). Only harnesses
+# with a real ``<cmd> login`` subcommand appear here.
 _RELOGIN_COMMANDS: dict[str, str] = {
     "codex": "codex login",
-    "gemini": "gemini login",
+    "grok": "grok login",
     "claude": "claude login",
 }
+
+# Harnesses whose auth is NOT restored by a ``<cmd> login`` subcommand (E4). A
+# fabricated ``agy login`` / ``pi login`` would be invalid, so these carry an
+# explicit manual-remediation hint instead.
+_MANUAL_REAUTH: dict[str, str] = {
+    # agy: no login subcommand — auto-auth on launch; re-auth is the interactive
+    # `/logout` slash command followed by relaunch (design.md §L3).
+    "agy": "re-auth manually: run `/logout` inside an agy session, then relaunch",
+    # pi: env-var key model — a missing key is a config error, not a re-auth
+    # (design.md §L7).
+    "pi": "set OPENROUTER_API_KEY in the environment (pi has no login subcommand)",
+}
+
+
+def _relogin_hint(command: str) -> str:
+    """Return an actionable auth-recovery hint for a CLI binary (E4).
+
+    Falls back to ``<command> login`` only for binaries not covered by either
+    table — never fabricating an invalid ``agy login`` / ``pi login``.
+    """
+    if command in _RELOGIN_COMMANDS:
+        return _RELOGIN_COMMANDS[command]
+    if command in _MANUAL_REAUTH:
+        return _MANUAL_REAUTH[command]
+    return f"{command} login"
 
 
 def classify_error(stderr: str) -> ErrorClass:
@@ -113,6 +140,11 @@ class CliConfig:
     model: str | None = None
     model_fallbacks: list[str] = field(default_factory=list)
     prompt_via_stdin: bool = False
+    # When set, the prompt is attached as the value of this flag (e.g. agy's
+    # ``--prompt``) rather than as a trailing positional or via stdin. E7:
+    # antigravity ignores stdin and a trailing positional — the prompt must be
+    # the value of ``--prompt``/``-p``.
+    prompt_via_flag: str | None = None
 
 
 @dataclass
@@ -193,13 +225,18 @@ class CliVendorAdapter:
 
         When ``cli_config.prompt_via_stdin`` is True, the prompt is NOT
         appended to the command — it will be passed via stdin instead.
+        When ``cli_config.prompt_via_flag`` is set, the prompt is attached as
+        the value of that flag (e.g. ``--prompt <prompt>``) and is neither a
+        trailing positional nor sent via stdin.
         """
         mode_config = self.cli_config.dispatch_modes[mode]
         cmd = [self.cli_config.command, *mode_config.args]
         effective_model = model or self.cli_config.model
         if effective_model:
             cmd.extend([self.cli_config.model_flag, effective_model])
-        if not self.cli_config.prompt_via_stdin:
+        if self.cli_config.prompt_via_flag:
+            cmd.extend([self.cli_config.prompt_via_flag, prompt])
+        elif not self.cli_config.prompt_via_stdin:
             cmd.append(prompt)
         return cmd
 
@@ -268,7 +305,7 @@ class CliVendorAdapter:
 
                 if last_error_class == ErrorClass.AUTH:
                     # Auth errors can't be fixed by model fallback
-                    relogin = _RELOGIN_COMMANDS.get(self.cli_config.command, f"{self.cli_config.command} login")
+                    relogin = _relogin_hint(self.cli_config.command)
                     msg = (
                         f"[WARN] {self.vendor} review failed: auth expired.\n"
                         f"       Run: {relogin}"
@@ -319,17 +356,21 @@ class CliVendorAdapter:
     def _extract_findings(data: dict[str, Any]) -> dict[str, Any] | None:
         """Extract findings from a parsed JSON dict.
 
-        Handles both direct findings objects and vendor CLI envelopes.
-        Gemini CLI ``-o json`` wraps model output in
-        ``{"session_id": ..., "response": "<json-string>", "stats": ...}``.
+        Handles both direct findings objects and vendor CLI envelopes. grok
+        ``--output-format json --json-schema`` places the schema-conforming
+        object under ``structuredOutput`` (E6), so unwrap that key when the
+        top level is not already a findings object.
         """
         if "findings" in data:
             return data
-        # Unwrap vendor envelopes (e.g. Gemini -o json)
-        resp = data.get("response")
-        if isinstance(resp, str):
+        # Unwrap grok's structured-output envelope (E6). structuredOutput is
+        # normally the parsed object, but tolerate a JSON-string form too.
+        structured = data.get("structuredOutput")
+        if isinstance(structured, dict) and "findings" in structured:
+            return structured
+        if isinstance(structured, str):
             try:
-                inner = json.loads(resp)
+                inner = json.loads(structured)
                 if isinstance(inner, dict) and "findings" in inner:
                     return inner
             except json.JSONDecodeError:
@@ -341,8 +382,8 @@ class CliVendorAdapter:
         """Try to parse review findings JSON from stdout.
 
         Handles cases where the vendor outputs extra text before/after JSON,
-        and vendor CLI envelopes that wrap model output (e.g. Gemini
-        ``-o json`` producing ``{"response": "<escaped-json>"}``).
+        and vendor CLI envelopes that wrap model output (e.g. grok
+        ``--output-format json`` nesting the object under ``structuredOutput``).
         """
         text = stdout.strip()
         if not text:
@@ -429,10 +470,7 @@ class CliVendorAdapter:
             if result.returncode != 0:
                 error_class = classify_error(result.stderr)
                 if error_class == ErrorClass.AUTH:
-                    relogin = _RELOGIN_COMMANDS.get(
-                        self.cli_config.command,
-                        f"{self.cli_config.command} login",
-                    )
+                    relogin = _relogin_hint(self.cli_config.command)
                     print(
                         f"[WARN] {self.vendor} async dispatch failed: "
                         f"auth expired.\n       Run: {relogin}",

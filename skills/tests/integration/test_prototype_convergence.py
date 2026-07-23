@@ -123,7 +123,7 @@ class TestPrototypeConvergenceEndToEnd:
             build_descriptor(
                 variant_id="v3",
                 angle="pragmatic",
-                vendor="gemini",
+                vendor="grok",
                 change_id=change_id,
                 scoring=_scoring(passed=False, covered=2, total=5),
                 human_picks={
@@ -171,10 +171,10 @@ class TestPrototypeConvergenceEndToEnd:
         )
         assert set(merge_findings[0]["source_variants"]) == {"v1", "v2"}
 
-        # Step G: vendor diversity is recorded — v1=claude, v2=codex, v3=gemini
+        # Step G: vendor diversity is recorded — v1=claude, v2=codex, v3=grok
         # all flow through the descriptor round-trip without loss.
         vendors = {d.vendor for d in ctx.descriptors}
-        assert vendors == {"claude-opus-4-7", "codex", "gemini"}
+        assert vendors == {"claude-opus-4-7", "codex", "grok"}
 
         # Step H: synthesis_notes carries the synthesis_hint forward
         assert "v1 nailed the data model" in plan.get("synthesis_notes", "")

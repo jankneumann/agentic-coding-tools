@@ -440,7 +440,7 @@ def test_multi_round_writes_separate_checkpoints(
 
 # ---------------------------------------------------------------------------
 # Quorum accounting on partial dispatch
-# (IMPL_REVIEW round-1 finding C5 — gemini)
+# (IMPL_REVIEW round-1 finding C5 — grok)
 # ---------------------------------------------------------------------------
 
 
@@ -457,7 +457,7 @@ def test_manifest_records_total_dispatched_as_quorum_requested(
     orch = _FakeOrchestrator([
         _review_result("claude_code", [_vendor_finding(1)]),
         _review_result("codex", [_vendor_finding(2)]),
-        _failed_review_result("gemini", "transport error"),
+        _failed_review_result("grok", "transport error"),
     ])
     result = converge(
         change_id="test-feature",
@@ -472,7 +472,7 @@ def test_manifest_records_total_dispatched_as_quorum_requested(
     # 3 attempted, 2 succeeded
     assert manifest["quorum_requested"] == 3
     assert manifest["quorum_received"] == 2
-    # vendors_index only carries successful reviews (gemini's failure has no
+    # vendors_index only carries successful reviews (grok's failure has no
     # findings to index)
     assert {v["name"] for v in manifest["vendors"]} == {"claude_code", "codex"}
     # All 3 dispatches recorded for audit

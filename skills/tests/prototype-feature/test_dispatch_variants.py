@@ -147,10 +147,10 @@ class TestVendorDiversityPolicy:
         # 3 distinct vendors available → one per variant, no fallback.
         plan = plan_variants(change_id="add-foo")
         assignment = resolve_vendor_assignment(
-            plan, available_vendors=["claude", "codex", "gemini"]
+            plan, available_vendors=["claude", "codex", "grok"]
         )
         assert assignment.fallback is False
-        assert sorted(assignment.per_variant.values()) == ["claude", "codex", "gemini"]
+        assert sorted(assignment.per_variant.values()) == ["claude", "codex", "grok"]
         # Each variant got a distinct vendor.
         assert len(set(assignment.per_variant.values())) == 3
 
@@ -184,6 +184,6 @@ class TestVendorDiversityPolicy:
         # appear in the assignment so it can be persisted on the descriptor.
         plan = plan_variants(change_id="add-foo")
         assignment = resolve_vendor_assignment(
-            plan, available_vendors=["claude", "codex", "gemini"]
+            plan, available_vendors=["claude", "codex", "grok"]
         )
         assert set(assignment.per_variant.keys()) == {"v1", "v2", "v3"}

@@ -56,7 +56,7 @@ class PhaseDispatchResult:
 
 ProviderRunner = Callable[[PhaseDispatchPayload], Any]
 
-_SUPPORTED_PROVIDERS = {"claude_code", "codex", "gemini"}
+_SUPPORTED_PROVIDERS = {"claude_code", "codex", "antigravity", "grok", "pi"}
 _CLAUDE_ALIASES = {"opus", "sonnet", "haiku", "fable"}
 
 

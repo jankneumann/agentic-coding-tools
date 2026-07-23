@@ -24,11 +24,17 @@ from provider_dispatch import (  # type: ignore[import-not-found]  # noqa: E402
 )
 
 _CLAUDE_ALIASES = {"opus", "sonnet", "haiku"}
+# Offline dry-run fallback models. The antigravity provider is intentionally
+# absent — its model family resolves through the coordinator at runtime and
+# its slugs are not duplicated here; an offline dry run falls through to the
+# generic default below.
 _FALLBACK_MODELS = {
     "claude_code": "sonnet",
     "codex": "gpt-5.4",
-    "gemini": "gemini-3-flash-preview",
+    "grok": "grok-4.5",
+    "pi": "qwen/qwen3-coder",
 }
+_DEFAULT_FALLBACK_MODEL = "default"
 
 
 class ProviderModelMappingError(ValueError):
@@ -47,7 +53,11 @@ def _build_payload(provider: str, model_override: str | None) -> PhaseDispatchPa
     options = phase_agent._build_options(  # noqa: SLF001 - canonical public bridge path
         "IMPLEMENT", state, provider=provider
     )
-    model = model_override or options.get("model") or _FALLBACK_MODELS[provider]
+    model = (
+        model_override
+        or options.get("model")
+        or _FALLBACK_MODELS.get(provider, _DEFAULT_FALLBACK_MODEL)
+    )
     if provider != "claude_code" and model in _CLAUDE_ALIASES:
         raise ProviderModelMappingError(provider, model)
 
@@ -83,7 +93,11 @@ def _build_payload(provider: str, model_override: str | None) -> PhaseDispatchPa
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--provider", required=True, choices=["claude_code", "codex", "gemini"])
+    parser.add_argument(
+        "--provider",
+        required=True,
+        choices=["claude_code", "codex", "antigravity", "grok", "pi"],
+    )
     parser.add_argument("--model", help="Optional model override for negative smoke tests")
     parser.add_argument("--dry-run", action="store_true", help="Do not invoke a real provider")
     parser.add_argument("--json", action="store_true", dest="json_output")

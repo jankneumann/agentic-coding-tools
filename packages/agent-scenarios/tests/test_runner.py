@@ -21,7 +21,7 @@ def _implement_scenario() -> AgentScenario:
         name="fix add",
         task_prompt="fix add()",
         skill_under_test="implement-feature",
-        vendors=["claude", "codex", "gemini"],
+        vendors=["claude", "codex", "grok"],
         fixture={
             "files": {"src/calc.py": "def add(a, b):\n    return a - b\n"},
             "git_init": True,
@@ -41,7 +41,7 @@ def _implement_scenario() -> AgentScenario:
 
 def test_runner_loops_every_vendor() -> None:
     scenario = _implement_scenario()
-    # claude + codex succeed; gemini leaves the bug and opens no PR (fails).
+    # claude + codex succeed; grok leaves the bug and opens no PR (fails).
     good = Outcome(
         write_files={"src/calc.py": "def add(a, b):\n    return a + b\n"},
         new_branch="feature/fix-add",
@@ -56,21 +56,21 @@ def test_runner_loops_every_vendor() -> None:
         {
             ("fix-add", "claude"): good,
             ("fix-add", "codex"): good,
-            ("fix-add", "gemini"): bad,
+            ("fix-add", "grok"): bad,
         }
     )
 
     matrix = run_scenario(scenario, executor)
 
     # One result per declared vendor — the parity matrix is structural.
-    assert [r.vendor for r in matrix.results] == ["claude", "codex", "gemini"]
+    assert [r.vendor for r in matrix.results] == ["claude", "codex", "grok"]
     by_vendor = {r.vendor: r for r in matrix.results}
     assert by_vendor["claude"].deterministic_status == "pass"
     assert by_vendor["codex"].deterministic_status == "pass"
-    assert by_vendor["gemini"].deterministic_status == "fail"
+    assert by_vendor["grok"].deterministic_status == "fail"
     assert not matrix.all_vendors_pass
-    # gemini failed the 'fixed', 'branch', and 'pr' gates.
-    failed_ids = {g.gate_id for g in by_vendor["gemini"].failed_gates}
+    # grok failed the 'fixed', 'branch', and 'pr' gates.
+    failed_ids = {g.gate_id for g in by_vendor["grok"].failed_gates}
     assert {"fixed", "branch", "pr"} <= failed_ids
 
 

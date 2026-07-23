@@ -184,7 +184,7 @@ fi
 
 # ── Clean mode ─────────────────────────────────────────────────────────────
 
-AGENT_SKILL_DIRS=(".claude/skills" ".codex/skills" ".gemini/skills")
+AGENT_SKILL_DIRS=(".claude/skills" ".codex/skills" ".grok/skills")
 
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 

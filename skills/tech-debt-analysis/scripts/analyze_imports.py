@@ -24,7 +24,7 @@ ANALYZER = "imports"
 
 SKIP_DIRS = {
     ".venv", "node_modules", "__pycache__", ".git", ".tox", "dist", "build",
-    ".agents", ".claude", ".codex", ".gemini",  # runtime skill copies
+    ".agents", ".claude", ".codex", ".grok",  # runtime skill copies
 }
 
 # ── Thresholds ────────────────────────────────────────────────────────
