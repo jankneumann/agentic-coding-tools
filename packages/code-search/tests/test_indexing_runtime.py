@@ -124,6 +124,7 @@ class FakeRegistry:
         self.claim_error: Exception | None = None
         self.renew_error: Exception | None = None
         self.marked_error: str | None = None
+        self.canonical_id: UUID | None = None
 
     async def find_index(self, identity):
         self.calls.append("find")
@@ -172,7 +173,7 @@ class FakeRegistry:
 
     async def get_canonical_index_id(self, repo_slug):
         self.calls.append("canonical")
-        return None
+        return self.canonical_id
 
     async def mark_ready(self, index_id, lease_token, *, chunk_count):
         self.calls.append("ready")
@@ -201,6 +202,9 @@ class FakeRegistry:
         self, repo_slug, index_id, *, expected_current_index_id
     ):
         self.calls.append("promote")
+        if self.canonical_id != expected_current_index_id:
+            raise CanonicalPromotionError("stale canonical")
+        self.canonical_id = index_id
         return index_id
 
 
@@ -339,6 +343,48 @@ async def test_ready_short_circuit_precedes_source_read_and_storage():
     assert result.counts.chunks == 4
     assert harness.calls == []
     assert harness.storage.calls == []
+
+
+@pytest.mark.asyncio
+async def test_ready_duplicate_retries_safe_canonical_promotion():
+    ready = make_record(
+        status=IndexStatus.READY,
+        attempt_count=1,
+        parent_index_id=PARENT_ID,
+        chunk_count=4,
+    )
+    registry = FakeRegistry(existing=ready)
+    registry.canonical_id = PARENT_ID
+    harness = Harness(registry)
+
+    result = await harness.runtime().execute(harness.request())
+
+    assert result.status == "ready"
+    assert result.reused is True
+    assert result.promoted is True
+    assert registry.canonical_id == INDEX_ID
+    assert harness.calls == []
+    assert harness.storage.calls == []
+
+
+@pytest.mark.asyncio
+async def test_ready_duplicate_does_not_replace_unrelated_canonical_index():
+    ready = make_record(
+        status=IndexStatus.READY,
+        attempt_count=1,
+        parent_index_id=PARENT_ID,
+        chunk_count=4,
+    )
+    registry = FakeRegistry(existing=ready)
+    registry.canonical_id = UUID("99999999-9999-4999-8999-999999999999")
+    harness = Harness(registry)
+
+    result = await harness.runtime().execute(harness.request())
+
+    assert result.status == "ready"
+    assert result.promoted is False
+    assert "promote" not in registry.calls
+    assert registry.canonical_id != INDEX_ID
 
 
 @pytest.mark.asyncio

@@ -438,11 +438,30 @@ class IndexingRuntime:
                 parent = await self._registry.get_index(record.parent_index_id)
             except Exception:
                 pass
+        promoted = False
+        if record.namespace_kind is NamespaceKind.MAIN:
+            try:
+                current_canonical = await self._registry.get_canonical_index_id(
+                    record.repo_slug
+                )
+            except Exception:
+                current_canonical = None
+            if current_canonical == record.index_id:
+                promoted = True
+            elif current_canonical is None or (
+                record.parent_index_id is not None
+                and current_canonical == record.parent_index_id
+            ):
+                promoted = await self._promote(
+                    record,
+                    expected_canonical=current_canonical,
+                )
         return durable_result(
             record,
             IndexExecutionStatus.READY,
             reused=reused,
             parent=parent,
+            promoted=promoted,
             counts=IndexExecutionCounts(chunks=record.chunk_count or 0),
         )
 
