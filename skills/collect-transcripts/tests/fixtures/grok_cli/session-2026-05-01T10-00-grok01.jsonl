@@ -1,0 +1,5 @@
+{"sessionId":"sess-grok-001","startTime":"2026-05-01T10:00:00Z","model":"grok-4.5"}
+{"id":"m-001","timestamp":"2026-05-01T10:00:01Z","role":"user","content":"Fix the failing test in src/foo.py","model":"grok-4.5"}
+{"id":"m-002","timestamp":"2026-05-01T10:00:05Z","role":"assistant","reasoning":"Inspect the test file to find the bad assertion.","content":[{"type":"text","text":"I'll read the test file first."},{"type":"tool_use","id":"tu-001","name":"read_file","input":{"path":"src/foo.py"}}],"model":"grok-4.5","tokens":{"input":480,"output":150}}
+{"id":"m-003","timestamp":"2026-05-01T10:00:06Z","role":"tool","content":[{"type":"tool_result","tool_use_id":"tu-001","content":"def test_foo():\n    assert 1 == 2  # BUG"}]}
+{"id":"m-004","timestamp":"2026-05-01T10:00:10Z","role":"assistant","content":[{"type":"text","text":"Found it — the assertion compares 1 to 2. Fixed to 1 == 1."}],"model":"grok-4.5","tokens":{"input":700,"output":60}}
