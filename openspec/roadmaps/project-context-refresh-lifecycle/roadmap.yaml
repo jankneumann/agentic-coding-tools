@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Add revision-aware semantic index registry
-  status: in_progress
+  status: completed
   priority: 1
   effort: M
   depends_on: []
@@ -28,10 +28,12 @@ items:
     revision.
   - A documented garbage-collection operation removes eligible noncanonical namespaces
     without deleting the canonical main index.
+  learning_refs:
+  - ri-01
 - item_id: ri-02
   title: Complete incremental semantic indexing
-  status: approved
-  priority: 2
+  status: in_progress
+  priority: 1
   effort: L
   depends_on:
   - ri-01
@@ -54,6 +56,8 @@ items:
     or failed record and preserves exact-search fallback behavior.
   - Embedding configuration explicitly integrates with add-coordinator-llm-gateway
     when available without making embeddings a production-default requirement.
+  learning_refs:
+  - ri-01
 - item_id: ri-03
   title: Expose fail-closed semantic code search
   status: approved
@@ -79,7 +83,7 @@ items:
 - item_id: ri-04
   title: Make architecture refresh revision-aware
   status: approved
-  priority: 4
+  priority: 3
   effort: M
   depends_on:
   - ri-06
@@ -99,6 +103,8 @@ items:
     process.
   - Two refreshes for the same revision and inputs produce identical repository artifacts
     and no second diff.
+  learning_refs:
+  - ri-01
 - item_id: ri-05
   title: Add deterministic context producer checks
   status: approved
@@ -319,4 +325,4 @@ items:
     coding-context utility gates pass.
   - A later regression or unavailable exact-revision index disables semantic injection
     and restores explicit exact-search fallback.
-updated_at: '2026-07-23T17:48:27.153773+00:00'
+updated_at: '2026-07-23T19:05:19.872123+00:00'
