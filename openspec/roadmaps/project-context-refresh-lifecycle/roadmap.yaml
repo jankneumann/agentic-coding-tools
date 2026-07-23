@@ -1,0 +1,320 @@
+schema_version: 1
+roadmap_id: project-context-refresh-lifecycle
+source_proposal: openspec/roadmaps/project-context-refresh-lifecycle/proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: ri-01
+  title: Add revision-aware semantic index registry
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Introduce durable index identities, namespaces, freshness metadata,
+    and lifecycle records keyed by repository and revision. Protect the canonical
+    main index from feature and work-package namespaces and define explicit garbage
+    collection.
+  rationale: Truthful semantic retrieval requires durable provenance and isolation
+    before indexing or query surfaces can claim that results match a requested revision.
+  change_id: add-revision-aware-semantic-index-registry
+  acceptance_outcomes:
+  - The registry records the exact indexed commit, model, embedding dimension, chunk
+    count, completion status, and last error.
+  - Canonical main, feature-ref, and work-package indexes use distinct identities
+    that cannot overwrite or masquerade as one another.
+  - Concurrent registry updates preserve one authoritative record per repository and
+    revision.
+  - A documented garbage-collection operation removes eligible noncanonical namespaces
+    without deleting the canonical main index.
+- item_id: ri-02
+  title: Complete incremental semantic indexing
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-01
+  description: Finish index_repo so it executes the CocoIndex and Postgres pipeline
+    as a durable, idempotent operation for an exact repository revision. Apply changed-file
+    processing, permitted-scope filtering, and an explicit not-configured state when
+    no embedder is available.
+  rationale: The existing semantic-search surfaces cannot support the refresh lifecycle
+    until indexing actually runs, records durable outcomes, and remains safe when
+    Postgres or embeddings are unavailable.
+  change_id: complete-incremental-semantic-indexing
+  acceptance_outcomes:
+  - index_repo completes against a reachable Postgres and embedder environment without
+    raising NotImplementedError.
+  - Reindexing a revision processes only changed eligible files and reuses the durable
+    operation for duplicate repository-and-commit requests.
+  - Ignored files, secrets, generated dependency trees, and files outside the permitted
+    read scope are excluded from indexing.
+  - Missing Postgres or embedding configuration produces an explicit not-configured
+    or failed record and preserves exact-search fallback behavior.
+  - Embedding configuration explicitly integrates with add-coordinator-llm-gateway
+    when available without making embeddings a production-default requirement.
+- item_id: ri-03
+  title: Expose fail-closed semantic code search
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-02
+  description: Wire the semantic query service into coordinator startup and capability
+    discovery with exact revision matching and provenance-rich responses. Return an
+    explicit stale or unavailable state instead of serving mismatched results.
+  rationale: Agents must be able to discover usable code search while never silently
+    consuming an index for a different revision.
+  change_id: expose-fail-closed-semantic-code-search
+  acceptance_outcomes:
+  - Coordinator startup initializes the query service from durable registry state
+    and supports successful queries against a usable index.
+  - Capability discovery reports CAN_CODE_SEARCH only when the query service is initialized
+    and a usable index exists.
+  - Every query response identifies the indexed repository and commit.
+  - A requested revision mismatch returns no results as current and supplies an explicit
+    exact-search fallback state.
+  - Query scope filters enforce the caller's read_allow and deny boundaries.
+- item_id: ri-04
+  title: Make architecture refresh revision-aware
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on: []
+  description: Replace mtime-based architecture freshness and subprocess-local operation
+    state with deterministic input tracking tied to a Git revision and durable cross-process
+    status. Preserve refresh-architecture as the canonical architecture producer.
+  rationale: Architecture artifacts cannot participate in reliable convergence while
+    a six-hour mtime window or process-local singleton can report stale output as
+    fresh.
+  change_id: make-architecture-refresh-revision-aware
+  acceptance_outcomes:
+  - Architecture artifacts record their source Git SHA, producer version, and relevant
+    input fingerprint.
+  - Architecture check mode reports stale output from changed inputs regardless of
+    file modification time.
+  - Refresh operation state survives process exit and can be queried from a separate
+    process.
+  - Two refreshes for the same revision and inputs produce identical repository artifacts
+    and no second diff.
+- item_id: ri-05
+  title: Add deterministic context producer checks
+  status: candidate
+  priority: 5
+  effort: L
+  depends_on: []
+  description: Add reproducible generation and check modes for documentation inventories,
+    API contracts and generated bindings, decision timelines, and OpenSpec projections.
+    Reuse update-specs, documentation-and-adrs, and the existing documentation-sync
+    work rather than duplicating their domain logic.
+  rationale: Shared orchestration and CI need a uniform way to distinguish deterministic
+    repository drift from optional external-service degradation.
+  change_id: add-deterministic-context-producer-checks
+  acceptance_outcomes:
+  - Each configured deterministic producer can regenerate output and report a precise
+    list of stale artifacts without relying on mtimes.
+  - Generated artifacts carry source revision and producer metadata while hand-authored
+    documentation outside managed regions remains unchanged.
+  - The add-update-documentation-skill proposal is explicitly absorbed, superseded,
+    or declared as a prerequisite so no competing refresh lifecycle remains.
+  - API, decision, documentation, and OpenSpec checks are independently runnable and
+    testable through their canonical owners.
+- item_id: ri-06
+  title: Add durable context refresh records
+  status: candidate
+  priority: 6
+  effort: M
+  depends_on: []
+  description: Define and persist the refresh-operation identity, producer result
+    model, and machine-readable manifest used by all refresh callers. Represent deterministic
+    Git artifacts separately from the durable semantic-index operation and registry
+    record.
+  rationale: A shared contract is needed for idempotent retries, cross-process status
+    queries, actionable degradation reporting, and convergence handoffs.
+  change_id: add-durable-context-refresh-records
+  acceptance_outcomes:
+  - A refresh operation is durably identified by repository and source revision and
+    can be queried after the triggering process exits.
+  - The manifest records source revision, producer versions, changed artifacts, validation
+    results, semantic-index operation status, and degraded fallbacks.
+  - Every producer result uses one of fresh, degraded, failed, or not-configured and
+    includes actionable remediation.
+  - The schema distinguishes staged repository artifacts from external semantic-index
+    state.
+  - Recreating a record for the same repository and source revision reuses the existing
+    operation identity.
+- item_id: ri-07
+  title: Implement project context refresh orchestration
+  status: candidate
+  priority: 7
+  effort: L
+  depends_on:
+  - ri-02
+  - ri-04
+  - ri-05
+  - ri-06
+  description: Add the shared refresh-project-context command or service that invokes
+    canonical capability, API, architecture, decision, documentation, OpenSpec, and
+    semantic-index producers. Stage deterministic outputs together and emit the durable
+    manifest without collapsing producer ownership.
+  rationale: One idempotent operation must coordinate all project context so merge
+    and branch workflows can reuse a single lifecycle.
+  change_id: implement-project-context-refresh-orchestration
+  acceptance_outcomes:
+  - One command runs all configured context producers for a specified repository revision
+    and emits a valid refresh manifest.
+  - A second run for the same revision produces no repository diff and reuses or verifies
+    the same semantic-index operation.
+  - Failure or degradation of semantic indexing does not corrupt or discard successful
+    deterministic producer output.
+  - Each producer remains independently runnable and its refresh result identifies
+    its canonical owner.
+  - No refresh path independently writes main outside an authorized sync-point operation.
+- item_id: ri-08
+  title: Add work-package context impact declarations
+  status: candidate
+  priority: 8
+  effort: M
+  depends_on: []
+  description: Extend work-package schemas and templates with reviewable impacts for
+    capabilities, APIs, architecture, decisions, documentation, and semantic code.
+    Add changed-file and contract analysis that detects undeclared impacts while supporting
+    an approved rationale.
+  rationale: Planning metadata gives branch checkpoints a scoped starting point, but
+    automated detection is required so omissions cannot silently leave context stale.
+  change_id: add-work-package-context-impact-declarations
+  acceptance_outcomes:
+  - Work-package schemas and templates accept context-impact declarations for every
+    surface named in the proposal.
+  - Validation fails when changed files or contracts imply an undeclared impact unless
+    an approved rationale is present.
+  - Existing work packages without new metadata receive a clear migration or compatibility
+    result.
+  - Declared read_allow and deny scopes are available to downstream indexing queries
+    and context injection.
+- item_id: ri-09
+  title: Add branch-local context checkpoints
+  status: candidate
+  priority: 9
+  effort: L
+  depends_on:
+  - ri-07
+  - ri-08
+  description: Run the shared refresh lifecycle in an isolated checkpoint mode after
+    large or integration work packages. Produce change-local specs, contracts, decisions,
+    documentation validation, architecture slices or diffs, and an optional revision-isolated
+    semantic index.
+  rationale: Large branch changes need current review context before main convergence
+    without allowing feature worktrees to mutate canonical project artifacts or indexes.
+  change_id: add-branch-local-context-checkpoints
+  acceptance_outcomes:
+  - Large and integration work packages automatically produce a checkpoint report
+    through implement-feature.
+  - The report lists affected capabilities, APIs, architecture nodes, decisions, documentation,
+    and semantic index revision.
+  - Branch-local generated artifacts remain isolated from canonical main artifacts.
+  - Optional semantic indexing uses the exact branch or checkpoint revision and cannot
+    mutate the canonical main index.
+  - Checkpoint execution enforces the work package's read_allow and deny scopes.
+- item_id: ri-10
+  title: Add deterministic context drift gates
+  status: candidate
+  priority: 10
+  effort: M
+  depends_on:
+  - ri-04
+  - ri-05
+  - ri-07
+  description: Add CI and merge-validation checks that regenerate deterministic context
+    through the shared lifecycle and compare it with committed output. Report deterministic
+    failures separately from optional external-service degradation.
+  rationale: Context freshness must become an enforceable, precise invariant before
+    automated main convergence relies on generated artifacts.
+  change_id: add-deterministic-context-drift-gates
+  acceptance_outcomes:
+  - CI fails with a precise artifact list when committed architecture, documentation,
+    API, decision, or OpenSpec output is stale.
+  - Drift decisions use source revision and producer inputs rather than file modification
+    time.
+  - CI reports semantic Postgres or embedder unavailability as explicit external-service
+    degradation without treating stale semantic results as current.
+  - A clean checkout at the recorded revision passes regeneration checks with no diff.
+- item_id: ri-11
+  title: Integrate main context convergence
+  status: candidate
+  priority: 11
+  effort: L
+  depends_on:
+  - ri-07
+  - ri-10
+  description: Make merge-pull-requests run exactly one shared context convergence
+    after each successful merge, invoking cleanup-feature --post-merge first for OpenSpec
+    changes. Commit and push deterministic output as one follow-up convergence commit,
+    then enqueue semantic indexing for the final pushed main SHA.
+  rationale: merge-pull-requests is the authoritative main synchronization point,
+    while cleanup-feature must retain sole ownership of OpenSpec migration, archive,
+    and spec-delta merge.
+  change_id: integrate-main-context-convergence
+  acceptance_outcomes:
+  - OpenSpec merge paths invoke cleanup-feature --post-merge for task migration, archive,
+    and spec-delta merge before running the shared refresh.
+  - Non-OpenSpec and OpenSpec merge paths each run exactly one convergence operation
+    for the resulting main state.
+  - Deterministic cleanup and refresh artifacts plus the manifest are committed and
+    pushed as one follow-up convergence commit.
+  - Sync-point locking and durable operation identities prevent interleaved main writers,
+    duplicate commits, duplicate indexing, and double archival during retries.
+  - The final handoff reports the merged SHA, context-refresh SHA, and semantic-index
+    status for the final pushed main SHA.
+- item_id: ri-12
+  title: Inject scoped semantic context into coding jobs
+  status: candidate
+  priority: 12
+  effort: L
+  depends_on:
+  - ri-03
+  - ri-08
+  description: Extend context-engineering and coding workflows to request bounded,
+    deduplicated semantic results for the exact task revision and permitted scope.
+    Supply explicit provenance and fall back to rg and direct source reading whenever
+    semantic search is stale, unavailable, mismatched, or out of scope.
+  rationale: Current semantic context becomes useful only when implementation, debugging,
+    review, and validation jobs can consume it without weakening revision or scope
+    safety.
+  change_id: inject-scoped-semantic-context-into-coding-jobs
+  acceptance_outcomes:
+  - context-engineering requests CAN_CODE_SEARCH results for the exact repository
+    revision and work-package read scope.
+  - implement-feature, quick-task, iterate-on-implementation, debugging, validation,
+    and implementation review can receive a bounded Semantic code context section.
+  - Every injected hit includes file, line range, score, indexed commit, and scope
+    decision.
+  - Duplicate or over-budget hits are omitted deterministically.
+  - Tests prove stale, unavailable, mismatched, and out-of-scope results trigger explicit
+    exact-search fallback without blocking the coding job.
+- item_id: ri-13
+  title: Gate semantic context default enablement
+  status: candidate
+  priority: 13
+  effort: M
+  depends_on:
+  - ri-12
+  description: Add retrieval-quality and coding-context utility evaluations that compare
+    semantic augmentation with exact-search and direct-source baselines. Keep semantic
+    injection opt-in until measurable thresholds pass and preserve automatic fail-closed
+    fallback afterward.
+  rationale: The proposal explicitly forbids production-default semantic context before
+    both the existing retrieval gate and the new worker-context evaluation demonstrate
+    benefit.
+  change_id: gate-semantic-context-default-enablement
+  acceptance_outcomes:
+  - Evaluation scenarios measure retrieval relevance, scope compliance, context utility,
+    and coding-task outcomes against an exact-search baseline.
+  - Evaluation reports record the indexed revision, embedding model, configuration,
+    and pass or fail thresholds.
+  - Semantic context remains disabled by default unless both retrieval-quality and
+    coding-context utility gates pass.
+  - A later regression or unavailable exact-revision index disables semantic injection
+    and restores explicit exact-search fallback.
+updated_at: '2026-07-23T17:48:27.153773+00:00'
