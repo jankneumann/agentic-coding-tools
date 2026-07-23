@@ -91,7 +91,7 @@ def test_round_trip_single_vendor(tmp_path: Path, good_finding: dict[str, Any]) 
 
 def test_round_trip_multi_vendor(tmp_path: Path, good_finding: dict[str, Any]) -> None:
     vendors_index: list[dict[str, Any]] = []
-    for vendor_name in ("claude_code", "codex", "gemini"):
+    for vendor_name in ("claude_code", "codex", "grok"):
         write_vendor_findings(
             tmp_path,
             vendor=vendor_name,
@@ -113,7 +113,7 @@ def test_round_trip_multi_vendor(tmp_path: Path, good_finding: dict[str, Any]) -
     )
 
     loaded = read_vendor_findings(tmp_path)
-    assert set(loaded) == {"claude_code", "codex", "gemini"}
+    assert set(loaded) == {"claude_code", "codex", "grok"}
     for findings in loaded.values():
         assert findings == [good_finding]
 
@@ -831,7 +831,7 @@ def test_write_manifest_rejects_negative_finding_count(tmp_path: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # _atomic_write_json hygiene
-# (IMPL_REVIEW round-1 findings C6 — gemini, C7 — claude_code)
+# (IMPL_REVIEW round-1 findings C6 — grok, C7 — claude_code)
 # ---------------------------------------------------------------------------
 
 

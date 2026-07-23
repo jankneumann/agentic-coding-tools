@@ -316,7 +316,7 @@ def _handle_vendor_limit(
 
     # Available vendors placeholder — in real usage, the prompt layer
     # would provide this from vendor-status checks
-    available = ["claude", "codex", "gemini"]
+    available = ["claude", "codex", "antigravity", "grok", "pi"]
     available = [v for v in available if v != vendor]
 
     decision = evaluate_policy(

@@ -224,7 +224,9 @@ def _estimate_wait_seconds(reset_at: str | None) -> int | None:
 _STATIC_COST_TIERS: dict[str, float] = {
     "claude": 1.0,
     "codex": 0.8,
-    "gemini": 0.6,
+    "antigravity": 0.6,
+    "grok": 0.9,
+    "pi": 0.5,
     "openai": 1.2,
 }
 

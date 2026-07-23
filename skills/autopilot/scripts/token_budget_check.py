@@ -59,9 +59,10 @@ _DEFAULT_CONTEXT_WINDOWS: dict[str, int] = {
     "gpt-5.5": 400_000,
     "gpt-5.4": 400_000,
     "gpt-5.4-mini": 400_000,
-    "gemini-3.1-pro-preview": 1_000_000,
-    "gemini-3-flash-preview": 1_000_000,
-    "gemini-3-flash-lite": 1_000_000,
+    "grok-4.5": 256_000,
+    "qwen/qwen3-coder-plus": 256_000,
+    "qwen/qwen3-coder": 256_000,
+    "qwen/qwen3-coder-flash": 256_000,
     # Generic fallback for unknown model names — matches the Claude family
     # default; if a vendor with a smaller window is added, callers should
     # pass --context-window explicitly.
@@ -81,13 +82,24 @@ _FALLBACK_MODEL_BY_PHASE: dict[str, str] = {
     "VAL_REVIEW":    "opus",
 }
 
+# Static fallback tier→model map for context-window reporting. The
+# antigravity provider is intentionally absent: its model family resolves
+# through the coordinator's DEFAULT_PROVIDER_MODEL_MAP at runtime, and its
+# slugs are not duplicated here. When absent, resolution falls through to the
+# legacy Claude-family model and the conservative default context window.
 _PROVIDER_MODEL_BY_TIER: dict[str, dict[str, str]] = {
     "claude_code": {"premium": "opus", "standard": "sonnet", "economy": "haiku"},
     "codex": {"premium": "gpt-5.5", "standard": "gpt-5.4", "economy": "gpt-5.4-mini"},
-    "gemini": {
-        "premium": "gemini-3.1-pro-preview",
-        "standard": "gemini-3-flash-preview",
-        "economy": "gemini-3-flash-lite",
+    "grok": {
+        # Single model across three reasoning-effort budgets (E5).
+        "premium": "grok-4.5",
+        "standard": "grok-4.5",
+        "economy": "grok-4.5",
+    },
+    "pi": {
+        "premium": "qwen/qwen3-coder-plus",
+        "standard": "qwen/qwen3-coder",
+        "economy": "qwen/qwen3-coder-flash",
     },
 }
 _LEGACY_TO_TIER = {"opus": "premium", "sonnet": "standard", "haiku": "economy"}
@@ -253,7 +265,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--provider",
-        choices=["claude_code", "codex", "gemini"],
+        choices=["claude_code", "codex", "antigravity", "grok", "pi"],
         default="claude_code",
         help="Provider model map to use for context-window reporting.",
     )

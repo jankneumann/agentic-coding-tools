@@ -272,7 +272,7 @@ calls is on record in `design.md`.
 
 ## Phase 3 — Skills, dispatch allow-lists, adapters, agent-scenarios
 
-- [ ] 3.1 Write failing tests for the new roster across the dispatch test surface (L — flagged;
+- [x] 3.1 Write failing tests for the new roster across the dispatch test surface (L — flagged;
   every file asserts against the same roster constant; splitting them hides inconsistency):
   `skills/tests/vendor-neutral-autopilot/`, `skills/tests/parallel-infrastructure/`,
   `skills/tests/autopilot*/`, `skills/parallel-infrastructure/scripts/tests/`,
@@ -284,24 +284,24 @@ calls is on record in `design.md`.
   **Spec scenarios**: skill-workflow.4, .5, .6, .20, .24
   **Dependencies**: 0.5, 1.4
 
-- [ ] 3.2 Update `_SUPPORTED_PROVIDERS` in `skills/autopilot/scripts/provider_dispatch.py` and
+- [x] 3.2 Update `_SUPPORTED_PROVIDERS` in `skills/autopilot/scripts/provider_dispatch.py` and
   the argparse `choices` in `token_budget_check.py` + `smoke_provider_dispatch.py` (S)
   **Spec scenarios**: skill-workflow.23, .24
   **Dependencies**: 3.1
 
-- [ ] 3.3 Update `available = [...]` in `skills/autopilot-roadmap/scripts/orchestrator.py:319`
+- [x] 3.3 Update `available = [...]` in `skills/autopilot-roadmap/scripts/orchestrator.py:319`
   and `_STATIC_COST_TIERS` in `skills/autopilot-roadmap/scripts/policy.py`, keeping both
   structures shape-stable for `ri-02`'s clean deletion (S)
   **Spec scenarios**: skill-workflow.6
   **Dependencies**: 3.1
 
-- [ ] 3.4 Update `_RELOGIN_COMMANDS` in
+- [x] 3.4 Update `_RELOGIN_COMMANDS` in
   `skills/parallel-infrastructure/scripts/review_dispatcher.py` (using E4 facts) and drop the
   Gemini `-o json` envelope-unwrap special case (M)
   **Spec scenarios**: skill-workflow.18
   **Dependencies**: 3.1
 
-- [ ] 3.5 Update roster references in `consensus_synthesizer.py`,
+- [x] 3.5 Update roster references in `consensus_synthesizer.py`,
   `openspec/schemas/consensus-report.schema.json`, the mirrored
   `skills/parallel-infrastructure/install_assets/` copy, `skills/quick-task/scripts/quick_task.py`,
   `skills/review-artifacts/scripts/open_artifacts.py`, `scripts/impl_review_driver.py`, and
@@ -309,7 +309,7 @@ calls is on record in `design.md`.
   **Spec scenarios**: skill-workflow.7
   **Dependencies**: 3.1
 
-- [ ] 3.6 Tighten the provider key set in the already-promoted
+- [x] 3.6 Tighten the provider key set in the already-promoted
   `openspec/schemas/provider-model-map.schema.json` (landed via `add-frontier-model-tier`):
   close `providers` to the five roster keys (`propertyNames.enum` + `required`), preserving
   the optional `frontier` tier property; update the
@@ -319,9 +319,9 @@ calls is on record in `design.md`.
   **Note**: the promotion itself, the `const: 2` bump, and the test repoint are already done —
   this task only encodes the roster closure this change is about.
 
-- [ ] 3.7 Checkpoint: dispatch suites green, review diff, verify scope
+- [x] 3.7 Checkpoint: dispatch suites green, review diff, verify scope
 
-- [ ] 3.8 Transcript adapters: write failing tests + fixtures for `antigravity_cli`,
+- [x] 3.8 Transcript adapters: write failing tests + fixtures for `antigravity_cli`,
   `grok_cli`, `pi_cli`; implement the three adapters under
   `skills/collect-transcripts/scripts/adapters/`; register them in `normalize.py`; then delete
   `gemini_cli.py`, `tests/test_gemini_cli.py`, and `tests/fixtures/gemini_cli/` (L — flagged;
@@ -330,13 +330,13 @@ calls is on record in `design.md`.
   **Dependencies**: 1.4
   **Note**: E7/E8 output shapes feed the antigravity/pi fixtures.
 
-- [ ] 3.9 Update `.gemini` skip-directory entries in `skills/tech-debt-analysis/scripts/`
+- [x] 3.9 Update `.gemini` skip-directory entries in `skills/tech-debt-analysis/scripts/`
   (`analyze_complexity.py`, `analyze_duplication.py`, `analyze_imports.py`), plus roster
   references in `skills/fetch-vendor-skills.sh` and `skills/langfuse/scripts/install-mcp.sh` (S)
   **Spec scenarios**: codebase-analysis.1, codebase-analysis.2
   **Dependencies**: 3.1
 
-- [ ] 3.10 Update `packages/agent-scenarios/`: `executor.py`,
+- [x] 3.10 Update `packages/agent-scenarios/`: `executor.py`,
   `scenarios/plan-feature-basic.scenario.yaml`, `tests/test_runner.py`,
   `tests/test_findings_emitter.py`; verify via
   `uv run --project packages/agent-scenarios pytest packages/agent-scenarios/tests -q` (M)
@@ -344,15 +344,30 @@ calls is on record in `design.md`.
   **Note**: the path argument is explicit — `uv run --project` does **not** change the working
   directory, so a bare `pytest tests` would collect the repo-root `tests/`.
 
-- [ ] 3.11 Remove `google-generativeai` from `skills/pyproject.toml` and run `uv lock` (S)
+- [x] 3.11 Remove `google-generativeai` from `skills/pyproject.toml` and run `uv lock` (S)
   **Dependencies**: 3.2
 
-- [ ] 3.12 Checkpoint: run **`wp-skills`'s verification step** in `work-packages.yaml` and
+- [~] 3.12 Checkpoint: run **`wp-skills`'s verification step** in `work-packages.yaml` and
   confirm it exits 0 — skills suites (including the four test dirs outside `skills/tests`),
   agent-scenarios via its own project, owned-tree residue clean, and `google-generativeai`
   gone from `skills/pyproject.toml`. SKILL.md prose and the config example belong to Phase 5;
   `skills/tests/agent-coordinator` belongs to `wp-frontend`; the excluded narrative paths are
   deferred per D6. The gate command lives only in `work-packages.yaml`.
+  **Status 2026-07-23 (Phase 3 wp-skills complete; gate red on pre-existing debt only).**
+  Roster migration for tasks 3.1–3.11 landed. The gate's **residue grep is clean** (zero live
+  `gemini` in the owned skills/scripts/packages trees with documented exclusions), the
+  **`google-generativeai` dep is gone** from `skills/pyproject.toml` (+ `uv lock`; pyasn1 0.6.3
+  dropped as a side effect), and **agent-scenarios is green** (36 passed / 1 skipped via its own
+  project). The gate's first pytest step still exits non-zero: **26 failures, ALL pre-existing
+  non-roster baseline debt** — verified by stashing this branch's changes and re-running the
+  identical command, which yields **30** failures (the same 26 **plus** 4 `test_model_resolution`
+  cases that Phase 3 FIXED). So Phase 3 introduced **zero** new failures and repaired 4. The 26
+  remaining are the buckets task 0.5 left open / memory `project_wp_skills_gate_baseline_debt`
+  tracks as coordinator follow-ups: kanban `/audit/v2` + audit-outcome-enum (2, wp-frontend),
+  autopilot phase e2e / apply-outcome (8), CLAUDE.md workflow-doc drift (3, Phase 5),
+  phase-record-compaction (5), playwright env deps (6), consensus gen-eval merge (2). None are
+  in Phase 3 scope. The gate cannot exit 0 until that baseline debt is repaired (the tracked
+  marker-parity / gate-scope decision from task 0.5).
 
 ## Phase 4 — Kanban frontend
 

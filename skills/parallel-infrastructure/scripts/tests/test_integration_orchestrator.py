@@ -265,9 +265,9 @@ class TestMultiVendorReview:
 
     def test_record_vendor_findings(self, orch: IntegrationOrchestrator) -> None:
         orch.record_review_findings("wp-backend", {"findings": []}, vendor="codex")
-        orch.record_review_findings("wp-backend", {"findings": []}, vendor="gemini")
+        orch.record_review_findings("wp-backend", {"findings": []}, vendor="grok")
         assert "codex" in orch._vendor_findings["wp-backend"]
-        assert "gemini" in orch._vendor_findings["wp-backend"]
+        assert "grok" in orch._vendor_findings["wp-backend"]
 
     def test_record_consensus(self, orch: IntegrationOrchestrator) -> None:
         consensus = {"consensus_findings": [], "summary": {}}
@@ -339,7 +339,7 @@ class TestMultiVendorReview:
         """Execution summary includes consensus and vendor info."""
         orch.record_package_result("wp-backend", _make_result("wp-backend"))
         orch.record_review_findings("wp-backend", {"findings": []}, vendor="codex")
-        orch.record_review_findings("wp-backend", {"findings": []}, vendor="gemini")
+        orch.record_review_findings("wp-backend", {"findings": []}, vendor="grok")
         orch.record_consensus("wp-backend", {
             "consensus_findings": [],
             "summary": {"confirmed_count": 0, "unconfirmed_count": 0, "disagreement_count": 0},
@@ -348,4 +348,4 @@ class TestMultiVendorReview:
         assert "consensus" in summary["review"]
         assert summary["review"]["consensus"]["packages_with_consensus"] == 1
         assert "vendors" in summary["review"]
-        assert set(summary["review"]["vendors"]) == {"codex", "gemini"}
+        assert set(summary["review"]["vendors"]) == {"codex", "grok"}

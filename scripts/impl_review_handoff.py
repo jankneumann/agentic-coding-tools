@@ -138,7 +138,7 @@ def main() -> int:
         "phase": "IMPL_REVIEW",
         "summary": (
             f"IMPL_REVIEW for {CHANGE_ID} completed via multi-vendor convergence "
-            f"(claude / codex / gemini) over {rounds_run} round(s). "
+            f"(claude / codex / antigravity / grok / pi) over {rounds_run} round(s). "
             f"Outcome: {outcome}. Blocking findings: {len(blocking)}. "
             f"Total unique findings (final round): "
             f"{consensus_summary.get('total_unique_findings', 'n/a')}. "

@@ -47,10 +47,10 @@ def test_default_provider_model_map_includes_first_class_providers() -> None:
     assert set(DEFAULT_PROVIDER_MODEL_MAP["providers"]) >= {
         "claude_code",
         "codex",
-        "gemini",
+        "antigravity",
     }
     # Base tiers are required on every provider; frontier is optional.
-    for provider in ("claude_code", "codex", "gemini"):
+    for provider in ("claude_code", "codex", "antigravity"):
         assert set(DEFAULT_PROVIDER_MODEL_MAP["providers"][provider]) >= {
             "premium",
             "standard",
@@ -59,7 +59,7 @@ def test_default_provider_model_map_includes_first_class_providers() -> None:
     # Structural expectations only — which providers carry a frontier slot.
     assert "frontier" in DEFAULT_PROVIDER_MODEL_MAP["providers"]["claude_code"]
     assert "frontier" in DEFAULT_PROVIDER_MODEL_MAP["providers"]["codex"]
-    assert "frontier" not in DEFAULT_PROVIDER_MODEL_MAP["providers"]["gemini"]
+    assert "frontier" not in DEFAULT_PROVIDER_MODEL_MAP["providers"]["antigravity"]
 
 
 def test_frontier_tier_resolves_for_providers_that_define_it() -> None:
@@ -70,9 +70,9 @@ def test_frontier_tier_resolves_for_providers_that_define_it() -> None:
 
 
 def test_frontier_tier_falls_back_to_premium_when_unmapped() -> None:
-    model = resolve_provider_model("frontier", provider="gemini")
+    model = resolve_provider_model("frontier", provider="antigravity")
 
-    assert model == _entry_model("gemini", "premium")
+    assert model == _entry_model("antigravity", "premium")
 
 
 def test_frontier_fallback_raises_when_premium_also_missing() -> None:
@@ -121,10 +121,10 @@ def test_legacy_claude_alias_resolves_to_codex_model() -> None:
     assert model not in {"opus", "sonnet", "haiku"}
 
 
-def test_legacy_claude_alias_resolves_to_latest_gemini_model() -> None:
-    model = resolve_provider_model("sonnet", provider="gemini")
+def test_legacy_claude_alias_resolves_to_latest_antigravity_model() -> None:
+    model = resolve_provider_model("sonnet", provider="antigravity")
 
-    assert model == _entry_model("gemini", "standard")
+    assert model == _entry_model("antigravity", "standard")
     assert model not in {"opus", "sonnet", "haiku"}
 
 
@@ -155,7 +155,7 @@ def test_resolve_model_remains_backward_compatible_without_provider() -> None:
     assert resolve_model(archetype, {}) == "opus"
 
 
-def test_resolve_model_maps_escalated_tier_for_gemini_provider() -> None:
+def test_resolve_model_maps_escalated_tier_for_antigravity_provider() -> None:
     archetype = ArchetypeConfig(
         name="implementer",
         model="standard",
@@ -166,11 +166,11 @@ def test_resolve_model_maps_escalated_tier_for_gemini_provider() -> None:
     model, reasons = resolve_model(
         archetype,
         {"loc_estimate": 250},
-        provider="gemini",
+        provider="antigravity",
         return_reasons=True,
     )
 
-    assert model == _entry_model("gemini", "premium")
+    assert model == _entry_model("antigravity", "premium")
     assert any("loc_estimate" in reason for reason in reasons)
 
 

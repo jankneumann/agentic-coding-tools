@@ -30,14 +30,14 @@ def test_codex_dry_run_smoke_succeeds() -> None:
     assert body["payload"]["model"] not in {"opus", "sonnet", "haiku"}
 
 
-def test_gemini_dry_run_smoke_succeeds() -> None:
-    proc = _run("--provider", "gemini", "--dry-run", "--json")
+def test_grok_dry_run_smoke_succeeds() -> None:
+    proc = _run("--provider", "grok", "--dry-run", "--json")
 
     assert proc.returncode == 0, proc.stderr
     body = json.loads(proc.stdout)
-    assert body["provider"] == "gemini"
+    assert body["provider"] == "grok"
     assert body["result"]["outcome"] == "complete"
-    assert body["payload"]["model"].startswith("gemini-")
+    assert body["payload"]["model"].startswith("grok-")
     assert body["payload"]["model"] not in {"opus", "sonnet", "haiku"}
 
 

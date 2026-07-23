@@ -149,7 +149,7 @@ class TestDiscoverVendors:
         """requested_vendors filters to those that are available."""
         mock_sys.path = sys.path.copy()
 
-        orch = self._make_mock_orchestrator(["claude", "codex", "gemini"])
+        orch = self._make_mock_orchestrator(["claude", "codex", "grok"])
 
         with patch.dict("sys.modules", {}), \
              patch("vendor_dispatch.sys", mock_sys):

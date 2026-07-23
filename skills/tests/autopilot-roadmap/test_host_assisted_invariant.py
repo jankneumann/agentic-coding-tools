@@ -23,8 +23,8 @@ _FORBIDDEN_IMPORTS = {
     "llm_client",                # the in-repo multi-vendor client
     "anthropic",                 # Anthropic SDK
     "openai",                    # OpenAI SDK
-    "google.generativeai",       # Google Gemini SDK
-    "google.genai",              # Google Gemini SDK (newer package name)
+    "google.generativeai",       # retired Google GenAI SDK
+    "google.genai",              # retired Google GenAI SDK (newer package name)
 }
 
 _SCOPES = [

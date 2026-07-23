@@ -89,7 +89,7 @@ def descriptor_v3() -> dict:
     return {
         "variant_id": "v3",
         "angle": "pragmatic",
-        "vendor": "gemini-2.5-pro",
+        "vendor": "grok-4.5",
         "branch": "prototype/add-foo/v3",
         "automated_scores": {
             "smoke": {"pass": False, "report": "container failed to start"},

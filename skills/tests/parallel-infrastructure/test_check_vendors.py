@@ -80,9 +80,9 @@ def test_no_vendors_exits_nonzero(_patch_orch) -> None:
 
 def test_exclude_vendor_counts_against_quorum(_patch_orch) -> None:
     """Excluding the vendor under retirement can drop the roster below quorum."""
-    _patch_orch(["claude_code", "gemini"])
+    _patch_orch(["claude_code", "grok"])
 
-    assert rd._check_vendors(min_vendors=2, exclude_vendor="gemini") != 0
+    assert rd._check_vendors(min_vendors=2, exclude_vendor="grok") != 0
     assert rd._check_vendors(min_vendors=2) == 0
 
 
