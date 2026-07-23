@@ -24,6 +24,8 @@ sdk = [
 test = [
     "pytest>=9.0.3",
     "pyyaml>=6.0",
+    "fastapi>=0.115",
+    "httpx>=0.27",
 ]
 
 [tool.uv]

@@ -25,7 +25,7 @@ them any time with the inventory command in `design.md` § Scope inventory.
 These failures exist on `main` today and would turn every downstream gate red regardless of
 roster work. They are labeled here — not laundered into roster tasks — per D8.4.
 
-- [ ] 0.1 Add `fastapi` and `httpx` to the **`test` extra** in `skills/pyproject.toml`
+- [x] 0.1 Add `fastapi` and `httpx` to the **`test` extra** in `skills/pyproject.toml`
   (`[project.optional-dependencies] test`, alongside `pytest`), then re-sync with
   **`uv sync --all-extras`**; confirm `skills/.venv/bin/python -m pytest skills/tests -q`
   collects without `Interrupted` (S)
