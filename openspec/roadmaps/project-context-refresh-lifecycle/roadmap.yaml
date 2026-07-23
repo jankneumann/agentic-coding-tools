@@ -32,7 +32,7 @@ items:
   - ri-01
 - item_id: ri-02
   title: Complete incremental semantic indexing
-  status: in_progress
+  status: completed
   priority: 1
   effort: L
   depends_on:
@@ -58,6 +58,7 @@ items:
     when available without making embeddings a production-default requirement.
   learning_refs:
   - ri-01
+  - ri-02
 - item_id: ri-03
   title: Expose fail-closed semantic code search
   status: approved
@@ -325,4 +326,4 @@ items:
     coding-context utility gates pass.
   - A later regression or unavailable exact-revision index disables semantic injection
     and restores explicit exact-search fallback.
-updated_at: '2026-07-23T19:05:19.872123+00:00'
+updated_at: '2026-07-23T22:00:23.931414+00:00'

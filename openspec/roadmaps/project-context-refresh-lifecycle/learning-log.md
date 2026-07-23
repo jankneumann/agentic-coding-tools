@@ -3,3 +3,4 @@
 | Item | Status | Summary |
 |------|--------|--------|
 | ri-01 | validation | Four contract and crash-recovery defects were caught and fixed before validation |
+| ri-02 | validation | Independent review exposed a transient-mutation race; the adapter now hashes and |
