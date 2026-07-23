@@ -151,11 +151,15 @@ calls is on record in `design.md`.
 
 ## Phase 2 — Coordinator (registry, model map, eval backends, seeder, Makefile)
 
-- [ ] 2.1 Write failing tests for the new roster in `agent-coordinator/tests/test_agents_config.py`
+- [x] 2.1 Write failing tests for the new roster in `agent-coordinator/tests/test_agents_config.py`
   and `test_agents_config_isolation.py` (M)
   **Spec scenarios**: configuration.1, configuration.2, agent-archetypes.1, agent-archetypes.2
   **Contracts**: `contracts/roster.md`
   **Dependencies**: 1.4
+  **Done (verified on resume 2026-07-23)**: roster tests present in `test_agents_config.py`
+  (7 antigravity/grok/pi assertions) and derive from config per the
+  tests-derive-from-config rule; they ran green at the 2.5 (403 passed) and 2.10
+  (2066 passed) checkpoints. Checkbox was left unticked as bookkeeping only.
 
 - [x] 2.2 Add `antigravity-local`, `grok-local`, `pi-local` to `agents.yaml` with
   `cli.dispatch_modes` for review/alternative/quick **and a `profile:` + `trust_level:` on
@@ -368,6 +372,15 @@ calls is on record in `design.md`.
   phase-record-compaction (5), playwright env deps (6), consensus gen-eval merge (2). None are
   in Phase 3 scope. The gate cannot exit 0 until that baseline debt is repaired (the tracked
   marker-parity / gate-scope decision from task 0.5).
+  **Orchestrator-verified + operator-accepted (resume 2026-07-23).** Zero-regression claim
+  re-confirmed independently by the orchestrator via `git checkout 4eb23fad` (Phase 2 baseline)
+  and re-running the 10 failing node IDs from the touched surfaces (`consensus_synthesizer_gen_eval`
+  ×2, `fix-scrub` fallback ×1, autopilot phase e2e ×7): **identical failures at baseline**, so Phase 3
+  regressed nothing. Marker-parity (`-m 'not e2e and not integration'`) deselects only 5 and still
+  leaves 23 — it is NOT a clean fix, because the `_e2e`-named autopilot tests are not marker-tagged.
+  Operator chose **Accept & advance** (AskUserQuestion): wp-skills roster migration accepted as
+  complete; the red gate is recorded as tracked pre-existing baseline debt (follow-ups filed), not a
+  Phase 3 blocker. Marked `[~]` (roster done; gate red on out-of-scope baseline debt).
 
 ## Phase 4 — Kanban frontend
 
