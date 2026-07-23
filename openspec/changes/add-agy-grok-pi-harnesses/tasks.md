@@ -37,6 +37,10 @@ roster work. They are labeled here — not laundered into roster tasks — per D
   `[project] dependencies`, so a **bare `uv sync` removes pytest from `skills/.venv`** and
   breaks every skills gate this task exists to repair. Putting the new deps in `dependencies`
   instead would ship test-only packages to every skill consumer.
+  **Also added `PyJWT[crypto]>=2.13.0`** (post-rebase, 2026-07-22): the same test file imports
+  coordinator `src.event_stream`, which imports `jwt`; without it 8 of its cases fail from the
+  skills venv. Matches the coordinator's own pin. (2 further cases in that file — `/audit/v2`
+  route + audit `outcome` enum — are pre-existing app/test drift on `main`, filed as follow-ups.)
   **Dependencies**: None
 
 - [x] 0.2 Rebase this branch on `add-frontier-model-tier` (PR #262) and confirm
