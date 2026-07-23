@@ -992,16 +992,24 @@ def test_vendor_extraction_from_agent_id() -> None:
     agent_id_cases = [
         ("wp-backend--claude", "claude"),
         ("wp-frontend--codex", "codex"),
+        # New CLI-harness roster (add-agy-grok-pi-harnesses). All three must stay
+        # present so this presence-assertion fails if any vendor is dropped.
+        ("wp-review--antigravity", "antigravity"),
+        ("wp-impl--grok", "grok"),
+        ("wp-plan--pi", "pi"),
+        # Retired harness: extraction consults no roster allow-list (design D5),
+        # so a historical `gemini` agent_id still extracts. Kept intentionally.
         ("wp-db--gemini", "gemini"),
-        ("wp-test--chatgpt-pro", "chatgpt-pro"),
+        ("wp-test--chatgpt-pro", "chatgpt-pro"),  # arbitrary suffix still extracts
         ("plain-agent", None),  # no suffix — no vendor
     ]
 
     agent_type_to_vendor = {
         "claude_code": "claude",
         "codex": "codex",
-        "gemini": "gemini",
-        "claude_api": "chatgpt-pro",
+        "antigravity": "antigravity",
+        "grok": "grok",
+        "pi": "pi",
     }
     known_vendors = set(agent_type_to_vendor.values())
 
