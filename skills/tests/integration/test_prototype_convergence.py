@@ -50,7 +50,7 @@ from variant_descriptor import (
 )
 
 CHANGE_DIR_TEMPLATE = "openspec/changes/{change_id}"
-SCHEMA_DIR = REPO_ROOT / "openspec" / "changes" / "add-prototyping-stage" / "contracts" / "schemas"
+SCHEMA_DIR = REPO_ROOT / "openspec" / "contracts" / "prototyping" / "schemas"
 
 
 @pytest.fixture(scope="module")

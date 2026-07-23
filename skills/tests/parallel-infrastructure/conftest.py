@@ -22,14 +22,10 @@ if str(SKILL_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SKILL_SCRIPTS))
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_CHANGES = _REPO_ROOT / "openspec" / "changes"
-CHANGE_DIR = _CHANGES / "add-prototyping-stage"
-if not CHANGE_DIR.exists():
-    # Resolve the archived copy: openspec/changes/archive/<date>-add-prototyping-stage/
-    archived = sorted((_CHANGES / "archive").glob("*-add-prototyping-stage"))
-    if archived:
-        CHANGE_DIR = archived[-1]
-SCHEMA_DIR = CHANGE_DIR / "contracts" / "schemas"
+# Stable, capability-scoped contract location (openspec/contracts/) — replaces
+# the previous change-dir path + archive-fallback glob, which drifted the moment
+# add-prototyping-stage archived. See openspec/contracts/README.md.
+SCHEMA_DIR = _REPO_ROOT / "openspec" / "contracts" / "prototyping" / "schemas"
 
 
 @pytest.fixture(scope="session")

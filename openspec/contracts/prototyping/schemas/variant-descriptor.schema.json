@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rotkohl.ai/schemas/variant-descriptor.v1.schema.json",
+  "title": "VariantDescriptor",
+  "description": "Per-variant record produced by /prototype-feature and consumed by /iterate-on-plan --prototype-context. Each variant skeleton contributes one descriptor to prototype-findings.md.",
+  "type": "object",
+  "required": [
+    "variant_id",
+    "angle",
+    "vendor",
+    "branch",
+    "automated_scores",
+    "human_picks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "variant_id": {
+      "type": "string",
+      "pattern": "^v[1-9][0-9]*$",
+      "description": "Short identifier, e.g. 'v1', 'v2'. Matches the branch suffix."
+    },
+    "angle": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The angle prompt that steered this variant (e.g. 'simplest', 'extensible', 'pragmatic')."
+    },
+    "vendor": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model identifier that produced this variant (e.g. 'claude-opus-4-6', 'gpt-5-codex', 'gemini-2.5-pro'). Records what actually ran, including fallback."
+    },
+    "vendor_fallback": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when this variant ran on a fallback vendor because vendor-diversity preference could not be satisfied."
+    },
+    "branch": {
+      "type": "string",
+      "pattern": "^prototype/.+/v[1-9][0-9]*$",
+      "description": "Full branch name. Convention: prototype/<change-id>/v<n>."
+    },
+    "automated_scores": {
+      "type": "object",
+      "required": ["smoke", "spec"],
+      "additionalProperties": false,
+      "properties": {
+        "smoke": {
+          "type": "object",
+          "required": ["pass"],
+          "properties": {
+            "pass": { "type": "boolean" },
+            "report": {
+              "type": "string",
+              "description": "Path to or excerpt from /validate-feature smoke phase output."
+            }
+          }
+        },
+        "spec": {
+          "type": "object",
+          "required": ["covered", "total"],
+          "properties": {
+            "covered": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of SHALL/MUST scenarios from the approved spec that this skeleton covers."
+            },
+            "total": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total SHALL/MUST scenarios in the approved spec."
+            },
+            "missing": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Scenario identifiers not covered by this skeleton."
+            }
+          }
+        }
+      }
+    },
+    "human_picks": {
+      "type": "object",
+      "required": ["data_model", "api", "tests", "layout"],
+      "additionalProperties": false,
+      "properties": {
+        "data_model": {
+          "type": "boolean",
+          "description": "True when the human selected this variant's data model during pick-and-choose."
+        },
+        "api": {
+          "type": "boolean",
+          "description": "True when the human selected this variant's API surface."
+        },
+        "tests": {
+          "type": "boolean",
+          "description": "True when the human selected this variant's test approach."
+        },
+        "layout": {
+          "type": "boolean",
+          "description": "True when the human selected this variant's file layout."
+        }
+      }
+    },
+    "synthesis_hint": {
+      "type": "string",
+      "description": "Optional free-text hint from the human for /iterate-on-plan --prototype-context to consider during convergence (e.g. 'prefer v1 data model but steal v3 test naming')."
+    }
+  }
+}

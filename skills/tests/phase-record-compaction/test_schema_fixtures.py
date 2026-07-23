@@ -14,7 +14,7 @@ import jsonschema
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SCHEMA_DIR = REPO_ROOT / "openspec/changes/phase-record-compaction/contracts/schemas"
+SCHEMA_DIR = REPO_ROOT / "openspec/contracts/phase-record/schemas"
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
 PHASE_RECORD_SCHEMA = SCHEMA_DIR / "phase-record.schema.json"
