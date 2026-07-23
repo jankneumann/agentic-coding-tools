@@ -623,7 +623,7 @@ class TestSdkConfig:
 
         After the roster change (add-agy-grok-pi-harnesses) the SDK-dispatch
         agents are the two remote API workers, claude-remote (anthropic) and
-        codex-remote (openai). The retired gemini-remote was the only
+        codex-remote (openai). The retired remote Gemini API worker was the only
         google-generativeai SDK entry; the new antigravity/grok/pi harnesses are
         local CLI agents with no SDK block.
         """
