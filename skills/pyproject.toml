@@ -26,6 +26,7 @@ test = [
     "pyyaml>=6.0",
     "fastapi>=0.115",
     "httpx>=0.27",
+    "PyJWT[crypto]>=2.13.0",
 ]
 
 [tool.uv]
