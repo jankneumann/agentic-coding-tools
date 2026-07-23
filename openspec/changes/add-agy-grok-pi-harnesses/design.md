@@ -206,6 +206,45 @@ a change directory that later archives (the round-2 `const: 1` contradiction); a
 `google-generativeai` dependency — invisible to any gemini-grep — is an explicit task with an
 explicit inline check in both trees (tasks 2.9, 3.11).
 
+### D9 — The residue gate enforces harness migration, not substring eradication (operator-directed, 2026-07-23)
+
+The `wp-coordinator` / `wp-skills` / `wp-frontend` gates originally asserted
+`test -z "$(git grep -lIi gemini -- <tree> <excludes>)"` — zero case-insensitive occurrences
+of the substring "gemini" in the owned tree. **That gate is unpassable and conceptually wrong**,
+and this was missed through six PLAN_FIX rounds because § "Why the first inventory was wrong"
+focused the reviewers on tool-correctness (`git grep` vs `grep -r`) and the gate was never
+re-run against the post-task-2.3 tree. Two classes of legitimate "gemini" survive migration:
+
+1. **Model slugs.** Antigravity *is* Google's harness; its operator-signed model family (E1) is
+   literally `gemini-3.6-flash-{high,medium,low}` (`agy models`). These name a live MODEL reached
+   through the `agy` harness — renaming them would break dispatch. They appear in `agents.yaml`,
+   `archetypes.yaml`, and `DEFAULT_PROVIDER_MODEL_MAP`.
+2. **Retirement-assertion tests.** `test_agents_config.py` / `test_agents_config_isolation.py`
+   contain the word "gemini" precisely to assert its *absence* (`assert "gemini" not in vendors`).
+   The word is the proof of migration, not a violation of it.
+
+The functional contract the operator wants enforced is: **it is clear to a reader that the
+primary Gemini harness moved from the Gemini CLI to Antigravity (`agy`), and no skill or config
+invokes a harness that no longer exists.** That is a harness contract, not a lexical one, so the
+gate is now two-part:
+
+- **Semantic (pytest, config-derived).** `test_harness_migration.py` parses the real config: no
+  `agents.yaml` harness has `cli.command` in `{gemini, jules}`; the local roster is exactly
+  `antigravity/grok/pi` (+ claude/codex); the eval-backend `build_backend` factory rejects
+  `gemini`/`jules` with a structured `UnknownBackendError` naming the roster. This derives from
+  config (tests-derive-from-config), so it cannot drift from the roster it guards.
+- **Structural (residue grep, artifact tokens).** The grep now targets retired-harness ARTIFACT
+  tokens only — `gemini_jules`, `GeminiJulesBackend`, `gemini-mcp-setup`, `gemini-wrapper-install`,
+  `gemini_wrapper`, `gemini-coord`, `gemini-local`, `gemini-remote` — never the bare substring.
+  Model slugs and prose pass by construction. Verified to still FAIL on the pre-2.6 tree
+  (`gemini_jules`, the Makefile targets, the wrapper are all present), satisfying
+  gates-must-fail-before-work.
+
+This generalizes the migration architecture: harnesses are pluggable adapters behind the
+`AgentBackend` protocol and per-provider `agents.yaml` config; adding, retiring, or reflagging a
+harness is a config + adapter change, and the gate proves the config no longer points at a dead
+one — it does not police vocabulary.
+
 ## PLAN_REVIEW round 6 — findings resolution (plan revision 2)
 
 **Findings trend: 26 → 29 → 13 → 9 → 4 → (converged).** Operator-directed close of the

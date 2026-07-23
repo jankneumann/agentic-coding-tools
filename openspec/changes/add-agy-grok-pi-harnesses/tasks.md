@@ -214,6 +214,15 @@ calls is on record in `design.md`.
   `evaluation/backends/gemini_jules.py`, its `__all__` export, and roster references in
   `evaluation/__init__.py`, `evaluation/config.py`, `evaluation/backends/base.py` (L — flagged;
   single package, single suite, one reviewer sees the whole backend surface at once)
+  **Also add a `build_backend(config)` factory** (`evaluation/backends/registry.py`) mapping the
+  supported roster name → adapter class and raising a structured `UnknownBackendError` naming the
+  roster for any retired/unknown name — this satisfies evaluation-framework "retired backend
+  absent → structured error" and is the pluggable-adapter seam the roster migration rides on.
+  Per-vendor output parsing (empirical Phase 1): grok reads the JSON envelope's
+  **`.structuredOutput`** (E6), pi **stream-parses the NDJSON** `agent_end`/`message_end`
+  assistant `content[]` where `type=="text"` (E8), antigravity consumes Claude-shaped stdout with
+  the prompt attached to `--prompt` as its value (E7). Also add `test_harness_migration.py`
+  (config-derived semantic gate for task 2.10).
   **Spec scenarios**: evaluation-framework.1 (all vendor scenarios; retired backend absent)
   **Dependencies**: 2.5
 
@@ -242,9 +251,16 @@ calls is on record in `design.md`.
 
 - [ ] 2.10 Checkpoint: run **`wp-coordinator`'s verification step** in
   `work-packages.yaml` and confirm it exits 0. That command is the single authority for this
-  phase — coordinator suite green, owned tree free of live gemini references, the
-  `google-generativeai` dependency gone, and `make -n mcp-setup hooks-setup` resolving. Do not
-  restate it here; a second copy is what drifted in round 3.
+  phase — coordinator suite green (incl. `test_harness_migration.py`), the retired Gemini-CLI /
+  Jules **harness** surface gone, the `google-generativeai` dependency gone, and
+  `make -n mcp-setup hooks-setup` resolving. Do not restate it here; a second copy is what
+  drifted in round 3.
+  **Gate revised 2026-07-23 (operator-directed).** The contract is harness migration, not
+  substring eradication: Gemini remains a live MODEL family reached through the Antigravity
+  harness, so the gate no longer bans the substring "gemini". It bans the retired-harness
+  ARTIFACT tokens (residue grep) and enforces the positive roster contract semantically in
+  pytest (`test_harness_migration.py`). Model slugs (`gemini-3.6-flash-*`) and the
+  retirement-assertion tests are allowed by construction. See design.md § D9.
 
 ## Phase 3 — Skills, dispatch allow-lists, adapters, agent-scenarios
 
