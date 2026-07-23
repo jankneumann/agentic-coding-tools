@@ -294,7 +294,10 @@ calls is on record in `design.md`.
   **Dependencies**: 2.7, 0.1
 
 - [ ] 4.3 Checkpoint: run **`wp-frontend`'s verification step** in `work-packages.yaml` and
-  confirm it exits 0 — frontend tests green, the new roster present in both fixture files,
+  confirm it exits 0 — frontend tests green, the new roster present in both fixture files
+  (the gate now greps `antigravity`/`grok`/`--pi` in `test_kanban_viz_endpoints.py`, not only
+  in the `.tsx` fixture, and `test_vendor_extraction_from_agent_id` must add `agent_id_cases`
+  rows for all three so `pytest` fails if any is omitted — presence-assertion, not residue),
   and `VendorSwimlanes.tsx` plus all three review-provenance files unmodified against `main`.
   **The gemini fixture in `VendorSwimlanes.test.tsx` stays**: the
   `coordinator-kanban-viz` *Historical vendor still renders* scenario requires it, and it is

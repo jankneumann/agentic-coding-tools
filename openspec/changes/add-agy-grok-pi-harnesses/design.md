@@ -206,6 +206,25 @@ a change directory that later archives (the round-2 `const: 1` contradiction); a
 `google-generativeai` dependency — invisible to any gemini-grep — is an explicit task with an
 explicit inline check in both trees (tasks 2.9, 3.11).
 
+## PLAN_REVIEW round 6 — findings resolution (plan revision 2)
+
+**Findings trend: 26 → 29 → 13 → 9 → 4 → (converged).** Operator-directed close of the
+convergence loop after the round-5 review (past the 3-iteration budget). Re-checking round 5's
+four findings against HEAD, three were already resolved by round-5's own PLAN_FIX — R5-2 (the
+integration gate now enumerates all five skills paths at `work-packages.yaml:382`), R5-3 (the
+carve-out `git diff` is folded into `wp-docs-finalize`'s first gate), and R5-4 (the invariant
+was narrowed to *gates*, so task-body *action* commands no longer violate it). One residual
+survived:
+
+| ID | Criticality | Finding | Resolution |
+|---|---|---|---|
+| R5-1 (codex) | high | Round 5 made `wp-frontend`'s gate **run** `test_kanban_viz_endpoints.py`, but running a parametrized `agent_id_cases` test passes for whatever rows exist — it never **asserts** the new roster is present, so a fixture with only an `antigravity` row (grok/pi omitted) still passes. The gate greps the full roster on the `.tsx` fixture but not on the `.py` one, so it does not mechanically cover task 4.3's "roster present in **both** fixture files" claim. | `wp-frontend`'s gate now also greps `antigravity`/`grok`/`--pi` in `test_kanban_viz_endpoints.py` (portable `grep -qe '--pi'`, verified to fail on the unmodified tree per the gates-must-fail-before-work rule); task 4.3 additionally requires `test_vendor_extraction_from_agent_id` to add rows for all three so `pytest` fails on omission — presence-assertion backing the residue-grep. |
+
+This is the fixture-symmetry class round 4 first surfaced (a fix reaching one twin, not both):
+round 5 taught the gate to *run* the Python fixture; round 6 teaches it to *assert the roster*
+in that fixture, closing the last mechanical gap between what the gate checks and what task 4.3
+claims. Proceeding to IMPLEMENT — the design is unchanged and sound.
+
 ## PLAN_REVIEW round 5 — findings resolution (plan revision 2)
 
 **Findings trend: 26 → 29 → 13 → 9 → 4** (claude 2, codex 2). Full 2/2 quorum, both with
