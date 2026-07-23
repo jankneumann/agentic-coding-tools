@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "change_id": "add-agy-grok-pi-harnesses",
-  "current_phase": "IMPL_ITERATE",
+  "current_phase": "VALIDATE",
   "iteration": 3,
   "total_iterations": 0,
   "max_phase_iterations": 3,
@@ -39,7 +39,8 @@
     "local-planfix-round-1",
     "wp-skills-phase3",
     "wp-frontend-direct",
-    "wp-docs-finalize-phase56"
+    "wp-docs-finalize-phase56",
+    "impl-iterate-review"
   ],
   "phase_history": [
     {
@@ -104,6 +105,12 @@
       "phase": "IMPLEMENT",
       "outcome": "complete",
       "note": "All 5 packages implemented + verified regression-free. wp-frontend (Phase 4): kanban fixtures, 224 npm tests green. wp-docs-finalize (Phase 5-6, commits b0492b3e/5a5bfa15/393256d7): docs+templates+10 SKILL.md prose, .gemini/ removed, install.sh mirrors synced. wp-docs-finalize STEP-1 gate EXIT 0 (openspec validate --all --strict 53 passed, grok citation present, no carve-out in diff, 24 curated files gemini-free) \u2014 orchestrator-verified verbatim. STEP-2 full suite: coordinator 2066 / agent-scenarios 36 / frontend 224 green; skills 1795 pass / 26 pre-existing baseline-debt failures (ALL confirmed red at baseline 49b2f610, zero new). Human-gated remainder: task 6.3 live billed smoke (operator-pending), 6.4 PR-desc follow-up (33 deferred-narrative files inventoried). Transition to IMPL_ITERATE."
+    },
+    {
+      "at": "2026-07-23T18:32:13.850281+00:00",
+      "phase": "IMPL_ITERATE",
+      "outcome": "complete",
+      "note": "Focused adversarial self-review of new parsing code (5 eval backends + 3 transcript adapters) vs empirical E6/E7/E8. 33 adapter + 98 eval tests green. Registry/grok(E6)/antigravity(E7)/all adapters CONFIRMED correct. ONE non-blocking finding (coordinator issue 035ffd93): pi.py NDJSON parser sweeps user-echo + intermediate messages (no role filter, not last-assistant-only) \u2014 backend test & adapter fixture encode contradictory pi shapes; E8 unverified for multi-message. Not fixed (risky w/o ground truth); resolves via task 6.3 live pi transcript. Nits: grok.py 'null' guard, no subprocess kill on timeout (matches existing convention). openspec validate --all --strict already green (53 passed) => VALIDATE spec-compliance satisfied; remaining VALIDATE item is 6.3 live billed smoke (operator-gated)."
     }
   ],
   "last_handoff_id": "local-checkpoint-1.4-passed",
@@ -128,5 +135,12 @@
     "package_count": 9,
     "total_loc_estimate": 1520
   },
-  "gate_verdict": "proceed_with_review"
+  "gate_verdict": "proceed_with_review",
+  "open_findings": [
+    {
+      "id": "035ffd93-1e37-459a-b96c-23f56b79379e",
+      "severity": "non-blocking",
+      "summary": "pi eval backend NDJSON parser diverges from E8 (no role filter/not last-only); contradictory pi fixtures; blocked on task 6.3 live ground-truth"
+    }
+  ]
 }
