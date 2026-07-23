@@ -27,7 +27,7 @@ Optional flags:
 ## Prerequisites
 
 - OpenSpec CLI installed (v1.0+)
-- At least 2 vendor CLIs available (claude, codex, gemini) for multi-vendor convergence
+- At least 2 vendor CLIs available (claude, codex, antigravity, grok, pi) for multi-vendor convergence
 - Coordinator recommended (degrades to linear workflow without it)
 
 ## Coordinator Capability Check
@@ -222,8 +222,8 @@ If argument was an existing change-id:
 The following 8 phases (GATEKEEPER, PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT,
 IMPL_ITERATE, IMPL_REVIEW, VALIDATE, VAL_REVIEW) dispatch through the
 provider-neutral dispatch adapter when an adapter is available. Claude Code adapters may
-internally call the Claude harness `Agent(...)` tool; Codex and Gemini/Jules
-use their configured provider adapter or fall through to the inline path.
+internally call the Claude harness `Agent(...)` tool; Codex, Antigravity, Grok,
+and Pi use their configured provider adapter or fall through to the inline path.
 Each block follows the same 3-step protocol:
 
 1. **Build dispatch kwargs** by shelling out to `runner.py build-dispatch`.
@@ -632,7 +632,7 @@ At each state transition, report:
 [autopilot] Phase: PLAN_ITERATE → PLAN_REVIEW (self-review complete, 3 findings fixed)
 [autopilot] Phase: PLAN_REVIEW → IMPLEMENT (converged in 2 rounds)
 [autopilot] Finding trend: [8, 2, 0]
-[autopilot] Vendor participation: claude ✓, codex ✓, gemini ✗
+[autopilot] Vendor participation: claude ✓, codex ✓, grok ✗
 [autopilot] CLI review: enabled | disabled (--no-review or no vendor CLIs)
 ```
 

@@ -17,7 +17,7 @@ Ingest raw session transcripts from supported coding-agent harnesses via vendor-
 ## Arguments
 
 `$ARGUMENTS` - Optional flags:
-- `--adapter <name>` (claude_code_cli, claude_code_web, codex_cli, codex_web, gemini_cli; default: all available)
+- `--adapter <name>` (claude_code_cli, claude_code_web, codex_cli, codex_web, antigravity_cli, grok_cli, pi_cli; default: all available)
 - `--threshold <float>` (composite score threshold for deep analysis; default: 5.0)
 - `--dry-run` (print planned operations without API calls; default in CI)
 - `--enable` (opt-in to actually run LLM analysis; required to make API calls)
@@ -30,7 +30,9 @@ Ingest raw session transcripts from supported coding-agent harnesses via vendor-
 | `claude_code_web` | CLI bridge via `claude --teleport <session-id>` | 1.0 |
 | `codex_cli` | `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl` | rollout-v1 |
 | `codex_web` | CLI bridge via `codex cloud` | rollout-v1 |
-| `gemini_cli` | `~/.gemini/tmp/<hash>/chats/session-*.json` | chatRecordingService-v1 |
+| `antigravity_cli` | `~/.antigravity/projects/<encoded-cwd>/<session-id>.jsonl` | 1.0 |
+| `grok_cli` | `~/.grok/sessions/session-*.jsonl` | grok-session-v1 |
+| `pi_cli` | `~/.pi/sessions/session-*.ndjson` | pi-ndjson-v1 |
 
 All adapters fail soft (log warning, skip) when their source is unavailable.
 
