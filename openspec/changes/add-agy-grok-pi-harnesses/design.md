@@ -206,6 +206,36 @@ a change directory that later archives (the round-2 `const: 1` contradiction); a
 `google-generativeai` dependency — invisible to any gemini-grep — is an explicit task with an
 explicit inline check in both trees (tasks 2.9, 3.11).
 
+## PLAN_REVIEW round 5 — findings resolution (plan revision 2)
+
+**Findings trend: 26 → 29 → 13 → 9 → 4** (claude 2, codex 2). Full 2/2 quorum, both with
+Bash. **Not one finding is about the substance of the change** — all four are consistency gaps
+in round 4's own gate-dedup work, two of them coverage gaps in the two gates round 4 rewrote.
+This is the convergence signal: the plan describes correct work; what remains is whether its
+gates fully cover that work, and the answer this round was "two of them didn't yet."
+
+| ID | Criticality | Finding | Resolution |
+|---|---|---|---|
+| R5-1 (codex) | high | `wp-frontend`'s gate **grepped** `test_kanban_viz_endpoints.py` for `antigravity` but never **ran** it — presence-of-string, not test-passes, the same anti-pattern round 3/4 killed elsewhere | Gate now runs the endpoint test (`pytest … -q`); `wp-frontend` gains `depends_on: wp-skills` for the fastapi-equipped venv (task 0.1) |
+| R5-2 (claude) | medium | The integration full-suite gate (`wp-docs-finalize` step 2) ran `pytest skills/tests` only, missing the four dirs `wp-skills`' gate expanded to after R4-C3 — the R4-C3 fix propagated to one gate, not both | Integration gate expanded to the same five-path set |
+| R5-3 (claude) | low | Checkpoint 5.7 carried an executable `git diff --name-only main...HEAD` clause — a verification command living only in `tasks.md`, violating round 4's own invariant | The carve-out diff is folded into `wp-docs-finalize`'s first gate; 5.7 now references it |
+| R5-4 (codex) | medium | Executable verification gates still sat in `tasks.md` (`0.5`, `6.2`) after round 4 claimed they didn't — and R5-1/R5-2 prove such duplication drifts | `0.5` and `6.2` converted to gate references; the design.md invariant narrowed to the true, valuable form (see below) |
+
+### What round 5 actually measured
+
+Rounds 1–2 were about the plan being wrong. Round 3 was about gates that could not work. Round
+4 was about my fixes reaching one artifact and not its twin. Round 5 is about my *round-4 fix*
+being asserted more broadly than it was performed — the design.md text claimed "no verification
+command appears anywhere except work-packages.yaml" while `0.5` and `6.2` still held suite
+commands, one already drifted. The correction was twofold: finish the dedup (two more gates
+referenced) **and** narrow the claim to what is both true and worth enforcing — no *gate* is
+duplicated; *action* commands may live in task bodies.
+
+That the review keeps finding my fixes rather than the plan is itself the answer to whether the
+plan is sound. The remaining findings have shrunk in blast radius every round (critical → high
+→ high → high → high-but-narrow) and in count (26 → 4). The two coverage gaps this round (R5-1,
+R5-2) are the last substantive gate defects; R5-3/R5-4 are bookkeeping.
+
 ## PLAN_REVIEW round 4 — findings resolution (plan revision 2)
 
 **Findings trend: 26 → 29 → 13 → 9** (claude 7, codex 2). Full 2/2 quorum, both vendors
@@ -238,10 +268,18 @@ in package descriptions. The same lesson arrived twice because it was only appli
 was first noticed.
 
 **Every checkpoint in `tasks.md` is now a reference to its package's verification step**
-("run `wp-coordinator`'s verification step and confirm it exits 0"), and no verification
-command appears anywhere except `work-packages.yaml`. Checkpoints keep the *reasoning* that
-prose is good at — why the gemini fixture must survive, why the mirror check cannot use
-`git grep` — and delegate the executable text to its single home.
+("run `wp-coordinator`'s verification step and confirm it exits 0"). Checkpoints keep the
+*reasoning* that prose is good at — why the gemini fixture must survive, why the mirror check
+cannot use `git grep` — and delegate the executable text to its single home.
+
+The precise invariant (narrowed after round 5, findings R5-3/R5-4): **no package verification
+gate is written in more than one place; `work-packages.yaml` is its single home.** Task bodies
+still name *action* commands the implementer runs to perform the work — `uv sync --all-extras`,
+`npm ci`, `bash skills/install.sh …` — because those are steps, not gates, and duplicating a
+gate is what drifts (a `git diff` check restated in a checkpoint, or a `pytest skills/tests`
+that a package gate had already expanded past). Round 5 found two such gates that round 4's
+sweep missed — checkpoint `0.5` and task `6.2` both restated package suites, and one had
+already drifted (R5-1). Both are now references.
 
 ### The invariant this round establishes
 
