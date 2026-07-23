@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-23T19:01:27.186983+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-autopilot-roadmap",
+    "session_id": null,
+    "summary": "Validation passed with environment and architecture-tooling warnings. All 14 spec scenarios have passing local evidence, four independent-review fixes are resolved, and package, migration, schema, type, lint, OpenSpec, work-package, and scoped architecture checks pass.",
+    "completed_work": [
+      "spec",
+      "evidence",
+      "architecture",
+      "static-security",
+      "package-tests",
+      "migration-tests"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Defer supplemental live PostgreSQL confirmation",
+        "rationale": "POSTGRES_DSN is unset and Docker is unavailable; structural and repository-level regressions pass, and task 5.3 requires live execution only when the DSN is available.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Treat global architecture drift as a warning",
+        "rationale": "Feature-scoped flow and structural checks pass; the reported cycle, routes, and high-impact nodes are stale-baseline catch-up unrelated to this change.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Re-authenticate GitHub CLI and publish the validated branch",
+      "Open the item PR and run CI before merge-pull-requests"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-revision-aware-semantic-index-registry/validation-report.md",
+        "description": "phase results and evidence"
+      },
+      {
+        "path": "openspec/changes/add-revision-aware-semantic-index-registry/change-context.md",
+        "description": "14-scenario traceability matrix"
+      },
+      {
+        "path": "openspec/changes/add-revision-aware-semantic-index-registry/architecture-impact.md",
+        "description": "structural impact and analyzer warnings"
+      }
+    ]
+  }
+}

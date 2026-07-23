@@ -84,3 +84,36 @@ Planned the revision-aware semantic index registry as an additive foundation for
 
 ### Context
 Implemented and independently reviewed the revision-aware semantic index registry. Four blocking lifecycle and contract findings were fixed with regression tests; package, migration, schema, type, lint, OpenSpec, and architecture checks now pass, while live PostgreSQL cases remain environment-deferred.
+
+---
+
+## Phase: Validation (2026-07-23)
+
+**Agent**: codex-autopilot-roadmap | **Session**: N/A
+
+### Decisions
+1. **Defer supplemental live PostgreSQL confirmation** — POSTGRES_DSN is unset and Docker is unavailable; structural and repository-level regressions pass, and task 5.3 requires live execution only when the DSN is available.
+2. **Treat global architecture drift as a warning** — Feature-scoped flow and structural checks pass; the reported cycle, routes, and high-impact nodes are stale-baseline catch-up unrelated to this change.
+
+### Capability Gaps Observed
+- **environment_unavailable**: GitHub CLI authentication is invalid, so PR creation and CI status checks cannot complete. (skill: autopilot-roadmap, severity: high)
+
+### Completed Work
+- spec
+- evidence
+- architecture
+- static-security
+- package-tests
+- migration-tests
+
+### Next Steps
+- Re-authenticate GitHub CLI and publish the validated branch
+- Open the item PR and run CI before merge-pull-requests
+
+### Relevant Files
+- `openspec/changes/add-revision-aware-semantic-index-registry/validation-report.md` — phase results and evidence
+- `openspec/changes/add-revision-aware-semantic-index-registry/change-context.md` — 14-scenario traceability matrix
+- `openspec/changes/add-revision-aware-semantic-index-registry/architecture-impact.md` — structural impact and analyzer warnings
+
+### Context
+Validation passed with environment and architecture-tooling warnings. All 14 spec scenarios have passing local evidence, four independent-review fixes are resolved, and package, migration, schema, type, lint, OpenSpec, work-package, and scoped architecture checks pass.
