@@ -2,7 +2,7 @@
 
 ## Project Summary
 
-This is a **multi-agent coordination system** that enables AI coding agents (Claude Code, Codex, Gemini) to collaborate safely on shared codebases. It provides:
+This is a **multi-agent coordination system** that enables AI coding agents (Claude Code, Codex, Antigravity, Grok, Pi) to collaborate safely on shared codebases. It provides:
 
 - **File locking** - Prevent merge conflicts when multiple agents edit files
 - **Persistent memory** - Three-layer cognitive architecture (episodic, working, procedural)
@@ -64,7 +64,6 @@ LOCAL AGENTS (Claude Code)     CLOUD AGENTS (Claude API)
 | `src/status.py` | Notification token lifecycle management |
 | `src/watchdog.py` | Periodic health monitoring (stale agents, aging approvals) |
 | `scripts/report_status.py` | Claude/Codex Stop hook for status reporting |
-| `scripts/gemini_wrapper.sh` | Gemini CLI wrapper with lifecycle management |
 | `database/migrations/*.sql` | Database schema |
 
 ## Production Cloud API Path

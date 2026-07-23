@@ -37,7 +37,7 @@ The two halves share the same parallel-infrastructure machinery (work queue, res
 /prototype-feature add-delivery-cache
 #   → prototype/add-delivery-cache/v1  (simplest)    — claude
 #   → prototype/add-delivery-cache/v2  (extensible)  — codex
-#   → prototype/add-delivery-cache/v3  (pragmatic)   — gemini
+#   → prototype/add-delivery-cache/v3  (pragmatic)   — grok
 #   → /validate-feature --phase smoke,spec scores each
 #   → AskUserQuestion captures per-aspect picks
 #   → openspec/changes/add-delivery-cache/prototype-findings.md written
@@ -160,18 +160,17 @@ High-level workflow skills stay stable, but their internals follow this preceden
 Runtime asset locations:
 - Claude: `.claude/commands/opsx/*.md`, `.claude/skills/openspec-*/SKILL.md`
 - Codex: `.agents/skills/openspec-*/SKILL.md`
-- Gemini: `.gemini/commands/opsx/*.toml`, `.gemini/skills/openspec-*/SKILL.md`
 
 Cross-agent mapping parity:
 
-| Intent | Claude | Codex | Gemini |
-|---|---|---|---|
-| Plan (new/ff) | `new`, `ff` | `openspec-new-change`, `openspec-ff-change` | `new`, `ff` |
-| Continue/findings | `continue` | `openspec-continue-change` | `continue` |
-| Apply | `apply` | `openspec-apply-change` | `apply` |
-| Verify | `verify` | `openspec-verify-change` | `verify` |
-| Archive | `archive` | `openspec-archive-change` | `archive` |
-| Sync | `sync` | `openspec-sync-specs` (alias of sync intent) | `sync` |
+| Intent | Claude | Codex |
+|---|---|---|
+| Plan (new/ff) | `new`, `ff` | `openspec-new-change`, `openspec-ff-change` |
+| Continue/findings | `continue` | `openspec-continue-change` |
+| Apply | `apply` | `openspec-apply-change` |
+| Verify | `verify` | `openspec-verify-change` |
+| Archive | `archive` | `openspec-archive-change` |
+| Sync | `sync` | `openspec-sync-specs` (alias of sync intent) |
 
 CLI fallback commands:
 - `openspec new change`
@@ -198,6 +197,25 @@ skills/install.sh --mode rsync --agents claude,agents --deps none --python-tools
 
 After sync, any drift between canonical and runtime mirrors is a parity defect.
 
+### Optional: expose skills to the Grok CLI (operator setup)
+
+The Grok CLI does not read the `.claude/skills/` or `.agents/skills/` mirrors.
+To let `grok` discover the synced skills, an operator points it at the skill
+trees via `~/.grok/config.toml`:
+
+```toml
+[skills]
+paths = [
+  "/path/to/repo/.claude/skills",
+  "/path/to/repo/.agents/skills",
+]
+```
+
+This is an operator-level, per-machine configuration — it is not created or
+managed by `skills/install.sh`. See xAI's documentation on
+[skills, plugins, and marketplaces](https://docs.x.ai/build/features/skills-plugins-marketplaces)
+for the authoritative `[skills] paths` reference.
+
 ### Transport and Capability Flags
 
 Integrated skills use a shared preamble (`docs/coordination-detection-template.md`) and set:
@@ -218,7 +236,7 @@ Transport model:
 
 Hook execution is capability-gated: a hook runs only when its `CAN_*` flag is true.
 
-### Explicit Runtime Parity Tests (3 Providers x 2 Transports)
+### Explicit Runtime Parity Tests (2 Providers x 2 Transports)
 
 Run these checks before marking coordinator skill integration ready.
 
@@ -241,9 +259,8 @@ done
 
 Run once per runtime:
 
-1. Claude Codex CLI + MCP
+1. Claude Code CLI + MCP
 2. Codex CLI + MCP
-3. Gemini CLI + MCP
 
 Assertions per runtime:
 
@@ -259,7 +276,6 @@ Run once per runtime:
 
 1. Claude Web + HTTP API
 2. Codex Cloud/Web + HTTP API
-3. Gemini Web/Cloud + HTTP API
 
 Baseline HTTP assertion command:
 
@@ -559,7 +575,7 @@ This hybrid approach is motivated by the observation that squash-merge's primary
 
 ### Cross-agent parity is explicit
 
-Generated OpenSpec assets for Claude, Codex, and Gemini must map equivalently to plan/apply/validate/archive intent. If one runtime drifts, docs and skill mappings should be corrected before rollout.
+Generated OpenSpec assets for Claude and Codex must map equivalently to plan/apply/validate/archive intent. If one runtime drifts, docs and skill mappings should be corrected before rollout.
 
 ## Parallel Workflow Details
 

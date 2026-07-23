@@ -12,7 +12,7 @@ context: |
   Key constraints: lock TTL enforcement, 1-hour memory dedup window, atomic task claiming, no MCP for cloud agents.
   External dependencies: Supabase, GitHub Actions, E2B sandbox, local NTM execution.
   Git workflow: Feature branches as openspec/<change-id>, squash merge to main.
-  OpenSpec command precedence: agent-native generated assets first (.claude/.codex/.gemini), direct openspec CLI fallback second.
+  OpenSpec command precedence: agent-native generated assets first (.claude/.codex), direct openspec CLI fallback second.
   Parallelization: Task() agents with file-scope isolation; no git worktrees needed.
   Environment: uv for Python dependency management across all subprojects.
 
