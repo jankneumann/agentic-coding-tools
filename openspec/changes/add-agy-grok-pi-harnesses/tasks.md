@@ -208,7 +208,7 @@ calls is on record in `design.md`.
   tasks 2.6–2.9). Only remaining retired-gemini ref is the kanban saved-view enum (task 2.7);
   the `gemini-3.6-flash-*` slugs are agy's real model family (E1), not the retired provider.
 
-- [ ] 2.6 Eval backends (proposal D4): write failing tests in
+- [x] 2.6 Eval backends (proposal D4): write failing tests in
   `agent-coordinator/tests/test_evaluation/`, implement `AgentBackend` for grok
   (via `--output-format json`), antigravity, and pi, then delete
   `evaluation/backends/gemini_jules.py`, its `__all__` export, and roster references in
@@ -226,13 +226,13 @@ calls is on record in `design.md`.
   **Spec scenarios**: evaluation-framework.1 (all vendor scenarios; retired backend absent)
   **Dependencies**: 2.5
 
-- [ ] 2.7 Kanban seeder + coordinator-side fixtures: write a failing five-vendor seeder test,
+- [x] 2.7 Kanban seeder + coordinator-side fixtures: write a failing five-vendor seeder test,
   update `VENDORS` in `scripts/seed_kanban_board.py`, update
   `tests/test_kanban_viz_endpoints.py` and `src/schemas/kanban_viz/saved-view.json` (M)
   **Spec scenarios**: coordinator-kanban-viz.1, coordinator-kanban-viz.2
   **Dependencies**: 2.5
 
-- [ ] 2.8 `agent-coordinator/Makefile`: remove the `gemini-mcp-setup` and
+- [x] 2.8 `agent-coordinator/Makefile`: remove the `gemini-mcp-setup` and
   `gemini-wrapper-install` targets, drop them from **both** the `mcp-setup` and `hooks-setup`
   prerequisite lists, delete the `GEMINI_AGENT_ID` / `GEMINI_AGENT_TYPE` /
   `GEMINI_MCP_ENV_FLAGS` variables, **then** delete `scripts/gemini_wrapper.sh`;
@@ -242,14 +242,14 @@ calls is on record in `design.md`.
   **Note**: `hooks-setup` (Makefile:232) has the same dependency `mcp-setup` had — the round-1
   fix missed it. Targets go before the wrapper file, in one task, so no intermediate state breaks.
 
-- [ ] 2.9 Remove `google-generativeai` from `agent-coordinator/pyproject.toml` and run
+- [x] 2.9 Remove `google-generativeai` from `agent-coordinator/pyproject.toml` and run
   `uv lock` (S)
   **Dependencies**: 2.6
   **Note**: declared solely for the retired `gemini-remote` SDK block. The string contains no
   "gemini", so no grep gate can ever catch it — which is why it is an explicit task with an
   explicit verification, not a gate assumption.
 
-- [ ] 2.10 Checkpoint: run **`wp-coordinator`'s verification step** in
+- [x] 2.10 Checkpoint: run **`wp-coordinator`'s verification step** in
   `work-packages.yaml` and confirm it exits 0. That command is the single authority for this
   phase — coordinator suite green (incl. `test_harness_migration.py`), the retired Gemini-CLI /
   Jules **harness** surface gone, the `google-generativeai` dependency gone, and
@@ -261,6 +261,14 @@ calls is on record in `design.md`.
   ARTIFACT tokens (residue grep) and enforces the positive roster contract semantically in
   pytest (`test_harness_migration.py`). Model slugs (`gemini-3.6-flash-*`) and the
   retirement-assertion tests are allowed by construction. See design.md § D9.
+  **PASSED 2026-07-23.** `wp-coordinator`'s verification exits 0: 2066 passed / 1
+  skipped / 90 deselected (incl. `test_harness_migration.py` + `test_backends.py`
+  + `test_seed_kanban_board.py`); residue grep clean over non-test source;
+  `google-generativeai` gone from pyproject + uv.lock (pyasn1 0.6.3 dropped with
+  it); `make -n mcp-setup hooks-setup` resolves. Only surviving "gemini" strings
+  in the owned tree are antigravity's `gemini-3.6-flash-*` model slugs, retired
+  Gemini/Jules references inside migration-asserting tests, and the migration SQL
+  comment — all correct by construction.
 
 ## Phase 3 — Skills, dispatch allow-lists, adapters, agent-scenarios
 
