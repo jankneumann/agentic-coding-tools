@@ -56,10 +56,32 @@ DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
             "standard": "gpt-5.6-terra",
             "economy": "gpt-5.6-luna",
         },
-        "gemini": {
-            "premium": "gemini-3.1-pro-preview",
-            "standard": "gemini-3.6-flash",
-            "economy": "gemini-3.6-flash-lite",
+        # Roster per contracts/roster.md; tier slugs resolved empirically in
+        # Phase 1 (design.md § Empirical CLI findings, E1/E5/E8) and signed off
+        # by the operator at checkpoint 1.4 (2026-07-23).
+        "antigravity": {
+            # agy `models` catalog (E1); one model across three effort levels.
+            # Effort is baked into the slug suffix, not a separate flag.
+            # `frontier` omitted — falls back to premium (operator, 2026-07-23).
+            "premium": "gemini-3.6-flash-high",
+            "standard": "gemini-3.6-flash-medium",
+            "economy": "gemini-3.6-flash-low",
+        },
+        "grok": {
+            # Single model `grok-4.5` (E5); tiers differ only by thinking budget,
+            # translated to `--reasoning-effort` by the dispatching adapter.
+            "premium": {"model": "grok-4.5", "thinking": "high"},
+            "standard": {"model": "grok-4.5", "thinking": "medium"},
+            "economy": {"model": "grok-4.5", "thinking": "low"},
+        },
+        "pi": {
+            # OpenRouter `<publisher>/<model>` slugs (spec configuration.2).
+            # `standard` fixed to qwen/qwen3-coder by roadmap ri-01; frontier is
+            # Kimi 3 (E8). premium/economy stay in the qwen3-coder family.
+            "frontier": "moonshotai/kimi-k3",
+            "premium": "qwen/qwen3-coder-plus",
+            "standard": "qwen/qwen3-coder",
+            "economy": "qwen/qwen3-coder-flash",
         },
     },
 }
@@ -365,6 +387,12 @@ AGENTS_SCHEMA: dict[str, Any] = {
                                 "items": {"type": "string"},
                             },
                             "prompt_via_stdin": {"type": "boolean"},
+                            # Attach the prompt as the value of this flag, e.g.
+                            # `agy --prompt "<text>"`. Mutually exclusive with
+                            # prompt_via_stdin (antigravity: prompt is a flag
+                            # value, never stdin — design.md E7). The dispatching
+                            # adapter appends [prompt_via_flag, prompt].
+                            "prompt_via_flag": {"type": "string", "minLength": 1},
                         },
                         "additionalProperties": False,
                     },
@@ -421,6 +449,11 @@ class CliConfig:
     model: str | None = None
     model_fallbacks: list[str] = field(default_factory=list)
     prompt_via_stdin: bool = False
+    # When set, the dispatching adapter attaches the prompt as this flag's
+    # value (``[prompt_via_flag, prompt]``) instead of via stdin or a trailing
+    # positional. Antigravity needs this: its prompt is the value of
+    # ``--prompt``/``--print`` and stdin is ignored (design.md E7).
+    prompt_via_flag: str = ""
 
 
 @dataclass
@@ -656,6 +689,7 @@ def load_agents_config(
                 model=raw_cli.get("model"),
                 model_fallbacks=raw_cli.get("model_fallbacks", []),
                 prompt_via_stdin=raw_cli.get("prompt_via_stdin", False),
+                prompt_via_flag=raw_cli.get("prompt_via_flag", ""),
             )
 
         sdk_config: SdkConfig | None = None
@@ -924,6 +958,7 @@ def get_dispatch_configs(
                 "model": entry.cli.model,
                 "model_fallbacks": entry.cli.model_fallbacks,
                 "prompt_via_stdin": entry.cli.prompt_via_stdin,
+                "prompt_via_flag": entry.cli.prompt_via_flag,
             }
         agents_out.append({
             "agent_id": entry.name,

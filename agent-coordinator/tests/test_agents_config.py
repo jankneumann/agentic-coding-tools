@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -509,12 +510,18 @@ class TestCliConfig:
         assert without_cli.cli is None
 
     def test_real_agents_yaml_loads_cli(self) -> None:
-        """The real agents.yaml loads with CLI sections for local agents."""
+        """The real agents.yaml loads with CLI sections for local agents.
+
+        Roster per ``contracts/roster.md`` (add-agy-grok-pi-harnesses): the five
+        first-class local CLI vendors are claude_code, codex, antigravity, grok,
+        and pi. ``gemini`` is retired and MUST NOT appear.
+        """
         entries = load_agents_config()
         local_with_cli = [e for e in entries if e.cli is not None]
         assert len(local_with_cli) >= 3, "Expected at least 3 agents with CLI config"
         vendors = {e.type for e in local_with_cli}
-        assert vendors == {"claude_code", "codex", "gemini"}
+        assert vendors == {"claude_code", "codex", "antigravity", "grok", "pi"}
+        assert "gemini" not in vendors
 
     def test_cli_model_with_explicit_value(self, tmp_path: Path) -> None:
         """Agent with explicit model value (not null) parses correctly."""
@@ -612,12 +619,20 @@ class TestSdkConfig:
         assert without_sdk.sdk is None
 
     def test_real_agents_yaml_loads_sdk(self) -> None:
-        """The real agents.yaml loads with SDK sections for remote agents."""
+        """The real agents.yaml loads with SDK sections for remote agents.
+
+        After the roster change (add-agy-grok-pi-harnesses) the SDK-dispatch
+        agents are the two remote API workers, claude-remote (anthropic) and
+        codex-remote (openai). The retired gemini-remote was the only
+        google-generativeai SDK entry; the new antigravity/grok/pi harnesses are
+        local CLI agents with no SDK block.
+        """
         entries = load_agents_config()
         remote_with_sdk = [e for e in entries if e.sdk is not None]
-        assert len(remote_with_sdk) >= 3, "Expected at least 3 agents with SDK config"
+        assert len(remote_with_sdk) >= 2, "Expected at least 2 agents with SDK config"
         packages = {e.sdk.package for e in remote_with_sdk}
-        assert packages == {"anthropic", "openai", "google-generativeai"}
+        assert packages == {"anthropic", "openai"}
+        assert "google-generativeai" not in packages
 
     def test_sdk_defaults_applied(self, tmp_path: Path) -> None:
         """SDK section with only required fields gets correct defaults."""
@@ -646,3 +661,62 @@ agents:
         assert sdk.model_fallbacks == []
         assert sdk.api_key_env == ""
         assert sdk.max_tokens == 16384
+
+
+# ---------------------------------------------------------------------------
+# Provider model-map roster (add-agy-grok-pi-harnesses)
+# ---------------------------------------------------------------------------
+
+# The canonical five-provider roster (contracts/roster.md). Derived from the
+# contract's provider-key column, NOT from model-id literals (feedback:
+# tests-derive-from-config). `gemini` is retired and MUST NOT be a provider key.
+ROSTER_PROVIDER_KEYS = frozenset(
+    {"claude_code", "codex", "antigravity", "grok", "pi"}
+)
+BASE_MODEL_TIERS = frozenset({"premium", "standard", "economy"})
+
+
+def _tier_model(value: Any) -> str:
+    """A tier entry is a bare model id or a {model, thinking} pair."""
+    return value["model"] if isinstance(value, dict) else value
+
+
+class TestProviderModelMapRoster:
+    """DEFAULT_PROVIDER_MODEL_MAP reflects the five-vendor roster.
+
+    Spec: configuration.2 (provider map includes all first-class providers;
+    pi maps to OpenRouter slugs). Contract: contracts/roster.md.
+    """
+
+    def test_providers_are_exactly_the_roster(self) -> None:
+        from src.agents_config import DEFAULT_PROVIDER_MODEL_MAP
+
+        providers = set(DEFAULT_PROVIDER_MODEL_MAP["providers"])
+        assert providers == set(ROSTER_PROVIDER_KEYS)
+
+    def test_gemini_is_retired(self) -> None:
+        from src.agents_config import DEFAULT_PROVIDER_MODEL_MAP
+
+        assert "gemini" not in DEFAULT_PROVIDER_MODEL_MAP["providers"]
+
+    def test_every_provider_defines_base_tiers(self) -> None:
+        from src.agents_config import DEFAULT_PROVIDER_MODEL_MAP
+
+        for provider, mapping in DEFAULT_PROVIDER_MODEL_MAP["providers"].items():
+            assert BASE_MODEL_TIERS <= set(mapping), (
+                f"{provider} must define {sorted(BASE_MODEL_TIERS)}; got {sorted(mapping)}"
+            )
+
+    def test_pi_tiers_are_openrouter_slugs(self) -> None:
+        # Spec configuration.2 "pi maps to OpenRouter slugs": every tier value is
+        # a `<publisher>/<model>` slug. The `standard` == `qwen/qwen3-coder`
+        # assertion below is the spec's own SHALL, not an incidental literal.
+        from src.agents_config import DEFAULT_PROVIDER_MODEL_MAP
+
+        pi = DEFAULT_PROVIDER_MODEL_MAP["providers"]["pi"]
+        for tier, value in pi.items():
+            slug = _tier_model(value)
+            assert slug.count("/") == 1, (
+                f"pi {tier}={slug!r} is not <publisher>/<model> form"
+            )
+        assert _tier_model(pi["standard"]) == "qwen/qwen3-coder"
