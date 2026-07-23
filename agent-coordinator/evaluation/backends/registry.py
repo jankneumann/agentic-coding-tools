@@ -35,7 +35,7 @@ class UnknownBackendError(ValueError):
     """Raised when a backend name is not part of the supported roster.
 
     Names the supported roster so a caller migrating off a retired harness
-    (e.g. the removed ``gemini_jules``) can see what to target instead.
+    (such as the removed Gemini/Jules backend) can see what to target instead.
     """
 
     def __init__(self, name: str) -> None:

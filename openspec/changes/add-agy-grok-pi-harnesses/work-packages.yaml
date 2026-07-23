@@ -153,15 +153,18 @@ packages:
         #      a `gemini`/`jules` CLI command, the local roster is antigravity/grok/pi,
         #      and the eval-backend factory rejects gemini/jules with a structured error.
         #   2. residue grep — retired-harness ARTIFACT tokens only (gemini_jules,
-        #      gemini-mcp-setup, gemini_wrapper, gemini-local/remote, gemini-coord, …).
-        #      Model slugs (gemini-3.6-flash-*) and prose ("Gemini-family models") are
-        #      allowed by construction; retirement-assertion tests carry the word
-        #      "gemini" to PROVE the migration and are likewise fine.
+        #      gemini-mcp-setup, gemini_wrapper, gemini-local/remote, gemini-coord, …)
+        #      over NON-test source. Model slugs (gemini-3.6-flash-*) and prose
+        #      ("Gemini-family models") are allowed by construction. tests/ is
+        #      excluded: retirement-assertion and factory-rejection tests must name
+        #      the retired harness to prove it is gone, and a test that actually
+        #      imported a deleted harness would fail the pytest step (step 1), so
+        #      test-file correctness is enforced by execution, not by grep.
         #   3. the google-generativeai SDK (the retired gemini-remote dep) is gone.
         #   4. `make -n mcp-setup hooks-setup` resolves — no dangling gemini target.
         - name: "Coordinator suite green; retired-harness surface gone; SDK dep gone; make resolves"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration' && test -z \"$(git grep -lIiE 'gemini[-_](cli|local|remote|jules|wrapper|coord|mcp-setup|wrapper-install)|geminijules' -- agent-coordinator ':!agent-coordinator/database/migrations' ':!agent-coordinator/README.md' ':!agent-coordinator/CLAUDE.md' ':!agent-coordinator/.secrets.yaml.example' ':!agent-coordinator/config.yaml.example')\" && ! grep -q google-generativeai agent-coordinator/pyproject.toml && make -n -C agent-coordinator mcp-setup hooks-setup >/dev/null"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration' && test -z \"$(git grep -lIiE 'gemini[-_](cli|local|remote|jules|wrapper|coord|mcp-setup|wrapper-install)|geminijules' -- agent-coordinator ':!agent-coordinator/tests' ':!agent-coordinator/database/migrations' ':!agent-coordinator/README.md' ':!agent-coordinator/CLAUDE.md' ':!agent-coordinator/.secrets.yaml.example' ':!agent-coordinator/config.yaml.example')\" && ! grep -q google-generativeai agent-coordinator/pyproject.toml && make -n -C agent-coordinator mcp-setup hooks-setup >/dev/null"
           cwd: "."
           expect_exit_code: 0
           evidence:
