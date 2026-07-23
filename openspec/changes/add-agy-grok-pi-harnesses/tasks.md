@@ -384,7 +384,7 @@ calls is on record in `design.md`.
 
 ## Phase 4 — Kanban frontend
 
-- [ ] 4.1 Update roster fixtures in `apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx`.
+- [x] 4.1 Update roster fixtures in `apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx`.
   `VendorSwimlanes.tsx` is NOT modified — it derives the vendor from the `agent_id` suffix and
   holds no roster (design D5). Leave the review-provenance annotations in
   `src/hooks/useCoordinator.ts:244`, `src/__tests__/useCoordinator.test.tsx:278`, and
@@ -392,7 +392,7 @@ calls is on record in `design.md`.
   **Spec scenarios**: coordinator-kanban-viz.1
   **Dependencies**: 2.7
 
-- [ ] 4.2 Update the skills-tree kanban endpoint fixtures in
+- [x] 4.2 Update the skills-tree kanban endpoint fixtures in
   `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` (S)
   **Owner**: `wp-frontend` (moved from `wp-skills` in PLAN_FIX round 3, claude finding
   R3-C7). This task depends on 2.7, which `wp-coordinator` owns; `wp-skills` declares
@@ -402,7 +402,7 @@ calls is on record in `design.md`.
   to `wp-frontend`'s `write_allow` and removed from `wp-skills`'.
   **Dependencies**: 2.7, 0.1
 
-- [ ] 4.3 Checkpoint: run **`wp-frontend`'s verification step** in `work-packages.yaml` and
+- [x] 4.3 Checkpoint: run **`wp-frontend`'s verification step** in `work-packages.yaml` and
   confirm it exits 0 — frontend tests green, the new roster present in both fixture files
   (the gate now greps `antigravity`/`grok`/`--pi` in `test_kanban_viz_endpoints.py`, not only
   in the `.tsx` fixture, and `test_vendor_extraction_from_agent_id` must add `agent_id_cases`

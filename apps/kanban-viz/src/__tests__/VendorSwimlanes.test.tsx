@@ -19,6 +19,28 @@ const codexAgent: AgentActivity = {
   outcome: null,
 };
 
+const antigravityAgent: AgentActivity = {
+  agent_id: "wp-backend--antigravity",
+  last_event_at: new Date(Date.now() - 90_000).toISOString(),
+  outcome: null,
+};
+
+const grokAgent: AgentActivity = {
+  agent_id: "wp-backend--grok",
+  last_event_at: new Date(Date.now() - 120_000).toISOString(),
+  outcome: null,
+};
+
+const piAgent: AgentActivity = {
+  agent_id: "wp-backend--pi",
+  last_event_at: new Date(Date.now() - 150_000).toISOString(),
+  outcome: null,
+};
+
+// Retired harness kept as a fixture on purpose: the component holds no roster
+// allow-list (design D5), so a historical `gemini` agent must still render. This
+// is the mechanical evidence for the coordinator-kanban-viz "Historical vendor
+// still renders" scenario — do not delete it during the roster migration.
 const geminiAgent: AgentActivity = {
   agent_id: "wp-backend--gemini",
   last_event_at: new Date(Date.now() - 90_000).toISOString(),
@@ -55,21 +77,47 @@ describe("VendorSwimlanes — single vendor", () => {
 describe("VendorSwimlanes — three vendor-diverse agents", () => {
   it("renders three lanes", () => {
     render(
-      <VendorSwimlanes agents={[claudeAgent, codexAgent, geminiAgent]} />,
+      <VendorSwimlanes agents={[antigravityAgent, grokAgent, piAgent]} />,
     );
-    expect(screen.getByTestId("swimlane-claude")).toBeInTheDocument();
-    expect(screen.getByTestId("swimlane-codex")).toBeInTheDocument();
-    expect(screen.getByTestId("swimlane-gemini")).toBeInTheDocument();
+    expect(screen.getByTestId("swimlane-antigravity")).toBeInTheDocument();
+    expect(screen.getByTestId("swimlane-grok")).toBeInTheDocument();
+    expect(screen.getByTestId("swimlane-pi")).toBeInTheDocument();
   });
 
   it("lanes are sorted alphabetically", () => {
     render(
-      <VendorSwimlanes agents={[claudeAgent, codexAgent, geminiAgent]} />,
+      <VendorSwimlanes agents={[grokAgent, antigravityAgent, piAgent]} />,
     );
     const container = screen.getByTestId("vendor-swimlanes");
     const lanes = container.querySelectorAll("[data-testid^='swimlane-vendor-label-']");
     const vendorNames = Array.from(lanes).map((el) => el.textContent);
-    expect(vendorNames).toEqual(["claude", "codex", "gemini"]);
+    expect(vendorNames).toEqual(["antigravity", "grok", "pi"]);
+  });
+
+  it("renders the full five-vendor roster mix", () => {
+    render(
+      <VendorSwimlanes
+        agents={[claudeAgent, codexAgent, antigravityAgent, grokAgent, piAgent]}
+      />,
+    );
+    for (const vendor of ["antigravity", "claude", "codex", "grok", "pi"]) {
+      expect(screen.getByTestId(`swimlane-${vendor}`)).toBeInTheDocument();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Historical vendor still renders (coordinator-kanban-viz): the component
+// consults no roster allow-list (design D5), so a retired `gemini` agent renders
+// exactly like any current vendor.
+
+describe("VendorSwimlanes — historical vendor", () => {
+  it("still renders a lane for a retired vendor (no allow-list)", () => {
+    render(<VendorSwimlanes agents={[geminiAgent]} />);
+    expect(screen.getByTestId("swimlane-gemini")).toBeInTheDocument();
+    expect(screen.getByTestId("swimlane-vendor-label-gemini")).toHaveTextContent(
+      "gemini",
+    );
   });
 });
 
