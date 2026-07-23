@@ -415,17 +415,17 @@ calls is on record in `design.md`.
 
 ## Phase 5 — Docs, templates, SKILL.md prose, runtime-dir removal
 
-- [ ] 5.1 Delete the repo-root `.gemini/` directory (XS)
+- [x] 5.1 Delete the repo-root `.gemini/` directory (XS)
   **Spec scenarios**: skill-workflow.1
   **Design decisions**: D2
   **Dependencies**: 2.8
 
-- [ ] 5.2 Update the supported-vendor roster in `README.md`, `agent-coordinator/CLAUDE.md`,
+- [x] 5.2 Update the supported-vendor roster in `README.md`, `agent-coordinator/CLAUDE.md`,
   and `agent-coordinator/README.md` (including the make targets removed in 2.8) (S)
   **Spec scenarios**: agent-coordinator.1
   **Dependencies**: 2.8
 
-- [ ] 5.3 Update `docs/skills-workflow.md`, `docs/autopilot-provider-smoke.md`,
+- [x] 5.3 Update `docs/skills-workflow.md`, `docs/autopilot-provider-smoke.md`,
   `docs/agent-coordinator.md`, **`docs/cross-repo-setup.md`**; replace `GEMINI_API_KEY` with
   `OPENROUTER_API_KEY` in `docs/openbao-secret-management.md` (M)
   **Spec scenarios**: skill-workflow.23, .24, agent-coordinator.1, configuration.2
@@ -436,14 +436,14 @@ calls is on record in `design.md`.
   own inclusion criterion, and task 3.9 edits the very script it documents. Hence the added
   dependency on 3.9: the doc must follow the script, not lead it.
 
-- [ ] 5.4 Update templates: `agent-coordinator/.secrets.yaml.example` (add
+- [x] 5.4 Update templates: `agent-coordinator/.secrets.yaml.example` (add
   `OPENROUTER_API_KEY`, remove `GEMINI_API_KEY`), `agent-coordinator/config.yaml.example`
   (provider enumeration + tier example), `skills/collect-transcripts/config.yaml.example`
   (adapter block), and the vendor list in `openspec/config.yaml` (S)
   **Spec scenarios**: configuration.2
   **Dependencies**: 2.8
 
-- [ ] 5.5 Update provider prose in the 8 lifecycle SKILL.md files named by the
+- [x] 5.5 Update provider prose in the 8 lifecycle SKILL.md files named by the
   `skill-workflow` delta (`autopilot`, `plan-feature`, `implement-feature`, `iterate-on-plan`,
   `iterate-on-implementation`, `parallel-review-plan`, `parallel-review-implementation`,
   `validate-feature`) plus `skills/setup-coordinator/SKILL.md` and
@@ -455,7 +455,7 @@ calls is on record in `design.md`.
   explicitly, so deferring them would make the spec unsatisfiable by this change. The ~12
   remaining SKILL.md files with narrative gemini mentions stay deferred (D6).
 
-- [ ] 5.5a Update the agent-type roster in the session-log templates:
+- [x] 5.5a Update the agent-type roster in the session-log templates:
   `openspec/schemas/feature-workflow/templates/session-log.md:52` and its mirrored copy
   `skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/session-log.md:52`
   (both read `| Agent Type | <!-- claude, codex, gemini, other --> |`) (S)
@@ -467,7 +467,7 @@ calls is on record in `design.md`.
   already owns the template surface. Edit both copies: `install_assets/` is the source
   `install.sh` distributes, so fixing only the canonical one reintroduces the drift.
 
-- [ ] 5.6 Document the optional `~/.grok/config.toml` `[skills] paths` setup as operator-level
+- [x] 5.6 Document the optional `~/.grok/config.toml` `[skills] paths` setup as operator-level
   in **`docs/skills-workflow.md`**, citing
   https://docs.x.ai/build/features/skills-plugins-marketplaces (S)
   **Note**: the target file is named because `wp-docs-finalize`'s gate greps for the citation
@@ -477,17 +477,25 @@ calls is on record in `design.md`.
   **Design decisions**: D2
   **Dependencies**: 5.3
 
-- [ ] 5.7 Checkpoint: run **`wp-docs-finalize`'s first verification step** in
+- [x] 5.7 Checkpoint: run **`wp-docs-finalize`'s first verification step** in
   `work-packages.yaml` and confirm it exits 0 — `openspec validate --all --strict`, the grok
   citation present, `.gemini/` gone, and the in-scope doc/template/SKILL.md file list free of
   gemini, and — folded into the same gate — that no carve-out file appears in the change's
   diff against `main`. The gate command and its file list live only in `work-packages.yaml`.
+  **PASSED 2026-07-23.** Step-1 gate exits 0: `openspec validate --all --strict` → 53 passed /
+  0 failed; grok citation present in `docs/skills-workflow.md`; `.gemini/` removed; zero
+  case-insensitive `gemini` across all 24 curated doc/template/SKILL.md files; no carve-out file
+  in `git diff main...`.
 
 ## Phase 6 — Integration and validation
 
-- [ ] 6.1 Run `bash skills/install.sh --mode rsync --force --deps none --python-tools none`;
+- [x] 6.1 Run `bash skills/install.sh --mode rsync --force --deps none --python-tools none`;
   then run **`wp-docs-finalize`'s second verification step** in `work-packages.yaml`, which
   re-syncs the mirrors and proves they carry no live gemini references (S)
+  **DONE 2026-07-23.** `install.sh` synced 132 skill directories (no tracked-file changes —
+  mirrors are gitignored, both session-log template copies already matched). The mirror check
+  (`grep -rIl -i gemini .claude/skills .agents/skills` with the SKILL.md/references/templates/
+  install_assets excludes) is **clean, exit 0**.
   **Note**: the mirror check MUST use plain `grep -rIl`, never `git grep`.
   `.claude/skills/` and `.agents/skills/` are gitignored (`.gitignore:271-272`), so `git grep`
   searches zero tracked files there and passes unconditionally — it was vacuous in revision 2
@@ -495,19 +503,65 @@ calls is on record in `design.md`.
   **Spec scenarios**: skill-workflow.3
   **Dependencies**: 5.7
 
-- [ ] 6.2 Run **`wp-docs-finalize`'s second verification step** (already invoked in 6.1) and
+- [x] 6.2 Run **`wp-docs-finalize`'s second verification step** (already invoked in 6.1) and
   confirm the full four-tree suite passes end-to-end after the mirror sync. That step is the
   single home for the full-suite command — it covers `agent-coordinator/tests`, the skills
   tree (including the four dirs `pytest skills/tests` alone does not collect), agent-scenarios
   via its own project, and the kanban frontend. Do not restate the suite commands here. (M)
   **Dependencies**: 6.1
+  **DONE 2026-07-23 — full-suite green except tracked baseline debt; ZERO new failures.**
+  coordinator **2066 passed** / 1 skipped / 0 failed; agent-scenarios **36 passed** / 1 skipped;
+  kanban frontend **224 passed** / 6 skipped; skills tree **1795 passed / 26 failed**. All 26
+  skills failures are the pre-existing non-roster baseline debt tracked in task 3.12 / memory
+  `project_wp_skills_gate_baseline_debt`: kanban `/audit/v2`+audit-enum (2), autopilot phase
+  e2e/apply-outcome (8), root-CLAUDE.md workflow-doc drift (3), phase-record-compaction (5),
+  playwright env deps (6), consensus gen-eval merge (2). Proven pre-existing: restoring the
+  baseline (49b2f610) versions of the only overlapping test inputs (`docs/skills-workflow.md` +
+  5 edited SKILL.md) and re-running `test_workflow_docs.py` + `test_skills_integration.py`
+  yields the **identical 5 failures / 21 passed** — the SKILL.md files this WP edited pass their
+  parametrizations both before and after. Step 2 exits non-zero on baseline debt only
+  (operator-accepted; see 3.12).
 
 - [ ] 6.3 Live smoke dispatch against each of antigravity, grok, and pi (operator-authorized;
   see design.md § Empirical CLI findings) (M)
   **Spec scenarios**: skill-workflow.24
   **Dependencies**: 6.2
+  **OPERATOR-PENDING (deliberately left unchecked).** This is the manual, billed live-dispatch
+  step (`wp-docs-finalize` verification step 3, `kind: manual`). It is out of scope for the
+  automated implement sub-agent and requires explicit operator action to run one review-mode
+  dispatch through each of antigravity/grok/pi and confirm a parseable result envelope.
 
-- [ ] 6.4 Record the deferred-narrative follow-up: run the design.md inventory command, save
+- [x] 6.4 Record the deferred-narrative follow-up: run the design.md inventory command, save
   the remaining file list into the session log, and note it in the PR description as an
   explicit follow-up change (XS)
   **Dependencies**: 6.2
+  **DONE 2026-07-23.** Inventory command (`git grep -lI "gemini\|Gemini\|GEMINI"` minus the
+  carve-out `EXCL` regex) returns **50** files. Of these, **17 are correct-by-construction and
+  NOT deferred**: model-slug carriers (`agents.yaml`, `archetypes.yaml`, `src/agents_config.py`,
+  `evaluation/backends/antigravity.py`, `evaluation/backends/__init__.py`,
+  `evaluation/backends/registry.py`), migration-asserting tests (`test_agents_config.py`,
+  `test_agents_config_isolation.py`, `test_evaluation/test_backends.py`,
+  `test_evaluation/test_harness_migration.py`, `test_kanban_viz_endpoints.py` ×2,
+  `test_seed_kanban_board.py`, `VendorSwimlanes.test.tsx`), and review-provenance carve-outs
+  (`useCoordinator.ts`, `useCoordinator.test.tsx`, `coordinator-types.ts`). The remaining **33**
+  are the genuinely deferred-narrative D6 follow-up set (matches design.md's "~33" estimate):
+  `CHANGELOG.md`, `docs/cloud-deployment.md`, `docs/cloudflare-access-setup.md`,
+  `docs/cloudflare-setup.md`, `docs/coordination-detection-template.md`,
+  `docs/coordinator-railway-to-local-migration.md`, `docs/kanban-viz/falkordb-reservation.md`,
+  `docs/lessons-learned.md`, `docs/local-migration.md`, `docs/parallel-agentic-development.md`,
+  `docs/presentations/02-coordinator-architecture.mmd`,
+  `docs/presentations/02-coordinator-architecture.svg`,
+  `docs/presentations/09-transport-degradation.mmd`,
+  `docs/presentations/09-transport-degradation.svg`, `docs/presentations/index.html`,
+  `docs/proposals/monorepo-merge-scaling-research.md`,
+  `docs/proposals/repo-improvement-roadmap.md`,
+  `openspec/contracts/phase-record/schemas/phase-record.schema.json`,
+  `openspec/contracts/prototyping/schemas/variant-descriptor.schema.json`,
+  `skills/bao-vault/SKILL.md`, `skills/bug-scrub/SKILL.md`, `skills/cleanup-feature/SKILL.md`,
+  `skills/explore-feature/SKILL.md`, `skills/fix-scrub/SKILL.md`,
+  `skills/langfuse/references/mcp-setup.md`, `skills/langfuse/references/stop-hook.md`,
+  `skills/langfuse/SKILL.md`, `skills/merge-pull-requests/SKILL.md`,
+  `skills/plan-roadmap/SKILL.md`, `skills/plan-roadmap/templates/generation-prompt.md`,
+  `skills/quick-task/SKILL.md`, `skills/security-review/SKILL.md`,
+  `skills/tech-debt-analysis/SKILL.md`. Orchestrator to record in session log + PR as an
+  explicit follow-up change.
