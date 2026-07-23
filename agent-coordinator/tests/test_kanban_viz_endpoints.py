@@ -1670,7 +1670,9 @@ def test_vendor_extraction_from_agent_id() -> None:
     agent_id_cases = [
         ("wp-backend--claude", "claude"),
         ("wp-frontend--codex", "codex"),
-        ("wp-db--gemini", "gemini"),
+        ("wp-db--antigravity", "antigravity"),
+        ("wp-eval--grok", "grok"),
+        ("wp-frontier--pi", "pi"),
         ("wp-test--chatgpt-pro", "chatgpt-pro"),
         ("plain-agent", None),  # no suffix — no vendor
     ]
@@ -1678,7 +1680,9 @@ def test_vendor_extraction_from_agent_id() -> None:
     agent_type_to_vendor = {
         "claude_code": "claude",
         "codex": "codex",
-        "gemini": "gemini",
+        "antigravity": "antigravity",
+        "grok": "grok",
+        "pi": "pi",
         "claude_api": "chatgpt-pro",
     }
     known_vendors = set(agent_type_to_vendor.values())
