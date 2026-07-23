@@ -18,8 +18,14 @@
     "codex": true,
     "gemini": true
   },
-  "packages_status": {},
-  "package_authors": {},
+  "packages_status": {
+    "wp-skills": "complete_accepted",
+    "wp-coordinator": "complete",
+    "wp-empirical": "complete"
+  },
+  "package_authors": {
+    "wp-skills": "claude (IMPLEMENT sub-agent)"
+  },
   "implementation_strategy": {},
   "memory_ids": [],
   "handoff_ids": [
@@ -79,6 +85,12 @@
       "phase": "IMPLEMENT",
       "outcome": "checkpoint_1.4_passed",
       "note": "Phase 1 (empirical CLI facts) complete. Tasks 1.1-1.3 done via live billed probes; checkpoint 1.4 human sign-off received (AskUserQuestion: 'Sign off - advance'). All E1-E8 confirmed with command+output evidence in design.md sections L1-L7. Total billed spend <$0.05. Four cross-cutting corrections recorded for downstream tasks: (2.2) agy prompt is the --print/--prompt/-p VALUE not stdin; (2.3) grok tiers are one slug grok-4.5 x three --reasoning-effort levels, not three slugs; (2.6) three distinct output shapes (agy plain text / grok .structuredOutput envelope / pi NDJSON event stream) need per-vendor parsers; (3.4) {command} login auto-relogin valid only for grok, invalid for agy (interactive /logout re-auth) and pi (env-var key config error). grok routes via the grok binary (xAI sub); OpenRouter/pi reserved for frontier moonshotai/kimi-k3. Phases 2-6 unblocked."
+    },
+    {
+      "at": "2026-07-23T17:57:56.723144+00:00",
+      "phase": "IMPLEMENT",
+      "outcome": "wp-skills_accepted",
+      "note": "Resume 2026-07-23: reconciled state \u2014 Phase 2 (wp-coordinator) already committed (HEAD 4eb23fad). wp-skills (Phase 3, tasks 3.1-3.11) implemented in worktree by IMPLEMENT sub-agent; 2 commits (94974360 adapters, 993e2afe roster). Independently verified: residue grep clean, google-generativeai gone, 3 new transcript adapters green, ZERO regressions (the 10 failures in touched surfaces fail identically at baseline 4eb23fad; 4 test_model_resolution cases FIXED). wp-skills gate (3.12) exits 1 SOLELY on ~26 pre-existing baseline failures (playwright env deps, autopilot phase e2e, gen-eval merge, phase-record-compaction, fix-scrub fallback, kanban audit drift) \u2014 out of Phase 3 scope per D8, tracked in memory project_wp_skills_gate_baseline_debt. Operator (AskUserQuestion) chose 'Accept & advance'. Continuing IMPLEMENT with wp-frontend (Phase 4)."
     }
   ],
   "last_handoff_id": "local-checkpoint-1.4-passed",
