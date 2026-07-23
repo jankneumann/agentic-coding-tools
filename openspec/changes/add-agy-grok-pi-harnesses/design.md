@@ -494,19 +494,82 @@ command run and the relevant output excerpt). `pending`, `unknown`, `n/a`, and a
 are all failures. Whether the evidence is genuine is checked by a **human** at checkpoint 1.4
 (`wp-empirical`'s manual verification step) — not by a script (D8.2).
 
-| # | Fact | Consumed by | Task | Status | Evidence |
+| # | Fact | Consumed by | Task | Status | Evidence (see evidence log below) |
 |---|---|---|---|---|---|
-| E1 | `agy --model` slug strings for premium/standard/economy | 2.3 | 1.1 | pending | |
-| E2 | `grok --prompt-file /dev/stdin` survives a subprocess pipe | 2.2 | 1.2 | pending | |
-| E3 | `pi` resolves `OPENROUTER_API_KEY` from the subprocess env | 2.2, 5.4 | 1.3 | pending | |
-| E4 | `agy` / `pi` re-login commands | 3.4 | 1.1, 1.3 | pending | |
-| E5 | `grok` model slugs for premium/standard/economy | 2.3 | 1.2 | pending | |
-| E6 | `grok --output-format json` + `--json-schema` emit a conforming envelope | 2.6, 2.2 | 1.2 | pending | |
-| E7 | `agy --print` + stdin + `--mode plan` behave Claude-shaped | 2.2, 2.6, 3.8 | 1.1 | pending | |
-| E8 | `pi` accepts the prompt as a trailing positional; output shape | 2.2, 2.6, 3.8 | 1.3 | pending | |
-| — | `grok login` | 3.4 | — | **confirmed** | `grok --help` → `login  Sign in to Grok` |
+| E1 | `agy` model slug strings for premium/standard/economy | 2.3 | 1.1 | **confirmed** | `agy models` → catalog (§L1); tiers = `gemini-3.6-flash-high` / `-medium` / `-low` (operator-signed 2026-07-22) |
+| E2 | grok delivers a prompt under a subprocess pipe | 2.2 | 1.2 | **confirmed** | `printf … \| grok --prompt-file /dev/stdin -m grok-4.5 --reasoning-effort low` → `42`, exit 0 (§L6). `--prompt-file` **does** exist (mid-`--help`); one-shot alt is `-p/--single <PROMPT>` |
+| E3 | `pi` resolves `OPENROUTER_API_KEY` from the subprocess env | 2.2, 5.4 | 1.3 | **confirmed** | `pi -p --provider openrouter --model moonshotai/kimi-k3 "<prompt>"` succeeded with real usage/cost, `provider":"openrouter"` (§L7); key inherited from subprocess env |
+| E4 | `agy` / `pi` re-login commands | 3.4 | 1.1, 1.3 | **confirmed (both)** | agy: **no `agy login`** — auto-auth on launch, `/logout` resets (§L3). pi: env-var key, no login subcommand (§L7). grok: real `login`/`logout` (§L6). Dispatcher `{command} login` fallback is **valid only for grok**; invalid for agy & pi |
+| E5 | `grok` model slugs / tiers for premium/standard/economy | 2.3 | 1.2 | **confirmed** | `grok models` (authed) → **single model `grok-4.5`**; tiers via `--reasoning-effort {low,medium,high}` (`low` accepted, §L6). No per-tier slugs |
+| E6 | grok structured-output envelope (`--json-schema`, implies `--output-format json`) | 2.6, 2.2 | 1.2 | **confirmed** | Envelope emitted; conforming payload under **`.structuredOutput`**, jsonschema-validated PASS vs `review-findings.schema.json` (§L6) |
+| E7 | `agy` non-interactive print + `--mode plan` behave Claude-shaped | 2.2, 2.6, 3.8 | 1.1 | **confirmed w/ correction** | `agy -p "<prompt>" --model …` → text (§L2). **stdin refuted** — prompt must be the `--print`/`--prompt`/`-p` *value*, not stdin, not a trailing positional |
+| E8 | `pi` accepts the prompt as a trailing positional; output shape | 2.2, 2.6, 3.8 | 1.3 | **confirmed** | Positional prompt → `42` (§L7). `--mode json` output is an **NDJSON event stream**; final text is in the `agent_end`/`message_end` assistant `content[]` where `type=="text"` (not a single envelope) |
+| — | `grok login` exists | 3.4 | — | **confirmed** | `grok --help` → `login  Sign in to Grok`; also `logout` |
+| — | pi frontier model slug (Kimi 3) | 5.x | 1.3 | **confirmed** | `pi --list-models` → `openrouter  moonshotai/kimi-k3  1.0M  131.1K  yes  yes` (§L5) |
+
+**Routing decision (operator, 2026-07-22):** grok routes through the **`grok` binary (xAI subscription)**, *not* `pi --provider openrouter`. OpenRouter/`pi` is reserved for the frontier **Kimi 3** (`moonshotai/kimi-k3`) that the xAI subscription does not cover. The `x-ai/grok-*` slugs on OpenRouter are therefore **not** used for grok routing.
 
 **Operator authorization is on record** (above), so these tasks may make live billed calls.
+
+### Phase 1 evidence log (recorded 2026-07-22, live probes)
+
+- **§L1 — E1 `agy models`** (`agy models </dev/null`, non-billed catalog read):
+  `gemini-3.6-flash-{high,medium,low}`, `gemini-3.5-flash-{high,medium,low}`,
+  `gemini-3.1-pro-{high,low}`, `claude-sonnet-4-6`, `claude-opus-4-6-thinking`,
+  `gpt-oss-120b-medium`. Note the effort suffix is baked into the slug (`-high/-medium/-low`),
+  so agy encodes reasoning effort in the model id rather than a separate `--effort` value for
+  the gemini family. **Tier map (operator-signed 2026-07-22):** premium `gemini-3.6-flash-high`,
+  standard `gemini-3.6-flash-medium`, economy `gemini-3.6-flash-low` — one model
+  (`gemini-3.6-flash`) across three effort levels, consumed by task 2.3.
+- **§L2 — E7 agy prompt delivery** (billed, `gemini-3.6-flash-low`):
+  `agy --prompt "What is 17 plus 25? Reply with ONLY the number." --model gemini-3.6-flash-low --print-timeout 90s` → `42` (exit 0). `-p` alias identical → `42`.
+  **Refuted forms:** `printf '<prompt>' | agy --print …` (stdin) and `agy --print … "<prompt>"`
+  (trailing positional) both produced generic self-description output — the prompt was ignored.
+  `--mode plan` accepted without error; output is plain Claude-shaped markdown prose to stdout.
+  **Dispatcher consequence:** the current `build_command` (`prompt_via_stdin` or bare positional
+  append) cannot feed agy; the prompt must attach to `--prompt`/`-p` as its value. Handle in
+  task 2.2 (adapter shaping) — agy needs a `prompt_flag`-style attachment, not `prompt_via_stdin`.
+- **§L3 — E4a agy re-login** (authoritative, https://antigravity.google/docs/cli/install):
+  There is **no `agy login` command**. Auth is automatic on launch (OS keyring → browser
+  sign-in; over SSH a paste-back auth code). Re-auth is the interactive `/logout` slash command
+  (clears creds + cache) followed by relaunch. `agy --help` subcommands confirm no login/auth
+  entry. **Dispatcher consequence:** `_RELOGIN_COMMANDS` fallback `f"{command} login"` yields an
+  invalid `agy login`; agy needs either an explicit "manual re-auth required" sentinel or omission
+  from auto-relogin (task 3.4).
+- **§L4 — grok (blocked)** `grok models </dev/null` → `You are not authenticated. Default model: grok-4.5`.
+  `grok --help`: `--json-schema <SCHEMA>` "Implies --output-format json"; `--model`/`-m`;
+  `--reasoning-effort`/`--effort`; real `login`/`logout` subcommands. (Superseded below once
+  authenticated — the mid-`--help` non-interactive flags were found in §L6.)
+- **§L5 — pi flag surface** `pi --list-models </dev/null` returns the OpenRouter catalog
+  including `moonshotai/kimi-k3` (frontier target) and `moonshotai/kimi-k2*` variants. `pi --help`:
+  `--provider <name>` (default google), `--model`, `--mode text|json|rpc`, `--print`/`-p`, prompt
+  as trailing `[messages...]` positional, `--api-key` defaults to env vars. pi has no login
+  subcommand (env-var key model).
+- **§L6 — grok E2/E5/E6** (authenticated `grok.com`, billed). Non-interactive flags (found
+  mid-`--help`): `-p, --single <PROMPT>` (single-turn, prints to stdout + exits),
+  `--prompt-file <PATH>` (so `/dev/stdin` **is** valid — corrects §L4), `--prompt-json <JSON>`,
+  `--output-format <plain|json|streaming-json>` (default plain).
+  - **E2:** `printf 'What is 17 plus 25? Reply with ONLY the number.' | grok --prompt-file /dev/stdin -m grok-4.5 --reasoning-effort low` → `42`, exit 0. Subprocess pipe delivery works.
+  - **E5:** `grok models` (authed) lists **only `grok-4.5`** (default). No premium/standard/economy
+    slugs — tiers come from `--reasoning-effort {low,medium,high}` (`low` accepted above). `-m grok-4.5`
+    bills internally as `grok-4.5-build` (see `modelUsage`).
+  - **E6:** same call + `--output-format json --json-schema "$(cat review-findings.schema.json)"`
+    returned a **single envelope** with keys `text, thought, stopReason, sessionId, requestId,
+    usage, num_turns, total_cost_usd, modelUsage, structuredOutput`. The schema-conforming object
+    is at **`.structuredOutput`** (jsonschema.validate PASS vs `review-findings.schema.json`).
+    Cost $0.0276 for the call. **Parser (task 2.6) must read `.structuredOutput`, not top-level.**
+- **§L7 — pi E3/E8** (billed, `moonshotai/kimi-k3` via OpenRouter). `pi -p --provider openrouter
+  --model moonshotai/kimi-k3 --mode json "What is 17 plus 25? Reply with ONLY the number."`
+  → answered `42`, exit 0, cost $0.00275.
+  - **E3:** the call resolved `OPENROUTER_API_KEY` from the inherited subprocess environment
+    (no `--api-key` passed); events show `"provider":"openrouter","model":"moonshotai/kimi-k3"`
+    with real token usage/cost. Confirmed.
+  - **E8:** prompt delivered as a **trailing positional**. `--mode json` output is an **NDJSON
+    event stream** — one JSON object per line (`session`, `agent_start`, `turn_start`,
+    `message_start/update/end`, `turn_end`, `agent_end`, `agent_settled`). The final answer is the
+    last assistant message's `content[]` entry with `type=="text"` (kimi also emits a `thinking`
+    block). **Parser (task 2.6) must stream-parse NDJSON and pull the final `type=="text"` content
+    — pi's shape is entirely unlike grok's single envelope.**
 
 ## Merge-order coupling
 

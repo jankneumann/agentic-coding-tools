@@ -105,27 +105,49 @@ excerpt** in `design.md` § Empirical CLI findings. Whether the CLIs were genuin
 so checkpoint 1.4 is a human review, by design (D8.2). Operator authorization for live billed
 calls is on record in `design.md`.
 
-- [ ] 1.1 antigravity: record `agy models` output and resolve exact `--model` slugs for
+- [x] 1.1 antigravity: record `agy models` output and resolve exact `--model` slugs for
   premium/standard/economy (E1); verify `--print` + stdin + `--mode plan` behave Claude-shaped
   (E7); record the re-login command or confirm the `agy login` fallback (E4a) (S)
   **Dependencies**: None
+  **Done 2026-07-22** (evidence in design.md §L1–L3): E1 confirmed (`agy models` catalog);
+  E7 confirmed *with correction* — prompt is the `--print`/`--prompt`/`-p` **value**, stdin and
+  trailing positional are ignored (refutes the stdin hypothesis); E4a confirmed — **no `agy login`**
+  (auto-auth on launch; `/logout` resets), so the dispatcher `{command} login` fallback is invalid.
+  Two design consequences flagged for tasks 2.2 (agy prompt attaches to a flag, not stdin) and
+  3.4 (agy re-auth is interactive, not `agy login`). Awaits human checkpoint 1.4.
 
-- [ ] 1.2 grok: verify `--prompt-file /dev/stdin` delivers a prompt under a subprocess pipe
+- [x] 1.2 grok: verify `--prompt-file /dev/stdin` delivers a prompt under a subprocess pipe
   (E2); record model slugs for the three tiers (E5); verify `--output-format json` +
   `--json-schema review-findings.schema.json` emits a conforming envelope (E6) (S)
   **On failure of E2**: apply Approach B (thin wrapper) narrowly to grok; record in design.md.
   **On failure of E6**: grok's eval backend and review dispatch fall back to text parsing;
   re-scope task 2.6 before starting it.
   **Dependencies**: None
+  **Done 2026-07-23** (evidence in design.md §L6, `grok.com` authed, billed): E2 confirmed
+  (`--prompt-file /dev/stdin` pipe → `42`; the flag exists — no Approach-B wrapper needed).
+  E5 confirmed — grok exposes only `grok-4.5`; tiers via `--reasoning-effort {low,medium,high}`,
+  so task 2.3's three grok "tiers" are one slug × three efforts, not three slugs. E6 confirmed —
+  conforming payload under **`.structuredOutput`** (jsonschema PASS); task 2.6 parser must read
+  that key, not top-level. Awaits human checkpoint 1.4.
 
-- [ ] 1.3 pi: verify `OPENROUTER_API_KEY` resolves from the subprocess environment with
+- [x] 1.3 pi: verify `OPENROUTER_API_KEY` resolves from the subprocess environment with
   `--provider openrouter` (E3); verify the prompt passes as a trailing positional and record
   the output shape (E8); record the re-login command or confirm `pi login` fallback (E4b) (S)
   **Dependencies**: None
+  **Done 2026-07-23** (evidence in design.md §L7, `moonshotai/kimi-k3` via OpenRouter, billed):
+  E3 confirmed — key inherited from the subprocess env (no `--api-key` passed). E8 confirmed —
+  positional prompt → `42`; `--mode json` is an **NDJSON event stream**, final answer in the
+  `agent_end`/`message_end` assistant `content[]` where `type=="text"` (task 2.6 must stream-parse).
+  E4b: pi is env-var-key based (no login subcommand); the `pi login` fallback is invalid — a
+  missing key is a config error, not a re-auth. Awaits human checkpoint 1.4.
 
-- [ ] 1.4 Checkpoint (**human review**): every row E1–E8 in `design.md` reads `confirmed` or
+- [x] 1.4 Checkpoint (**human review**): every row E1–E8 in `design.md` reads `confirmed` or
   `refuted` with command + output evidence. No package may hardcode a CLI flag, model slug, or
   output-parsing assumption for these vendors until this checkpoint passes.
+  **PASSED — operator sign-off 2026-07-23.** All E1–E8 confirmed with live billed evidence
+  (design.md §L1–L7). Phases 2–6 are unblocked. Four cross-cutting corrections carry forward:
+  agy prompt=flag-value (2.2), grok tiers=one-slug×three-efforts (2.3), three distinct output
+  shapes need per-vendor parsers (2.6), `{cmd} login` relogin valid only for grok (3.4).
 
 ## Phase 2 — Coordinator (registry, model map, eval backends, seeder, Makefile)
 
