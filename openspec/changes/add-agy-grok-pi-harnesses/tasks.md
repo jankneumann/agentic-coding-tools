@@ -72,8 +72,9 @@ roster work. They are labeled here — not laundered into roster tasks — per D
   scoping a gate around breakage is what D7 rejects.
   **Dependencies**: None
 
-- [ ] 0.4 Install frontend dependencies so the kanban gates test the roster, not the
+- [x] 0.4 Install frontend dependencies so the kanban gates test the roster, not the
   environment: run `npm ci` in `apps/kanban-viz` (XS)
+  **Done 2026-07-22**: `npm ci` clean; `npm test -- --run` → 222 passed, 6 skipped.
   **Why**: added in PLAN_FIX round 3 (codex finding R3-2, confirmed). A fresh worktree has no
   `apps/kanban-viz/node_modules`, so `npm test -- --run` exits with
   `sh: vitest: command not found`. Phases 4 and 6 both invoke `npm test` with no install
@@ -86,6 +87,15 @@ roster work. They are labeled here — not laundered into roster tasks — per D
   three pass on the baseline-repaired tree. **All three baselines must be green before any
   roster edit** — otherwise every downstream gate inherits a failure it did not cause. The
   suite commands live only in `work-packages.yaml`; do not restate them here.
+  **Status 2026-07-22 (partial)**: `wp-coordinator` test baseline green (2030 passed);
+  `wp-frontend` green (222 passed). `wp-skills` **not fully green** — its test-suite portion
+  had ~100 pre-existing, non-roster failures the plan's Phase 0 did not anticipate. Fixed
+  here: contracts archive-drift (PR #265, `openspec/contracts/`, ~69 tests) and the kanban
+  PyJWT gap (task 0.1, 8→2). Remaining pre-existing failures are filed as coordinator
+  follow-ups (kanban `/audit/v2` + audit-outcome-enum drift; 5 phase-record-compaction cases;
+  playwright env deps) — see memory `project_wp_skills_gate_baseline_debt`. NOTE: the
+  `wp-skills` gate also runs a superset of CI (no `-m "not e2e and not integration"`); a
+  marker-parity / gate-scope decision is the tracked follow-up before 0.5 can close cleanly.
 
 ## Phase 1 — Empirical CLI facts (resolves proposal open decisions 2 and 3)
 
