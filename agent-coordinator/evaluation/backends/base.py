@@ -37,7 +37,7 @@ class AgentBackend(Protocol):
 
     @property
     def name(self) -> str:
-        """Backend identifier (e.g. 'claude_code', 'codex', 'gemini_jules')."""
+        """Backend identifier (e.g. 'claude_code', 'codex', 'antigravity', 'grok', 'pi')."""
         ...
 
     async def execute_task(
