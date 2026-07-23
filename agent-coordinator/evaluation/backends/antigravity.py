@@ -1,6 +1,13 @@
-"""Gemini/Jules agent backend for evaluation.
+"""Antigravity (agy) agent backend for evaluation.
 
-Executes tasks via the Gemini/Jules CLI and captures results.
+Executes tasks via the Antigravity CLI (`agy`) in headless mode. Antigravity is
+Google's agentic harness and runs the Gemini model family; the CLI is
+Claude-shaped, emitting plain markdown/text to stdout.
+
+Empirical Phase 1 finding E7 (design.md § Empirical CLI findings): `agy` ignores
+stdin and a trailing positional — the prompt must be the VALUE of ``--prompt``
+(``-p``). This backend therefore attaches the prompt to the flag, unlike the
+stdin/positional shapes used by grok and pi.
 """
 
 from __future__ import annotations
@@ -15,12 +22,12 @@ from ..metrics import TokenUsage
 from .base import BackendResult
 
 
-class GeminiJulesBackend:
-    """Backend that executes tasks via Gemini/Jules CLI."""
+class AntigravityBackend:
+    """Backend that executes tasks via the Antigravity (`agy`) CLI."""
 
     def __init__(
         self,
-        command: str = "jules",
+        command: str = "agy",
         args: list[str] | None = None,
         env: dict[str, str] | None = None,
         timeout_seconds: int = 300,
@@ -32,7 +39,15 @@ class GeminiJulesBackend:
 
     @property
     def name(self) -> str:
-        return "gemini_jules"
+        return "antigravity"
+
+    def _build_command(self, prompt: str) -> list[str]:
+        """Argv for a headless run (E7: prompt is the value of ``--prompt``)."""
+        return [self._command, "--prompt", prompt, *self._args]
+
+    def _stdin_input(self, prompt: str) -> str | None:
+        """`agy` reads the prompt from the flag, never stdin (E7)."""
+        return None
 
     async def execute_task(
         self,
@@ -42,14 +57,14 @@ class GeminiJulesBackend:
         ablation: AblationFlags,
         timeout_seconds: int = 300,
     ) -> BackendResult:
-        """Execute a task via jules CLI."""
+        """Execute a task via the `agy` CLI."""
         timeout = timeout_seconds if timeout_seconds is not None else self._timeout
         start_time = time.time()
 
         files_context = "\n".join(f"- {f}" for f in affected_files)
         prompt = f"{task_description}\n\nFiles to work on:\n{files_context}"
 
-        cmd = [self._command, *self._args, prompt]
+        cmd = self._build_command(prompt)
 
         try:
             env = {**os.environ, **self._env}
@@ -72,7 +87,7 @@ class GeminiJulesBackend:
                 success=process.returncode == 0,
                 output=output,
                 wall_clock_seconds=wall_clock,
-                token_usage=TokenUsage(),
+                token_usage=TokenUsage(),  # agy CLI does not report tokens
                 error=err_output if process.returncode != 0 else None,
             )
         except TimeoutError:
@@ -88,11 +103,11 @@ class GeminiJulesBackend:
             )
 
     async def health_check(self) -> bool:
-        """Check if jules CLI is available."""
+        """Check if the `agy` CLI is available."""
         return shutil.which(self._command) is not None
 
     @classmethod
-    def from_config(cls, config: AgentBackendConfig) -> GeminiJulesBackend:
+    def from_config(cls, config: AgentBackendConfig) -> AntigravityBackend:
         return cls(
             command=config.command,
             args=config.args,

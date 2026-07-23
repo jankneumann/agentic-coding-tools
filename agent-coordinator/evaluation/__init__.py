@@ -2,7 +2,7 @@
 
 Provides scenario-driven benchmarking infrastructure to measure:
 - Parallelization ROI (Task() vs sequential execution)
-- Agent backend comparison (Claude Code, Codex, Gemini/Jules)
+- Agent backend comparison (Claude Code, Codex, antigravity, grok, pi)
 - Coordination mechanism value (locking, memory, handoffs, queue)
 - Memory effectiveness across session boundaries
 - Scaling behavior with varying agent counts
