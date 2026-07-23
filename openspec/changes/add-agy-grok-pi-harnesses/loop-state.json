@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "change_id": "add-agy-grok-pi-harnesses",
-  "current_phase": "IMPLEMENT",
+  "current_phase": "IMPL_ITERATE",
   "iteration": 3,
   "total_iterations": 0,
   "max_phase_iterations": 3,
@@ -21,10 +21,14 @@
   "packages_status": {
     "wp-skills": "complete_accepted",
     "wp-coordinator": "complete",
-    "wp-empirical": "complete"
+    "wp-empirical": "complete",
+    "wp-frontend": "complete",
+    "wp-docs-finalize": "complete_accepted"
   },
   "package_authors": {
-    "wp-skills": "claude (IMPLEMENT sub-agent)"
+    "wp-skills": "claude (IMPLEMENT sub-agent)",
+    "wp-frontend": "claude (orchestrator, direct)",
+    "wp-docs-finalize": "claude (IMPLEMENT sub-agent)"
   },
   "implementation_strategy": {},
   "memory_ids": [],
@@ -32,7 +36,10 @@
     "local-inline-gatekeeper",
     "local-skipped-fresh-plan",
     "local-round-1",
-    "local-planfix-round-1"
+    "local-planfix-round-1",
+    "wp-skills-phase3",
+    "wp-frontend-direct",
+    "wp-docs-finalize-phase56"
   ],
   "phase_history": [
     {
@@ -91,6 +98,12 @@
       "phase": "IMPLEMENT",
       "outcome": "wp-skills_accepted",
       "note": "Resume 2026-07-23: reconciled state \u2014 Phase 2 (wp-coordinator) already committed (HEAD 4eb23fad). wp-skills (Phase 3, tasks 3.1-3.11) implemented in worktree by IMPLEMENT sub-agent; 2 commits (94974360 adapters, 993e2afe roster). Independently verified: residue grep clean, google-generativeai gone, 3 new transcript adapters green, ZERO regressions (the 10 failures in touched surfaces fail identically at baseline 4eb23fad; 4 test_model_resolution cases FIXED). wp-skills gate (3.12) exits 1 SOLELY on ~26 pre-existing baseline failures (playwright env deps, autopilot phase e2e, gen-eval merge, phase-record-compaction, fix-scrub fallback, kanban audit drift) \u2014 out of Phase 3 scope per D8, tracked in memory project_wp_skills_gate_baseline_debt. Operator (AskUserQuestion) chose 'Accept & advance'. Continuing IMPLEMENT with wp-frontend (Phase 4)."
+    },
+    {
+      "at": "2026-07-23T18:24:55.678235+00:00",
+      "phase": "IMPLEMENT",
+      "outcome": "complete",
+      "note": "All 5 packages implemented + verified regression-free. wp-frontend (Phase 4): kanban fixtures, 224 npm tests green. wp-docs-finalize (Phase 5-6, commits b0492b3e/5a5bfa15/393256d7): docs+templates+10 SKILL.md prose, .gemini/ removed, install.sh mirrors synced. wp-docs-finalize STEP-1 gate EXIT 0 (openspec validate --all --strict 53 passed, grok citation present, no carve-out in diff, 24 curated files gemini-free) \u2014 orchestrator-verified verbatim. STEP-2 full suite: coordinator 2066 / agent-scenarios 36 / frontend 224 green; skills 1795 pass / 26 pre-existing baseline-debt failures (ALL confirmed red at baseline 49b2f610, zero new). Human-gated remainder: task 6.3 live billed smoke (operator-pending), 6.4 PR-desc follow-up (33 deferred-narrative files inventoried). Transition to IMPL_ITERATE."
     }
   ],
   "last_handoff_id": "local-checkpoint-1.4-passed",
