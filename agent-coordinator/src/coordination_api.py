@@ -3042,7 +3042,7 @@ def create_coordination_api() -> FastAPI:
 
         # 1. Clear registry via worktree.py teardown --force
         #
-        # IMPL_REVIEW gemini#2 (high architecture): in Docker/cloud
+        # IMPL_REVIEW (high architecture): in Docker/cloud
         # environments, skills/worktree/scripts/worktree.py is NOT copied
         # into the deployed image (skills/ is local-only tooling). Worktree
         # registry isolation is also not needed there — each agent runs in

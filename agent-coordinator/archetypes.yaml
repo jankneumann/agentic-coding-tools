@@ -24,10 +24,33 @@ model_aliases:
       thinking: medium
     standard: gpt-5.6-terra
     economy: gpt-5.6-luna
-  gemini:
-    premium: gemini-3.1-pro-preview
-    standard: gemini-3.6-flash
-    economy: gemini-3.6-flash-lite
+  # Roster per contracts/roster.md; tier slugs from Phase 1 empirical findings
+  # (design.md § Empirical CLI findings, E1/E5/E8), operator-signed at
+  # checkpoint 1.4 (2026-07-23). Kept in sync with DEFAULT_PROVIDER_MODEL_MAP.
+  antigravity:
+    # agy `models` catalog (E1); one model across three effort suffixes.
+    # frontier omitted → falls back to premium (operator, 2026-07-23).
+    premium: gemini-3.6-flash-high
+    standard: gemini-3.6-flash-medium
+    economy: gemini-3.6-flash-low
+  grok:
+    # Single model grok-4.5 (E5); tiers differ only by thinking budget.
+    premium:
+      model: grok-4.5
+      thinking: high
+    standard:
+      model: grok-4.5
+      thinking: medium
+    economy:
+      model: grok-4.5
+      thinking: low
+  pi:
+    # OpenRouter <publisher>/<model> slugs; standard fixed by ri-01; frontier
+    # is Kimi 3 (E8); premium/economy stay in the qwen3-coder family.
+    frontier: moonshotai/kimi-k3
+    premium: qwen/qwen3-coder-plus
+    standard: qwen/qwen3-coder
+    economy: qwen/qwen3-coder-flash
 
 archetypes:
   # Every archetype declares `write_capable` explicitly. The runner's archetype

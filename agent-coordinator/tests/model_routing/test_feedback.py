@@ -112,13 +112,13 @@ def test_normalize_vendor_notes_capability_gaps_lower_quality():
 
 def test_normalize_vendor_notes_maps_cost_and_latency():
     obs = normalize_vendor_notes(
-        {"vendor": "gemini", "cost_observed_usd": 0.42, "latency_observed_seconds": 12.0},
+        {"vendor": "grok", "cost_observed_usd": 0.42, "latency_observed_seconds": 12.0},
         task_type="runner/low",
     )
     metrics = {o.metric: o.value for o in obs}
     assert metrics["cost_per_task_usd"] == 0.42
     assert metrics["latency_seconds"] == 12.0
-    assert all(o.model_id == "gemini" for o in obs)
+    assert all(o.model_id == "grok" for o in obs)
 
 
 def test_normalizers_feed_aggregate_end_to_end():

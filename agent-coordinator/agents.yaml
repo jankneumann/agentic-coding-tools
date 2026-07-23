@@ -187,79 +187,96 @@ agents:
       max_tokens: 16384
 
   # ---------------------------------------------------------------------------
-  # Gemini
+  # Antigravity (agy) — Gemini-family models, Claude-shaped CLI
+  #
+  # Dispatch shape verified empirically in Phase 1 (design.md § Empirical CLI
+  # findings, checkpoint 1.4). E7: agy ignores stdin — the prompt is the VALUE
+  # of --prompt (prompt_via_flag), so dispatch_modes.args carry only mode and
+  # permission flags. Tier slugs (E1) live in DEFAULT_PROVIDER_MODEL_MAP.
   # ---------------------------------------------------------------------------
 
-  gemini-local:
-    type: gemini
-    profile: gemini_local
+  antigravity-local:
+    type: antigravity
+    profile: antigravity_local
     trust_level: 3
     transport: mcp
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
-    description: Local Gemini worker with full coordination access
+    description: Local Antigravity (agy) worker with full coordination access
     cli:
-      command: gemini
+      command: agy
       dispatch_modes:
         review:
-          # -p triggers headless mode; its value primes JSON output.
-          # The full review prompt arrives via stdin (-p appends stdin).
-          # -o text gives clean model output (no session envelope).
-          args: ["-p", "Respond with ONLY valid JSON conforming to review-findings.schema.json. No markdown, no explanation, no code fences.", "--approval-mode", "default", "-o", "text"]
+          # --mode plan: planning only, no edits — read-only-shaped review.
+          args: ["--mode", "plan"]
         alternative:
-          args: ["-p", "", "--approval-mode", "yolo"]
+          args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
         quick:
-          args: ["-p", "", "--approval-mode", "yolo"]
+          args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
+      model_flag: "--model"
+      model: "gemini-3.6-flash-medium"
+      model_fallbacks: ["gemini-3.6-flash-low"]
+      prompt_via_flag: "--prompt"
+
+  # ---------------------------------------------------------------------------
+  # Grok (xAI / X subscription — routed through the `grok` binary, never
+  # OpenRouter). E2: prompt delivered via --prompt-file /dev/stdin under a
+  # subprocess pipe. E5: single model grok-4.5, tiers by --reasoning-effort
+  # (added by the dispatching adapter from the tier's `thinking` value). E6:
+  # --output-format json yields a .structuredOutput envelope (task 2.6 / 3.x
+  # add --json-schema with the schema content inlined by the adapter).
+  # ---------------------------------------------------------------------------
+
+  grok-local:
+    type: grok
+    profile: grok_local
+    trust_level: 3
+    transport: mcp
+    isolation: worktree
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
+    archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
+    description: Local Grok worker with full coordination access
+    cli:
+      command: grok
+      dispatch_modes:
+        review:
+          args: ["--prompt-file", "/dev/stdin", "--output-format", "json"]
+        alternative:
+          args: ["--prompt-file", "/dev/stdin", "--always-approve"]
+        quick:
+          args: ["--prompt-file", "/dev/stdin", "--always-approve"]
       model_flag: "-m"
-      model: "gemini-3-flash-preview"
-      model_fallbacks: ["gemini-3-flash-lite"]
+      model: "grok-4.5"
+      model_fallbacks: []
       prompt_via_stdin: true
 
-  gemini-remote:
-    type: gemini
-    profile: gemini_remote
-    trust_level: 2
-    transport: http
-    isolation: none
-    api_key: "${GEMINI_API_KEY}"
-    openbao_role_id: gemini-cloud
-    capabilities: [lock, queue, memory]
-    archetypes: [implementer, reviewer]
-    description: Remote Gemini agent via Jules extension (async dispatch)
+  # ---------------------------------------------------------------------------
+  # pi (OpenRouter models — reaches models outside the subscription harnesses,
+  # e.g. Kimi 3, Qwen3-Coder). E3: resolves OPENROUTER_API_KEY from the
+  # subprocess env. E8: prompt is a trailing positional (default delivery);
+  # --mode json emits an NDJSON event stream.
+  # ---------------------------------------------------------------------------
+
+  pi-local:
+    type: pi
+    profile: pi_local
+    trust_level: 3
+    transport: mcp
+    isolation: worktree
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
+    archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
+    description: Local pi worker (OpenRouter) with full coordination access
     cli:
-      command: gemini
+      command: pi
       dispatch_modes:
         review:
-          # Jules dispatch: prompt instructs Gemini to use /jules
-          # The prompt MUST start with "/jules " for the extension to activate
-          args: ["--approval-mode", "default"]
-          async: true
-          poll:
-            # Poll by asking Gemini for Jules task status
-            command_template: ["gemini", "--approval-mode", "default", "/jules status {task_id}"]
-            task_id_pattern: "task[_\\s:]+([a-zA-Z0-9_-]+)|console_link.*?/tasks/([a-zA-Z0-9_-]+)"
-            success_pattern: "completed|finished|merged|done"
-            failure_pattern: "failed|error|cancelled"
-            interval_seconds: 60
-            timeout_seconds: 1800
+          # --no-tools: text-only, no edits — read-only-shaped review.
+          args: ["-p", "--provider", "openrouter", "--mode", "json", "--no-tools"]
         alternative:
-          args: ["--approval-mode", "default"]
-          async: true
-          poll:
-            command_template: ["gemini", "--approval-mode", "default", "/jules status {task_id}"]
-            task_id_pattern: "task[_\\s:]+([a-zA-Z0-9_-]+)|console_link.*?/tasks/([a-zA-Z0-9_-]+)"
-            success_pattern: "completed|finished|merged|done"
-            failure_pattern: "failed|error|cancelled"
-            interval_seconds: 60
-            timeout_seconds: 3600
-      model_flag: "-m"
-      model: "gemini-3-flash-preview"
-      model_fallbacks: ["gemini-3-flash-lite"]
-    sdk:
-      package: google-generativeai
-      method: generate_content
-      model: gemini-3.1-pro-preview
-      model_fallbacks: [gemini-3-flash-preview, gemini-3-flash-lite]
-      api_key_env: GOOGLE_API_KEY
-      max_tokens: 16384
+          args: ["-p", "--provider", "openrouter", "--approve"]
+        quick:
+          args: ["-p", "--provider", "openrouter", "--approve"]
+      model_flag: "--model"
+      model: "qwen/qwen3-coder"
+      model_fallbacks: ["qwen/qwen3-coder-flash"]

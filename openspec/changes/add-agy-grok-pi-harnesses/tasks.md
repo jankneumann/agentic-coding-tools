@@ -157,9 +157,16 @@ calls is on record in `design.md`.
   **Contracts**: `contracts/roster.md`
   **Dependencies**: 1.4
 
-- [ ] 2.2 Add `antigravity-local`, `grok-local`, `pi-local` to `agents.yaml` with
+- [x] 2.2 Add `antigravity-local`, `grok-local`, `pi-local` to `agents.yaml` with
   `cli.dispatch_modes` for review/alternative/quick **and a `profile:` + `trust_level:` on
   each entry**; remove `gemini-local` and `gemini-remote` (M)
+  **Done 2026-07-23.** Three entries added (all `trust_level: 3`, profiles antigravity_local /
+  grok_local / pi_local per agent-identity.1); both gemini entries removed. Empirical dispatch
+  shapes: agy uses new `prompt_via_flag: "--prompt"` (E7 — stdin ignored); grok
+  `--prompt-file /dev/stdin` + `prompt_via_stdin: true` (E2) + `--output-format json` (E6); pi
+  trailing-positional + `--provider openrouter` (E8). **Coordinator schema change:** added a
+  `prompt_via_flag` field to the `cli` block (JSON schema + `CliConfig` dataclass + parser +
+  `get_agent_dispatch_configs` serializer) — the skills dispatcher honors it in Phase 3.
   **Spec scenarios**: skill-workflow.15, configuration.1, **agent-identity.1** (profile
   seeding: "WHEN `agents.yaml` defines `grok-local` with `profile: grok_local` and
   `trust_level: 3`")
@@ -170,8 +177,13 @@ calls is on record in `design.md`.
   which nothing in the plan created. Seeding is additive by contract, so retiring gemini does
   NOT delete its seeded rows and no migration is needed (design § Carve-outs).
 
-- [ ] 2.3 Update `DEFAULT_PROVIDER_MODEL_MAP` (`src/agents_config.py`) and `model_aliases`
+- [x] 2.3 Update `DEFAULT_PROVIDER_MODEL_MAP` (`src/agents_config.py`) and `model_aliases`
   (`archetypes.yaml`): add antigravity/grok/pi base tiers first, then remove gemini (M)
+  **Done 2026-07-23.** Both files carry the roster tiers (operator-signed at 1.4): antigravity
+  gemini-3.6-flash-high/medium/low (no frontier); grok grok-4.5 @ high/medium/low thinking; pi
+  frontier kimi-k3, premium qwen3-coder-plus, standard qwen/qwen3-coder (ri-01), economy
+  qwen3-coder-flash. `schema_version: 2` unchanged. Map validates against the closed 5-key
+  `provider-model-map.schema.json`. `frontier` preserved for claude_code/codex.
   **Spec scenarios**: configuration.2, agent-archetypes.1
   **Dependencies**: 2.1
   **Note**: add-before-remove keeps every intermediate commit dispatchable. The
@@ -180,12 +192,21 @@ calls is on record in `design.md`.
   define it only if the empirical phase (E1/E5) surfaces a clearly stronger reasoning model,
   otherwise omit and let resolution fall back to premium.
 
-- [ ] 2.4 Update roster references in `src/coordination_api.py`, `scripts/setup_cloud.py`, and
+- [x] 2.4 Update roster references in `src/coordination_api.py`, `scripts/setup_cloud.py`, and
   the fixtures in `tests/test_differential_policy.py` and `tests/model_routing/test_feedback.py` (M)
   **Spec scenarios**: agent-coordinator.1
   **Dependencies**: 2.2, 2.3
+  **Done 2026-07-23.** coordination_api.py:3045 comment de-vendored; setup_cloud.py AGENTS list,
+  alias_map (cagy/cgrok/cpi), argparse keys rebuilt for the three local vendors (gemini-remote
+  dropped — no remote for these); differential-policy AGENT_TYPES + hypothesis strategy and the
+  feedback vendor fixture now use antigravity/grok/pi.
 
-- [ ] 2.5 Checkpoint: run the coordinator config suite, review diff, verify scope
+- [x] 2.5 Checkpoint: run the coordinator config suite, review diff, verify scope
+  **PASSED 2026-07-23.** 403 tests green (config/isolation/policy/routing/audit/archetype);
+  mypy --strict clean on agents_config.py; ruff clean on all changed files; model map validates
+  vs closed schema. Diff scoped to coordinator config surface (no eval/seeder/Makefile yet —
+  tasks 2.6–2.9). Only remaining retired-gemini ref is the kanban saved-view enum (task 2.7);
+  the `gemini-3.6-flash-*` slugs are agy's real model family (E1), not the retired provider.
 
 - [ ] 2.6 Eval backends (proposal D4): write failing tests in
   `agent-coordinator/tests/test_evaluation/`, implement `AgentBackend` for grok
