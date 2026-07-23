@@ -27,7 +27,9 @@
 - Accepted a migration that replaces the ri-01 uniqueness constraint over encoding fingerprints into namespace names because namespace identity must remain stable and human-readable.
 
 ### Open Questions
-- [ ] Task 0.2 must determine whether the built-in user-managed Postgres target preserves copy-forward rows; otherwise use the frozen thin target adapter.
+- [x] Task 0.2 selected the frozen thin target adapter because copy-forward,
+  attempt isolation, verification, and lease-token fencing need an explicit
+  storage contract outside CocoIndex's memoized source processing.
 - [ ] Live Postgres and embedder resources are environment-dependent and may remain validation warnings until the merge sync point.
 
 ### Completed Work
@@ -49,3 +51,74 @@
 
 ### Context
 Planned the first executable semantic indexing lifecycle on top of the revision-aware registry. The design preserves immutable per-revision storage while proving changed-file embedding through explicit copy-forward manifests rather than assuming that a changed CocoIndex target retains cross-revision memoization.
+
+## Phase: Implement (2026-07-23)
+
+**Agent**: codex-autopilot-roadmap | **Session**: N/A
+
+### Decisions
+1. **Keep CocoIndex state on the filesystem** `architectural: code-search` —
+   Pinned CocoIndex 1.0.13 interprets `Settings.from_env(...)` as an LMDB state
+   path. The CLI therefore derives stable state below the proven Git common
+   directory (or an explicit outside-worktree override) and never passes a
+   Postgres DSN to CocoIndex.
+2. **Publish manifests through the registry in the storage transaction**
+   `reliability: code-search` — The storage publisher renames verified attempt
+   storage and invokes the registry-owned manifest publication against the same
+   transaction and current lease token, so either both become visible or both
+   roll back.
+3. **Treat changed zero-chunk files as completed work**
+   `architectural: code-search` — The final manifest records every eligible
+   changed path, including files that produce zero chunks, so verification
+   proves full path coverage without inventing storage rows.
+4. **Use resource-gated live evidence, not unconditional skips**
+   `reliability: code-search` — Six destructive end-to-end cases require an
+   explicit opt-in, scratch DSN acknowledgement, and explicit provider. Pure
+   fixture and contract assertions always run.
+
+### Alternatives Considered
+- Passing `POSTGRES_DSN` to `coco.Settings.from_env`: rejected after checking the
+  pinned upstream implementation; the argument is an LMDB filesystem path.
+- Publishing a copied manifest directly from the storage module: rejected
+  because registry ownership and lease fencing would be split across
+  transactions.
+- Treating scanner/provider failures as one generic runtime error: rejected in
+  favor of sanitized but actionable error codes.
+
+### Trade-offs
+- Accepted a small explicit Postgres adapter and per-attempt tables to make
+  stale-write isolation independently testable.
+- Accepted a project-local lockfile for the optional indexing environment so
+  pinned CocoIndex and cocoindex-code compatibility is reproducible.
+- Deferred live ParadeDB/embedder execution where credentials and acknowledged
+  scratch resources are unavailable; all target, lifecycle, and fixture
+  contracts remain mandatory and non-skipping.
+
+### Completed Work
+- Added migration 030, immutable repository identity, fingerprint-aware index
+  identity, compatible-parent lookup, attempt/final manifests, and lease
+  heartbeat/fencing.
+- Added exact source proof, canonical Git manifests, layered eligibility,
+  bounded local secret scanning, explicit embedding providers, and
+  deterministic fingerprints.
+- Added isolated attempt storage, changed-file CocoIndex processing, atomic
+  publish/verification, durable orchestration, and the structured `index_repo`
+  CLI.
+- Added operator documentation and six resource-gated end-to-end scenarios.
+- Validation after independent-review repairs: 252 code-search tests passed
+  with seven resource-gated skips; 14 coordinator migration tests passed with
+  five live-Postgres skips; Ruff,
+  source Pyright, architecture lint, strict OpenSpec, work-package validation,
+  and `git diff --check` passed.
+
+### Next Steps
+- Commit and push the stacked RI02 branch, then update the roadmap checkpoint.
+- Execute live ParadeDB/embedder evidence at an acknowledged merge sync point.
+
+### Relevant Files
+- `agent-coordinator/database/migrations/030_incremental_code_search_indexes.sql`
+- `packages/code-search/src/code_search_pkg/indexing_runtime.py`
+- `packages/code-search/src/code_search_pkg/storage_pg.py`
+- `packages/code-search/src/code_search_pkg/cli.py`
+- `packages/code-search/tests/test_indexer_e2e.py`
+- `docs/guides/code-search.md`

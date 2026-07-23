@@ -8,10 +8,14 @@ CocoIndex owns source enumeration, per-file processing, chunking, and embedding.
 - attempt-specific table creation;
 - compatible-parent row copy;
 - transactional per-file row replacement;
-- attempt and published manifests;
 - HNSW/schema/count/coverage verification;
 - current-lease fenced atomic publication;
 - abandoned attempt cleanup.
+
+The registry owns attempt and published manifest rows. During publication,
+`storage_pg.py` invokes the registry's transaction-composable manifest
+publisher on the same connection as the table rename, so the physical target
+and published manifest commit or roll back together.
 
 The built-in CocoIndex Postgres target is not responsible for final table
 lifecycle because it cannot express the required lease-generation fence and
@@ -30,8 +34,13 @@ The adapter SHALL:
 5. treat retry as a clean new attempt and never mutate a ready final table;
 6. copy only manifest-proven unchanged eligible paths from a compatible ready
    parent;
-7. prove schema, vector dimension/index, manifest coverage, and counts before
-   publication.
+7. acquire an access-exclusive lock on the attempt table before the decisive
+   publication check, so no writer can mutate it between verification and
+   rename;
+8. prove or re-prove schema, vector dimension/index, exact manifest-derived
+   file/chunk counts, and full manifest coverage on the same
+   transaction-bound connection, under the current unexpired lease,
+   immediately before table rename and manifest publication.
 
 The non-skipping target-contract suite is mandatory. Live Postgres/CocoIndex
 tests provide integration evidence but do not alter this selected boundary.

@@ -1,6 +1,43 @@
 -- Contract delta implemented by migration 030_incremental_code_search_indexes.sql.
 -- Migration 029 must already have created code_search_indexes.
 
+ALTER TABLE code_search_registry
+    ADD COLUMN git_common_dir_fingerprint text NULL;
+
+-- Existing repository rows are upgraded in place on their first proven
+-- indexing request. New registrations must never use this legacy sentinel.
+UPDATE code_search_registry
+SET git_common_dir_fingerprint = repeat('0', 64)
+WHERE git_common_dir_fingerprint IS NULL;
+
+ALTER TABLE code_search_registry
+    ALTER COLUMN git_common_dir_fingerprint SET NOT NULL,
+    ADD CONSTRAINT code_search_registry_git_common_dir_fingerprint_ck
+        CHECK (git_common_dir_fingerprint ~ '^[0-9a-f]{64}$');
+
+-- Repository slugs cannot be rebound. A same-root legacy row may upgrade its
+-- zero fingerprint once; a real fingerprint and the canonical root are then
+-- immutable.
+CREATE FUNCTION validate_code_search_repository_identity() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.repo_root IS DISTINCT FROM OLD.repo_root THEN
+        RAISE EXCEPTION 'code-search repository root is immutable';
+    END IF;
+    IF NEW.git_common_dir_fingerprint IS DISTINCT FROM
+       OLD.git_common_dir_fingerprint
+       AND OLD.git_common_dir_fingerprint <> repeat('0', 64) THEN
+        RAISE EXCEPTION 'code-search Git common-directory identity is immutable';
+    END IF;
+    RETURN NEW;
+END
+$$;
+
+CREATE TRIGGER code_search_registry_identity_guard
+BEFORE UPDATE OF repo_root, git_common_dir_fingerprint
+ON code_search_registry
+FOR EACH ROW EXECUTE FUNCTION validate_code_search_repository_identity();
+
 ALTER TABLE code_search_indexes
     ADD COLUMN policy_fingerprint text NULL,
     ADD COLUMN pipeline_fingerprint text NULL,
@@ -83,6 +120,7 @@ CREATE TABLE code_search_index_file_attempts (
         file_path <> ''
         AND file_path !~ '(^|/)\.\.(/|$)'
         AND file_path !~ '^/'
+        AND file_path !~ '\\'
     ),
     CHECK (git_blob_id IS NULL OR git_blob_id ~ '^[0-9a-f]{40}([0-9a-f]{24})?$'),
     CHECK (content_digest IS NULL OR content_digest ~ '^[0-9a-f]{64}$'),
@@ -119,6 +157,7 @@ CREATE TABLE code_search_index_files (
         file_path <> ''
         AND file_path !~ '(^|/)\.\.(/|$)'
         AND file_path !~ '^/'
+        AND file_path !~ '\\'
     ),
     CHECK (git_blob_id IS NULL OR git_blob_id ~ '^[0-9a-f]{40}([0-9a-f]{24})?$'),
     CHECK (content_digest IS NULL OR content_digest ~ '^[0-9a-f]{64}$'),
@@ -147,16 +186,20 @@ LANGUAGE plpgsql AS $$
 DECLARE
     candidate code_search_indexes%ROWTYPE;
 BEGIN
-    IF NEW.parent_index_id IS NOT DISTINCT FROM OLD.parent_index_id THEN
-        RETURN NEW;
+    IF TG_OP = 'UPDATE'
+       AND OLD.status = 'ready'
+       AND NEW.parent_index_id IS DISTINCT FROM OLD.parent_index_id THEN
+        RAISE EXCEPTION 'ready index parent is immutable'
+            USING ERRCODE = '23514';
     END IF;
-    IF OLD.status = 'ready' THEN
-        RAISE EXCEPTION 'ready index parent is immutable';
+    IF NEW.parent_index_id IS NULL THEN
+        RETURN NEW;
     END IF;
     SELECT * INTO candidate
     FROM code_search_indexes
     WHERE index_id = NEW.parent_index_id
-      AND status = 'ready';
+      AND status = 'ready'
+    FOR SHARE;
     IF NOT FOUND
        OR candidate.repo_slug <> NEW.repo_slug
        OR candidate.namespace_kind <> NEW.namespace_kind
@@ -165,15 +208,27 @@ BEGIN
        OR candidate.embedding_dim <> NEW.embedding_dim
        OR candidate.policy_fingerprint <> NEW.policy_fingerprint
        OR candidate.pipeline_fingerprint <> NEW.pipeline_fingerprint
-       OR candidate.embedder_fingerprint <> NEW.embedder_fingerprint THEN
-        RAISE EXCEPTION 'incompatible semantic index parent';
+       OR candidate.embedder_fingerprint <> NEW.embedder_fingerprint
+       OR candidate.policy_fingerprint = repeat('0', 64)
+       OR candidate.pipeline_fingerprint = repeat('0', 64)
+       OR candidate.embedder_fingerprint = repeat('0', 64) THEN
+        RAISE EXCEPTION 'incompatible semantic index parent'
+            USING ERRCODE = '23514';
     END IF;
     RETURN NEW;
 END
 $$;
 
 CREATE TRIGGER code_search_indexes_parent_guard
-BEFORE UPDATE OF parent_index_id ON code_search_indexes
+BEFORE UPDATE OF
+    parent_index_id, repo_slug, namespace_kind, namespace_key,
+    embedder_model, embedding_dim, policy_fingerprint,
+    pipeline_fingerprint, embedder_fingerprint
+ON code_search_indexes
+FOR EACH ROW EXECUTE FUNCTION validate_code_search_parent();
+
+CREATE TRIGGER code_search_indexes_parent_insert_guard
+BEFORE INSERT ON code_search_indexes
 FOR EACH ROW EXECUTE FUNCTION validate_code_search_parent();
 
 -- Physical target contract (created per operation, not by migration 030):

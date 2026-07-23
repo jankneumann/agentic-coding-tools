@@ -15,6 +15,7 @@ SLUG_RE = re.compile(r"^[a-z][a-z0-9_]{0,50}$")
 
 CHUNK_TABLE_PREFIX = "code_chunks__"
 STORAGE_KEY_RE = re.compile(r"^i_[0-9a-f]{32}$")
+ATTEMPT_TABLE_RE = re.compile(r"^ccs__[0-9a-f]{32}__[1-9][0-9]{0,9}$")
 
 
 def validate_slug(repo_slug: str) -> str:
@@ -75,3 +76,14 @@ def index_chunk_table_name(index_id_or_storage_key: UUID | str) -> str:
             else storage_key_for_index(index_id_or_storage_key)
         )
     return f"{CHUNK_TABLE_PREFIX}{storage_key}"
+
+
+def attempt_chunk_table_name(index_id: UUID | str, attempt_count: int) -> str:
+    """Return the SQL-safe table name for one unpublished storage attempt."""
+    if isinstance(attempt_count, bool) or not 1 <= attempt_count <= 2_147_483_647:
+        raise ValueError("attempt_count must be a positive 32-bit integer")
+    parsed = index_id if isinstance(index_id, UUID) else UUID(index_id)
+    name = f"ccs__{parsed.hex}__{attempt_count}"
+    if not ATTEMPT_TABLE_RE.fullmatch(name) or len(name) >= 64:
+        raise ValueError("attempt table name is not a bounded SQL identifier")
+    return name

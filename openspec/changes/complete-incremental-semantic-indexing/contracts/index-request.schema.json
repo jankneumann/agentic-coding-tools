@@ -32,7 +32,11 @@
         "provider": {"enum": ["local", "openai_compatible"]},
         "model": {"type": "string", "minLength": 1},
         "dimension": {"type": "integer", "minimum": 1},
-        "base_url": {"type": ["string", "null"], "format": "uri"},
+        "base_url": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "pattern": "^https?://(?![^/]*@).+$"
+        },
         "credential_ref": {
           "oneOf": [
             {"type": "null"},
@@ -125,7 +129,11 @@
           "embedder": {
             "required": ["base_url", "credential_ref"],
             "properties": {
-              "base_url": {"type": "string", "format": "uri"},
+              "base_url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://(?![^/]*@).+$"
+              },
               "credential_ref": {
                 "type": "string",
                 "pattern": "^(env|vault):[A-Za-z0-9_./-]{1,240}$"
