@@ -235,10 +235,14 @@ gate is now two-part:
   config (tests-derive-from-config), so it cannot drift from the roster it guards.
 - **Structural (residue grep, artifact tokens).** The grep now targets retired-harness ARTIFACT
   tokens only — `gemini_jules`, `GeminiJulesBackend`, `gemini-mcp-setup`, `gemini-wrapper-install`,
-  `gemini_wrapper`, `gemini-coord`, `gemini-local`, `gemini-remote` — never the bare substring.
-  Model slugs and prose pass by construction. Verified to still FAIL on the pre-2.6 tree
-  (`gemini_jules`, the Makefile targets, the wrapper are all present), satisfying
-  gates-must-fail-before-work.
+  `gemini_wrapper`, `gemini-coord`, `gemini-local`, `gemini-remote` — never the bare substring,
+  over NON-test source. Model slugs and prose pass by construction. `tests/` is excluded because
+  the retirement-assertion and factory-rejection tests *must* name the retired harness to prove
+  it is gone — a substring grep cannot tell "rejects `gemini_jules`" from "uses `gemini_jules`",
+  and a test that actually imported a deleted harness fails the pytest step, so test-file
+  correctness is enforced by execution rather than by grep. Verified to still FAIL on the pre-2.6
+  tree (`gemini_jules`, the Makefile targets, the wrapper are all present in non-test source),
+  satisfying gates-must-fail-before-work.
 
 This generalizes the migration architecture: harnesses are pluggable adapters behind the
 `AgentBackend` protocol and per-provider `agents.yaml` config; adding, retiring, or reflagging a
