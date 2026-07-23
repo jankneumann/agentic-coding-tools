@@ -110,7 +110,7 @@ class NormalizedEvent:
     usage: TokenUsage | None = None
 
     # Provenance
-    harness: str = ""  # e.g. "claude_code_cli", "codex_cli", "gemini_cli"
+    harness: str = ""  # e.g. "claude_code_cli", "codex_cli", "antigravity_cli", "grok_cli", "pi_cli"
     model: str = ""
     version: str = ""
 
