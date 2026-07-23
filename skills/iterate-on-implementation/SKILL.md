@@ -29,7 +29,7 @@ Iteratively refine a feature implementation after `/implement-feature` completes
 
 When this skill delegates refinement or validation work, treat the
 provider-neutral dispatch adapter as the canonical cross-provider path. Claude
-Code, Codex, and Gemini/Jules are first-class providers when configured;
+Code, Codex, Antigravity, Grok, and Pi are first-class providers when configured;
 Claude-style `Task(...)` or `Agent(...)` snippets are provider-specific
 examples, with inline execution as the fallback.
 
@@ -38,7 +38,6 @@ examples, with inline execution as the fallback.
 Use OpenSpec-generated runtime assets first, then CLI fallback:
 - Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
 - Codex: `.codex/skills/openspec-*/SKILL.md`
-- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - Fallback: direct `openspec` CLI commands
 
 ## Coordinator Integration (Optional)

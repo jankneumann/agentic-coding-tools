@@ -25,7 +25,7 @@ The coordinator has two transports — **MCP (stdio)** and **HTTP** — both bac
 | Cloud agents | HTTP → Coordination API | Railway Postgres |
 | Cross-environment (local + cloud) | Local: HTTP bridge, Cloud: HTTP | Railway Postgres |
 
-For local development, multiple CLI agents (Claude, Codex, Gemini) each spawn their own MCP server process, all connecting to the same local ParadeDB. No cloud infrastructure needed.
+For local development, multiple CLI agents (Claude, Codex) each spawn their own MCP server process, all connecting to the same local ParadeDB. No cloud infrastructure needed.
 
 For cross-environment coordination, local agents switch to the HTTP transport via `coordination_bridge.py` so the database is not publicly exposed.
 
@@ -49,7 +49,7 @@ assumes that `agent-coordinator/` was bundled into a consumer repository.
 ## Objectives
 
 - Load deployment profile (`local` or `railway`) and apply configuration
-- Register MCP server with CLI agents (Claude Code, Codex CLI, Gemini CLI)
+- Register MCP server with CLI agents (Claude Code, Codex CLI)
 - Configure HTTP access for cloud agents and cross-environment coordination
 - Read `agents.yaml` to determine which agents to configure
 - Verify capability detection contract used by integrated skills
@@ -141,7 +141,6 @@ make -C "$COORDINATOR_DIR" mcp-setup
 # Or register individually:
 make -C "$COORDINATOR_DIR" claude-mcp-setup
 make -C "$COORDINATOR_DIR" codex-mcp-setup
-make -C "$COORDINATOR_DIR" gemini-mcp-setup
 ```
 
 Each target registers the coordination MCP server with:
@@ -150,13 +149,12 @@ Each target registers the coordination MCP server with:
 - Provider-specific identity by default:
   - Claude Code: `AGENT_ID=claude-code-1`, `AGENT_TYPE=claude_code`
   - Codex CLI: `AGENT_ID=codex-1`, `AGENT_TYPE=codex`
-  - Gemini CLI: `AGENT_ID=gemini-1`, `AGENT_TYPE=gemini`
 - `COORDINATION_API_URL` and `COORDINATION_API_KEY` (optional) — enables HTTP proxy fallback when the local DB is unavailable
-- Claude Code also gets `cwd` via `add-json` (Codex/Gemini don't need it — all file lookups use `Path(__file__)`)
+- Claude Code also gets `cwd` via `add-json` (Codex doesn't need it — all file lookups use `Path(__file__)`)
 
 Pass `AGENT_ID=... AGENT_TYPE=...` to preserve the old behavior of using one
-identity for every target, or pass `CLAUDE_AGENT_ID`, `CODEX_AGENT_ID`, or
-`GEMINI_AGENT_ID` to override one provider only.
+identity for every target, or pass `CLAUDE_AGENT_ID` or `CODEX_AGENT_ID` to
+override one provider only.
 
 Restart each CLI after registration to activate.
 
@@ -173,7 +171,6 @@ make -C "$COORDINATOR_DIR" hooks-setup
 # Or individually:
 make -C "$COORDINATOR_DIR" claude-hooks-setup
 make -C "$COORDINATOR_DIR" codex-hooks-setup
-make -C "$COORDINATOR_DIR" gemini-wrapper-install
 ```
 
 **How each agent gets lifecycle integration:**
@@ -182,7 +179,6 @@ make -C "$COORDINATOR_DIR" gemini-wrapper-install
 |-------|-----------|--------|
 | Claude Code | `~/.claude/settings.json` | SessionStart, Stop, SubagentStop, SessionEnd |
 | Codex CLI | `~/.codex/hooks.json` | SessionStart, Stop |
-| Gemini CLI | `gemini-coord` wrapper | register → run → report → deregister |
 
 Hook scripts use absolute paths under `$COORDINATOR_DIR/scripts/`, so they
 resolve correctly regardless of the current working directory.
@@ -191,12 +187,6 @@ The installed Claude and Codex commands do not set `AGENT_ID`, `AGENT_TYPE`,
 `COORDINATION_API_URL` and `COORDINATION_API_KEY` from the current run
 environment, and the coordinator resolves `agent_id` / `agent_type` from the
 API-key identity mapping when the key is bound in server config.
-
-For Gemini, use `gemini-coord` instead of bare `gemini` to get coordinator integration:
-```bash
-gemini-coord "implement the auth module"
-gemini-coord -p "fix the test" -y
-```
 
 #### 3a.2. Configure notifications (optional)
 
@@ -250,7 +240,6 @@ Verify the MCP server is connected in each CLI:
 ```bash
 claude mcp list   # Should show: coordination → ✓ Connected
 codex mcp list    # Should show: coordination → enabled
-gemini mcp list   # Should show: coordination → ✓ Connected
 ```
 
 Verify tool discovery includes coordinator tools:

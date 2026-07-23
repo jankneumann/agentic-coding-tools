@@ -31,8 +31,8 @@ Implement an approved OpenSpec proposal. Automatically selects execution tier ba
 ## Provider-Neutral Dispatch
 
 When this skill delegates work packages, treat the provider-neutral dispatch adapter
-as the canonical cross-provider path. Claude Code, Codex, and
-Gemini/Jules are first-class providers when configured; Claude-style `Task(...)`
+as the canonical cross-provider path. Claude Code, Codex, Antigravity, Grok, and
+Pi are first-class providers when configured; Claude-style `Task(...)`
 or `Agent(...)` snippets are provider-specific examples, with inline execution
 as the fallback.
 
@@ -41,7 +41,6 @@ as the fallback.
 Use OpenSpec-generated runtime assets first, then CLI fallback:
 - Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
 - Codex: `.codex/skills/openspec-*/SKILL.md`
-- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - Fallback: direct `openspec` CLI commands
 
 ## Steps
@@ -179,12 +178,14 @@ from validator selection — see `parallel-infrastructure/scripts/review_dispatc
 (`record_worker_vendor`, `select_validator_vendor`).
 
 ```bash
-# AGENT_TYPE is set by the harness (e.g., "claude_code", "codex", "gemini").
+# AGENT_TYPE is set by the harness (e.g., "claude_code", "codex", "antigravity").
 # Map agent type to vendor short-name; default to the type itself if unmapped.
 case "${AGENT_TYPE:-claude_code}" in
   claude_code) WORKER_VENDOR="claude" ;;
   codex)       WORKER_VENDOR="codex" ;;
-  gemini)      WORKER_VENDOR="gemini" ;;
+  antigravity) WORKER_VENDOR="antigravity" ;;
+  grok)        WORKER_VENDOR="grok" ;;
+  pi)          WORKER_VENDOR="pi" ;;
   *)           WORKER_VENDOR="${AGENT_TYPE}" ;;
 esac
 
