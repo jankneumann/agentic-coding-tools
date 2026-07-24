@@ -127,16 +127,26 @@ async def test_non_main_selector_uses_exact_id_and_identity() -> None:
 
 
 @pytest.mark.asyncio
-async def test_selectors_reject_unpublished_or_missing_storage() -> None:
+async def test_selectors_reject_unpublished_or_incomplete_indexes() -> None:
     for override in (
         {"published_manifest": False},
-        {"storage_exists": False},
         {"chunk_count": 0},
         {"completed_at": None},
     ):
         pool = _FakePool(rows=[_index_row(**override)])
         selected = await select_main_index(pool, "agentic_coding_tools")
         assert selected is None
+
+
+@pytest.mark.asyncio
+async def test_selector_reports_disappeared_final_storage_as_unavailable() -> None:
+    from code_search_pkg.query_pg import SemanticStorageUnavailableError
+
+    pool = _FakePool(rows=[_index_row(storage_exists=False)])
+    with pytest.raises(
+        SemanticStorageUnavailableError, match="semantic storage unavailable"
+    ):
+        await select_main_index(pool, "agentic_coding_tools")
 
 
 def test_selected_index_requires_complete_provider_match() -> None:

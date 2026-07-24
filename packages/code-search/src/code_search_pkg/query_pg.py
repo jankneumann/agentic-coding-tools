@@ -261,17 +261,15 @@ async def select_exact_index(
 
 
 def _decode_usable_index(row: Mapping[str, Any] | None) -> QueryableIndex | None:
-    if (
-        row is None
-        or not row["published_manifest"]
-        or not row["storage_exists"]
-        or not row["chunk_count"]
-    ):
+    if row is None or not row["published_manifest"] or not row["chunk_count"]:
         return None
     try:
-        return QueryableIndex.from_row(row)
+        index = QueryableIndex.from_row(row)
     except (KeyError, TypeError, ValueError):
         return None
+    if not row["storage_exists"]:
+        raise SemanticStorageUnavailableError("semantic storage unavailable")
+    return index
 
 
 async def query_codebase_pg(
