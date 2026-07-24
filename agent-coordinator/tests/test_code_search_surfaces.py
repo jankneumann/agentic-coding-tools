@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -36,6 +37,18 @@ REQUEST = {
     "scope": {"kind": "explicit", "read_allow": ["agent-coordinator/**"]},
     "limit": 10,
     "offset": 0,
+}
+FORBIDDEN_PROBLEM = {
+    "type": "urn:coordinator:code-search:forbidden",
+    "title": "Code-search scope is not authorized",
+    "status": 403,
+    "detail": "The principal has no code-search grant for this repository.",
+}
+OVERLOADED_PROBLEM = {
+    "type": "urn:coordinator:code-search:overloaded",
+    "title": "Code search is busy",
+    "status": 429,
+    "detail": "Retry semantic search after the indicated delay.",
 }
 
 
@@ -187,6 +200,83 @@ def test_http_rejects_malformed_cross_grant_and_overload(
         assert response.headers["retry-after"] == "2"
 
 
+def test_http_errors_use_frozen_problem_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FailingRuntime(_Runtime):
+        failure: Exception
+
+        async def search(self, request: Any, *, principal_id: str) -> CodeSearchResponse:
+            raise self.failure
+
+    runtime = FailingRuntime()
+    set_code_search_runtime(runtime)
+    monkeypatch.setattr(
+        "src.coordination_api.start_code_search_runtime",
+        _keep_runtime,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "src.coordination_api.stop_code_search_runtime",
+        _no_op,
+        raising=False,
+    )
+    app = create_coordination_api()
+    headers = {"X-Coordinator-API-Key": API_KEY}
+
+    with TestClient(app) as client:
+        unauthorized = client.post("/search/code", json=REQUEST)
+        malformed = {**REQUEST, "scope": {"kind": "explicit", "read_allow": ["./bad"]}}
+        invalid = client.post("/search/code", json=malformed, headers=headers)
+
+        runtime.failure = CodeSearchForbiddenError(FORBIDDEN_PROBLEM["detail"])
+        forbidden = client.post("/search/code", json=REQUEST, headers=headers)
+
+        runtime.failure = CodeSearchOverloadedError()
+        overloaded = client.post("/search/code", json=REQUEST, headers=headers)
+
+    monkeypatch.delenv("CODE_SEARCH_ENABLED")
+    disabled_app = create_coordination_api()
+    with TestClient(disabled_app) as client:
+        disabled = client.post("/search/code", json=REQUEST)
+
+    expected = [
+        (
+            unauthorized,
+            {
+                "type": "urn:coordinator:authentication:required",
+                "title": "Authentication required",
+                "status": 401,
+                "detail": "A valid coordinator credential is required.",
+            },
+        ),
+        (
+            disabled,
+            {
+                "type": "urn:coordinator:code-search:disabled",
+                "title": "Code search disabled",
+                "status": 404,
+                "detail": "Semantic code search is disabled.",
+            },
+        ),
+        (forbidden, FORBIDDEN_PROBLEM),
+        (
+            invalid,
+            {
+                "type": "urn:coordinator:code-search:invalid-request",
+                "title": "Invalid code-search request",
+                "status": 422,
+                "detail": "A full source revision and authoritative scope are required.",
+            },
+        ),
+        (overloaded, OVERLOADED_PROBLEM),
+    ]
+    for response, problem in expected:
+        assert response.headers["content-type"] == "application/problem+json"
+        assert response.json() == problem
+    assert overloaded.headers["retry-after"] == "2"
+
+
 @pytest.mark.asyncio
 async def test_direct_mcp_and_proxy_forward_identical_v2_shape(
     monkeypatch: pytest.MonkeyPatch,
@@ -209,6 +299,82 @@ async def test_direct_mcp_and_proxy_forward_identical_v2_shape(
     assert proxied == direct == _unavailable().to_dict()
     assert captured == REQUEST
     assert runtime.principals == ["local-agent"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("failure", "proxy_error", "problem"),
+    [
+        (
+            CodeSearchForbiddenError(FORBIDDEN_PROBLEM["detail"]),
+            {
+                "success": False,
+                "error": "http_403",
+                "status_code": 403,
+                "detail": FORBIDDEN_PROBLEM,
+            },
+            FORBIDDEN_PROBLEM,
+        ),
+        (
+            CodeSearchOverloadedError(),
+            {
+                "success": False,
+                "error": "http_429",
+                "status_code": 429,
+                "detail": OVERLOADED_PROBLEM,
+                "retry_after": 2,
+            },
+            {**OVERLOADED_PROBLEM, "retry_after": 2},
+        ),
+    ],
+)
+async def test_direct_and_proxy_mcp_preserve_expected_error_semantics(
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+    proxy_error: dict[str, Any],
+    problem: dict[str, Any],
+) -> None:
+    class FailingRuntime(_Runtime):
+        async def search(self, request: Any, *, principal_id: str) -> CodeSearchResponse:
+            raise failure
+
+    set_code_search_runtime(FailingRuntime())
+    monkeypatch.setattr(coordination_mcp, "_transport", "db")
+    monkeypatch.setattr(coordination_mcp, "get_agent_id", lambda: "local-agent")
+    direct = await coordination_mcp.search_code(**REQUEST)
+
+    async def request(_method: str, _path: str, *, json_body: dict[str, Any]) -> dict[str, Any]:
+        return proxy_error
+
+    monkeypatch.setattr(http_proxy, "_request", request)
+    proxied = await http_proxy.proxy_search_code(**REQUEST)
+
+    assert direct == proxied == problem
+
+
+@pytest.mark.asyncio
+async def test_proxy_transport_carries_http_retry_signal_to_mcp(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Client:
+        async def request(self, **_kwargs: Any) -> httpx.Response:
+            return httpx.Response(
+                status_code=429,
+                json=OVERLOADED_PROBLEM,
+                headers={"Retry-After": "2"},
+                request=httpx.Request("POST", "http://coordinator/search/code"),
+            )
+
+    monkeypatch.setattr(http_proxy, "get_client", Client)
+    normalized = await http_proxy._request("POST", "/search/code", json_body=REQUEST)
+
+    async def request(_method: str, _path: str, *, json_body: dict[str, Any]) -> dict[str, Any]:
+        return normalized
+
+    monkeypatch.setattr(http_proxy, "_request", request)
+    response = await http_proxy.proxy_search_code(**REQUEST)
+
+    assert response == {**OVERLOADED_PROBLEM, "retry_after": 2}
 
 
 @pytest.mark.asyncio

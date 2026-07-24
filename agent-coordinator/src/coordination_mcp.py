@@ -3178,8 +3178,9 @@ async def search_code(
     if _transport == "http":
         return await http_proxy.proxy_search_code(**payload)
 
-    from .code_search import CodeSearchRequest
+    from .code_search import CodeSearchError, CodeSearchRequest
     from .code_search_runtime import (
+        CodeSearchOverloadedError,
         _sanitized_unavailable,
         get_code_search_runtime,
     )
@@ -3190,6 +3191,23 @@ async def search_code(
             request,
             principal_id=get_agent_id(),
         )
+    except CodeSearchOverloadedError:
+        return {
+            "type": "urn:coordinator:code-search:overloaded",
+            "title": "Code search is busy",
+            "status": 429,
+            "detail": "Retry semantic search after the indicated delay.",
+            "retry_after": 2,
+        }
+    except CodeSearchError as exc:
+        if exc.status == 403:
+            return {
+                "type": "urn:coordinator:code-search:forbidden",
+                "title": "Code-search scope is not authorized",
+                "status": 403,
+                "detail": "The principal has no code-search grant for this repository.",
+            }
+        response = _sanitized_unavailable(request)
     except Exception:  # noqa: BLE001
         response = _sanitized_unavailable(request)
     return response.to_dict()

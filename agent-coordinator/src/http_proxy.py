@@ -327,10 +327,19 @@ async def _request(
             path,
             body,
         )
+        retry_after: dict[str, int] = {}
+        if response.status_code == 429:
+            try:
+                delay = int(response.headers.get("Retry-After", ""))
+            except ValueError:
+                delay = 0
+            if delay > 0:
+                retry_after["retry_after"] = delay
         return _error_response(
             f"http_{response.status_code}",
             status_code=response.status_code,
             detail=body,
+            **retry_after,
         )
 
     try:
@@ -527,6 +536,15 @@ async def proxy_search_code(
         "scope_rejected",
     }:
         return response
+
+    status = response.get("status_code")
+    problem = response.get("detail")
+    if status in {403, 429} and isinstance(problem, dict) and problem.get("status") == status:
+        result = dict(problem)
+        retry_after = response.get("retry_after")
+        if status == 429 and isinstance(retry_after, int) and retry_after > 0:
+            result["retry_after"] = retry_after
+        return result
 
     # Proxy/network implementation details are not part of the v2 surface.
     # Convert them to the same sanitized operational envelope as direct MCP.
