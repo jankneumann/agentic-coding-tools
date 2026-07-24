@@ -22,6 +22,33 @@ The `docs/architecture-analysis/` directory contains auto-generated structural a
 - `docs/architecture-analysis/architecture.report.md` — Narrative architecture report
 - `docs/architecture-analysis/views/` — Auto-generated Mermaid diagrams
 
+### Provenance & Freshness (revision-aware)
+- `docs/architecture-analysis/architecture.provenance.json` — Records the exact
+  analyzed Git SHA, dirty-input state, architecture producer version, relevant
+  **input fingerprint**, generation mode, and SHA-256 digests of every owned
+  artifact. Written by every successful `make architecture-refresh`.
+
+Freshness is **content-based and mtime-independent**: an artifact is stale only
+when a relevant input changed, the producer/tool identity changed, or an owned
+artifact's bytes drifted from the recorded digest — never merely because the
+graph file is "old". Two refreshes of the same revision and inputs produce
+byte-identical artifacts (deterministic clock via `SOURCE_DATE_EPOCH`), so a
+repeat refresh yields no repository diff.
+
+Durable cross-process status is owned by `project-context-runtime`
+(`add-durable-context-refresh-records`): the architecture adapter records one
+canonical `producer_id=architecture` `ProducerResult` per `(repository, revision)`
+operation and projects it onto the legacy refresh RPC status. The architecture
+producer never finalizes the whole project-context operation.
+
+Commands:
+- `make architecture-refresh` — deterministic stage → validate → promote → write
+  provenance. A failed generation preserves the last known-good committed set.
+- `make architecture-check` — read-only freshness check; exits 0 only when
+  `fresh`, and prints exact drift reason codes and stale artifact paths.
+- `affected_tests.py --repo-root <path>` — content-based provenance gate for
+  merge-train test selection (falls back to the full suite when not fresh).
+
 ## Usage
 - **Before planning**: Read `architecture.summary.json` to understand component relationships and existing flows
 - **Before implementing**: Check `parallel_zones.json` for safe parallel modification zones

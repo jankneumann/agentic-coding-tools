@@ -22,11 +22,11 @@ import json
 import os
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from arch_utils.determinism import generated_at_iso, source_date_epoch
+from arch_utils.determinism import source_date_epoch
 
 # --------------------------------------------------------------------------- #
 # Canonical serialization / hashing — reuse ri-06 atomic primitives when the
