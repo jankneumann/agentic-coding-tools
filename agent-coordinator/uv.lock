@@ -23,6 +23,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aioimaplib" },
     { name = "aiosmtplib" },
+    { name = "code-search-pkg" },
     { name = "email-validator" },
     { name = "fastmcp" },
     { name = "gen-eval", extra = ["mcp"] },
@@ -95,6 +96,7 @@ requires-dist = [
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.31.0" },
     { name = "cedarpy", marker = "extra == 'cedar'", specifier = ">=4.8.6" },
     { name = "cedarpy", marker = "extra == 'dev'", specifier = ">=4.8.6" },
+    { name = "code-search-pkg", directory = "../packages/code-search" },
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.136.1" },
     { name = "fastmcp", specifier = ">=3.4.4,<4.0" },
@@ -526,6 +528,27 @@ sdist = { url = "https://files.pythonhosted.org/packages/76/d4/81420972a676e8ffe
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/e2/79c688af8b210d232694e31e59da9f6ec747bae31c3f5946e4e9b98860d5/click-8.4.2-py3-none-any.whl", hash = "sha256:e6f9f66136c816745b9d65817da91d61d957fb16e02e4dcd0552553c5a197b76", size = 119243, upload-time = "2026-06-24T17:45:13.73Z" },
 ]
+
+[[package]]
+name = "code-search-pkg"
+version = "0.1.0"
+source = { directory = "../packages/code-search" }
+dependencies = [
+    { name = "asyncpg" },
+    { name = "pathspec" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "asyncpg", specifier = ">=0.29,<1" },
+    { name = "cocoindex", extras = ["sentence-transformers"], marker = "extra == 'index'", specifier = ">=1.0.13,<1.1.0" },
+    { name = "cocoindex-code", marker = "extra == 'index'", specifier = "==0.2.37" },
+    { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4,<5" },
+    { name = "pathspec", specifier = ">=0.12,<2" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
+]
+provides-extras = ["index", "dev"]
 
 [[package]]
 name = "colorama"

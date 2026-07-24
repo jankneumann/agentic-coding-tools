@@ -35,25 +35,25 @@
 
 ## Phase 1 — Query immutable exact-index storage
 
-- [ ] 1.1 (S) Write clean-environment import tests for the shared query
+- [x] 1.1 (S) Write clean-environment import tests for the shared query
   package in local coordinator and container-style layouts.
   **Spec scenarios**: code-search.14
   **Design decisions**: D13
   **Dependencies**: 0.3
-- [ ] 1.2 (M) Declare the supported coordinator dependency on code-search-pkg,
+- [x] 1.2 (M) Declare the supported coordinator dependency on code-search-pkg,
   reconcile asyncpg compatibility, regenerate lockfiles, and install the wheel
   in the Docker builder.
   **Spec scenarios**: code-search.14-16
   **Design decisions**: D8, D13
   **Dependencies**: 1.1
-- [ ] 1.3 (M) Write query-adapter tests for validated storage-key addressing,
+- [x] 1.3 (M) Write query-adapter tests for validated storage-key addressing,
   exact canonical selection, legacy exclusion, provider compatibility, bounded
   filters, correct cosine-similarity semantics, and missing storage.
   **Spec scenarios**: code-search.5-9
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D2, D3, D7
   **Dependencies**: 0.3, 1.2
-- [ ] 1.4 (M) Implement storage-key KNN over exact v2 index selection without
+- [x] 1.4 (M) Implement storage-key KNN over exact v2 index selection without
   a legacy read fallback.
   **Spec scenarios**: code-search.5-9
   **Contracts**: contracts/openapi/v2.yaml

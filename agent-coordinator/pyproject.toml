@@ -23,6 +23,10 @@ dependencies = [
     # We install with the [mcp] extra so coordinator's MCP service surface
     # keeps working (it serves /gen-eval/* tools via gen_eval.mcp_service).
     "gen-eval[mcp]",
+    # Shared immutable-index query types and adapter. This is a non-editable
+    # monorepo dependency so local, test, and container installs use the same
+    # supported package boundary.
+    "code-search-pkg",
 ]
 
 [project.optional-dependencies]
@@ -129,6 +133,7 @@ override-dependencies = [
 # self-contained inside .venv/lib/python3.X/site-packages/gen_eval/).
 [tool.uv.sources]
 gen-eval = { path = "../packages/gen-eval" }
+code-search-pkg = { path = "../packages/code-search" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
