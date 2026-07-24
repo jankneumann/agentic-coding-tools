@@ -292,8 +292,10 @@ class CodeSearchService:
             namespace=validated.namespace,
             index_id=validated.index_id,
         )
-        scope_source = "explicit" if isinstance(validated.scope, ExplicitScope) else "work_package"
-        default_authority = (
+        scope_source: Literal["explicit", "work_package"] = (
+            "explicit" if isinstance(validated.scope, ExplicitScope) else "work_package"
+        )
+        default_authority: Literal["principal_grant", "work_package_registry"] = (
             "principal_grant" if scope_source == "explicit" else "work_package_registry"
         )
         try:
