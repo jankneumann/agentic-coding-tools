@@ -277,6 +277,51 @@ def test_http_errors_use_frozen_problem_contract(
     assert overloaded.headers["retry-after"] == "2"
 
 
+def test_http_framework_validation_uses_path_scoped_problem_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = _Runtime()
+    set_code_search_runtime(runtime)
+    monkeypatch.setattr(
+        "src.coordination_api.start_code_search_runtime",
+        _keep_runtime,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "src.coordination_api.stop_code_search_runtime",
+        _no_op,
+        raising=False,
+    )
+    app = create_coordination_api()
+    headers = {"X-Coordinator-API-Key": API_KEY}
+    problem = {
+        "type": "urn:coordinator:code-search:invalid-request",
+        "title": "Invalid code-search request",
+        "status": 422,
+        "detail": "A full source revision and authoritative scope are required.",
+    }
+
+    with TestClient(app) as client:
+        responses = [
+            client.post("/search/code", json=[], headers=headers),
+            client.post("/search/code", headers=headers),
+            client.post(
+                "/search/code",
+                content="{",
+                headers={**headers, "Content-Type": "application/json"},
+            ),
+        ]
+        unrelated = client.post("/locks/acquire", json=[], headers=headers)
+
+    for response in responses:
+        assert response.status_code == 422
+        assert response.headers["content-type"] == "application/problem+json"
+        assert response.json() == problem
+    assert unrelated.status_code == 422
+    assert unrelated.headers["content-type"] == "application/json"
+    assert "detail" in unrelated.json()
+
+
 @pytest.mark.asyncio
 async def test_direct_mcp_and_proxy_forward_identical_v2_shape(
     monkeypatch: pytest.MonkeyPatch,

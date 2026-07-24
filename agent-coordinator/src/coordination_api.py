@@ -17,6 +17,8 @@ import time
 from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -729,6 +731,19 @@ def create_coordination_api() -> FastAPI:
             headers=exc.headers,
             media_type="application/problem+json",
         )
+
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_handler(
+        request: Request,
+        exc: RequestValidationError,
+    ) -> JSONResponse:
+        if request.url.path == "/search/code":
+            return JSONResponse(
+                status_code=422,
+                content=_CODE_SEARCH_PROBLEMS[422],
+                media_type="application/problem+json",
+            )
+        return await request_validation_exception_handler(request, exc)
 
     # CORS middleware — design decision D12.
     # Allows http://localhost:5173 (Vite dev) plus additional origins from
