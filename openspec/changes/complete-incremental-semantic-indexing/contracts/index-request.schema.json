@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-coding-tools:code-search:index-request:v1",
+  "title": "IndexRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo_root",
+    "repo_slug",
+    "source_revision",
+    "namespace_kind",
+    "namespace_key",
+    "embedder",
+    "policy",
+    "lease_owner",
+    "full_rebuild"
+  ],
+  "properties": {
+    "repo_root": {"type": "string", "minLength": 1},
+    "repo_slug": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,50}$"},
+    "source_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+    },
+    "namespace_kind": {"enum": ["main", "feature", "work_package"]},
+    "namespace_key": {"type": "string", "minLength": 1, "maxLength": 255},
+    "embedder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "dimension", "indexing_params"],
+      "properties": {
+        "provider": {"enum": ["local", "openai_compatible"]},
+        "model": {"type": "string", "minLength": 1},
+        "dimension": {"type": "integer", "minimum": 1},
+        "base_url": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "pattern": "^https?://(?![^/]*@).+$"
+        },
+        "credential_ref": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "string",
+              "pattern": "^(env|vault):[A-Za-z0-9_./-]{1,240}$"
+            }
+          ]
+        },
+        "indexing_params": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "input_type": {"type": "string", "maxLength": 128},
+            "prompt_name": {"type": "string", "maxLength": 128},
+            "truncate": {"enum": ["start", "end", "none"]},
+            "normalize": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "include",
+        "exclude",
+        "read_allow",
+        "deny",
+        "respect_gitignore",
+        "secret_scan"
+      ],
+      "properties": {
+        "include": {
+          "type": "array",
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 512}
+        },
+        "exclude": {
+          "type": "array",
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 512}
+        },
+        "read_allow": {
+          "type": "array",
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 512}
+        },
+        "deny": {
+          "type": "array",
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 512}
+        },
+        "respect_gitignore": {"type": "boolean", "const": true},
+        "secret_scan": {"const": "local_required"}
+      }
+    },
+    "lease_owner": {"type": "string", "minLength": 1, "maxLength": 255},
+    "lease_duration_seconds": {
+      "type": "integer",
+      "minimum": 30,
+      "maximum": 3600,
+      "default": 300
+    },
+    "full_rebuild": {"type": "boolean"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"namespace_kind": {"const": "main"}},
+        "required": ["namespace_kind"]
+      },
+      "then": {"properties": {"namespace_key": {"const": "main"}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "embedder": {
+            "properties": {"provider": {"const": "openai_compatible"}},
+            "required": ["provider"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "embedder": {
+            "required": ["base_url", "credential_ref"],
+            "properties": {
+              "base_url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://(?![^/]*@).+$"
+              },
+              "credential_ref": {
+                "type": "string",
+                "pattern": "^(env|vault):[A-Za-z0-9_./-]{1,240}$"
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "embedder": {
+            "properties": {
+              "base_url": {"type": "null"},
+              "credential_ref": {"type": "null"}
+            }
+          }
+        }
+      }
+    }
+  ]
+}

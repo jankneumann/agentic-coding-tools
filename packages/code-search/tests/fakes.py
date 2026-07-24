@@ -29,7 +29,7 @@ class FakeRegistryPool:
                     args[2] not in self.repositories
                     and "FROM code_search_registry" not in sql
                 ):
-                    raise FakeForeignKeyViolation(
+                    raise FakeForeignKeyViolationError(
                         "direct INSERT reached the repository foreign key"
                     )
                 return self._ensure(*args)
@@ -83,6 +83,10 @@ class FakeRegistryPool:
                 and all(
                     canonical_id != row["index_id"]
                     for canonical_id in self.repositories.values()
+                )
+                and not any(
+                    child.get("parent_index_id") == row["index_id"]
+                    for child in self.indexes.values()
                 )
             ]
             candidates.sort(key=lambda row: (row["retention_until"], row["created_at"]))
@@ -254,6 +258,10 @@ class FakeRegistryPool:
             or any(
                 canonical_id == index_id for canonical_id in self.repositories.values()
             )
+            or any(
+                child.get("parent_index_id") == index_id
+                for child in self.indexes.values()
+            )
         ):
             return None
         row.update(
@@ -310,5 +318,5 @@ class FakeRegistryPool:
         )
 
 
-class FakeForeignKeyViolation(RuntimeError):
+class FakeForeignKeyViolationError(RuntimeError):
     """Raised when test SQL would hit the real repository foreign key."""

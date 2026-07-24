@@ -82,6 +82,61 @@
 
 ---
 
+## 2026-07-23 — complete-incremental-semantic-indexing
+
+### Phase: Plan
+
+**Copy forward immutable revision storage** — A compatible ready ancestor supplies unchanged rows while CocoIndex processes only added/changed eligible files; every ready revision remains isolated.
+
+- Status: `active`
+- Source: [openspec/changes/complete-incremental-semantic-indexing/session-log.md](/openspec/changes/complete-incremental-semantic-indexing/session-log.md) (D1)
+
+---
+
+## 2026-07-23 — complete-incremental-semantic-indexing
+
+### Phase: Implement
+
+**Keep CocoIndex state on the filesystem** — Pinned CocoIndex 1.0.13 interprets `Settings.from_env(...)` as an LMDB state
+
+- Status: `active`
+- Source: [openspec/changes/complete-incremental-semantic-indexing/session-log.md](/openspec/changes/complete-incremental-semantic-indexing/session-log.md) (D1)
+
+---
+
+## 2026-07-23 — complete-incremental-semantic-indexing
+
+### Phase: Plan
+
+**Fingerprint policy, pipeline, and embedding parameters** — Exact commit plus model/dimension is insufficient when scope, chunking, dependency version, or provider parameters change.
+
+- Status: `active`
+- Source: [openspec/changes/complete-incremental-semantic-indexing/session-log.md](/openspec/changes/complete-incremental-semantic-indexing/session-log.md) (D2)
+
+---
+
+## 2026-07-23 — complete-incremental-semantic-indexing
+
+### Phase: Implement
+
+**Treat changed zero-chunk files as completed work** — The final manifest records every eligible
+
+- Status: `active`
+- Source: [openspec/changes/complete-incremental-semantic-indexing/session-log.md](/openspec/changes/complete-incremental-semantic-indexing/session-log.md) (D3)
+
+---
+
+## 2026-07-23 — complete-incremental-semantic-indexing
+
+### Phase: Plan
+
+**Select a thin Postgres target adapter** — CocoIndex owns source/chunk/embed processing; storage_pg owns copy-forward, verification, and publication because those operations require an explicit fencing contract.
+
+- Status: `active`
+- Source: [openspec/changes/complete-incremental-semantic-indexing/session-log.md](/openspec/changes/complete-incremental-semantic-indexing/session-log.md) (D8)
+
+---
+
 ## 2026-07-19 — 2026-07-20-add-semantic-code-search
 
 ### Phase: Plan

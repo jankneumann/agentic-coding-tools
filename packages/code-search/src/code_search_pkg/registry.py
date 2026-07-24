@@ -9,8 +9,13 @@ from typing import Any, Protocol
 from uuid import UUID, uuid4
 
 from .identifiers import storage_key_for_index, validate_slug
+from .registry_incremental import (
+    PUBLISH_ATTEMPT_MANIFEST_SQL as PUBLISH_ATTEMPT_MANIFEST_SQL,
+)
+from .registry_incremental import IncrementalRegistryMixin
 from .registry_models import (
     CanonicalPromotionError,
+    FileManifestEntry as FileManifestEntry,
     GarbageCollectionResult,
     IndexIdentity,
     IndexLeaseConflictError,
@@ -19,6 +24,8 @@ from .registry_models import (
     IndexStateConflictError,
     IndexStatus as IndexStatus,
     NamespaceKind as NamespaceKind,
+    RepositoryIdentity as RepositoryIdentity,
+    RepositoryIdentityConflictError as RepositoryIdentityConflictError,
     SemanticIndexRecord,
     as_uuid,
 )
@@ -33,7 +40,7 @@ class AsyncpgPool(Protocol):
     async def fetch(self, query: str, *args: Any) -> Sequence[Mapping[str, Any]]: ...
 
 
-class SemanticIndexRegistry:
+class SemanticIndexRegistry(IncrementalRegistryMixin):
     """Atomic registry operations implemented with asyncpg-style pool calls."""
 
     def __init__(
@@ -55,20 +62,80 @@ class SemanticIndexRegistry:
     ) -> SemanticIndexRecord:
         now = self._now()
         index_id = self._uuid_factory()
+        if identity.is_legacy:
+            return await self._ensure_legacy_index(
+                identity,
+                index_id=index_id,
+                retention_until=retention_until,
+                now=now,
+            )
         row = await self._pool.fetchrow(
             """
             /* registry:ensure */
             INSERT INTO code_search_indexes (
                 index_id, storage_key, repo_slug, namespace_kind, namespace_key,
-                source_revision, embedder_model, embedding_dim, retention_until,
-                created_at, updated_at
+                source_revision, embedder_model, embedding_dim,
+                policy_fingerprint, pipeline_fingerprint, embedder_fingerprint,
+                retention_until, created_at, updated_at
             )
-            SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10
+            SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+                   $13, $13
             FROM code_search_registry AS repository
             WHERE repository.repo_slug = $3
             ON CONFLICT (
                 repo_slug, namespace_kind, namespace_key, source_revision,
-                embedder_model, embedding_dim
+                embedder_model, embedding_dim, policy_fingerprint,
+                pipeline_fingerprint, embedder_fingerprint
+            ) DO UPDATE SET updated_at = code_search_indexes.updated_at
+            RETURNING *
+            """,
+            index_id,
+            storage_key_for_index(index_id),
+            identity.repo_slug,
+            identity.namespace_kind.value,
+            identity.namespace_key,
+            identity.source_revision,
+            identity.embedder_model,
+            identity.embedding_dim,
+            identity.policy_fingerprint,
+            identity.pipeline_fingerprint,
+            identity.embedder_fingerprint,
+            retention_until,
+            now,
+        )
+        if row is None:
+            raise IndexNotFoundError(
+                f"repository {identity.repo_slug!r} does not exist"
+            )
+        return SemanticIndexRecord.from_row(row)
+
+    async def _ensure_legacy_index(
+        self,
+        identity: IndexIdentity,
+        *,
+        index_id: UUID,
+        retention_until: datetime | None,
+        now: datetime,
+    ) -> SemanticIndexRecord:
+        """Decode/ensure the ri-01 identity while callers migrate to v2."""
+        row = await self._pool.fetchrow(
+            """
+            /* registry:ensure */
+            INSERT INTO code_search_indexes (
+                index_id, storage_key, repo_slug, namespace_kind, namespace_key,
+                source_revision, embedder_model, embedding_dim,
+                policy_fingerprint, pipeline_fingerprint, embedder_fingerprint,
+                retention_until, created_at, updated_at
+            )
+            SELECT $1, $2, $3, $4, $5, $6, $7, $8,
+                   repeat('0', 64), repeat('0', 64), repeat('0', 64),
+                   $9, $10, $10
+            FROM code_search_registry AS repository
+            WHERE repository.repo_slug = $3
+            ON CONFLICT (
+                repo_slug, namespace_kind, namespace_key, source_revision,
+                embedder_model, embedding_dim, policy_fingerprint,
+                pipeline_fingerprint, embedder_fingerprint
             ) DO UPDATE SET updated_at = code_search_indexes.updated_at
             RETURNING *
             """,
@@ -246,6 +313,11 @@ class SemanticIndexRegistry:
                 FROM code_search_registry AS repository
                 WHERE repository.canonical_index_id = candidate.index_id
               )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM code_search_indexes AS child
+                WHERE child.parent_index_id = candidate.index_id
+              )
             ORDER BY candidate.retention_until, candidate.created_at
             LIMIT $2
             """,
@@ -282,6 +354,11 @@ class SemanticIndexRegistry:
                     SELECT 1
                     FROM code_search_registry AS repository
                     WHERE repository.canonical_index_id = candidate.index_id
+                  )
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM code_search_indexes AS child
+                    WHERE child.parent_index_id = candidate.index_id
                   )
                 RETURNING candidate.*
                 """,

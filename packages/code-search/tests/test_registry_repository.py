@@ -281,6 +281,10 @@ def test_gc_is_storage_first_excludes_protected_rows_and_retries_failures() -> N
         assert pool.indexes[deletable.index_id]["status"] == "deleted"
         assert pool.indexes[failing.index_id]["status"] == "failed"
         assert pool.indexes[failing.index_id]["last_error"] == "storage unavailable"
+        gc_claim_sql = next(
+            sql for sql in pool.executed_sql if "/* registry:gc_claim */" in sql
+        )
+        assert "child.parent_index_id = candidate.index_id" in gc_claim_sql
 
     asyncio.run(scenario())
 
@@ -317,6 +321,39 @@ def test_gc_reclaims_expired_deleting_lease_after_storage_delete_crash() -> None
         assert delete_calls == [candidate.storage_key]
         assert pool.indexes[candidate.index_id]["status"] == "deleted"
         assert pool.indexes[candidate.index_id]["deleted_at"] == NOW
+
+    asyncio.run(scenario())
+
+
+def test_gc_excludes_ready_indexes_referenced_as_incremental_parents() -> None:
+    async def scenario() -> None:
+        pool = FakeRegistryPool()
+        pool.add_repository("repo")
+        repo = registry(pool)
+        parent = await repo.ensure_index(
+            identity(kind=NamespaceKind.FEATURE, key="feature/chain"),
+            retention_until=NOW - timedelta(days=1),
+        )
+        child = await repo.ensure_index(
+            identity(
+                kind=NamespaceKind.FEATURE,
+                key="feature/chain",
+                revision=SHA2,
+            ),
+            retention_until=NOW + timedelta(days=1),
+        )
+        ready_parent = await make_ready(repo, parent.index_id)
+        pool.indexes[child.index_id]["parent_index_id"] = ready_parent.index_id
+        calls: list[str] = []
+
+        result = await repo.collect_garbage(calls.append)
+
+        assert result == GarbageCollectionResult(deleted=(), failed=())
+        assert calls == []
+        assert pool.indexes[parent.index_id]["status"] == "ready"
+        gc_queries = [sql for sql in pool.executed_sql if "/* registry:gc_" in sql]
+        assert len(gc_queries) == 1
+        assert "child.parent_index_id = candidate.index_id" in gc_queries[0]
 
     asyncio.run(scenario())
 

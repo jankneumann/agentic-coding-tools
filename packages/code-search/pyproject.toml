@@ -9,6 +9,7 @@ requires-python = ">=3.12"
 # time. Upgrades are deliberate PRs, not transitive drift.
 dependencies = [
     "asyncpg>=0.29,<0.31",
+    "pathspec>=0.12,<2",
 ]
 
 [project.optional-dependencies]
@@ -16,9 +17,10 @@ dependencies = [
 # query/service side can install the light footprint (asyncpg only).
 index = [
     "cocoindex[sentence-transformers]>=1.0.13,<1.1.0",
-    "cocoindex-code==0.*",
+    "cocoindex-code==0.2.37",
 ]
 dev = [
+    "jsonschema>=4,<5",
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
 ]
