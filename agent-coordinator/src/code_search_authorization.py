@@ -175,13 +175,15 @@ async def authorize_code_search_scope(
         raise ScopeRejectedError("caller paths are invalid") from error
 
     if isinstance(requested_scope, ExplicitScopeRequest):
-        return EffectiveCodeSearchScope(
+        effective = EffectiveCodeSearchScope(
             allow_layers=(grant.read_allow, requested_scope.read_allow),
             deny=_deduplicated((*grant.deny, *requested_scope.deny)),
             path_filters=normalized_paths,
             source="explicit",
             authority="principal_grant",
         )
+        _require_nonempty_effective_scope(effective)
+        return effective
 
     if requested_scope.scope_revision != source_revision:
         raise ScopeRejectedError("work-package scope revision is stale")
@@ -204,13 +206,15 @@ async def authorize_code_search_scope(
         or record.source_revision != source_revision
     ):
         raise ScopeRejectedError("work-package scope provenance does not match")
-    return EffectiveCodeSearchScope(
+    effective = EffectiveCodeSearchScope(
         allow_layers=(grant.read_allow, record.read_allow),
         deny=_deduplicated((*grant.deny, *record.deny)),
         path_filters=normalized_paths,
         source="work_package",
         authority="work_package_registry",
     )
+    _require_nonempty_effective_scope(effective)
+    return effective
 
 
 def validate_safe_glob(pattern: str) -> str:
@@ -284,6 +288,83 @@ def _canonical_patterns(patterns: Sequence[str]) -> tuple[str, ...]:
 
 def _deduplicated(patterns: Sequence[str]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(patterns))
+
+
+def _require_nonempty_effective_scope(scope: EffectiveCodeSearchScope) -> None:
+    """Require one bounded concrete path witness across every scope layer.
+
+    Glob intersection and subtraction are regular-language operations, but a
+    complete automaton product would let caller-controlled pattern counts cause
+    exponential work. Instead, derive a bounded set of concrete witnesses from
+    each pattern's literal prefix/suffix and fail closed when none proves the
+    scope usable. This can conservatively reject an unusually complex but
+    theoretically non-empty scope; it can never authorize a path that the
+    effective scope itself rejects.
+    """
+
+    positive_patterns = [
+        pattern
+        for layer in (
+            *scope.allow_layers,
+            *((scope.path_filters,) if scope.path_filters else ()),
+        )
+        for pattern in layer
+    ]
+    prefixes = list(dict.fromkeys(_literal_prefix(pattern) for pattern in positive_patterns))
+    suffixes = list(dict.fromkeys(_literal_suffix(pattern) for pattern in positive_patterns))
+    candidates = list(dict.fromkeys(_glob_witness(pattern) for pattern in positive_patterns))
+    for prefix in prefixes:
+        for suffix in suffixes:
+            candidates.append(f"{prefix}scope{suffix}")
+            if len(candidates) >= 4096:
+                break
+        if len(candidates) >= 4096:
+            break
+    if not any(scope.allows(candidate) for candidate in candidates):
+        raise ScopeRejectedError("effective scope is empty")
+
+
+def _literal_prefix(pattern: str) -> str:
+    wildcard_indexes = (
+        pattern.find("*"),
+        pattern.find("?"),
+        pattern.find("["),
+    )
+    wildcard = min(
+        (index for index in wildcard_indexes if index >= 0),
+        default=len(pattern),
+    )
+    return pattern[:wildcard]
+
+
+def _literal_suffix(pattern: str) -> str:
+    wildcard = max(pattern.rfind("*"), pattern.rfind("?"), pattern.rfind("]"))
+    return pattern[wildcard + 1 :] if wildcard >= 0 else ""
+
+
+def _glob_witness(pattern: str) -> str:
+    witness: list[str] = []
+    index = 0
+    while index < len(pattern):
+        char = pattern[index]
+        if char == "*":
+            while index + 1 < len(pattern) and pattern[index + 1] == "*":
+                index += 1
+            witness.append("scope")
+        elif char == "?":
+            witness.append("x")
+        elif char == "[":
+            end = pattern.find("]", index + 1)
+            if end < 0:
+                witness.append("[")
+            else:
+                content = pattern[index + 1 : end].lstrip("!^")
+                witness.append(content[0] if content else "x")
+                index = end
+        else:
+            witness.append(char)
+        index += 1
+    return "".join(witness)
 
 
 def _valid_reference(value: str) -> bool:

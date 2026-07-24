@@ -339,6 +339,30 @@ async def test_missing_principal_grant_is_sanitized_403_before_semantic_work(
 
 
 @pytest.mark.asyncio
+async def test_disjoint_effective_scope_rejects_before_index_or_embedding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, calls = _service(monkeypatch, index=_index())
+
+    response = await service.search(
+        _request(
+            scope={
+                "kind": "explicit",
+                "read_allow": ["docs/**"],
+                "deny": [],
+            }
+        ),
+        principal_id="codex",
+    )
+
+    assert response.state is CodeSearchState.SCOPE_REJECTED
+    assert response.results == []
+    assert calls["select"] == 0
+    assert calls["embed"] == 0
+    assert calls["query"] == 0
+
+
+@pytest.mark.asyncio
 async def test_ready_response_has_exact_provenance_and_defensive_filtering(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

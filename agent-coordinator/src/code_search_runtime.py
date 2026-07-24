@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import os
+from collections import Counter
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from time import monotonic
@@ -162,6 +163,7 @@ class CodeSearchRuntime:
         self._index_cache = _Cache()
         self._semaphore = asyncio.Semaphore(config.max_concurrency)
         self._active: set[asyncio.Task[Any]] = set()
+        self._state_counts: Counter[str] = Counter()
         self._closed = False
 
     @classmethod
@@ -177,9 +179,12 @@ class CodeSearchRuntime:
         work_package_resolver: Any | None = None,
     ) -> CodeSearchRuntime:
         runtime = cls(config or CodeSearchRuntimeConfig.from_env(environment))
+        started_at = monotonic()
         if not runtime.config.enabled:
-            runtime._initial_status = _status("disabled", "disabled")
-            return runtime
+            return runtime._finish_initialization(
+                _status("disabled", "disabled"),
+                started_at,
+            )
         runtime._owner_loop = asyncio.get_running_loop()
         try:
             if provider_factory is None:
@@ -189,11 +194,15 @@ class CodeSearchRuntime:
 
             runtime._provider = provider_factory()
         except (KeyError, TypeError, ValueError):
-            runtime._initial_status = _status("not_configured", "missing_configuration")
-            return runtime
+            return runtime._finish_initialization(
+                _status("not_configured", "missing_configuration"),
+                started_at,
+            )
         except Exception:
-            runtime._initial_status = _status("unavailable", "provider_unavailable")
-            return runtime
+            return runtime._finish_initialization(
+                _status("unavailable", "provider_unavailable"),
+                started_at,
+            )
 
         try:
             factory = pool_factory or (lambda: _pool_from_env(environment))
@@ -202,11 +211,15 @@ class CodeSearchRuntime:
                 timeout=runtime.config.operation_timeout_seconds,
             )
         except ValueError:
-            runtime._initial_status = _status("not_configured", "missing_configuration")
-            return runtime
+            return runtime._finish_initialization(
+                _status("not_configured", "missing_configuration"),
+                started_at,
+            )
         except Exception:
-            runtime._initial_status = _status("unavailable", "registry_unavailable")
-            return runtime
+            return runtime._finish_initialization(
+                _status("unavailable", "registry_unavailable"),
+                started_at,
+            )
 
         try:
             if service_factory is None:
@@ -245,10 +258,20 @@ class CodeSearchRuntime:
         except Exception:
             await runtime._close_pool()
             await runtime._close_provider()
-            runtime._initial_status = _status("unavailable", "registry_unavailable")
-            return runtime
-        runtime._initial_status = _status("unavailable", "no_usable_index")
-        return runtime
+            return runtime._finish_initialization(
+                _status("unavailable", "registry_unavailable"),
+                started_at,
+            )
+        return runtime._finish_initialization(
+            _status("unavailable", "no_usable_index"),
+            started_at,
+        )
+
+    @property
+    def state_counts(self) -> dict[str, int]:
+        """Return privacy-safe completion counters for operational states."""
+
+        return dict(self._state_counts)
 
     def status_snapshot(self) -> CodeSearchStatus:
         """Return the last bounded status without starting optional work."""
@@ -261,18 +284,27 @@ class CodeSearchRuntime:
 
     async def status(self) -> CodeSearchStatus:
         self._assert_owner()
+        started_at = monotonic()
         if not self.config.enabled or self._service is None:
-            return self._initial_status
+            return self._record_status("readiness", self._initial_status, started_at)
         provider_ready = await self._provider_ready()
         if not provider_ready:
-            return _status("unavailable", "provider_unavailable")
+            return self._record_status(
+                "readiness",
+                _status("unavailable", "provider_unavailable"),
+                started_at,
+            )
         provider, pool = self._provider, self._pool
         if provider is None or pool is None:
-            return _status("unavailable", "registry_unavailable")
+            return self._record_status(
+                "readiness",
+                _status("unavailable", "registry_unavailable"),
+                started_at,
+            )
         now = monotonic()
         cached_status = self._index_cache.value
         if isinstance(cached_status, CodeSearchStatus) and now < self._index_cache.expires_at:
-            return cached_status
+            return self._record_status("readiness", cached_status, started_at)
         try:
             count = int(
                 await asyncio.wait_for(
@@ -289,7 +321,7 @@ class CodeSearchRuntime:
         except Exception:
             result = _status("unavailable", "registry_unavailable")
             self._cache_failure(self._index_cache, result)
-            return result
+            return self._record_status("readiness", result, started_at)
         result = (
             CodeSearchStatus(
                 available=True,
@@ -303,7 +335,33 @@ class CodeSearchRuntime:
         self._index_cache.value = result
         self._index_cache.failures = 0
         self._index_cache.expires_at = now + self.config.index_ttl_seconds
-        return result
+        return self._record_status("readiness", result, started_at)
+
+    def _finish_initialization(
+        self,
+        status: CodeSearchStatus,
+        started_at: float,
+    ) -> CodeSearchRuntime:
+        self._initial_status = status
+        self._record_status("initialization", status, started_at)
+        return self
+
+    def _record_status(
+        self,
+        event: str,
+        status: CodeSearchStatus,
+        started_at: float,
+    ) -> CodeSearchStatus:
+        key = f"{event}:{status.state}:{status.reason}"
+        self._state_counts[key] += 1
+        logger.info(
+            "code_search_runtime event=%s state=%s reason=%s duration_bucket=%s",
+            event,
+            status.state,
+            status.reason,
+            _duration_bucket(monotonic() - started_at),
+        )
+        return status
 
     async def search(self, request: Any, *, principal_id: str) -> Any:
         self._assert_owner()
@@ -493,6 +551,16 @@ def _status(state: Any, reason: str) -> CodeSearchStatus:
         reason=reason,
         usable_index_count=0,
     )
+
+
+def _duration_bucket(elapsed_seconds: float) -> str:
+    if elapsed_seconds < 0.01:
+        return "lt_10ms"
+    if elapsed_seconds < 0.1:
+        return "lt_100ms"
+    if elapsed_seconds < 1.0:
+        return "lt_1s"
+    return "gte_1s"
 
 
 def _sanitized_unavailable(request: Any) -> Any:

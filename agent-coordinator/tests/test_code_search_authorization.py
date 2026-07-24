@@ -115,6 +115,37 @@ async def test_deny_wins_over_every_allow_layer() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
+    ("grant_allow", "request_allow", "paths", "deny"),
+    [
+        (("src/**",), ("docs/**",), (), ()),
+        (("src/**",), ("src/**",), ("docs/**",), ()),
+        (("src/**",), ("src/**",), (), ("src/**",)),
+    ],
+)
+async def test_empty_effective_scope_is_rejected_before_semantic_work(
+    grant_allow: tuple[str, ...],
+    request_allow: tuple[str, ...],
+    paths: tuple[str, ...],
+    deny: tuple[str, ...],
+) -> None:
+    with pytest.raises(ScopeRejectedError, match="effective scope is empty"):
+        await authorize_code_search_scope(
+            principal_id="codex",
+            repo_slug="agentic_coding_tools",
+            namespace_kind="main",
+            namespace_key="main",
+            source_revision=REVISION,
+            grant=_grant(read_allow=grant_allow, deny=deny),
+            requested_scope=ExplicitScopeRequest(
+                read_allow=request_allow,
+                deny=(),
+            ),
+            paths=paths,
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
     "grant",
     [
         None,

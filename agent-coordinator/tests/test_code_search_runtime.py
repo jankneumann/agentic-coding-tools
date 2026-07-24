@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from types import SimpleNamespace
 from typing import Any
@@ -233,6 +234,30 @@ async def test_initialization_failure_degrades_without_failing_process() -> None
         reason="registry_unavailable",
         usable_index_count=0,
     )
+    await runtime.close()
+
+
+@pytest.mark.asyncio
+async def test_initialization_and_readiness_emit_sanitized_state_evidence(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="src.code_search_runtime")
+    runtime = await CodeSearchRuntime.create(
+        _config(),
+        pool_factory=lambda: _async_value(_Pool()),
+        provider_factory=_Provider,
+        service_factory=lambda **_: _Service(),
+    )
+
+    status = await runtime.status()
+
+    assert status.available is True
+    assert runtime.state_counts["initialization:unavailable:no_usable_index"] == 1
+    assert runtime.state_counts["readiness:ready:ready"] == 1
+    assert "event=initialization state=unavailable reason=no_usable_index" in caplog.text
+    assert "event=readiness state=ready reason=ready" in caplog.text
+    assert "duration_bucket=" in caplog.text
+    assert "where is readiness checked" not in caplog.text
     await runtime.close()
 
 
