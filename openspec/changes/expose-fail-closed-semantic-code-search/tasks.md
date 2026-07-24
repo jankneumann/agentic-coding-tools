@@ -6,8 +6,8 @@
 ## Status
 
 - [x] Planning
-- [ ] Implementation
-- [ ] Testing
+- [x] Implementation
+- [x] Testing
 - [ ] Review
 - [ ] Done
 
@@ -144,28 +144,28 @@
 
 ## Phase 5 — Integration evidence
 
-- [ ] 5.1 (M) Add resource-gated Postgres tests for migration-030 canonical
+- [x] 5.1 (M) Add resource-gated Postgres tests for migration-030 canonical
   storage, exact success, revision mismatch, legacy-only state, provider
   mismatch, canonical pointer changes, and missing final table.
   **Spec scenarios**: code-search.5-9, code-search.12, code-search.15
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D2-D4, D7-D9
   **Dependencies**: 2.2, 3.4
-- [ ] 5.2 (S) Update the code-search guide with v2 request examples,
+- [x] 5.2 (S) Update the code-search guide with v2 request examples,
   provenance, scope rules, readiness semantics, compatibility break, and
   exact-search fallback.
   **Spec scenarios**: all code-search scenarios
   **Contracts**: contracts/README.md, contracts/openapi/v2.yaml
   **Design decisions**: D1-D13
   **Dependencies**: 4.2
-- [ ] 5.3 (M) Run unit, API, MCP, bridge, contract, strict OpenSpec,
+- [x] 5.3 (M) Run unit, API, MCP, bridge, contract, strict OpenSpec,
   work-package, Ruff, Pyright, architecture, and available live-resource
   validation. Report mandatory evidence separately from resource-deferred
   evidence.
   **Spec scenarios**: all code-search scenarios
   **Dependencies**: 5.1, 5.2
 
-- [ ] Checkpoint: all deterministic gates green, live evidence classified, cumulative diff maps to tasks
+- [x] Checkpoint: all deterministic gates green, live evidence classified, cumulative diff maps to tasks
 
 ## Task Sizing
 

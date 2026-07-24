@@ -1,0 +1,71 @@
+{
+  "review_type": "implementation",
+  "target": "wp-integration",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: The resource-gated suite exercises migrations 028-030 and the real selection/query SQL for canonical success, early revision and provider rejection, legacy exclusion, canonical pointer changes, and vanished final storage.",
+      "resolution": "Preserve the real-Postgres coverage and the no-embedding assertions when the query lifecycle evolves.",
+      "disposition": "accept",
+      "package_id": "wp-integration",
+      "file_path": "agent-coordinator/tests/integration/postgres/test_code_search_v2.py",
+      "line_range": {
+        "start": 289,
+        "end": 480
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: Live evidence requires both an explicit scratch DSN and mutation acknowledgement, isolates rows by generated repository identity, derives physical table names through validated UUID storage keys, and cleans up only those scoped artifacts.",
+      "resolution": "Keep the two-part opt-in gate and identity-scoped cleanup; never point this suite at an unacknowledged shared database.",
+      "disposition": "accept",
+      "package_id": "wp-integration",
+      "file_path": "agent-coordinator/tests/integration/postgres/test_code_search_v2.py",
+      "line_range": {
+        "start": 44,
+        "end": 130
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: The six Postgres/pgvector integration cases were collected but resource-deferred in this environment because no acknowledged CODE_SEARCH_V2_POSTGRES_DSN was configured; skips are not counted as passing live evidence.",
+      "resolution": "Run the documented opt-in command against an acknowledged scratch Postgres/pgvector database before production enablement and attach the six-case result.",
+      "disposition": "accept",
+      "package_id": "wp-integration",
+      "file_path": "agent-coordinator/tests/integration/postgres/test_code_search_v2.py",
+      "line_range": {
+        "start": 44,
+        "end": 62
+      },
+      "axis": "correctness",
+      "severity": "fyi"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: The operator guide announces the strict v2 request break, provenance/fallback rules, principal and work-package authorization, body-aware readiness, default-off configuration, and a no-migration rollback path.",
+      "resolution": "Keep examples synchronized with the OpenAPI v2 contract and preserve the explicit exact-search fallback during future transport changes.",
+      "disposition": "accept",
+      "package_id": "wp-integration",
+      "file_path": "docs/guides/code-search.md",
+      "line_range": {
+        "start": 193,
+        "end": 386
+      },
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}
