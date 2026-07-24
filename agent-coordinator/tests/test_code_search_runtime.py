@@ -252,10 +252,27 @@ async def test_initialization_and_readiness_emit_sanitized_state_evidence(
     status = await runtime.status()
 
     assert status.available is True
-    assert runtime.state_counts["initialization:unavailable:no_usable_index"] == 1
-    assert runtime.state_counts["readiness:ready:ready"] == 1
-    assert "event=initialization state=unavailable reason=no_usable_index" in caplog.text
-    assert "event=readiness state=ready reason=ready" in caplog.text
+    counts = runtime.state_counts
+    assert sum(
+        count
+        for (event, state, reason, _bucket, repo_slug, namespace_kind), count in counts.items()
+        if (event, state, reason, repo_slug, namespace_kind)
+        == ("initialization", "unavailable", "no_usable_index", "all", "all")
+    ) == 1
+    assert sum(
+        count
+        for (event, state, reason, _bucket, repo_slug, namespace_kind), count in counts.items()
+        if (event, state, reason, repo_slug, namespace_kind)
+        == ("readiness", "ready", "ready", "all", "main")
+    ) == 1
+    assert (
+        "event=initialization state=unavailable reason=no_usable_index "
+        "repo_slug=all namespace_kind=all"
+    ) in caplog.text
+    assert (
+        "event=readiness state=ready reason=ready "
+        "repo_slug=all namespace_kind=main"
+    ) in caplog.text
     assert "duration_bucket=" in caplog.text
     assert "where is readiness checked" not in caplog.text
     await runtime.close()

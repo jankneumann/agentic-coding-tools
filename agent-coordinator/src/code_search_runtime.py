@@ -163,7 +163,7 @@ class CodeSearchRuntime:
         self._index_cache = _Cache()
         self._semaphore = asyncio.Semaphore(config.max_concurrency)
         self._active: set[asyncio.Task[Any]] = set()
-        self._state_counts: Counter[str] = Counter()
+        self._state_counts: Counter[tuple[str, str, str, str, str, str]] = Counter()
         self._closed = False
 
     @classmethod
@@ -268,7 +268,7 @@ class CodeSearchRuntime:
         )
 
     @property
-    def state_counts(self) -> dict[str, int]:
+    def state_counts(self) -> dict[tuple[str, str, str, str, str, str], int]:
         """Return privacy-safe completion counters for operational states."""
 
         return dict(self._state_counts)
@@ -352,14 +352,27 @@ class CodeSearchRuntime:
         status: CodeSearchStatus,
         started_at: float,
     ) -> CodeSearchStatus:
-        key = f"{event}:{status.state}:{status.reason}"
-        self._state_counts[key] += 1
-        logger.info(
-            "code_search_runtime event=%s state=%s reason=%s duration_bucket=%s",
+        duration_bucket = _duration_bucket(monotonic() - started_at)
+        repo_slug = "all"
+        namespace_kind = "main" if event == "readiness" else "all"
+        key = (
             event,
             status.state,
             status.reason,
-            _duration_bucket(monotonic() - started_at),
+            duration_bucket,
+            repo_slug,
+            namespace_kind,
+        )
+        self._state_counts[key] += 1
+        logger.info(
+            "code_search_runtime event=%s state=%s reason=%s "
+            "repo_slug=%s namespace_kind=%s duration_bucket=%s",
+            event,
+            status.state,
+            status.reason,
+            repo_slug,
+            namespace_kind,
+            duration_bucket,
         )
         return status
 
