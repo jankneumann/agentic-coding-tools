@@ -174,6 +174,41 @@ async def test_effective_scope_accepts_supported_bracket_globs(
 
 
 @pytest.mark.asyncio
+async def test_effective_scope_finds_shared_bracket_member_across_layers() -> None:
+    effective = await authorize_code_search_scope(
+        principal_id="codex",
+        repo_slug="agentic_coding_tools",
+        namespace_kind="main",
+        namespace_key="main",
+        source_revision=REVISION,
+        grant=_grant(read_allow=("src/[ac].py",), deny=()),
+        requested_scope=ExplicitScopeRequest(
+            read_allow=("src/[bc].py",),
+            deny=(),
+        ),
+    )
+
+    assert effective.allows("src/c.py")
+
+
+@pytest.mark.asyncio
+async def test_malformed_bracket_range_is_scope_rejected() -> None:
+    with pytest.raises(ScopeRejectedError, match="effective scope is invalid"):
+        await authorize_code_search_scope(
+            principal_id="codex",
+            repo_slug="agentic_coding_tools",
+            namespace_kind="main",
+            namespace_key="main",
+            source_revision=REVISION,
+            grant=_grant(read_allow=("src/[z-a].py",), deny=()),
+            requested_scope=ExplicitScopeRequest(
+                read_allow=("src/[z-a].py",),
+                deny=(),
+            ),
+        )
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "grant",
     [

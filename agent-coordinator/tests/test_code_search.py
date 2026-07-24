@@ -152,6 +152,8 @@ def test_flag_truthy(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
         ("limit", 51),
         ("offset", 1001),
         ("paths", ["./agent-coordinator/**"]),
+        ("languages", ["py\x00"]),
+        ("languages", ["py\n"]),
     ],
 )
 def test_request_rejects_unbounded_or_noncanonical_input(field: str, value: object) -> None:

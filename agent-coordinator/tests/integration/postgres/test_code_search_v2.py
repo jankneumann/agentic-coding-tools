@@ -77,57 +77,62 @@ async def cleanup_tables() -> AsyncIterator[None]:
 @pytest_asyncio.fixture
 async def code_search_db() -> AsyncIterator[PostgresCase]:
     pool = await asyncpg.create_pool(dsn=DSN, min_size=1, max_size=2)
-    async with pool.acquire() as connection:
-        for migration in (
-            "028_code_search_registry.sql",
-            "029_revision_aware_code_search_indexes.sql",
-            "030_incremental_code_search_indexes.sql",
-        ):
-            await connection.execute((MIGRATIONS / migration).read_text(encoding="utf-8"))
-        repo_slug = f"ri03_{uuid4().hex[:12]}"
-        await connection.execute(
-            """
-            INSERT INTO code_search_registry (
-                repo_slug,
-                repo_root,
-                embedder_model,
-                embedding_dim,
-                git_common_dir_fingerprint
-            )
-            VALUES ($1, $2, $3, $4, $5)
-            """,
-            repo_slug,
-            f"/scratch/{repo_slug}",
-            MODEL,
-            DIMENSION,
-            "4" * 64,
-        )
-    case = PostgresCase(pool=pool, repo_slug=repo_slug, dsn=DSN)
+    repo_slug: str | None = None
     try:
+        async with pool.acquire() as connection:
+            for migration in (
+                "028_code_search_registry.sql",
+                "029_revision_aware_code_search_indexes.sql",
+                "030_incremental_code_search_indexes.sql",
+            ):
+                await connection.execute((MIGRATIONS / migration).read_text(encoding="utf-8"))
+            repo_slug = f"ri03_{uuid4().hex[:12]}"
+            await connection.execute(
+                """
+                INSERT INTO code_search_registry (
+                    repo_slug,
+                    repo_root,
+                    embedder_model,
+                    embedding_dim,
+                    git_common_dir_fingerprint
+                )
+                VALUES ($1, $2, $3, $4, $5)
+                """,
+                repo_slug,
+                f"/scratch/{repo_slug}",
+                MODEL,
+                DIMENSION,
+                "4" * 64,
+            )
+        case = PostgresCase(pool=pool, repo_slug=repo_slug, dsn=DSN)
         yield case
     finally:
-        async with pool.acquire() as connection:
-            await connection.execute(
-                "UPDATE code_search_registry SET canonical_index_id = NULL WHERE repo_slug = $1",
-                repo_slug,
-            )
-            rows = await connection.fetch(
-                "SELECT storage_key FROM code_search_indexes WHERE repo_slug = $1",
-                repo_slug,
-            )
-            for row in rows:
-                table = index_chunk_table_name(str(row["storage_key"]))
-                await connection.execute(f"DROP TABLE IF EXISTS {table}")
-            await connection.execute(f"DROP TABLE IF EXISTS code_chunks__{repo_slug}")
-            await connection.execute(
-                "DELETE FROM code_search_indexes WHERE repo_slug = $1",
-                repo_slug,
-            )
-            await connection.execute(
-                "DELETE FROM code_search_registry WHERE repo_slug = $1",
-                repo_slug,
-            )
-        await pool.close()
+        try:
+            if repo_slug is not None:
+                async with pool.acquire() as connection:
+                    await connection.execute(
+                        "UPDATE code_search_registry "
+                        "SET canonical_index_id = NULL WHERE repo_slug = $1",
+                        repo_slug,
+                    )
+                    rows = await connection.fetch(
+                        "SELECT storage_key FROM code_search_indexes WHERE repo_slug = $1",
+                        repo_slug,
+                    )
+                    for row in rows:
+                        table = index_chunk_table_name(str(row["storage_key"]))
+                        await connection.execute(f"DROP TABLE IF EXISTS {table}")
+                    await connection.execute(f"DROP TABLE IF EXISTS code_chunks__{repo_slug}")
+                    await connection.execute(
+                        "DELETE FROM code_search_indexes WHERE repo_slug = $1",
+                        repo_slug,
+                    )
+                    await connection.execute(
+                        "DELETE FROM code_search_registry WHERE repo_slug = $1",
+                        repo_slug,
+                    )
+        finally:
+            await pool.close()
 
 
 async def _seed_ready_index(

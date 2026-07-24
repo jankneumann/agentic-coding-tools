@@ -144,7 +144,12 @@ class CodeSearchRequest(_ClosedModel):
     def validate_languages(cls, values: list[str] | None) -> list[str] | None:
         if values is None:
             return None
-        if len(set(values)) != len(values) or any(not value or len(value) > 64 for value in values):
+        if len(set(values)) != len(values) or any(
+            not value
+            or len(value) > 64
+            or any(ord(char) < 32 or ord(char) == 127 for char in value)
+            for value in values
+        ):
             raise ValueError("languages are invalid")
         return values
 

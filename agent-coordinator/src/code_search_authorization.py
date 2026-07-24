@@ -318,7 +318,17 @@ def _require_nonempty_effective_scope(scope: EffectiveCodeSearchScope) -> None:
     ]
     prefixes = list(dict.fromkeys(_literal_prefix(pattern) for pattern in positive_patterns))
     suffixes = list(dict.fromkeys(_literal_suffix(pattern) for pattern in positive_patterns))
-    candidates = list(dict.fromkeys(_glob_witness(pattern) for pattern in positive_patterns))
+    candidates: list[str] = []
+    seen_candidates: set[str] = set()
+    for pattern in positive_patterns:
+        for witness in _glob_witnesses(pattern):
+            if witness not in seen_candidates:
+                candidates.append(witness)
+                seen_candidates.add(witness)
+            if len(candidates) >= 4096:
+                break
+        if len(candidates) >= 4096:
+            break
     for prefix in prefixes:
         for suffix in suffixes:
             candidates.append(f"{prefix}scope{suffix}")
@@ -326,7 +336,11 @@ def _require_nonempty_effective_scope(scope: EffectiveCodeSearchScope) -> None:
                 break
         if len(candidates) >= 4096:
             break
-    if not any(scope.allows(candidate) for candidate in candidates):
+    try:
+        has_witness = any(scope.allows(candidate) for candidate in candidates)
+    except re.error as error:
+        raise ScopeRejectedError("effective scope is invalid") from error
+    if not has_witness:
         raise ScopeRejectedError("effective scope is empty")
 
 
@@ -348,44 +362,49 @@ def _literal_suffix(pattern: str) -> str:
     return pattern[wildcard + 1 :] if wildcard >= 0 else ""
 
 
-def _glob_witness(pattern: str) -> str:
-    witness: list[str] = []
+def _glob_witnesses(pattern: str) -> tuple[str, ...]:
+    witnesses = [""]
     index = 0
     while index < len(pattern):
         char = pattern[index]
+        alternatives: tuple[str, ...]
         if char == "*":
             while index + 1 < len(pattern) and pattern[index + 1] == "*":
                 index += 1
-            witness.append("scope")
+            alternatives = ("scope",)
         elif char == "?":
-            witness.append("x")
+            alternatives = ("x",)
         elif char == "[":
             end = pattern.find("]", index + 1)
             if end < 0:
-                witness.append("[")
+                alternatives = ("[",)
             else:
                 content = pattern[index + 1 : end].lstrip("!^")
                 if not content:
-                    witness.append("[]")
+                    alternatives = ("[]",)
                 else:
                     class_pattern = pattern[index : end + 1]
                     class_regex = glob_to_postgres_regex(class_pattern)
-                    class_witness = next(
-                        (
+                    try:
+                        alternatives = tuple(
                             candidate
                             for candidate in _CLASS_WITNESS_CHARACTERS
                             if re.fullmatch(class_regex, candidate)
-                        ),
-                        None,
-                    )
-                    if class_witness is None:
-                        return ""
-                    witness.append(class_witness)
+                        )
+                    except re.error:
+                        return ()
+                    if not alternatives:
+                        return ()
                 index = end
         else:
-            witness.append(char)
+            alternatives = (char,)
+        witnesses = [
+            prefix + alternative
+            for prefix in witnesses
+            for alternative in alternatives
+        ][:256]
         index += 1
-    return "".join(witness)
+    return tuple(witnesses)
 
 
 def _valid_reference(value: str) -> bool:

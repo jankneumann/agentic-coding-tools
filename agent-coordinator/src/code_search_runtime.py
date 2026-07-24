@@ -161,6 +161,7 @@ class CodeSearchRuntime:
         self._initial_status = _status("uninitialized", "uninitialized")
         self._provider_cache = _Cache()
         self._index_cache = _Cache()
+        self._status_lock = asyncio.Lock()
         self._semaphore = asyncio.Semaphore(config.max_concurrency)
         self._active: set[asyncio.Task[Any]] = set()
         self._state_counts: Counter[tuple[str, str, str, str, str, str]] = Counter()
@@ -287,6 +288,12 @@ class CodeSearchRuntime:
         started_at = monotonic()
         if not self.config.enabled or self._service is None:
             return self._record_status("readiness", self._initial_status, started_at)
+        async with self._status_lock:
+            return await self._status_after_lock(started_at)
+
+    async def _status_after_lock(self, started_at: float) -> CodeSearchStatus:
+        """Refresh provider/index readiness once for concurrent status callers."""
+
         provider_ready = await self._provider_ready()
         if not provider_ready:
             return self._record_status(

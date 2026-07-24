@@ -199,6 +199,40 @@ async def test_status_uses_ttl_then_recovers_after_failure_backoff() -> None:
 
 
 @pytest.mark.asyncio
+async def test_concurrent_status_refresh_is_single_flight() -> None:
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    class BlockingProvider(_Provider):
+        async def check_readiness(self) -> Any:
+            self.probes += 1
+            started.set()
+            await release.wait()
+            return SimpleNamespace(state="ready")
+
+    pool = _Pool()
+    provider = BlockingProvider()
+    runtime = await CodeSearchRuntime.create(
+        _config(),
+        pool_factory=lambda: _async_value(pool),
+        provider_factory=lambda: provider,
+        service_factory=lambda **_: _Service(),
+    )
+
+    requests = [asyncio.create_task(runtime.status()) for _ in range(20)]
+    await started.wait()
+    await asyncio.sleep(0)
+    assert provider.probes == 1
+    release.set()
+    statuses = await asyncio.gather(*requests)
+
+    assert all(status.available for status in statuses)
+    assert provider.probes == 1
+    assert len(pool.loops) == 1
+    await runtime.close()
+
+
+@pytest.mark.asyncio
 async def test_unavailable_service_result_immediately_invalidates_readiness() -> None:
     provider = _Provider()
     service = _Service(result=SimpleNamespace(state="unavailable"))
