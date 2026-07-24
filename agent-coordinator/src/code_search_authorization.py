@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import deque
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import Literal, Protocol
@@ -10,12 +11,7 @@ from typing import Literal, Protocol
 _REVISION_RE = re.compile(r"^[0-9a-f]{40}([0-9a-f]{24})?$")
 _MAX_GLOB_LENGTH = 512
 _MAX_GLOBS = 100
-_CLASS_WITNESS_CHARACTERS = (
-    "abcdefghijklmnopqrstuvwxyz"
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "0123456789"
-    "_-.+@#$%&(),=~{}"
-)
+_MAX_SCOPE_AUTOMATON_STATES = 4096
 
 
 class ScopeAuthorizationError(RuntimeError):
@@ -311,51 +307,67 @@ def _deduplicated(patterns: Sequence[str]) -> tuple[str, ...]:
 
 
 def _require_nonempty_effective_scope(scope: EffectiveCodeSearchScope) -> None:
-    """Require one bounded concrete path witness across every scope layer.
+    """Prove the effective glob language contains a normalized relative path."""
 
-    Glob intersection and subtraction are regular-language operations, but a
-    complete automaton product would let caller-controlled pattern counts cause
-    exponential work. Instead, derive a bounded set of concrete witnesses from
-    each pattern's literal prefix/suffix and fail closed when none proves the
-    scope usable. This can conservatively reject an unusually complex but
-    theoretically non-empty scope; it can never authorize a path that the
-    effective scope itself rejects.
-    """
-
-    positive_patterns = [
-        pattern
+    positive_groups = [
+        _compile_glob_layer(layer)
         for layer in (
             *scope.allow_layers,
             *((scope.path_filters,) if scope.path_filters else ()),
         )
-        for pattern in layer
     ]
-    prefixes = list(dict.fromkeys(_literal_prefix(pattern) for pattern in positive_patterns))
-    suffixes = list(dict.fromkeys(_literal_suffix(pattern) for pattern in positive_patterns))
-    candidates: list[str] = []
-    seen_candidates: set[str] = set()
-    for pattern in positive_patterns:
-        for witness in _glob_witnesses(pattern):
-            if witness not in seen_candidates:
-                candidates.append(witness)
-                seen_candidates.add(witness)
-            if len(candidates) >= 4096:
-                break
-        if len(candidates) >= 4096:
-            break
-    for prefix in prefixes:
-        for suffix in suffixes:
-            candidates.append(f"{prefix}scope{suffix}")
-            if len(candidates) >= 4096:
-                break
-        if len(candidates) >= 4096:
-            break
-    try:
-        has_witness = any(scope.allows(candidate) for candidate in candidates)
-    except re.error as error:
-        raise ScopeRejectedError("effective scope is invalid") from error
-    if not has_witness:
-        raise ScopeRejectedError("effective scope is empty")
+    deny_group = _compile_glob_layer(scope.deny) if scope.deny else None
+    all_patterns = [
+        pattern
+        for group in (*scope.allow_layers, scope.path_filters, scope.deny)
+        for pattern in group
+    ]
+    alphabet = _scope_alphabet(all_patterns)
+    positive_starts = tuple(_glob_layer_start(group) for group in positive_groups)
+    deny_start = _glob_layer_start(deny_group) if deny_group is not None else None
+    start = (positive_starts, deny_start, 0)
+    queue = deque([start])
+    visited = {start}
+
+    while queue:
+        positive_states, deny_state, segment_state = queue.popleft()
+        if (
+            segment_state == 3
+            and all(
+                _glob_layer_accepts(group, state)
+                for group, state in zip(positive_groups, positive_states, strict=True)
+            )
+            and (
+                deny_group is None
+                or deny_state is None
+                or not _glob_layer_accepts(deny_group, deny_state)
+            )
+        ):
+            return
+        for character in alphabet:
+            next_segment = _next_segment_state(segment_state, character)
+            if next_segment is None:
+                continue
+            next_positive = tuple(
+                _glob_layer_step(group, state, character)
+                for group, state in zip(positive_groups, positive_states, strict=True)
+            )
+            if any(not state for state in next_positive):
+                continue
+            next_deny = (
+                _glob_layer_step(deny_group, deny_state, character)
+                if deny_group is not None and deny_state is not None
+                else None
+            )
+            candidate = (next_positive, next_deny, next_segment)
+            if candidate in visited:
+                continue
+            if len(visited) >= _MAX_SCOPE_AUTOMATON_STATES:
+                raise ScopeRejectedError("effective scope is too complex")
+            visited.add(candidate)
+            queue.append(candidate)
+
+    raise ScopeRejectedError("effective scope is empty")
 
 
 def _require_compilable_scope_patterns(*groups: Sequence[str]) -> None:
@@ -367,67 +379,142 @@ def _require_compilable_scope_patterns(*groups: Sequence[str]) -> None:
         raise ScopeRejectedError("effective scope is invalid") from error
 
 
-def _literal_prefix(pattern: str) -> str:
-    wildcard_indexes = (
-        pattern.find("*"),
-        pattern.find("?"),
-        pattern.find("["),
-    )
-    wildcard = min(
-        (index for index in wildcard_indexes if index >= 0),
-        default=len(pattern),
-    )
-    return pattern[:wildcard]
+@dataclass(frozen=True, slots=True)
+class _GlobToken:
+    kind: Literal["literal", "any", "star", "class"]
+    value: str | re.Pattern[str] | None = None
 
 
-def _literal_suffix(pattern: str) -> str:
-    wildcard = max(pattern.rfind("*"), pattern.rfind("?"), pattern.rfind("]"))
-    return pattern[wildcard + 1 :] if wildcard >= 0 else ""
+_GlobLayer = tuple[tuple[_GlobToken, ...], ...]
+_GlobLayerState = frozenset[tuple[int, int]]
 
 
-def _glob_witnesses(pattern: str) -> tuple[str, ...]:
-    witnesses = [""]
+def _compile_glob_layer(patterns: Sequence[str]) -> _GlobLayer:
+    return tuple(_compile_glob(pattern) for pattern in patterns)
+
+
+def _compile_glob(pattern: str) -> tuple[_GlobToken, ...]:
+    tokens: list[_GlobToken] = []
     index = 0
     while index < len(pattern):
         char = pattern[index]
-        alternatives: tuple[str, ...]
         if char == "*":
             while index + 1 < len(pattern) and pattern[index + 1] == "*":
                 index += 1
-            alternatives = ("scope",)
+            tokens.append(_GlobToken("star"))
         elif char == "?":
-            alternatives = ("x",)
+            tokens.append(_GlobToken("any"))
         elif char == "[":
             end = pattern.find("]", index + 1)
             if end < 0:
-                alternatives = ("[",)
+                tokens.append(_GlobToken("literal", "["))
             else:
-                content = pattern[index + 1 : end].lstrip("!^")
+                content = pattern[index + 1 : end]
                 if not content:
-                    alternatives = ("[]",)
+                    tokens.extend(
+                        (
+                            _GlobToken("literal", "["),
+                            _GlobToken("literal", "]"),
+                        )
+                    )
                 else:
                     class_pattern = pattern[index : end + 1]
-                    class_regex = glob_to_postgres_regex(class_pattern)
-                    try:
-                        alternatives = tuple(
-                            candidate
-                            for candidate in _CLASS_WITNESS_CHARACTERS
-                            if re.fullmatch(class_regex, candidate)
+                    tokens.append(
+                        _GlobToken(
+                            "class",
+                            re.compile(glob_to_postgres_regex(class_pattern)),
                         )
-                    except re.error:
-                        return ()
-                    if not alternatives:
-                        return ()
+                    )
                 index = end
         else:
-            alternatives = (char,)
-        witnesses = [
-            prefix + alternative
-            for prefix in witnesses
-            for alternative in alternatives
-        ][:256]
+            tokens.append(_GlobToken("literal", char))
         index += 1
-    return tuple(witnesses)
+    return tuple(tokens)
+
+
+def _glob_layer_start(layer: _GlobLayer) -> _GlobLayerState:
+    return _glob_layer_closure(
+        layer,
+        frozenset((pattern_index, 0) for pattern_index in range(len(layer))),
+    )
+
+
+def _glob_layer_closure(
+    layer: _GlobLayer,
+    state: _GlobLayerState,
+) -> _GlobLayerState:
+    pending = list(state)
+    closed = set(state)
+    while pending:
+        pattern_index, position = pending.pop()
+        pattern = layer[pattern_index]
+        if position < len(pattern) and pattern[position].kind == "star":
+            advanced = (pattern_index, position + 1)
+            if advanced not in closed:
+                closed.add(advanced)
+                pending.append(advanced)
+    return frozenset(closed)
+
+
+def _glob_layer_step(
+    layer: _GlobLayer,
+    state: _GlobLayerState,
+    character: str,
+) -> _GlobLayerState:
+    advanced: set[tuple[int, int]] = set()
+    for pattern_index, position in state:
+        pattern = layer[pattern_index]
+        if position >= len(pattern):
+            continue
+        token = pattern[position]
+        if token.kind == "star":
+            advanced.add((pattern_index, position))
+        elif token.kind == "any":
+            advanced.add((pattern_index, position + 1))
+        elif token.kind == "literal" and token.value == character:
+            advanced.add((pattern_index, position + 1))
+        elif (
+            token.kind == "class"
+            and isinstance(token.value, re.Pattern)
+            and token.value.fullmatch(character)
+        ):
+            advanced.add((pattern_index, position + 1))
+    return _glob_layer_closure(layer, frozenset(advanced))
+
+
+def _glob_layer_accepts(layer: _GlobLayer, state: _GlobLayerState) -> bool:
+    return any(position == len(layer[pattern_index]) for pattern_index, position in state)
+
+
+def _scope_alphabet(patterns: Sequence[str]) -> tuple[str, ...]:
+    characters = {chr(codepoint) for codepoint in range(32, 127)}
+    characters.difference_update({"\\"})
+    characters.update({"é", "Ω", "中"})
+    for pattern in patterns:
+        for character in pattern:
+            codepoint = ord(character)
+            for candidate_codepoint in (codepoint - 1, codepoint, codepoint + 1):
+                if (
+                    candidate_codepoint >= 32
+                    and candidate_codepoint != 127
+                    and candidate_codepoint <= 0x10FFFF
+                ):
+                    candidate = chr(candidate_codepoint)
+                    if candidate != "\\":
+                        characters.add(candidate)
+    return tuple(sorted(characters))
+
+
+def _next_segment_state(state: int, character: str) -> int | None:
+    if character == "/":
+        return 0 if state == 3 else None
+    if character == ".":
+        if state == 0:
+            return 1
+        if state == 1:
+            return 2
+        return 3
+    return 3
 
 
 def _valid_reference(value: str) -> bool:

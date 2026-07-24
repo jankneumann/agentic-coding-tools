@@ -192,6 +192,24 @@ async def test_effective_scope_finds_shared_bracket_member_across_layers() -> No
 
 
 @pytest.mark.asyncio
+async def test_effective_scope_proves_multi_class_intersection_without_expansion() -> None:
+    effective = await authorize_code_search_scope(
+        principal_id="codex",
+        repo_slug="agentic_coding_tools",
+        namespace_kind="main",
+        namespace_key="main",
+        source_revision=REVISION,
+        grant=_grant(read_allow=("[az]" * 9,), deny=()),
+        requested_scope=ExplicitScopeRequest(
+            read_allow=("[bz]" * 9,),
+            deny=(),
+        ),
+    )
+
+    assert effective.allows("z" * 9)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "read_allow",
     [
