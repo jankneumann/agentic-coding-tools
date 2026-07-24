@@ -491,22 +491,49 @@ async def proxy_get_task(task_id: str) -> dict[str, Any]:
 
 async def proxy_search_code(
     query: str,
-    repo: str,
+    repo_slug: str,
+    source_revision: str,
+    namespace: dict[str, Any],
+    scope: dict[str, Any],
+    index_id: str | None = None,
     limit: int = 10,
     offset: int = 0,
     languages: list[str] | None = None,
     paths: list[str] | None = None,
-    scope: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Proxy search_code to POST /search/code (design D5 — read, works in http_proxy mode)."""
-    body: dict[str, Any] = {"query": query, "repo": repo, "limit": limit, "offset": offset}
+    """Forward the exact v2 request without adding proxy-owned authority."""
+    body: dict[str, Any] = {
+        "query": query,
+        "repo_slug": repo_slug,
+        "source_revision": source_revision,
+        "namespace": namespace,
+        "scope": scope,
+        "limit": limit,
+        "offset": offset,
+    }
+    if index_id is not None:
+        body["index_id"] = index_id
     if languages is not None:
         body["languages"] = languages
     if paths is not None:
         body["paths"] = paths
-    if scope is not None:
-        body["scope"] = scope
-    return await _request("POST", "/search/code", json_body=body)
+    response = await _request("POST", "/search/code", json_body=body)
+    if response.get("state") in {
+        "ready",
+        "revision_mismatch",
+        "not_indexed",
+        "not_configured",
+        "unavailable",
+        "scope_rejected",
+    }:
+        return response
+
+    # Proxy/network implementation details are not part of the v2 surface.
+    # Convert them to the same sanitized operational envelope as direct MCP.
+    from .code_search import CodeSearchRequest
+    from .code_search_runtime import _sanitized_unavailable
+
+    return _sanitized_unavailable(CodeSearchRequest.model_validate(body)).to_dict()
 
 
 # =============================================================================

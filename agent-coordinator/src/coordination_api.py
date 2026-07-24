@@ -16,11 +16,19 @@ import sys
 import time
 from typing import Any, Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from .approval import get_approval_service
 from .axi_output import list_envelope, probe_truncation
+from .code_search_runtime import (
+    CodeSearchOverloadedError,
+    code_search_enabled,
+    get_code_search_runtime,
+    principal_id_for_api_key,
+    start_code_search_runtime,
+    stop_code_search_runtime,
+)
 from .config import get_config
 from .port_allocator import get_port_allocator
 
@@ -558,6 +566,17 @@ def create_coordination_api() -> FastAPI:
                 exc_info=True,
             )
 
+        # Semantic search is optional and default-off. Its runtime owns the
+        # pool/provider in this serving loop; initialization failure never
+        # prevents the coordinator from starting.
+        try:
+            await start_code_search_runtime()
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).warning(
+                "Code-search startup failed — semantic search unavailable.",
+                exc_info=False,
+            )
+
         # Start event bus for status NOTIFY
         from .event_bus import get_event_bus
 
@@ -637,6 +656,10 @@ def create_coordination_api() -> FastAPI:
             pass
         try:
             await event_bus.stop()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            await stop_code_search_runtime()
         except Exception:  # noqa: BLE001
             pass
         try:
@@ -3320,34 +3343,71 @@ def create_coordination_api() -> FastAPI:
             raise
         return result
 
-    # --- code search (change: add-semantic-code-search) -------------------------------------
-    # Read-only (design D5): never locks/enqueues/indexes. Gated by CODE_SEARCH_ENABLED (D10):
-    # the route is always registered but returns 404 when the flag is off, so nothing depends on
-    # unproven retrieval quality until the spike gate (D9) is closed.
-    @app.post("/search/code")
-    async def search_code_endpoint(
-        request: dict[str, Any],
-        principal: dict[str, Any] = Depends(optional_api_key),
-    ) -> dict[str, Any]:
-        from .code_search import CodeSearchError, code_search_enabled, get_code_search_service
+    # --- fail-closed semantic code search (v2) ----------------------------------------------
+    @app.get("/search/code/status")
+    async def code_search_status_endpoint() -> dict[str, Any]:
+        from .code_search_runtime import CodeSearchStatus
+
+        if not code_search_enabled():
+            return CodeSearchStatus(
+                available=False,
+                state="disabled",
+                reason="disabled",
+                usable_index_count=0,
+            ).to_dict()
+        try:
+            return (await get_code_search_runtime().status()).to_dict()
+        except Exception:  # noqa: BLE001
+            return CodeSearchStatus(
+                available=False,
+                state="unavailable",
+                reason="registry_unavailable",
+                usable_index_count=0,
+            ).to_dict()
+
+    async def verify_code_search_principal(http_request: Request) -> dict[str, Any]:
+        """Apply the disabled gate before invoking the standard auth verifier."""
 
         if not code_search_enabled():
             raise HTTPException(status_code=404, detail="code search is disabled")
-        if not request.get("query") or not request.get("repo"):
-            raise HTTPException(status_code=422, detail="query and repo are required")
+        return await verify_api_key(
+            x_api_key=http_request.headers.get("x-api-key"),
+            authorization=http_request.headers.get("authorization"),
+            x_coordinator_api_key=http_request.headers.get("x-coordinator-api-key"),
+        )
+
+    @app.post("/search/code")
+    async def search_code_endpoint(
+        request: dict[str, Any],
+        principal: dict[str, Any] = Depends(verify_code_search_principal),
+    ) -> dict[str, Any]:
+        from pydantic import ValidationError
+
+        from .code_search import CodeSearchError, CodeSearchRequest
+        from .code_search_runtime import _sanitized_unavailable
+
+        if not code_search_enabled():
+            raise HTTPException(status_code=404, detail="code search is disabled")
         try:
-            resp = await get_code_search_service().search(
-                query=request["query"],
-                repo=request["repo"],
-                limit=int(request.get("limit", 10)),
-                offset=int(request.get("offset", 0)),
-                languages=request.get("languages"),
-                paths=request.get("paths"),
-                scope=request.get("scope"),
+            validated = CodeSearchRequest.model_validate(request)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail="Invalid code-search request.") from exc
+        try:
+            response = await get_code_search_runtime().search(
+                validated,
+                principal_id=principal_id_for_api_key(principal),
             )
+        except CodeSearchOverloadedError as exc:
+            raise HTTPException(
+                status_code=429,
+                detail=str(exc),
+                headers={"Retry-After": "2"},
+            ) from exc
         except CodeSearchError as exc:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
-        return resp.to_dict()
+        except Exception:  # noqa: BLE001
+            response = _sanitized_unavailable(validated)
+        return response.to_dict()
 
     return app
 

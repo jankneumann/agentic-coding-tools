@@ -93,7 +93,7 @@
 
 ## Phase 3 — Own startup and surface parity
 
-- [ ] 3.1 (M) Write lifecycle tests for disabled no-op startup, loop-owned
+- [x] 3.1 (M) Write lifecycle tests for disabled no-op startup, loop-owned
   pool/provider creation, unavailable-resource degradation, status transitions,
   TTL/backoff recovery, immediate invalidation, bounded cancellation, clean
   shutdown, and HTTP-proxy no-double-init.
@@ -101,27 +101,27 @@
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D8, D9, D12
   **Dependencies**: 0.2, 2.2
-- [ ] 3.2 (M) Implement loop-owned code-search lifespans from the shared
+- [x] 3.2 (M) Implement loop-owned code-search lifespans from the shared
   runtime factory.
   **Spec scenarios**: code-search.12, code-search.14-16
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D7-D9, D12
   **Dependencies**: 3.1
-- [ ] 3.3 (M) Write HTTP, MCP, and proxy parity tests for v2 inputs, structured
+- [x] 3.3 (M) Write HTTP, MCP, and proxy parity tests for v2 inputs, structured
   non-ready outcomes, missing/cross-repository grants, malformed requests,
   timeout/overload behavior, and sanitized unexpected failures.
   **Spec scenarios**: code-search.1-4, code-search.17-20
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D5, D6, D7, D10, D12
   **Dependencies**: 2.2
-- [ ] 3.4 (M) Implement the typed HTTP/status endpoints, direct MCP tool
+- [x] 3.4 (M) Implement the typed HTTP/status endpoints, direct MCP tool
   contract, and proxy forwarding.
   **Spec scenarios**: code-search.1-4, code-search.17-20
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D5-D7, D10, D12
   **Dependencies**: 3.2, 3.3
 
-- [ ] Checkpoint: lifecycle and three-surface parity suites green, optional failures do not fail coordinator readiness
+- [x] Checkpoint: lifecycle and three-surface parity suites green, optional failures do not fail coordinator readiness
 
 ## Phase 4 — Publish truthful capability discovery
 
