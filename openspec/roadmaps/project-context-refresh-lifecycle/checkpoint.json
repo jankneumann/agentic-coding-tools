@@ -1,12 +1,13 @@
 {
   "schema_version": 1,
   "roadmap_id": "project-context-refresh-lifecycle",
-  "current_item_id": "ri-03",
+  "current_item_id": "ri-06",
   "phase": "implementing",
   "created_at": "2026-07-23T18:00:40.446487+00:00",
-  "updated_at": "2026-07-23T22:00:23.937562+00:00",
+  "updated_at": "2026-07-24T14:55:47+00:00",
   "completed_items": [
     "ri-01",
-    "ri-02"
+    "ri-02",
+    "ri-03"
   ]
 }

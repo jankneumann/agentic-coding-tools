@@ -61,7 +61,7 @@ items:
   - ri-02
 - item_id: ri-03
   title: Expose fail-closed semantic code search
-  status: approved
+  status: completed
   priority: 3
   effort: M
   depends_on:
@@ -81,6 +81,8 @@ items:
   - A requested revision mismatch returns no results as current and supplies an explicit
     exact-search fallback state.
   - Query scope filters enforce the caller's read_allow and deny boundaries.
+  learning_refs:
+  - ri-03
 - item_id: ri-04
   title: Make architecture refresh revision-aware
   status: approved
