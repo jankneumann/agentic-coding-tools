@@ -5,6 +5,83 @@
 
 ---
 
+## 2026-07-23 — add-revision-aware-semantic-index-registry
+
+### Phase: Plan
+
+**Separate repository metadata from index lifecycle records** — An additive code_search_indexes table preserves current readers while making exact revision and namespace lifecycle authoritative.
+
+- Status: `active`
+- Source: [openspec/changes/add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/add-revision-aware-semantic-index-registry/session-log.md) (D1)
+
+---
+
+## 2026-07-23 — add-revision-aware-semantic-index-registry
+
+### Phase: Implementation
+
+**Preserve canonical validity from both sides of the pointer** — Deferrable triggers on the repository pointer and referenced index prevent direct SQL from invalidating a promoted canonical main index.
+
+- Status: `active`
+- Source: [openspec/changes/add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/add-revision-aware-semantic-index-registry/session-log.md) (D1)
+
+---
+
+## 2026-07-23 — add-revision-aware-semantic-index-registry
+
+### Phase: Plan
+
+**Persist full Git object IDs and explicit namespaces** — Resolved revisions plus main, feature, and work_package kinds prevent ref movement and branch-local work from masquerading as canonical main.
+
+- Status: `active`
+- Source: [openspec/changes/add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/add-revision-aware-semantic-index-registry/session-log.md) (D2)
+
+---
+
+## 2026-07-23 — add-revision-aware-semantic-index-registry
+
+### Phase: Implementation
+
+**Recover expired garbage-collection leases with idempotent deletion** — A replacement collector can safely repeat storage deletion after crashes before or after the storage effect, then durably tombstone the registry row.
+
+- Status: `active`
+- Source: [openspec/changes/add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/add-revision-aware-semantic-index-registry/session-log.md) (D2)
+
+---
+
+## 2026-07-23 — add-revision-aware-semantic-index-registry
+
+### Phase: Plan
+
+**Guard lifecycle updates with leases and canonical promotion with compare-and-swap** — Concurrent or late workers cannot overwrite newer results, and only a ready main index for the same repository can become canonical.
+
+- Status: `active`
+- Source: [openspec/changes/add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/add-revision-aware-semantic-index-registry/session-log.md) (D3)
+
+---
+
+## 2026-07-23 — add-revision-aware-semantic-index-registry
+
+### Phase: Implementation
+
+**Separate pure registry models from persistence operations** — The extraction preserves the public API while keeping both modules below the structural file-size limit.
+
+- Status: `active`
+- Source: [openspec/changes/add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/add-revision-aware-semantic-index-registry/session-log.md) (D3)
+
+---
+
+## 2026-07-23 — add-revision-aware-semantic-index-registry
+
+### Phase: Plan
+
+**Garbage collect only expired noncanonical namespaces** — Storage deletion remains retryable while main and canonical records are excluded by both SQL and application guards.
+
+- Status: `active`
+- Source: [openspec/changes/add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/add-revision-aware-semantic-index-registry/session-log.md) (D4)
+
+---
+
 ## 2026-07-19 — 2026-07-20-add-semantic-code-search
 
 ### Phase: Plan
