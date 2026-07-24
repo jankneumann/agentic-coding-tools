@@ -6,9 +6,11 @@ reaches models outside the subscription CLIs, e.g. Kimi 3, Qwen3-Coder).
 Empirical Phase 1 findings (design.md § Empirical CLI findings):
 - E3: `pi` resolves ``OPENROUTER_API_KEY`` from the subprocess environment.
 - E8: the prompt is a trailing positional argument; ``--mode json`` emits an
-  NDJSON event stream (not a single envelope). The final assistant text lives in
-  the ``agent_end``/``message_end`` event's ``content[]`` items where
-  ``type == "text"``.
+  NDJSON event stream (not a single envelope). Each message is its own
+  ``message_end`` event carrying a ``role`` — ``pi`` echoes the prompt back as a
+  ``role: "user"`` message, and the answer is the LAST ``role: "assistant"``
+  message's ``content[]`` items where ``type == "text"`` (verified against a live
+  ``pi --mode json`` transcript on 2026-07-24; see coordinator issue 035ffd93).
 """
 
 from __future__ import annotations
@@ -69,14 +71,25 @@ class PiBackend:
         return None
 
     @staticmethod
-    def _message_texts(event: dict[str, Any]) -> list[str]:
-        """Text items from an event's assistant message ``content[]``."""
+    def _assistant_message_texts(event: dict[str, Any]) -> list[str] | None:
+        """Text items from a terminal event's assistant message ``content[]``.
+
+        Returns ``None`` when the event is NOT an assistant message and must be
+        ignored for answer extraction — most importantly the ``role: "user"``
+        ``message_end`` in which ``pi`` echoes the prompt back (E8, verified
+        against a live ``pi --mode json`` transcript on 2026-07-24). A message
+        carrying no ``role`` at all is treated as in-scope for tolerance of
+        older/edge shapes.
+        """
         message = event.get("message")
-        content = message.get("content") if isinstance(message, dict) else None
-        if content is None:
+        if isinstance(message, dict):
+            if message.get("role") not in (None, "assistant"):
+                return None
+            content = message.get("content")
+        else:
             content = event.get("content")
         if not isinstance(content, list):
-            return []
+            return None
         return [
             str(item.get("text", ""))
             for item in content
@@ -86,10 +99,15 @@ class PiBackend:
     def _parse_ndjson(self, stdout: str) -> tuple[str, TokenUsage]:
         """Stream-parse the NDJSON event log (E8).
 
-        Concatenates the text content of terminal assistant events and sums any
-        usage carried on events. Blank lines and a truncated trailing line are
-        tolerated — the stream may be cut off without invalidating earlier
-        events.
+        Takes the text content of the LAST assistant terminal event (the final
+        answer) and sums any usage carried on events. Earlier assistant messages
+        and the echoed ``role: "user"`` prompt are excluded — ``pi`` emits one
+        ``message_end`` per message, so concatenating all of them would fold the
+        prompt echo and intermediate turns into the result (bug fixed 2026-07-24,
+        coordinator issue 035ffd93, after a live ``pi`` transcript disproved the
+        earlier single-``agent_end`` assumption). Blank lines and a truncated
+        trailing line are tolerated — the stream may be cut off without
+        invalidating earlier events.
         """
         texts: list[str] = []
         input_tokens = output_tokens = total_tokens = 0
@@ -107,7 +125,11 @@ class PiBackend:
                 continue
 
             if event.get("type") in _TERMINAL_EVENTS:
-                texts.extend(self._message_texts(event))
+                message_texts = self._assistant_message_texts(event)
+                # Last assistant terminal message wins (the final answer); a
+                # non-assistant message (e.g. the user echo) returns None → skip.
+                if message_texts:
+                    texts = message_texts
 
             usage = event.get("usage")
             if isinstance(usage, dict):

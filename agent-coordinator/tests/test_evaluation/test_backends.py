@@ -188,3 +188,52 @@ class TestPiDispatchShape:
         )
         output, _ = PiBackend()._parse_ndjson(stdout)
         assert output == "answer"
+
+    def test_parse_ndjson_excludes_user_echo_and_takes_final_assistant(self) -> None:
+        """Real ``pi --mode json`` shape (verified live 2026-07-24, issue 035ffd93).
+
+        pi emits one ``message_end`` per message WITH a ``role``: the user prompt
+        is echoed as ``role: "user"`` and must be dropped, and only the FINAL
+        assistant message is the answer — not intermediate turns. The pre-fix
+        parser (concatenate every terminal message, no role filter) produced
+        ``"<prompt><intermediate><final>"``; this pins the correct extraction.
+        """
+        events = [
+            {"type": "session", "id": "abc"},
+            {"type": "agent_start"},
+            {"type": "turn_start"},
+            {
+                "type": "message_end",
+                "message": {
+                    "role": "user",
+                    "content": [{"type": "text", "text": "Fix the bug in foo.py"}],
+                },
+            },
+            {
+                "type": "message_end",
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "I'll read the file."}],
+                },
+            },
+            {
+                "type": "message_end",
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "Found it - fixed."}],
+                },
+            },
+            {
+                "type": "turn_end",
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "Found it - fixed."}],
+                },
+            },
+            {"type": "agent_end"},
+            {"type": "agent_settled"},
+        ]
+        stdout = "\n".join(json.dumps(e) for e in events) + "\n"
+        output, _ = PiBackend()._parse_ndjson(stdout)
+        # NOT "Fix the bug in foo.pyI'll read the file.Found it - fixed." (pre-fix).
+        assert output == "Found it - fixed."
