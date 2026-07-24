@@ -13,25 +13,25 @@
 
 ## Phase 0 — Freeze the v2 boundary
 
-- [ ] 0.1 (S) Write contract tests for strict request validation,
+- [x] 0.1 (S) Write contract tests for strict request validation,
   discriminated operational states, provenance invariants, exact-search
   fallback, and body-aware capability readiness.
   **Spec scenarios**: code-search.1-4, code-search.9-13, code-search.17-20
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D1, D5, D9, D10
   **Dependencies**: None
-- [ ] 0.2 (S) Finalize the OpenAPI v2 contract from the failing examples.
+- [x] 0.2 (S) Finalize the OpenAPI v2 contract from the failing examples.
   **Spec scenarios**: code-search.1-4, code-search.9-13, code-search.17-20
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D1, D5, D10
   **Dependencies**: 0.1
-- [ ] 0.3 (S) Document the normative HTTP/MCP/status contract boundary.
+- [x] 0.3 (S) Document the normative HTTP/MCP/status contract boundary.
   **Spec scenarios**: all code-search scenarios
   **Contracts**: contracts/README.md, contracts/openapi/v2.yaml
   **Design decisions**: D1, D5, D9, D10
   **Dependencies**: 0.2
 
-- [ ] Checkpoint: contracts parse, failing examples are intentional, cumulative diff is contract-only
+- [x] Checkpoint: contracts parse, failing examples are intentional, cumulative diff is contract-only
 
 ## Phase 1 — Query immutable exact-index storage
 
