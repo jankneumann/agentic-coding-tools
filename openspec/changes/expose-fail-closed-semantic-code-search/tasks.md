@@ -62,34 +62,34 @@
 
 ## Phase 2 — Enforce fail-closed service behavior
 
-- [ ] 2.1 (M) Write authorization tests for principal-bound repository grants,
+- [x] 2.1 (M) Write authorization tests for principal-bound repository grants,
   immutable work-package provenance, deny precedence, canonical glob
   validation, path intersection, stale replay, and cross-repository denial.
   **Spec scenarios**: code-search.2, code-search.10-11, code-search.19
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D4, D6
   **Dependencies**: 0.3
-- [ ] 2.2 (M) Implement principal-bound authorization with normalized
+- [x] 2.2 (M) Implement principal-bound authorization with normalized
   effective scopes.
   **Spec scenarios**: code-search.2, code-search.10-11, code-search.19
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D4, D6
   **Dependencies**: 2.1
-- [ ] 2.3 (M) Write service-state tests for exact revision rejection before
+- [x] 2.3 (M) Write service-state tests for exact revision rejection before
   embedding, complete provider matching, bounded pagination, provenance-rich
   hits, sanitized degradation, and sensitive-log exclusion.
   **Spec scenarios**: code-search.1-9, code-search.20-21
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D4, D5, D7, D12
   **Dependencies**: 1.4, 2.2
-- [ ] 2.4 (M) Implement the typed exact-search state machine with defensive
+- [x] 2.4 (M) Implement the typed exact-search state machine with defensive
   hit filtering and bounded observability.
   **Spec scenarios**: code-search.1-9, code-search.20-21
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D4, D5, D7, D12
   **Dependencies**: 2.3
 
-- [ ] Checkpoint: query and service suites green, no repo-slug table read remains, cumulative diff reviewed
+- [x] Checkpoint: query and service suites green, no repo-slug table read remains, cumulative diff reviewed
 
 ## Phase 3 — Own startup and surface parity
 
