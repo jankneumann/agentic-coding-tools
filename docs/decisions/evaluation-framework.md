@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-07-22 — add-agy-grok-pi-harnesses
+## 2026-07-22 — 2026-07-24-add-agy-grok-pi-harnesses
 
 ### Phase: Plan
 
 **Eval backends reach full roster parity in this change** — evaluation-framework's Agent Backend Abstraction enumerates a backend per first-class provider. Shipping the roster without backends would land spec and code in disagreement - the same drift class the canonical-key decision prevents.
 
 - Status: `active`
-- Source: [openspec/changes/add-agy-grok-pi-harnesses/session-log.md](/openspec/changes/add-agy-grok-pi-harnesses/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-07-24-add-agy-grok-pi-harnesses/session-log.md](/openspec/changes/archive/2026-07-24-add-agy-grok-pi-harnesses/session-log.md) (D4)
 
 ---
 

@@ -838,9 +838,10 @@ The agent-coordinator documentation SHALL include usage patterns showing how wor
 #### Scenario: Documentation covers runtime and transport matrix
 - **WHEN** a user reads agent-coordinator documentation
 - **THEN** there SHALL be a matrix describing:
-  - Claude Codex, Codex, and Gemini CLI runtimes using MCP transport
+  - Claude Code, Codex, antigravity, grok, and pi CLI runtimes using MCP transport
   - Web/Cloud runtimes using HTTP API transport
   - standalone fallback behavior when coordinator is unavailable
+- **AND** the matrix SHALL NOT list the retired Gemini CLI runtime
 
 #### Scenario: Documentation maps skills to capabilities
 - **WHEN** a user reviews skill integration documentation
@@ -1774,7 +1775,7 @@ The coordinator SHALL accept status reports from agents via both Claude Code hoo
 - The autopilot's `run_loop()` SHALL accept an optional `status_fn` callback with signature `(state: LoopState, event_type: str, message: str, urgent: bool) -> None`.
 - If `status_fn` raises an exception or exceeds 5 seconds, the exception SHALL be caught and logged. The loop SHALL NOT crash or change behavior due to `status_fn` failures. The error SHALL be included as `error_details` in the next heartbeat.
 - **Two code paths** (both produce equivalent `coordinator_status` NOTIFY events):
-  - **Path A (in-band callback)**: `run_loop()` calls `status_fn` at phase transitions. The callback delegates to `report_status` MCP tool (local) or `POST /status/report` (HTTP). Works for all agents (Claude, Codex, Gemini).
+  - **Path A (in-band callback)**: `run_loop()` calls `status_fn` at phase transitions. The callback delegates to `report_status` MCP tool (local) or `POST /status/report` (HTTP). Works for all agents in the roster (Claude Code, Codex, antigravity, grok, pi).
   - **Path B (out-of-band hook)**: Claude Code `Stop` hook fires `report_status.py`, which reads `loop-state.json` independently and POSTs to `/status/report`. Claude Code-specific; provides implicit heartbeat.
 
 #### Scenario: Claude Code hook reports phase transition
@@ -1787,6 +1788,12 @@ AND the coordinator emits a `coordinator_status` NOTIFY event.
 #### Scenario: Codex agent reports status via HTTP
 
 WHEN a Codex agent calls `POST /status/report` with `{"agent_id": "codex-1", "phase": "IMPL_REVIEW", "needs_human": false}`
+THEN the coordinator stores the status and updates the heartbeat
+AND emits a `coordinator_status` NOTIFY event with urgency `medium`.
+
+#### Scenario: New-roster agent reports status via HTTP
+
+WHEN a grok agent calls `POST /status/report` with `{"agent_id": "grok-1", "phase": "IMPL_REVIEW", "needs_human": false}`
 THEN the coordinator stores the status and updates the heartbeat
 AND emits a `coordinator_status` NOTIFY event with urgency `medium`.
 

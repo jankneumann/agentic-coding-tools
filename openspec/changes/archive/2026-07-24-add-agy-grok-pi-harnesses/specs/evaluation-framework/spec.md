@@ -42,9 +42,9 @@ The framework SHALL ship one backend per first-class provider in the supported r
 - **THEN** it SHALL execute the task via the `pi` CLI with `--provider openrouter`
 - **AND** return results in the standard backend result format
 
-#### Scenario: Retired Gemini/Jules backend is absent
+#### Scenario: Gemini/Jules backend
 - **WHEN** the backend registry is enumerated
-- **THEN** no Gemini or Jules backend SHALL be exported
+- **THEN** no Gemini or Jules backend SHALL be exported (the Gemini/Jules backend is retired)
 - **AND** requesting one SHALL raise a structured error naming the supported roster
 
 #### Scenario: Backend comparison run

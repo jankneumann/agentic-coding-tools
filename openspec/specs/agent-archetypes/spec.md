@@ -15,6 +15,8 @@ Archetype model values SHALL be resolved through provider-aware model mapping be
 
 Archetype names SHALL match the pattern `^[a-z][a-z0-9_-]{0,31}$` and SHALL be validated at all system boundaries.
 
+Provider-aware resolution SHALL cover exactly the supported roster: `claude_code`, `codex`, `antigravity`, `grok`, and `pi`. Resolution SHALL fail with a structured configuration error for the retired `gemini` provider rather than silently falling back to a Claude alias.
+
 #### Scenario: Archetype resolves for Codex provider
 
 - **WHEN** `architect` resolves under provider `codex`
@@ -22,24 +24,45 @@ Archetype names SHALL match the pattern `^[a-z][a-z0-9_-]{0,31}$` and SHALL be v
 - **AND** the dispatch model SHALL be a Codex model ID from provider mapping
 - **AND** the raw Claude alias `opus` SHALL NOT be dispatched to Codex unless explicitly configured as a Codex model alias
 
+#### Scenario: Archetype resolves for antigravity provider
+
+- **WHEN** `reviewer` resolves under provider `antigravity`
+- **THEN** the logical role SHALL remain `reviewer`
+- **AND** the dispatch model SHALL be an antigravity model ID from provider mapping
+
+#### Scenario: Archetype resolves for grok provider
+
+- **WHEN** `reviewer` resolves under provider `grok`
+- **THEN** the logical role SHALL remain `reviewer`
+- **AND** the dispatch model SHALL be a grok model ID from provider mapping
+
+#### Scenario: Archetype resolves for pi provider
+
+- **WHEN** `implementer` resolves under provider `pi`
+- **THEN** the logical role SHALL remain `implementer`
+- **AND** the dispatch model SHALL be an OpenRouter model slug from provider mapping
+
 #### Scenario: Archetype resolves for Gemini provider
 
-- **WHEN** `reviewer` resolves under provider `gemini`
-- **THEN** the logical role SHALL remain `reviewer`
-- **AND** the dispatch model SHALL be a Gemini model ID from provider mapping
+- **WHEN** archetype resolution is requested under provider `gemini`
+- **THEN** resolution SHALL fail with a structured configuration error naming `gemini` as unsupported (the gemini provider harness is retired)
+- **AND** the error SHALL list the supported roster
+- **AND** no dispatch SHALL be attempted
 
 ### Requirement: Predefined Archetypes
 
 The system SHALL ship with predefined archetypes for `architect`, `analyst`, `implementer`, `reviewer`, `runner`, and `documenter`.
 
-Each predefined archetype SHALL include a `system_prompt` tuned to its role. Each archetype SHALL map to a logical model tier that can be translated to provider-specific model IDs for Claude Code, Codex, and Gemini/Jules.
+Each predefined archetype SHALL include a `system_prompt` tuned to its role. Each archetype SHALL map to a logical model tier that can be translated to provider-specific model IDs for Claude Code, Codex, antigravity, grok, and pi.
 
 #### Scenario: Architect archetype maps per provider
 
 - **WHEN** a phase dispatch requests archetype `architect`
 - **THEN** Claude Code SHALL receive its configured premium Claude model
 - **AND** Codex SHALL receive its configured premium Codex model
-- **AND** Gemini/Jules SHALL receive its configured premium Gemini model
+- **AND** antigravity SHALL receive its configured premium antigravity model
+- **AND** grok SHALL receive its configured premium grok model
+- **AND** pi SHALL receive its configured premium OpenRouter model slug
 
 #### Scenario: Runner archetype maps per provider
 
@@ -166,8 +189,8 @@ The claim operation SHALL filter available tasks by the claiming agent's declare
 
 #### Scenario: Provider preference routes to matching agent
 
-- **WHEN** a task is submitted with `agent_requirements.archetype = "implementer"` and `agent_requirements.provider = "gemini"`
-- **AND** a Gemini agent with `archetypes: ["implementer"]` calls claim
+- **WHEN** a task is submitted with `agent_requirements.archetype = "implementer"` and `agent_requirements.provider = "grok"`
+- **AND** a grok agent with `archetypes: ["implementer"]` calls claim
 - **THEN** the agent SHALL be eligible to claim the task
 - **AND** a Codex-only agent SHALL NOT claim that provider-constrained task
 

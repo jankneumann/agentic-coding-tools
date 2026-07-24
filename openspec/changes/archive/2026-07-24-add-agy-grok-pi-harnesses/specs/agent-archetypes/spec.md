@@ -44,10 +44,10 @@ Provider-aware resolution SHALL cover exactly the supported roster: `claude_code
 - **THEN** the logical role SHALL remain `implementer`
 - **AND** the dispatch model SHALL be an OpenRouter model slug from provider mapping
 
-#### Scenario: Retired gemini provider is rejected
+#### Scenario: Archetype resolves for Gemini provider
 
 - **WHEN** archetype resolution is requested under provider `gemini`
-- **THEN** resolution SHALL fail with a structured configuration error naming `gemini` as unsupported
+- **THEN** resolution SHALL fail with a structured configuration error naming `gemini` as unsupported (the gemini provider harness is retired)
 - **AND** the error SHALL list the supported roster
 - **AND** no dispatch SHALL be attempted
 

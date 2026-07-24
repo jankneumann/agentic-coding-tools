@@ -313,6 +313,13 @@ The re-login command map SHALL carry an entry for every vendor in the roster. Wh
 - THEN the adapter SHALL emit `<command> login` as the suggested remediation
 - AND SHALL NOT emit a command referencing the retired gemini CLI
 
+#### Scenario: Gemini auth expired
+
+- GIVEN the retired `gemini` provider is selected for dispatch
+- WHEN the adapter resolves the vendor before any auth attempt
+- THEN it SHALL reject `gemini` as an unsupported provider naming the current roster
+- AND no gemini auth error or `gemini login` remediation SHALL be surfaced (the gemini CLI harness is retired)
+
 ### Requirement: Review Manifest Generation
 
 The review dispatcher SHALL produce a `reviews/review-manifest.json` file capturing dispatch metadata: which vendors were requested, which responded, timing, model used, quorum status, and error summaries for failed vendors.
@@ -497,6 +504,13 @@ The smoke path SHALL:
 - **THEN** the dispatch payload SHALL contain a grok model ID
 - **AND** the dispatch result SHALL normalize to `(outcome, handoff_id)`
 - **AND** the smoke SHALL report any adapter limitations as warnings rather than silently skipping the provider
+
+#### Scenario: Gemini CLI smoke succeeds in configured mode
+
+- **GIVEN** the operator runs the smoke path with provider `gemini`
+- **WHEN** the smoke validates the provider selector
+- **THEN** the smoke SHALL reject `gemini` as an unsupported selector before dispatch (the gemini CLI harness is retired)
+- **AND** the smoke SHALL report the failure with the supported roster rather than attempting a gemini dispatch
 
 #### Scenario: Retired provider selector is rejected
 
