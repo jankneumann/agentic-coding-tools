@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -40,8 +42,8 @@ def _index(
     *,
     revision: str = REVISION,
     storage_exists: bool = True,
-) -> QueryableIndex:
-    return QueryableIndex(
+) -> Any:
+    index = QueryableIndex(
         index_id=INDEX_ID,
         storage_key="i_11111111111111111111111111111111",
         repo_slug="agentic_coding_tools",
@@ -55,7 +57,30 @@ def _index(
         embedder_fingerprint=PROVIDER.embedder_fingerprint,
         chunk_count=2,
         completed_at=datetime(2026, 7, 23, 12, tzinfo=UTC),
-        storage_exists=storage_exists,
+    )
+    if storage_exists:
+        return index
+    return SimpleNamespace(
+        **{
+            name: getattr(index, name)
+            for name in (
+                "index_id",
+                "storage_key",
+                "repo_slug",
+                "namespace_kind",
+                "namespace_key",
+                "source_revision",
+                "embedder_model",
+                "embedding_dim",
+                "policy_fingerprint",
+                "pipeline_fingerprint",
+                "embedder_fingerprint",
+                "chunk_count",
+                "completed_at",
+            )
+        },
+        storage_exists=False,
+        matches_provider=index.matches_provider,
     )
 
 

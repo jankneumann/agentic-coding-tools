@@ -398,7 +398,7 @@ class CodeSearchService:
             self._observe_response(validated, response, started_at)
             return response
 
-        if not selected.storage_exists:
+        if not getattr(selected, "storage_exists", True):
             response = _non_ready_response(
                 state=CodeSearchState.UNAVAILABLE,
                 request=identity,
