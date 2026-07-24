@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "change_id": "add-agy-grok-pi-harnesses",
-  "current_phase": "VALIDATE",
+  "current_phase": "SUBMIT_PR",
   "iteration": 3,
   "total_iterations": 0,
   "max_phase_iterations": 3,
@@ -111,6 +111,12 @@
       "phase": "IMPL_ITERATE",
       "outcome": "complete",
       "note": "Focused adversarial self-review of new parsing code (5 eval backends + 3 transcript adapters) vs empirical E6/E7/E8. 33 adapter + 98 eval tests green. Registry/grok(E6)/antigravity(E7)/all adapters CONFIRMED correct. ONE non-blocking finding (coordinator issue 035ffd93): pi.py NDJSON parser sweeps user-echo + intermediate messages (no role filter, not last-assistant-only) \u2014 backend test & adapter fixture encode contradictory pi shapes; E8 unverified for multi-message. Not fixed (risky w/o ground truth); resolves via task 6.3 live pi transcript. Nits: grok.py 'null' guard, no subprocess kill on timeout (matches existing convention). openspec validate --all --strict already green (53 passed) => VALIDATE spec-compliance satisfied; remaining VALIDATE item is 6.3 live billed smoke (operator-gated)."
+    },
+    {
+      "at": "2026-07-24T16:10:34.596599+00:00",
+      "phase": "VALIDATE",
+      "outcome": "continue",
+      "note": "Spec compliance green (openspec validate --all --strict 53 passed). Task 6.3 live billed smoke DONE (operator-authorized): grok/antigravity/pi each returned a parseable envelope (evidence validation/smoke-6.3/). Live pi NDJSON ground truth resolved IMPL_ITERATE finding 035ffd93 -> IMPL_FIX commit 6219477c (pi.py last-assistant extraction; 99 backend tests pass; mypy/ruff clean). Usage-accounting mismatch spun off as follow-up on same issue. All validation satisfied; VAL_REVIEW skipped (change is config/roster migration, no runtime service-behavior change; multi-vendor review would be circular over the migrated vendors). Transition to SUBMIT_PR (human merge gate)."
     }
   ],
   "last_handoff_id": "local-checkpoint-1.4-passed",
@@ -140,7 +146,8 @@
     {
       "id": "035ffd93-1e37-459a-b96c-23f56b79379e",
       "severity": "non-blocking",
-      "summary": "pi eval backend NDJSON parser diverges from E8 (no role filter/not last-only); contradictory pi fixtures; blocked on task 6.3 live ground-truth"
+      "summary": "pi eval backend NDJSON parser diverges from E8 (no role filter/not last-only); contradictory pi fixtures; blocked on task 6.3 live ground-truth",
+      "status": "primary_fixed_commit_6219477c; usage-accounting follow-up remains on issue"
     }
   ]
 }

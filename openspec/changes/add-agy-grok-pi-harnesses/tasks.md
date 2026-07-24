@@ -522,14 +522,18 @@ calls is on record in `design.md`.
   parametrizations both before and after. Step 2 exits non-zero on baseline debt only
   (operator-accepted; see 3.12).
 
-- [ ] 6.3 Live smoke dispatch against each of antigravity, grok, and pi (operator-authorized;
+- [x] 6.3 Live smoke dispatch against each of antigravity, grok, and pi (operator-authorized;
   see design.md § Empirical CLI findings) (M)
   **Spec scenarios**: skill-workflow.24
   **Dependencies**: 6.2
-  **OPERATOR-PENDING (deliberately left unchecked).** This is the manual, billed live-dispatch
-  step (`wp-docs-finalize` verification step 3, `kind: manual`). It is out of scope for the
-  automated implement sub-agent and requires explicit operator action to run one review-mode
-  dispatch through each of antigravity/grok/pi and confirm a parseable result envelope.
+  **DONE 2026-07-24 (operator-authorized, billed).** One review-mode dispatch per vendor,
+  all returned a parseable envelope: grok exit 0 `text="SMOKE-OK-GROK"` ($0.008);
+  antigravity exit 0 plain stdout `SMOKE-OK-AGY` (E7); pi exit 0 NDJSON `SMOKE-OK-PI` (E8).
+  Evidence + raw transcripts: `validation/smoke-6.3/`. The pi transcript provided ground
+  truth that resolved the IMPL_ITERATE finding (pi.py last-assistant fix, commit 6219477c,
+  issue 035ffd93); a usage-accounting follow-up remains on that issue. Dry-run dispatch smoke
+  also green for all three (deployed coordinator returns HTTP 500 on archetype resolution —
+  expected pre-merge, degrades to harness defaults).
 
 - [x] 6.4 Record the deferred-narrative follow-up: run the design.md inventory command, save
   the remaining file list into the session log, and note it in the PR description as an
