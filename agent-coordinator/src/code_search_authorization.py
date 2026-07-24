@@ -12,6 +12,7 @@ _REVISION_RE = re.compile(r"^[0-9a-f]{40}([0-9a-f]{24})?$")
 _MAX_GLOB_LENGTH = 512
 _MAX_GLOBS = 100
 _MAX_SCOPE_AUTOMATON_STATES = 4096
+_MAX_SCOPE_AUTOMATON_WORK = 200_000
 
 
 class ScopeAuthorizationError(RuntimeError):
@@ -328,6 +329,7 @@ def _require_nonempty_effective_scope(scope: EffectiveCodeSearchScope) -> None:
     start = (positive_starts, deny_start, 0)
     queue = deque([start])
     visited = {start}
+    work = 0
 
     while queue:
         positive_states, deny_state, segment_state = queue.popleft()
@@ -344,6 +346,12 @@ def _require_nonempty_effective_scope(scope: EffectiveCodeSearchScope) -> None:
             )
         ):
             return
+        active_positions = sum(len(state) for state in positive_states) + (
+            len(deny_state) if deny_state is not None else 0
+        )
+        work += len(alphabet) * max(active_positions, 1)
+        if work > _MAX_SCOPE_AUTOMATON_WORK:
+            raise ScopeRejectedError("effective scope is too complex")
         for character in alphabet:
             next_segment = _next_segment_state(segment_state, character)
             if next_segment is None:

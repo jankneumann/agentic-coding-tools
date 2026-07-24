@@ -210,6 +210,28 @@ async def test_effective_scope_proves_multi_class_intersection_without_expansion
 
 
 @pytest.mark.asyncio
+async def test_effective_scope_rejects_excessive_transition_work() -> None:
+    expensive_literals = tuple(
+        "scope/" + "".join(chr(0x1000 + row * 50 + column) for column in range(50))
+        for row in range(50)
+    )
+
+    with pytest.raises(ScopeRejectedError, match="effective scope is too complex"):
+        await authorize_code_search_scope(
+            principal_id="codex",
+            repo_slug="agentic_coding_tools",
+            namespace_kind="main",
+            namespace_key="main",
+            source_revision=REVISION,
+            grant=_grant(read_allow=("**",), deny=()),
+            requested_scope=ExplicitScopeRequest(
+                read_allow=expensive_literals,
+                deny=(),
+            ),
+        )
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "read_allow",
     [
