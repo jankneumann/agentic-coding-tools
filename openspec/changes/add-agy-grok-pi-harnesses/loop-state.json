@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "change_id": "add-agy-grok-pi-harnesses",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "iteration": 3,
   "total_iterations": 0,
   "max_phase_iterations": 3,
@@ -117,6 +117,12 @@
       "phase": "VALIDATE",
       "outcome": "continue",
       "note": "Spec compliance green (openspec validate --all --strict 53 passed). Task 6.3 live billed smoke DONE (operator-authorized): grok/antigravity/pi each returned a parseable envelope (evidence validation/smoke-6.3/). Live pi NDJSON ground truth resolved IMPL_ITERATE finding 035ffd93 -> IMPL_FIX commit 6219477c (pi.py last-assistant extraction; 99 backend tests pass; mypy/ruff clean). Usage-accounting mismatch spun off as follow-up on same issue. All validation satisfied; VAL_REVIEW skipped (change is config/roster migration, no runtime service-behavior change; multi-vendor review would be circular over the migrated vendors). Transition to SUBMIT_PR (human merge gate)."
+    },
+    {
+      "at": "2026-07-24T16:12:29.928489+00:00",
+      "phase": "SUBMIT_PR",
+      "outcome": "complete",
+      "note": "PR #268 opened (openspec/add-agy-grok-pi-harnesses -> main). 11 session commits pushed. Awaiting human merge approval via /cleanup-feature."
     }
   ],
   "last_handoff_id": "local-checkpoint-1.4-passed",
@@ -149,5 +155,6 @@
       "summary": "pi eval backend NDJSON parser diverges from E8 (no role filter/not last-only); contradictory pi fixtures; blocked on task 6.3 live ground-truth",
       "status": "primary_fixed_commit_6219477c; usage-accounting follow-up remains on issue"
     }
-  ]
+  ],
+  "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/268"
 }
