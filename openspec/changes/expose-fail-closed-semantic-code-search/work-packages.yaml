@@ -1,0 +1,448 @@
+schema_version: 1
+
+feature:
+  id: expose-fail-closed-semantic-code-search
+  title: "Expose fail-closed semantic code search"
+  plan_revision: 1
+  created_by: codex-autopilot-roadmap
+  created_at: "2026-07-23T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/expose-fail-closed-semantic-code-search/contracts/openapi/v2.yaml"
+    files:
+      - "openspec/changes/expose-fail-closed-semantic-code-search/contracts/README.md"
+      - "openspec/changes/expose-fail-closed-semantic-code-search/contracts/openapi/v2.yaml"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Freeze exact-query and status contracts"
+    task_type: contracts
+    description: |
+      Tasks 0.1-0.3. Validate the v2 OpenAPI examples, strict request
+      discriminators, impossible response states, fallback invariants, and
+      body-aware status contract before implementation.
+    role: contracts-author
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/expose-fail-closed-semantic-code-search/contracts"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/tests"
+      keys:
+        - "contract:semantic-code-search-v2"
+        - "api:POST /search/code"
+        - "api:GET /search/code/status"
+      ttl_minutes: 60
+      reason: "Freeze the public fail-closed query boundary"
+    scope:
+      write_allow:
+        - "openspec/changes/expose-fail-closed-semantic-code-search/contracts/**"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/tests/**"
+      read_allow:
+        - "openspec/changes/expose-fail-closed-semantic-code-search/**"
+        - "openspec/changes/complete-incremental-semantic-indexing/**"
+        - "agent-coordinator/**"
+        - "packages/code-search/**"
+    worktree:
+      name: fail-closed-search-contracts
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "OpenAPI contract parses"
+          kind: command
+          command: "uv run --project skills python -c \"import pathlib,yaml; yaml.safe_load(pathlib.Path('openspec/changes/expose-fail-closed-semantic-code-search/contracts/openapi/v2.yaml').read_text())\""
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openapi_parses"
+    metadata:
+      loc_estimate: 180
+      complexity: low
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      dependency_change: complete-incremental-semantic-indexing
+    outputs:
+      result_keys:
+        - "openapi_parses"
+      artifacts:
+        - "openspec/changes/expose-fail-closed-semantic-code-search/contracts/openapi/v2.yaml"
+
+  - package_id: wp-query-adapter
+    title: "Query immutable exact-index storage"
+    task_type: backend
+    description: |
+      Tasks 1.1-1.4. Establish the supported package/install boundary, then
+      replace repo-slug table addressing with validated
+      storage-key queries, add exact canonical selection primitives, and prove
+      legacy storage is never read.
+    role: python-engineer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "packages/code-search/src/code_search_pkg/query_pg.py"
+        - "packages/code-search/tests/test_query_pg.py"
+        - "packages/code-search/pyproject.toml"
+        - "packages/code-search/uv.lock"
+        - "agent-coordinator/pyproject.toml"
+        - "agent-coordinator/uv.lock"
+        - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/tests/test_code_search_imports.py"
+      keys:
+        - "db:schema:code_chunks"
+        - "feature:expose-fail-closed-semantic-code-search:query"
+      ttl_minutes: 120
+      reason: "Own the immutable storage query boundary"
+    scope:
+      write_allow:
+        - "packages/code-search/src/code_search_pkg/query_pg.py"
+        - "packages/code-search/tests/test_query_pg.py"
+        - "packages/code-search/pyproject.toml"
+        - "packages/code-search/uv.lock"
+        - "agent-coordinator/pyproject.toml"
+        - "agent-coordinator/uv.lock"
+        - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/tests/test_code_search_imports.py"
+      read_allow:
+        - "packages/code-search/**"
+        - "agent-coordinator/database/migrations/028_code_search_registry.sql"
+        - "agent-coordinator/database/migrations/029_revision_aware_code_search_indexes.sql"
+        - "agent-coordinator/database/migrations/030_incremental_code_search_indexes.sql"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/**"
+    worktree:
+      name: fail-closed-search-query-adapter
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Storage-key query suite passes"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests/test_query_pg.py -q && uv run --project agent-coordinator pytest agent-coordinator/tests/test_code_search_imports.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "query_adapter_tests_pass"
+    metadata:
+      loc_estimate: 240
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      contract_package: wp-contracts
+    outputs:
+      result_keys:
+        - "query_adapter_tests_pass"
+      artifacts:
+        - "packages/code-search/src/code_search_pkg/query_pg.py"
+        - "agent-coordinator/pyproject.toml"
+        - "agent-coordinator/Dockerfile"
+
+  - package_id: wp-query-service
+    title: "Enforce exact revision and authoritative scope"
+    task_type: backend
+    description: |
+      Tasks 2.1-2.4. Replace legacy service models and lookup with the typed v2
+      state machine, trusted scope resolver, provider compatibility checks,
+      provenance-rich hits, and sanitized fail-closed outcomes.
+    role: security-engineer
+    archetype: implementer
+    priority: 3
+    depends_on:
+      - wp-contracts
+      - wp-query-adapter
+    locks:
+      files:
+        - "agent-coordinator/src/code_search.py"
+        - "agent-coordinator/src/code_search_authorization.py"
+        - "agent-coordinator/tests/test_code_search.py"
+        - "agent-coordinator/tests/test_code_search_authorization.py"
+      keys:
+        - "feature:expose-fail-closed-semantic-code-search:service"
+        - "contract:code-search-read-scope"
+      ttl_minutes: 120
+      reason: "Own query authorization and operational-state semantics"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/code_search.py"
+        - "agent-coordinator/src/code_search_authorization.py"
+        - "agent-coordinator/tests/test_code_search.py"
+        - "agent-coordinator/tests/test_code_search_authorization.py"
+      read_allow:
+        - "agent-coordinator/**"
+        - "packages/code-search/**"
+        - "skills/parallel-infrastructure/scripts/scope_checker.py"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/**"
+      deny:
+        - "skills/coordination-bridge/**"
+    worktree:
+      name: fail-closed-search-service
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Fail-closed service suite passes"
+          kind: command
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests/test_code_search.py agent-coordinator/tests/test_code_search_authorization.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "query_service_tests_pass"
+    metadata:
+      loc_estimate: 520
+      complexity: high
+      package_kind: algorithm
+    inputs:
+      contract_revision: 1
+      query_package: wp-query-adapter
+    outputs:
+      result_keys:
+        - "query_service_tests_pass"
+      artifacts:
+        - "agent-coordinator/src/code_search.py"
+        - "agent-coordinator/src/code_search_authorization.py"
+
+  - package_id: wp-runtime-surfaces
+    title: "Own startup and expose surface parity"
+    task_type: backend
+    description: |
+      Tasks 3.1-3.4. Add the loop-owned runtime factory, HTTP and direct-MCP
+      lifecycles, body-aware status endpoint, typed search route, MCP signature,
+      and proxy forwarding with identical expected outcomes.
+    role: integration-engineer
+    archetype: implementer
+    priority: 4
+    depends_on:
+      - wp-query-service
+    locks:
+      files:
+        - "agent-coordinator/src/code_search_runtime.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+        - "agent-coordinator/tests/test_code_search_runtime.py"
+        - "agent-coordinator/tests/test_code_search_surfaces.py"
+      keys:
+        - "api:POST /search/code"
+        - "api:GET /search/code/status"
+        - "feature:expose-fail-closed-semantic-code-search:runtime"
+      ttl_minutes: 120
+      reason: "Own process lifecycle and transport parity"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/code_search_runtime.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+        - "agent-coordinator/tests/test_code_search_runtime.py"
+        - "agent-coordinator/tests/test_code_search_surfaces.py"
+      read_allow:
+        - "agent-coordinator/**"
+        - "packages/code-search/**"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/**"
+      deny:
+        - "skills/coordination-bridge/**"
+    worktree:
+      name: fail-closed-search-runtime-surfaces
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Runtime and surface parity suites pass"
+          kind: command
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests/test_code_search_runtime.py agent-coordinator/tests/test_code_search_surfaces.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "runtime_surface_tests_pass"
+    metadata:
+      loc_estimate: 650
+      complexity: high
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      service_package: wp-query-service
+    outputs:
+      result_keys:
+        - "runtime_surface_tests_pass"
+      artifacts:
+        - "agent-coordinator/src/code_search_runtime.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+
+  - package_id: wp-capability-discovery
+    title: "Publish body-aware code-search capability"
+    task_type: tooling
+    description: |
+      Tasks 4.1-4.2. Add CAN_CODE_SEARCH to both discovery implementations,
+      parse the typed status body for HTTP, and remain false for unverifiable
+      MCP-only detection.
+    role: python-engineer
+    archetype: implementer
+    priority: 4
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/coordination-bridge/scripts/check_coordinator.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/coordination-bridge/scripts/tests"
+        - "agent-coordinator/scripts/check_coordinator.py"
+      keys:
+        - "feature:expose-fail-closed-semantic-code-search:capability"
+      ttl_minutes: 90
+      reason: "Own truthful external capability detection"
+    scope:
+      write_allow:
+        - "skills/coordination-bridge/scripts/check_coordinator.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/coordination-bridge/scripts/tests/**"
+        - "agent-coordinator/scripts/check_coordinator.py"
+      read_allow:
+        - "skills/coordination-bridge/**"
+        - "agent-coordinator/scripts/check_coordinator.py"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/**"
+      deny:
+        - "agent-coordinator/src/**"
+    worktree:
+      name: fail-closed-search-capability
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Capability probe suites pass"
+          kind: command
+          command: "uv run --project skills pytest skills/coordination-bridge/scripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "capability_tests_pass"
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: config
+    inputs:
+      contract_revision: 1
+      contract_package: wp-contracts
+    outputs:
+      result_keys:
+        - "capability_tests_pass"
+      artifacts:
+        - "skills/coordination-bridge/scripts/check_coordinator.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+
+  - package_id: wp-integration
+    title: "Validate the exact-search lifecycle"
+    task_type: integration
+    description: |
+      Tasks 5.1-5.3. Add live-resource fixtures, update operator
+      documentation, reconcile all package outputs, and run deterministic plus
+      available resource validation.
+    role: integration-engineer
+    archetype: implementer
+    priority: 6
+    depends_on:
+      - wp-runtime-surfaces
+      - wp-capability-discovery
+    locks:
+      files:
+        - "agent-coordinator/tests/integration/postgres/test_code_search_v2.py"
+        - "docs/guides/code-search.md"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/tasks.md"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/session-log.md"
+      keys:
+        - "feature:expose-fail-closed-semantic-code-search:integration"
+      ttl_minutes: 120
+      reason: "Reconcile packages and record end-to-end evidence"
+    scope:
+      write_allow:
+        - "agent-coordinator/tests/integration/postgres/test_code_search_v2.py"
+        - "docs/guides/code-search.md"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/tasks.md"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/session-log.md"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/reviews/**"
+        - "openspec/changes/expose-fail-closed-semantic-code-search/review-findings-implementation.json"
+      read_allow:
+        - "**"
+    worktree:
+      name: fail-closed-search-integration
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Deterministic RI03 suites pass"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests -q && uv run --project agent-coordinator pytest agent-coordinator/tests/test_code_search.py agent-coordinator/tests/test_code_search_runtime.py agent-coordinator/tests/test_code_search_surfaces.py -q && uv run --project skills pytest skills/coordination-bridge/scripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "deterministic_suites_pass"
+        - name: "Strict OpenSpec validation passes"
+          kind: command
+          command: "openspec validate expose-fail-closed-semantic-code-search --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_strict_pass"
+    metadata:
+      loc_estimate: 360
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      runtime_package: wp-runtime-surfaces
+      capability_package: wp-capability-discovery
+    outputs:
+      result_keys:
+        - "deterministic_suites_pass"
+        - "openspec_strict_pass"
+      artifacts:
+        - "agent-coordinator/tests/integration/postgres/test_code_search_v2.py"
+        - "docs/guides/code-search.md"
