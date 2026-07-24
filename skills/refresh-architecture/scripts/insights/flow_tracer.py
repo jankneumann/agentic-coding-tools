@@ -23,6 +23,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from arch_utils.constants import EdgeType  # noqa: E402
+from arch_utils.determinism import generated_at_iso  # noqa: E402
 from arch_utils.traversal import build_adjacency  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -176,7 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     flows = infer_cross_layer_flows(all_nodes, all_edges, entrypoints)
 
     output_data: dict[str, Any] = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": generated_at_iso(),
         "flows": flows,
     }
 

@@ -19,6 +19,23 @@ import logging
 import sys
 from collections import Counter
 from datetime import datetime, timezone
+
+
+def _generated_at_iso() -> str:
+    """Deterministic ``generated_at`` timestamp (ri-04 D3).
+
+    Honors ``SOURCE_DATE_EPOCH`` (exported by the refresh runner) so committed
+    architecture artifacts are byte-identical across reruns of one revision;
+    falls back to the wall clock only for ad-hoc, non-committed invocations.
+    """
+    import os
+    raw = os.environ.get("SOURCE_DATE_EPOCH")
+    if raw:
+        try:
+            return datetime.fromtimestamp(int(raw), tz=timezone.utc).isoformat()
+        except ValueError:
+            pass
+    return datetime.now(timezone.utc).isoformat()
 from pathlib import Path
 from typing import Any
 
@@ -88,7 +105,7 @@ def compute_pattern_insights(enrichment: dict[str, Any]) -> dict[str, Any]:
     }
 
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": _generated_at_iso(),
         "python_patterns": py_summary,
         "typescript_patterns": ts_summary,
         "type_hint_coverage": {
