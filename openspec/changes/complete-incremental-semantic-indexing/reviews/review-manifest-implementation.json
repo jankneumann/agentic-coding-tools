@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "change_id": "complete-incremental-semantic-indexing",
+  "review_type": "implementation",
+  "created_at": "2026-07-23T21:55:00Z",
+  "target": "complete-incremental-semantic-indexing",
+  "dispatches": [
+    {
+      "vendor": "codex-independent",
+      "success": true,
+      "model_used": "codex",
+      "models_attempted": ["codex"],
+      "elapsed_seconds": 0.0,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 1,
+  "quorum_received": 1,
+  "vendors": ["codex-independent"],
+  "result": {
+    "blocker_or_high_remaining": false,
+    "findings_resolved": 6,
+    "reaudit_passed": true
+  }
+}

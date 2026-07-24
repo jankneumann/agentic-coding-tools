@@ -1,0 +1,73 @@
+{
+  "review_type": "implementation",
+  "target": "complete-incremental-semantic-indexing",
+  "reviewer_vendor": "codex-independent",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "exact_source",
+      "criticality": "critical",
+      "description": "The source planner digested exact Git blobs, but the CocoIndex adapter reread mutable worktree content. A transient edit could be embedded and restored before the final source proof.",
+      "resolution": "Pass each planned Git-blob digest into the memoized file function, hash the final byte read, and decode those same verified bytes without reopening the file.",
+      "disposition": "fix",
+      "file_path": "packages/code-search/src/code_search_pkg/indexer_pg.py"
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "publication_toctou",
+      "criticality": "high",
+      "description": "Storage verification happened before the publication transaction, leaving a mutation window before table rename and manifest publication.",
+      "resolution": "Repeat decisive manifest/count/schema/HNSW verification under an access-exclusive attempt-table lock, advisory lock, unexpired lease, and the same transaction used for rename and manifest publication.",
+      "disposition": "fix",
+      "file_path": "packages/code-search/src/code_search_pkg/storage_pg.py"
+    },
+    {
+      "id": 3,
+      "axis": "data_integrity",
+      "severity": "critical",
+      "type": "database_invariant",
+      "criticality": "high",
+      "description": "The parent compatibility trigger guarded UPDATE only, so a direct INSERT with parent_index_id could bypass ready, compatibility, and non-legacy checks.",
+      "resolution": "Add a BEFORE INSERT parent guard, lock the selected parent FOR SHARE, and test compatible, incompatible, and legacy direct inserts.",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/database/migrations/030_incremental_code_search_indexes.sql"
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "A configured but unreachable registry was returned as not_configured even though only an absent DSN has that outcome.",
+      "resolution": "Return an ephemeral failed result with registry_unavailable for pool/connect failures while preserving missing_database as not_configured.",
+      "disposition": "fix",
+      "file_path": "packages/code-search/src/code_search_pkg/cli.py"
+    },
+    {
+      "id": 5,
+      "axis": "reliability",
+      "severity": "critical",
+      "type": "gc_regression",
+      "criticality": "high",
+      "description": "Garbage collection could select an expired ready index still referenced as an incremental parent, causing the parent-target trigger to abort the run.",
+      "resolution": "Exclude referenced parents in both candidate selection and the atomic claim statement; descendants are collected before ancestors.",
+      "disposition": "fix",
+      "file_path": "packages/code-search/src/code_search_pkg/registry.py"
+    },
+    {
+      "id": 6,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "memo_identity",
+      "criticality": "high",
+      "description": "The custom CocoIndex embedder wrapper had no explicit stable memo key or vector-schema provider, so embedding-contract invalidation and App schema construction were not proven.",
+      "resolution": "Implement a canonical memo key over provider fingerprint, dimension, and indexing parameters; implement the pinned public VectorSchemaProvider contract and return float32 vectors.",
+      "disposition": "fix",
+      "file_path": "packages/code-search/src/code_search_pkg/embedding_config.py"
+    }
+  ]
+}
