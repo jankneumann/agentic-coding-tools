@@ -4,7 +4,9 @@
 # from the agent-coordinator codebase (Python, TypeScript, Postgres).
 #
 # Usage:
-#   make architecture                     # Full generation pipeline
+#   make architecture                     # Full generation pipeline (in place)
+#   make architecture-refresh             # Deterministic staged refresh + provenance
+#   make architecture-check               # Read-only content-based freshness check
 #   make architecture-diff BASE_SHA=abc123  # Compare to baseline
 #   make architecture-feature FEATURE="src/locks.py,src/db.py"
 #   make architecture-validate            # Validate existing graph
@@ -125,6 +127,18 @@ architecture: ## Full generation: analyzers -> compiler -> validator -> views
 		--migrations-dir $(MIGRATIONS_DIR) \
 		--arch-dir $(ARCH_DIR) \
 		--python $(PYTHON)
+
+architecture-refresh: ## Deterministic staged refresh: stage -> validate -> promote -> write provenance
+	@$(PYTHON) $(SCRIPTS_DIR)/run_architecture.py \
+		--target-dir . \
+		--python-src-dir $(PYTHON_SRC_DIR) \
+		--ts-src-dir $(TS_SRC_DIR) \
+		--migrations-dir $(MIGRATIONS_DIR) \
+		--python $(PYTHON) \
+		--staged
+
+architecture-check: ## Read-only, mtime-independent freshness check via architecture provenance
+	@$(PYTHON) $(SCRIPTS_DIR)/run_architecture.py --target-dir . --check
 
 # ---------------------------------------------------------------------------
 # Individual pipeline stages (used internally and for partial runs)

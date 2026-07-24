@@ -43,7 +43,7 @@ import sys
 import threading
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Protocol
@@ -162,9 +162,14 @@ class RefreshServer:
         max_age_hours: int = DEFAULT_MAX_AGE_HOURS,
         spawner: Spawner | None = None,
         refresh_cmd: list[str] | None = None,
+        repo_root: Path | str | None = None,
     ) -> None:
         self.graph_path = Path(graph_path)
         self.max_age_hours = max_age_hours
+        # When set, freshness is decided by architecture provenance (content-based,
+        # mtime-independent) and the canonical operation id is projected. When
+        # ``None`` the server keeps the deprecated graph-mtime probe.
+        self.repo_root = Path(repo_root) if repo_root is not None else None
         self._spawner: Spawner = spawner or _default_spawner
         self._refresh_cmd: list[str] = refresh_cmd or [
             "bash",
@@ -204,13 +209,80 @@ class RefreshServer:
         with self._lock:
             in_flight, current_id = self._current_in_flight_locked()
 
+        # Additive, provenance-derived projection (ri-04 D6/D7). The legacy
+        # fields above remain; ``graph_mtime``/``max_age_hours`` never decide
+        # freshness once a repo_root is configured.
+        projection = self._provenance_projection(threshold)
+        if projection["provenance_available"]:
+            stale = projection["stale"]
+
         return {
             "stale": stale,
             "graph_mtime": mtime_iso,
             "node_count": node_count,
             "refresh_in_flight": in_flight,
             "current_refresh_id": current_id,
+            # Additive fields (present for every response; null in legacy mode).
+            "source_revision": projection["source_revision"],
+            "producer_version": projection["producer_version"],
+            "input_fingerprint": projection["input_fingerprint"],
+            "provenance_path": projection["provenance_path"],
+            "operation_id": projection["operation_id"],
+            "reason": projection["reason"],
+            "max_age_hours": threshold,  # deprecated compatibility field
         }
+
+    def _provenance_projection(self, threshold: int) -> dict[str, Any]:
+        """Project architecture provenance/operation state onto RPC fields.
+
+        Fails safe: any error resolving provenance or the shared operation leaves
+        every projected field null and ``provenance_available`` False, so the
+        legacy mtime probe still governs and callers never see an exception.
+        """
+        empty = {
+            "provenance_available": False,
+            "stale": True,
+            "source_revision": None,
+            "producer_version": None,
+            "input_fingerprint": None,
+            "provenance_path": None,
+            "operation_id": None,
+            "reason": "mtime" if self.repo_root is None else "provenance-unavailable",
+        }
+        if self.repo_root is None:
+            return empty
+        try:
+            from arch_utils import provenance as _prov
+
+            result = _prov.check_freshness(self.repo_root)
+            doc = result.provenance
+            operation_id: str | None = None
+            try:
+                from context_runtime_adapter import ArchitectureAdapter
+
+                op = ArchitectureAdapter(self.repo_root).load_operation()
+                operation_id = op.operation_id if op is not None else None
+            except Exception:  # pragma: no cover - adapter/runtime optional
+                operation_id = None
+            reason = "fresh" if result.is_fresh else (
+                result.reasons[0].code if result.reasons else "stale"
+            )
+            return {
+                "provenance_available": True,
+                "stale": not result.is_fresh,
+                "source_revision": (doc or {}).get("source_revision"),
+                "producer_version": ((doc or {}).get("producer") or {}).get(
+                    "producer_version"
+                ),
+                "input_fingerprint": (doc or {}).get("input_fingerprint"),
+                "provenance_path": (
+                    f"{_prov.ARCH_DIR_DEFAULT}/{_prov.PROVENANCE_FILENAME}"
+                ),
+                "operation_id": operation_id,
+                "reason": reason,
+            }
+        except Exception:  # pragma: no cover - fail safe to legacy mtime
+            return empty
 
     # ---- trigger ----
 
