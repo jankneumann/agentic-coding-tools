@@ -21,7 +21,9 @@ until the retrieval-quality gate (design D9) is closed — see "Retrieval-qualit
 | Coordinator service | `agent-coordinator/src/code_search.py` |
 | MCP tool `search_code` (local agents) | `agent-coordinator/src/coordination_mcp.py` |
 | HTTP `POST /search/code` (cloud agents) | `agent-coordinator/src/coordination_api.py` |
-| Registry migration | `agent-coordinator/database/migrations/028_code_search_registry.sql` |
+| Repository registry migration | `agent-coordinator/database/migrations/028_code_search_registry.sql` |
+| Revision-aware index registry migration | `agent-coordinator/database/migrations/029_revision_aware_code_search_indexes.sql` |
+| Revision-aware registry library | `packages/code-search/src/code_search_pkg/registry.py` |
 
 Retrieval is a **read** (design D5): it never locks, enqueues, or triggers indexing, and is
 exposed as a tool/endpoint (not an MCP resource) so it works through the `http_proxy` fallback.
@@ -55,15 +57,54 @@ uv pip install -e "packages/code-search[index]"
 POSTGRES_DSN=... index_repo --repo-root . --repo-slug agentic_coding_tools
 ```
 
-### Post-merge reindex trigger
+### Revision-aware registry
+
+`code_search_registry` remains the repository configuration and legacy
+compatibility table. `code_search_indexes` is authoritative for each individual
+semantic index and records:
+
+- the exact 40- or 64-character Git object ID;
+- namespace kind (`main`, `feature`, or `work_package`) and namespace key;
+- embedder model and embedding dimension;
+- lifecycle status, lease ownership, attempt count, chunk count, and last error;
+- retention and deletion state.
+
+The natural key is repository + namespace + exact revision + embedding contract.
+Duplicate requests therefore reuse one durable `index_id`. Storage uses the
+UUID-derived `storage_key`, never a human-readable branch or work-package name.
+
+Workers claim an index through an expiring lease. Only the current lease holder
+may complete or fail an attempt, so a late worker cannot overwrite a newer result.
+A ready main index becomes canonical only through compare-and-swap promotion, and
+the database rejects feature, work-package, cross-repository, or non-ready
+candidates.
+
+Garbage collection is explicit and conservative. It considers only expired
+feature/work-package records, excludes active leases and canonical/main indexes,
+and marks a record deleted only after isolated storage deletion succeeds. The
+injected storage deleter must be idempotent: an expired `deleting` lease is
+reclaimed after a worker crash, including a crash after storage removal but
+before registry tombstoning. A storage failure is retained as a retryable
+registry failure.
+
+Migration 029 is additive: existing `code_chunks__<repo_slug>` tables and the
+disabled-by-default query path continue to work. Their repo-level freshness fields
+are compatibility data, not proof that results match a requested revision. The
+incremental-indexing and fail-closed-query roadmap items migrate those consumers
+to `code_search_indexes`.
+
+### Main convergence trigger
 
 Because indexing is incremental (only changed files re-embed, design D3), the intended trigger is
-a **post-merge hook** on the default branch that runs `index_repo` for the affected repo. A git
-`post-merge` hook (or a CI step on merge to `main`) calling the command above keeps the index
-fresh at low cost. This is intentionally **not** installed as a live hook by the change — wire it
-in the deployment environment where `POSTGRES_DSN` and an embedder are configured, so the hook has
-something to talk to. A coordinator-scheduled reindex (WatchdogService) is a deferred alternative
-(see `deferred-tasks` in the change) if the hook proves insufficient.
+the shared project-context convergence invoked by `merge-pull-requests` after the
+deterministic context commit reaches `main`. That flow enqueues indexing for the
+final pushed main SHA and records an explicit `not-configured` or degraded result
+when Postgres or an embedder is unavailable.
+
+Do not add an independent Git `post-merge` writer. Feature and work-package
+checkpoints use revision-isolated namespaces and cannot mutate the canonical main
+pointer. Until the later convergence roadmap item lands, indexing remains a
+manual/deployment operation that requires `POSTGRES_DSN` and a reachable embedder.
 
 ## Querying (read path)
 

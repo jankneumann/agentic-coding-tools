@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-23T18:08:53.914057+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-autopilot-roadmap",
+    "session_id": null,
+    "summary": "Planned the revision-aware semantic index registry as an additive foundation for the project-context refresh lifecycle. The user's explicit autopilot-roadmap command is recorded as inherited approval of both the roadmap-selected direction and this implementation-ready plan.",
+    "completed_work": [
+      "Created proposal, selected approach, design, strict delta spec, TDD task plan, DB and JSON contracts, and validated work-package DAG.",
+      "Recorded Gate 1 and Gate 2 as inherited approval from the explicit autopilot-roadmap invocation."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Separate repository metadata from index lifecycle records",
+        "rationale": "An additive code_search_indexes table preserves current readers while making exact revision and namespace lifecycle authoritative.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Persist full Git object IDs and explicit namespaces",
+        "rationale": "Resolved revisions plus main, feature, and work_package kinds prevent ref movement and branch-local work from masquerading as canonical main.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Guard lifecycle updates with leases and canonical promotion with compare-and-swap",
+        "rationale": "Concurrent or late workers cannot overwrite newer results, and only a ready main index for the same repository can become canonical.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Garbage collect only expired noncanonical namespaces",
+        "rationale": "Storage deletion remains retryable while main and canonical records are excluded by both SQL and application guards.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Accept inherited roadmap approval for planning gates",
+        "rationale": "The explicit $autopilot-roadmap project-context-refresh-lifecycle command approves the roadmap-selected direction and automatic progression without per-item pauses.",
+        "capability": "project-context-refresh",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement wp-contracts, then wp-migration, wp-registry, and wp-integration in DAG order.",
+      "Use code_search_indexes as the sole revision-specific source of truth in complete-incremental-semantic-indexing."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-revision-aware-semantic-index-registry/proposal.md",
+        "description": "approved scope and selected approach"
+      },
+      {
+        "path": "openspec/changes/add-revision-aware-semantic-index-registry/design.md",
+        "description": "identity, lifecycle, canonical, and GC decisions"
+      },
+      {
+        "path": "openspec/changes/add-revision-aware-semantic-index-registry/specs/code-search/spec.md",
+        "description": "strict behavioral delta"
+      },
+      {
+        "path": "openspec/changes/add-revision-aware-semantic-index-registry/work-packages.yaml",
+        "description": "implementation DAG"
+      }
+    ]
+  }
+}

@@ -10,19 +10,54 @@ Import layering (design D8):
 Importing this package does NOT import the heavy modules, so `from code_search_pkg import
 chunk_table_name, query_codebase_pg` works without torch/cocoindex present.
 """
+
 from __future__ import annotations
 
-from .identifiers import chunk_table_name, slugify, validate_slug
+from .identifiers import (
+    chunk_table_name,
+    index_chunk_table_name,
+    slugify,
+    storage_key_for_index,
+    validate_slug,
+    validate_storage_key,
+)
 from .query_pg import build_search_sql, query_codebase_pg, to_pgvector_literal
+from .registry import (
+    CanonicalPromotionError,
+    GarbageCollectionResult,
+    IndexIdentity,
+    IndexLeaseConflictError,
+    IndexNotFoundError,
+    IndexRegistryError,
+    IndexStateConflictError,
+    IndexStatus,
+    NamespaceKind,
+    SemanticIndexRecord,
+    SemanticIndexRegistry,
+)
 from .schema import CodeChunk, QueryResult
 
 __all__ = [
     "chunk_table_name",
+    "index_chunk_table_name",
     "slugify",
+    "storage_key_for_index",
     "validate_slug",
+    "validate_storage_key",
     "build_search_sql",
     "query_codebase_pg",
     "to_pgvector_literal",
     "CodeChunk",
     "QueryResult",
+    "CanonicalPromotionError",
+    "GarbageCollectionResult",
+    "IndexIdentity",
+    "IndexLeaseConflictError",
+    "IndexNotFoundError",
+    "IndexRegistryError",
+    "IndexStateConflictError",
+    "IndexStatus",
+    "NamespaceKind",
+    "SemanticIndexRecord",
+    "SemanticIndexRegistry",
 ]

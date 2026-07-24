@@ -1,0 +1,270 @@
+schema_version: 1
+
+feature:
+  id: add-revision-aware-semantic-index-registry
+  title: "Revision-aware semantic index registry"
+  plan_revision: 1
+  created_by: codex-autopilot-roadmap
+  created_at: "2026-07-23T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    # No network API in this change; README is the repository-standard entrypoint.
+    primary: "openspec/changes/add-revision-aware-semantic-index-registry/contracts/README.md"
+    files:
+      - "openspec/changes/add-revision-aware-semantic-index-registry/contracts/README.md"
+      - "openspec/changes/add-revision-aware-semantic-index-registry/contracts/db/schema.sql"
+      - "openspec/changes/add-revision-aware-semantic-index-registry/contracts/index-record.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Freeze registry persistence and record contracts"
+    task_type: contracts
+    description: |
+      Task 0.1. Validate the Postgres schema and JSON index-record schema as the
+      coordination boundary for migration and registry implementation.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/add-revision-aware-semantic-index-registry/contracts"
+      keys:
+        - "contract:code-search-index-registry"
+      ttl_minutes: 60
+      reason: "Freeze semantic index registry contract revision 1"
+    scope:
+      write_allow:
+        - "openspec/changes/add-revision-aware-semantic-index-registry/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: revision-index-registry-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Index-record JSON Schema parses"
+          kind: command
+          command: "uv run --project skills python -m json.tool openspec/changes/add-revision-aware-semantic-index-registry/contracts/index-record.schema.json"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+    metadata:
+      loc_estimate: 0
+      complexity: low
+      package_kind: config
+    inputs:
+      contract_revision: 1
+    outputs:
+      result_keys:
+        - "contracts_valid"
+      artifacts:
+        - "openspec/changes/add-revision-aware-semantic-index-registry/contracts/README.md"
+        - "openspec/changes/add-revision-aware-semantic-index-registry/contracts/db/schema.sql"
+        - "openspec/changes/add-revision-aware-semantic-index-registry/contracts/index-record.schema.json"
+
+  - package_id: wp-migration
+    title: "Add revision-aware index registry migration"
+    task_type: migration
+    description: |
+      Tasks 1.1-1.3. Add structural and live Postgres tests, then implement the
+      additive code_search_indexes schema, canonical pointer, and database
+      safety constraints.
+    role: database-engineer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "agent-coordinator/database/migrations/029_revision_aware_code_search_indexes.sql"
+        - "agent-coordinator/tests/test_revision_aware_code_search_registry.py"
+      keys:
+        - "db:schema:code_search_indexes"
+        - "db:schema:code_search_registry"
+      ttl_minutes: 120
+      reason: "Add index lifecycle table and guarded canonical pointer"
+    scope:
+      write_allow:
+        - "agent-coordinator/database/migrations/029_revision_aware_code_search_indexes.sql"
+        - "agent-coordinator/tests/test_revision_aware_code_search_registry.py"
+      read_allow:
+        - "agent-coordinator/**"
+        - "packages/code-search/**"
+        - "openspec/changes/add-revision-aware-semantic-index-registry/**"
+    worktree:
+      name: revision-index-registry-migration
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Registry migration tests pass"
+          kind: command
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests/test_revision_aware_code_search_registry.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "migration_tests_pass"
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: migration
+    inputs:
+      contract_revision: 1
+    outputs:
+      result_keys:
+        - "migration_tests_pass"
+      artifacts:
+        - "agent-coordinator/database/migrations/029_revision_aware_code_search_indexes.sql"
+
+  - package_id: wp-registry
+    title: "Implement typed semantic index registry lifecycle"
+    task_type: backend
+    description: |
+      Tasks 2.1-4.2 and 5.1. Add exact identity types, asyncpg registry
+      persistence, lease-guarded lifecycle transitions, canonical promotion,
+      garbage-collection safety, and compatibility tests in packages/code-search.
+    role: python-engineer
+    archetype: implementer
+    priority: 3
+    depends_on:
+      - wp-migration
+    locks:
+      files:
+        - "packages/code-search/src/code_search_pkg/registry.py"
+        - "packages/code-search/src/code_search_pkg/registry_models.py"
+        - "packages/code-search/src/code_search_pkg/identifiers.py"
+        - "packages/code-search/src/code_search_pkg/__init__.py"
+        - "packages/code-search/tests"
+      keys:
+        - "feature:add-revision-aware-semantic-index-registry:implementation"
+      ttl_minutes: 120
+      reason: "Implement the registry library consumed by indexing and query follow-ups"
+    scope:
+      write_allow:
+        - "packages/code-search/src/code_search_pkg/registry.py"
+        - "packages/code-search/src/code_search_pkg/registry_models.py"
+        - "packages/code-search/src/code_search_pkg/identifiers.py"
+        - "packages/code-search/src/code_search_pkg/__init__.py"
+        - "packages/code-search/tests/**"
+      read_allow:
+        - "packages/code-search/**"
+        - "agent-coordinator/database/migrations/**"
+        - "openspec/changes/add-revision-aware-semantic-index-registry/**"
+    worktree:
+      name: revision-index-registry-library
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Code-search registry tests pass"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "registry_tests_pass"
+    metadata:
+      loc_estimate: 500
+      complexity: medium
+      package_kind: data_model
+    inputs:
+      contract_revision: 1
+      migration_package: wp-migration
+    outputs:
+      result_keys:
+        - "registry_tests_pass"
+      artifacts:
+        - "packages/code-search/src/code_search_pkg/registry.py"
+        - "packages/code-search/src/code_search_pkg/registry_models.py"
+
+  - package_id: wp-integration
+    title: "Document registry operations and validate compatibility"
+    task_type: integration
+    description: |
+      Tasks 5.2-5.3. Document the revision-aware registry, canonical promotion,
+      lifecycle inspection, garbage collection, and legacy compatibility
+      boundary; then run strict proposal, package, and code-search validation.
+    role: integration-engineer
+    archetype: implementer
+    priority: 4
+    depends_on:
+      - wp-migration
+      - wp-registry
+    locks:
+      files:
+        - "docs/guides/code-search.md"
+      keys:
+        - "feature:add-revision-aware-semantic-index-registry:documentation"
+      ttl_minutes: 60
+      reason: "Finalize operator guide and cross-boundary validation"
+    scope:
+      write_allow:
+        - "docs/guides/code-search.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: revision-index-registry-integration
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Strict OpenSpec validation passes"
+          kind: command
+          command: "openspec validate add-revision-aware-semantic-index-registry --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "strict_openspec_valid"
+        - name: "Relevant code-search suites pass"
+          kind: command
+          command: "uv run --project packages/code-search pytest packages/code-search/tests -q && uv run --project agent-coordinator pytest agent-coordinator/tests -q -k code_search"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "integration_tests_pass"
+    metadata:
+      loc_estimate: 80
+      complexity: low
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+    outputs:
+      result_keys:
+        - "strict_openspec_valid"
+        - "integration_tests_pass"
+      artifacts:
+        - "docs/guides/code-search.md"
