@@ -24,6 +24,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from arch_utils.constants import EdgeType  # noqa: E402
 from arch_utils.graph_io import load_graph, save_json  # noqa: E402
+from arch_utils.determinism import generated_at_iso  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
         git_sha = latest_snapshot.get("git_sha", get_git_sha())
     else:
         git_sha = get_git_sha()
-    generated_at = datetime.now(timezone.utc).isoformat()
+    generated_at = generated_at_iso()
 
     # --- Load Layer 2 artifacts ---
     logger.info("Loading Layer 2 artifacts...")

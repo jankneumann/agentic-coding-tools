@@ -291,6 +291,90 @@ class TestTraversalBound:
 
 
 # ---------------------------------------------------------------------------
+# Provenance-gated freshness (ri-04: content-based, mtime-independent)
+# ---------------------------------------------------------------------------
+
+
+class TestProvenanceGatedSelection:
+    """When ``repo_root`` is given, freshness comes from architecture provenance,
+    not graph mtime (spec scenarios architecture-refresh.3 and .6)."""
+
+    def _repo_with_graph(self, tmp_path: Path) -> Path:
+        import os
+        import subprocess
+
+        from arch_utils import provenance as prov
+
+        repo = tmp_path / "proj"
+        (repo / "src").mkdir(parents=True)
+        (repo / "src" / "feature_flags.py").write_text("FLAG = True\n")
+        for args in (
+            ["git", "init", "-q"],
+            ["git", "config", "user.email", "t@e.com"],
+            ["git", "config", "user.name", "T"],
+            ["git", "config", "commit.gpgsign", "false"],
+        ):
+            subprocess.run(args, cwd=str(repo), check=True, capture_output=True)
+        arch = repo / prov.ARCH_DIR_DEFAULT
+        arch.mkdir(parents=True)
+        graph = _build_graph(
+            source_modules=[("py:feature_flags", "src/feature_flags.py")],
+            test_coverage=[("py:test:tests.test_ff.test_a", "py:feature_flags")],
+        )
+        (arch / "architecture.graph.json").write_text(json.dumps(graph) + "\n")
+        (arch / "architecture.summary.json").write_text('{"summary": "ok"}\n')
+        subprocess.run(["git", "add", "-A"], cwd=str(repo), check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "init"], cwd=str(repo), check=True, capture_output=True
+        )
+        # Record the same optional-tool identity the freshness check will detect,
+        # so producer identity matches (affected_tests auto-detects tools).
+        rev = prov.analyzed_revision(repo)
+        os.environ["SOURCE_DATE_EPOCH"] = str(prov.deterministic_epoch(repo, rev))
+        try:
+            doc = prov.build_provenance(repo, mode="full", roots=["src"])
+            prov.write_provenance(repo, doc)
+        finally:
+            os.environ.pop("SOURCE_DATE_EPOCH", None)
+        return repo
+
+    def test_fresh_provenance_accepts_graph(self, tmp_path: Path) -> None:
+        # Scenario .3: content is fresh → affected-test selection trusts the graph.
+        repo = self._repo_with_graph(tmp_path)
+        result = affected_tests(
+            ["src/feature_flags.py"], repo_root=repo,
+        )
+        assert result == ["tests/tests/test_ff/test_a.py"]
+
+    def test_mtime_only_change_still_trusts_graph(self, tmp_path: Path) -> None:
+        # Scenario .3: an old graph mtime does NOT invalidate a content-fresh graph.
+        import os
+
+        from arch_utils import provenance as prov
+
+        repo = self._repo_with_graph(tmp_path)
+        graph_file = repo / prov.ARCH_DIR_DEFAULT / "architecture.graph.json"
+        old = time.time() - (MAX_GRAPH_AGE_HOURS + 100) * 3600
+        os.utime(graph_file, (old, old))
+        result = affected_tests(["src/feature_flags.py"], repo_root=repo)
+        assert result == ["tests/tests/test_ff/test_a.py"]
+
+    def test_invalid_provenance_falls_back_to_full_suite(self, tmp_path: Path) -> None:
+        # Scenario .6: missing/invalid provenance → None (full-suite fallback).
+        from arch_utils import provenance as prov
+
+        repo = self._repo_with_graph(tmp_path)
+        prov.provenance_path(repo).unlink()
+        assert affected_tests(["src/feature_flags.py"], repo_root=repo) is None
+
+    def test_stale_input_falls_back_to_full_suite(self, tmp_path: Path) -> None:
+        # Scenario .4/.6: a relevant input change makes provenance stale → None.
+        repo = self._repo_with_graph(tmp_path)
+        (repo / "src" / "feature_flags.py").write_text("FLAG = False  # changed\n")
+        assert affected_tests(["src/feature_flags.py"], repo_root=repo) is None
+
+
+# ---------------------------------------------------------------------------
 # Performance (D10: <100ms on 10K nodes)
 # ---------------------------------------------------------------------------
 

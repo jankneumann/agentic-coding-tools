@@ -24,6 +24,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from arch_utils.constants import DEPENDENCY_EDGE_TYPES, EdgeType  # noqa: E402
 from arch_utils.node_id import make_node_id  # noqa: E402
+from arch_utils.determinism import generated_at_iso  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -655,7 +656,7 @@ def build_graph(
 
     # --- Build snapshot ---
     git_sha = get_git_sha()
-    generated_at = datetime.now(timezone.utc).isoformat()
+    generated_at = generated_at_iso()
 
     tool_versions: dict[str, str] = {"graph_builder": "2.0.0"}
     for label, data in [("python_analyzer", py_data), ("ts_analyzer", ts_data), ("postgres_analyzer", pg_data)]:
