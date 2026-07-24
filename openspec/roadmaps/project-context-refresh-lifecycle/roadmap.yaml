@@ -85,7 +85,7 @@ items:
   - ri-03
 - item_id: ri-04
   title: Make architecture refresh revision-aware
-  status: approved
+  status: completed
   priority: 3
   effort: M
   depends_on:
@@ -328,4 +328,4 @@ items:
     coding-context utility gates pass.
   - A later regression or unavailable exact-revision index disables semantic injection
     and restores explicit exact-search fallback.
-updated_at: '2026-07-24T16:55:05.945257+00:00'
+updated_at: '2026-07-24T17:33:17.860567+00:00'
