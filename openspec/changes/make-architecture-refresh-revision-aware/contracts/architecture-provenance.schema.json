@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/architecture-provenance.schema.json",
+  "title": "Architecture Producer Provenance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "producer",
+    "repository_id",
+    "source_revision",
+    "worktree_dirty",
+    "mode",
+    "input_roots",
+    "input_fingerprint",
+    "generated_at",
+    "optional_tools",
+    "validation",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_id", "producer_version"],
+      "properties": {
+        "producer_id": {
+          "const": "architecture"
+        },
+        "producer_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "repository_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "source_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+    },
+    "worktree_dirty": {
+      "type": "boolean"
+    },
+    "mode": {
+      "enum": ["full", "quick"]
+    },
+    "input_roots": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      },
+      "uniqueItems": true
+    },
+    "input_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "optional_tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "available", "version"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": ["string", "null"]
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "error_count", "warning_count"],
+      "properties": {
+        "status": {
+          "enum": ["passed", "passed-with-warnings"]
+        },
+        "error_count": {
+          "type": "integer",
+          "const": 0
+        },
+        "warning_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "size_bytes", "required"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^docs/architecture-analysis/(?!.*(^|/)\\.\\.(/|$)).+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

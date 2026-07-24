@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-23T18:08:38.924080+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "roadmap-planner",
+    "session_id": null,
+    "summary": "Corrected ri-04 to consume ri-06 project-context-runtime for locking, atomic operation persistence, and canonical ProducerResult while retaining architecture-specific provenance, freshness, and RPC status projection.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Keep architecture-specific deterministic provenance",
+        "rationale": "Architecture input fingerprints and owned-output evidence remain producer-specific.",
+        "capability": "architecture-refresh",
+        "supersedes": null
+      },
+      {
+        "title": "Reuse project-context-runtime operation ownership",
+        "rationale": "ri-06 is the sole owner of Git-common-dir locks, atomic operation persistence, transitions, and ProducerResult.",
+        "capability": "architecture-refresh",
+        "supersedes": null
+      },
+      {
+        "title": "Expose an adapter-specific RPC projection",
+        "rationale": "Legacy coordinator callers need architecture status without a duplicate durable status model.",
+        "capability": "architecture-refresh",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Land ri-06 before implementing ri-04.",
+      "Start wp-contracts, then dispatch wp-provenance and wp-adapter.",
+      "Keep coordinator sentinel fallback green."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/make-architecture-refresh-revision-aware/proposal.md",
+        "description": "Corrected approved direction and dependency"
+      },
+      {
+        "path": "openspec/changes/make-architecture-refresh-revision-aware/design.md",
+        "description": "Producer/runtime ownership boundary"
+      },
+      {
+        "path": "openspec/changes/make-architecture-refresh-revision-aware/specs/architecture-refresh/spec.md",
+        "description": "Normative scenarios"
+      },
+      {
+        "path": "openspec/changes/make-architecture-refresh-revision-aware/work-packages.yaml",
+        "description": "Corrected execution DAG"
+      }
+    ]
+  }
+}
