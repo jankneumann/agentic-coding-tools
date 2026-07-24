@@ -378,14 +378,13 @@ class CliVendorAdapter:
         return None
 
     @staticmethod
-    def _parse_findings(stdout: str) -> dict[str, Any] | None:
-        """Try to parse review findings JSON from stdout.
+    def _parse_json_blob(text: str) -> dict[str, Any] | None:
+        """Parse a findings object from a single text blob.
 
-        Handles cases where the vendor outputs extra text before/after JSON,
-        and vendor CLI envelopes that wrap model output (e.g. grok
-        ``--output-format json`` nesting the object under ``structuredOutput``).
+        Handles a bare JSON object, a vendor envelope (grok
+        ``structuredOutput``), and prose wrapped around the JSON.
         """
-        text = stdout.strip()
+        text = text.strip()
         if not text:
             return None
 
@@ -413,6 +412,78 @@ class CliVendorAdapter:
                 pass
 
         return None
+
+    @staticmethod
+    def _assistant_text(message: Any) -> str | None:
+        """Concatenate assistant text parts from a pi/Claude-shaped message."""
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            return None
+        content = message.get("content")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = [
+                part["text"]
+                for part in content
+                if isinstance(part, dict) and isinstance(part.get("text"), str)
+            ]
+            if parts:
+                return "\n".join(parts)
+        return None
+
+    @staticmethod
+    def _parse_ndjson_findings(text: str) -> dict[str, Any] | None:
+        """Parse findings from an NDJSON event stream (e.g. ``pi --mode json``).
+
+        pi emits one JSON event per line; the model's answer is carried as the
+        ``message`` payload of assistant ``message_end``/``turn_end`` events, so
+        a whole-stdout ``json.loads`` fails and the single-brace scan spans
+        unrelated events. Each parsed line is checked directly first (in case a
+        vendor emits a bare findings object on its own line); otherwise the last
+        complete assistant message wins, mirroring how streaming deltas are
+        superseded by the final message snapshot.
+        """
+        lines = [ln for ln in text.splitlines() if ln.strip()]
+        if len(lines) < 2:
+            return None  # not an event stream — the single-blob path already ran
+
+        saw_event = False
+        last_assistant_text: str | None = None
+        for line in lines:
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(obj, dict):
+                continue
+            saw_event = True
+            direct = CliVendorAdapter._extract_findings(obj)
+            if direct is not None:
+                return direct
+            assistant_text = CliVendorAdapter._assistant_text(obj.get("message"))
+            if assistant_text:
+                last_assistant_text = assistant_text
+
+        if not saw_event or last_assistant_text is None:
+            return None
+        return CliVendorAdapter._parse_json_blob(last_assistant_text)
+
+    @staticmethod
+    def _parse_findings(stdout: str) -> dict[str, Any] | None:
+        """Try to parse review findings JSON from stdout.
+
+        Handles a bare JSON object, prose wrapped around the JSON, vendor
+        envelopes (e.g. grok ``--output-format json`` nesting the object under
+        ``structuredOutput``), and NDJSON event streams (e.g. pi ``--mode
+        json``) that carry the answer inside assistant message events.
+        """
+        text = stdout.strip()
+        if not text:
+            return None
+        result = CliVendorAdapter._parse_json_blob(text)
+        if result is not None:
+            return result
+        return CliVendorAdapter._parse_ndjson_findings(text)
 
     def dispatch_async(
         self,
@@ -1143,6 +1214,7 @@ class ReviewOrchestrator:
                         model=cli.get("model"),
                         model_fallbacks=cli.get("model_fallbacks", []),
                         prompt_via_stdin=cli.get("prompt_via_stdin", False),
+                        prompt_via_flag=cli.get("prompt_via_flag"),
                     ),
                     transport=agent.get("transport", "mcp"),
                 )
