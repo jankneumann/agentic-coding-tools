@@ -188,6 +188,30 @@ async def test_query_codebase_maps_rows_and_binds_bounded_scope_filters() -> Non
 
 
 @pytest.mark.asyncio
+async def test_query_accepts_frozen_contract_scope_boundaries() -> None:
+    pool = _FakePool()
+    # Two 100-glob allow layers are compiled by the authorization service into
+    # one lookahead regex. At the 512-character SafeGlob wire bound that
+    # expression can be over 200 KiB after escaping and union construction.
+    compiled_allow = "^" + "(?=" + ("a" * 205_000) + ").*$"
+    authority_and_caller_denies = [rf"^deny-{index}/.*$" for index in range(200)]
+    caller_paths = [rf"^path-{index}/.*$" for index in range(100)]
+
+    await query_codebase_pg(
+        pool,
+        STORAGE_KEY,
+        [0.1],
+        allow_path_regexes=[compiled_allow],
+        deny_path_regexes=authority_and_caller_denies,
+        path_regexes=caller_paths,
+    )
+
+    assert pool.calls[0][1][2] == [compiled_allow]
+    assert pool.calls[0][1][3] == authority_and_caller_denies
+    assert pool.calls[0][1][4] == caller_paths
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
@@ -196,7 +220,12 @@ async def test_query_codebase_maps_rows_and_binds_bounded_scope_filters() -> Non
         ({"offset": -1}, "offset"),
         ({"offset": 10_001}, "offset"),
         ({"languages": ["python"] * 33}, "languages"),
-        ({"allow_path_regexes": ["x"] * 65}, "allow_path_regexes"),
+        ({"allow_path_regexes": ["^x$", "^y$"]}, "allow_path_regexes"),
+        ({"allow_path_regexes": ["x" * 262_145]}, "allow_path_regexes"),
+        ({"deny_path_regexes": ["^x$"] * 201}, "deny_path_regexes"),
+        ({"deny_path_regexes": ["x" * 2_049]}, "deny_path_regexes"),
+        ({"path_regexes": ["^x$"] * 101}, "path_regexes"),
+        ({"path_regexes": ["x" * 2_049]}, "path_regexes"),
     ],
 )
 async def test_query_rejects_unbounded_inputs(

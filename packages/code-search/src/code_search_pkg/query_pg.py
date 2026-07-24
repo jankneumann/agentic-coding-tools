@@ -19,9 +19,18 @@ _FINGERPRINT_RE = re.compile(r"^[0-9a-f]{64}$")
 _MAX_VECTOR_DIMENSION = 16_384
 _MAX_LIMIT = 100
 _MAX_OFFSET = 10_000
-_MAX_LANGUAGES = 32
-_MAX_PATH_FILTERS = 64
-_MAX_FILTER_LENGTH = 512
+_MAX_LANGUAGES = 30
+_MAX_LANGUAGE_LENGTH = 64
+_MAX_ALLOW_PATH_REGEXES = 1
+_MAX_DENY_PATH_REGEXES = 200
+_MAX_CALLER_PATH_REGEXES = 100
+# The authorization layer combines two 100-item SafeGlob allow layers into
+# one lookahead expression. Escaping can double each 512-character glob, so
+# 256 KiB safely contains the frozen worst case while remaining finite.
+_MAX_COMPILED_ALLOW_REGEX_LENGTH = 256 * 1024
+# Individual deny/caller globs remain separate after compilation. Twice the
+# 512-character wire bound plus regex structure fits comfortably in 2 KiB.
+_MAX_COMPILED_PATH_REGEX_LENGTH = 2 * 1024
 
 # `<=>` is pgvector cosine distance. Cosine similarity is 1 - distance and its
 # mathematical range is [-1, 1]; it is not a probability.
@@ -279,10 +288,27 @@ async def query_codebase_pg(
 ) -> list[QueryResult]:
     """Run one bounded, parameterized KNN statement over exact index storage."""
     _validate_pagination(limit, offset)
-    _validate_filters("languages", languages, _MAX_LANGUAGES)
-    _validate_filters("allow_path_regexes", allow_path_regexes, _MAX_PATH_FILTERS)
-    _validate_filters("deny_path_regexes", deny_path_regexes, _MAX_PATH_FILTERS)
-    _validate_filters("path_regexes", path_regexes, _MAX_PATH_FILTERS)
+    _validate_filters(
+        "languages", languages, _MAX_LANGUAGES, _MAX_LANGUAGE_LENGTH
+    )
+    _validate_filters(
+        "allow_path_regexes",
+        allow_path_regexes,
+        _MAX_ALLOW_PATH_REGEXES,
+        _MAX_COMPILED_ALLOW_REGEX_LENGTH,
+    )
+    _validate_filters(
+        "deny_path_regexes",
+        deny_path_regexes,
+        _MAX_DENY_PATH_REGEXES,
+        _MAX_COMPILED_PATH_REGEX_LENGTH,
+    )
+    _validate_filters(
+        "path_regexes",
+        path_regexes,
+        _MAX_CALLER_PATH_REGEXES,
+        _MAX_COMPILED_PATH_REGEX_LENGTH,
+    )
     try:
         rows = await pool.fetch(
             build_search_sql(storage_key),
@@ -321,7 +347,10 @@ def _validate_pagination(limit: int, offset: int) -> None:
 
 
 def _validate_filters(
-    name: str, values: list[str] | None, maximum_count: int
+    name: str,
+    values: list[str] | None,
+    maximum_count: int,
+    maximum_length: int,
 ) -> None:
     if values is None:
         return
@@ -330,7 +359,7 @@ def _validate_filters(
     if any(
         not isinstance(value, str)
         or not value
-        or len(value) > _MAX_FILTER_LENGTH
+        or len(value) > maximum_length
         or "\x00" in value
         for value in values
     ):
