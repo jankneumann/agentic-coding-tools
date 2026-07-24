@@ -28,6 +28,7 @@ if str(_VALIDATE_PACKAGES_DIR) not in sys.path:
     sys.path.insert(0, str(_VALIDATE_PACKAGES_DIR))
 from arch_utils.constants import DEPENDENCY_EDGE_TYPES  # noqa: E402
 from arch_utils.graph_io import load_graph  # noqa: E402
+from arch_utils.determinism import generated_at_iso  # noqa: E402
 from arch_utils.traversal import reachable_from  # noqa: E402
 
 
@@ -231,7 +232,7 @@ def build_output(
     largest = max((len(g) for g in components), default=0)
 
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": generated_at_iso(),
         "independent_groups": independent_groups,
         "leaf_modules": leaf_modules,
         "high_impact_modules": high_impact,
