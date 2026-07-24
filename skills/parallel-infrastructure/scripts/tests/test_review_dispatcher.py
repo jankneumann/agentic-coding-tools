@@ -340,12 +340,80 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
 
+    @patch("review_dispatcher.subprocess.run")
+    def test_pi_ndjson_event_stream(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        """pi --mode json emits an NDJSON event stream (E8); the findings live
+        in the final assistant message_end event, not as a single JSON blob."""
+        stream = "\n".join([
+            json.dumps({"type": "session", "id": "s1"}),
+            json.dumps({"type": "message_update", "message": {
+                "role": "assistant", "content": [{"type": "text", "text": "thinking"}],
+            }}),
+            json.dumps({"type": "message_end", "message": {
+                "role": "assistant",
+                "content": [{"type": "text", "text": "Findings:\n" + VALID_FINDINGS_JSON}],
+            }}),
+            json.dumps({"type": "agent_settled"}),
+        ])
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=stream, stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_pi_ndjson_findings_object_on_own_line(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """A bare findings object emitted on its own NDJSON line is picked up."""
+        stream = "\n".join([
+            json.dumps({"type": "session", "id": "s1"}),
+            VALID_FINDINGS_JSON,
+            json.dumps({"type": "agent_settled"}),
+        ])
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=stream, stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
 
 # ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
 class TestOrchestrator:
+    def test_from_config_dict_propagates_prompt_via_flag(self) -> None:
+        """prompt_via_flag must survive from_config_dict into the CliConfig so
+        antigravity's prompt is dispatched as ``--prompt <value>`` (E7), not a
+        trailing positional."""
+        cfg = {"agents": [{
+            "agent_id": "antigravity-local",
+            "type": "antigravity",
+            "cli": {
+                "command": "agy",
+                "model_flag": "--model",
+                "model": "gemini-3.6-flash",
+                "prompt_via_flag": "--prompt",
+                "dispatch_modes": {"review": {"args": ["--mode", "plan"]}},
+            },
+        }]}
+        orch = ReviewOrchestrator.from_config_dict(cfg)
+        adapter = orch.adapters["antigravity-local"]
+        assert adapter.cli_config.prompt_via_flag == "--prompt"
+        cmd = adapter.build_command("review", "REVIEW THIS", None)
+        assert "--prompt" in cmd
+        # The prompt is the value of --prompt, not a bare trailing positional:
+        # it must be immediately preceded by the flag.
+        assert cmd[cmd.index("--prompt") + 1] == "REVIEW THIS"
+        assert cmd[-2] == "--prompt"
+
     def test_discover_reviewers(self) -> None:
         adapters = {
             "codex-local": _adapter("codex-local", "codex"),

@@ -127,3 +127,67 @@ class TestPiCLINormalization:
 
     def test_nonexistent_session_returns_empty(self, adapter: "PiCLIAdapter") -> None:
         assert adapter.normalize_session("nonexistent") == []
+
+
+class TestPiCLINestedMessageEnd:
+    """Real ``pi --mode json`` nests role/content/usage/model under a
+    ``message`` object (see the checked-in smoke output). Regression for the
+    flat-fixture drift: the adapter previously read those fields at the top
+    level and normalized *zero* events for real pi sessions.
+    """
+
+    def _write(self, tmp_path: Path, sid: str) -> "PiCLIAdapter":
+        import json
+
+        from adapters.pi_cli import PiCLIAdapter
+
+        lines = [
+            {"type": "session", "id": sid, "timestamp": "t0"},
+            {"type": "message_start", "message": {"role": "assistant", "content": []}},
+            {"type": "message_end", "message": {
+                "role": "user",
+                "content": [{"type": "text", "text": "review this diff"}],
+                "timestamp": "t1",
+            }},
+            {"type": "message_update", "message": {
+                "role": "assistant",
+                "content": [{"type": "text", "text": "looks"}],
+            }},
+            {"type": "message_end", "message": {
+                "role": "assistant",
+                "model": "qwen/qwen3-coder",
+                "content": [{"type": "text", "text": "looks good"}],
+                "usage": {"input": 10, "output": 3},
+                "timestamp": "t2",
+                "responseId": "resp-1",
+            }},
+            {"type": "agent_settled"},
+        ]
+        path = tmp_path / f"session-2026-07-24T00-00-{sid}.ndjson"
+        path.write_text("\n".join(json.dumps(x) for x in lines))
+        return PiCLIAdapter(base_dir=str(tmp_path))
+
+    def test_nested_message_end_normalizes_user_and_assistant(
+        self, tmp_path: Path,
+    ) -> None:
+        from normalize import EventRole
+
+        adapter = self._write(tmp_path, "sess-pi-nested")
+        events = adapter.normalize_session("sess-pi-nested")
+        # Two terminal message_end events (user + assistant); streaming
+        # message_update deltas must not be double-counted. Was 0 before the fix.
+        assert len(events) == 2
+        assert any(e.role == EventRole.USER for e in events)
+        assert any(e.role == EventRole.ASSISTANT for e in events)
+
+    def test_nested_message_end_captures_model_and_usage(
+        self, tmp_path: Path,
+    ) -> None:
+        from normalize import EventRole
+
+        adapter = self._write(tmp_path, "sess-pi-nested")
+        events = adapter.normalize_session("sess-pi-nested")
+        asst = [e for e in events if e.role == EventRole.ASSISTANT]
+        assert asst and asst[0].model == "qwen/qwen3-coder"
+        assert asst[0].usage is not None
+        assert asst[0].usage.output_tokens == 3

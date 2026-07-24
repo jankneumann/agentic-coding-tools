@@ -186,12 +186,19 @@ class PiCLIAdapter(AdapterBase):
         seq: int,
         session_model: str,
     ) -> NormalizedEvent | None:
-        role = _ROLE_MAP.get(rec.get("role", ""))
+        # Real ``pi --mode json`` message_end records nest role/content/usage/
+        # model under a ``message`` object; older flat records keep them at the
+        # top level. Unwrap so both shapes normalize.
+        payload = rec.get("message", rec)
+        if not isinstance(payload, dict):
+            payload = rec
+
+        role = _ROLE_MAP.get(payload.get("role", ""))
         if role is None:
             return None
 
         content_blocks: list[ContentBlock] = []
-        raw_content = rec.get("content", [])
+        raw_content = payload.get("content", [])
         if isinstance(raw_content, str):
             if raw_content:
                 content_blocks.append(
@@ -207,7 +214,7 @@ class PiCLIAdapter(AdapterBase):
             return None
 
         usage = None
-        tokens = rec.get("usage", rec.get("tokens", {}))
+        tokens = payload.get("usage", payload.get("tokens", {}))
         if tokens:
             usage = TokenUsage(
                 input_tokens=tokens.get("input", tokens.get("input_tokens", 0)),
@@ -215,15 +222,17 @@ class PiCLIAdapter(AdapterBase):
             )
 
         return NormalizedEvent(
-            event_id=str(rec.get("id", rec.get("messageId", ""))),
+            event_id=str(
+                payload.get("id", payload.get("messageId", payload.get("responseId", "")))
+            ),
             session_id=session_id,
-            timestamp=rec.get("timestamp", ""),
+            timestamp=payload.get("timestamp", ""),
             sequence_number=seq,
             role=role,
             content=content_blocks,
             usage=usage,
             harness=self.HARNESS_ID,
-            model=rec.get("model", session_model),
+            model=payload.get("model", session_model),
         )
 
     @staticmethod
