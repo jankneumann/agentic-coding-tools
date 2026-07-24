@@ -181,6 +181,13 @@ async def authorize_code_search_scope(
         raise ScopeRejectedError("caller paths are invalid") from error
 
     if isinstance(requested_scope, ExplicitScopeRequest):
+        _require_compilable_scope_patterns(
+            grant.read_allow,
+            grant.deny,
+            requested_scope.read_allow,
+            requested_scope.deny,
+            normalized_paths,
+        )
         effective = EffectiveCodeSearchScope(
             allow_layers=(grant.read_allow, requested_scope.read_allow),
             deny=_deduplicated((*grant.deny, *requested_scope.deny)),
@@ -212,6 +219,13 @@ async def authorize_code_search_scope(
         or record.source_revision != source_revision
     ):
         raise ScopeRejectedError("work-package scope provenance does not match")
+    _require_compilable_scope_patterns(
+        grant.read_allow,
+        grant.deny,
+        record.read_allow,
+        record.deny,
+        normalized_paths,
+    )
     effective = EffectiveCodeSearchScope(
         allow_layers=(grant.read_allow, record.read_allow),
         deny=_deduplicated((*grant.deny, *record.deny)),
@@ -342,6 +356,15 @@ def _require_nonempty_effective_scope(scope: EffectiveCodeSearchScope) -> None:
         raise ScopeRejectedError("effective scope is invalid") from error
     if not has_witness:
         raise ScopeRejectedError("effective scope is empty")
+
+
+def _require_compilable_scope_patterns(*groups: Sequence[str]) -> None:
+    try:
+        for group in groups:
+            for pattern in group:
+                re.compile(glob_to_postgres_regex(pattern))
+    except re.error as error:
+        raise ScopeRejectedError("effective scope is invalid") from error
 
 
 def _literal_prefix(pattern: str) -> str:

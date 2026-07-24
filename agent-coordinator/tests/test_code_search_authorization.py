@@ -192,7 +192,17 @@ async def test_effective_scope_finds_shared_bracket_member_across_layers() -> No
 
 
 @pytest.mark.asyncio
-async def test_malformed_bracket_range_is_scope_rejected() -> None:
+@pytest.mark.parametrize(
+    "read_allow",
+    [
+        ("src/[z-a].py",),
+        ("src/**", "src/[z-a].py"),
+        ("src/[z-a].py", "src/**"),
+    ],
+)
+async def test_malformed_bracket_range_is_scope_rejected(
+    read_allow: tuple[str, ...],
+) -> None:
     with pytest.raises(ScopeRejectedError, match="effective scope is invalid"):
         await authorize_code_search_scope(
             principal_id="codex",
@@ -200,9 +210,9 @@ async def test_malformed_bracket_range_is_scope_rejected() -> None:
             namespace_kind="main",
             namespace_key="main",
             source_revision=REVISION,
-            grant=_grant(read_allow=("src/[z-a].py",), deny=()),
+            grant=_grant(read_allow=read_allow, deny=()),
             requested_scope=ExplicitScopeRequest(
-                read_allow=("src/[z-a].py",),
+                read_allow=read_allow,
                 deny=(),
             ),
         )
