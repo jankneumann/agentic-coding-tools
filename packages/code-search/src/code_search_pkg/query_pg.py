@@ -151,6 +151,7 @@ class QueryableIndex:
     embedder_fingerprint: str
     chunk_count: int
     completed_at: datetime
+    storage_exists: bool = True
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any]) -> QueryableIndex:
@@ -168,6 +169,7 @@ class QueryableIndex:
             embedder_fingerprint=str(row["embedder_fingerprint"]),
             chunk_count=int(row["chunk_count"]),
             completed_at=row["completed_at"],
+            storage_exists=row["storage_exists"],
         )
 
     def __post_init__(self) -> None:
@@ -190,6 +192,8 @@ class QueryableIndex:
             or self.completed_at.tzinfo is None
         ):
             raise ValueError("queryable indexes require an aware completion timestamp")
+        if not isinstance(self.storage_exists, bool):
+            raise ValueError("storage_exists must be a boolean")
         for name in (
             "policy_fingerprint",
             "pipeline_fingerprint",
@@ -265,8 +269,6 @@ def _decode_usable_index(row: Mapping[str, Any] | None) -> QueryableIndex | None
         index = QueryableIndex.from_row(row)
     except (KeyError, TypeError, ValueError):
         return None
-    if not row["storage_exists"]:
-        raise SemanticStorageUnavailableError("semantic storage unavailable")
     return index
 
 

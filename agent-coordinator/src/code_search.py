@@ -398,6 +398,16 @@ class CodeSearchService:
             self._observe_response(validated, response, started_at)
             return response
 
+        if not selected.storage_exists:
+            response = _non_ready_response(
+                state=CodeSearchState.UNAVAILABLE,
+                request=identity,
+                index=provenance,
+                scope=disposition,
+            )
+            self._observe_response(validated, response, started_at)
+            return response
+
         try:
             embedding = await self._embedder(validated.query)
             if len(embedding) != selected.embedding_dim:

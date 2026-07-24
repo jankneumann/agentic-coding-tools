@@ -36,7 +36,11 @@ PROVIDER = QueryProviderContract(
 )
 
 
-def _index(*, revision: str = REVISION) -> QueryableIndex:
+def _index(
+    *,
+    revision: str = REVISION,
+    storage_exists: bool = True,
+) -> QueryableIndex:
     return QueryableIndex(
         index_id=INDEX_ID,
         storage_key="i_11111111111111111111111111111111",
@@ -51,6 +55,7 @@ def _index(*, revision: str = REVISION) -> QueryableIndex:
         embedder_fingerprint=PROVIDER.embedder_fingerprint,
         chunk_count=2,
         completed_at=datetime(2026, 7, 23, 12, tzinfo=UTC),
+        storage_exists=storage_exists,
     )
 
 
@@ -201,6 +206,22 @@ async def test_revision_mismatch_stops_before_embedding_and_knn(
 
 
 @pytest.mark.asyncio
+async def test_revision_mismatch_precedes_missing_storage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, calls = _service(
+        monkeypatch,
+        index=_index(revision=OTHER_REVISION, storage_exists=False),
+    )
+
+    response = await service.search(_request(), principal_id="codex")
+
+    assert response.state is CodeSearchState.REVISION_MISMATCH
+    assert calls["embed"] == 0
+    assert calls["query"] == 0
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("field", ["model", "dimension", "fingerprint"])
 async def test_provider_mismatch_stops_before_embedding_and_knn(
     monkeypatch: pytest.MonkeyPatch,
@@ -221,6 +242,44 @@ async def test_provider_mismatch_stops_before_embedding_and_knn(
 
     assert response.state is CodeSearchState.NOT_CONFIGURED
     assert response.results == []
+    assert calls["embed"] == 0
+    assert calls["query"] == 0
+
+
+@pytest.mark.asyncio
+async def test_provider_mismatch_precedes_missing_storage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mismatched = QueryProviderContract(
+        model="different-model",
+        dimension=PROVIDER.dimension,
+        embedder_fingerprint=PROVIDER.embedder_fingerprint,
+    )
+    service, calls = _service(
+        monkeypatch,
+        index=_index(storage_exists=False),
+        provider=mismatched,
+    )
+
+    response = await service.search(_request(), principal_id="codex")
+
+    assert response.state is CodeSearchState.NOT_CONFIGURED
+    assert calls["embed"] == 0
+    assert calls["query"] == 0
+
+
+@pytest.mark.asyncio
+async def test_missing_storage_is_unavailable_before_embedding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, calls = _service(
+        monkeypatch,
+        index=_index(storage_exists=False),
+    )
+
+    response = await service.search(_request(), principal_id="codex")
+
+    assert response.state is CodeSearchState.UNAVAILABLE
     assert calls["embed"] == 0
     assert calls["query"] == 0
 

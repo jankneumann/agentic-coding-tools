@@ -137,14 +137,12 @@ async def test_selectors_reject_unpublished_or_incomplete_indexes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_selector_reports_disappeared_final_storage_as_unavailable() -> None:
-    from code_search_pkg.query_pg import SemanticStorageUnavailableError
-
+async def test_selector_retains_identity_when_final_storage_has_disappeared() -> None:
     pool = _FakePool(rows=[_index_row(storage_exists=False)])
-    with pytest.raises(
-        SemanticStorageUnavailableError, match="semantic storage unavailable"
-    ):
-        await select_main_index(pool, "agentic_coding_tools")
+    selected = await select_main_index(pool, "agentic_coding_tools")
+
+    assert selected is not None
+    assert selected.storage_exists is False
 
 
 def test_selected_index_requires_complete_provider_match() -> None:
