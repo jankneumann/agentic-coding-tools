@@ -87,6 +87,7 @@
     "plan-roadmap": {"distribution": "portable"},
     "playwright-validator": {"distribution": "portable"},
     "prioritize-proposals": {"distribution": "portable"},
+    "project-context-runtime": {"distribution": "portable"},
     "prototype-feature": {"distribution": "portable"},
     "quick-task": {"distribution": "portable"},
     "refresh-architecture": {"distribution": "portable"},
