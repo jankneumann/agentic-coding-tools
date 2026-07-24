@@ -79,6 +79,7 @@ testpaths = [
     "tests/cleanup-feature",
     "tests/explore-feature",
     "tests/parallel-infrastructure",
+    "tests/project-context-runtime",
     "expedite/scripts/tests",
 ]
 
