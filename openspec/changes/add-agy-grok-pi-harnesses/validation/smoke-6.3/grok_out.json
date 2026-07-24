@@ -1,0 +1,26 @@
+{
+  "text": "SMOKE-OK-GROK",
+  "stopReason": "EndTurn",
+  "sessionId": "019f94de-0003-76a0-8fb3-db5e8f6e4456",
+  "requestId": "32008397-bb60-404b-8293-d5933b8b2e67",
+  "thought": "The user wants me to reply with exactly the text \"SMOKE-OK-GROK\" and nothing else.",
+  "usage": {
+    "input_tokens": 2446,
+    "cache_read_input_tokens": 10496,
+    "output_tokens": 37,
+    "reasoning_tokens": 26,
+    "total_tokens": 12979
+  },
+  "num_turns": 1,
+  "total_cost_usd": 0.0082628,
+  "total_cost_usd_ticks": 82628000,
+  "modelUsage": {
+    "grok-4.5-build": {
+      "inputTokens": 2446,
+      "outputTokens": 37,
+      "cacheReadInputTokens": 10496,
+      "modelCalls": 1,
+      "costUSD": 0.0082628
+    }
+  }
+}
