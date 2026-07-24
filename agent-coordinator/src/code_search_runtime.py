@@ -71,11 +71,7 @@ class CodeSearchStatus(BaseModel):
     @model_validator(mode="after")
     def validate_truth_table(self) -> CodeSearchStatus:
         if self.available:
-            if (
-                self.state != "ready"
-                or self.reason != "ready"
-                or self.usable_index_count < 1
-            ):
+            if self.state != "ready" or self.reason != "ready" or self.usable_index_count < 1:
                 raise ValueError("available status must prove ready usable indexes")
         elif self.usable_index_count != 0 or self.state == "ready":
             raise ValueError("unavailable status cannot advertise usable indexes")
@@ -137,9 +133,7 @@ class CodeSearchRuntimeConfig:
                 env, "CODE_SEARCH_MAX_FAILURE_BACKOFF_SECONDS", 30.0
             ),
             max_concurrency=_int_env(env, "CODE_SEARCH_MAX_CONCURRENCY", 4),
-            overload_timeout_seconds=_float_env(
-                env, "CODE_SEARCH_OVERLOAD_TIMEOUT_SECONDS", 0.01
-            ),
+            overload_timeout_seconds=_float_env(env, "CODE_SEARCH_OVERLOAD_TIMEOUT_SECONDS", 0.01),
         )
 
 
@@ -189,6 +183,7 @@ class CodeSearchRuntime:
         runtime._owner_loop = asyncio.get_running_loop()
         try:
             if provider_factory is None:
+
                 def provider_factory() -> Any:
                     return _provider_from_env(environment)
 
@@ -275,8 +270,9 @@ class CodeSearchRuntime:
         if provider is None or pool is None:
             return _status("unavailable", "registry_unavailable")
         now = monotonic()
-        if self._index_cache.value is not None and now < self._index_cache.expires_at:
-            return self._index_cache.value
+        cached_status = self._index_cache.value
+        if isinstance(cached_status, CodeSearchStatus) and now < self._index_cache.expires_at:
+            return cached_status
         try:
             count = int(
                 await asyncio.wait_for(

@@ -105,9 +105,7 @@ class SemanticStorageUnavailableError(RuntimeError):
 class _Pool(Protocol):
     async def fetch(self, query: str, *args: Any) -> Sequence[Mapping[str, Any]]: ...
 
-    async def fetchrow(
-        self, query: str, *args: Any
-    ) -> Mapping[str, Any] | None: ...
+    async def fetchrow(self, query: str, *args: Any) -> Mapping[str, Any] | None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -286,9 +284,7 @@ async def query_codebase_pg(
 ) -> list[QueryResult]:
     """Run one bounded, parameterized KNN statement over exact index storage."""
     _validate_pagination(limit, offset)
-    _validate_filters(
-        "languages", languages, _MAX_LANGUAGES, _MAX_LANGUAGE_LENGTH
-    )
+    _validate_filters("languages", languages, _MAX_LANGUAGES, _MAX_LANGUAGE_LENGTH)
     _validate_filters(
         "allow_path_regexes",
         allow_path_regexes,

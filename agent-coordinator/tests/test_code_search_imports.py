@@ -33,8 +33,5 @@ assert "torch" not in sys.modules
 def test_docker_installs_code_search_wheel_without_runtime_source_copy() -> None:
     dockerfile = DOCKERFILE.read_text()
     assert "COPY packages/code-search/ /packages/code-search/" in dockerfile
-    assert (
-        "COPY packages/code-search/src/code_search_pkg/ /app/code_search_pkg/"
-        not in dockerfile
-    )
+    assert "COPY packages/code-search/src/code_search_pkg/ /app/code_search_pkg/" not in dockerfile
     assert "uv sync --all-extras --no-dev --no-install-project" in dockerfile

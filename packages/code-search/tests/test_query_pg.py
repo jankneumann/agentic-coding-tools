@@ -60,9 +60,7 @@ class _FakePool:
         self.calls.append((query, args))
         return self.rows
 
-    async def fetchrow(
-        self, query: str, *args: object
-    ) -> dict[str, object] | None:
+    async def fetchrow(self, query: str, *args: object) -> dict[str, object] | None:
         self.calls.append((query, args))
         return self.rows[0] if self.rows else None
 
@@ -256,9 +254,7 @@ async def test_query_has_no_legacy_fallback_on_missing_storage() -> None:
         sqlstate = "42P01"
 
     class MissingStoragePool(_FakePool):
-        async def fetch(
-            self, query: str, *args: object
-        ) -> list[dict[str, object]]:
+        async def fetch(self, query: str, *args: object) -> list[dict[str, object]]:
             self.calls.append((query, args))
             raise UndefinedTableError
 
