@@ -70,3 +70,27 @@ apparatus and applied as plan revision 2.
 - Resume `/autopilot add-agy-grok-pi-harnesses`: ESCALATE resolves to previous_phase PLAN_REVIEW for one fresh round against revision 2 (findings trend reset; expect a sharp drop).
 - On convergence, IMPLEMENT dispatches the 5 packages with opus 4.8 / codex 5.6-sol as implementation vendors.
 - Follow-up change (recorded by task 6.4): ~33 deferred narrative files still referencing gemini.
+
+---
+
+## Phase: Cleanup (2026-07-24)
+
+**Agent**: claude_code (merge-pull-requests → cleanup-feature --post-merge) | **Session**: N/A
+
+### Decisions
+1. **Merged #268 via rebase** — OpenSpec origin default; agent commits encode design intent (interface → impl → tests), preserving history for `git blame`/`bisect`.
+2. **Fixed 3 codex P2 findings before merge, not after** — the findings were correctness bugs in the exact harness paths this change ships (antigravity prompt dispatch, pi NDJSON review parse, pi transcript unwrap). Deferring them would have shipped half-working harnesses. Fixed with regression tests using the real nested pi shape (commit e43fc707).
+3. **Greened `validate-decision-index` via `make decisions`** (commit f725a7b7) — derived-artifact drift, not a code defect (Issue #157 class).
+
+### Alternatives Considered
+- Skip #268 to `/iterate-on-implementation`: rejected — CI drift was mechanical and the 3 findings were localized, so fixing in-triage was cheaper than a full iterate cycle.
+- Defer findings as follow-up issues and merge: rejected by operator — ship correct harnesses.
+
+### Trade-offs
+- Accepted a larger triage session (code fixes + tests) over a fast skip, to avoid landing known-broken vendor paths on main.
+
+### Open Questions
+- [ ] Task 0.5 baseline checkpoint remains open (pre-existing `wp-skills` debt); gate-scope/marker-parity decision tracked as follow-up (see Migration Notes + memory `project_wp_skills_gate_baseline_debt`).
+
+### Context
+Post-merge cleanup after `/merge-pull-requests` merged #268. Staged rollout (5c/5d) is N/A: this is a review-dispatch/eval-config/harness change with no flag-gated production traffic surface. `make architecture` refresh deferred (dedicated refresh-architecture skill owns it; roadmap ri-04/#270 reworks that generator). **OpenSpec archive DEFERRED** — `openspec archive` aborts on an intentional `agent-archetypes` scenario removal (gemini provider retired) that OpenSpec 1.6.0 cannot express without a delta refresh; the code is safely merged, only spec-sync bookkeeping is pending an `update-specs` pass. Feature worktree + local branch removed.

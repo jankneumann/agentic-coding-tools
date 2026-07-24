@@ -569,3 +569,22 @@ calls is on record in `design.md`.
   `skills/quick-task/SKILL.md`, `skills/security-review/SKILL.md`,
   `skills/tech-debt-analysis/SKILL.md`. Orchestrator to record in session log + PR as an
   explicit follow-up change.
+
+## Migration Notes
+
+PR #268 merged to main 2026-07-24. **OpenSpec archive deferred**: `openspec archive` aborts
+because the `agent-archetypes` MODIFIED block intentionally drops the current
+`#### Scenario: Archetype resolves for Gemini provider` (replaced by `Retired gemini provider
+is rejected`), and OpenSpec 1.6.0 has no flag to express intentional scenario removal. Resolve
+via an `update-specs` delta refresh before re-running `openspec archive add-agy-grok-pi-harnesses`.
+
+One task remained open at merge time:
+
+- **0.5 (baseline checkpoint)** — did not close cleanly because the `wp-skills` gate carries
+  ~100 pre-existing, non-roster baseline failures the plan's Phase 0 did not anticipate. This
+  change introduced zero new failures; the residual is **not** work owed by this change. The
+  remaining items are already tracked as coordinator follow-ups (kanban `/audit/v2` +
+  audit-outcome-enum drift, phase-record-compaction cases, playwright env deps) and captured
+  in memory `project_wp_skills_gate_baseline_debt`. The gate-scope decision (`wp-skills` runs a
+  superset of CI without the `-m "not e2e and not integration"` marker) is the tracked
+  follow-up before this checkpoint can close. No task deliverable was dropped.
