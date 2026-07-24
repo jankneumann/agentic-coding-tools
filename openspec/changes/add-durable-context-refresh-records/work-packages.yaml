@@ -1,0 +1,325 @@
+schema_version: 1
+
+feature:
+  id: add-durable-context-refresh-records
+  title: "Add Durable Context Refresh Records"
+  plan_revision: 1
+  created_by: codex
+  created_at: "2026-07-23T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-durable-context-refresh-records/contracts/README.md"
+    files:
+      - "openspec/changes/add-durable-context-refresh-records/contracts/README.md"
+      - "openspec/changes/add-durable-context-refresh-records/contracts/context-refresh-types.schema.json"
+      - "openspec/changes/add-durable-context-refresh-records/contracts/context-refresh-operation.schema.json"
+      - "openspec/changes/add-durable-context-refresh-records/contracts/context-refresh-manifest.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: A
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts-models
+    title: "Install contracts and add strict models"
+    task_type: implement
+    description: "Tasks 1.1-1.5: add failing contract and atomic-write tests, install the three schemas, implement strict shared models, and own the atomic persistence primitive consumed by both parallel packages."
+    role: contracts
+    archetype: implementer
+    priority: 1
+    decomposition: branch
+    depends_on: []
+    locks:
+      files:
+        - "skills/project-context-runtime/scripts/models.py"
+        - "skills/project-context-runtime/scripts/atomic.py"
+        - "skills/project-context-runtime/install_assets/openspec/schemas/context-refresh-types.schema.json"
+        - "skills/project-context-runtime/install_assets/openspec/schemas/context-refresh-operation.schema.json"
+        - "skills/project-context-runtime/install_assets/openspec/schemas/context-refresh-manifest.schema.json"
+      keys:
+        - "contract:project-context-refresh.v1"
+      ttl_minutes: 120
+      reason: "Own the shared v1 record contracts and Python model boundary."
+    scope:
+      write_allow:
+        - "skills/project-context-runtime/SKILL.md"
+        - "skills/project-context-runtime/scripts/models.py"
+        - "skills/project-context-runtime/scripts/atomic.py"
+        - "skills/project-context-runtime/install_assets/openspec/schemas/**"
+        - "skills/tests/project-context-runtime/test_contracts.py"
+        - "skills/tests/project-context-runtime/test_models.py"
+        - "skills/tests/project-context-runtime/test_install_assets.py"
+        - "skills/tests/project-context-runtime/test_atomic.py"
+      read_allow:
+        - "openspec/changes/add-durable-context-refresh-records/**"
+        - "openspec/schemas/**"
+        - "skills/roadmap-runtime/**"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+      deny:
+        - "skills/project-context-runtime/scripts/store.py"
+        - "skills/project-context-runtime/scripts/manifest.py"
+    worktree:
+      name: wp-contracts-models
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Contract and model tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-runtime/test_contracts.py skills/tests/project-context-runtime/test_models.py skills/tests/project-context-runtime/test_install_assets.py skills/tests/project-context-runtime/test_atomic.py -v"
+          evidence:
+            artifacts:
+              - "skills/tests/project-context-runtime/test_contracts.py"
+              - "skills/tests/project-context-runtime/test_models.py"
+              - "skills/tests/project-context-runtime/test_install_assets.py"
+              - "skills/tests/project-context-runtime/test_atomic.py"
+            result_keys:
+              - "contract_tests_passed"
+    metadata:
+      loc_estimate: 450
+      alternatives_count: 3
+      complexity: medium
+      package_kind: data_model
+    inputs:
+      tasks:
+        - "1.1"
+        - "1.2"
+        - "1.3"
+        - "1.4"
+        - "1.5"
+    outputs:
+      result_keys:
+        - "contract_tests_passed"
+      artifacts:
+        - "skills/project-context-runtime/SKILL.md"
+        - "skills/project-context-runtime/scripts/models.py"
+        - "skills/project-context-runtime/scripts/atomic.py"
+        - "skills/project-context-runtime/install_assets/openspec/schemas/context-refresh-types.schema.json"
+        - "skills/project-context-runtime/install_assets/openspec/schemas/context-refresh-operation.schema.json"
+        - "skills/project-context-runtime/install_assets/openspec/schemas/context-refresh-manifest.schema.json"
+
+  - package_id: wp-operation-store
+    title: "Implement the durable operation store"
+    task_type: implement
+    description: "Tasks 2.1-2.2: prove and implement deterministic create-or-load, Git-common-dir storage, cross-process locking, atomic replacement, and legal retry transitions."
+    role: infrastructure
+    archetype: implementer
+    priority: 2
+    decomposition: branch
+    depends_on:
+      - wp-contracts-models
+    locks:
+      files:
+        - "skills/project-context-runtime/scripts/store.py"
+      keys:
+        - "feature:project_context_runtime:store"
+      ttl_minutes: 120
+      reason: "Own durable operation persistence and transition semantics."
+    scope:
+      write_allow:
+        - "skills/project-context-runtime/scripts/store.py"
+        - "skills/tests/project-context-runtime/test_store.py"
+      read_allow:
+        - "openspec/changes/add-durable-context-refresh-records/**"
+        - "skills/project-context-runtime/**"
+        - "skills/roadmap-runtime/**"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+      deny:
+        - "skills/project-context-runtime/scripts/models.py"
+        - "skills/project-context-runtime/scripts/manifest.py"
+        - "skills/tests/project-context-runtime/test_manifest.py"
+    worktree:
+      name: wp-operation-store
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Operation store tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-runtime/test_store.py -v"
+          evidence:
+            artifacts:
+              - "skills/tests/project-context-runtime/test_store.py"
+            result_keys:
+              - "store_tests_passed"
+    metadata:
+      loc_estimate: 400
+      alternatives_count: 3
+      complexity: high
+      package_kind: algorithm
+    inputs:
+      tasks:
+        - "2.1"
+        - "2.2"
+    outputs:
+      result_keys:
+        - "store_tests_passed"
+      artifacts:
+        - "skills/project-context-runtime/scripts/store.py"
+        - "skills/tests/project-context-runtime/test_store.py"
+
+  - package_id: wp-manifest-writer
+    title: "Implement deterministic manifest projection"
+    task_type: implement
+    description: "Tasks 3.1-3.2: prove and implement stable manifest projection, validation, ordering, external semantic references, and atomic repository-artifact replacement."
+    role: infrastructure
+    archetype: implementer
+    priority: 2
+    decomposition: branch
+    depends_on:
+      - wp-contracts-models
+    locks:
+      files:
+        - "skills/project-context-runtime/scripts/manifest.py"
+      keys:
+        - "feature:project_context_runtime:manifest"
+      ttl_minutes: 120
+      reason: "Own deterministic manifest projection and serialization."
+    scope:
+      write_allow:
+        - "skills/project-context-runtime/scripts/manifest.py"
+        - "skills/tests/project-context-runtime/test_manifest.py"
+      read_allow:
+        - "openspec/changes/add-durable-context-refresh-records/**"
+        - "skills/project-context-runtime/**"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+      deny:
+        - "skills/project-context-runtime/scripts/models.py"
+        - "skills/project-context-runtime/scripts/store.py"
+        - "skills/tests/project-context-runtime/test_store.py"
+    worktree:
+      name: wp-manifest-writer
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Manifest writer tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-runtime/test_manifest.py -v"
+          evidence:
+            artifacts:
+              - "skills/tests/project-context-runtime/test_manifest.py"
+            result_keys:
+              - "manifest_tests_passed"
+    metadata:
+      loc_estimate: 350
+      alternatives_count: 2
+      complexity: medium
+      package_kind: algorithm
+    inputs:
+      tasks:
+        - "3.1"
+        - "3.2"
+    outputs:
+      result_keys:
+        - "manifest_tests_passed"
+      artifacts:
+        - "skills/project-context-runtime/scripts/manifest.py"
+        - "skills/tests/project-context-runtime/test_manifest.py"
+
+  - package_id: wp-integration
+    title: "Verify cross-process runtime behavior"
+    task_type: implement
+    description: "Tasks 4.1-4.4: add cross-process coverage, expose the supported facade, document the consumer contract, and run the complete validation matrix."
+    role: integration
+    archetype: validator
+    priority: 3
+    decomposition: branch
+    depends_on:
+      - wp-operation-store
+      - wp-manifest-writer
+    locks:
+      files:
+        - "skills/tests/project-context-runtime/test_cross_process.py"
+        - "skills/project-context-runtime/scripts/__init__.py"
+        - "docs/project-context-refresh.md"
+      keys:
+        - "feature:project_context_runtime:integration"
+      ttl_minutes: 120
+      reason: "Own end-to-end verification and consumer documentation."
+    scope:
+      write_allow:
+        - "skills/tests/project-context-runtime/test_cross_process.py"
+        - "skills/project-context-runtime/scripts/__init__.py"
+        - "docs/project-context-refresh.md"
+      read_allow:
+        - "openspec/changes/add-durable-context-refresh-records/**"
+        - "skills/project-context-runtime/**"
+        - "skills/tests/project-context-runtime/**"
+        - "docs/**"
+      deny:
+        - "skills/project-context-runtime/scripts/models.py"
+        - "skills/project-context-runtime/scripts/atomic.py"
+        - "skills/project-context-runtime/scripts/store.py"
+        - "skills/project-context-runtime/scripts/manifest.py"
+        - "skills/project-context-runtime/install_assets/**"
+    worktree:
+      name: wp-integration
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Project context runtime suite"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-runtime/ -v"
+          evidence:
+            artifacts:
+              - "skills/tests/project-context-runtime/test_cross_process.py"
+              - "skills/project-context-runtime/scripts/__init__.py"
+            result_keys:
+              - "runtime_suite_passed"
+        - name: "Static quality checks"
+          kind: command
+          command: "skills/.venv/bin/ruff check skills/project-context-runtime skills/tests/project-context-runtime && skills/.venv/bin/mypy skills/project-context-runtime/scripts"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "static_checks_passed"
+        - name: "Strict OpenSpec validation"
+          kind: command
+          command: "openspec validate add-durable-context-refresh-records --strict"
+          evidence:
+            artifacts:
+              - "openspec/changes/add-durable-context-refresh-records/proposal.md"
+              - "openspec/changes/add-durable-context-refresh-records/design.md"
+              - "openspec/changes/add-durable-context-refresh-records/tasks.md"
+            result_keys:
+              - "openspec_validation_passed"
+    metadata:
+      loc_estimate: 300
+      alternatives_count: 2
+      complexity: medium
+      package_kind: integration
+    inputs:
+      tasks:
+        - "4.1"
+        - "4.2"
+        - "4.3"
+        - "4.4"
+    outputs:
+      result_keys:
+        - "runtime_suite_passed"
+        - "static_checks_passed"
+        - "openspec_validation_passed"
+      artifacts:
+        - "skills/tests/project-context-runtime/test_cross_process.py"
+        - "skills/project-context-runtime/scripts/__init__.py"
+        - "docs/project-context-refresh.md"
