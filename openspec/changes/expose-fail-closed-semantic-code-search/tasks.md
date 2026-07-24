@@ -125,14 +125,14 @@
 
 ## Phase 4 — Publish truthful capability discovery
 
-- [ ] 4.1 (S) Write capability-probe tests for default false, 404, 422, 500,
+- [x] 4.1 (S) Write capability-probe tests for default false, 404, 422, 500,
   malformed body, `available=false`, `available=true`, and unverifiable
   MCP-only transport.
   **Spec scenarios**: code-search.12-13
   **Contracts**: contracts/openapi/v2.yaml
   **Design decisions**: D9
   **Dependencies**: 0.2
-- [ ] 4.2 (S) Add `CAN_CODE_SEARCH` to both discovery implementations using
+- [x] 4.2 (S) Add `CAN_CODE_SEARCH` to both discovery implementations using
   the body-aware status probe and fail-closed MCP fallback.
   **Spec scenarios**: code-search.12-13
   **Contracts**: contracts/openapi/v2.yaml
