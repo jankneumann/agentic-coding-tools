@@ -146,6 +146,35 @@ async def test_empty_effective_scope_is_rejected_before_semantic_work(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
+    ("pattern", "witness"),
+    [
+        ("src/[].py", "src/[].py"),
+        ("src/[!a].py", "src/b.py"),
+        ("src/[a-c].py", "src/a.py"),
+    ],
+)
+async def test_effective_scope_accepts_supported_bracket_globs(
+    pattern: str,
+    witness: str,
+) -> None:
+    effective = await authorize_code_search_scope(
+        principal_id="codex",
+        repo_slug="agentic_coding_tools",
+        namespace_kind="main",
+        namespace_key="main",
+        source_revision=REVISION,
+        grant=_grant(read_allow=(pattern,), deny=()),
+        requested_scope=ExplicitScopeRequest(
+            read_allow=(pattern,),
+            deny=(),
+        ),
+    )
+
+    assert effective.allows(witness)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
     "grant",
     [
         None,

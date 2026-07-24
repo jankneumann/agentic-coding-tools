@@ -10,6 +10,12 @@ from typing import Literal, Protocol
 _REVISION_RE = re.compile(r"^[0-9a-f]{40}([0-9a-f]{24})?$")
 _MAX_GLOB_LENGTH = 512
 _MAX_GLOBS = 100
+_CLASS_WITNESS_CHARACTERS = (
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "0123456789"
+    "_-.+@#$%&(),=~{}"
+)
 
 
 class ScopeAuthorizationError(RuntimeError):
@@ -359,7 +365,22 @@ def _glob_witness(pattern: str) -> str:
                 witness.append("[")
             else:
                 content = pattern[index + 1 : end].lstrip("!^")
-                witness.append(content[0] if content else "x")
+                if not content:
+                    witness.append("[]")
+                else:
+                    class_pattern = pattern[index : end + 1]
+                    class_regex = glob_to_postgres_regex(class_pattern)
+                    class_witness = next(
+                        (
+                            candidate
+                            for candidate in _CLASS_WITNESS_CHARACTERS
+                            if re.fullmatch(class_regex, candidate)
+                        ),
+                        None,
+                    )
+                    if class_witness is None:
+                        return ""
+                    witness.append(class_witness)
                 index = end
         else:
             witness.append(char)
