@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-24T14:53:47.060081+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Validated RI03 at 52f25814: 478 deterministic tests pass, contract and structural gates are green, and two independent implementation reviews converged with no blocker. Thirteen live-resource cases remain explicitly deferred before production enablement.",
+    "completed_work": [
+      "Passed 478 deterministic tests: 277 package, 100 coordinator, 71 bridge, and 30 OpenAPI contract cases.",
+      "Passed project-scoped mypy, changed-file Ruff, strict OpenSpec, work-package schema/DAG/zones, architecture-flow, review-schema, and diff-hygiene gates.",
+      "Resolved all correctness and authorization review findings through 52f25814; both final independent audits reported no blocker."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Treat deterministic evidence as the merge gate",
+        "rationale": "The default-off reader, authorization, lifecycle, and three transport surfaces are fully exercised without depending on unacknowledged external services.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Keep production enablement resource-gated",
+        "rationale": "Live Postgres/pgvector, embedding-provider, and retrieval-quality evidence must run against acknowledged scratch or deployment resources.",
+        "capability": "code-search",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Push the RI03 branch and open a draft PR stacked on RI02.",
+      "Run deferred Postgres/provider/retrieval-quality gates before production enablement."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/expose-fail-closed-semantic-code-search/validation-report.md",
+        "description": "consolidated validation evidence"
+      },
+      {
+        "path": "openspec/changes/expose-fail-closed-semantic-code-search/change-context.md",
+        "description": "requirement-to-evidence mapping"
+      },
+      {
+        "path": "openspec/changes/expose-fail-closed-semantic-code-search/reviews/review-resolution.md",
+        "description": "independent review dispositions"
+      }
+    ]
+  }
+}

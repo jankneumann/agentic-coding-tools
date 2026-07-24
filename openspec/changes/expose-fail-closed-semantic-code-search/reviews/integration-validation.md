@@ -1,17 +1,17 @@
 # RI03 integration validation
 
-Date: 2026-07-23
+Date: 2026-07-24
 
 Package: `wp-integration`
 
-Branch tip validated: `aa6b92c0`
+Branch tip validated: `52f25814`
 
 ## Mandatory deterministic evidence
 
 | Gate | Command | Result |
 |---|---|---|
 | Shared code-search package | `packages/code-search/.venv/bin/pytest packages/code-search/tests -q -rs` | PASS: 277 passed; 7 live-resource cases explicitly skipped |
-| Coordinator query/runtime/surfaces | `agent-coordinator/.venv/bin/pytest agent-coordinator/tests/test_code_search.py agent-coordinator/tests/test_code_search_authorization.py agent-coordinator/tests/test_code_search_imports.py agent-coordinator/tests/test_code_search_runtime.py agent-coordinator/tests/test_code_search_surfaces.py -q` | PASS: 75 passed; one upstream Starlette deprecation warning |
+| Coordinator query/runtime/surfaces | `agent-coordinator/.venv/bin/pytest agent-coordinator/tests/test_code_search.py agent-coordinator/tests/test_code_search_authorization.py agent-coordinator/tests/test_code_search_imports.py agent-coordinator/tests/test_code_search_runtime.py agent-coordinator/tests/test_code_search_surfaces.py -q` | PASS: 100 passed; one upstream Starlette deprecation warning |
 | Capability discovery | `/Users/jankneumann/Coding/agentic-coding-tools/skills/.venv/bin/pytest skills/coordination-bridge/scripts/tests -q` | PASS: 71 passed |
 | OpenAPI v2 contract | `agent-coordinator/.venv/bin/pytest openspec/changes/expose-fail-closed-semantic-code-search/tests/test_openapi_contract.py -q` | PASS: 30 passed |
 | Strict typing | `agent-coordinator/.venv/bin/mypy src/code_search.py src/code_search_authorization.py src/code_search_runtime.py tests/integration/postgres/test_code_search_v2.py` from `agent-coordinator/` | PASS: no issues in 4 source files |
@@ -25,7 +25,7 @@ Branch tip validated: `aa6b92c0`
 | Review schema | Validate `review-findings-implementation.json` against `openspec/schemas/review-findings.schema.json` with `jsonschema` | PASS |
 | Diff hygiene | `git diff --check` | PASS |
 
-Deterministic test total: **453 passed**.
+Deterministic test total: **478 passed**.
 
 ## Resource-deferred evidence
 

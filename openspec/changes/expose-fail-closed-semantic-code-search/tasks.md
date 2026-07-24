@@ -8,8 +8,8 @@
 - [x] Planning
 - [x] Implementation
 - [x] Testing
-- [ ] Review
-- [ ] Done
+- [x] Review
+- [x] Done
 
 ## Phase 0 — Freeze the v2 boundary
 

@@ -46,3 +46,43 @@
 - MCP-only capability discovery remains false when it cannot invoke status.
 - The feature remains default-off, so the strict in-place request break is
   preferred over preserving an unsafe legacy reader.
+
+## Implementation review convergence
+
+Two independent read-only Codex reviewers audited the implemented branch across
+correctness, authorization, lifecycle, contracts, resilience, performance, and
+integration cleanup. A separately phrased defensive-review dispatch failed at
+the provider policy boundary before producing findings; it was not counted as
+review evidence. The two successful reviewers iterated until each reported no
+remaining blocker.
+
+Resolved implementation findings:
+
+1. **Effective scope non-emptiness** — replaced heuristic witness enumeration
+   with a bounded product-NFA proof across allow/path layers, deny subtraction,
+   and normalized relative-path state. Independent state and transition-work
+   budgets fail closed before synchronous proof can monopolize the event loop.
+   Disjoint, deny-covered, bracket, malformed, and multi-class intersections
+   are regression-tested.
+2. **HTTP Problem contract** — all route and framework-level 401/403/404/422/429
+   outcomes for `/search/code` use the frozen `application/problem+json`
+   documents; unrelated FastAPI validation remains unchanged.
+3. **MCP/proxy failure parity** — direct and proxied MCP preserve sanitized
+   forbidden and overload problems, including a validated retry delay.
+4. **Runtime observability** — initialization and readiness completion now emit
+   bounded counters and privacy-safe structured state/reason, duration, repo,
+   and namespace dimensions.
+5. **Readiness single-flight** — concurrent public status refreshes share one
+   provider probe and registry read after TTL/backoff expiry.
+6. **Complete request validation** — language control characters and malformed
+   scope regexes are rejected before index, embedding, or vector work.
+7. **Failure precedence** — index identity selection is distinct from final
+   storage readiness, so revision/provider mismatches remain authoritative
+   before missing-storage degradation.
+8. **Scratch cleanup** — the resource-gated Postgres fixture closes its pool
+   across setup, yield, and cleanup failure paths.
+
+The final convergence run preserves exact-index selection, default-off
+lifecycle, truthful capability discovery, and mandatory exact-search fallback.
+Live Postgres/pgvector, provider, and retrieval-quality evidence remains
+explicitly deferred until acknowledged external resources are available.
