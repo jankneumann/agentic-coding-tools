@@ -67,8 +67,9 @@ is required.
 
 - `openspec/roadmaps/<roadmap_id>/roadmap.yaml` conforming to the roadmap schema
 - `openspec/roadmaps/<roadmap_id>/proposal.md` co-located with the roadmap (when scaffolded via `--new`)
-- Each item in the roadmap has: `item_id`, `title`, `description`, `effort`, `priority`, `depends_on`, `acceptance_outcomes`
+- Each item in the roadmap has: `item_id`, `title`, `description`, `effort`, `priority`, `depends_on`, `acceptance_outcomes`, and a derived `change_id`
 - Dependency DAG is acyclic (validated before output)
+- **No `openspec/changes/` directories.** Change directories are created one at a time when an item is picked up (see Step 8).
 
 ### Workspace Layout
 
@@ -86,7 +87,7 @@ openspec/roadmaps/
 
 This layout makes the workspace a self-contained unit and supports multiple concurrent roadmaps per repo without filename collisions — the directory itself is the namespace. Mirrors the OpenSpec `openspec/changes/<change-id>/` convention.
 
-Scaffolded per-item change directories remain at `openspec/changes/<change-id>/` (consumed by `/implement-feature`); they are not nested under the roadmap workspace.
+Per-item change directories live at `openspec/changes/<change-id>/` (consumed by `/implement-feature`); they are not nested under the roadmap workspace, and they are created at item pickup rather than at decomposition time.
 
 ## Proposal Requirements
 
@@ -165,14 +166,20 @@ Print the resolved path, then call `save_roadmap(roadmap, path, overwrite=<force
 
 If `--new` was used in Step 0, the proposal.md already lives at `openspec/roadmaps/<roadmap_id>/proposal.md` — leave it in place. If decomposing an existing proposal from elsewhere, the `source_proposal` field in `roadmap.yaml` records the original path.
 
-### 8. Scaffold Approved Changes as OpenSpec Change Directories
+### 8. Stop — Do Not Scaffold Change Directories Here
 
-For each approved item, create an OpenSpec change directory under `openspec/changes/` via `scaffold_changes()` from `scaffolder.py`, containing:
-- `proposal.md` with a `parent_roadmap` field linking back to the roadmap
-- `tasks.md` skeleton
-- `specs/` directory
+`/plan-roadmap` ends at `roadmap.yaml`. **Do not create `openspec/changes/` directories for the roadmap's items.**
 
-These directories always live at `openspec/changes/<change-id>/` — they are not nested under the roadmap workspace, because `/implement-feature` expects that canonical path.
+A scaffolded change has an empty `specs/` directory, and `openspec validate --strict` rejects any change with no delta carrying a `#### Scenario:` block. CI runs `openspec validate --strict --all` on every push, so scaffolding an N-item roadmap up front lands N validation failures immediately and keeps them red for as long as the roadmap takes to execute.
+
+Instead, record the derived change-id on each item in `roadmap.yaml` (the `change_id` field). The directory is created **per item, when that item is picked up for work**, by whoever plans it:
+
+- `/autopilot-roadmap` — creates the change for the selected item before dispatching `/implement-feature`.
+- Manual execution — run `/plan-feature` for the item, which authors real spec deltas.
+
+`scaffolder.scaffold_change(roadmap, repo_root, item_id)` scaffolds exactly one item and is the only supported entry point; there is deliberately no bulk variant. Its output is an intermediate stub, not a committable change — the spec deltas must be authored before the change is committed.
+
+Change directories always live at `openspec/changes/<change-id>/`, never nested under the roadmap workspace, because `/implement-feature` expects that canonical path.
 
 ## Lifecycle
 
@@ -194,6 +201,6 @@ Shared models and utilities are in `<skill-base-dir>/../roadmap-runtime/scripts/
 | Script | Role |
 |---|---|
 | `<skill-base-dir>/scripts/decomposer.py` | Deterministic validation only: `validate_proposal()` (readiness), `validate_roadmap()` (schema + ids + DAG), `scan_archive_state()`, `make_repo_relative()`, and a `validate` CLI. Contains no keyword extraction and no LLM calls. |
-| `<skill-base-dir>/scripts/scaffolder.py` | Scaffolds OpenSpec change directories from approved items. |
+| `<skill-base-dir>/scripts/scaffolder.py` | `scaffold_change(roadmap, repo_root, item_id)` — scaffolds a single item's change directory at pickup time. Output is a pre-spec stub that fails `openspec validate --strict` until deltas are authored. Not invoked by this skill; see Step 8. |
 | `<skill-base-dir>/scripts/renderer.py` | Renders `roadmap.yaml` → human-readable `roadmap.md` (maintenance direction). |
 | `templates/generation-prompt.md` | The model-facing generation contract dispatched in Step 3. |
