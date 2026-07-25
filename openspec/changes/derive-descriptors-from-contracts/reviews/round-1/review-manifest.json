@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-07-25T17:19:51Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 0.8273221249692142,
+      "error": "Invalid JSON output",
+      "error_class": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "(default)",
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 400.72033229097724,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gpt-5.5"
+      ],
+      "elapsed_seconds": 5.047108458005823,
+      "error": "Reading additional input from stdin...\nOpenAI Codex v0.144.5\n--------\nworkdir: /Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/derive-descriptors-from-contracts\nmodel: gpt-5.5\nprovider: openai\napproval: on-request\nsandbox: read-only\nreasoning effort: high\nreasoning summaries: none\nsession id: 019f9a49-dd67-77a1-b754-059f1f8693ec\n--------\nuser\nYou are performing an INDEPENDENT PLAN REVIEW of an OpenSpec change proposal.\nYou have Bash and file-read access. Use them \u2014 verify claims ag",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "grok",
+      "success": false,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 25.216905208013486,
+      "error": "Invalid JSON output",
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "qwen/qwen3-coder",
+      "models_attempted": [
+        "qwen/qwen3-coder"
+      ],
+      "elapsed_seconds": 2.138882500003092,
+      "error": "Invalid JSON output",
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-plan.json",
+      "finding_count": 12
+    }
+  ]
+}
