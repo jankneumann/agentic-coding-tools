@@ -50,7 +50,17 @@ def _coverage_banner(coverage: list[dict[str, Any]]) -> str:
     if not coverage:
         return ""
 
-    gaps = [c for c in coverage if c["percent"] < 99.0 and c["filesOnDisk"] > 0]
+    # A language is a gap if *any* disk file is unaccounted for, or if the graph
+    # names files that are no longer there. An earlier `percent < 99.0` threshold
+    # let 99.0–99.9% coverage — and a graph that matched every current file while
+    # still naming obsolete ones — render the success banner, hiding precisely the
+    # incompleteness and staleness this banner exists to disclose.
+    gaps = [
+        c
+        for c in coverage
+        if c["filesOnDisk"] > 0
+        and (c["filesMatched"] < c["filesOnDisk"] or c["filesMissing"] > 0)
+    ]
     if not gaps:
         totals = ", ".join(f"{c['language']} {c['filesInGraph']}" for c in coverage)
         return (
@@ -71,10 +81,17 @@ def _coverage_banner(coverage: list[dict[str, Any]]) -> str:
             if c.get("filesMissing")
             else ""
         )
+        # Report both numbers. filesMatched is consistent with the directory
+        # breakdown below (matched + uncovered = total) but is inflated by
+        # basename matching: one graph entry for `__init__.py` accepts every
+        # `__init__.py` in the tree. filesInGraph is what the analyzer actually
+        # examined. Showing only one of the two would mislead in one direction or
+        # the other, so the reader gets the ceiling and the floor.
         lines.append(
-            f"<li><strong>{_esc(c['language'])}</strong>: graph covers "
+            f"<li><strong>{_esc(c['language'])}</strong>: at most "
             f"{c['filesMatched']} of {c['filesOnDisk']} files "
-            f"(<strong>{c['percent']}%</strong>)"
+            f"(<strong>&le;{c['percent']}%</strong>), from only "
+            f"{c['filesInGraph']} distinct file name(s) the analyzer examined"
             + (f" &mdash; not covered: {missing}" if missing else "")
             + stale
             + "</li>"
@@ -87,8 +104,10 @@ def _coverage_banner(coverage: list[dict[str, Any]]) -> str:
         "the repository."
         f"<ul>{''.join(lines)}</ul>"
         "Widen <code>PYTHON_SRC_DIR</code> / <code>TS_SRC_DIR</code> in the Makefile and "
-        "re-run <code>make architecture</code> to close the gap. Coverage is matched by "
-        "file name, not full path, so these percentages are an optimistic upper bound."
+        "re-run <code>make architecture</code> to close the gap. Matching is by file "
+        "name, not full path, so the file count is an upper bound: one graph entry for "
+        "<code>__init__.py</code> is credited with every <code>__init__.py</code> in the "
+        "tree. The distinct-name count is the honest floor."
         "</div>"
     )
 

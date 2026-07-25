@@ -42,13 +42,27 @@ graph is wrong or narrow, the atlas says so rather than hiding it.
 
 ## Usage
 
+The skill is `portable`, so the script invocation is canonical — it works from a
+runtime copy in any consumer repository:
+
+```bash
+python3 "<skill-base-dir>/scripts/build_atlas.py" $ARGUMENTS
+```
+
+Requires only the Python standard library. In *this* repository the Makefile wraps
+the same script as a source-checkout convenience:
+
 ```bash
 make atlas          # build docs/architecture-analysis/atlas/index.html
 make atlas-check    # read-only drift check (exit 0 fresh / 2 stale)
 ```
 
-Then open the file. It needs no server, no build step, and makes **zero network
-requests** — it works offline and under a strict CSP.
+Those targets are **not** available in consumer repositories — `install.sh` copies
+the skill directory, not this repo's root Makefile — so prefer the script form
+unless you know you are in a source checkout.
+
+Then open the output file. It needs no server, no build step, and makes **zero
+network requests** — it works offline and under a strict CSP.
 
 ## What the page gives you
 

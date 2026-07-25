@@ -234,3 +234,60 @@ class TestViewModel:
         shuffled["edges"] = list(reversed(tiny_graph["edges"]))
         second = build_view_model(shuffled, tmp_path, measure=False)
         assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)
+
+
+class TestCoverageMatchingNormalisation:
+    """Regressions for the basename-matching bugs found in review of PR #276."""
+
+    def test_graph_subdirectory_paths_match_disk_basenames(self, tmp_path: Path) -> None:
+        pkg = tmp_path / "src" / "notifications"
+        pkg.mkdir(parents=True)
+        (pkg / "webhook.py").write_text("", encoding="utf-8")
+
+        # The analyzer records a root-relative path when the analyzed root has
+        # subdirectories. Comparing that raw value against basenames reported the
+        # whole package as absent-from-disk, which read as staleness.
+        nodes = [
+            {
+                "id": "py:notifications.webhook.send",
+                "language": "python",
+                "file": "notifications/webhook.py",
+            }
+        ]
+        coverage = {c.language: c for c in measure_coverage(tmp_path, nodes)}
+        assert coverage["python"].files_matched == 1
+        assert coverage["python"].files_missing == 0
+        assert coverage["python"].percent == 100.0
+
+    def test_matched_counts_disk_files_not_distinct_names(self, tmp_path: Path) -> None:
+        # Three packages each with __init__.py; the graph names __init__.py once.
+        for name in ("a", "b", "c"):
+            d = tmp_path / name
+            d.mkdir()
+            (d / "__init__.py").write_text("", encoding="utf-8")
+
+        nodes = [{"id": "py:__init__", "language": "python", "file": "__init__.py"}]
+        coverage = {c.language: c for c in measure_coverage(tmp_path, nodes)}
+        # One covered basename accepts all three disk files, and all three are
+        # excluded from the uncovered tally — so the numerator must be 3, not 1,
+        # or the percentage contradicts the directory breakdown.
+        assert coverage["python"].files_in_graph == 1
+        assert coverage["python"].files_matched == 3
+        assert coverage["python"].uncovered_top_dirs == ()
+        assert coverage["python"].percent == 100.0
+
+    def test_matched_plus_uncovered_always_equals_disk_total(self, tmp_path: Path) -> None:
+        for name in ("a", "b"):
+            d = tmp_path / name
+            d.mkdir()
+            (d / "__init__.py").write_text("", encoding="utf-8")
+            (d / f"{name}_only.py").write_text("", encoding="utf-8")
+        (tmp_path / "root.sql").write_text("", encoding="utf-8")
+
+        nodes = [
+            {"id": "py:__init__", "language": "python", "file": "__init__.py"},
+            {"id": "py:a_only.f", "language": "python", "file": "a_only.py"},
+        ]
+        for cov in measure_coverage(tmp_path, nodes):
+            uncovered_total = sum(count for _, count in cov.uncovered_top_dirs)
+            assert cov.files_matched + uncovered_total == cov.files_on_disk, cov.language

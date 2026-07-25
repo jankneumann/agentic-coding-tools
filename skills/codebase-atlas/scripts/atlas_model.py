@@ -27,7 +27,7 @@ import json
 import os
 from collections import Counter
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 # Directories that never contain first-party source. Mirrors the skip logic in
@@ -66,16 +66,25 @@ class AtlasInputError(Exception):
 class Coverage:
     """How much of the repository the graph actually describes.
 
-    Matching is by *file name*, not path: the analyzer records bare basenames
-    (``coordination_api.py``), so a path-exact comparison is impossible. This
-    biases coverage *upward* — one covered basename may match several on-disk
-    files — so the reported percentage is an optimistic bound and the UI says so.
+    Matching is by *file name*, not full path: the analyzer records basenames for
+    most nodes, so a path-exact comparison is impossible. This biases coverage
+    *upward* — one covered basename accepts every on-disk file sharing it — so the
+    reported percentage is an optimistic upper bound and the UI says so.
 
-    ``percent`` is driven by ``files_matched`` (graph names that resolve to a file
-    actually present) rather than by ``files_in_graph``. Using the raw graph count
-    would let a stale graph report over 100% coverage and hide the gap entirely.
-    ``files_missing`` counts the opposite direction — names the graph describes
-    that no longer exist on disk — which is a direct staleness signal.
+    Field semantics, which are easy to conflate:
+
+    * ``files_on_disk`` — source files of this language found on disk.
+    * ``files_matched`` — **disk files** whose basename appears in the graph. This
+      is the numerator for ``percent``. Counting distinct graph *names* instead
+      would disagree with ``uncovered_top_dirs``, since one covered name silently
+      accepts many disk files.
+    * ``files_in_graph`` — distinct basenames the graph names. Informational only;
+      using it as the numerator would let a graph naming absent files report over
+      100% coverage and hide the gap entirely.
+    * ``files_missing`` — graph basenames with no counterpart on disk. A genuine
+      staleness signal: the graph describes files that are no longer there.
+
+    Invariant: ``files_matched + sum(uncovered_top_dirs values) == files_on_disk``.
     """
 
     language: str
@@ -260,11 +269,19 @@ def measure_coverage(
                 continue
             on_disk.setdefault(language, []).append(Path(dirpath, filename))
 
+    # The analyzer records `file` inconsistently: usually a bare basename
+    # (`coordination_api.py`), but a root-relative path when the analyzed root has
+    # subdirectories (`notifications/webhook.py`). Comparing the raw value against
+    # basenames would report the whole subdirectory as missing-from-disk, which
+    # reads as staleness rather than as the format inconsistency it is. Normalise
+    # to the basename on both sides so matching is like-for-like.
     graph_files: dict[str, set[str]] = {}
     for node in nodes:
         file = node.get("file")
         if file:
-            graph_files.setdefault(node.get("language") or "unknown", set()).add(file)
+            graph_files.setdefault(node.get("language") or "unknown", set()).add(
+                PurePosixPath(file).name
+            )
 
     coverages: list[Coverage] = []
     for language in sorted(set(on_disk) | set(graph_files)):
@@ -272,9 +289,18 @@ def measure_coverage(
         disk_names = {p.name for p in disk_paths}
         graph_names = graph_files.get(language, set())
 
+        # The numerator counts *disk paths* accepted by basename matching, not
+        # distinct graph names. Counting names would double-count nothing but
+        # under-count plenty: one covered `__init__.py` name accepts all 89
+        # `__init__.py` files on disk, and every one of them is excluded from the
+        # uncovered tally below. Deriving both sides from disk paths keeps the
+        # identity `files_matched + sum(uncovered) == files_on_disk` true, so the
+        # headline percentage and the directory breakdown always agree.
+        matched = 0
         uncovered: Counter[str] = Counter()
         for path in disk_paths:
             if path.name in graph_names:
+                matched += 1
                 continue
             rel = path.relative_to(repo_root)
             uncovered[rel.parts[0] if len(rel.parts) > 1 else "."] += 1
@@ -283,7 +309,7 @@ def measure_coverage(
             Coverage(
                 language=language,
                 files_in_graph=len(graph_names),
-                files_matched=len(graph_names & disk_names),
+                files_matched=matched,
                 files_missing=len(graph_names - disk_names),
                 files_on_disk=len(disk_paths),
                 uncovered_top_dirs=tuple(sorted(uncovered.items(), key=lambda kv: (-kv[1], kv[0]))),
