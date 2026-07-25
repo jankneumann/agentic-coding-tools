@@ -30,7 +30,24 @@ optional precisely because surface-local flags have nothing to bind to.
 
 ## On promotion to the stable location
 
-On archival this schema moves to
-`openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json`, per
-`openspec/contracts/README.md`. Its `$id` already points at that destination so
-the published identifier does not change when the change directory is archived.
+Two different artifacts land in two different places, and conflating them was a
+plan-review finding:
+
+| Artifact | Kind | Stable location |
+|---|---|---|
+| `cli-contract.schema.json` | JSON **Schema** | `openspec/contracts/gen-eval-framework/schemas/` |
+| gen-eval's own CLI contract | contract **instance** (YAML) | `openspec/contracts/gen-eval-framework/cli/` |
+
+This mirrors the existing split in `openspec/contracts/README.md`: `schemas/`
+holds schemas, and the sibling instance directories (`openapi/` for services,
+`cli/` for tools — the latter added by task 1.8) hold documents validated
+*against* those schemas.
+
+**Promotion happens while the change is in flight, not on archival.** That is
+the rule `openspec/contracts/README.md` states explicitly ("Do this *before*
+archiving the change so no window of drift opens") and the reason PR #265
+created the directory. Task 1.9 performs the promotion; task 1.8 adds the row to
+the "Current contents" table.
+
+The schema's `$id` points at the `schemas/` destination, so the published
+identifier does not change when the change directory is archived.

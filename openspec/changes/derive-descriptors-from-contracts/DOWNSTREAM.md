@@ -152,6 +152,52 @@ they can bite a consumer.
 
 ---
 
+## DS-5 — Model types are renamed; `CONTRACT_VERSION` goes 1 → 2 ⚠️
+
+**This is the one item here that can break a build.** DS-2 and DS-3 both tell
+you to read `interface-descriptor.schema.json`, so a silent change to its
+`$defs` titles would break exactly the readers we sent there. Hence this notice.
+
+`*Descriptor` was carrying three different meanings at once — one element, one
+container, and a whole document. We split it by level:
+
+| Level | Suffix | Types |
+|---|---|---|
+| One element, or a per-surface container of elements | `*Spec` | `EndpointSpec`, `McpToolSpec`, `CommandSpec`, `ServiceSpec` |
+| A whole descriptor document | `*Descriptor` | `InterfaceDescriptor`, `ServiceDescriptor`, `ToolDescriptor` |
+
+Renames, all in `packages/gen-eval/src/gen_eval/descriptor.py`:
+
+| Was | Now | Was it public? |
+|---|---|---|
+| `EndpointDescriptor` | `EndpointSpec` | `$defs` title |
+| `ToolDescriptor` | `McpToolSpec` | `$defs` title |
+| `CommandDescriptor` | `CommandSpec` | `$defs` title |
+| `ServiceDescriptor` | `ServiceSpec` | **`__all__` export + `$defs` title** |
+
+Note the trap: `ServiceDescriptor` and `ToolDescriptor` **still exist**, but now
+name the new document-level archetypes rather than what they named before. An
+import that keeps working may not mean what it used to.
+
+**What you need to do:**
+
+1. **If you only load descriptors (YAML in, report out)** — nothing. Behaviour
+   is unchanged; this is a naming and schema-title change only.
+2. **If you import the model classes** — the old names remain importable as
+   deprecation aliases for one release, so you have a window. But if you import
+   `ServiceDescriptor` or `ToolDescriptor`, re-read the table above: those two
+   now resolve to different types.
+3. **If you pin the schema** — bump your pin from `CONTRACT_VERSION` 1 to 2 and
+   update any `$defs` reference by title.
+
+We chose to take the break rather than qualify the new names
+(`ContractServiceDescriptor` and friends). You already have to adapt to DS-2's
+coverage-semantics change; one coherent break costs less than a permanent pair
+of near-identical names. If that trade lands badly for ri-06, say so — the
+alias window is the lever we can adjust.
+
+---
+
 ## Questions back to you
 
 1. Does ri-06 assert only `unevaluated_interfaces == []`, or also on specific
@@ -163,3 +209,5 @@ they can bite a consumer.
    operation ids.
 3. Any objection to the eventual removal of the hand-authored descriptor path,
    and what notice period would you want?
+4. Is one release enough of a deprecation-alias window for the DS-5 renames, or
+   do you need longer? This is the lever we can move most easily.

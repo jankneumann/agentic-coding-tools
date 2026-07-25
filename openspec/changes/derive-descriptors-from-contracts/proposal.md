@@ -96,10 +96,16 @@ source.
 
 ### Deliverables
 
+0. **A naming level split, first.** `*Descriptor` currently means an element, a
+   container, *and* a document — which is why the two archetype names below were
+   already taken (`descriptor.py:41`, `:67`). Elements become `*Spec`
+   (`EndpointSpec`, `McpToolSpec`, `CommandSpec`, `ServiceSpec`), freeing
+   `*Descriptor` for document-level types. `CONTRACT_VERSION` 1 → 2, with
+   deprecation aliases for one release (D9).
 1. **Two descriptor archetypes.** `ServiceDescriptor` (contract-derived, http +
-   mcp bindings) and `ToolDescriptor` (cli argument definitions). Additive —
-   the existing hand-authored `InterfaceDescriptor` keeps working and is
-   deprecated, not removed.
+   mcp bindings) and `ToolDescriptor` (cli argument definitions). Behaviour is
+   additive — the existing hand-authored `InterfaceDescriptor` keeps working and
+   is deprecated, not removed — but the names are not (D6, D9).
 2. **Derivation generators** with `--check` drift mode, reusing the shape
    already proven by `contracts/generated/models.py` +
    `test_contracts_generated.py` and by PR #277's
@@ -109,11 +115,18 @@ source.
    an empty descriptor must fail, not pass.
 4. **Reverse-link verifiers for all three surfaces** — FastAPI `app.openapi()`,
    MCP `list_tools()`, argparse `parser._actions`, each asserted ⊆ contract.
-5. **Operation × surface coverage.** `unevaluated_interfaces` becomes
-   operation-keyed with per-surface detail, making *"covered, but only via
-   HTTP"* expressible. Surfaces are explicitly partial — the 38/39/37 deltas
-   are real, so "not exposed on surface X" is first-class rather than a
-   permanent false gap.
+5. **Operation × surface coverage, with a vocabulary that actually connects.**
+   `unevaluated_interfaces` becomes operation-keyed with per-surface detail,
+   making *"covered, but only via HTTP"* expressible. Each surface entry names
+   the element serving the operation, and one element may serve several
+   operations — the coordinator's `check_locks` serves two, so a 1:1 projection
+   would invent tools and produce false violations (D4, D7). Surfaces are
+   explicitly partial: the 38/39/37 deltas are real, so "not exposed on surface
+   X" is first-class rather than a permanent false gap.
+   This also requires extending `_extract_interfaces` and adding a
+   `--min-coverage` gate (D10) — without them the derived declared surface would
+   be string-matched against an empty tested set, reporting 0% coverage and
+   converting today's vacuous pass into a guaranteed spec violation.
 6. **gen-eval's own tool descriptor**, derived and drift-guarded, as the
    proving case.
 7. **`DOWNSTREAM.md`** — notice to ACA ri-06, whose coverage assertion changes

@@ -66,10 +66,14 @@ Derived descriptors SHALL be generated as checked-in artifacts, and a
 `--check` mode SHALL exit non-zero when a checked-in artifact differs from
 what the generator produces from the current contract.
 
-The guard SHALL fail when the generated artifact declares zero operations.
+The guard SHALL fail when the generated artifact declares zero coverage units.
 
-The guard SHALL fail when the generated artifact's operation count differs
-from the contract's operation count.
+The guard SHALL fail when the generated artifact's coverage-unit count differs
+from the contract's coverage-unit count.
+
+The coverage unit SHALL be the operation for a service descriptor, and the flag,
+positional argument, or named subcommand for a tool descriptor. The guard SHALL
+NOT count commands as coverage units for a tool descriptor.
 
 #### Scenario: Drift between contract and checked-in descriptor fails
 
@@ -90,6 +94,14 @@ from the contract's operation count.
   its contract
 - **THEN** the guard SHALL fail
 - **AND** it SHALL report both counts
+
+#### Scenario: A tool contract declaring commands but no coverage units fails
+
+- **WHEN** a tool contract declares one or more commands and zero flags,
+  positionals, and named subcommands
+- **THEN** the guard SHALL fail on the non-emptiness assertion
+- **AND** it SHALL NOT report success on the grounds that the command count is
+  non-zero and matches
 
 ### Requirement: Implemented Surface Subset Verification
 
@@ -131,8 +143,19 @@ exposed, and SHALL NOT count as an uncovered surface for that operation.
 An operation SHALL be reported as unevaluated when no surface that exposes it
 was exercised by any scenario.
 
-The report SHALL continue to emit the flat interface list for backward
-compatibility during the deprecation window, computed from the operation model.
+Each exposed surface entry SHALL name the surface-local element that serves the
+operation, and one element MAY serve more than one operation. Exercising a bound
+element SHALL count as coverage of every operation bound to it.
+
+The identifiers recorded as tested SHALL be drawn from the same vocabulary as
+the declared surface, so that a tested element matches its declared counterpart.
+
+The framework SHALL provide a coverage threshold that fails a run when interface
+coverage falls below it, separately from the pass-rate threshold.
+
+The report SHALL continue to emit the flat interface list and the per-interface
+coverage map for backward compatibility during the deprecation window, both
+computed from the operation model.
 
 #### Scenario: One operation tested via one surface is not three gaps
 
@@ -152,6 +175,52 @@ compatibility during the deprecation window, computed from the operation model.
   no subcommands
 - **THEN** each contracted flag SHALL be a nameable coverage unit
 - **AND** the declared surface SHALL be non-empty
+
+#### Scenario: One surface element serving two operations is covered once
+
+- **WHEN** two operations bind to the same MCP tool and a scenario exercises
+  that tool
+- **THEN** both operations SHALL be reported as covered on the MCP surface
+- **AND** subset verification SHALL NOT report that tool as undocumented
+- **AND** it SHALL NOT report the two operations as omitted tools
+
+#### Scenario: A flag exercised by a scenario is recorded as covered
+
+- **WHEN** a scenario step invokes a tool with a contracted flag among its
+  arguments
+- **THEN** that flag SHALL appear in the tested identifier set
+- **AND** it SHALL match the declared coverage unit of the same name
+
+#### Scenario: Coverage below the threshold fails the run
+
+- **WHEN** a run completes with interface coverage below the configured
+  coverage threshold
+- **THEN** the framework SHALL exit non-zero
+- **AND** it SHALL do so independently of whether the pass-rate threshold was met
+
+### Requirement: Descriptor Model Naming Levels
+
+Descriptor model type names SHALL encode the level they describe: a type naming
+a single surface element, or a container of elements for one surface, SHALL use
+the `Spec` suffix, and a type naming a whole descriptor document SHALL use the
+`Descriptor` suffix.
+
+A rename of a published model type SHALL bump the descriptor contract version
+and SHALL retain a deprecation alias under the previous name for at least one
+release.
+
+#### Scenario: Element and document types are distinguishable by name
+
+- **WHEN** a reader encounters a descriptor model type name
+- **THEN** the suffix SHALL indicate whether it names one element or a whole
+  document
+- **AND** no single suffix SHALL denote both levels
+
+#### Scenario: Renaming a published type bumps the contract version
+
+- **WHEN** a model type published in the versioned descriptor schema is renamed
+- **THEN** the descriptor contract version SHALL be incremented
+- **AND** the previous name SHALL remain importable as a deprecation alias
 
 ## MODIFIED Requirements
 
@@ -204,8 +273,8 @@ agent-coordinator internals.
 ### Requirement: Dogfood
 
 The agent-coordinator dogfood descriptor MUST cover the coordinator's full
-declared surface across its HTTP, MCP, and CLI bindings, with per-surface
-counts matching the descriptor rather than a figure duplicated into this spec.
+declared surface across its HTTP, MCP, and CLI bindings: at minimum 38 HTTP
+endpoints, 39 MCP tools, and 37 CLI commands.
 
 Template scenarios MUST include both success and failure paths for at minimum:
 lock lifecycle, work queue operations, auth boundaries, cross-interface
@@ -226,7 +295,8 @@ a CLI contract, and MUST evaluate it as a blocking gate.
 - **WHEN** the framework loads the agent-coordinator dogfood descriptor
 - **THEN** it SHALL register every HTTP endpoint, MCP tool, and CLI command the
   descriptor declares
-- **AND** the registered counts SHALL match the descriptor's declared counts
+- **AND** the registered counts SHALL be at least 38 HTTP endpoints, 39 MCP
+  tools, and 37 CLI commands
 
 #### Scenario: Template scenarios include failure paths for core operations
 
