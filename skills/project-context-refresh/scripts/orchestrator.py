@@ -30,6 +30,7 @@ and architecture results are recorded first (design D3/D4).
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
@@ -39,10 +40,14 @@ from pathlib import Path
 # Importing _runtime first inserts the ri-06 runtime scripts dir onto sys.path,
 # so the bare ``store``/``manifest``/``models`` imports below resolve.
 from _runtime import (
+    Fallback,
+    FallbackKind,
     ProducerResult,
     ProducerStatus,
+    Remediation,
     SafeError,
     ensure_git_revision,
+    sha256_hex,
 )
 from manifest import write_manifest
 from models import (
@@ -89,36 +94,67 @@ class RefreshResult:
         return 1
 
 
+class RevisionMismatchError(ValueError):
+    """Raised when an explicit revision is not the one actually checked out.
+
+    A ``ValueError`` subclass so existing callers that fail closed on bad input
+    keep working unchanged.
+    """
+
+
+def _git_out(repo_root: Path, *args: str) -> str:
+    """Run a read-only git command in *repo_root*, returning stripped stdout.
+
+    Returns an empty string when git is unavailable, the path is not a
+    repository, or the command failed; every caller treats "" as "unknown".
+
+    The return code check is load-bearing: in a repository with no commits
+    ``git rev-parse HEAD`` echoes the literal string ``HEAD`` on stdout and exits
+    128, so trusting stdout alone would report ``HEAD`` as the checked-out
+    revision.
+    """
+    completed = subprocess.run(
+        ["git", "-C", str(repo_root), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return completed.stdout.strip() if completed.returncode == 0 else ""
+
+
 def resolve_repository_identity(
     repository: Path | str, revision: str | None
 ) -> tuple[Path, str, str]:
     """Return ``(repo_root, repository_id, full_revision)``.
 
-    ``repository_id`` is the repository directory name (matching ri-04's
-    convention so the architecture producer shares the same operation), and the
-    revision is the full HEAD SHA unless one is supplied.
+    ``repository_id`` honors the ``PROJECT_CONTEXT_REPO_ID`` override and
+    otherwise falls back to the repository directory name — the same rule as
+    ``refresh-architecture``'s canonical ``provenance.repository_id``. Both must
+    agree, or the same clone would yield two operation ids and split the ledger,
+    hiding ri-04's architecture results from this refresh.
+
+    An explicit *revision* MUST name the revision that is actually checked out.
+    Every producer reads the live filesystem, so accepting some other SHA would
+    persist and manifest artifacts under a revision they did not come from. When
+    the path is not a git checkout at all there is no HEAD to contradict, and the
+    supplied revision is taken at face value.
     """
     repo_root = Path(repository).resolve()
-    toplevel = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
-        capture_output=True,
-        text=True,
-        check=False,
-    ).stdout.strip()
+    toplevel = _git_out(repo_root, "rev-parse", "--show-toplevel")
     repo_root = Path(toplevel) if toplevel else repo_root
-    repository_id = repo_root.name
+    repository_id = os.environ.get("PROJECT_CONTEXT_REPO_ID") or repo_root.name
 
-    rev = revision
-    if not rev:
-        rev = subprocess.run(
-            ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=False,
-        ).stdout.strip()
+    head = _git_out(repo_root, "rev-parse", "HEAD")
+    rev = revision or head
     if not rev:
         raise ValueError("could not resolve HEAD; pass an explicit full-SHA revision")
     ensure_git_revision(rev)
+    if revision and head and revision != head:
+        raise RevisionMismatchError(
+            f"requested revision {revision[:12]} is not the checked-out revision "
+            f"{head[:12]}; producers read the working tree, so refresh accepts only "
+            "the checked-out revision (check it out, or use a worktree at it)"
+        )
     return repo_root, repository_id, rev
 
 
@@ -157,18 +193,35 @@ def _default_architecture_producer(
         )
 
 
+#: Remediation for a not-configured architecture producer. ri-06 rejects *any*
+#: non-fresh ``ProducerResult`` that carries no remediation, so this constant is
+#: what keeps the degradation path from raising instead of degrading. It mirrors
+#: ri-04's own ``_REMEDIATION_REFRESH`` for callers that cannot import it.
+_ARCHITECTURE_REMEDIATION = Remediation(
+    summary=(
+        "Architecture provenance is unavailable; regenerate it with the "
+        "refresh-architecture skill."
+    ),
+    command="make architecture",
+)
+
+
 def _architecture_not_configured_fallback(reason: str) -> ProducerResult:
     """Build a not-configured architecture result without importing ri-04.
 
     Used only when refresh-architecture (and its result builders) cannot be
     imported at all; the fallback keeps the manifest producer entry honest.
-    """
-    from _runtime import Fallback, FallbackKind
 
+    Both ``remediation`` and ``fallback`` are required: ri-06's
+    ``ProducerResult`` rejects a non-fresh result missing either, and this
+    builder *is* the graceful-degradation path — raising here would abort the
+    whole refresh in exactly the situation it exists to survive.
+    """
     return ProducerResult(
         producer_id=ARCHITECTURE_PRODUCER_ID,
         producer_version="unknown",
         status=ProducerStatus.NOT_CONFIGURED,
+        remediation=(_ARCHITECTURE_REMEDIATION,),
         fallback=Fallback(kind=FallbackKind.SKIP, reason=reason),
     )
 
@@ -255,19 +308,45 @@ def decide_outcome(
     return OperationState.SUCCEEDED, None
 
 
-def _reuse_succeeded(
+def _manifest_present(repo_root: Path, relative_path: str | None, sha256: str | None) -> bool:
+    """True when the pointed-to manifest exists **in this worktree** and matches.
+
+    The operation ledger is shared across linked worktrees, but the manifest
+    lives in the gitignored ``.git-context/``, which is per-worktree and freely
+    cleaned. A ``validated`` pointer is therefore not evidence that the file is
+    readable *here*, so the digest is re-checked against the bytes on disk.
+    """
+    if relative_path is None or sha256 is None:
+        return False
+    try:
+        return sha256_hex((repo_root / relative_path).read_bytes()) == sha256
+    except OSError:
+        return False
+
+
+def _reuse_terminal(
     op_store: OperationStore, op, repo_root: Path, manifest_path: str
 ) -> RefreshResult:
-    """Reuse a terminal ``succeeded`` operation, repairing a missing manifest.
+    """Return a terminal operation verbatim, recreating a missing manifest.
 
-    ``succeeded`` is an immutable terminal sink, so a repeat run returns it
-    verbatim — no re-attempt, no repository diff. If a crash between ``finalize``
-    and ``record_manifest`` left the pointer ``absent``, re-project and record it
-    (``project_manifest`` works on any terminal record) so the pointer is never
-    permanently lost.
+    A terminal record is an immutable sink, so a repeat run reuses it — no
+    re-attempt, no repository diff. The manifest is re-projected and recorded
+    when the pointer is ``absent`` (a crash between ``finalize`` and
+    ``record_manifest``) *or* when the pointed-to file is missing or stale in
+    this worktree (``.git-context/`` cleaned, or the operation was created from a
+    sibling worktree). Otherwise a reuse would report a path that does not exist
+    locally. ``project_manifest`` works on any terminal record, so this is safe
+    for ``degraded``/``failed`` as well as ``succeeded``.
     """
-    if op.manifest.status is ManifestPointerStatus.ABSENT or op.manifest.path is None:
-        write_result = write_manifest(op, manifest_path, repo_root=repo_root)
+    needs_manifest = (
+        op.manifest.status is ManifestPointerStatus.ABSENT
+        or not _manifest_present(repo_root, op.manifest.path, op.manifest.sha256)
+    )
+    if needs_manifest:
+        # Rewrite at the recorded location when there is one, so reuse stays
+        # idempotent even if the caller passed a different default.
+        target = op.manifest.path or manifest_path
+        write_result = write_manifest(op, target, repo_root=repo_root)
         op = op_store.record_manifest(
             op.operation_id,
             path=write_result.path,
@@ -287,14 +366,21 @@ def _reuse_succeeded(
 def _record_tolerant(op_store: OperationStore, op, result: ProducerResult):
     """Record a producer result, converging when a concurrent attempt beat us.
 
-    Two processes refreshing one revision can both be ``running``; the loser's
-    ``record_producer_result`` raises ``DuplicateProducerError``. That is not a
-    failure — the other attempt already recorded an (identical, deterministic)
-    result — so reload and continue rather than crash.
+    Two processes refreshing one revision race in two distinguishable ways, and
+    ``OperationStore`` checks them in this order:
+
+    * the operation already went terminal → ``InvalidTransitionError``;
+    * the producer was already recorded while still running →
+      ``DuplicateProducerError``.
+
+    Neither is a failure: the other attempt recorded an identical, deterministic
+    result for the same revision. Both converge by reloading the persisted
+    record. Catching only the duplicate case would crash the slower refresh
+    whenever the winner finalized first.
     """
     try:
         return op_store.record_producer_result(op.operation_id, result)
-    except DuplicateProducerError:
+    except (DuplicateProducerError, InvalidTransitionError):
         return op_store.load(op.operation_id)
 
 
@@ -337,7 +423,7 @@ def generate(
     op_store = store or OperationStore(repo_root)
     op = op_store.create_or_load(repository_id, rev)
     if op.state is OperationState.SUCCEEDED:
-        return _reuse_succeeded(op_store, op, repo_root, manifest_path)
+        return _reuse_terminal(op_store, op, repo_root, manifest_path)
 
     try:
         op = op_store.begin_attempt(op.operation_id)
@@ -345,7 +431,7 @@ def generate(
         # A concurrent attempt finalized ``succeeded`` between load and begin.
         op = op_store.load(op.operation_id)
         if op.state is OperationState.SUCCEEDED:
-            return _reuse_succeeded(op_store, op, repo_root, manifest_path)
+            return _reuse_terminal(op_store, op, repo_root, manifest_path)
         raise
 
     # Deterministic + architecture producers are recorded once per revision
@@ -367,10 +453,22 @@ def generate(
             )
         op = _record_tolerant(op_store, op, arch_result)
 
+    # A concurrent attempt may have finalized while our producers were running.
+    # ri-06 records are immutable once terminal, so converge on what was
+    # persisted instead of attempting a second terminal transition.
+    if op.state is not OperationState.RUNNING:
+        return _reuse_terminal(op_store, op, repo_root, manifest_path)
+
     # The semantic index is mutable; always (re-)attempt it on a full run so a
     # previously degraded operation can complete when the service returns.
     semantic_ref = resolve_semantic_index(repo_root, rev, indexer=semantic_indexer)
-    op = op_store.record_semantic_index(op.operation_id, semantic_ref)
+    try:
+        op = op_store.record_semantic_index(op.operation_id, semantic_ref)
+    except InvalidTransitionError:
+        # Lost the race between the producer loop and here.
+        return _reuse_terminal(
+            op_store, op_store.load(op.operation_id), repo_root, manifest_path
+        )
 
     outcome, error = decide_outcome(op.producer_results, op.semantic_index)
     try:
@@ -437,6 +535,7 @@ __all__ = [
     "ARCHITECTURE_PRODUCER_ID",
     "ArchitectureProducer",
     "RefreshResult",
+    "RevisionMismatchError",
     "resolve_repository_identity",
     "decide_outcome",
     "generate",

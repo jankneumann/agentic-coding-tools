@@ -38,6 +38,7 @@ from typing import cast
 import orchestrator
 from _runtime import ProducerStatus
 from registry import Mode, ProducerError, list_producers, run_producer
+from semantic_adapter import default_semantic_indexer
 
 # ``skills/shared`` (two levels up from this skill's ``scripts``) holds the
 # shared checkout-policy guard; add it so the mutating ``refresh`` path can
@@ -141,8 +142,16 @@ def _refresh(
         )
     else:
         _require_mutation(repository)
+        # Without this the production path always took the ``None`` default, so
+        # the semantic index was reported ``not-configured`` even when the
+        # service was available — pinning every refresh to ``degraded``. The
+        # factory still returns ``None`` when indexing is unconfigured, which is
+        # the correct not-configured degradation on a machine without the stack.
         result = orchestrator.generate(
-            repository, revision=revision, producer_ids=producer_ids
+            repository,
+            revision=revision,
+            producer_ids=producer_ids,
+            semantic_indexer=default_semantic_indexer(),
         )
     sys.stdout.write(json.dumps(_refresh_summary(result), indent=2) + "\n")
     return result.exit_code()
