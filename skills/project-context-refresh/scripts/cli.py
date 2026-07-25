@@ -101,7 +101,22 @@ def _require_mutation(repository: Path) -> None:
         ) from exc
 
 
+def _owner_by_producer_id() -> dict[str, str]:
+    """Map each configured producer id to its canonical owner.
+
+    The ri-06 ``ProducerResult`` carries no ``owner`` field, so ownership lives on
+    the registry ``ProducerSpec``. The refresh summary joins them here so a caller
+    can recover each result's canonical owner without collapsing it into the id.
+    The architecture producer is not in the ri-05 registry (it is a separate
+    seam), so its canonical owner is mapped explicitly.
+    """
+    owners = {spec.producer_id: spec.owner for spec in list_producers()}
+    owners.setdefault(orchestrator.ARCHITECTURE_PRODUCER_ID, "refresh-architecture")
+    return owners
+
+
 def _refresh_summary(result: orchestrator.RefreshResult) -> dict:
+    owners = _owner_by_producer_id()
     return {
         "operation_id": result.operation_id,
         "outcome": result.outcome.value,
@@ -110,7 +125,10 @@ def _refresh_summary(result: orchestrator.RefreshResult) -> dict:
         "semantic_index": (
             result.semantic_index.to_dict() if result.semantic_index else None
         ),
-        "producer_results": [r.to_dict() for r in result.producer_results],
+        "producer_results": [
+            {**r.to_dict(), "owner": owners.get(r.producer_id)}
+            for r in result.producer_results
+        ],
     }
 
 

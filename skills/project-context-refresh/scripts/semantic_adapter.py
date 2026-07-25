@@ -96,12 +96,17 @@ def resolve_semantic_index(
     *,
     indexer: SemanticIndexer | None = None,
 ) -> SemanticIndexReference:
-    """Attempt the semantic index and return a validated reference (never raises).
+    """Attempt the semantic index and return a validated reference.
+
+    For a valid ``requested_revision`` (the orchestrator pre-validates it) this
+    never raises — every indexer outcome maps to a reference:
 
     * No indexer configured → ``not-configured`` + exact-search fallback.
     * Indexer raises :class:`SemanticIndexUnavailable` or any other exception →
       ``failed`` + exact-search fallback with a bounded reason.
     * Indexer returns an outcome → ``succeeded`` pinned to the exact revision.
+
+    An invalid revision is a caller (programming) error and raises before dispatch.
     """
     ensure_git_revision(requested_revision)
     if indexer is None:

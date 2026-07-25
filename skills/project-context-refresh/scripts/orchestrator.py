@@ -46,6 +46,8 @@ from _runtime import (
 )
 from manifest import write_manifest
 from models import (
+    DuplicateProducerError,
+    InvalidTransitionError,
     ManifestPointerStatus,
     OperationState,
     SemanticIndexReference,
@@ -253,6 +255,49 @@ def decide_outcome(
     return OperationState.SUCCEEDED, None
 
 
+def _reuse_succeeded(
+    op_store: OperationStore, op, repo_root: Path, manifest_path: str
+) -> RefreshResult:
+    """Reuse a terminal ``succeeded`` operation, repairing a missing manifest.
+
+    ``succeeded`` is an immutable terminal sink, so a repeat run returns it
+    verbatim — no re-attempt, no repository diff. If a crash between ``finalize``
+    and ``record_manifest`` left the pointer ``absent``, re-project and record it
+    (``project_manifest`` works on any terminal record) so the pointer is never
+    permanently lost.
+    """
+    if op.manifest.status is ManifestPointerStatus.ABSENT or op.manifest.path is None:
+        write_result = write_manifest(op, manifest_path, repo_root=repo_root)
+        op = op_store.record_manifest(
+            op.operation_id,
+            path=write_result.path,
+            sha256=write_result.sha256,
+            status=ManifestPointerStatus.VALIDATED,
+        )
+    return RefreshResult(
+        operation_id=op.operation_id,
+        outcome=op.state,
+        producer_results=op.producer_results,
+        semantic_index=op.semantic_index,
+        manifest_path=op.manifest.path,
+        manifest_sha256=op.manifest.sha256,
+    )
+
+
+def _record_tolerant(op_store: OperationStore, op, result: ProducerResult):
+    """Record a producer result, converging when a concurrent attempt beat us.
+
+    Two processes refreshing one revision can both be ``running``; the loser's
+    ``record_producer_result`` raises ``DuplicateProducerError``. That is not a
+    failure — the other attempt already recorded an (identical, deterministic)
+    result — so reload and continue rather than crash.
+    """
+    try:
+        return op_store.record_producer_result(op.operation_id, result)
+    except DuplicateProducerError:
+        return op_store.load(op.operation_id)
+
+
 def generate(
     repository: Path | str,
     *,
@@ -265,52 +310,81 @@ def generate(
 ) -> RefreshResult:
     """Run the full refresh for one revision and emit the durable manifest.
 
-    Idempotent per ``(repository, revision)``: reuses the canonical operation and,
-    because every producer is byte-stable, produces no repository diff on a repeat
-    run. Deterministic and architecture results are recorded before the semantic
-    index is attempted, so a semantic failure degrades the outcome without
-    discarding any deterministic output.
+    Idempotent per ``(repository, revision)``. A fully ``succeeded`` operation is
+    reused verbatim (no repository diff). A ``degraded``/``failed`` operation is
+    *resumed*: already-recorded producer results are immutable for the revision
+    (ri-06 is append-only) so they are not re-run, but the mutable semantic index
+    is re-attempted, which can lift ``degraded -> succeeded`` once the index is
+    available. Deterministic and architecture results are always recorded before
+    the semantic index, so a semantic failure never discards deterministic output.
+
+    A *producer-scoped* run (``producer_ids`` given) is a targeted
+    regenerate-and-report: it never drives the shared per-revision operation to a
+    terminal state (which would poison a later full refresh) and emits no
+    aggregate manifest.
     """
     repo_root, repository_id, rev = resolve_repository_identity(repository, revision)
-    op_store = store or OperationStore(repo_root)
 
+    if producer_ids is not None:
+        results = tuple(
+            _collect_results("generate", repo_root, rev, producer_ids, architecture)
+        )
+        outcome, _error = decide_outcome(results, None)
+        return RefreshResult(
+            operation_id=None, outcome=outcome, producer_results=results
+        )
+
+    op_store = store or OperationStore(repo_root)
     op = op_store.create_or_load(repository_id, rev)
     if op.state is OperationState.SUCCEEDED:
-        # A fully-successful refresh for this revision is immutable (the store
-        # makes ``succeeded`` a terminal sink). A repeat run reuses it verbatim —
-        # no re-attempt, no rewrite, no repository diff (design D2/D6).
-        return RefreshResult(
-            operation_id=op.operation_id,
-            outcome=op.state,
-            producer_results=op.producer_results,
-            semantic_index=op.semantic_index,
-            manifest_path=op.manifest.path,
-            manifest_sha256=op.manifest.sha256,
-        )
-    op = op_store.begin_attempt(op.operation_id)
+        return _reuse_succeeded(op_store, op, repo_root, manifest_path)
 
-    results = _collect_results("generate", repo_root, rev, producer_ids, architecture)
+    try:
+        op = op_store.begin_attempt(op.operation_id)
+    except InvalidTransitionError:
+        # A concurrent attempt finalized ``succeeded`` between load and begin.
+        op = op_store.load(op.operation_id)
+        if op.state is OperationState.SUCCEEDED:
+            return _reuse_succeeded(op_store, op, repo_root, manifest_path)
+        raise
+
+    # Deterministic + architecture producers are recorded once per revision
+    # (append-only). On a resume, sealed producers are NOT re-run — their result
+    # is immutable for this revision — so we never regenerate an artifact whose
+    # fresh result we would then have to discard.
     recorded_ids = set(op.producer_ids())
-    for result in results:
-        if result.producer_id in recorded_ids:
-            continue  # idempotent reuse: already recorded on this operation
-        op = op_store.record_producer_result(op.operation_id, result)
-        recorded_ids.add(result.producer_id)
+    for pid in _deterministic_ids(None):
+        if pid in recorded_ids:
+            continue
+        op = _record_tolerant(op_store, op, run_producer(pid, "generate", repo_root, rev))
+    if ARCHITECTURE_PRODUCER_ID not in recorded_ids:
+        arch = architecture or _default_architecture_producer
+        try:
+            arch_result = arch(repo_root, rev, "generate")
+        except Exception as exc:  # noqa: BLE001 - an architecture crash degrades
+            arch_result = _architecture_not_configured_fallback(
+                f"architecture producer raised: {exc.__class__.__name__}"
+            )
+        op = _record_tolerant(op_store, op, arch_result)
 
-    # Semantic index is attempted last, and only on a full run; failure never
-    # discards the results above. A producer-scoped run leaves the existing
-    # semantic reference untouched.
-    semantic_for_outcome: SemanticIndexReference | None = None
-    if producer_ids is None:
-        semantic_ref = resolve_semantic_index(repo_root, rev, indexer=semantic_indexer)
-        op = op_store.record_semantic_index(op.operation_id, semantic_ref)
-        semantic_for_outcome = op.semantic_index
+    # The semantic index is mutable; always (re-)attempt it on a full run so a
+    # previously degraded operation can complete when the service returns.
+    semantic_ref = resolve_semantic_index(repo_root, rev, indexer=semantic_indexer)
+    op = op_store.record_semantic_index(op.operation_id, semantic_ref)
 
-    outcome, error = decide_outcome(op.producer_results, semantic_for_outcome)
-    op = op_store.finalize(op.operation_id, outcome, error=error)
+    outcome, error = decide_outcome(op.producer_results, op.semantic_index)
+    try:
+        op = op_store.finalize(op.operation_id, outcome, error=error)
+    except InvalidTransitionError:
+        # A concurrent attempt finalized first; converge on the persisted record.
+        op = op_store.load(op.operation_id)
 
+    # Always (re-)project the manifest from the terminal record: a resume may have
+    # changed the outcome (e.g. degraded -> succeeded once the index returned), so
+    # a stale VALIDATED pointer must not be trusted. The write is byte-stable, so
+    # an unchanged rerun still produces no repository diff.
     write_result = write_manifest(op, manifest_path, repo_root=repo_root)
-    op_store.record_manifest(
+    op = op_store.record_manifest(
         op.operation_id,
         path=write_result.path,
         sha256=write_result.sha256,
@@ -319,7 +393,7 @@ def generate(
 
     return RefreshResult(
         operation_id=op.operation_id,
-        outcome=outcome,
+        outcome=op.state,
         producer_results=op.producer_results,
         semantic_index=op.semantic_index,
         manifest_path=write_result.path,

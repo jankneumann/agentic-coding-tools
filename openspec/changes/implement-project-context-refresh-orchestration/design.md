@@ -85,14 +85,19 @@ drift · 1 failed).
 ### D6 — The manifest is durable but untracked; producer outputs stay byte-stable
 After finalize, the orchestrator calls `write_manifest(record, target, repo_root=…)`
 (project + schema-validate + atomic write) and records the pointer with
-`record_manifest`. The manifest target is under the **git directory**
-(`.git/project-context/manifests/<operation-id>.json`), not the working tree, because
-the manifest embeds volatile identity (`operation_id`, `operation_created_at`).
-Keeping it out of the tracked tree means "a second run for the same revision produces
-no repository diff" holds by construction, while deterministic producer *outputs*
-(e.g. `docs/architecture-analysis/*`) are byte-stable by ri-05/ri-04's content-based
-design. The committed, reviewable surface remains the producer outputs; the manifest
-is the durable machine record.
+`record_manifest`. The manifest target is the **gitignored** repository-relative path
+`.git-context/context-refresh-manifest.json`, not the tracked tree, because the
+manifest embeds volatile identity (`operation_id`, `operation_created_at`). A
+gitignored working-tree path (rather than a literal `.git/…` path) is used because
+the ri-06 `ManifestPointer` requires a repository-relative path and, in a linked
+worktree, `.git` is a gitdir *file* — a gitignored path resolves correctly in both
+the primary checkout and every worktree. Keeping it untracked means "a second run for
+the same revision produces no repository diff" holds by construction, while
+deterministic producer *outputs* (e.g. `docs/architecture-analysis/*`) are byte-stable
+by ri-05/ri-04's content-based design. The committed, reviewable surface remains the
+producer outputs; the manifest is the durable machine record. (Because the working
+tree is at one revision at a time, a single fixed manifest path is sufficient; a
+different revision overwrites its own gitignored copy.)
 
 ### D7 — Every refresh path is worktree-scoped; main is never written directly
 The orchestrator runs inside a managed worktree and only ever writes producer-managed
@@ -101,12 +106,32 @@ Canonical spec merges and any main mutation remain the sync-point responsibility
 `cleanup-feature` — the orchestrator refuses to run against a bare/shared checkout
 (reuses `checkout_policy`).
 
-### D8 — CLI + Makefile, per-producer runnable
+### D8 — CLI + Makefile, per-producer runnable; ownership via the registry
 `cli.py` gains `refresh` (generate every configured producer + emit manifest) and
-`refresh-check` (read-only drift) subcommands, plus a `--producer <id>` filter so a
-single producer stays independently runnable. `make refresh-project-context` /
-`make refresh-project-context-check` wrap them. Each producer's manifest entry keeps
-its `producer_id` and canonical `owner`, so the aggregate never collapses ownership.
+`refresh-check` (read-only drift) subcommands, plus a `--producer <id>` filter. A
+`--producer` run is a targeted regenerate-and-report: it never drives the shared
+per-revision operation to a terminal state (which would poison a later full refresh)
+and emits no aggregate manifest. `make refresh-project-context` /
+`make refresh-project-context-check` wrap the full runs.
+
+The ri-06 `ProducerResult` has **no `owner` field** — canonical ownership lives on the
+registry `ProducerSpec`. Rather than modify the landed ri-06 contract, the refresh
+*summary* joins each result's stable `producer_id` to its owner via the registry (and
+an explicit `architecture -> refresh-architecture` entry, since architecture is a
+separate seam). Producer identity in the manifest is the stable `producer_id`, which
+maps 1:1 to an owner, so ownership is never collapsed.
+
+### D9 — One immutable operation per revision; resume re-attempts only the mutable index
+The ri-06 operation store is append-only per producer and content-addressed by
+revision, so a producer's result for an exact revision is immutable. A fully
+`succeeded` operation is therefore **reused verbatim** on a repeat run (and, if a
+crash left the manifest pointer `absent`, the reuse path re-projects and records it).
+A `degraded`/`failed` operation is **resumed**: already-recorded producers are not
+re-run (their result is sealed for the revision), and only the *mutable* semantic
+index is re-attempted — which can lift `degraded -> succeeded` once the index returns.
+Concurrent same-revision refreshes converge rather than crash: a losing
+`record_producer_result` (`DuplicateProducerError`) or `finalize`
+(`InvalidTransitionError`) reloads the persisted record.
 
 ## Failure Behavior
 

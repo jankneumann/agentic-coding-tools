@@ -64,16 +64,19 @@ semantic index SHALL be represented as a degraded reference with a bounded fallb
 ### Requirement: Preserved producer ownership
 
 Each producer SHALL remain independently runnable, and every refresh result SHALL
-identify the canonical owner of its producer. The aggregate manifest SHALL NOT
-collapse per-producer identity or ownership.
+be attributable to the canonical owner of its producer. Producer identity SHALL be
+carried by the stable producer ID, which SHALL map to exactly one canonical owner
+through the producer registry; the refresh output SHALL surface that owner so the
+aggregate never collapses per-producer identity or ownership.
 
 <!-- Scenario ID: project-context-refresh-orchestration.independent-producer -->
 #### Scenario: A single producer runs independently
 
 - **WHEN** the refresh command is invoked for one named producer
-- **THEN** it SHALL run only that producer and record exactly one result
-- **AND** the result SHALL carry that producer's stable ID and canonical owner
-- **AND** each manifest producer entry SHALL retain its producer ID and owner
+- **THEN** it SHALL run only that producer and report exactly one result
+- **AND** the result SHALL carry that producer's stable ID
+- **AND** the refresh output SHALL resolve that stable ID to its canonical owner
+  via the producer registry
 
 ### Requirement: Sync-point-only main writes
 

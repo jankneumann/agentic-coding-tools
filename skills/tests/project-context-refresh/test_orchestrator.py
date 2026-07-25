@@ -258,20 +258,53 @@ def test_generate_failed_producer_finalizes_failed(tmp_path):
 # --------------------------------------------------------------------------- #
 # ownership + check mode
 # --------------------------------------------------------------------------- #
-def test_single_producer_run_records_one_owner_identified_result(tmp_path):
+def test_single_producer_run_reports_one_result_without_touching_operation(tmp_path):
     _register_fakes(
         _FakeProducer("documentation.inventory", ProducerStatus.FRESH, owner="doc-owner"),
         _FakeProducer("api.contracts", ProducerStatus.FRESH),
     )
+    store = _store(tmp_path)
     res = orchestrator.generate(
         tmp_path,
         revision=FULL_SHA,
         producer_ids=["documentation.inventory"],
-        store=_store(tmp_path),
+        store=store,
         semantic_indexer=_ok_indexer,
     )
     assert len(res.producer_results) == 1
     assert res.producer_results[0].producer_id == "documentation.inventory"
+    # A scoped run is regenerate-and-report only: no durable operation, no manifest.
+    assert res.operation_id is None
+    assert res.manifest_path is None
+    assert not (tmp_path / "_store").exists()
+
+
+def test_scoped_run_does_not_poison_a_later_full_refresh(tmp_path):
+    # Regression: a scoped run must not finalize the shared per-revision operation
+    # to the immutable SUCCEEDED sink, or a later full refresh would reuse an
+    # incomplete operation and skip the other producers.
+    _register_fakes(
+        _FakeProducer("documentation.inventory", ProducerStatus.FRESH),
+        _FakeProducer("api.contracts", ProducerStatus.FRESH),
+    )
+    store = _store(tmp_path)
+    orchestrator.generate(
+        tmp_path,
+        revision=FULL_SHA,
+        producer_ids=["documentation.inventory"],
+        store=store,
+        semantic_indexer=_ok_indexer,
+    )
+    full = orchestrator.generate(
+        tmp_path,
+        revision=FULL_SHA,
+        store=store,
+        architecture=_fresh_architecture,
+        semantic_indexer=_ok_indexer,
+    )
+    ids = {r.producer_id for r in full.producer_results}
+    assert ids == {"documentation.inventory", "api.contracts", "architecture"}
+    assert full.outcome is OperationState.SUCCEEDED
 
 
 def test_check_is_read_only(tmp_path):
@@ -305,3 +338,94 @@ def test_unknown_producer_id_is_rejected(tmp_path):
     _register_fakes(_FakeProducer("documentation.inventory", ProducerStatus.FRESH))
     with pytest.raises(ValueError):
         orchestrator.check(tmp_path, revision=FULL_SHA, producer_ids=["nope"])
+
+
+# --------------------------------------------------------------------------- #
+# resume / retry / durability
+# --------------------------------------------------------------------------- #
+def test_resume_lifts_degraded_semantic_to_succeeded(tmp_path):
+    # First run degrades because the index is down; a later run with the index
+    # available resumes the same operation and upgrades it to succeeded, without
+    # re-running the sealed (append-only) deterministic producers.
+    _register_fakes(
+        _FakeProducer("documentation.inventory", ProducerStatus.FRESH),
+        _FakeProducer("api.contracts", ProducerStatus.FRESH),
+    )
+    store = _store(tmp_path)
+
+    def down(repo, rev):  # noqa: ANN001
+        raise RuntimeError("index down")
+
+    first = orchestrator.generate(
+        tmp_path, revision=FULL_SHA, store=store,
+        architecture=_fresh_architecture, semantic_indexer=down,
+    )
+    assert first.outcome is OperationState.DEGRADED
+
+    second = orchestrator.generate(
+        tmp_path, revision=FULL_SHA, store=store,
+        architecture=_fresh_architecture, semantic_indexer=_ok_indexer,
+    )
+    assert second.operation_id == first.operation_id
+    assert second.outcome is OperationState.SUCCEEDED
+    assert second.semantic_index.status is SemanticIndexStatus.SUCCEEDED
+    # Manifest re-projected to reflect the upgraded outcome.
+    doc = json.loads((tmp_path / orchestrator.DEFAULT_MANIFEST_PATH).read_text())
+    assert doc["refresh_status"] == "succeeded"
+
+
+def test_succeeded_reuse_repairs_absent_manifest(tmp_path):
+    # A crash between finalize(succeeded) and record_manifest leaves an ABSENT
+    # pointer; reuse must repair it rather than return None forever.
+    _register_fakes(_FakeProducer("documentation.inventory", ProducerStatus.FRESH))
+    store = _store(tmp_path)
+    repo_id = Path(tmp_path).resolve().name
+    op = store.create_or_load(repo_id, FULL_SHA)
+    op = store.begin_attempt(op.operation_id)
+    op = store.record_producer_result(
+        op.operation_id, _result("documentation.inventory", ProducerStatus.FRESH)
+    )
+    op = store.record_semantic_index(op.operation_id, _semantic(SemanticIndexStatus.SUCCEEDED))
+    op = store.finalize(op.operation_id, OperationState.SUCCEEDED)
+    assert op.manifest.path is None  # never recorded — simulates the crash window
+
+    res = orchestrator.generate(
+        tmp_path,
+        revision=FULL_SHA,
+        producer_ids=None,
+        store=store,
+        architecture=_fresh_architecture,
+        semantic_indexer=_ok_indexer,
+    )
+    assert res.outcome is OperationState.SUCCEEDED
+    assert res.manifest_path is not None
+    assert (tmp_path / orchestrator.DEFAULT_MANIFEST_PATH).is_file()
+
+
+def test_record_tolerant_converges_on_concurrent_duplicate():
+    # A concurrent attempt recording the same producer first raises
+    # DuplicateProducerError; the orchestrator reloads and converges, not crashes.
+    from models import DuplicateProducerError
+
+    sentinel = object()
+
+    class _DupStore:
+        def __init__(self):
+            self.loaded = False
+
+        def record_producer_result(self, op_id, result):  # noqa: ANN001
+            raise DuplicateProducerError("dup")
+
+        def load(self, op_id):  # noqa: ANN001
+            self.loaded = True
+            return sentinel
+
+    class _Op:
+        operation_id = "op-1"
+
+    store = _DupStore()
+    out = orchestrator._record_tolerant(
+        store, _Op(), _result("documentation.inventory", ProducerStatus.FRESH)
+    )
+    assert out is sentinel
+    assert store.loaded
