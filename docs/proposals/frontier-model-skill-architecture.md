@@ -195,15 +195,28 @@ Add, using the existing `gen-eval-scenario` machinery: three scenarios per user-
 
 **Sequence matters: land a thin eval harness before the large deletions**, so the 80%-cut experiment is measurable rather than hopeful.
 
-### R8. Run the rightsizing pass the tooling now ships
+### R8. Use `/doctor` for the cost side of the ledger
 
-Claude Code's `/doctor` implements this guidance directly against `CLAUDE.md` and skills. Run it over `skills/` and the 39-line root `CLAUDE.md` before hand-editing, and use its output to prioritise within R5 and R6.
+`/doctor` is a bundled prompt-based skill in Claude Code (v2.1.205+, previously a built-in command). It is a **static rightsizing pass, not an eval** — worth being precise about, because its scope is narrower than the name suggests. Per the [commands reference](https://code.claude.com/docs/en/commands), the parts that apply here are:
+
+- **Skill-listing context cost.** Every skill's `name` + `description` is preloaded into every session. With 74 skills that is a permanent tax on every turn, paid whether or not a skill is used. `/doctor` estimates the listing's total cost and names its biggest contributors — a direct, quantifiable measure of R4's payoff.
+- **Unused skills, MCP servers, and plugins versus their context cost.** Produces the deletion-candidate list for skills that have never triggered.
+- **`CLAUDE.md` trimming**, using this keep/cut heuristic: cut what the model could derive from the codebase (directory layouts, dependency lists, architecture overviews); keep pitfalls, rationale, and conventions that differ from tool defaults. Migrate always-loaded guidance into skills and nested `CLAUDE.md` files that load on demand.
+- **Slow hooks.** This repo runs `SessionStart` hooks (`coord-env`, `register_agent`) on every session.
+
+It reports findings first and asks before changing anything.
+
+What it will **not** do: rewrite `SKILL.md` bodies. Its skill-related work targets the always-loaded listing and whether a skill is used at all — not the 887 lines inside `validate-feature`. It will not touch the 104 hard-coded script paths, the tail blocks, or `skills/tests/`. Those remain R1–R7, done by hand.
+
+The reusable artifact is the heuristic. *"Cut what the model could derive; keep pitfalls, rationale, and conventions that differ from defaults"* is Anthropic's own operationalisation of criterion 4, and it is the same test R6 applies to `SKILL.md` bodies. Apply it manually where the tool cannot reach.
+
+**How it relates to the eval gate.** `/doctor` measures context cost — the input side. Evals measure whether behaviour survived — the output side. A deletion is only accepted when both move the right way: cost down, eval scores flat or better. `/doctor` alone can tell you a skill is expensive; it cannot tell you that removing it broke something.
 
 ## Sequencing
 
 | Phase | Work | Unblocks |
 |---|---|---|
-| 0 | R4 (frontmatter/descriptions), R8 (`/doctor` pass) | Cheap, isolated, immediately improves selection |
+| 0 | R8 (`/doctor` baseline), then R4 (frontmatter/descriptions) | Establishes the context-cost baseline; R4 is cheap, isolated, and immediately improves selection |
 | 1 | R7 eval harness — 3 scenarios for the 12 `user_invocable` skills | Makes every later deletion measurable |
 | 2 | R2 (CLI entry points), then R1 (`session-start`) | Removes 104 path couplings and 7 copies of tier logic |
 | 3 | R3, R6 (delete rationalizations and competence-restating rules) | ~700 lines, verified by phase-1 evals |
