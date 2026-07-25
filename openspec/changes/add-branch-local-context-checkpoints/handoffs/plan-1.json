@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-25T23:03:22.571964+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned ri-09 (branch-local context checkpoints) at coordinated tier. Four parallel explore agents established that the isolation levers ri-09 needs already exist but are unconnected: the index namespace is hardcoded to main/main in semantic_adapter.py while the downstream CLI and promotion gate already support work_package namespaces, and the refresh path enforces no read scope while indexing_policy already enforces one. Selected Approach B at Gate 1: a composing module that reuses ri-06 types and the ri-05 producer registry but never writes the ri-06 operation store.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "A checkpoint never writes the ri-06 operation ledger",
+        "rationale": "ri-07 D9 makes a recorded producer result immutable for its revision and reused verbatim by later refreshes. A checkpoint result is scope-restricted and feature-namespaced, so admitting one into the canonical ledger would be unrecoverable within the existing contract rather than self-healing.",
+        "capability": "project-context-refresh-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Index isolation is enforced by namespace, not by convention",
+        "rationale": "Promotion into the canonical index is already gated on namespace_kind is MAIN and namespace_key == 'main'. Passing work_package makes the checkpoint structurally unable to reach the promotion path, so isolation rests on tested existing machinery instead of on checkpoint discipline.",
+        "capability": "project-context-refresh-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Trigger derives from ri-08 context_impact, not a new size field",
+        "rationale": "No required size field exists on work packages; loc_estimate, complexity and package_kind are optional hints that most packages omit. Deriving the trigger from declared context-impact surfaces ties it to the thing being reported on and needs no schema change.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Unmigrated packages are reported as unmigrated, not impact-free",
+        "rationale": "The ri-08 detector returns None for a missing block and an empty frozenset for an explicit empty list. A missing block is absence of evidence; an empty list is an assertion. Collapsing them would let an unmigrated package appear verified.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Architecture coverage is a merge-base diff, not a slice",
+        "rationale": "architecture-provenance.schema.json pins mode to the enum full|quick, so a slice mode would be a contract change. diff_architecture.py already exists standalone and is wired into nothing. Freshness and delta are reported separately because a stale artifact yields a misleading delta.",
+        "capability": "architecture-refresh",
+        "supersedes": null
+      },
+      {
+        "title": "Checkpoints are report-only within ri-09",
+        "rationale": "ri-10 owns turning deterministic drift into a CI or merge failure. Shipping a gate here would give ri-10 a gate to rework rather than a signal to consume.",
+        "capability": "project-context-refresh-orchestration",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "wp-contracts and wp-adapter have no dependencies and can dispatch in parallel first.",
+      "wp-checkpoint's ledger-isolation regression test (task 3.1) should be written before any checkpoint implementation, since it pins the decision the whole approach rests on."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-branch-local-context-checkpoints/proposal.md",
+        "description": "approved proposal with Approach B selected at Gate 1"
+      },
+      {
+        "path": "openspec/changes/add-branch-local-context-checkpoints/design.md",
+        "description": "D1-D10 design decisions"
+      },
+      {
+        "path": "openspec/changes/add-branch-local-context-checkpoints/contracts/context-checkpoint.schema.json",
+        "description": "checkpoint report contract"
+      }
+    ]
+  }
+}
