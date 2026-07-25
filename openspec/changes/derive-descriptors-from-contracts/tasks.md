@@ -35,13 +35,32 @@ defect before the pattern was recognised. See that change's design D2.
 **Verify before starting Phase 1:**
 
 ```bash
-# Prerequisite 1
+# Prerequisite 1 — PR #277's artifacts are present
 test -f packages/gen-eval/scripts/generate_contract_schemas.py
 test -f packages/gen-eval/evaluation/descriptor.yaml
 
-# Prerequisite 2 — the freed names must NOT be the old element types
-python3 -c "import gen_eval; assert 'input_schema' not in getattr(gen_eval.ToolDescriptor, 'model_fields', {}), 'rename-descriptor-model-levels has not landed'"
+# Prerequisite 2 — the rename has landed
+cd packages/gen-eval && python3 -c "
+import gen_eval.descriptor as d, sys
+sys.exit('rename-descriptor-model-levels has NOT landed — McpToolSpec is absent, '
+         'so ToolDescriptor/ServiceDescriptor are still the legacy element types')  \
+    if not hasattr(d, 'McpToolSpec') else print('prerequisite 2 satisfied')"
 ```
+
+Probe `McpToolSpec` specifically, and not the reverse. Two traps make the
+obvious checks wrong:
+
+- `gen_eval.ToolDescriptor` **does not exist** — only `ServiceDescriptor` and
+  `InterfaceDescriptor` are exported at package level. Reaching for it raises
+  `AttributeError`, not a useful message. The type lives at
+  `gen_eval.descriptor.ToolDescriptor`.
+- Asserting `'input_schema' not in ToolDescriptor.model_fields` **fails even
+  when the prerequisite is satisfied**. After the rename, `ToolDescriptor` is a
+  deprecation alias for `McpToolSpec`, which still carries `input_schema`. That
+  check cannot distinguish "rename landed" from "rename didn't", which is the
+  only thing it exists to decide.
+
+`McpToolSpec` exists exactly when the rename has landed and at no other time.
 
 If prerequisite 1 fails, this branch has not been rebased onto the merged
 `main`. If prerequisite 2 fails, stop: tasks 1.4 and 2.2 will collide with live
