@@ -1,5 +1,11 @@
 # Design: `/update-documentation`
 
+> **SUPERSEDED (historical).** Retained as design rationale for the marker
+> engine and prose-preservation approach now implemented by the
+> `documentation.inventory` producer in
+> `add-deterministic-context-producer-checks` (ri-05). The integration/​hook/​
+> auto-commit decisions below were intentionally NOT carried forward.
+
 ## Context
 
 Three sources of truth (README.md, CLAUDE.md, docs/skills-catalogue.md) drift because no skill owns the sync. The audit on `claude/update-readme-docs-9cpTs` found 42 of 52 skills missing from the README and 18 of 30 docs missing from CLAUDE.md's index. Pass A hand-fixes the visible drift; this skill prevents recurrence.

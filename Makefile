@@ -417,3 +417,10 @@ decisions: ## Regenerate docs/decisions/ from architectural tags in session-logs
 		--archive-root openspec/changes \
 		--decisions-output-dir docs/decisions \
 		--capabilities-root openspec/specs
+
+.PHONY: context-refresh context-refresh-check
+context-refresh: ## Regenerate all deterministic context producers (documentation, contracts, decisions)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py generate-all
+
+context-refresh-check: ## Read-only, mtime-independent drift check for all context producers (exit 2 = drift)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py check-all

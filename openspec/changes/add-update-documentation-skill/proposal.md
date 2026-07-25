@@ -1,5 +1,14 @@
 # Add `/update-documentation` Skill
 
+> **SUPERSEDED — do not implement.** This proposal is superseded by
+> `add-deterministic-context-producer-checks` (roadmap
+> `project-context-refresh-lifecycle`, item ri-05). That change absorbs the
+> marker-preserving documentation-inventory engine described here into its
+> `documentation.inventory` producer, and deliberately drops this proposal's
+> standalone hook, cleanup, merge-time, validate-feature, and automatic-commit
+> wiring — deterministic drift gates are owned by ri-10 and main convergence by
+> ri-11. The text below is retained only as historical design rationale.
+
 ## Why
 
 Documentation in this repo lives in three hand-maintained sources of truth that drift independently:
