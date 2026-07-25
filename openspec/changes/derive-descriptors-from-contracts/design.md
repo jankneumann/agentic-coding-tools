@@ -190,21 +190,13 @@ the same category error UP-4 fixed in the lifecycle.
 Approach 1 cons. It is accepted because it is exactly what makes flags nameable,
 and flag-only nameability is what currently lets ri-06's gate pass for free.
 
-### D6 — Behaviourally additive, nominally breaking, with a populated legacy field
+### D6 — Additive migration with a populated legacy field
 
-**Decision.** Two halves, and they differ:
-
-**Behaviour is additive.** `InterfaceDescriptor` keeps loading and keeps
-emitting the flat `unevaluated_interfaces`. When a descriptor declares a
-contract, the derived path is used and the flat field is computed *from* the
-operation model for backward compatibility. Deprecation warning on the
-hand-authored path; no removal in this change.
-
-**Names are not.** Per D9 the published `$defs` titles change, so
-`CONTRACT_VERSION` goes 1 → 2 and consumers pinning the schema must update. A
-consumer that only *loads descriptors* is unaffected; a consumer that
-*imports the model classes or validates against the published schema* must
-change.
+**Decision.** `InterfaceDescriptor` keeps loading and keeps emitting the flat
+`unevaluated_interfaces`. When a descriptor declares a contract, the derived
+path is used and the flat field is computed *from* the operation model for
+backward compatibility. Deprecation warning on the hand-authored path; no
+removal in this change.
 
 **The flat field's back-compat covers `per_interface` too.** `per_interface` is
 built at `orchestrator.py:382-388` from `v.interfaces_tested` — per-surface
@@ -213,15 +205,26 @@ it, so it must be populated from the operation model on the same terms as
 `unevaluated_interfaces`, not left to drift. Tasks 3.3/3.4 cover both fields.
 
 **Why.** ACA, agentic-assistant and the coordinator all consume the current
-shape. Keeping *behaviour* additive means their runs keep working while they
-migrate. Accepting a *nominal* break is the deliberate choice recorded in D9:
-downstream consumers must adapt to the coverage-semantics change regardless, so
-one coherent break is cheaper than a permanent pair of near-identical names.
+shape. A hard cutover blocks on a coordinator OpenAPI contract that does not
+exist yet.
 
-**Rejected**: keeping the old names and giving the new archetypes qualified
-ones (`ContractServiceDescriptor` / `ContractToolDescriptor`). It avoids the
-version bump, but leaves `*Descriptor` meaning three different levels
-simultaneously and makes every future reader disambiguate by prefix.
+**What this change does NOT carry.** The naming migration that frees
+`ServiceDescriptor` and `ToolDescriptor` — and the `CONTRACT_VERSION` 1 → 2 bump
+it forces — belongs to `rename-descriptor-model-levels`, which must land first
+(see tasks.md Prerequisites). This change *occupies* the freed names; it does
+not free them.
+
+That separation is deliberate. Carrying both meant this change froze a name and
+reused it in the same DAG, producing an intermediate state where a name's
+meaning depended on which work-package wave had run. Verification could not
+express it: gates asserting the new meaning ran before the package that created
+it. Four variants of that defect were found across three review rounds. With the
+rename extracted, every name here has one meaning throughout.
+
+**The compatibility surface is therefore only semantic.** A consumer that loads
+descriptors sees additive behaviour. A consumer that imports model classes is
+affected by the *rename change*, not this one. What this change alters for
+consumers is the meaning of `unevaluated_interfaces` — covered by DS-2.
 
 ### D7 — OpenAPI → MCP projection is mechanical but not total
 
@@ -258,69 +261,6 @@ becomes the first derived tool descriptor, generated from a checked-in
 gate (`make dogfood`), and it is the descriptor that currently reports
 `0 interfaces`. If the model works, that number becomes the flag count and the
 dogfood coverage assertion stops being vacuous.
-
-### D9 — `*Spec` names an element, `*Descriptor` names a document
-
-**Decision.** Adopt a two-level naming scheme and rename the existing models to
-fit it. `CONTRACT_VERSION` goes 1 → 2 and the published
-`interface-descriptor.schema.json` is regenerated.
-
-| Level | Suffix | Types |
-|---|---|---|
-| One element, or a container of elements for one surface | `*Spec` | `EndpointSpec`, `McpToolSpec`, `CommandSpec`, `ServiceSpec` |
-| A whole descriptor document | `*Descriptor` | `InterfaceDescriptor` (existing, deprecated), `ServiceDescriptor` (new archetype), `ToolDescriptor` (new archetype) |
-
-Renames: `EndpointDescriptor`→`EndpointSpec`, `ToolDescriptor`→`McpToolSpec`,
-`CommandDescriptor`→`CommandSpec`, `ServiceDescriptor`→`ServiceSpec`.
-
-**Only two of the four can keep a deprecation alias, and the split is not
-arbitrary — it is forced.** The new archetypes occupy two of the freed names, and
-a symbol cannot simultaneously resolve to the legacy element type and the new
-document type:
-
-| Old name | New name | Old name reused? | Compatibility |
-|---|---|---|---|
-| `EndpointDescriptor` | `EndpointSpec` | no | **deprecation alias**, one release |
-| `CommandDescriptor` | `CommandSpec` | no | **deprecation alias**, one release |
-| `ToolDescriptor` | `McpToolSpec` | **yes** — new archetype | **hard break**, no alias possible |
-| `ServiceDescriptor` | `ServiceSpec` | **yes** — new archetype | **hard break**, no alias possible |
-
-For the bottom two, an import that keeps working returns a *different type* than
-before. That is the sharpest edge in this change and the reason
-`CONTRACT_VERSION` bumps rather than merely deprecating: a version bump is
-detectable, whereas a silently-retyped symbol is not.
-
-**Consequence for the gate.** A verification step asserting that all four old
-names resolve *and* warn is unsatisfiable in the final state. The alias gate
-asserts exactly two aliases, and separately asserts that `ToolDescriptor` and
-`ServiceDescriptor` do **not** resolve to their former element types.
-
-**Why.** The plan's two headline deliverables were originally named
-`ServiceDescriptor` and `ToolDescriptor` — **both already taken** in the exact
-module the plan targets, with unrelated meanings:
-
-| Name | Currently means | `descriptor.py` |
-|---|---|---|
-| `ToolDescriptor` | one MCP tool | `:41` |
-| `ServiceDescriptor` | one testable service | `:67` |
-
-`ServiceDescriptor` is re-exported in `__init__.py`, listed in `__all__`, pinned
-by `tests/test_public_api_parity.py`, and both appear as `$defs` titles in the
-versioned schema PR #277 published for offline consumers. Defining new types
-under those names in the same namespace is not a collision to be worked around
-— it is a signal that `*Descriptor` was already carrying three distinct
-meanings (element, container, document).
-
-**Why rename rather than qualify.** The alternative — `ContractServiceDescriptor`
-/ `ContractToolDescriptor` — avoids the version bump but permanently freezes the
-ambiguity, leaving every reader to disambiguate near-identical names by prefix.
-Downstream consumers must already adapt to the coverage-semantics change
-(DS-2), so one coherent break costs less than the name soup it avoids.
-
-**Consequences.** A rename package runs **before** the archetype packages, since
-they occupy the freed names. It must own `descriptor.py`, `__init__.py`,
-`contracts/__init__.py`, the published schema, and `test_public_api_parity.py`.
-DOWNSTREAM.md gains DS-4 for the version bump.
 
 ### D10 — A coverage vocabulary is only real if something can fail on it
 
@@ -394,7 +334,7 @@ reported — it is informative — it is simply not the gate for tool descriptor
 | CLI contract schema over-fits gen-eval's argparse | Validate against a second tool (ACA's or agentic-assistant's descriptor) before finalizing the schema |
 | Dual-path loading rots | Deprecation warning from day one; removal tracked as an explicit follow-up, not left implicit |
 | Coordinator OpenAPI contract never gets authored | Out of scope by design; the service-descriptor path ships with fixtures and is proven on the coordinator in a follow-up |
-| Rename (D9) breaks a consumer we did not anticipate | Deprecation aliases for one release; `CONTRACT_VERSION` bump makes the break detectable rather than silent; DS-4 notifies |
+| `rename-descriptor-model-levels` does not land before this change | tasks.md Prerequisites gives an executable check; tasks 1.4 and 2.2 would otherwise redefine live public API |
 | The rename package becomes a merge bottleneck — it owns `descriptor.py`, which two archetype packages then extend | It is deliberately small (mechanical rename + aliases + regeneration, no behaviour change) and is the DAG root alongside `wp-contracts`; archetype packages branch from its completion |
 | Excess detection ships but never runs against a real surface | Task 4.7 wires a subset verifier into CI against gen-eval's own argparse — the one real surface this change owns end-to-end |
 
@@ -408,10 +348,9 @@ reported — it is informative — it is simply not the gate for tool descriptor
 
 ### Resolved by plan review (round 1)
 
-- **Which name do the new archetypes take?** Resolved by D9: the existing
-  element/container models are renamed to `*Spec`, freeing `*Descriptor` for
-  document-level types. Accepted as a breaking change with a
-  `CONTRACT_VERSION` bump.
+- **Which name do the new archetypes take?** `ServiceDescriptor` and
+  `ToolDescriptor`, freed by `rename-descriptor-model-levels` (extracted from
+  this change; see D6 and tasks.md Prerequisites).
 - **Can one MCP tool serve several operations?** Yes — resolved by D4's
   `element` binding and D7's third carve-out. `check_locks` is the proving case.
 - **What counts as a coverage unit for the fail-closed guard?** Resolved by D3:

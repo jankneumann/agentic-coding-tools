@@ -24,148 +24,6 @@ defaults:
   min_trust_level: 2
 
 packages:
-  # ------------------------------------------------------------------- rename
-  - package_id: wp-rename
-    title: "Free the archetype names: *Spec for elements, *Descriptor for documents"
-    task_type: implementation
-    description: |
-      Tasks 0.1-0.3. Rename EndpointDescriptor/ToolDescriptor/CommandDescriptor/
-      ServiceDescriptor to *Spec with deprecation aliases, update __init__.py
-      exports and test_public_api_parity.py, bump CONTRACT_VERSION 1 -> 2, and
-      regenerate the published interface-descriptor.schema.json.
-
-      DAG root alongside wp-contracts. Both archetype packages define types
-      under the names this package frees, so it must land first.
-
-      Mechanical and behaviour-preserving by construction: if any test that is
-      not a name-parity or schema-version test changes meaning, the rename has
-      overreached.
-    role: python-engineer
-    archetype: implementer
-    priority: 1
-    depends_on: []
-    locks:
-      files:
-        - "packages/gen-eval/src/gen_eval/descriptor.py"
-        - "packages/gen-eval/src/gen_eval/__init__.py"
-      keys:
-        - "feature:gen-eval-descriptor:models"
-      ttl_minutes: 120
-      reason: "Renaming published model types; archetype packages occupy the freed names"
-    scope:
-      write_allow:
-        - "packages/gen-eval/src/gen_eval/descriptor.py"
-        - "packages/gen-eval/src/gen_eval/__init__.py"
-        - "packages/gen-eval/src/gen_eval/contracts/__init__.py"
-        # generate_contract_schemas.py writes FOUR artifacts and stamps
-        # x-gen-eval-contract-version into all three schemas, so a CONTRACT_VERSION
-        # bump changes every one of them — not just the descriptor schema.
-        - "packages/gen-eval/src/gen_eval/contracts/VERSION"
-        - "packages/gen-eval/src/gen_eval/contracts/interface-descriptor.schema.json"
-        - "packages/gen-eval/src/gen_eval/contracts/scenario.schema.json"
-        - "packages/gen-eval/src/gen_eval/contracts/eval-report.schema.json"
-        - "packages/gen-eval/tests/test_public_api_parity.py"
-        - "packages/gen-eval/tests/test_descriptor_naming.py"
-        # The 11 existing test files that reference the renamed types. Aliases
-        # mean these would still PASS untouched — which is the trap: the repo
-        # would land with 11 files on deprecated names, and any suite that
-        # escalates DeprecationWarning to an error would break. Task 0.4
-        # migrates them in the same package that performs the rename.
-        - "packages/gen-eval/tests/conftest.py"
-        - "packages/gen-eval/tests/test_descriptor.py"
-        - "packages/gen-eval/tests/test_cli_generator.py"
-        - "packages/gen-eval/tests/test_cli_transport_stderr.py"
-        - "packages/gen-eval/tests/test_feedback.py"
-        - "packages/gen-eval/tests/test_generator.py"
-        - "packages/gen-eval/tests/test_hybrid_generator.py"
-        - "packages/gen-eval/tests/test_integration_orchestrator.py"
-        - "packages/gen-eval/tests/test_integration_scenarios.py"
-        - "packages/gen-eval/tests/test_optional_startup.py"
-        - "packages/gen-eval/tests/test_sdk_generator.py"
-      read_allow:
-        - "**"
-      deny:
-        - "packages/gen-eval/src/gen_eval/evaluator.py"
-        - "packages/gen-eval/src/gen_eval/orchestrator.py"
-    worktree:
-      name: ddfc-rename
-      mode: isolated
-    timeout_minutes: 120
-    retry_budget: 2
-    min_trust_level: 2
-    verification:
-      tier_required: B
-      steps:
-        # Only TWO of the four old names can be aliases (D9). ToolDescriptor and
-        # ServiceDescriptor are reused by the new archetypes, so a symbol cannot
-        # resolve to both the legacy element type and the new document type — an
-        # earlier version of this gate asserted all four and was unsatisfiable in
-        # the final state.
-        #
-        # Asserts presence AND warning for the two that can alias: presence alone
-        # is satisfied by a plain re-export that never deprecates.
-        - name: "The two non-reused old names are deprecation aliases that warn"
-          kind: command
-          command: "cd packages/gen-eval && python3 -c \"import warnings, gen_eval, sys; failed=[]\nfor n in ('EndpointDescriptor','CommandDescriptor'):\n    with warnings.catch_warnings(record=True) as w:\n        warnings.simplefilter('always')\n        obj=getattr(gen_eval, n, None)\n        if obj is None: failed.append(n+': missing')\n        elif not any(issubclass(x.category, DeprecationWarning) for x in w): failed.append(n+': no DeprecationWarning')\nsys.exit('alias check failed: '+'; '.join(failed)) if failed else print('2 aliases present and warning')\""
-          evidence:
-            artifacts: []
-            result_keys: ["deprecation_aliases_present"]
-        # The other half of D9's compatibility boundary: the two reused names must
-        # NOT still be their old element types. Without this the rename could
-        # "pass" by leaving the legacy classes in place under the old names.
-        - name: "The two reused names no longer resolve to their legacy element types"
-          kind: command
-          command: "cd packages/gen-eval && python3 -c \"import gen_eval, sys; bad=[]\nfor n, legacy_field in (('ToolDescriptor','input_schema'), ('ServiceDescriptor','endpoints')):\n    obj=getattr(gen_eval, n, None)\n    if obj is None: bad.append(n+': absent — should name the new archetype')\n    elif legacy_field in getattr(obj, 'model_fields', {}): bad.append(n+': still the legacy element type (has '+legacy_field+')')\nsys.exit('reuse check failed: '+'; '.join(bad)) if bad else print('2 reused names rebound to archetypes')\""
-          evidence:
-            artifacts: []
-            result_keys: ["reused_names_rebound"]
-        - name: "New *Spec names are exported and CONTRACT_VERSION is 2"
-          kind: command
-          command: "cd packages/gen-eval && python3 -c \"import sys, gen_eval; from gen_eval.contracts import CONTRACT_VERSION; missing=[n for n in ('EndpointSpec','McpToolSpec','CommandSpec','ServiceSpec') if not hasattr(gen_eval,n)]; assert not missing, f'not exported: {missing}'; assert str(CONTRACT_VERSION)=='2', f'CONTRACT_VERSION={CONTRACT_VERSION}, expected 2'; print('rename verified')\""
-          evidence:
-            artifacts: []
-            result_keys: ["spec_names_exported", "contract_version_bumped"]
-        - name: "Published schema regenerates clean after the rename"
-          kind: command
-          command: "cd packages/gen-eval && python3 scripts/generate_contract_schemas.py --check"
-          evidence:
-            artifacts: []
-            result_keys: ["schema_regenerates_clean"]
-        # Task 0.4's gate. The suite passes with or without the migration because
-        # the aliases work, so the only thing separating a migrated tree from an
-        # unmigrated one is that no TEST file still spells an old name.
-        #
-        # Scans tests/ ONLY. An earlier version scanned src/ too and was
-        # unsatisfiable: the aliases this package is required to create live in
-        # src/gen_eval/descriptor.py, so any correct implementation tripped it.
-        #
-        # All four old names are scanned here, not two. At the wp-rename boundary
-        # the new archetypes do not exist yet (wp-rename is a DAG root, and
-        # wp-tool-descriptor / wp-service-descriptor depend on it), so every
-        # occurrence of ToolDescriptor or ServiceDescriptor in tests/ at this
-        # point is still legacy-semantic usage that task 0.4 must migrate.
-        #
-        # Asserts a non-empty corpus first: run from a tree with no tests/ the
-        # scan finds nothing and would otherwise report success.
-        - name: "No test file still uses a pre-rename name"
-          kind: command
-          command: "cd packages/gen-eval && python3 -c \"import pathlib,re,sys; files=list(pathlib.Path('tests').rglob('*.py')); sys.exit('no test corpus found — gate would pass vacuously') if not files else None; pat=re.compile(r'\\b(EndpointDescriptor|CommandDescriptor|ToolDescriptor|ServiceDescriptor)\\b'); hits=sorted(str(p) for p in files if pat.search(p.read_text())); sys.exit('pre-rename names still used in: '+', '.join(hits)) if hits else print(f'{len(files)} test files scanned, none using pre-rename names')\""
-          evidence:
-            artifacts: []
-            result_keys: ["no_deprecated_name_usage"]
-        - name: "Suite is clean under DeprecationWarning-as-error"
-          kind: command
-          command: "cd packages/gen-eval && uv run pytest -q -W error::DeprecationWarning -m 'not e2e and not integration'"
-          evidence:
-            artifacts: []
-            result_keys: ["suite_clean_under_deprecation_error"]
-    outputs:
-      result_keys:
-        - renamed_models
-        - contract_version
-      artifacts:
-        - "packages/gen-eval/src/gen_eval/contracts/interface-descriptor.schema.json"
-
   # ---------------------------------------------------------------- contracts
   - package_id: wp-contracts
     title: "CLI contract schema plus gen-eval's own CLI contract"
@@ -183,7 +41,7 @@ packages:
       the contract instances validated against it. Conflating the two was a
       plan-review finding.
 
-      Root of the DAG alongside wp-rename: every other package derives from or
+      Root of the DAG: every other package derives from or
       validates against this schema, so its shape must settle before parallel
       work starts.
     role: python-engineer
@@ -271,7 +129,7 @@ packages:
     role: python-engineer
     archetype: implementer
     priority: 2
-    depends_on: [wp-contracts, wp-rename]
+    depends_on: [wp-contracts]
     locks:
       files:
         - "packages/gen-eval/src/gen_eval/descriptor.py"
@@ -335,7 +193,7 @@ packages:
     role: python-engineer
     archetype: implementer
     priority: 2
-    depends_on: [wp-contracts, wp-rename]
+    depends_on: [wp-contracts]
     locks:
       files:
         - "packages/gen-eval/src/gen_eval/service_descriptor.py"
@@ -423,10 +281,11 @@ packages:
         - "packages/gen-eval/src/gen_eval/evaluator.py"
         - "packages/gen-eval/src/gen_eval/__main__.py"
         # eval-report.schema.json is GENERATED FROM reports.GenEvalReport, which
-        # this package changes. Without write access the package cannot
-        # regenerate the artifact its own edits invalidate, and
+        # this package changes when it adds the operation-keyed coverage
+        # structures. Without write access the package cannot regenerate the
+        # artifact its own edits invalidate, and
         # test_contract_schemas.py::TestNoDrift would fail downstream with no
-        # package able to fix it. wp-rename's --check ran before these changes.
+        # package able to fix it.
         - "packages/gen-eval/src/gen_eval/contracts/eval-report.schema.json"
         - "packages/gen-eval/tests/test_coverage_model.py"
         - "packages/gen-eval/tests/test_coverage_vocabulary.py"
@@ -472,8 +331,8 @@ packages:
             artifacts: []
             result_keys: ["min_coverage_gate_fails_closed"]
         # This package changes GenEvalReport, from which eval-report.schema.json
-        # is generated. Regeneration must be proven HERE — wp-rename's identical
-        # check ran at wave 0, before these model changes existed.
+        # is generated, so regeneration must be proven HERE. No earlier package
+        # touches the report model, so no earlier --check covers these edits.
         - name: "Published contract artifacts regenerate clean after the report-model change"
           kind: command
           command: "python3 scripts/generate_contract_schemas.py --check"
@@ -563,7 +422,8 @@ packages:
       dogfood scenarios and exclusions that satisfy D11's completeness rule,
       wire the argparse subset verifier plus both drift guards and
       --min-coverage into the gen-eval-tests CI job, refresh DOWNSTREAM.md
-      (including DS-5 for the CONTRACT_VERSION bump), update the README.
+      (the CONTRACT_VERSION bump belongs to the prerequisite rename change,
+      not here), update the README.
 
       Task 4.7 lands here rather than in wp-subset-verifiers because it wires
       CI: wp-subset-verifiers cannot write .github/workflows/ci.yml. Round 2

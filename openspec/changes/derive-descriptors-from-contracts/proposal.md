@@ -96,16 +96,12 @@ source.
 
 ### Deliverables
 
-0. **A naming level split, first.** `*Descriptor` currently means an element, a
-   container, *and* a document — which is why the two archetype names below were
-   already taken (`descriptor.py:41`, `:67`). Elements become `*Spec`
-   (`EndpointSpec`, `McpToolSpec`, `CommandSpec`, `ServiceSpec`), freeing
-   `*Descriptor` for document-level types. `CONTRACT_VERSION` 1 → 2, with
-   deprecation aliases for one release (D9).
 1. **Two descriptor archetypes.** `ServiceDescriptor` (contract-derived, http +
    mcp bindings) and `ToolDescriptor` (cli argument definitions). Behaviour is
-   additive — the existing hand-authored `InterfaceDescriptor` keeps working and
-   is deprecated, not removed — but the names are not (D6, D9).
+   additive: the existing hand-authored `InterfaceDescriptor` keeps working and
+   is deprecated, not removed (D6). The names `ServiceDescriptor` and
+   `ToolDescriptor` are freed by the prerequisite change
+   `rename-descriptor-model-levels`, not by this one.
 2. **Derivation generators** with `--check` drift mode, reusing the shape
    already proven by `contracts/generated/models.py` +
    `test_contracts_generated.py` and by PR #277's

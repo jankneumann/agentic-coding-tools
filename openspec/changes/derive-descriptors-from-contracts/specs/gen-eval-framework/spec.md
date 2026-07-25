@@ -210,30 +210,6 @@ computed from the operation model.
 - **THEN** the framework SHALL exit non-zero
 - **AND** it SHALL do so independently of whether the pass-rate threshold was met
 
-### Requirement: Descriptor Model Naming Levels
-
-Descriptor model type names SHALL encode the level they describe: a type naming
-a single surface element, or a container of elements for one surface, SHALL use
-the `Spec` suffix, and a type naming a whole descriptor document SHALL use the
-`Descriptor` suffix.
-
-A rename of a published model type SHALL bump the descriptor contract version
-and SHALL retain a deprecation alias under the previous name for at least one
-release.
-
-#### Scenario: Element and document types are distinguishable by name
-
-- **WHEN** a reader encounters a descriptor model type name
-- **THEN** the suffix SHALL indicate whether it names one element or a whole
-  document
-- **AND** no single suffix SHALL denote both levels
-
-#### Scenario: Renaming a published type bumps the contract version
-
-- **WHEN** a model type published in the versioned descriptor schema is renamed
-- **THEN** the descriptor contract version SHALL be incremented
-- **AND** the previous name SHALL remain importable as a deprecation alias
-
 ## MODIFIED Requirements
 
 ### Requirement: Interface Descriptor
