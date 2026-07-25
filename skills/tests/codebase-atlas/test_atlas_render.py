@@ -187,3 +187,97 @@ class TestCli:
         monkeypatch.chdir(nested)
         assert build_atlas.main(["--no-coverage"]) == 0
         assert (repo / "docs" / "architecture-analysis" / "atlas" / "index.html").is_file()
+
+
+class TestCoverageBannerGapPredicate:
+    """Regressions for the success-banner threshold found in review of PR #276."""
+
+    def _graph(self, files: list[str]) -> dict:
+        return {
+            "snapshots": [{"generated_at": "t", "git_sha": "s"}],
+            "nodes": [
+                {
+                    "id": f"py:{i}",
+                    "kind": "function",
+                    "language": "python",
+                    "name": f"f{i}",
+                    "file": f,
+                    "span": {"start": 1},
+                    "tags": [],
+                }
+                for i, f in enumerate(files)
+            ],
+            "edges": [],
+        }
+
+    def test_high_but_incomplete_coverage_still_alerts(self, tmp_path: Path) -> None:
+        # 199 of 200 files covered = 99.5%, which the old `< 99.0` threshold
+        # rendered as full coverage.
+        covered = [f"m{i}.py" for i in range(199)]
+        for name in [*covered, "forgotten.py"]:
+            (tmp_path / name).write_text("", encoding="utf-8")
+
+        page = render_page(build_view_model(self._graph(covered), tmp_path, measure=True))
+        assert 'role="alert"' in page
+        assert "Partial coverage" in page
+
+    def test_stale_graph_alerts_even_at_full_disk_coverage(self, tmp_path: Path) -> None:
+        (tmp_path / "present.py").write_text("", encoding="utf-8")
+        graph = self._graph(["present.py", "deleted.py"])
+
+        # Every file on disk is matched, so coverage is 100% — but the graph still
+        # names a file that is gone, which must not read as a clean bill of health.
+        page = render_page(build_view_model(graph, tmp_path, measure=True))
+        assert 'role="alert"' in page
+        assert "no longer exist" in page
+
+    def test_genuinely_complete_coverage_reports_success(self, tmp_path: Path) -> None:
+        (tmp_path / "only.py").write_text("", encoding="utf-8")
+        page = render_page(build_view_model(self._graph(["only.py"]), tmp_path, measure=True))
+        assert 'role="status"' in page
+        assert 'role="alert"' not in page
+
+
+class TestCliCoverageOutput:
+    def test_prints_the_matched_numerator(self, tmp_path: Path, tiny_graph: dict, capsys) -> None:
+        (tmp_path / ".git").mkdir()
+        graph_dir = tmp_path / "docs" / "architecture-analysis"
+        graph_dir.mkdir(parents=True)
+        (graph_dir / "architecture.graph.json").write_text(
+            json.dumps(tiny_graph), encoding="utf-8"
+        )
+        (tmp_path / "api.py").write_text("", encoding="utf-8")
+        (tmp_path / "elsewhere.py").write_text("", encoding="utf-8")
+
+        assert build_atlas.main(["--repo-root", str(tmp_path)]) == 0
+        out = capsys.readouterr().out
+        # api.py matches; store.py is named by the graph but absent. The printed
+        # numerator must be the matched count (1), the same basis as the percent —
+        # printing filesInGraph (2) contradicted the percentage on the same line.
+        assert "coverage python: <=1/2 files (<=50.0%), from 2 distinct name(s)" in out
+        assert "1 graph file(s) absent from disk (stale)" in out
+
+
+class TestCoverageBannerDisclosesBothBounds:
+    def test_banner_shows_upper_bound_and_distinct_name_floor(self, tmp_path: Path) -> None:
+        # Three packages share __init__.py; the graph names it once. Basename
+        # matching credits all three, so the file count is an upper bound and the
+        # distinct-name count is the floor. Both must appear, or the reader cannot
+        # tell an inflated number from a real one.
+        for name in ("a", "b", "c"):
+            d = tmp_path / name
+            d.mkdir()
+            (d / "__init__.py").write_text("", encoding="utf-8")
+        (tmp_path / "never_seen.py").write_text("", encoding="utf-8")
+
+        graph = {
+            "snapshots": [{"generated_at": "t", "git_sha": "s"}],
+            "nodes": [{"id": "py:__init__", "kind": "module", "language": "python",
+                       "name": "__init__", "file": "__init__.py",
+                       "span": {"start": 1}, "tags": []}],
+            "edges": [],
+        }
+        page = render_page(build_view_model(graph, tmp_path, measure=True))
+        assert "at most 3 of 4 files" in page
+        assert "1 distinct file name(s) the analyzer examined" in page
+        assert "upper bound" in page

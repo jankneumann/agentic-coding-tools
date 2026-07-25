@@ -38,17 +38,29 @@ downstream phase — tracked as
 architecture graph describes a small fraction of the repository, and silently
 reports success:
 
-| Language | Graph covers | On disk | Coverage |
-|---|---|---|---|
-| Python | 51 files | 1,032 | **4.9%** |
-| SQL | 16 files | 43 | 37.2% |
-| TypeScript | 0 files | 50 | **0.0%** |
+| Language | Distinct names analyzed | Disk files credited (upper bound) | On disk | Coverage |
+|---|---|---|---|---|
+| Python | 58 | ≤151 | 1,033 | **≤14.6%** |
+| SQL | 16 | ≤16 | 43 | ≤37.2% |
+| TypeScript | 0 | 0 | 50 | **0.0%** |
+
+Two columns are needed because the analyzer records file *names*, not paths, so
+matching is basename-only: a single graph entry for `__init__.py` is credited with
+every `__init__.py` in the tree. The upper-bound column is therefore generous and
+the distinct-name column is the honest floor. Real coverage sits between them and
+cannot be pinned down until the identity fix below lands.
 
 Causes: `PYTHON_SRC_DIR ?= agent-coordinator/src` excludes `skills/` (566 files)
-and `packages/` (126); `TS_SRC_DIR ?= web` names a **directory that does not
+and `packages/` (125); `TS_SRC_DIR ?= web` names a **directory that does not
 exist**, so `ts_analysis.json` is empty and the frontend view renders nothing.
-Separately, 8 of the 59 Python files the graph names no longer exist on disk —
-the graph is stale, and its recorded `git_sha` is not in history.
+The analyzer does not treat a configured-but-absent source root as an error,
+which is why this went unnoticed.
+
+The graph is also stale in a second sense: its recorded `git_sha`
+(`a2b169ef`) is not in history and `generated_at` is 2026-05-30, while
+`make architecture-check` exits 2 with `PROVENANCE_MISSING` because the artifacts
+were produced by `make architecture` rather than `make architecture-refresh
+--staged`.
 
 Widening the analyzer roots is **not** a Makefile one-liner: node IDs are
 `py:<module>.<symbol>` derived from bare basenames, so a repo-wide scan collides
