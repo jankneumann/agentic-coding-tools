@@ -391,7 +391,7 @@
       "type": "object"
     },
     "StartupConfig": {
-      "description": "How to start/stop services for evaluation.\n\nSecurity: ``command``, ``teardown``, and ``seed_command`` are executed via\n``subprocess.run(..., shell=True)`` in the orchestrator.  Descriptor files\nmust come from trusted sources \u2014 never load an untrusted descriptor.",
+      "description": "How to start/stop services for evaluation.\n\nOptional on :class:`InterfaceDescriptor` \u2014 omit the whole block for\nprojects with nothing to start (a CLI-only surface, or services managed\nentirely out-of-band). See ``InterfaceDescriptor.startup``.\n\nSecurity: ``command``, ``teardown``, and ``seed_command`` are executed via\n``subprocess.run(..., shell=True)`` in the orchestrator.  Descriptor files\nmust come from trusted sources \u2014 never load an untrusted descriptor.",
       "properties": {
         "command": {
           "title": "Command",
@@ -545,7 +545,15 @@
       "type": "array"
     },
     "startup": {
-      "$ref": "#/$defs/StartupConfig"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StartupConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "scenario_dirs": {
       "items": {
@@ -577,8 +585,7 @@
   "required": [
     "project",
     "version",
-    "services",
-    "startup"
+    "services"
   ],
   "type": "object"
 }

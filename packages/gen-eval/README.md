@@ -149,6 +149,61 @@ Absolute paths are left untouched.
 
 ---
 
+## Projects with nothing to start
+
+`startup` is **optional**. Omit the block entirely for a CLI-only surface, or
+for services managed out-of-band:
+
+```yaml
+project: my-cli
+version: "1.0"
+services:
+  - name: my-cli
+    type: cli
+    command: my-tool
+scenario_dirs:
+  - scenarios
+# no startup: block — there is nothing to start
+```
+
+When absent, the orchestrator skips startup, health check, seeding and
+teardown.
+
+This used to be required, which forced such projects to invent a
+`StartupConfig` they never used. The health check made it worse than three
+inert strings: it runs even under `--no-services` (to verify
+externally-managed services are reachable), so the placeholder `health_check`
+had to be a URL that genuinely *succeeded*. Those placeholders read as
+meaningful configuration to the next person to open the file.
+
+`--no-services` remains the right flag for the *different* case where a
+startup block exists but the operator has already started the services.
+
+---
+
+## Dogfooding
+
+gen-eval evaluates its own CLI surface:
+
+```bash
+make -C packages/gen-eval dogfood
+```
+
+Eight scenarios under [`evaluation/`](evaluation/README.md) drive the
+installed console script through the descriptor loader, template generator,
+CLI transport, evaluator and report writer. Runs at `--fail-threshold 1.0`
+and gates CI.
+
+This exists because the unit suite imports `gen_eval` and drives Python
+objects — a shape that cannot catch packaging defects. The console script
+named by `[project.scripts]` was broken in every release while 551 tests
+passed, because none of them had ever executed the installed executable.
+
+`evaluation/README.md` also records the findings the suite surfaced, including
+one framework bug it caught and fixed.
+
+---
+
 ## Running gen-eval inside your own container
 
 `gen-eval` is portable inside slim runtime images (e.g. `python:3.14-slim`):
@@ -265,7 +320,10 @@ Adding an optional field does not require a bump.
 ```
 packages/gen-eval/
   pyproject.toml           # PEP 621, uv_build backend, extras
+  Makefile                 # dogfood / test / lint / contracts
   README.md                # you are here
+  evaluation/              # gen-eval's dogfood suite for gen-eval
+  scripts/                 # contract schema generator
   src/gen_eval/
     __init__.py            # public re-exports
     __main__.py            # gen-eval console script + python -m gen_eval

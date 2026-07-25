@@ -68,11 +68,30 @@ class CliClient:
                 except json.JSONDecodeError:
                     body = {"raw": raw_out}
 
+            # stderr is *data*, not a failure signal.
+            #
+            # It used to be assigned to StepResult.error, and the evaluator
+            # short-circuits to status="error" on any result.error before it
+            # compares expectations. That made every well-behaved CLI — one
+            # that prints diagnostics to stderr — an unconditional error
+            # regardless of its exit code, so `expect.exit_code` could never
+            # assert a failure path and `expect.error_contains` was
+            # unreachable on this transport. Both fields exist precisely to
+            # assert failures.
+            #
+            # The process ran; whatever it exited with is the verdict's
+            # business. Surfacing stderr in the body keeps it assertable —
+            # `error_contains` already searches str(body) — while reserving
+            # `error` for the exception path below, where the command could
+            # not be executed at all.
+            if raw_err:
+                body["stderr"] = raw_err
+
             elapsed = (time.perf_counter() - start) * 1000
             return StepResult(
                 body=body,
                 exit_code=exit_code,
-                error=raw_err if raw_err else None,
+                error=None,
                 duration_ms=elapsed,
             )
         except TimeoutError:

@@ -100,6 +100,10 @@ class StateVerifier(BaseModel):
 class StartupConfig(BaseModel):
     """How to start/stop services for evaluation.
 
+    Optional on :class:`InterfaceDescriptor` — omit the whole block for
+    projects with nothing to start (a CLI-only surface, or services managed
+    entirely out-of-band). See ``InterfaceDescriptor.startup``.
+
     Security: ``command``, ``teardown``, and ``seed_command`` are executed via
     ``subprocess.run(..., shell=True)`` in the orchestrator.  Descriptor files
     must come from trusted sources — never load an untrusted descriptor.
@@ -125,7 +129,14 @@ class InterfaceDescriptor(BaseModel):
     version: str
     services: list[ServiceDescriptor]
     state_verifiers: list[StateVerifier] = Field(default_factory=list)
-    startup: StartupConfig
+    # Optional: a project with nothing to start (CLI-only surfaces, or
+    # services managed entirely out-of-band) omits this block entirely. When
+    # absent the orchestrator skips startup, health check, seeding and
+    # teardown — there is nothing to do, so there is nothing to describe.
+    # Requiring it forced such projects to invent no-op commands and a
+    # health check URL that had to genuinely succeed; those placeholders read
+    # as meaningful configuration to the next person to open the file.
+    startup: StartupConfig | None = None
     scenario_dirs: list[Path] = Field(default_factory=list)
     budget_defaults: BudgetConfig | None = None
     file_interface_map: list[FileInterfaceMapping] = Field(default_factory=list)

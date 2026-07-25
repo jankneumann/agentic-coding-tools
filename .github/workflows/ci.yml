@@ -403,3 +403,23 @@ jobs:
         run: uv run pytest -v -m "not e2e and not integration" --tb=short
         env:
           AGENT_ID: ci-gen-eval-pkg
+
+      - name: Dogfood — gen-eval evaluates its own CLI surface
+        # Drives the *installed console script* through gen-eval's own
+        # descriptor, generator, CLI transport, evaluator and report writer.
+        # The unit suite above only ever imports gen_eval and drives Python
+        # objects, which is why it never noticed that the console script
+        # named by [project.scripts] had been broken in every release (UP-1).
+        #
+        # Blocking, at --fail-threshold 1.0: this is a contract suite.
+        run: make dogfood
+        env:
+          AGENT_ID: ci-gen-eval-dogfood
+
+      - name: Upload dogfood report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gen-eval-dogfood-report
+          path: packages/gen-eval/evaluation/.reports/
+          if-no-files-found: ignore

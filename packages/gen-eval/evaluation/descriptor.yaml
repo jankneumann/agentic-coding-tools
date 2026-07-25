@@ -1,0 +1,45 @@
+# gen-eval's descriptor for gen-eval.
+#
+# The framework evaluating its own published CLI surface. Two reasons this
+# exists rather than being a curiosity:
+#
+#   1. It is the integration test. Everything else in tests/ imports gen_eval
+#      and drives Python objects. This drives the *installed executable* the
+#      way a consumer does — through the descriptor loader, the template
+#      generator, the CLI transport, the evaluator and the report writer, in
+#      one pass. A break anywhere in that chain fails here.
+#
+#   2. It is a real CLI-only descriptor. gen-eval starts no services and has
+#      no HTTP surface, so this file is the empirical case for UP-4: before
+#      `startup` became optional, this descriptor had to carry a no-op
+#      `command`, a no-op `teardown`, and a `health_check` URL that had to
+#      genuinely succeed — three lies to satisfy a schema.
+#
+# Deliberately absent: a `startup:` block. There is nothing to start.
+#
+# Run it:
+#   make -C packages/gen-eval dogfood
+#
+# NOTE: this lives outside src/ on purpose. Consumer evaluation data must not
+# ship inside the distributed package — see tests/test_sdist_contents.py.
+
+project: gen-eval
+version: "0.1.0"
+
+services:
+  - name: gen-eval-cli
+    type: cli
+    # Resolved from PATH. The dogfood runner installs the package first, so
+    # this is the console script generated from [project.scripts] — the exact
+    # artifact UP-1 was broken in, not the source tree.
+    command: gen-eval
+    # No `json_flag`: gen-eval emits reports to files, not JSON on stdout.
+    # Setting one here would append it to every scenario's argv and fail.
+    #
+    # No `commands:` either. gen-eval's CLI is a single flat command with
+    # flags and no subcommands, which the interface model cannot name — see
+    # the "Known limitation" note in evaluation/README.md.
+    commands: []
+
+scenario_dirs:
+  - scenarios
