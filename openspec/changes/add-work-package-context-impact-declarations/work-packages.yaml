@@ -59,6 +59,12 @@ packages:
         - "**"
       deny:
         - "**/.venv/**"
+    context_impact:
+      # The schema and its regenerated copies are interface contracts; the new
+      # test module is source the semantic index embeds.
+      surfaces:
+        - "apis"
+        - "semantic_code"
     worktree:
       name: context-impact-schema
       mode: isolated
@@ -120,6 +126,12 @@ packages:
         - "**"
       deny:
         - "**/.venv/**"
+    context_impact:
+      # The rule table ships as an install asset alongside the schemas, and the
+      # detector module is indexed source.
+      surfaces:
+        - "apis"
+        - "semantic_code"
     worktree:
       name: context-impact-detector
       mode: isolated
@@ -175,6 +187,13 @@ packages:
         - "**"
       deny:
         - "**/.venv/**"
+    context_impact:
+      # SKILL.md documents the new gate; the gate and detector modules are
+      # indexed source. Caught by the gate itself when `documentation` was
+      # initially omitted here.
+      surfaces:
+        - "documentation"
+        - "semantic_code"
     worktree:
       name: context-impact-gate
       mode: isolated
