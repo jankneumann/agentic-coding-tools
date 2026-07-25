@@ -270,3 +270,8 @@ skills/merge-pull-requests/scripts/docs/
 # WITHOUT a parallel checkout of this repo must still commit their mirrors.
 .claude/skills/
 .agents/skills/
+
+# Rendered codebase atlas — derived from architecture.graph.json by `make atlas`.
+# ~650 KB of generated HTML with an embedded JSON payload: regenerable in about a
+# second, and not meaningfully diffable, so tracking it would only add noise.
+docs/architecture-analysis/atlas/

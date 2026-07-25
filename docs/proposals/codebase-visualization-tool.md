@@ -1,8 +1,90 @@
 # Interactive Codebase Visualization & Navigation Tool
 
 **Roadmap ID**: codeviz
-**Status**: Draft
+**Status**: Phase 0a shipped (`/codebase-atlas`); Phases 0–5 remain roadmap, now usage-gated
 **Created**: 2026-05-12
+**Last revised**: 2026-07-25
+
+## Delivery status and revised sequencing
+
+This proposal sat unimplemented for two months. The cause was not
+underspecification — it was that **nothing rendered until a large amount of
+infrastructure existed**. As written, the first pixel required a substrate
+evaluation benchmarking SCIP/CodeQL/Joern/Semgrep, a FalkorDB container, Cypher
+migrations, an ingestion pipeline, a FastAPI server, and an SPA build. Every one
+of those is a step that can stall, and collectively they stalled.
+
+The sequencing is therefore inverted: **render first, index later.** A rendering
+layer over the artifacts that already exist delivers most of the comprehension
+value at a fraction of the cost, and — critically — it produces the usage
+evidence needed to justify (or refute) each remaining phase.
+
+### Shipped: Phase 0a — static HTML atlas
+
+`skills/codebase-atlas/` renders `architecture.graph.json` into a single
+self-contained HTML file (`make atlas`). No database, no server, no build step,
+zero network requests. It provides the foldable structure tree, the animated
+force-directed dependency graph, and the cross-connection tracing this proposal
+described — see the skill's `SKILL.md` for the full surface.
+
+What it deliberately does **not** do: extraction, temporal queries, agent memory,
+AI chat, multi-repo federation. Those remain the phases below.
+
+### Discovery that outranks the rest of this roadmap
+
+Building the atlas surfaced a defect that invalidates the premise of every
+downstream phase — tracked as
+[#275](https://github.com/jankneumann/agentic-coding-tools/issues/275). The
+architecture graph describes a small fraction of the repository, and silently
+reports success:
+
+| Language | Distinct names analyzed | Disk files credited (upper bound) | On disk | Coverage |
+|---|---|---|---|---|
+| Python | 58 | ≤151 | 1,033 | **≤14.6%** |
+| SQL | 16 | ≤16 | 43 | ≤37.2% |
+| TypeScript | 0 | 0 | 50 | **0.0%** |
+
+Two columns are needed because the analyzer records file *names*, not paths, so
+matching is basename-only: a single graph entry for `__init__.py` is credited with
+every `__init__.py` in the tree. The upper-bound column is therefore generous and
+the distinct-name column is the honest floor. Real coverage sits between them and
+cannot be pinned down until the identity fix below lands.
+
+Causes: `PYTHON_SRC_DIR ?= agent-coordinator/src` excludes `skills/` (566 files)
+and `packages/` (125); `TS_SRC_DIR ?= web` names a **directory that does not
+exist**, so `ts_analysis.json` is empty and the frontend view renders nothing.
+The analyzer does not treat a configured-but-absent source root as an error,
+which is why this went unnoticed.
+
+The graph is also stale in a second sense: its recorded `git_sha`
+(`a2b169ef`) is not in history and `generated_at` is 2026-05-30, while
+`make architecture-check` exits 2 with `PROVENANCE_MISSING` because the artifacts
+were produced by `make architecture` rather than `make architecture-refresh
+--staged`.
+
+Widening the analyzer roots is **not** a Makefile one-liner: node IDs are
+`py:<module>.<symbol>` derived from bare basenames, so a repo-wide scan collides
+89 `__init__.py`, 33 `conftest.py`, and 23 `test_skill_md.py` files into single
+IDs. Fixing it means moving module identity to repo-relative paths, which touches
+the analyzer, the graph compiler, the Mermaid ID scheme, and invalidates every
+committed artifact. That is its own change, and it is a **prerequisite** for the
+phases below — indexing a 5% graph into a graph database would industrialise the
+blind spot rather than remove it.
+
+Until it lands, the atlas states its own coverage in a non-dismissable banner, so
+a partial graph cannot read as a complete picture.
+
+### Revised gating
+
+Phases 0–5 below are retained as written, with two changes to how they are
+entered:
+
+1. **Coverage first.** No phase that persists or indexes the graph starts before
+   analyzer coverage is fixed.
+2. **Usage-gated.** Each remaining capability must be justified by an observed
+   limitation of the shipped atlas, not by anticipation. If the static page
+   answers a question adequately, the graph-store phase for that question is not
+   yet needed.
 
 ## Context and Goals
 
@@ -26,6 +108,8 @@ Industry signal underlines the urgency. As coding agents are integrated into mai
 - **Local-first, network-allowed, multi-repo from day one.** Single-operator local SPA + local FalkorDB container; per-repo namespacing baked into the schema so federation is not a later refactor. Network access is *allowed* — LLMs, embeddings, telemetry, and remote analyzers MAY be used where appropriate — but core read paths MUST remain functional offline with a local fallback.
 - **Separate deterministic code facts from probabilistic agent memory.** Code facts (calls, references, imports, dataflow, definitions, types) come from compiler-grade tools where available: SCIP/Sourcegraph indexers, CodeQL, Joern Code Property Graphs, language LSPs. Tree-sitter is the fallback for languages without indexer support, and the source for AST signature bundles. Graphiti + FalkorDB are reserved for *temporal agent memory* — sessions, decisions, findings, episodes, provenance. Do not conflate the two substrates.
 - **Adopt before build.** Before committing to any extraction substrate, benchmark it against existing alternatives on this repo. The substrate-evaluation milestone in Phase 0 is non-negotiable; the FalkorDB-as-cache decision is contingent on its result.
+- **Render before you index.** A visualisation over artifacts that already exist ships in a day and generates the usage evidence that justifies further infrastructure. Infrastructure that ships before anything renders generates only cost. Added 2026-07-25 after this proposal stalled for two months behind its own Phase 0.
+- **A visualisation must disclose its own coverage.** Any surface built on a derived graph MUST state, unmissably, what its inputs never examined and how stale they are. A partial graph rendered without that disclosure is worse than no graph: it converts a known unknown into a false sense of completeness.
 - **Every edge carries provenance and confidence.** No node or edge enters the graph anonymous. Every entry declares `extractor`, `extractor_version`, `evidence_kind`, `confidence`, `last_verified_at`, and `source_span`. The AI panel MUST refuse to cite weak evidence above its confidence threshold.
 - **Stability beats beauty.** Graph layout must be deterministic and stable across refreshes; nodes do not migrate when the graph changes unless their structural position changes. Cluster anchors come from `parallel_zones.json`.
 - **AI is anchored to graph selection.** The chat panel auto-attaches the selected subgraph (nodes, edges, source slices, related artifacts) as context rather than dumping the whole repo into a vector store.

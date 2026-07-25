@@ -424,3 +424,14 @@ context-refresh: ## Regenerate all deterministic context producers (documentatio
 
 context-refresh-check: ## Read-only, mtime-independent drift check for all context producers (exit 2 = drift)
 	@$(PYTHON) skills/project-context-refresh/scripts/cli.py check-all
+
+# ---------------------------------------------------------------------------
+# atlas — interactive HTML view of the architecture graph
+# ---------------------------------------------------------------------------
+
+.PHONY: atlas atlas-check
+atlas: ## Render docs/architecture-analysis/atlas/index.html from the architecture graph
+	@$(PYTHON) skills/codebase-atlas/scripts/build_atlas.py
+
+atlas-check: ## Read-only freshness check for the rendered atlas (exit 2 = stale)
+	@$(PYTHON) skills/codebase-atlas/scripts/build_atlas.py --check

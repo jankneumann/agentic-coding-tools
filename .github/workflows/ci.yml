@@ -396,3 +396,77 @@ jobs:
         run: uv run pytest -v -m "not e2e and not integration" --tb=short
         env:
           AGENT_ID: ci-gen-eval-pkg
+
+  # Branch-local documentation freshness. Only the two producers whose drift is
+  # caused by the PR itself are gated here:
+  #   * documentation.inventory — drifts when a skill is added/renamed/removed
+  #   * api.contracts          — drifts when openspec/contracts/ schemas change
+  # Both are deterministic, mtime-independent, and run in well under a second.
+  #
+  # The other producers are deliberately NOT gated per-PR:
+  #   * openspec.projection — degraded by design while any change is active, so a
+  #     per-PR gate would fail every PR. Its drift resolves at the merge sync
+  #     point, where `cleanup-feature` performs the canonical spec merge.
+  #   * decisions.timeline  — already covered by validate-decision-index above.
+  validate-context-producers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install skills deps
+        working-directory: skills
+        run: uv sync --all-extras
+
+      - name: Check documentation inventory is fresh
+        run: |
+          if ! skills/.venv/bin/python \
+              skills/project-context-refresh/scripts/cli.py check documentation.inventory; then
+            echo "::error::Documentation inventory is stale. Run 'make context-refresh' and commit the result."
+            exit 1
+          fi
+
+      - name: Check API contracts inventory is fresh
+        run: |
+          if ! skills/.venv/bin/python \
+              skills/project-context-refresh/scripts/cli.py check api.contracts; then
+            echo "::error::API contracts inventory is stale. Run 'make context-refresh' and commit the result."
+            exit 1
+          fi
+
+  # The codebase-atlas renderer must keep working, and its view-model must stay
+  # deterministic — that property is what makes `make atlas-check` meaningful.
+  # The rendered HTML itself is gitignored, so it is never checked for drift here.
+  test-codebase-atlas:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install skills deps
+        working-directory: skills
+        run: uv sync --all-extras
+
+      - name: Run atlas tests
+        run: skills/.venv/bin/python -m pytest skills/tests/codebase-atlas/ -v
+
+      - name: Render the atlas end-to-end
+        run: skills/.venv/bin/python skills/codebase-atlas/scripts/build_atlas.py --output /tmp/atlas.html
+
+      - name: Verify the render is byte-stable
+        run: |
+          skills/.venv/bin/python skills/codebase-atlas/scripts/build_atlas.py --output /tmp/atlas2.html
+          cmp /tmp/atlas.html /tmp/atlas2.html \
+            || { echo "::error::Atlas render is not deterministic."; exit 1; }
