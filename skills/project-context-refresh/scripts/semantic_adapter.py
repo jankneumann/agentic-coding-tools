@@ -24,6 +24,14 @@ Design:
 * :func:`resolve_semantic_index` — run the indexer (if any) and return a validated
   reference. With no indexer configured the result is ``not-configured``; any
   indexer failure becomes ``failed``. Both carry an ``exact-search`` fallback.
+
+ri-09 adds two optional, *bound-at-construction* knobs on the subprocess indexer
+(:class:`IndexNamespace`, :class:`ReadScope`). They supply values the code-search
+CLI already accepts; they do not implement any enforcement. Isolation and scope
+are enforced downstream and are already tested there — promotion into the shared
+index is gated on the canonical ``main``/``main`` pair, and a non-empty
+``read_allow`` is enforced by ``indexing_policy``. Omitting both parameters
+reproduces ri-07's argv exactly.
 """
 
 from __future__ import annotations
@@ -81,6 +89,19 @@ _LEASE_DURATION_SECONDS = 900
 
 _SLUG_UNSAFE = re.compile(r"[^a-z0-9]+")
 
+#: The namespace kinds ``index_repo`` accepts (``cli.py`` ``--namespace-kind``).
+NAMESPACE_KINDS = ("main", "feature", "work_package")
+
+#: The canonical namespace is the *pair* ``main``/``main``: promotion into the
+#: shared index is gated on kind ``main`` **and** key ``main``, so any other pair
+#: is branch-local by construction rather than by discipline.
+_CANONICAL = "main"
+
+#: The separator between a change id and a package id in a work-package
+#: namespace key, matching the worktree branch convention so the system keeps one
+#: naming rule (git cannot hold both ``refs/heads/a/b`` and ``refs/heads/a/b/c``).
+NAMESPACE_KEY_SEPARATOR = "--"
+
 
 class SemanticIndexUnavailable(Exception):
     """Raised by an indexer when the service is configured but unreachable.
@@ -106,7 +127,142 @@ class SemanticIndexOutcome:
 
 
 # The injectable seam. A real indexer reaches the coordinator; tests supply a fake.
+# Deliberately unwidened by ri-09: the namespace and read scope are bound when the
+# indexer is *built*, so every existing call site keeps working unchanged.
 SemanticIndexer = Callable[[Path, str], SemanticIndexOutcome]
+
+
+@dataclass(frozen=True, slots=True)
+class IndexNamespace:
+    """The index partition a refresh or checkpoint writes into (ri-09 D4).
+
+    ``main``/``main`` is the canonical namespace and the only pair the downstream
+    promotion gate accepts. Because ``main`` is a *pair*, half of it is always a
+    mistake — ``main``/``wp-adapter`` and ``work_package``/``main`` are both
+    rejected rather than silently indexed somewhere surprising.
+
+    A checkpoint should construct its namespace through
+    :meth:`for_work_package`, which hardcodes the kind and therefore cannot
+    produce the canonical pair.
+    """
+
+    kind: str
+    key: str
+
+    def __post_init__(self) -> None:
+        kind = self.kind.strip()
+        key = self.key.strip()
+        if kind not in NAMESPACE_KINDS:
+            raise ValueError(
+                f"namespace kind must be one of {NAMESPACE_KINDS!r}, got {self.kind!r}"
+            )
+        if not key:
+            raise ValueError("namespace key must be a non-empty string")
+        if (kind == _CANONICAL) != (key == _CANONICAL):
+            raise ValueError(
+                "the canonical namespace is the pair main/main; "
+                f"{kind!r}/{key!r} is half of it"
+            )
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(self, "key", key)
+
+    @property
+    def is_canonical(self) -> bool:
+        """Whether this namespace is the one promotion into main is gated on."""
+        return self.kind == _CANONICAL and self.key == _CANONICAL
+
+    @classmethod
+    def for_work_package(cls, change_id: str, package_id: str) -> IndexNamespace:
+        """The branch-local namespace for one work package of one change."""
+        change = change_id.strip()
+        package = package_id.strip()
+        if not change or not package:
+            raise ValueError(
+                "a work-package namespace needs both a change id and a package id"
+            )
+        return cls(
+            kind="work_package",
+            key=f"{change}{NAMESPACE_KEY_SEPARATOR}{package}",
+        )
+
+
+#: The namespace ri-07's canonical refresh uses, and the default when none is given.
+CANONICAL_NAMESPACE = IndexNamespace(kind=_CANONICAL, key=_CANONICAL)
+
+
+def _normalize_patterns(patterns: tuple[str, ...], field: str) -> tuple[str, ...]:
+    """Strip, reject blanks, and de-duplicate while preserving caller order."""
+    seen: dict[str, None] = {}
+    for raw in patterns:
+        pattern = raw.strip()
+        if not pattern:
+            raise ValueError(f"{field} contains a blank glob")
+        seen.setdefault(pattern, None)
+    return tuple(seen)
+
+
+@dataclass(frozen=True, slots=True)
+class ReadScope:
+    """A package's permitted read set, as the indexer's ``--read-allow``/``--deny``.
+
+    Deny precedence is resolved on the *value*: a glob that appears in both lists
+    survives only in ``deny``, so the argv can never offer a denied glob as
+    readable. Broader (non-identical) overlap is resolved downstream by
+    ``indexing_policy``, which is where the matching semantics already live.
+
+    A scope whose deny list cancels every read-allow glob is rejected rather than
+    normalized to empty: downstream an *empty* ``read_allow`` means "no
+    restriction", so silently emptying one would widen the scope instead of
+    narrowing it.
+    """
+
+    read_allow: tuple[str, ...] = ()
+    deny: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        deny = _normalize_patterns(tuple(self.deny), "deny")
+        allow = tuple(
+            pattern
+            for pattern in _normalize_patterns(tuple(self.read_allow), "read_allow")
+            if pattern not in deny
+        )
+        if self.read_allow and not allow:
+            raise ValueError(
+                "read scope denies every glob it allows; an empty read_allow "
+                "means 'no restriction' downstream, which would widen the scope"
+            )
+        object.__setattr__(self, "read_allow", allow)
+        object.__setattr__(self, "deny", deny)
+
+    @property
+    def is_empty(self) -> bool:
+        """Whether this scope constrains nothing (the ri-07 default)."""
+        return not (self.read_allow or self.deny)
+
+    @classmethod
+    def from_index_scopes(cls, scopes: object) -> ReadScope:
+        """Adopt ri-08's ``IndexScopes`` (``read_allow`` / ``deny``) structurally.
+
+        Duck-typed on purpose: ``index_scopes()`` lives in ``validate-packages``,
+        and importing across skills to read two tuples would couple the refresh
+        runtime to the package-validation runtime for no benefit.
+        """
+        return cls(
+            read_allow=tuple(getattr(scopes, "read_allow", ()) or ()),
+            deny=tuple(getattr(scopes, "deny", ()) or ()),
+        )
+
+
+def _scope_arguments(scope: ReadScope | None) -> list[str]:
+    """The ``--read-allow``/``--deny`` argv fragment; empty when unscoped."""
+    if scope is None:
+        return []
+    argv: list[str] = []
+    for pattern in scope.read_allow:
+        argv += ["--read-allow", pattern]
+    for pattern in scope.deny:
+        argv += ["--deny", pattern]
+    return argv
 
 
 def _bounded_reason(exc: BaseException) -> str:
@@ -260,6 +416,8 @@ def build_subprocess_indexer(
     environ: Mapping[str, str] | None = None,
     *,
     runner: Callable[..., subprocess.CompletedProcess] | None = None,
+    namespace: IndexNamespace | None = None,
+    scope: ReadScope | None = None,
 ) -> SemanticIndexer:
     """Build an indexer that drives ``index_repo`` as a subprocess.
 
@@ -270,9 +428,14 @@ def build_subprocess_indexer(
 
     ``runner`` is injectable so the mapping can be tested without a database, an
     embedder, or the code-search distribution installed.
+
+    ``namespace`` defaults to :data:`CANONICAL_NAMESPACE` and ``scope`` to no
+    scope flags at all, so omitting both reproduces ri-07's argv exactly.
     """
     env = dict(os.environ if environ is None else environ)
     run = runner or subprocess.run
+    target = CANONICAL_NAMESPACE if namespace is None else namespace
+    scope_argv = _scope_arguments(scope)
 
     def indexer(repository: Path, requested_revision: str) -> SemanticIndexOutcome:
         config = semantic_index_configuration(env)
@@ -298,8 +461,9 @@ def build_subprocess_indexer(
             "--repo-root", str(Path(repository).resolve()),
             "--repo-slug", slug,
             "--source-revision", requested_revision,
-            "--namespace-kind", "main",
-            "--namespace-key", "main",
+            "--namespace-kind", target.kind,
+            "--namespace-key", target.key,
+            *scope_argv,
             "--provider", config["provider"],
             "--embedding-model", config["model"],
             "--embedding-dimension", config["dimension"],
@@ -348,6 +512,9 @@ def build_subprocess_indexer(
 
 def default_semantic_indexer(
     environ: Mapping[str, str] | None = None,
+    *,
+    namespace: IndexNamespace | None = None,
+    scope: ReadScope | None = None,
 ) -> SemanticIndexer | None:
     """Return the production indexer, or ``None`` when indexing is unconfigured.
 
@@ -356,14 +523,23 @@ def default_semantic_indexer(
     ``not-configured`` with an exact-search fallback, which is exactly how a
     developer machine without the indexing stack should behave. Callers pass the
     result straight through to ``orchestrator.generate(semantic_indexer=...)``.
+
+    ``namespace`` and ``scope`` are forwarded to
+    :func:`build_subprocess_indexer`; omitting them keeps the canonical
+    ``main``/``main`` namespace and emits no scope flags.
     """
     env = os.environ if environ is None else environ
     if semantic_index_configuration(env) is None:
         return None
-    return build_subprocess_indexer(env)
+    return build_subprocess_indexer(env, namespace=namespace, scope=scope)
 
 
 __all__ = [
+    "CANONICAL_NAMESPACE",
+    "NAMESPACE_KEY_SEPARATOR",
+    "NAMESPACE_KINDS",
+    "IndexNamespace",
+    "ReadScope",
     "SemanticIndexOutcome",
     "SemanticIndexUnavailable",
     "SemanticIndexer",

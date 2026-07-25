@@ -32,7 +32,7 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
 
 ## Phase 2 — Index namespace and scope threading (wp-adapter)
 
-- [ ] 2.1 Write tests for namespace threading in `semantic_adapter.py` — the built argv
+- [x] 2.1 Write tests for namespace threading in `semantic_adapter.py` — the built argv
       carries `work_package` and the `<change-id>--<package-id>` key when a namespace is
       supplied, and still carries `main`/`main` when it is not.
       **Spec scenarios**: pcro "Checkpoint indexing uses a work-package namespace",
@@ -41,7 +41,7 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: None
       **Size**: S
 
-- [ ] 2.2 Write tests for scope threading — argv carries `--read-allow` / `--deny` from a
+- [x] 2.2 Write tests for scope threading — argv carries `--read-allow` / `--deny` from a
       resolved scope, and deny wins over an overlapping read-allow glob.
       **Spec scenarios**: pcro "Denied paths are excluded from checkpoint indexing",
       pcro "Checkpoint does not read outside the permitted scope"
@@ -49,17 +49,17 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: None
       **Size**: S
 
-- [ ] 2.3 Add optional namespace and scope parameters to `semantic_adapter.py`, defaulting
+- [x] 2.3 Add optional namespace and scope parameters to `semantic_adapter.py`, defaulting
       to the current `main`/`main` and empty-scope behaviour.
       **Dependencies**: 2.1, 2.2
       **Size**: M
 
-- [ ] 2.4 Verify the existing `test_semantic_adapter.py` suite is unchanged and green —
+- [x] 2.4 Verify the existing `test_semantic_adapter.py` suite is unchanged and green —
       the ri-07 canonical path must not regress.
       **Dependencies**: 2.3
       **Size**: XS
 
-- [ ] 2.5 Checkpoint: run tests, review diff, verify scope.
+- [x] 2.5 Checkpoint: run tests, review diff, verify scope.
 
 ## Phase 3 — Checkpoint module (wp-checkpoint)
 
