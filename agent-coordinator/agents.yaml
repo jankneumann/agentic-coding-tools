@@ -319,8 +319,26 @@ agents:
       command: pi
       dispatch_modes:
         review:
-          # --no-tools: text-only, no edits — read-only-shaped review.
-          args: ["-p", "--provider", "openrouter", "--mode", "json", "--no-tools"]
+          # --no-tools REMOVED. Its presence was the most damaging of the three
+          # vendor bugs, because unlike the others it failed SILENTLY.
+          #
+          # The intent ("text-only, no edits — read-only-shaped review") was
+          # right; the mechanism was wrong. --no-tools removes READ access too,
+          # so a review prompt asking pi to examine artifacts and run commands
+          # got answered from the prompt text alone. Probed directly, the model
+          # says out loud:
+          #     "I need to read the openspec/contracts/README.md"
+          # and then returns {"findings": []} in ~2s.
+          #
+          # agy and grok failed loudly and the dispatcher marked them
+          # unsuccessful. pi returned success=True with an empty findings list,
+          # so it COUNTED TOWARD QUORUM having read nothing. A reviewer that
+          # inspected no artifact voting "no problems found" is worse than one
+          # that errors — it manufactures false consensus.
+          #
+          # Read-only-ness is a property of the review prompt, not of blinding
+          # the reviewer. --approve matches alternative/quick.
+          args: ["-p", "--provider", "openrouter", "--mode", "json", "--approve"]
         alternative:
           args: ["-p", "--provider", "openrouter", "--approve"]
         quick:
