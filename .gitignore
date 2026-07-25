@@ -270,3 +270,8 @@ skills/merge-pull-requests/scripts/docs/
 # WITHOUT a parallel checkout of this repo must still commit their mirrors.
 .claude/skills/
 .agents/skills/
+
+# ri-07 project-context refresh manifest: a durable, machine-local projection of
+# the refresh operation (embeds operation id + created-at). Kept out of the
+# tracked tree so a repeat refresh at the same revision produces no repo diff.
+.git-context/

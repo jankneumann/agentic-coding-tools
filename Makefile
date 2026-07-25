@@ -424,3 +424,10 @@ context-refresh: ## Regenerate all deterministic context producers (documentatio
 
 context-refresh-check: ## Read-only, mtime-independent drift check for all context producers (exit 2 = drift)
 	@$(PYTHON) skills/project-context-refresh/scripts/cli.py check-all
+
+.PHONY: refresh-project-context refresh-project-context-check
+refresh-project-context: ## Orchestrate every configured context producer into one durable operation + emit the manifest (ri-07)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py refresh
+
+refresh-project-context-check: ## Read-only orchestrated refresh drift check (exit 0 fresh / 2 drift / 1 failed)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py refresh-check
