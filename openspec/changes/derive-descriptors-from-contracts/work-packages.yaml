@@ -1,0 +1,409 @@
+schema_version: 1
+
+feature:
+  id: derive-descriptors-from-contracts
+  title: "Contract-derived gen-eval descriptors"
+  plan_revision: 1
+  created_by: claude-plan-feature
+  created_at: "2026-07-25T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/derive-descriptors-from-contracts/contracts/README.md"
+    files:
+      - "openspec/changes/derive-descriptors-from-contracts/contracts/README.md"
+      - "openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ---------------------------------------------------------------- contracts
+  - package_id: wp-contracts
+    title: "CLI contract schema plus gen-eval's own CLI contract"
+    task_type: implementation
+    description: |
+      Tasks 1.1, 1.2, 1.7. Finalize contracts/cli-contract.schema.json and
+      author gen-eval's CLI contract under
+      openspec/contracts/gen-eval-framework/cli/.
+
+      Root of the DAG: every other package derives from or validates against
+      this schema, so its shape must settle before parallel work starts.
+    role: python-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json"
+      keys:
+        - "contract:gen-eval-framework:cli"
+      ttl_minutes: 120
+      reason: "CLI contract schema is the coordination boundary for all other packages"
+    scope:
+      write_allow:
+        - "openspec/changes/derive-descriptors-from-contracts/contracts/**"
+        - "openspec/contracts/gen-eval-framework/cli/**"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/gen-eval/src/**"
+    worktree:
+      name: ddfc-contracts
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "CLI contract schema is valid JSON Schema"
+          kind: command
+          command: "python3 -c \"import json,jsonschema,pathlib; jsonschema.Draft202012Validator.check_schema(json.loads(pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json').read_text()))\""
+          evidence:
+            artifacts: []
+            result_keys: ["cli_contract_schema_valid"]
+        - name: "gen-eval CLI contract validates against the schema"
+          kind: command
+          command: "python3 -c \"import json,yaml,jsonschema,pathlib,glob; s=json.loads(pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json').read_text()); [jsonschema.Draft202012Validator(s).validate(yaml.safe_load(pathlib.Path(p).read_text())) for p in glob.glob('openspec/contracts/gen-eval-framework/cli/*.yaml')]\""
+          evidence:
+            artifacts: []
+            result_keys: ["gen_eval_cli_contract_valid"]
+    outputs:
+      result_keys:
+        - cli_contract_schema
+        - gen_eval_cli_contract
+      artifacts:
+        - "openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json"
+
+  # ------------------------------------------------------------------- tool
+  - package_id: wp-tool-descriptor
+    title: "Tool descriptor model with its derivation drift guard"
+    task_type: implementation
+    description: |
+      Tasks 1.3-1.6. ToolDescriptor model, generate_tool_descriptor.py with
+      --check, and the three fail-closed assertions (non-empty, count match,
+      byte-identical).
+
+      Each assertion must be proven to FAIL on a deliberately broken fixture.
+      An assertion that only passes on good input is decoration.
+    role: python-engineer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "packages/gen-eval/src/gen_eval/descriptor.py"
+      keys:
+        - "feature:gen-eval-descriptor:tool"
+      ttl_minutes: 120
+      reason: "ToolDescriptor model lives in descriptor.py"
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/gen_eval/descriptor.py"
+        - "packages/gen-eval/scripts/generate_tool_descriptor.py"
+        - "packages/gen-eval/tests/test_tool_descriptor.py"
+        - "packages/gen-eval/tests/test_derivation_drift.py"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/gen-eval/src/gen_eval/evaluator.py"
+        - "packages/gen-eval/src/gen_eval/reports.py"
+    worktree:
+      name: ddfc-tool
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Tool descriptor tests pass"
+          kind: command
+          command: "uv run pytest tests/test_tool_descriptor.py tests/test_derivation_drift.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["tool_descriptor_tests"]
+        - name: "Drift guard fails on a broken fixture"
+          kind: command
+          command: "uv run pytest tests/test_derivation_drift.py -q -k 'empty or count_mismatch'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["drift_guard_fails_closed"]
+    outputs:
+      result_keys:
+        - tool_descriptor_model
+        - tool_descriptor_generator
+      artifacts:
+        - "packages/gen-eval/scripts/generate_tool_descriptor.py"
+
+  # ---------------------------------------------------------------- service
+  - package_id: wp-service-descriptor
+    title: "Service descriptor derivation from OpenAPI"
+    task_type: implementation
+    description: |
+      Tasks 2.1-2.5. ServiceDescriptor model, OpenAPI operation extraction,
+      the OpenAPI-to-MCP projection with its carve-outs (resources and prompts
+      excluded; descriptions copied verbatim because an agent reads them), and
+      generate_service_descriptor.py with --check.
+
+      Runs in parallel with wp-tool-descriptor. Write scopes are disjoint:
+      this package owns service_descriptor.py, that one owns descriptor.py.
+    role: python-engineer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "packages/gen-eval/src/gen_eval/service_descriptor.py"
+      keys:
+        - "feature:gen-eval-descriptor:service"
+      ttl_minutes: 120
+      reason: "Service descriptor derivation surface"
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/gen_eval/service_descriptor.py"
+        - "packages/gen-eval/scripts/generate_service_descriptor.py"
+        - "packages/gen-eval/tests/test_service_descriptor.py"
+        - "packages/gen-eval/tests/test_mcp_projection.py"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/gen-eval/src/gen_eval/descriptor.py"
+        - "packages/gen-eval/src/gen_eval/evaluator.py"
+    worktree:
+      name: ddfc-service
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Service descriptor tests pass"
+          kind: command
+          command: "uv run pytest tests/test_service_descriptor.py tests/test_mcp_projection.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["service_descriptor_tests"]
+        - name: "MCP projection excludes resources and prompts"
+          kind: command
+          command: "uv run pytest tests/test_mcp_projection.py -q -k 'carve_out or resources'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["mcp_projection_carve_outs"]
+    outputs:
+      result_keys:
+        - service_descriptor_model
+        - service_descriptor_generator
+      artifacts:
+        - "packages/gen-eval/scripts/generate_service_descriptor.py"
+
+  # --------------------------------------------------------------- coverage
+  - package_id: wp-coverage-model
+    title: "Operation-keyed coverage model with legacy field compatibility"
+    task_type: implementation
+    description: |
+      Tasks 3.1-3.4. Operation x surface coverage structures in the report
+      model, plus computing the legacy flat unevaluated_interfaces from the
+      operation model so ACA ri-06's existing assertion keeps working.
+
+      Depends on wp-service-descriptor for the operation model shape.
+    role: python-engineer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-service-descriptor]
+    locks:
+      files:
+        - "packages/gen-eval/src/gen_eval/reports.py"
+      keys:
+        - "feature:gen-eval-coverage:model"
+      ttl_minutes: 120
+      reason: "Coverage structures live in reports.py"
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/gen_eval/reports.py"
+        - "packages/gen-eval/src/gen_eval/orchestrator.py"
+        - "packages/gen-eval/tests/test_coverage_model.py"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/gen-eval/src/gen_eval/descriptor.py"
+    worktree:
+      name: ddfc-coverage
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coverage model tests pass"
+          kind: command
+          command: "uv run pytest tests/test_coverage_model.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["coverage_model_tests"]
+        - name: "Legacy flat field still emitted"
+          kind: command
+          command: "uv run pytest tests/test_coverage_model.py -q -k 'legacy or back_compat'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["legacy_field_compat"]
+    outputs:
+      result_keys:
+        - operation_coverage_model
+        - legacy_flat_field
+      artifacts:
+        - "packages/gen-eval/src/gen_eval/reports.py"
+
+  # --------------------------------------------------------------- verifiers
+  - package_id: wp-subset-verifiers
+    title: "Implemented-surface subset verifiers for all three surfaces"
+    task_type: implementation
+    description: |
+      Tasks 4.1-4.6. argparse, FastAPI and MCP verifiers, each asserting the
+      implemented surface is a subset of its contract.
+
+      This is the excess-detection half of the chain. Without it,
+      unevaluated_interfaces == [] means "everything declared was tested",
+      never "everything that exists was tested".
+    role: python-engineer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-tool-descriptor, wp-service-descriptor]
+    locks:
+      files:
+        - "packages/gen-eval/src/gen_eval/verify/__init__.py"
+      keys:
+        - "feature:gen-eval-verify:subset"
+      ttl_minutes: 120
+      reason: "Subset verification surface"
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/gen_eval/verify/**"
+        - "packages/gen-eval/tests/test_subset_verifiers.py"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/gen-eval/src/gen_eval/reports.py"
+    worktree:
+      name: ddfc-verifiers
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Subset verifier tests pass for all three surfaces"
+          kind: command
+          command: "uv run pytest tests/test_subset_verifiers.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["subset_verifier_tests"]
+        - name: "An undocumented surface element is reported"
+          kind: command
+          command: "uv run pytest tests/test_subset_verifiers.py -q -k 'undocumented'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["excess_detected"]
+    outputs:
+      result_keys:
+        - argparse_verifier
+        - fastapi_verifier
+        - mcp_verifier
+      artifacts:
+        - "packages/gen-eval/tests/test_subset_verifiers.py"
+
+  # ------------------------------------------------------------- integration
+  - package_id: wp-integration
+    title: "gen-eval self-migration, CI gates, downstream notice"
+    task_type: integration
+    description: |
+      Tasks 5.1-5.7. Merge every implementation worktree, wire the deprecation
+      warning, migrate evaluation/descriptor.yaml to a derived tool descriptor,
+      wire both drift guards into the gen-eval-tests CI job, refresh
+      DOWNSTREAM.md, update the README.
+
+      Acceptance signal: `make dogfood` must stop reporting "0 interfaces".
+      That number becoming the contracted flag count is what proves the model
+      works end to end.
+    role: python-engineer
+    archetype: integrator
+    priority: 4
+    depends_on:
+      - wp-tool-descriptor
+      - wp-service-descriptor
+      - wp-coverage-model
+      - wp-subset-verifiers
+    locks:
+      files:
+        - ".github/workflows/ci.yml"
+        - "packages/gen-eval/evaluation/descriptor.yaml"
+      keys:
+        - "feature:gen-eval:integration"
+      ttl_minutes: 180
+      reason: "Cross-package merge plus CI wiring"
+    scope:
+      write_allow:
+        - "packages/gen-eval/**"
+        - ".github/workflows/ci.yml"
+        - "openspec/changes/derive-descriptors-from-contracts/DOWNSTREAM.md"
+      read_allow:
+        - "**"
+      deny: []
+    worktree:
+      name: ddfc-integration
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full gen-eval suite passes"
+          kind: command
+          command: "uv run pytest -q -m 'not e2e and not integration'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["full_suite"]
+        - name: "Dogfood declares a non-empty surface"
+          kind: command
+          command: "make dogfood"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts:
+              - "packages/gen-eval/evaluation/.reports/gen-eval-report.json"
+            result_keys: ["dogfood_pass", "declared_interfaces_non_empty"]
+        - name: "Both drift guards pass in CI"
+          kind: ci
+          ci:
+            provider: github
+            workflow: "ci.yml"
+          evidence:
+            artifacts: []
+            result_keys: ["ci_drift_guards"]
+    outputs:
+      result_keys:
+        - derived_tool_descriptor
+        - ci_drift_gates
+        - downstream_notice
+      artifacts:
+        - "packages/gen-eval/evaluation/descriptor.yaml"
+        - "openspec/changes/derive-descriptors-from-contracts/DOWNSTREAM.md"
