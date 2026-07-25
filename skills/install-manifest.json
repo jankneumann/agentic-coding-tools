@@ -54,6 +54,7 @@
     "changelog-version": {"distribution": "portable"},
     "claimable-postgres": {"distribution": "portable"},
     "cleanup-feature": {"distribution": "portable"},
+    "codebase-atlas": {"distribution": "portable"},
     "collect-transcripts": {"distribution": "portable"},
     "context-engineering": {"distribution": "portable"},
     "coordination-bridge": {"distribution": "portable"},
