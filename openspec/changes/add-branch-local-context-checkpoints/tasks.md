@@ -6,7 +6,7 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
 
 ## Phase 1 — Report contract (wp-contracts)
 
-- [ ] 1.1 Write contract tests for the checkpoint report schema — valid document accepted;
+- [x] 1.1 Write contract tests for the checkpoint report schema — valid document accepted;
       `namespace.kind: "main"` rejected; `checkpoint_status: "failed"` rejected;
       `context_impact.status: "unmigrated"` accepted alongside a non-empty surface list.
       **Spec scenarios**: pcro "Report validates against the checkpoint schema",
@@ -16,19 +16,19 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: None
       **Size**: S
 
-- [ ] 1.2 Add a resolution test proving the `$ref`s into
+- [x] 1.2 Add a resolution test proving the `$ref`s into
       `context-refresh-types.schema.json` resolve once installed beside the existing
       context-refresh schemas.
       **Design decisions**: D7
       **Dependencies**: 1.1
       **Size**: S
 
-- [ ] 1.3 Install `context-checkpoint.schema.json` into `openspec/schemas/` and mirror it
+- [x] 1.3 Install `context-checkpoint.schema.json` into `openspec/schemas/` and mirror it
       into `skills/project-context-refresh/install_assets/openspec/schemas/`.
       **Dependencies**: 1.1, 1.2
       **Size**: S
 
-- [ ] 1.4 Checkpoint: run tests, review diff, verify scope.
+- [x] 1.4 Checkpoint: run tests, review diff, verify scope.
 
 ## Phase 2 — Index namespace and scope threading (wp-adapter)
 
