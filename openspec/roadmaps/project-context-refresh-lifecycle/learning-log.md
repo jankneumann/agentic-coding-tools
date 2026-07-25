@@ -7,3 +7,4 @@
 | ri-03 | validation | Exact immutable selection, scope-language proof, and body-aware readiness converged with no review blocker |
 | ri-06 | validation | Durable operation records live under <git-common-dir>/project-context/refresh-op |
 | ri-04 | validation | architecture.provenance.json records analyzed SHA, dirty state, producer version |
+| ri-05 | validation | Every producer imports and returns the ri-06 ProducerResult; ri-05 adds only reg |
