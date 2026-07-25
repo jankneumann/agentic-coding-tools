@@ -8,7 +8,6 @@ import subprocess
 import pytest
 
 import cli
-import orchestrator
 from registry import Producer, ProducerError, ProducerSpec, list_producers, register
 
 FULL_SHA = "a" * 40
@@ -37,19 +36,21 @@ class _FreshProducer(Producer):
         )
 
 
-def test_refresh_check_reports_summary_and_exit_code(tmp_path, capsys):
-    register(_FreshProducer("documentation.inventory"))
+def test_refresh_check_reports_summary_with_owner_and_exit_code(tmp_path, capsys):
+    register(_FreshProducer("documentation.inventory", owner="doc-owner"))
     code = cli.main(
         ["--repo", str(tmp_path), "--revision", FULL_SHA, "refresh-check", "--producer", "documentation.inventory"]
     )
     out = json.loads(capsys.readouterr().out)
     assert out["outcome"] == "succeeded"
     assert code == 0
-    assert [p["producer_id"] for p in out["producer_results"]] == ["documentation.inventory"]
+    entry = out["producer_results"][0]
+    assert entry["producer_id"] == "documentation.inventory"
+    # Owner is preserved via the registry join (ri-06 ProducerResult has no owner field).
+    assert entry["owner"] == "doc-owner"
 
 
-def test_refresh_single_producer_preserves_owner(tmp_path, capsys, monkeypatch):
-    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+def test_scoped_refresh_reports_producer_without_manifest(tmp_path, capsys, monkeypatch):
     register(_FreshProducer("documentation.inventory", owner="doc-owner"))
     register(_FreshProducer("api.contracts"))
     # Skip the checkout guard so the mutating path runs in the test sandbox.
@@ -58,22 +59,20 @@ def test_refresh_single_producer_preserves_owner(tmp_path, capsys, monkeypatch):
         ["--repo", str(tmp_path), "--revision", FULL_SHA, "refresh", "--producer", "documentation.inventory"]
     )
     out = json.loads(capsys.readouterr().out)
-    ids = [p["producer_id"] for p in out["producer_results"]]
-    assert ids == ["documentation.inventory"]
-    # The manifest exists and preserves the producer id.
-    manifest = tmp_path / orchestrator.DEFAULT_MANIFEST_PATH
-    assert manifest.is_file()
-    assert code in (0, 2)  # succeeded, or degraded if the tmp store degrades
+    assert [p["producer_id"] for p in out["producer_results"]] == ["documentation.inventory"]
+    assert out["producer_results"][0]["owner"] == "doc-owner"
+    # A scoped run emits no aggregate manifest and no durable operation.
+    assert out["manifest_path"] is None
+    assert out["operation_id"] is None
+    assert code == 0
 
 
-def test_refresh_refuses_shared_checkout(tmp_path, monkeypatch):
+def test_refresh_refuses_real_shared_checkout(tmp_path):
+    # Exercise the REAL checkout-policy guard (no monkeypatch): a plain checkout
+    # that is not a managed worktree must be refused, so the gate is not decoration.
+    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
     register(_FreshProducer("documentation.inventory"))
-
-    def _boom(repo):
-        raise ProducerError("refusing to write outside a managed worktree: shared")
-
-    monkeypatch.setattr(cli, "_require_mutation", _boom)
-    with pytest.raises(ProducerError):
+    with pytest.raises(ProducerError, match="managed worktree"):
         cli.main(["--repo", str(tmp_path), "--revision", FULL_SHA, "refresh"])
 
 

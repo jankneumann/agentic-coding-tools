@@ -50,7 +50,9 @@ gates (ri-10/ri-11) and impact declarations (ri-08/ri-09) can reuse one lifecycl
 ## Out of Scope / Follow-ups
 
 - A `capability` context producer (named in the source proposal, no canonical owner
-  today) — filed as a follow-up roadmap item.
+  today) — filed as follow-up coordinator issue `dced1d51` (candidate change
+  `add-capability-context-producer`). The orchestrator iterates the registry, so it
+  will pick the producer up automatically once one is registered.
 - CI/merge drift gates over the manifest (ri-10/ri-11) and work-package impact
   declarations (ri-08/ri-09).
 

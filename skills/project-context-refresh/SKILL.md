@@ -57,7 +57,9 @@ canonical owner; the manifest is written to the gitignored
 `.git-context/context-refresh-manifest.json` so reruns never dirty the tree.
 
 The proposal's `capability` producer has no canonical owner and is **not
-configured** — see the ri-07 follow-up (`add-capability-context-producer`).
+configured** — tracked as an ri-07 follow-up (coordinator issue
+`dced1d51`, candidate change `add-capability-context-producer`). Once such a
+producer registers in `registry.py`, the orchestrator picks it up automatically.
 
 ## CLI
 
