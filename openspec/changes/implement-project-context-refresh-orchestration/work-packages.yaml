@@ -1,0 +1,141 @@
+schema_version: 1
+
+feature:
+  id: implement-project-context-refresh-orchestration
+  title: "Implement project context refresh orchestration"
+  plan_revision: 1
+  created_by: autopilot-roadmap
+
+defaults:
+  priority: 7
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-semantic-adapter
+    title: "Degradable semantic-index adapter"
+    task_type: implementation
+    description: |
+      Tasks 1.1–1.2. Map ri-02 code_search outcomes to a ri-06
+      SemanticIndexReference: success -> SUCCEEDED; unavailable DB/service or
+      indexing error -> non-succeeded reference with a bounded fallback, never
+      raising. Import ri-06 models only; define no new result model.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/semantic_adapter.py"
+      keys:
+        - "impl:semantic-adapter"
+      ttl_minutes: 60
+      reason: "Add the degradable semantic-index adapter"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/semantic_adapter.py"
+        - "skills/tests/project-context-refresh/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: refresh-orchestration-semantic
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Semantic adapter tests pass without a DB"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh -q -k semantic"
+
+  - package_id: wp-orchestrator
+    title: "Outcome core + producer drive loop"
+    task_type: implementation
+    description: |
+      Tasks 2.1–3.3. Pure terminal-state outcome function (D5) plus orchestrator.py:
+      open/reuse one canonical operation, begin_attempt, record the four ri-05
+      deterministic producers and the ri-04 architecture result BEFORE the semantic
+      index, record the semantic reference, finalize, then write + record the
+      manifest under .git/. Idempotent, byte-stable, no working-tree diff on rerun.
+    role: implementer
+    priority: 2
+    depends_on:
+      - wp-semantic-adapter
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/orchestrator.py"
+      keys:
+        - "impl:refresh-orchestrator"
+      ttl_minutes: 120
+      reason: "Add the cross-producer orchestration drive loop"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/orchestrator.py"
+        - "skills/tests/project-context-refresh/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: refresh-orchestration-core
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Orchestrator + outcome tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh -q"
+        - name: "Runtime regression stays green"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-runtime -q"
+
+  - package_id: wp-cli-surface
+    title: "CLI, boundary, ownership, docs"
+    task_type: implementation
+    description: |
+      Tasks 4.1–5.2. refresh / refresh-check subcommands + --producer filter;
+      checkout_policy refusal of a shared checkout; make targets (exit 0/2/1);
+      manifest preserves producer_id + owner and omits unconfigured producers;
+      SKILL.md ownership update; capability-producer follow-up filed.
+    role: implementer
+    priority: 3
+    depends_on:
+      - wp-orchestrator
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/cli.py"
+        - "skills/project-context-refresh/SKILL.md"
+        - "Makefile"
+      keys:
+        - "impl:refresh-cli"
+      ttl_minutes: 90
+      reason: "Expose the orchestration surface and finalize docs"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/cli.py"
+        - "skills/project-context-refresh/SKILL.md"
+        - "Makefile"
+        - "skills/tests/project-context-refresh/**"
+        - "openspec/changes/implement-project-context-refresh-orchestration/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: refresh-orchestration-cli
+      mode: isolated
+    timeout_minutes: 75
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "CLI + boundary tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh -q"
+        - name: "OpenSpec change validates strict"
+          kind: command
+          command: "npx --yes @fission-ai/openspec@latest validate implement-project-context-refresh-orchestration --strict"
