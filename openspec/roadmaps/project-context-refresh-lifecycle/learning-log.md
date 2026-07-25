@@ -8,3 +8,4 @@
 | ri-06 | validation | Durable operation records live under <git-common-dir>/project-context/refresh-op |
 | ri-04 | validation | architecture.provenance.json records analyzed SHA, dirty state, producer version |
 | ri-05 | validation | Every producer imports and returns the ri-06 ProducerResult; ri-05 adds only reg |
+| ri-07 | validation | orchestrator.py + semantic_adapter.py in the ri-05 skill import the ri-06 Operat |

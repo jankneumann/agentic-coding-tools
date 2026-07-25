@@ -157,7 +157,7 @@ items:
     operation identity.
 - item_id: ri-07
   title: Implement project context refresh orchestration
-  status: approved
+  status: completed
   priority: 7
   effort: L
   depends_on:
@@ -182,6 +182,8 @@ items:
   - Each producer remains independently runnable and its refresh result identifies
     its canonical owner.
   - No refresh path independently writes main outside an authorized sync-point operation.
+  learning_refs:
+  - ri-07
 - item_id: ri-08
   title: Add work-package context impact declarations
   status: approved
@@ -328,4 +330,4 @@ items:
     coding-context utility gates pass.
   - A later regression or unavailable exact-revision index disables semantic injection
     and restores explicit exact-search fallback.
-updated_at: '2026-07-25T01:18:34.101144+00:00'
+updated_at: '2026-07-25T02:36:04.397880+00:00'
