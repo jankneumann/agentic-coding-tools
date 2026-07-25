@@ -49,3 +49,16 @@ def test_documented_make_targets_exist():
     makefile = (SKILL_DIR.parents[1] / "Makefile").read_text(encoding="utf-8")
     assert "\natlas:" in makefile
     assert "\natlas-check:" in makefile
+
+
+def test_runtime_invocation_is_documented():
+    """A `portable` skill must be usable from an installed runtime copy.
+
+    `install.sh` copies the skill directory but not this repo's root Makefile, so
+    a SKILL.md that documents only `make atlas` breaks in consumer repositories.
+    The `<skill-base-dir>` script form must be present, and the Make targets must
+    be marked as source-checkout conveniences.
+    """
+    body = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+    assert '"<skill-base-dir>/scripts/build_atlas.py"' in body
+    assert "source-checkout convenience" in body

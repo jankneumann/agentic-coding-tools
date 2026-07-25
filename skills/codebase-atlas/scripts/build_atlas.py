@@ -118,11 +118,19 @@ def main(argv: list[str] | None = None) -> int:
         f"{meta['moduleCount']} files, {meta['nodeCount']} symbols, {meta['edgeCount']} edges"
     )
     for cov in payload.get("coverage") or []:
-        if cov["percent"] < 99.0 and cov["filesOnDisk"]:
-            print(
-                f"  coverage {cov['language']}: {cov['filesInGraph']}/{cov['filesOnDisk']} "
-                f"files ({cov['percent']}%)"
-            )
+        if not cov["filesOnDisk"]:
+            continue
+        if cov["filesMatched"] >= cov["filesOnDisk"] and not cov["filesMissing"]:
+            continue
+        # Print filesMatched, the same numerator `percent` is derived from. Using
+        # filesInGraph here made the line contradict its own percentage.
+        line = (
+            f"  coverage {cov['language']}: <={cov['filesMatched']}/{cov['filesOnDisk']} "
+            f"files (<={cov['percent']}%), from {cov['filesInGraph']} distinct name(s)"
+        )
+        if cov["filesMissing"]:
+            line += f" — {cov['filesMissing']} graph file(s) absent from disk (stale)"
+        print(line)
     return 0
 
 
