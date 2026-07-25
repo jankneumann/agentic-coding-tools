@@ -120,7 +120,19 @@
           "items": { "type": "string", "minLength": 1 },
           "description": "Architecture nodes differing from the merge-base graph. Sorted for byte stability."
         }
-      }
+      },
+      "allOf": [
+        {
+          "$comment": "D6 / pcro.7: a delta computed from a non-fresh artifact can never be authoritative. Encoded rather than described, following the if/then precedent in context-refresh-types.schema.json.",
+          "if": {
+            "required": ["freshness"],
+            "properties": { "freshness": { "not": { "const": "fresh" } } }
+          },
+          "then": {
+            "properties": { "delta_authoritative": { "const": false } }
+          }
+        }
+      ]
     },
     "semantic_index": {
       "$ref": "./context-refresh-types.schema.json#/$defs/SemanticIndexReference",

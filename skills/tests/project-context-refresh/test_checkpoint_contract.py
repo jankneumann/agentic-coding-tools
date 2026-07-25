@@ -366,6 +366,49 @@ class TestArchitectureFindings:
         doc["architecture"]["freshness"] = "probably-fine"
         assert "architecture/freshness" in _paths(_errors(validator, doc))
 
+    @pytest.mark.parametrize("freshness", ["stale", "unknown"])
+    def test_non_fresh_artifact_cannot_claim_an_authoritative_delta(
+        self, validator: Draft202012Validator, freshness: str
+    ) -> None:
+        """D6 / pcro.7: the invariant is encoded, not merely described.
+
+        A stale delta presented as authoritative is the exact outcome D6 exists to
+        prevent, so the contract must reject it rather than rely on the producer
+        setting the flag correctly.
+        """
+        doc = _valid_checkpoint()
+        doc["architecture"] = {
+            "freshness": freshness,
+            "delta_authoritative": True,
+            "changed_nodes": ["skills/project-context-refresh/scripts/checkpoint.py"],
+        }
+        assert _errors(validator, doc), (
+            f"freshness={freshness!r} accepted delta_authoritative=True"
+        )
+
+    def test_fresh_artifact_may_claim_an_authoritative_delta(
+        self, validator: Draft202012Validator
+    ) -> None:
+        """The guard must not over-fire: a fresh artifact keeps both flag values legal."""
+        doc = _valid_checkpoint()
+        doc["architecture"] = {
+            "freshness": "fresh",
+            "delta_authoritative": True,
+            "changed_nodes": ["skills/project-context-refresh/scripts/checkpoint.py"],
+        }
+        assert _errors(validator, doc) == []
+
+    def test_fresh_artifact_may_still_disclaim_authority(
+        self, validator: Draft202012Validator
+    ) -> None:
+        doc = _valid_checkpoint()
+        doc["architecture"] = {
+            "freshness": "fresh",
+            "delta_authoritative": False,
+            "changed_nodes": [],
+        }
+        assert _errors(validator, doc) == []
+
 
 # --------------------------------------------------------------------------- #
 # Reference resolution (task 1.2)
