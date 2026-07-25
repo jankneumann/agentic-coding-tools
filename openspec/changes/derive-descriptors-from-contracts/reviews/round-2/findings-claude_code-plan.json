@@ -1,0 +1,85 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "The Dogfood 80% coverage floor becomes unreachable, not merely unsatisfied \u2014 the plan swaps a guaranteed 0% violation for a guaranteed 35% one. Chain, verified end to end: (a) task 4.7 wires the argparse subset verifier against gen-eval's REAL parser into CI and requires it to go red when a parser flag is uncontracted, so the CLI contract must be a superset of the parser; (b) task 5.3 derives evaluation/descriptor.yaml's declared surface from that contract; (c) task 3.6 makes tested identifiers the contracted flags seen in step `args`. I measured both sides. Real parser: `grep -c add_argument src/gen_eval/__main__.py` = 16 long flags, plus argparse's implicit `--help` (present in parser._actions, which the verifier reads) = 17 declared coverage units. Exercised by the dogfood scenarios: I parsed all step `args` in evaluation/scenarios/*.yaml and got 6 distinct flags \u2014 `--descriptor`, `--fail-threshold`, `--help`, `--openspec-change`, `--output-dir`, `--print-contract-version`. Maximum achievable coverage_pct = 6/17 = 35.3% (5/16 = 31.2% if --help is not contracted). The MODIFIED Dogfood requirement (spec.md:283) conditions the 80% floor on the declared surface being NON-EMPTY, which task 5.3 is precisely what makes true, and wp-integration's third verification step hard-asserts `c >= 80` on packages/gen-eval/evaluation/.reports/gen-eval-report.json. Reaching 80% of 17 needs 8 additional flags exercised; no task in tasks.md adds dogfood scenarios (Phase 5 is 5.1, 5.2, 5.3, 5.4, 5.4a, 5.5, 5.6, 5.7 \u2014 migration, gates, docs). Worse, proposal.md:140-142 states the intent as 'make the 80% coverage floor conditional on the descriptor having nameable interfaces \u2014 a flag-only tool descriptor cannot meet it', but the delta's condition (non-emptiness) makes the floor apply to exactly the flag-only descriptor the proposal says cannot meet it. D10 correctly diagnosed the 0% problem and correctly demanded coverage_pct be the acceptance signal; it did not check whether the resulting figure could clear the floor.",
+      "resolution": "Pick one and make the spec, the tasks and wp-integration agree: (a) add a Phase 5 task authoring dogfood scenarios covering the remaining ~8 flags (--mode, --cli-command, --time-budget, --sdk-budget, --max-iterations, --parallel, --categories, --report-format, --no-services, --verbose, --changed-features-ref) and keep the 80% assertion; or (b) restate the MODIFIED Dogfood requirement so the 80% floor binds the coordinator service descriptor and gen-eval's tool descriptor carries an explicitly stated, achievable floor (e.g. 35%) that ratchets upward, and change wp-integration's assertion and task 5.4a to that number. Either way the number in the spec, the --min-coverage value wired into `make dogfood` by 5.4a, and wp-integration's `c >= 80` must be the same number.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md"
+    },
+    {
+      "id": 2,
+      "type": "behavioral_failure",
+      "criticality": "critical",
+      "description": "wp-rename's new fourth verification step cannot pass on any correct implementation \u2014 it directly contradicts wp-rename's own first step and task 0.1. Added in e251030d, the step is: `pat=re.compile(r'\\b(EndpointDescriptor|CommandDescriptor)\\b'); hits=[str(p) for d in ('src','tests') for p in pathlib.Path(d).rglob('*.py') if pat.search(p.read_text())]; sys.exit(...) if hits`. But step 1 of the same package requires `getattr(gen_eval, 'EndpointDescriptor')` to resolve AND emit DeprecationWarning, and task 0.1 mandates a test that 'must assert the OLD names still import and emit DeprecationWarning'. Both of those require the literal strings `EndpointDescriptor` and `CommandDescriptor` to appear in .py files under src/ (the alias table or module __getattr__) and under tests/ (test_descriptor_naming.py, which is itself in wp-rename's write_allow). I built the minimal tree the plan mandates \u2014 *Spec classes plus a module-level __getattr__ alias table in src/gen_eval/descriptor.py and src/gen_eval/__init__.py, plus the task-0.1 test \u2014 and ran both commands verbatim: step 1 exits 0 ('4 aliases present and warning'); step 4 exits 1 with 'deprecated names still used in: src/gen_eval/descriptor.py, src/gen_eval/__init__.py, tests/test_descriptor_naming.py'. The commit message reasons about which of the four names to grep (correctly excluding ServiceDescriptor/ToolDescriptor because they survive as the new archetypes) but not about the alias definition sites and the alias test, which are the two places the remaining two names must still appear. The step's stated purpose \u2014 'the ONLY thing that distinguishes a migrated tree from an unmigrated one' \u2014 is right; the predicate is not.",
+      "resolution": "Scope the grep to call sites rather than definition sites: exclude the alias-defining modules and the alias test, e.g. skip `src/gen_eval/descriptor.py`, `src/gen_eval/__init__.py` and `tests/test_descriptor_naming.py`, or restrict the pattern to usage forms (`EndpointDescriptor(`, `: EndpointDescriptor`, `import ... EndpointDescriptor`) and exempt the alias mapping. Prove the gate both fails on the unmigrated tree (it does today \u2014 conftest.py and 10 other files match) and passes on a correctly migrated one, which it currently cannot.",
+      "resolution_note": "",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Task 4.7 belongs to no work package, so the mitigation the design names for its own residual risk is unowned and unscoped. `grep -n '4\\.7' work-packages.yaml` returns nothing. The package descriptions partition the task list exhaustively and leave 4.7 out: wp-rename 'Tasks 0.1-0.3', wp-contracts '1.1, 1.2, 1.7, 1.8, 1.9, 1.10', wp-tool-descriptor '1.3-1.6', wp-service-descriptor '2.1-2.5', wp-coverage-model '3.1-3.8', wp-subset-verifiers 'Tasks 4.1-4.6', wp-integration 'Tasks 5.1-5.7 (including 5.4a)'. Task 4.7 is the sole entry in design.md's Risks table against 'Excess detection ships but never runs against a real surface', and it is the direct response to round-1 finding 8. It also cannot be executed by the package it sits nearest: wiring CI requires writing `.github/workflows/ci.yml`, which appears only in wp-integration's write_allow, while wp-subset-verifiers is scoped to `src/gen_eval/verify/**` and `tests/test_subset_verifiers.py`. A second obstacle nobody owns: there is no parser factory to verify against \u2014 `src/gen_eval/__main__.py:72` builds the ArgumentParser inside `parse_args()` and parses immediately, so exposing it needs an edit to `__main__.py`, which is in wp-coverage-model's write_allow, not wp-subset-verifiers'. `validate_work_packages.py` reports VALID because it checks schema, depends_on refs, DAG cycles and lock keys \u2014 not task coverage. (Related, smaller: e251030d added task 0.4 and put its files and its gate in wp-rename, but left the description reading 'Tasks 0.1-0.3'.)",
+      "resolution": "Assign 4.7 to wp-integration (it owns ci.yml and runs after wp-subset-verifiers) and add a task or note giving whichever package owns it permission to expose the parser \u2014 either extract a `build_parser()` from `parse_args()` under wp-coverage-model (which already writes `__main__.py`) with 4.7 depending on it, or add `src/gen_eval/__main__.py` to the owning package's write_allow. Update wp-rename's description to 'Tasks 0.1-0.4'.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "wp-coverage-model\u5fc5 changes the model that generates a checked-in contract schema, cannot regenerate it, and its own verification cannot detect that. `scripts/generate_contract_schemas.py` (docstring lines 4-8, imports at :37) generates `eval-report.schema.json` from `reports.GenEvalReport`; `tests/test_contract_schemas.py::TestNoDrift::test_generator_check_mode_passes` (:72) shells out to `--check` and fails on any byte difference. Task 3.2 implements 'the operation-keyed coverage structures in the report model' and the spec requires the report to carry both the operation model and the legacy flat fields, so `GenEvalReport` gains fields. wp-coverage-model's write_allow is exactly six files \u2014 reports.py, orchestrator.py, evaluator.py, __main__.py and two test files \u2014 with nothing under `src/gen_eval/contracts/**`, and its four verification steps run only `tests/test_coverage_model.py` and `tests/test_coverage_vocabulary.py`. So the package self-certifies green while leaving `test_contract_schemas.py` red. wp-rename got `contracts/interface-descriptor.schema.json` and `contracts/VERSION` in its write_allow during the round-1 fix, but the report schema is generated by a different package and was not carried across. The failure first appears at wp-integration's 'Full gen-eval suite passes' step, where no task instructs regeneration \u2014 this is round-1 finding 10, still open for the coverage package.",
+      "resolution": "Add `packages/gen-eval/src/gen_eval/contracts/**` to wp-coverage-model's write_allow and a task under Phase 3 regenerating the published schemas after the report model changes, plus a verification step running `uv run pytest tests/test_contract_schemas.py -q` in that package so drift is caught where it is created rather than at integration.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "D3's schema-level fail-closed floor keys on the exact string `\"\"` and nothing else, and the spec sentence defining the coverage unit contradicts itself. I validated 13 documents against contracts/cli-contract.schema.json with Draft202012Validator. The round-1 repro is genuinely fixed: `{\"commands\":[{\"name\":\"\"}]}` REJECTED, `{\"name\":\"\",\"flags\":[]}` REJECTED, `{\"name\":\"\",\"positionals\":[]}` REJECTED, and a mixed array `[{\"name\":\"run\"},{\"name\":\"\"}]` REJECTED, while `{\"name\":\"\",\"flags\":[{...}]}` and `{\"name\":\"\",\"positionals\":[{...}]}` still validate. But the `if: {properties: {name: {const: \"\"}}}` guard is bypassed by any name that is not literally empty: `{\"commands\":[{\"name\":\" \"}]}` PASSES with zero flags, and `commands[].name` has no minLength or pattern. That document derives an empty surface \u2014 gen-eval's own tokenizer treats it that way, `evaluator.py:539` does `step.command.strip().split()` and yields nothing for whitespace. Separately, spec.md:74-76 says the coverage unit is 'the flag, positional argument, or named subcommand' and then 'The guard SHALL NOT count commands as coverage units for a tool descriptor' \u2014 but a named subcommand IS a command with a non-empty name, so the two sentences give opposite answers for `{\"commands\":[{\"name\":\"run\"},{\"name\":\"check\"}]}` (2 units, or 0 and a guard failure on a legitimate subcommand-only contract). Mitigating: D3's assertion (1) at generation time still fails the whitespace case, so the overall fail-closed property holds; what is incomplete is the schema layer D3 claims to have added and the requirement text an implementer works from.",
+      "resolution": "Give `commands[].name` a pattern such as `^(|[a-z0-9][a-z0-9 -]*)$` so the only name that reaches the empty-name branch is the literal empty string, and rewrite spec.md:76 to say what is meant: 'a command with a non-empty name contributes one coverage unit; a command with an empty name contributes none of its own and MUST declare at least one flag or positional.' Add the whitespace-name document to task 1.5's negative fixtures alongside `one_command_zero_flags`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Task 5.6 and wp-integration's description both instruct the implementer to add a DOWNSTREAM section that already exists under a different number and a different topic. Task 5.6's second note: 'must add DS-4 for the CONTRACT_VERSION 1 \u2192 2 bump and the renamed $defs titles'; wp-integration's description: 'refresh DOWNSTREAM.md (including DS-4 for the CONTRACT_VERSION bump)'. But DOWNSTREAM.md already ships DS-4 as 'Two things we recorded but did not fix' (the JSON-parsed scalar stdout and the missing-descriptor traceback), and the rename notice was written as DS-5 'Model types are renamed; CONTRACT_VERSION goes 1 \u2192 2', which already contains the full rename table and the three consumer actions. An implementer following 5.6 literally either duplicates the content or overwrites the two consumer-facing caveats in the existing DS-4.",
+      "resolution": "Change both references from DS-4 to DS-5, and reword task 5.6's note from 'must add' to 'must reconcile DS-5 with what actually shipped' \u2014 the section already exists.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/tasks.md"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Round-1 finding 9's second half is still open. Task 1.1 ('Write tests for CLI contract schema validation \u2014 required fields, exit codes, flag types', tasks.md:58-62) is mapped to **Spec scenarios**: 'Service And Tool Descriptor Archetypes (tool descriptor requires no lifecycle configuration)'. That scenario asserts the orchestrator skips startup, health check, seeding and teardown for a tool descriptor; task 1.1 authors JSON Schema validation tests and exercises no orchestrator path. The first half of finding 9 was fixed \u2014 task 2.1 now covers 'unreachable implementation does not shrink the declared surface' \u2014 but this mapping was not corrected, so the lifecycle scenario's only listed coverage is a task that cannot exercise it.",
+      "resolution": "Re-map task 1.1 to 'Descriptor Derivation Drift Guard' (or drop the scenario field, since 1.1 is schema authoring), and confirm the lifecycle scenario has a covering task \u2014 the closest current candidate is 1.4.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/tasks.md"
+    }
+  ]
+}

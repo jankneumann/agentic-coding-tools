@@ -57,8 +57,13 @@ packages:
         - "packages/gen-eval/src/gen_eval/descriptor.py"
         - "packages/gen-eval/src/gen_eval/__init__.py"
         - "packages/gen-eval/src/gen_eval/contracts/__init__.py"
+        # generate_contract_schemas.py writes FOUR artifacts and stamps
+        # x-gen-eval-contract-version into all three schemas, so a CONTRACT_VERSION
+        # bump changes every one of them — not just the descriptor schema.
         - "packages/gen-eval/src/gen_eval/contracts/VERSION"
         - "packages/gen-eval/src/gen_eval/contracts/interface-descriptor.schema.json"
+        - "packages/gen-eval/src/gen_eval/contracts/scenario.schema.json"
+        - "packages/gen-eval/src/gen_eval/contracts/eval-report.schema.json"
         - "packages/gen-eval/tests/test_public_api_parity.py"
         - "packages/gen-eval/tests/test_descriptor_naming.py"
         # The 11 existing test files that reference the renamed types. Aliases
@@ -91,17 +96,29 @@ packages:
     verification:
       tier_required: B
       steps:
-        # Asserts BOTH that each old name still resolves AND that it warns.
-        # Presence alone would be satisfied by a plain re-export that silently
-        # never deprecates; a warning alone would be satisfied by a broken alias.
-        # Must not be suffixed with `|| true` — a step that cannot fail is
-        # decoration, which is the defect class this whole change removes.
-        - name: "Old names resolve as deprecation aliases and emit DeprecationWarning"
+        # Only TWO of the four old names can be aliases (D9). ToolDescriptor and
+        # ServiceDescriptor are reused by the new archetypes, so a symbol cannot
+        # resolve to both the legacy element type and the new document type — an
+        # earlier version of this gate asserted all four and was unsatisfiable in
+        # the final state.
+        #
+        # Asserts presence AND warning for the two that can alias: presence alone
+        # is satisfied by a plain re-export that never deprecates.
+        - name: "The two non-reused old names are deprecation aliases that warn"
           kind: command
-          command: "cd packages/gen-eval && python3 -c \"import warnings, gen_eval, sys; failed=[]\nfor n in ('EndpointDescriptor','ToolDescriptor','CommandDescriptor','ServiceDescriptor'):\n    with warnings.catch_warnings(record=True) as w:\n        warnings.simplefilter('always')\n        obj=getattr(gen_eval, n, None)\n        if obj is None: failed.append(n+': missing')\n        elif not any(issubclass(x.category, DeprecationWarning) for x in w): failed.append(n+': no DeprecationWarning')\nsys.exit('alias check failed: '+'; '.join(failed)) if failed else print('4 aliases present and warning')\""
+          command: "cd packages/gen-eval && python3 -c \"import warnings, gen_eval, sys; failed=[]\nfor n in ('EndpointDescriptor','CommandDescriptor'):\n    with warnings.catch_warnings(record=True) as w:\n        warnings.simplefilter('always')\n        obj=getattr(gen_eval, n, None)\n        if obj is None: failed.append(n+': missing')\n        elif not any(issubclass(x.category, DeprecationWarning) for x in w): failed.append(n+': no DeprecationWarning')\nsys.exit('alias check failed: '+'; '.join(failed)) if failed else print('2 aliases present and warning')\""
           evidence:
             artifacts: []
             result_keys: ["deprecation_aliases_present"]
+        # The other half of D9's compatibility boundary: the two reused names must
+        # NOT still be their old element types. Without this the rename could
+        # "pass" by leaving the legacy classes in place under the old names.
+        - name: "The two reused names no longer resolve to their legacy element types"
+          kind: command
+          command: "cd packages/gen-eval && python3 -c \"import gen_eval, sys; bad=[]\nfor n, legacy_field in (('ToolDescriptor','input_schema'), ('ServiceDescriptor','endpoints')):\n    obj=getattr(gen_eval, n, None)\n    if obj is None: bad.append(n+': absent — should name the new archetype')\n    elif legacy_field in getattr(obj, 'model_fields', {}): bad.append(n+': still the legacy element type (has '+legacy_field+')')\nsys.exit('reuse check failed: '+'; '.join(bad)) if bad else print('2 reused names rebound to archetypes')\""
+          evidence:
+            artifacts: []
+            result_keys: ["reused_names_rebound"]
         - name: "New *Spec names are exported and CONTRACT_VERSION is 2"
           kind: command
           command: "cd packages/gen-eval && python3 -c \"import sys, gen_eval; from gen_eval.contracts import CONTRACT_VERSION; missing=[n for n in ('EndpointSpec','McpToolSpec','CommandSpec','ServiceSpec') if not hasattr(gen_eval,n)]; assert not missing, f'not exported: {missing}'; assert str(CONTRACT_VERSION)=='2', f'CONTRACT_VERSION={CONTRACT_VERSION}, expected 2'; print('rename verified')\""
@@ -114,22 +131,34 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["schema_regenerates_clean"]
-        # Task 0.4's gate. The suite passes with or without the migration
-        # because the aliases work, so the ONLY thing that distinguishes a
-        # migrated tree from an unmigrated one is that no source or test file
-        # still spells the old names.
+        # Task 0.4's gate. The suite passes with or without the migration because
+        # the aliases work, so the only thing separating a migrated tree from an
+        # unmigrated one is that no TEST file still spells an old name.
         #
-        # Only EndpointDescriptor and CommandDescriptor are checked, and that is
-        # deliberate: ServiceDescriptor and ToolDescriptor legitimately still
-        # exist after the rename, naming the new document-level archetypes. A
-        # naive grep for all four would fail on correct code. These two are the
-        # names that should appear nowhere after migration.
-        - name: "No src or test file still uses a deprecated name"
+        # Scans tests/ ONLY. An earlier version scanned src/ too and was
+        # unsatisfiable: the aliases this package is required to create live in
+        # src/gen_eval/descriptor.py, so any correct implementation tripped it.
+        #
+        # All four old names are scanned here, not two. At the wp-rename boundary
+        # the new archetypes do not exist yet (wp-rename is a DAG root, and
+        # wp-tool-descriptor / wp-service-descriptor depend on it), so every
+        # occurrence of ToolDescriptor or ServiceDescriptor in tests/ at this
+        # point is still legacy-semantic usage that task 0.4 must migrate.
+        #
+        # Asserts a non-empty corpus first: run from a tree with no tests/ the
+        # scan finds nothing and would otherwise report success.
+        - name: "No test file still uses a pre-rename name"
           kind: command
-          command: "cd packages/gen-eval && python3 -c \"import pathlib,re,sys; pat=re.compile(r'\\b(EndpointDescriptor|CommandDescriptor)\\b'); hits=[str(p) for d in ('src','tests') for p in pathlib.Path(d).rglob('*.py') if pat.search(p.read_text())]; sys.exit('deprecated names still used in: '+', '.join(hits)) if hits else print('no deprecated-name usage')\""
+          command: "cd packages/gen-eval && python3 -c \"import pathlib,re,sys; files=list(pathlib.Path('tests').rglob('*.py')); sys.exit('no test corpus found — gate would pass vacuously') if not files else None; pat=re.compile(r'\\b(EndpointDescriptor|CommandDescriptor|ToolDescriptor|ServiceDescriptor)\\b'); hits=sorted(str(p) for p in files if pat.search(p.read_text())); sys.exit('pre-rename names still used in: '+', '.join(hits)) if hits else print(f'{len(files)} test files scanned, none using pre-rename names')\""
           evidence:
             artifacts: []
             result_keys: ["no_deprecated_name_usage"]
+        - name: "Suite is clean under DeprecationWarning-as-error"
+          kind: command
+          command: "cd packages/gen-eval && uv run pytest -q -W error::DeprecationWarning -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys: ["suite_clean_under_deprecation_error"]
     outputs:
       result_keys:
         - renamed_models
@@ -204,12 +233,23 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["gen_eval_cli_contract_valid"]
-        - name: "CLI contract schema is promoted to its stable location"
+        # Compares the promoted copy against the change-local source. Existence
+        # plus a matching $id is not enough: any stale or unrelated schema
+        # carrying that $id would satisfy it, while consumers read the promoted
+        # copy and instances are validated against the local one. The two must
+        # be the same document.
+        - name: "Promoted CLI contract schema is byte-identical to the reviewed source"
           kind: command
-          command: "python3 -c \"import json,pathlib,sys; p=pathlib.Path('openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json'); assert p.is_file(), f'schema not promoted to {p} — its \\$id points there and DS-3 directs consumers to it'; d=json.loads(p.read_text()); assert d['\\$id'].endswith('/schemas/cli-contract.schema.json'), 'promoted schema \\$id does not match its location'; print('promotion verified')\""
+          command: "python3 -c \"import json,pathlib,sys; src=pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json'); dst=pathlib.Path('openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json'); sys.exit(f'schema not promoted to {dst} — its \\$id points there and DS-3 directs consumers to it') if not dst.is_file() else None; a=src.read_bytes(); b=dst.read_bytes(); sys.exit('promoted schema differs from the reviewed source') if a!=b else None; d=json.loads(b); sys.exit('promoted \\$id does not match its location') if not d['\\$id'].endswith('/schemas/cli-contract.schema.json') else print('promotion verified: byte-identical')\""
           evidence:
             artifacts: []
             result_keys: ["cli_contract_schema_promoted"]
+        - name: "Contract instances validate against the PROMOTED schema, not only the local copy"
+          kind: command
+          command: "python3 -c \"import json,yaml,jsonschema,pathlib,glob,sys; p=pathlib.Path('openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json'); sys.exit('promoted schema missing') if not p.is_file() else None; s=json.loads(p.read_text()); jsonschema.Draft202012Validator.check_schema(s); f=sorted(glob.glob('openspec/contracts/gen-eval-framework/cli/*.y*ml')); sys.exit('no contract instance found') if not f else None; [jsonschema.Draft202012Validator(s).validate(yaml.safe_load(pathlib.Path(x).read_text())) for x in f]; print(f'{len(f)} instance(s) valid against the promoted schema')\""
+          evidence:
+            artifacts: []
+            result_keys: ["instances_valid_against_promoted_schema"]
     outputs:
       result_keys:
         - cli_contract_schema
@@ -382,6 +422,12 @@ packages:
         - "packages/gen-eval/src/gen_eval/orchestrator.py"
         - "packages/gen-eval/src/gen_eval/evaluator.py"
         - "packages/gen-eval/src/gen_eval/__main__.py"
+        # eval-report.schema.json is GENERATED FROM reports.GenEvalReport, which
+        # this package changes. Without write access the package cannot
+        # regenerate the artifact its own edits invalidate, and
+        # test_contract_schemas.py::TestNoDrift would fail downstream with no
+        # package able to fix it. wp-rename's --check ran before these changes.
+        - "packages/gen-eval/src/gen_eval/contracts/eval-report.schema.json"
         - "packages/gen-eval/tests/test_coverage_model.py"
         - "packages/gen-eval/tests/test_coverage_vocabulary.py"
       read_allow:
@@ -425,6 +471,16 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["min_coverage_gate_fails_closed"]
+        # This package changes GenEvalReport, from which eval-report.schema.json
+        # is generated. Regeneration must be proven HERE — wp-rename's identical
+        # check ran at wave 0, before these model changes existed.
+        - name: "Published contract artifacts regenerate clean after the report-model change"
+          kind: command
+          command: "python3 scripts/generate_contract_schemas.py --check"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["contract_artifacts_regenerate_clean"]
     outputs:
       result_keys:
         - operation_coverage_model
@@ -501,11 +557,18 @@ packages:
     title: "gen-eval self-migration, CI gates, downstream notice"
     task_type: integration
     description: |
-      Tasks 5.1-5.7 (including 5.4a). Merge every implementation worktree, wire
-      the deprecation warning, migrate evaluation/descriptor.yaml to a derived
-      tool descriptor, wire both drift guards and --min-coverage into the
-      gen-eval-tests CI job, refresh DOWNSTREAM.md (including DS-4 for the
-      CONTRACT_VERSION bump), update the README.
+      Tasks 4.7 and 5.1-5.7 (including 5.4a/5.4b/5.4c). Merge every
+      implementation worktree, wire the deprecation warning, migrate
+      evaluation/descriptor.yaml to a derived tool descriptor, author the
+      dogfood scenarios and exclusions that satisfy D11's completeness rule,
+      wire the argparse subset verifier plus both drift guards and
+      --min-coverage into the gen-eval-tests CI job, refresh DOWNSTREAM.md
+      (including DS-5 for the CONTRACT_VERSION bump), update the README.
+
+      Task 4.7 lands here rather than in wp-subset-verifiers because it wires
+      CI: wp-subset-verifiers cannot write .github/workflows/ci.yml. Round 2
+      found 4.7 owned by no package at all, which left D11's named mitigation
+      for its own residual risk unimplementable.
 
       Acceptance signal: `make dogfood` reports a coverage figure that is
       non-zero and meets the 80% floor. "Stopped reporting 0 interfaces" is NOT
@@ -563,12 +626,25 @@ packages:
             artifacts:
               - "packages/gen-eval/evaluation/.reports/gen-eval-report.json"
             result_keys: ["dogfood_pass", "coverage_pct_above_floor"]
-        - name: "Dogfood coverage figure is non-zero and meets the 80% floor"
+        # D11: the tool archetype's gate is completeness, not a percentage. An
+        # 80% floor on gen-eval's own CLI is arithmetically unreachable (16 flags,
+        # 5 exercised = 31.2%), so asserting it would ship a gate that can never
+        # pass — the mirror of one that can never fail. Coverage is still
+        # asserted non-zero, because zero means the vocabularies never connected.
+        - name: "Every contracted coverage unit is exercised or excluded with a reason"
           kind: command
-          command: "python3 -c \"import json,pathlib,sys; r=json.loads(pathlib.Path('packages/gen-eval/evaluation/.reports/gen-eval-report.json').read_text()); c=r.get('coverage_pct'); assert c is not None, 'report has no coverage_pct'; assert c > 0, f'coverage is {c}% — declared surface and tested vocabulary are disjoint'; assert c >= 80, f'coverage {c}% below the 80% floor'; print(f'coverage {c}%')\""
+          command: "uv run python scripts/check_coverage_completeness.py evaluation/.reports/gen-eval-report.json"
+          cwd: "packages/gen-eval"
           evidence:
             artifacts: []
-            result_keys: ["coverage_pct_non_vacuous"]
+            result_keys: ["coverage_completeness_satisfied"]
+        - name: "Argparse subset verifier runs against the real parser in CI and can fail"
+          kind: command
+          command: "uv run pytest tests/test_subset_verifiers.py -q -k 'real_parser or negative_control'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["real_surface_excess_gate"]
         - name: "Both drift guards pass in CI"
           kind: ci
           ci:

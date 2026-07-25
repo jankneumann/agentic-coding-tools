@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-07-25T21:04:00Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 15.991713166004047,
+      "error": "Invalid JSON output",
+      "error_class": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "(default)",
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 563.0298477080069,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.5",
+      "models_attempted": [
+        "gpt-5.5"
+      ],
+      "elapsed_seconds": 281.89825116697466,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "grok",
+      "success": false,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 12.550055917003192,
+      "error": "Invalid JSON output",
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": true,
+      "model_used": "qwen/qwen3-coder",
+      "models_attempted": [
+        "qwen/qwen3-coder"
+      ],
+      "elapsed_seconds": 1.7039739160099998,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 3,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-plan.json",
+      "finding_count": 7
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-plan.json",
+      "finding_count": 4
+    },
+    {
+      "name": "pi",
+      "findings_path": "findings-pi-plan.json",
+      "finding_count": 0
+    }
+  ]
+}

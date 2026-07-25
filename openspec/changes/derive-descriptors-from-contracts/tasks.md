@@ -33,10 +33,15 @@ the archetypes. It is mechanical and changes no behaviour.
   **Spec scenarios**: Descriptor Model Naming Levels (both scenarios)
   **Design decisions**: D9
   **Dependencies**: None
-  **Note**: must assert the OLD names still import and emit `DeprecationWarning`,
-  and that `test_public_api_parity.py` reflects the new `__all__`
+  **Note**: only `EndpointDescriptor` and `CommandDescriptor` can be aliases —
+  assert they import and emit `DeprecationWarning`. `ToolDescriptor` and
+  `ServiceDescriptor` are HARD BREAKS: the new archetypes reuse those names, so
+  a symbol cannot resolve to both the legacy element type and the new document
+  type. Assert those two no longer carry the legacy element fields
+  (`input_schema` / `endpoints`). Also assert `test_public_api_parity.py`
+  reflects the new `__all__`.
 
-- [ ] 0.2 Rename the four element/container models and add deprecation aliases `[M]`
+- [ ] 0.2 Rename the four element/container models; add aliases for the two non-reused names `[M]`
   **Design decisions**: D9
   **Dependencies**: 0.1
   **Note**: `EndpointDescriptor`→`EndpointSpec`, `ToolDescriptor`→`McpToolSpec`,
@@ -69,7 +74,7 @@ the archetypes. It is mechanical and changes no behaviour.
 ## Phase 1 — Tool contract + tool descriptor (gen-eval self-migration)
 
 - [ ] 1.1 Write tests for CLI contract schema validation — required fields, exit codes, flag types `[S]`
-  **Spec scenarios**: Service And Tool Descriptor Archetypes (tool descriptor requires no lifecycle configuration)
+  **Spec scenarios**: Descriptor Derivation Drift Guard (a tool contract declaring commands but no coverage units fails)
   **Contracts**: `contracts/cli-contract.schema.json`
   **Design decisions**: D5 (tool contracts are a separate schema)
   **Dependencies**: None
@@ -130,6 +135,9 @@ the archetypes. It is mechanical and changes no behaviour.
   **Spec scenarios**: Contract As Descriptor Source Of Truth (descriptor derives from a contract)
   **Design decisions**: D1, D7
   **Dependencies**: None
+  **Note**: must exercise the `x-gen-eval-surface` binding extension (D4) —
+  two operations declaring the same `mcp.element`, and at least one operation
+  with a surface marked `exposed: false`.
   **Note**: task 2.1 declares `contracts/openapi/v1.yaml` as its fixture, but no
   task authored it and `wp-service-descriptor` is not scoped to write under
   `openspec/changes/**/contracts/`. It must include a **many-to-one** case (two
@@ -311,14 +319,39 @@ the archetypes. It is mechanical and changes no behaviour.
   **Design decisions**: D3
   **Dependencies**: 5.3
 
-- [ ] 5.4a Wire `--min-coverage` into `make dogfood` and assert a real coverage figure `[S]`
-  **Spec scenarios**: Dogfood (template-only run achieves 80% interface coverage)
-  **Design decisions**: D10
+- [ ] 5.4a Write tests for the coverage-completeness rule `[S]`
+  **Spec scenarios**: Dogfood (an unexercised, unexcluded tool coverage unit fails the gate); Dogfood (an excluded coverage unit states why)
+  **Design decisions**: D11
   **Dependencies**: 3.8, 5.3
-  **Note**: the acceptance signal must be `coverage_pct`, NOT
-  `declared_interfaces_non_empty` — non-emptiness of the declared set is the
-  same vacuous signal this change exists to remove, and would go green on a run
-  reporting 0%.
+  **Note**: must prove the gate FAILS on (a) a unit that is neither exercised
+  nor excluded, and (b) an exclusion with a blank reason.
+
+- [ ] 5.4b Implement `scripts/check_coverage_completeness.py` `[S]`
+  **Design decisions**: D11
+  **Dependencies**: 5.4a
+  **Note**: asserts `coverage_pct > 0` (zero means declared and tested
+  vocabularies never connected), then that every unevaluated unit carries an
+  exclusion with a non-blank reason. This is `make dogfood`'s acceptance gate —
+  NOT `declared_interfaces_non_empty`, which goes green on a 0% run, and NOT
+  `coverage_pct >= 80`, which is unreachable for this surface.
+
+- [ ] 5.4c Author dogfood scenarios and exclusions covering the contracted flag surface `[M]`
+  **Spec scenarios**: Dogfood (gen-eval evaluates its own CLI surface)
+  **Design decisions**: D11
+  **Dependencies**: 5.4b
+  **Note**: measured on the branch — 16 long flags in `__main__.py`, 5 exercised
+  by scenarios (`--descriptor`, `--fail-threshold`, `--openspec-change`,
+  `--output-dir`, `--print-contract-version`), i.e. 31.2%. Task 3.8 adds
+  `--min-coverage`, making 17. The remaining 11 (`--categories`,
+  `--changed-features-ref`, `--cli-command`, `--max-iterations`, `--mode`,
+  `--no-services`, `--parallel`, `--report-format`, `--sdk-budget`,
+  `--time-budget`, `--verbose`) must each be exercised by a scenario or given a
+  written exclusion reason. Do not close the gap by lowering a threshold —
+  D11 has no threshold to lower.
+
+- [ ] 5.4d Wire `--min-coverage` and the completeness check into `make dogfood` `[S]`
+  **Design decisions**: D10, D11
+  **Dependencies**: 5.4b, 5.4c
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
@@ -330,7 +363,7 @@ the archetypes. It is mechanical and changes no behaviour.
   **Design decisions**: D4, D6, D9
   **Dependencies**: 3.4, 0.3
   **Note**: the notice was authored at plan time (DS-1 is actionable by ACA immediately and does not depend on this change). This task reconciles DS-2's described shape with what actually shipped, then answers the three open questions at its end.
-  **Note**: must add DS-4 for the `CONTRACT_VERSION` 1 → 2 bump and the renamed
+  **Note**: must add DS-5 for the `CONTRACT_VERSION` 1 → 2 bump and the renamed
   `$defs` titles — DS-2/DS-3 already tell consumers to read that schema, so a
   silent title change would break exactly the readers we directed there.
 
