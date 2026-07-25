@@ -105,7 +105,7 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
 
 - [x] 3.6 Checkpoint: run tests, review diff, verify scope.
 
-- [ ] 3.7 Write the architecture-coverage test — a stale artifact yields
+- [x] 3.7 Write the architecture-coverage test — a stale artifact yields
       `delta_authoritative: false`; a fresh artifact yields the changed-node list.
       **Spec scenarios**: pcro "Stale architecture artifact yields a labelled delta",
       pcro "Fresh architecture artifact yields an authoritative delta"
@@ -113,7 +113,7 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: 3.5
       **Size**: S
 
-- [ ] 3.8 Add architecture coverage to `checkpoint.py` — freshness via
+- [x] 3.8 Add architecture coverage to `checkpoint.py` — freshness via
       `run_architecture.py --check`, delta via `diff_architecture.py` against the merge base.
       **Dependencies**: 3.7
       **Size**: M
