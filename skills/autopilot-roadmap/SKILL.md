@@ -73,6 +73,10 @@ The orchestrator queries `roadmap.ready_items()` to find items whose dependencie
 
 So the first dispatch for any item is planning, not implementation: run `/plan-feature` for the item (seeded from its `title`, `description`, `rationale`, and `acceptance_outcomes` in `roadmap.yaml`) and let it author the spec deltas. Only once that change validates does `/implement-feature` run against it. Items whose change directory already exists and validates skip straight to implementation on resume.
 
+**Pass the item's `change_id` explicitly — never let the planner choose its own slug.** `roadmap.yaml` records a `change_id` per item, and resume detection, dependency tracking and the learning log all key off it. If `/plan-feature` derives a different slug from the feature description, it creates a directory the roadmap cannot find, and the item looks unplanned forever.
+
+Roadmaps generated before `change_id` was persisted may omit it. In that case call `populate_change_ids(roadmap)` from `<skill-base-dir>/../plan-roadmap/scripts/scaffolder.py` on load and save the roadmap back, so the ids are fixed once rather than re-derived differently by each consumer.
+
 For each ready item, the SKILL.md prompt layer invokes the existing skill workflow. The orchestrator provides a `dispatch_fn` callback interface:
 
 ```python

@@ -162,6 +162,8 @@ Determine the output location:
 - If `--workspace <path>` was supplied, use it (directory → `<path>/roadmap.yaml`, or explicit `.yaml` file path).
 - Otherwise, default to `openspec/roadmaps/<roadmap_id>/roadmap.yaml`.
 
+**Populate `change_id` before saving.** The generation contract does not ask the model for `change_id` and the schema leaves it optional, so a generated roadmap carries none. Call `populate_change_ids(roadmap)` from `<skill-base-dir>/scripts/scaffolder.py` first — it derives each id deterministically using the same function `scaffold_change()` uses, so the id recorded in `roadmap.yaml` is always the id of the directory later created for that item. It is idempotent and preserves any id an operator set by hand.
+
 Print the resolved path, then call `save_roadmap(roadmap, path, overwrite=<force_flag>)` from `<skill-base-dir>/../roadmap-runtime/scripts/models.py`. The helper creates parent directories and raises `FileExistsError` on collision unless `overwrite=True`. On collision, surface the error verbatim and instruct the operator to re-invoke with `--force` or `--workspace`.
 
 If `--new` was used in Step 0, the proposal.md already lives at `openspec/roadmaps/<roadmap_id>/proposal.md` — leave it in place. If decomposing an existing proposal from elsewhere, the `source_proposal` field in `roadmap.yaml` records the original path.
@@ -172,7 +174,7 @@ If `--new` was used in Step 0, the proposal.md already lives at `openspec/roadma
 
 A scaffolded change has an empty `specs/` directory, and `openspec validate --strict` rejects any change with no delta carrying a `#### Scenario:` block. CI runs `openspec validate --strict --all` on every push, so scaffolding an N-item roadmap up front lands N validation failures immediately and keeps them red for as long as the roadmap takes to execute.
 
-Instead, record the derived change-id on each item in `roadmap.yaml` (the `change_id` field). The directory is created **per item, when that item is picked up for work**, by whoever plans it:
+The `change_id` for each item is already recorded in `roadmap.yaml` by Step 7, so downstream consumers know which directory an item maps to without re-deriving it. The directory itself is created **per item, when that item is picked up for work**, by whoever plans it:
 
 - `/autopilot-roadmap` — creates the change for the selected item before dispatching `/implement-feature`.
 - Manual execution — run `/plan-feature` for the item, which authors real spec deltas.
@@ -201,6 +203,6 @@ Shared models and utilities are in `<skill-base-dir>/../roadmap-runtime/scripts/
 | Script | Role |
 |---|---|
 | `<skill-base-dir>/scripts/decomposer.py` | Deterministic validation only: `validate_proposal()` (readiness), `validate_roadmap()` (schema + ids + DAG), `scan_archive_state()`, `make_repo_relative()`, and a `validate` CLI. Contains no keyword extraction and no LLM calls. |
-| `<skill-base-dir>/scripts/scaffolder.py` | `scaffold_change(roadmap, repo_root, item_id)` — scaffolds a single item's change directory at pickup time. Output is a pre-spec stub that fails `openspec validate --strict` until deltas are authored. Not invoked by this skill; see Step 8. |
+| `<skill-base-dir>/scripts/scaffolder.py` | `populate_change_ids(roadmap)` — derives and persists each item's `change_id`; called in Step 7 before `save_roadmap`. `scaffold_change(roadmap, repo_root, item_id)` — scaffolds a single item's change directory at pickup time, sharing the same derivation. Its output is a pre-spec stub that fails `openspec validate --strict` until deltas are authored; not invoked by this skill (see Step 8). |
 | `<skill-base-dir>/scripts/renderer.py` | Renders `roadmap.yaml` → human-readable `roadmap.md` (maintenance direction). |
 | `templates/generation-prompt.md` | The model-facing generation contract dispatched in Step 3. |

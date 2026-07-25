@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from models import Effort, ItemStatus, Roadmap, RoadmapItem, RoadmapStatus
-from scaffolder import scaffold_change
+from scaffolder import populate_change_ids, scaffold_change
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +162,57 @@ class TestSingleItemOnly:
         import scaffolder
 
         assert not hasattr(scaffolder, "scaffold_changes")
+
+
+class TestPopulateChangeIds:
+    """change_id must be persisted at decomposition time.
+
+    The generation contract never asks the model for change_id and the schema
+    leaves it optional, so a generated roadmap carries none. Every consumer
+    that must locate openspec/changes/<change-id>/ then re-derives it and hopes
+    the answers agree. populate_change_ids fixes the value once, before save.
+    """
+
+    def test_populates_missing_ids(self):
+        items = [_make_item("ri-01", "Feature Alpha"), _make_item("ri-02", "Feature Beta")]
+        roadmap = _make_roadmap(items)
+        assert all(i.change_id is None for i in items)
+        assigned = populate_change_ids(roadmap)
+        assert assigned == {"ri-01": "feature-alpha", "ri-02": "feature-beta"}
+        assert [i.change_id for i in items] == ["feature-alpha", "feature-beta"]
+
+    def test_preserves_operator_set_ids(self):
+        item = _make_item("ri-01", "Feature Alpha")
+        item.change_id = "hand-picked-id"
+        roadmap = _make_roadmap([item])
+        populate_change_ids(roadmap)
+        assert item.change_id == "hand-picked-id"
+
+    def test_is_idempotent(self):
+        roadmap = _make_roadmap([_make_item("ri-01", "Feature Alpha")])
+        first = populate_change_ids(roadmap)
+        second = populate_change_ids(roadmap)
+        assert first == second
+
+    def test_disambiguates_colliding_slugs(self):
+        """Two titles reducing to the same slug must not claim one directory."""
+        items = [
+            _make_item("ri-01", "Ship the thing"),
+            _make_item("ri-02", "Ship the thing"),
+            _make_item("ri-03", "Ship the thing"),
+        ]
+        roadmap = _make_roadmap(items)
+        populate_change_ids(roadmap)
+        ids = [i.change_id for i in items]
+        assert ids == ["ship-the-thing", "ship-the-thing-2", "ship-the-thing-3"]
+        assert len(set(ids)) == 3
+
+    def test_agrees_with_scaffold_change(self, tmp_path: Path):
+        """The persisted id must be the directory scaffold_change creates."""
+        roadmap = _make_roadmap([_make_item("ri-01", "Feature Alpha")])
+        assigned = populate_change_ids(roadmap)
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        assert created.name == assigned["ri-01"]
 
 
 class TestStubIsNotCommittable:
