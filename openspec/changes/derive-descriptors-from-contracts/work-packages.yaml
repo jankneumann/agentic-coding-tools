@@ -61,6 +61,10 @@ packages:
         - "openspec/contracts/gen-eval-framework/cli/**"
         - "openspec/contracts/gen-eval-framework/schemas/**"
         - "openspec/contracts/README.md"
+        # Task 1.1 writes schema-validation tests. Without this the package owns
+        # a task it cannot perform: `deny: packages/gen-eval/src/**` correctly
+        # keeps it out of source, but tests are not source and it needs one file.
+        - "packages/gen-eval/tests/test_cli_contract_schema.py"
       read_allow:
         - "**"
       deny:
@@ -80,6 +84,13 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["cli_contract_schema_valid"]
+        - name: "Schema-validation tests exist and pass (task 1.1)"
+          kind: command
+          command: "uv run pytest tests/test_cli_contract_schema.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["cli_contract_schema_tests"]
         # Asserts a non-zero file count BEFORE validating. The previous form was a
         # list comprehension over glob(), which exits 0 having validated nothing
         # when task 1.7 is skipped, the file lands as .yml, or it goes to another
@@ -430,10 +441,19 @@ packages:
       found 4.7 owned by no package at all, which left D11's named mitigation
       for its own residual risk unimplementable.
 
-      Acceptance signal: `make dogfood` reports a coverage figure that is
-      non-zero and meets the 80% floor. "Stopped reporting 0 interfaces" is NOT
-      sufficient — a non-empty declared surface with an empty tested set still
-      reports 0% coverage, which is the vacuous signal this change removes.
+      Acceptance signal (design D11): `make dogfood` reports non-zero coverage
+      AND every contracted coverage unit is either exercised or carries a
+      written exclusion reason.
+
+      NOT the 80% floor. That percentage applies to the SERVICE archetype only;
+      gen-eval's own descriptor is a tool, where 80% is arithmetically
+      unreachable — 16 long flags, 5 exercised, 31.2%, and task 3.8 adds a
+      seventeenth. Asserting it here would ship a gate that can never pass,
+      which is the mirror of the gate that can never fail.
+
+      NOT "stopped reporting 0 interfaces" either: a non-empty declared surface
+      with an empty tested set still reports 0% coverage, which is the vacuous
+      signal this change exists to remove.
     role: python-engineer
     archetype: integrator
     priority: 4
