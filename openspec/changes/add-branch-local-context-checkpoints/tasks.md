@@ -118,7 +118,7 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: 3.7
       **Size**: M
 
-- [ ] 3.9 Write the CLI test — `checkpoint` subcommand refuses a shared checkout and
+- [x] 3.9 Write the CLI test — `checkpoint` subcommand refuses a shared checkout and
       returns a non-zero exit only when no valid report could be produced.
       **Spec scenarios**: pcro "Checkpoint runs for a work package inside a feature worktree",
       pcro "Checkpoint refuses to run against a shared checkout",
@@ -127,11 +127,11 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: 3.5
       **Size**: S
 
-- [ ] 3.10 Add the `checkpoint` subcommand to `cli.py`.
+- [x] 3.10 Add the `checkpoint` subcommand to `cli.py`.
       **Dependencies**: 3.9
       **Size**: S
 
-- [ ] 3.11 Checkpoint: run tests, review diff, verify scope.
+- [x] 3.11 Checkpoint: run tests, review diff, verify scope.
 
 ## Phase 4 — Workflow trigger (wp-workflow)
 

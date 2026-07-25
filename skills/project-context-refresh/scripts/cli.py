@@ -15,11 +15,20 @@ durable operation and emit the manifest:
     python scripts/cli.py refresh --producer api.contracts   # one producer
     python scripts/cli.py refresh-check                 # read-only drift
 
+The branch-local checkpoint (ri-09) is a *third* mode, deliberately outside the
+operation ledger: read-only, scoped to one work package, and advisory.
+
+    python scripts/cli.py checkpoint --change-id C --package-id P \
+        --changed-file docs/guide.md
+
 The exit code distinguishes deterministic drift from an internal failure:
 
 * ``0`` — fresh / succeeded (or a generate that wrote successfully);
 * ``2`` — drift / degraded detected (actionable, not an error);
 * ``1`` — a producer failed or a fail-closed input error.
+
+``checkpoint`` deliberately does not use ``2``: drift is data in its report, and
+its only non-zero exit is being unable to produce a valid report at all (D8).
 
 Output is the canonical ri-06 ``ProducerResult`` JSON (a list for ``*-all``) or,
 for the orchestrator, a refresh summary, so callers parse exactly what ri-07
@@ -35,6 +44,7 @@ import sys
 from pathlib import Path
 from typing import cast
 
+import checkpoint
 import orchestrator
 from _runtime import ProducerStatus
 from registry import Mode, ProducerError, list_producers, run_producer
@@ -157,6 +167,58 @@ def _refresh(
     return result.exit_code()
 
 
+def _checkpoint(repository: Path, revision: str, args: argparse.Namespace) -> int:
+    """Produce one branch-local checkpoint report for one work package (ri-09).
+
+    Refuses a shared checkout first: the report is a tracked file, so writing it
+    outside a managed worktree is the same mutation the guard exists to stop.
+
+    The exit code is the D8 contract in one line — 0 whenever a valid report was
+    produced, *including* when producers report drift. Turning drift into a
+    failure belongs to the drift-gate capability, which consumes this report; a
+    gate here would give it something to rework rather than a signal to use.
+    """
+    _require_mutation(repository)
+    try:
+        rules = checkpoint.load_impact_rules(args.rules)
+        package = checkpoint.load_package(repository, args.change_id, args.package_id)
+        merge_base = args.merge_base or checkpoint.resolve_merge_base(
+            repository,
+            integration_branch=args.integration_branch,
+            revision=revision,
+        )
+        result = checkpoint.run_checkpoint(
+            repository,
+            change_id=args.change_id,
+            package_id=args.package_id,
+            package=package,
+            changed_files=tuple(args.changed_files or ()),
+            revision=revision,
+            merge_base=merge_base,
+            rules=rules,
+        )
+    except checkpoint.CheckpointError as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 1
+
+    # An envelope, not the report: ``report_path``/``changed``/``decision`` are
+    # caller ergonomics and would fail the report schema's closed object.
+    sys.stdout.write(
+        json.dumps(
+            {
+                "report_path": result.report_path,
+                "changed": result.changed,
+                "decision": result.decision.to_dict(),
+                "report": result.report,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Deterministic context producers.")
     parser.add_argument("--repo", type=Path, default=Path("."), help="Repository root.")
@@ -187,6 +249,42 @@ def main(argv: list[str] | None = None) -> int:
             help="Limit the run to this producer id (repeatable).",
         )
 
+    cp = sub.add_parser(
+        "checkpoint",
+        help=(
+            "branch-local, read-only context checkpoint for one work package "
+            "(never writes the refresh ledger; drift exits 0)"
+        ),
+    )
+    cp.add_argument("--change-id", required=True, help="OpenSpec change id.")
+    cp.add_argument("--package-id", required=True, help="Work package id.")
+    cp.add_argument(
+        "--changed-file",
+        action="append",
+        dest="changed_files",
+        metavar="PATH",
+        help=(
+            "Repository-relative path this package changed (repeatable). The "
+            "checkpoint never derives this from a git range, so it works on an "
+            "uncommitted worktree."
+        ),
+    )
+    cp.add_argument(
+        "--merge-base",
+        default=None,
+        help="Full SHA to diff architecture against (default: resolved from --integration-branch).",
+    )
+    cp.add_argument(
+        "--integration-branch",
+        default=checkpoint.DEFAULT_INTEGRATION_BRANCH,
+        help="Branch to resolve the architecture-diff merge base from.",
+    )
+    cp.add_argument(
+        "--rules",
+        default=None,
+        help="Override path to the ri-08 context-impact rule table.",
+    )
+
     args = parser.parse_args(argv)
     repository = args.repo.resolve()
 
@@ -197,6 +295,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     revision = _resolve_revision(repository, args.revision)
+    if args.command == "checkpoint":
+        return _checkpoint(repository, revision, args)
     if args.command in ("refresh", "refresh-check"):
         return _refresh(
             repository,
