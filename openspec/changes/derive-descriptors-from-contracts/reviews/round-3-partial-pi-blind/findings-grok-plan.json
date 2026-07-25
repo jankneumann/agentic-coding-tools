@@ -1,0 +1,29 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "behavioral_failure",
+      "criticality": "critical",
+      "description": "wp-rename's second verification step cannot pass after a correct Phase 0 implementation, and the DAG cannot progress. D9 and tasks 0.1\u20130.4 make ToolDescriptor and ServiceDescriptor hard breaks (absent until tasks 1.4 and 2.2 define the new archetypes). wp-tool-descriptor and wp-service-descriptor both depend_on wp-rename, so those archetypes cannot exist when rename verifies. The gate nevertheless fails when the symbols are absent: `if obj is None: bad.append(n+': absent \u2014 should name the new archetype')`. Simulated the only Phase-0-legal public surface (two warning aliases, two hard-break absences, four *Spec exports) and ran the gate logic: GATE1 PASS; GATE2 FAIL ['ToolDescriptor: absent \u2014 should name the new archetype', 'ServiceDescriptor: absent \u2014 should name the new archetype']; GATE3 PASS. A non-pydantic stub also exits 0, but no task authorizes stubs, and ServiceDescriptor is owned in service_descriptor.py which wp-rename cannot write. This is the same class of unsatisfiable gate round 2 fixed for the tests/ scan \u2014 reintroduced on the rebound check.",
+      "resolution": "Change the rebound gate to accept hard-break absence at the wp-rename boundary (None or not-exported is success; legacy model_fields is failure), and move any 'rebound to archetype' assertion to wp-integration after tasks 1.4 and 2.2. If a final-state check is kept, require gen_eval package export there and give that task write access to __init__.py.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "The ADDED Naming Levels requirement and its rename scenario still demand a deprecation alias for every published rename, while D9 and task 0.1 require two hard breaks with no alias. Spec (specs/gen-eval-framework/spec.md): 'A rename of a published model type SHALL ... retain a deprecation alias under the previous name for at least one release' and scenario 'Renaming a published type bumps the contract version' THEN 'the previous name SHALL remain importable as a deprecation alias'. D9 table: ToolDescriptor\u2192McpToolSpec and ServiceDescriptor\u2192ServiceSpec are 'hard break, no alias possible'. Task 0.1 is mapped to 'Descriptor Model Naming Levels (both scenarios)' yet its note says only EndpointDescriptor and CommandDescriptor can be aliases and the other two are HARD BREAKS. No implementation can both keep ToolDescriptor as a deprecation alias of McpToolSpec and reuse ToolDescriptor as the new document archetype. Command: `rg -n 'deprecation alias|HARD BREAK|both scenarios|previous name' openspec/changes/derive-descriptors-from-contracts/{specs,tasks.md,design.md}` \u2014 hits on spec.md:221,235 requiring aliases; tasks.md:33,38 mapping both scenarios while declaring hard breaks; design.md:276\u2013286 hard-break table.",
+      "resolution": "Carve the two reuses out of the Naming Levels requirement and rename scenario (aliases only when the old name is not reoccupied), and re-map task 0.1 so it does not claim the universal-alias scenario for the hard-break names. Keep the two-alias + hard-break split in D9.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md"
+    }
+  ]
+}

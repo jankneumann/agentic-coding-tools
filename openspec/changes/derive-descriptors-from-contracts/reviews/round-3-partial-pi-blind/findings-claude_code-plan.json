@@ -1,0 +1,62 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "behavioral_failure",
+      "criticality": "critical",
+      "description": "wp-rename verification step 1 (\"The two reused names no longer resolve to their legacy element types\", work-packages.yaml added in e251030d/1477a3d2) cannot pass at the boundary where it runs. The command does `obj=getattr(gen_eval, n, None)` for `ToolDescriptor` and `ServiceDescriptor` and treats `obj is None` as a FAILURE (`bad.append(n+': absent \u2014 should name the new archetype')`). But wp-rename is a DAG root (`depends_on: []`), and the only things that create those archetypes are task 1.4 (wp-tool-descriptor) and task 2.2 (wp-service-descriptor), both of which `depends_on: [wp-contracts, wp-rename]`. Tasks 0.1-0.4 rename the legacy models away and create no archetype; D9 states this explicitly (\"A rename package runs before the archetype packages, since they occupy the freed names\"). VERIFIED: I built the minimal post-rename tree tasks 0.1-0.2 mandate (four *Spec classes, module `__getattr__` aliasing only EndpointDescriptor/CommandDescriptor per D9) and ran the three commands verbatim (/tmp/probe_rename.py). step 0 -> exit 0 '2 aliases present and warning'; step 1 -> exit 1 'reuse check failed: ToolDescriptor: absent - should name the new archetype; ServiceDescriptor: absent - should name the new archetype'. SECOND LAYER: the check reads a module attribute on the `gen_eval` package, so it also requires the archetypes to be exported from `src/gen_eval/__init__.py`. Verified against every package's write_allow: only wp-rename (which runs first) and wp-integration list `__init__.py`/`packages/gen-eval/**`; wp-tool-descriptor's write_allow is exactly [descriptor.py, generate_tool_descriptor.py, test_tool_descriptor.py, test_derivation_drift.py] and wp-service-descriptor's is [service_descriptor.py, generate_service_descriptor.py, test_service_descriptor.py, test_mcp_projection.py] \u2014 neither can write it. `grep '__init__' tasks.md` returns zero lines, so no task ever exports the two new archetypes. The gate therefore fails at wp-rename and would still fail after every package lands.",
+      "resolution": "Move the reused-name assertion out of wp-rename. At the wp-rename boundary the correct assertion is the opposite one: `ToolDescriptor`/`ServiceDescriptor` MUST NOT resolve (the legacy element types are gone and the archetypes do not exist yet) \u2014 which is what task 0.1's own note describes. Re-add the 'rebound to the archetype' check as a wp-integration verification step, and add an explicit task to wp-integration exporting `ToolDescriptor` (from descriptor.py) and `ServiceDescriptor` (from service_descriptor.py) through `src/gen_eval/__init__.py` and `__all__`, with the matching `test_public_api_parity.py` update.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 2,
+      "type": "behavioral_failure",
+      "criticality": "critical",
+      "description": "wp-rename verification step 4 (\"No test file still uses a pre-rename name\") still cannot pass \u2014 this is round-2 finding 2 re-introduced by its own fix. Commit 1477a3d2 narrowed the scan from src+tests to tests-only and widened the pattern to all four names, but did not exempt the alias test the plan itself mandates. The command is `files=list(pathlib.Path('tests').rglob('*.py')); pat=re.compile(r'\\b(EndpointDescriptor|CommandDescriptor|ToolDescriptor|ServiceDescriptor)\\b'); hits=[p for p in files if pat.search(p.read_text())]; sys.exit(...) if hits`. Task 0.1 requires a test that asserts `EndpointDescriptor` and `CommandDescriptor` 'import and emit DeprecationWarning' and that `ToolDescriptor`/`ServiceDescriptor` 'no longer carry the legacy element fields' \u2014 all four names, in `tests/test_descriptor_naming.py`, which is itself in wp-rename's write_allow. The regex matches file TEXT, so even `getattr(gen_eval, \"EndpointDescriptor\")` inside a string literal is a hit. VERIFIED: /tmp/probe_rename.py wrote the task-0.1 test exactly as specified plus one migrated ordinary test file, then ran the command verbatim -> exit 1, stderr 'pre-rename names still used in: tests/test_descriptor_naming.py'. So wp-rename cannot simultaneously satisfy task 0.1 and its own step 4. (The rest of the -k-filtered gates in this file DO fail closed: I confirmed `pytest -k` with no match exits 5, not 0 \u2014 `pytest tests/test_reports.py -q -k 'zzz_no_such_test'` -> EXIT=5.)",
+      "resolution": "Exempt the alias-definition/alias-test sites from the scan: skip `tests/test_descriptor_naming.py` (and `tests/test_public_api_parity.py` if it names them), or restrict the pattern to usage forms rather than any textual occurrence. Keep the non-empty-corpus assert that was correctly added. Prove the gate fails on the unmigrated tree and passes on the migrated one \u2014 it currently does the former only.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "wp-integration's stated acceptance signal contradicts D11, task 5.4b, the spec delta, and a comment 55 lines below it in the same file \u2014 and no artifact names the threshold value that resolves the conflict. work-packages.yaml:573-576 (package description): 'Acceptance signal: `make dogfood` reports a coverage figure that is non-zero and meets the 80% floor.' Its verification step 1 is named 'Dogfood reports real interface coverage above the floor' with `result_keys: [dogfood_pass, coverage_pct_above_floor]`. But work-packages.yaml:629-633 (comment on the very next step) says 'D11: the tool archetype's gate is completeness, not a percentage. An 80% floor on gen-eval's own CLI is arithmetically unreachable (16 flags, 5 exercised = 31.2%), so asserting it would ship a gate that can never pass'. tasks.md 5.4b is explicit: the gate is 'NOT `coverage_pct >= 80`, which is unreachable for this surface'. The spec delta scopes the percentage away from this descriptor entirely: 'A **service** dogfood descriptor ... MUST achieve 80%+ interface coverage' / 'A **tool** dogfood descriptor MUST instead satisfy a completeness rule', and gen-eval's dogfood descriptor is a TOOL descriptor per task 5.3. D11 says the same. So an implementation satisfying the spec/D11/5.4b fails wp-integration's stated acceptance signal, and one satisfying wp-integration's description violates the spec's MODIFIED Dogfood requirement and ships the unpassable gate the plan's own comment warns about. The ambiguity is executable, not cosmetic: verification step 1's command is bare `make dogfood`, task 5.4d says 'Wire `--min-coverage` and the completeness check into `make dogfood`', and `grep -n 'min-coverage|min_coverage' tasks.md design.md work-packages.yaml spec.md` returns 8 hits, NONE of which states a value. An implementer reading the package description sets `--min-coverage 80` and `make dogfood` can never go green.",
+      "resolution": "Rewrite wp-integration's description to D11's rule: the acceptance signal is `coverage_pct > 0` plus the completeness check, not an 80% floor. Rename verification step 1 (e.g. 'Dogfood reports non-zero interface coverage') and change `coverage_pct_above_floor` to `coverage_pct_non_zero`. State the concrete `--min-coverage` value task 5.4d wires into `make dogfood` in task 5.4d itself.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Task 1.1 requires writing a file its owning package cannot write. Task 1.1 is 'Write tests for CLI contract schema validation \u2014 required fields, exit codes, flag types [S]', and wp-contracts' description explicitly claims it ('Tasks 1.1, 1.2, 1.7, 1.8, 1.9, 1.10'). wp-contracts' write_allow is exactly ['openspec/changes/derive-descriptors-from-contracts/contracts/**', 'openspec/contracts/gen-eval-framework/cli/**', 'openspec/contracts/gen-eval-framework/schemas/**', 'openspec/contracts/README.md'] with deny ['packages/gen-eval/src/**'] \u2014 no test path at all. gen-eval's pytest root pins the only valid home: `packages/gen-eval/pyproject.toml:67` has `testpaths = [\"tests\"]`, and every other test-authoring package in this plan names its file explicitly (wp-tool-descriptor -> test_tool_descriptor.py/test_derivation_drift.py; wp-service-descriptor -> test_service_descriptor.py/test_mcp_projection.py; wp-coverage-model -> test_coverage_model.py/test_coverage_vocabulary.py; wp-subset-verifiers -> test_subset_verifiers.py). wp-contracts is the only one with a test task and zero test paths \u2014 I dumped all seven write_allow lists programmatically to confirm ('wp-contracts -> []'). This is enforced, not advisory: `skills/validate-packages/scripts/validate_work_result.py:71-85` checks `files_modified \u2286 write_allow` and errors with \"'{f}' not covered by any write_allow pattern\", and `skills/parallel-review-implementation/SKILL.md:325` requires any out-of-scope modification to be reported as a `severity: critical` finding. wp-contracts' four verification steps are inline jsonschema commands, none of which runs pytest, so the task can also be silently skipped with the package still green. The negative fixtures those tests exist to hold (task 1.1 covers required fields / exit codes / flag types) are exactly what makes the schema's fail-closed floor falsifiable.",
+      "resolution": "Add `packages/gen-eval/tests/test_cli_contract_schema.py` to wp-contracts' write_allow (it collides with no other package's scope) and add a fifth verification step running `uv run pytest tests/test_cli_contract_schema.py -q` from `packages/gen-eval`; or reassign task 1.1 to wp-tool-descriptor and fold its assertions into `tests/test_derivation_drift.py`. Note the schema itself is now sound \u2014 I validated 19 documents against contracts/cli-contract.schema.json with Draft202012Validator and all 13 empty/whitespace/meaningless-surface shapes REJECT while all 6 legitimate shapes (flat flag-only, flat positional-only, subcommands-no-flags, many-to-one operation_ids, single subcommand, enum flag) accept; the round-2 escapes are genuinely closed. What is missing is the owned, runnable test that keeps them closed.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "NOT BLOCKING \u2014 reported only because the ownership cross-check was explicitly requested. Task 0.4 ('Migrate the 11 existing test files off the deprecated names') belongs to no package description. I matched all 45 task ids in tasks.md against the seven package descriptions (explicit mention or numeric range); every id resolved except 0.4, because wp-rename's description still reads 'Tasks 0.1-0.3' \u2014 round-2 claude finding 3 asked for it to read 'Tasks 0.1-0.4' and the fix commit 1477a3d2 did not apply that part. Unlike task 4.7 (which round 2 correctly called critical), 0.4 is NOT unimplementable: wp-rename's write_allow already enumerates all eleven files by name (conftest.py, test_descriptor.py, test_cli_generator.py, test_cli_transport_stderr.py, test_feedback.py, test_generator.py, test_hybrid_generator.py, test_integration_orchestrator.py, test_integration_scenarios.py, test_optional_startup.py, test_sdk_generator.py), and verification steps 4 and 5 gate its outcome. An implementer is not blocked; the description is just stale.",
+      "resolution": "Change wp-rename's description from 'Tasks 0.1-0.3' to 'Tasks 0.1-0.4'.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "fyi",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    }
+  ]
+}

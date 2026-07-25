@@ -6,10 +6,11 @@ Sizes: XS ≤30min · S 30min–2hr · M 2hr–1day. No L or XL tasks.
 Most work is in `packages/gen-eval/`; task 1.8 touches
 `openspec/contracts/README.md`.
 
-**Prerequisite (satisfied).** PR #277 (UP-1..UP-5) merged to `main` on
-2026-07-25 as `c2213c5f` + `e5fabe3d`. This change builds on top of it and
-**must not revert or amend those commits**. The artifacts this plan depends on
-all arrived with that merge:
+## Prerequisites
+
+**1. PR #277 (UP-1..UP-5) — SATISFIED.** Merged to `main` on 2026-07-25 as
+`c2213c5f` + `e5fabe3d`. This change builds on top of it and **must not revert
+or amend those commits**.
 
 | Artifact | Depended on by |
 |---|---|
@@ -17,59 +18,34 @@ all arrived with that merge:
 | `packages/gen-eval/evaluation/descriptor.yaml` | task 5.3 (migration target), D8 |
 | `make dogfood` CI gate | tasks 5.3, 5.4, D8 |
 
-Verify before starting Phase 1: both files exist on the branch's merge base.
-If they do not, this branch has not been rebased onto the merged `main` and
-Phase 1 will build against a missing substrate.
+**2. `rename-descriptor-model-levels` — MUST LAND FIRST.** That change renames
+the existing element/container models to `*Spec`, freeing `ServiceDescriptor`
+and `ToolDescriptor` for the document-level archetypes tasks 1.4 and 2.2 define.
 
-## Phase 0 — Free the archetype names (D9)
+Until it lands, both names still resolve to unrelated element types
+(`descriptor.py:41` one MCP tool, `:67` one testable service), and tasks 1.4 /
+2.2 would be redefining live public API.
 
-The two headline deliverables are named `ServiceDescriptor` and `ToolDescriptor`,
-and **both names are already taken** in `packages/gen-eval/src/gen_eval/descriptor.py`
-with unrelated meanings (`:41` one MCP tool, `:67` one testable service). This
-phase renames the existing models to the `*Spec` level before anything defines
-the archetypes. It is mechanical and changes no behaviour.
+This was originally Phase 0 of *this* change. It was extracted because freeing a
+name and reusing it inside one change creates an intermediate state that
+verification cannot express — a gate asserting the new meaning runs before the
+package that creates it. Three review rounds produced four variants of that
+defect before the pattern was recognised. See that change's design D2.
 
-- [ ] 0.1 Write tests pinning the deprecation aliases and the new public API `[S]`
-  **Spec scenarios**: Descriptor Model Naming Levels (both scenarios)
-  **Design decisions**: D9
-  **Dependencies**: None
-  **Note**: only `EndpointDescriptor` and `CommandDescriptor` can be aliases —
-  assert they import and emit `DeprecationWarning`. `ToolDescriptor` and
-  `ServiceDescriptor` are HARD BREAKS: the new archetypes reuse those names, so
-  a symbol cannot resolve to both the legacy element type and the new document
-  type. Assert those two no longer carry the legacy element fields
-  (`input_schema` / `endpoints`). Also assert `test_public_api_parity.py`
-  reflects the new `__all__`.
+**Verify before starting Phase 1:**
 
-- [ ] 0.2 Rename the four element/container models; add aliases for the two non-reused names `[M]`
-  **Design decisions**: D9
-  **Dependencies**: 0.1
-  **Note**: `EndpointDescriptor`→`EndpointSpec`, `ToolDescriptor`→`McpToolSpec`,
-  `CommandDescriptor`→`CommandSpec`, `ServiceDescriptor`→`ServiceSpec`.
-  ~22 references in `src/`, ~90 in `tests/`. `InterfaceDescriptor` is unchanged.
+```bash
+# Prerequisite 1
+test -f packages/gen-eval/scripts/generate_contract_schemas.py
+test -f packages/gen-eval/evaluation/descriptor.yaml
 
-- [ ] 0.3 Bump `CONTRACT_VERSION` 1 → 2 and regenerate the published schema `[S]`
-  **Spec scenarios**: Descriptor Model Naming Levels (renaming a published type bumps the contract version)
-  **Design decisions**: D9, D6
-  **Dependencies**: 0.2
-  **Note**: `$defs` titles in `src/gen_eval/contracts/interface-descriptor.schema.json`
-  change, so `scripts/generate_contract_schemas.py --check` must be re-run and
-  `tests/test_contract_schemas.py` must pass against the regenerated copy
+# Prerequisite 2 — the freed names must NOT be the old element types
+python3 -c "import gen_eval; assert 'input_schema' not in getattr(gen_eval.ToolDescriptor, 'model_fields', {}), 'rename-descriptor-model-levels has not landed'"
+```
 
-- [ ] 0.4 Migrate the 11 existing test files off the deprecated names `[S]`
-  **Design decisions**: D9
-  **Dependencies**: 0.2
-  **Note**: `conftest.py`, `test_descriptor.py`, `test_cli_generator.py`,
-  `test_cli_transport_stderr.py`, `test_feedback.py`, `test_generator.py`,
-  `test_hybrid_generator.py`, `test_integration_orchestrator.py`,
-  `test_integration_scenarios.py`, `test_optional_startup.py`,
-  `test_sdk_generator.py`.
-  **Note**: these PASS untouched because the aliases work — that is exactly the
-  trap. Landing the rename without this leaves 11 files on deprecated names on
-  day one, and any suite escalating `DeprecationWarning` to an error breaks.
-  Verify with `pytest -W error::DeprecationWarning` after migrating.
-
-- [ ] Checkpoint: run tests, review diff, verify scope
+If prerequisite 1 fails, this branch has not been rebased onto the merged
+`main`. If prerequisite 2 fails, stop: tasks 1.4 and 2.2 will collide with live
+public API.
 
 ## Phase 1 — Tool contract + tool descriptor (gen-eval self-migration)
 
@@ -360,12 +336,13 @@ the archetypes. It is mechanical and changes no behaviour.
   **Dependencies**: 1.6, 2.5
 
 - [ ] 5.6 Refresh `DOWNSTREAM.md` with the as-built coverage semantics and the rename `[S]`
-  **Design decisions**: D4, D6, D9
-  **Dependencies**: 3.4, 0.3
+  **Design decisions**: D4, D6
+  **Dependencies**: 3.4
   **Note**: the notice was authored at plan time (DS-1 is actionable by ACA immediately and does not depend on this change). This task reconciles DS-2's described shape with what actually shipped, then answers the three open questions at its end.
-  **Note**: must add DS-5 for the `CONTRACT_VERSION` 1 → 2 bump and the renamed
-  `$defs` titles — DS-2/DS-3 already tell consumers to read that schema, so a
-  silent title change would break exactly the readers we directed there.
+  **Note**: the `CONTRACT_VERSION` bump and the renamed `$defs` titles are NOT
+  this change's to announce — they belong to the prerequisite
+  `rename-descriptor-model-levels` and are covered by its own notice. DS-3 here
+  carries only the sequencing pointer. Do not duplicate that notice.
 
 - [ ] 5.7 Update `packages/gen-eval/README.md` for the contract-derived model `[S]`
   **Dependencies**: 5.3
