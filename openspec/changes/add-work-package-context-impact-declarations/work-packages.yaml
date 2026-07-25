@@ -1,0 +1,209 @@
+schema_version: 1
+
+feature:
+  id: add-work-package-context-impact-declarations
+  title: "Add work-package context impact declarations"
+  plan_revision: 1
+  created_by: autopilot-roadmap
+
+# This change's contract is the work-package JSON Schema itself; it introduces
+# no HTTP surface, so the canonical contract files are the schema and its rule
+# table rather than an OpenAPI document.
+contracts:
+  revision: 1
+  openapi:
+    primary: "skills/validate-packages/install_assets/openspec/schemas/work-packages.schema.json"
+    files:
+      - "skills/validate-packages/install_assets/openspec/schemas/work-packages.schema.json"
+      - "skills/validate-packages/install_assets/openspec/schemas/context-impact-rules.yaml"
+
+defaults:
+  priority: 8
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-schema
+    title: "Context-impact schema and template"
+    task_type: implementation
+    description: |
+      Tasks 1.1-1.3. Add the optional `context_impact` block to the work-package
+      schema: `surfaces` constrained to the six canonical surface names,
+      `rationale.<surface>` requiring a non-empty `reason` and `approved_by`,
+      and `surfaces` required whenever the block is present. Keep
+      `additionalProperties: false` at every level. Add a commented example to
+      the feature-workflow template and re-run install.sh so the
+      `openspec/schemas/` copies regenerate byte-identical.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/validate-packages/install_assets/openspec/schemas/work-packages.schema.json"
+        - "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/work-packages.yaml"
+      keys:
+        - "contract:work-packages-schema"
+      ttl_minutes: 60
+      reason: "Extend the work-package contract with context-impact metadata"
+    scope:
+      write_allow:
+        - "skills/validate-packages/install_assets/openspec/schemas/**"
+        - "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/work-packages.yaml"
+        - "openspec/schemas/**"
+        - "skills/validate-packages/scripts/tests/test_context_impact_schema.py"
+        - "skills/validate-packages/scripts/tests/fixtures/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    worktree:
+      name: context-impact-schema
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Schema tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-packages/scripts/tests/test_context_impact_schema.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["schema_tests_passed"]
+        - name: "Install assets stay synced"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/install_sh/test_openspec_assets.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["install_assets_synced"]
+    metadata:
+      loc_estimate: 140
+      complexity: low
+      package_kind: data_model
+    outputs:
+      result_keys:
+        - "schema_tests_passed"
+        - "install_assets_synced"
+
+  - package_id: wp-detector
+    title: "Impact rule table and detector"
+    task_type: implementation
+    description: |
+      Tasks 2.1-3.4. Add `context-impact-rules.yaml` mapping globs to the six
+      surfaces, then `context_impact.py` with `load_rules`, `infer_surfaces`,
+      `declared_surfaces`, and `index_scopes`. The library takes changed files as
+      a sequence and never shells out to git, so it is unit-testable on fixtures
+      with no repository. Loading fails loudly on an unknown surface or a missing
+      rule file rather than yielding an empty rule set.
+    role: implementer
+    priority: 2
+    depends_on:
+      - wp-schema
+    locks:
+      files:
+        - "skills/validate-packages/scripts/context_impact.py"
+      keys:
+        - "feature:context-impact:detector"
+      ttl_minutes: 60
+      reason: "Add the changed-file to context-surface detector"
+    scope:
+      write_allow:
+        - "skills/validate-packages/scripts/context_impact.py"
+        - "skills/validate-packages/install_assets/openspec/schemas/context-impact-rules.yaml"
+        - "openspec/schemas/context-impact-rules.yaml"
+        - "skills/validate-packages/scripts/tests/test_context_impact.py"
+        - "skills/validate-packages/scripts/tests/fixtures/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    worktree:
+      name: context-impact-detector
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Detector tests pass without a git repository"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-packages/scripts/tests/test_context_impact.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["detector_tests_passed"]
+    metadata:
+      loc_estimate: 220
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "detector_tests_passed"
+
+  - package_id: wp-gate
+    title: "Enforcement gate, compatibility proof, and docs"
+    task_type: implementation
+    description: |
+      Tasks 4.1-5.3. Implement `evaluate()` over the D3 enforcement table and the
+      `validate_context_impact.py` CLI (`--base`, `--strict-legacy`, `--json`).
+      Add the compatibility test proving no existing work-packages.yaml gains a
+      `context_impact` schema error, document the surfaces and enforcement table
+      in validate-packages/SKILL.md, and dogfood the gate by adding a
+      `context_impact` block to this change's own work-packages.yaml.
+    role: implementer
+    priority: 3
+    depends_on:
+      - wp-detector
+    locks:
+      files:
+        - "skills/validate-packages/scripts/validate_context_impact.py"
+      keys:
+        - "feature:context-impact:gate"
+      ttl_minutes: 60
+      reason: "Add the context-impact enforcement gate"
+    scope:
+      write_allow:
+        - "skills/validate-packages/scripts/validate_context_impact.py"
+        - "skills/validate-packages/scripts/context_impact.py"
+        - "skills/validate-packages/SKILL.md"
+        - "skills/validate-packages/scripts/tests/test_validate_context_impact.py"
+        - "skills/validate-packages/scripts/tests/test_context_impact_compat.py"
+        - "skills/validate-packages/scripts/tests/fixtures/**"
+        - "openspec/changes/add-work-package-context-impact-declarations/work-packages.yaml"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    worktree:
+      name: context-impact-gate
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Gate and compatibility tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-packages/scripts/tests/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["gate_tests_passed"]
+        - name: "Gate reports declared for this change's own packages"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_context_impact.py openspec/changes/add-work-package-context-impact-declarations/work-packages.yaml --base main"
+          evidence:
+            artifacts: []
+            result_keys: ["self_declared"]
+    metadata:
+      loc_estimate: 280
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "gate_tests_passed"
+        - "self_declared"
