@@ -1,0 +1,51 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: wp-rename owns the CONTRACT_VERSION bump but its write_allow does not cover every generated artifact that bump changes. I read packages/gen-eval/scripts/generate_contract_schemas.py and it prints in its docstring that it writes four artifacts: interface-descriptor.schema.json, scenario.schema.json, eval-report.schema.json, and VERSION; lines 80-90 render all three schemas plus VERSION and lines 68-72 stamp x-gen-eval-contract-version from CONTRACT_VERSION. I also read packages/gen-eval/src/gen_eval/contracts/__init__.py:43-47, where SCHEMA_FILENAMES includes scenario and eval-report. But work-packages.yaml:56-62 lets wp-rename write only contracts/__init__.py, VERSION, and interface-descriptor.schema.json, not scenario.schema.json or eval-report.schema.json. Its own verification step runs scripts/generate_contract_schemas.py --check, so after CONTRACT_VERSION 1 -> 2 it must either update files outside scope or fail.",
+      "resolution": "Add packages/gen-eval/src/gen_eval/contracts/scenario.schema.json and packages/gen-eval/src/gen_eval/contracts/eval-report.schema.json to wp-rename write_allow, or narrow the generator/versioning plan so only the interface schema version changes and the check matches that scope.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: the CLI schema rejects {\"commands\":[{\"name\":\"\"}]} but still accepts empty or meaningless coverage units. I ran JSON Schema validation against openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json: empty_command failed with \"commands/0 {'name': ''} is not valid under any of the given schemas\", but empty_command_empty_positional passed for {\"commands\":[{\"name\":\"\",\"positionals\":[{\"name\":\"\",\"type\":\"string\"}]}]}, whitespace_command passed for {\"commands\":[{\"name\":\"   \"}]}, enum_without_choices passed for {\"commands\":[{\"name\":\"\",\"flags\":[{\"name\":\"--mode\",\"type\":\"enum\"}]}]}, and empty_tool_names passed. The schema lines 47-50 and 131-132 use plain type:string with no minLength or non-whitespace pattern, and lines 109-112 only describe enum choices as required without enforcing it. These shapes can satisfy D3's non-empty count with names that derive to an empty or unusable surface.",
+      "resolution": "Add minLength/pattern constraints for command names, positional names, tool.name, executable, operation_ids items, and descriptions/meanings where required. For enum flags, add an if/then requiring choices with minItems: 1. Add negative fixtures for whitespace command names and empty positional names, not only the exact empty-command object.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: task 4.7 is not owned by any work package, so the fix for the real-surface excess gate can still be skipped. I read tasks.md:275-286; task 4.7 wires the argparse subset verifier into CI against gen-eval's own parser and explicitly says to prove CI goes red when a flag is added without contracting it. Then I read work-packages.yaml:443, where wp-subset-verifiers owns only Tasks 4.1-4.6 and has write_allow limited to gen_eval/verify/** and tests/test_subset_verifiers.py, and work-packages.yaml:504-508, where wp-integration owns Tasks 5.1-5.7 and mentions CI drift guards/min-coverage but not 4.7. A direct rg confirmed the only work-package task range for Phase 4 is \"Tasks 4.1-4.6\". The new gate exists in tasks.md but has no package, scope, or verification owner.",
+      "resolution": "Move task 4.7 into wp-integration or extend wp-subset-verifiers to own it. The owning package needs write_allow for .github/workflows/ci.yml and any parser-level test fixture, plus a verification step that runs the real-parser subset verifier and demonstrates an undocumented parser flag fails.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: the D4/D7 many-to-one MCP binding is required but not given a contract syntax. I verified the motivating code in agent-coordinator/src/coordination_mcp.py:165: check_locks accepts file_paths: list[str] | None and branches through service.check(file_paths=file_paths), so one MCP tool really serves both list and status cases. I then searched the plan artifacts with rg -n \"x-gen|mcp.element|operation_ids|element\". The only machine-readable binding shape is in cli-contract.schema.json:60-64 as command.operation_ids for CLI commands; design.md:197-200 says an explicit mcp.element binding in the contract overrides name derivation, and tasks.md:163-170 require a fixture with explicit element binding, but no OpenAPI extension name, schema, or validation task defines where that mcp.element lives in the OpenAPI service contract. Implementers are told to compare against bound elements without a defined source of those bindings.",
+      "resolution": "Define the service-contract binding syntax explicitly, preferably as documented OpenAPI vendor extensions such as x-gen-eval-surfaces.mcp.element and x-gen-eval-surfaces.cli.element/operation_ids. Add schema/lint validation for those extensions and make task 1.10's fixture use the exact syntax before tasks 2.3, 2.4, 4.5, and 4.6 depend on it.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/design.md"
+    }
+  ]
+}

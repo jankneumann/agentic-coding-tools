@@ -135,6 +135,37 @@ Three false findings from one legitimate merge.
 **set of bound elements**, not against derived one-per-operation names. Coverage
 of any bound element counts as coverage of every operation it serves.
 
+**The binding needs syntax in both contract languages, or it is only prose.**
+Round 2 found the binding described in this design with no representation in any
+schema. It gets one on each side:
+
+| Contract | Syntax | Where |
+|---|---|---|
+| OpenAPI (service) | `x-gen-eval-surface` extension on the operation | `openspec/contracts/<cap>/openapi/*.yaml` |
+| CLI (tool) | `operation_ids: [...]` on the command | `cli-contract.schema.json` |
+
+```yaml
+# openapi/v1.yaml — two operations, one MCP tool
+/locks/active:
+  get:
+    operationId: list_active_locks
+    x-gen-eval-surface:
+      mcp: { element: check_locks }
+      cli: { element: "lock list" }
+/locks/status/{path}:
+  get:
+    operationId: get_lock_status
+    x-gen-eval-surface:
+      mcp: { element: check_locks }      # same tool, second operation
+      cli: { element: "lock status" }
+```
+
+An OpenAPI extension (`x-` prefix) is used rather than a parallel sidecar file
+because the binding is a property *of the operation* — splitting it out would
+create a second artifact to keep in sync, which is the drift class this change
+exists to remove. Task 1.10 authors the fixture; task 2.3 tests the projection
+against it.
+
 **Why.** Today `POST /locks/acquire`, `mcp:acquire_lock` and `cli:lock acquire`
 are three unrelated strings; testing the operation once leaves two "uncovered".
 The 38/39/37 counts prove surfaces are genuinely partial, so `exposed: false`
@@ -240,8 +271,29 @@ fit it. `CONTRACT_VERSION` goes 1 → 2 and the published
 | A whole descriptor document | `*Descriptor` | `InterfaceDescriptor` (existing, deprecated), `ServiceDescriptor` (new archetype), `ToolDescriptor` (new archetype) |
 
 Renames: `EndpointDescriptor`→`EndpointSpec`, `ToolDescriptor`→`McpToolSpec`,
-`CommandDescriptor`→`CommandSpec`, `ServiceDescriptor`→`ServiceSpec`. Each keeps
-a deprecation alias for one release.
+`CommandDescriptor`→`CommandSpec`, `ServiceDescriptor`→`ServiceSpec`.
+
+**Only two of the four can keep a deprecation alias, and the split is not
+arbitrary — it is forced.** The new archetypes occupy two of the freed names, and
+a symbol cannot simultaneously resolve to the legacy element type and the new
+document type:
+
+| Old name | New name | Old name reused? | Compatibility |
+|---|---|---|---|
+| `EndpointDescriptor` | `EndpointSpec` | no | **deprecation alias**, one release |
+| `CommandDescriptor` | `CommandSpec` | no | **deprecation alias**, one release |
+| `ToolDescriptor` | `McpToolSpec` | **yes** — new archetype | **hard break**, no alias possible |
+| `ServiceDescriptor` | `ServiceSpec` | **yes** — new archetype | **hard break**, no alias possible |
+
+For the bottom two, an import that keeps working returns a *different type* than
+before. That is the sharpest edge in this change and the reason
+`CONTRACT_VERSION` bumps rather than merely deprecating: a version bump is
+detectable, whereas a silently-retyped symbol is not.
+
+**Consequence for the gate.** A verification step asserting that all four old
+names resolve *and* warn is unsatisfiable in the final state. The alias gate
+asserts exactly two aliases, and separately asserts that `ToolDescriptor` and
+`ServiceDescriptor` do **not** resolve to their former element types.
 
 **Why.** The plan's two headline deliverables were originally named
 `ServiceDescriptor` and `ToolDescriptor` — **both already taken** in the exact
@@ -300,6 +352,39 @@ and depend on `wp-tool-descriptor` (it needs the tool vocabulary). The
 integration package asserts on `coverage_pct`, **not** on
 `declared_interfaces_non_empty` — non-emptiness of the declared set is the same
 vacuous signal this change exists to remove.
+
+### D11 — The tool floor is completeness with declared exclusions, not a percentage
+
+**Decision.** For the **service** archetype the 80% coverage floor stands
+unchanged. For the **tool** archetype, replace the percentage with a
+completeness rule: every contracted coverage unit MUST be either exercised by a
+scenario or carry an explicit `excluded` entry with a stated reason. The gate
+fails on any unit that is neither.
+
+**Why.** An 80% floor on gen-eval's own CLI is arithmetically unreachable, and
+asserting it would ship a gate that can never pass — the mirror of the gate that
+could never fail, and equally useless. Measured on the branch:
+
+| | |
+|---|---|
+| long flags in `__main__.py` | 16 |
+| exercised by dogfood scenarios | 5 (`--descriptor`, `--fail-threshold`, `--openspec-change`, `--output-dir`, `--print-contract-version`) |
+| coverage today | **31.2%** |
+| after task 3.8 adds `--min-coverage` | **29.4%** |
+| flags needed for 80% of 17 | 14 — nine more than exist |
+
+A percentage also answers the wrong question. "84% covered" does not say whether
+the uncovered 16% is `--verbose` (fine) or `--fail-threshold` (not fine). The
+completeness rule forces that judgement to be written down and reviewed.
+
+**This resolves an open question.** design.md asked whether `exposed: false`
+should require a stated reason, leaning yes. It does, and for the same reason:
+an unexplained exclusion is how a coverage gap gets laundered into "intentional".
+
+**Consequences.** Tasks 5.4b/5.4c author scenarios for the genuinely exercisable
+flags and record exclusions with reasons for the rest. Task 5.4a asserts the
+completeness rule rather than `coverage_pct >= 80`. The percentage is still
+reported — it is informative — it is simply not the gate for tool descriptors.
 
 ## Risks
 

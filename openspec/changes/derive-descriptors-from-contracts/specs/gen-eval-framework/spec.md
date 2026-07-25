@@ -147,6 +147,11 @@ Each exposed surface entry SHALL name the surface-local element that serves the
 operation, and one element MAY serve more than one operation. Exercising a bound
 element SHALL count as coverage of every operation bound to it.
 
+The binding SHALL be expressible in the contract itself: a service contract
+SHALL declare it on the operation, and a tool contract SHALL declare it on the
+command. A binding that exists only in derived output and cannot be authored in
+a contract SHALL NOT satisfy this requirement.
+
 The identifiers recorded as tested SHALL be drawn from the same vocabulary as
 the declared surface, so that a tested element matches its declared counterpart.
 
@@ -175,6 +180,13 @@ computed from the operation model.
   no subcommands
 - **THEN** each contracted flag SHALL be a nameable coverage unit
 - **AND** the declared surface SHALL be non-empty
+
+#### Scenario: The many-to-one binding is authorable in a contract
+
+- **WHEN** two operations in a service contract declare the same surface element
+- **THEN** the contract SHALL validate
+- **AND** derivation SHALL emit that element once rather than one element per
+  operation
 
 #### Scenario: One surface element serving two operations is covered once
 
@@ -280,10 +292,17 @@ Template scenarios MUST include both success and failure paths for at minimum:
 lock lifecycle, work queue operations, auth boundaries, cross-interface
 consistency, and multi-agent contention.
 
-A dogfood descriptor whose declared surface is non-empty MUST achieve 80%+
-interface coverage (unique interfaces exercised by at least one template
-scenario / total declared interfaces × 100) with template scenarios alone. A
-descriptor whose declared surface is empty MUST fail rather than report
+A **service** dogfood descriptor whose declared surface is non-empty MUST
+achieve 80%+ interface coverage (unique interfaces exercised by at least one
+template scenario / total declared interfaces × 100) with template scenarios
+alone.
+
+A **tool** dogfood descriptor MUST instead satisfy a completeness rule: every
+contracted coverage unit MUST be either exercised by at least one scenario or
+declared as an explicit exclusion carrying a stated reason. A coverage unit that
+is neither exercised nor excluded MUST fail the gate.
+
+A descriptor whose declared surface is empty MUST fail rather than report
 coverage, since a vacuous coverage figure is indistinguishable from full
 coverage.
 
@@ -307,9 +326,22 @@ a CLI contract, and MUST evaluate it as a blocking gate.
 
 #### Scenario: Template-only run achieves 80% interface coverage
 
-- **WHEN** a `template-only` run completes against a dogfood descriptor with a
-  non-empty declared surface
+- **WHEN** a `template-only` run completes against a **service** dogfood
+  descriptor with a non-empty declared surface
 - **THEN** the interface coverage percentage SHALL be at least 80%
+
+#### Scenario: An unexercised, unexcluded tool coverage unit fails the gate
+
+- **WHEN** a tool dogfood descriptor declares a coverage unit that no scenario
+  exercises and that carries no exclusion entry
+- **THEN** the gate SHALL fail naming that unit
+- **AND** a percentage above any threshold SHALL NOT satisfy the gate in its place
+
+#### Scenario: An excluded coverage unit states why
+
+- **WHEN** a contracted coverage unit is declared as an exclusion
+- **THEN** the exclusion SHALL carry a stated reason
+- **AND** an exclusion without a reason SHALL fail the gate
 
 #### Scenario: An empty declared surface fails rather than reporting coverage
 
