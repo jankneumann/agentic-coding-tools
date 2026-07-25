@@ -58,6 +58,9 @@ testpaths = [
     # Phase 0 scaffold:
     "tests/_shared",
     "tests/install_sh",
+    # Context-impact declarations (ri-08). Lives under tests/ rather than
+    # validate-packages/scripts/tests/ so install.sh does not ship it.
+    "tests/validate-packages",
     # Phase 1 new methodology skills (added per-skill by Phase 1 work packages):
     "tests/test-driven-development",
     "tests/debugging-and-error-recovery",
