@@ -29,9 +29,10 @@ packages:
     title: "CLI contract schema plus gen-eval's own CLI contract"
     task_type: implementation
     description: |
-      Tasks 1.1, 1.2, 1.7. Finalize contracts/cli-contract.schema.json and
+      Tasks 1.1, 1.2, 1.7, 1.8. Finalize contracts/cli-contract.schema.json,
       author gen-eval's CLI contract under
-      openspec/contracts/gen-eval-framework/cli/.
+      openspec/contracts/gen-eval-framework/cli/, and document that new
+      <capability>/cli/ sub-path in openspec/contracts/README.md.
 
       Root of the DAG: every other package derives from or validates against
       this schema, so its shape must settle before parallel work starts.
@@ -50,6 +51,7 @@ packages:
       write_allow:
         - "openspec/changes/derive-descriptors-from-contracts/contracts/**"
         - "openspec/contracts/gen-eval-framework/cli/**"
+        - "openspec/contracts/README.md"
       read_allow:
         - "**"
       deny:

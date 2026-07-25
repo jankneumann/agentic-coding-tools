@@ -3,9 +3,23 @@
 Test tasks precede the implementation they verify (RED before GREEN).
 Sizes: XS ≤30min · S 30min–2hr · M 2hr–1day. No L or XL tasks.
 
-All work is in `packages/gen-eval/`. **`packages/gen-eval` changes from PR #277
-must not be reverted or amended** — that PR is merged/green and this change
-builds on top of it.
+Most work is in `packages/gen-eval/`; task 1.8 touches
+`openspec/contracts/README.md`.
+
+**Prerequisite (satisfied).** PR #277 (UP-1..UP-5) merged to `main` on
+2026-07-25 as `c2213c5f` + `e5fabe3d`. This change builds on top of it and
+**must not revert or amend those commits**. The artifacts this plan depends on
+all arrived with that merge:
+
+| Artifact | Depended on by |
+|---|---|
+| `packages/gen-eval/scripts/generate_contract_schemas.py` | task 1.6 (mirrors its `--check` shape), D2 |
+| `packages/gen-eval/evaluation/descriptor.yaml` | task 5.3 (migration target), D8 |
+| `make dogfood` CI gate | tasks 5.3, 5.4, D8 |
+
+Verify before starting Phase 1: both files exist on the branch's merge base.
+If they do not, this branch has not been rebased onto the merged `main` and
+Phase 1 will build against a missing substrate.
 
 ## Phase 1 — Tool contract + tool descriptor (gen-eval self-migration)
 
@@ -45,6 +59,15 @@ builds on top of it.
   **Spec scenarios**: Dogfood (gen-eval evaluates its own CLI surface)
   **Design decisions**: D8
   **Dependencies**: 1.2
+
+- [ ] 1.8 Document the `<capability>/cli/` sub-path in `openspec/contracts/README.md` `[XS]`
+  **Design decisions**: D1, D5
+  **Dependencies**: 1.7
+  **Note**: the README currently documents only `<capability>/schemas/*.schema.json`
+  and `<capability>/openapi/*.yaml`. D1 and task 1.7 introduce a third sibling,
+  `<capability>/cli/*.yaml`, for tool contracts. Without this task the new
+  sub-path ships as undocumented convention, which is the same drift the
+  contracts directory was created to prevent.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
