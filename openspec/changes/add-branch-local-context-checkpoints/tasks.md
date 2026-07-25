@@ -63,7 +63,7 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
 
 ## Phase 3 — Checkpoint module (wp-checkpoint)
 
-- [ ] 3.1 Write the ledger-isolation test — after a checkpoint run, the
+- [x] 3.1 Write the ledger-isolation test — after a checkpoint run, the
       refresh-operations directory under the resolved git common dir has gained no
       entries and no manifest was written.
       **Spec scenarios**: pcro "Checkpoint leaves the shared operation ledger untouched",
@@ -72,7 +72,7 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: None
       **Size**: M
 
-- [ ] 3.2 Write the read-only test — a checkpoint against a dirty tree leaves every
+- [x] 3.2 Write the read-only test — a checkpoint against a dirty tree leaves every
       tracked producer output byte-identical, and producers are invoked in check mode only.
       **Spec scenarios**: pcro "Tracked producer outputs are unchanged by a checkpoint",
       pcro "Producers are invoked in check mode"
@@ -80,14 +80,14 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: None
       **Size**: S
 
-- [ ] 3.3 Write the determinism test — two runs at one revision produce byte-identical
+- [x] 3.3 Write the determinism test — two runs at one revision produce byte-identical
       reports, and the report validates against the schema.
       **Spec scenarios**: pcro "Repeated checkpoints at one revision produce no diff"
       **Design decisions**: D7
       **Dependencies**: None
       **Size**: S
 
-- [ ] 3.4 Write the degradation test — with no index configuration the report records a
+- [x] 3.4 Write the degradation test — with no index configuration the report records a
       not-configured status with a fallback, retains all deterministic findings, and the
       run still succeeds.
       **Spec scenarios**: pcro "Missing index configuration degrades the checkpoint",
@@ -97,15 +97,15 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: None
       **Size**: S
 
-- [ ] 3.5 Implement `checkpoint.py` — surface inference via the ri-08 detector, producer
+- [x] 3.5 Implement `checkpoint.py` — surface inference via the ri-08 detector, producer
       dispatch through `registry.run_producer` in check mode, and report assembly.
       **Design decisions**: D1, D2, D3
       **Dependencies**: 3.1, 3.2, 3.3, 3.4
       **Size**: M
 
-- [ ] 3.6 Checkpoint: run tests, review diff, verify scope.
+- [x] 3.6 Checkpoint: run tests, review diff, verify scope.
 
-- [ ] 3.7 Write the architecture-coverage test — a stale artifact yields
+- [x] 3.7 Write the architecture-coverage test — a stale artifact yields
       `delta_authoritative: false`; a fresh artifact yields the changed-node list.
       **Spec scenarios**: pcro "Stale architecture artifact yields a labelled delta",
       pcro "Fresh architecture artifact yields an authoritative delta"
@@ -113,12 +113,12 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: 3.5
       **Size**: S
 
-- [ ] 3.8 Add architecture coverage to `checkpoint.py` — freshness via
+- [x] 3.8 Add architecture coverage to `checkpoint.py` — freshness via
       `run_architecture.py --check`, delta via `diff_architecture.py` against the merge base.
       **Dependencies**: 3.7
       **Size**: M
 
-- [ ] 3.9 Write the CLI test — `checkpoint` subcommand refuses a shared checkout and
+- [x] 3.9 Write the CLI test — `checkpoint` subcommand refuses a shared checkout and
       returns a non-zero exit only when no valid report could be produced.
       **Spec scenarios**: pcro "Checkpoint runs for a work package inside a feature worktree",
       pcro "Checkpoint refuses to run against a shared checkout",
@@ -127,11 +127,11 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: 3.5
       **Size**: S
 
-- [ ] 3.10 Add the `checkpoint` subcommand to `cli.py`.
+- [x] 3.10 Add the `checkpoint` subcommand to `cli.py`.
       **Dependencies**: 3.9
       **Size**: S
 
-- [ ] 3.11 Checkpoint: run tests, review diff, verify scope.
+- [x] 3.11 Checkpoint: run tests, review diff, verify scope.
 
 ## Phase 4 — Workflow trigger (wp-workflow)
 
