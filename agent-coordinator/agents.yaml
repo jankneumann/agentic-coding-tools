@@ -209,7 +209,20 @@ agents:
       dispatch_modes:
         review:
           # --mode plan: planning only, no edits — read-only-shaped review.
-          args: ["--mode", "plan"]
+          #
+          # --dangerously-skip-permissions is REQUIRED even though this mode
+          # makes no edits. Headless agy cannot prompt for tool permission, so
+          # without it every tool call is auto-denied and the CLI emits
+          #   "jetski: no output produced — a tool required the read_file
+          #    permission that headless mode cannot prompt for"
+          # instead of JSON. A reviewer that cannot read files produces nothing
+          # useful, and the dispatcher reported only "Invalid JSON output"
+          # because it discards stdout on parse failure.
+          #
+          # Read-only-ness comes from --mode plan (no edits), not from
+          # withholding permissions. This was the only dispatch mode missing
+          # the flag.
+          args: ["--mode", "plan", "--dangerously-skip-permissions"]
         alternative:
           args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
         quick:
@@ -241,7 +254,42 @@ agents:
       command: grok
       dispatch_modes:
         review:
-          args: ["--prompt-file", "/dev/stdin", "--output-format", "json"]
+          # --json-schema is REQUIRED, not optional polish. review_dispatcher's
+          # _extract_findings unwraps grok's `structuredOutput` key, but grok
+          # only populates that key when --json-schema is passed. With
+          # --output-format json alone the answer comes back as a JSON *string*
+          # under `text`, structuredOutput is absent, the unwrap returns None,
+          # and the dispatcher reports "Invalid JSON output".
+          #
+          # This is the "--json-schema ... inlined by the adapter" step noted in
+          # the E6 comment above, which was never implemented adapter-side.
+          # Carrying it here makes the vendor work with the dispatcher as it
+          # already exists — no code change required.
+          #
+          # --always-approve matches the other modes: a reviewer must be able to
+          # read files and run commands. Read-only-ness is a property of the
+          # review prompt, not of withholding tool access.
+          args:
+            - "--prompt-file"
+            - "/dev/stdin"
+            - "--output-format"
+            - "json"
+            - "--always-approve"
+            - "--json-schema"
+            - >-
+              {"type":"object","required":["findings"],"properties":{"findings":
+              {"type":"array","items":{"type":"object","required":["id","type",
+              "criticality","description","disposition","axis","severity"],
+              "properties":{"id":{"type":"integer"},"type":{"enum":["spec_gap",
+              "contract_mismatch","architecture","security","performance","style",
+              "correctness","observability","compatibility","resilience",
+              "behavioral_failure"]},"criticality":{"enum":["low","medium","high",
+              "critical"]},"description":{"type":"string"},"resolution":
+              {"type":"string"},"disposition":{"enum":["fix","regenerate","accept",
+              "escalate"]},"axis":{"enum":["correctness","readability",
+              "architecture","security","performance"]},"severity":{"enum":
+              ["critical","nit","optional","fyi","none"]},"file_path":
+              {"type":"string"}}}}}}
         alternative:
           args: ["--prompt-file", "/dev/stdin", "--always-approve"]
         quick:
