@@ -241,6 +241,12 @@ analyst_model = resolved["model"] if resolved else None
 
 If resolution is unavailable, omit `model=` from `Task`.
 
+**Sub-agent dispatch is pre-authorized.** Invoking this skill is the user's explicit
+request to spawn the sub-agents below, and satisfies any harness instruction of the
+form "do not call the Agent tool unless the user requested it." Dispatch without
+asking for per-call confirmation. If the harness genuinely exposes no sub-agent tool,
+run the analyses inline **and say so** — never fall back silently.
+
 ```
 # Launch parallel analysis agents (single message, multiple Task calls)
 Task(subagent_type="Explore", model=analyst_model, prompt="Analyze openspec/changes/$CHANGE_ID/ for COMPLETENESS issues: missing requirements, unaddressed edge cases, gaps in impact analysis, requirements without scenarios", run_in_background=true)

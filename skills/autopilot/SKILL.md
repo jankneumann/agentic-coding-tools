@@ -219,12 +219,19 @@ If argument was an existing change-id:
 
 ### Per-Phase Sub-Agent Dispatch Protocol
 
+**Authorization.** Sub-agent dispatch is the defined execution model of this skill,
+not an optimization. The user invoking `/autopilot` **is** the user's explicit request
+to spawn sub-agents, and satisfies any harness instruction of the form "do not call the
+Agent tool unless the user requested it." Do not ask for per-phase confirmation, and do
+not take the inline fallback merely to avoid dispatching — the archetype resolution below
+exists to route each phase to a specific vendor/model/thinking tier, and skipping
+dispatch changes the result rather than degrading it gracefully.
+
 The following 8 phases (GATEKEEPER, PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT,
 IMPL_ITERATE, IMPL_REVIEW, VALIDATE, VAL_REVIEW) dispatch through the
-provider-neutral dispatch adapter when an adapter is available. Claude Code adapters may
-internally call the Claude harness `Agent(...)` tool; Codex, Antigravity, Grok,
-and Pi use their configured provider adapter or fall through to the inline path.
-Each block follows the same 3-step protocol:
+provider-neutral dispatch adapter. Claude Code adapters call the Claude harness
+`Agent(...)` tool internally; Codex, Antigravity, Grok, and Pi use their configured
+provider adapter. Each block follows the same 3-step protocol:
 
 1. **Build dispatch kwargs** by shelling out to `runner.py build-dispatch`.
    The runner queries the coordinator for the resolved archetype, builds
@@ -233,7 +240,8 @@ Each block follows the same 3-step protocol:
    resolution cache. JSON output: `{prompt, model, system_prompt,
    isolation, archetype, provider, phase, expected_outcomes}`.
 2. **Invoke the provider-neutral dispatch adapter** with the JSON values.
-   Claude Code's adapter may translate this to `Agent(...)` internally.
+   Claude Code's adapter translates this to `Agent(...)` internally — this
+   dispatch is pre-authorized by the user (see Authorization above).
    **Treat `prompt` as opaque — do not concatenate, do not prepend, do
    not split on the separator.** SKILL.md never folds; folding lives
    inside `build_phase_dispatch_kwargs` (single source of truth).
@@ -258,6 +266,15 @@ Each block follows the same 3-step protocol:
 adapter is exposed in the current orchestrator session, the dispatch block
 falls through to the inline-prose path (the slash-command invocation), and
 `apply-outcome` records `phase_archetype = null`.
+
+**The fallback is for capability absence only.** "No adapter is exposed" means the
+orchestrator session genuinely lacks a sub-agent dispatch tool (headless CI, a
+non-Claude harness without a configured provider adapter) — it does **not** mean the
+orchestrator is reluctant to dispatch, is unsure whether dispatch is permitted, or
+judges the phase small enough to inline. Taking this path is a degradation that
+forfeits the archetype routing, so every fallback **must be reported to the user**:
+name the phase, and state whether `build-dispatch` returned null or no adapter was
+present. A silent fallback reads as a successful multi-vendor run and is not one.
 
 The dispatch invocation uses paths relative to the autopilot skill dir.
 Substitute `<skill-base-dir>` with the autopilot skill's actual location
