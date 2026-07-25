@@ -1,0 +1,90 @@
+# Context-impact detection rules (ri-08).
+#
+# Maps changed-file globs onto the six derived context surfaces. This table is
+# the detector: a work package's `context_impact.surfaces` declaration is only a
+# reviewable hint, and the gate compares it against what these rules infer from
+# the files the package actually changed.
+#
+# Kept in YAML rather than in Python precisely so a reviewer can audit a rule
+# change in a diff. Every surface MUST have at least one rule; a surface with no
+# rule silently stops being detectable, which is the failure mode this table
+# exists to prevent (enforced by test_every_surface_has_at_least_one_rule).
+#
+# Matching is fnmatch-based, consistent with skills/roadmap-runtime/scripts/
+# scope_overlap.py. A `**/` prefix additionally matches at the repository root,
+# so `**/*.py` covers both `pkg/mod.py` and `setup.py`.
+
+schema_version: 1
+
+rules:
+  - surface: capabilities
+    description: >-
+      OpenSpec capability specs and the per-change spec deltas that merge into
+      them. Owned by the `openspec.projection` producer.
+    globs:
+      - "openspec/specs/**"
+      - "openspec/changes/*/specs/**"
+      - "openspec/project.md"
+
+  - surface: apis
+    description: >-
+      Machine-readable interface contracts: promoted capability schemas, OpenAPI
+      documents, JSON Schemas, and generated bindings. Owned by the
+      `api.contracts` producer. Files listed in `contracts.openapi.files` imply
+      this surface regardless of path.
+    globs:
+      - "openspec/contracts/**"
+      - "**/contracts/openapi/**"
+      - "**/openapi/**"
+      - "**/*.schema.json"
+      - "**/install_assets/openspec/schemas/**"
+      - "openspec/schemas/**"
+
+  - surface: architecture
+    description: >-
+      Architecture analysis artifacts and the provenance that pins them to a
+      revision. Owned by `refresh-architecture` (ri-04).
+    globs:
+      - "docs/architecture-analysis/**"
+      - "docs/architecture.md"
+      - "**/architecture-provenance.json"
+      - "skills/refresh-architecture/**"
+
+  - surface: decisions
+    description: >-
+      Decision records and the archived changes they are derived from. Owned by
+      the `decisions.timeline` producer (`make decisions`).
+    globs:
+      - "docs/decisions/**"
+      - "openspec/changes/archive/**"
+      - "docs/adr/**"
+
+  - surface: documentation
+    description: >-
+      Human- and agent-facing documentation, including skill instructions and
+      the guides CLAUDE.md delegates to. Owned by the
+      `documentation.inventory` producer.
+    globs:
+      - "docs/**"
+      - "**/*.md"
+      - "**/SKILL.md"
+      - "README.md"
+      - "CLAUDE.md"
+      - "AGENTS.md"
+
+  - surface: semantic_code
+    description: >-
+      Source files the semantic index embeds. Owned by the code-search index
+      (ri-01/ri-02); a change here makes a revision-pinned index stale.
+    globs:
+      - "**/*.py"
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "**/*.js"
+      - "**/*.jsx"
+      - "**/*.go"
+      - "**/*.rs"
+      - "**/*.java"
+      - "**/*.rb"
+      - "**/*.sh"
+      - "**/*.sql"
