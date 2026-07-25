@@ -93,41 +93,58 @@ def _write_tasks(item: RoadmapItem, change_dir: Path) -> None:
     (change_dir / "tasks.md").write_text(content)
 
 
-def scaffold_changes(roadmap: Roadmap, repo_root: Path) -> list[Path]:
-    """Create OpenSpec change directories for approved/candidate items.
+def scaffold_change(roadmap: Roadmap, repo_root: Path, item_id: str) -> Path:
+    """Create the OpenSpec change directory for a single roadmap item.
+
+    Scaffold **one item at a time, at the moment it is picked up for work** —
+    never the whole roadmap up front.
+
+    The directory this writes is an intermediate stub: it has a `specs/`
+    directory with no delta files in it, and `openspec validate --strict`
+    rejects any change without at least one delta carrying a
+    `#### Scenario:` block. Scaffolding every item of an N-item roadmap
+    therefore lands N validation failures in `openspec validate --strict --all`,
+    which CI runs on every push.
+
+    The stub is only valid as the first step of authoring one change. The
+    caller must complete it — normally by running `/plan-feature`, which writes
+    the spec deltas — before committing. A scaffolded directory with an empty
+    `specs/` must never reach a commit.
 
     Args:
-        roadmap: The roadmap containing items to scaffold.
+        roadmap: The roadmap containing the item.
         repo_root: Repository root where openspec/changes/ lives.
+        item_id: The `item_id` of the single item to scaffold.
 
     Returns:
-        List of created change directory paths.
+        The created change directory path.
+
+    Raises:
+        KeyError: If `item_id` is not in the roadmap.
+        ValueError: If the item's status is not candidate or approved.
     """
-    changes_dir = repo_root / "openspec" / "changes"
-    changes_dir.mkdir(parents=True, exist_ok=True)
+    item = next((i for i in roadmap.items if i.item_id == item_id), None)
+    if item is None:
+        raise KeyError(f"item_id {item_id!r} not found in roadmap {roadmap.roadmap_id!r}")
 
-    created: list[Path] = []
+    if item.status not in (ItemStatus.CANDIDATE, ItemStatus.APPROVED):
+        raise ValueError(
+            f"item {item_id!r} has status {item.status.value!r}; "
+            "only candidate or approved items can be scaffolded"
+        )
 
-    for item in roadmap.items:
-        # Only scaffold items that are candidates or approved
-        if item.status not in (ItemStatus.CANDIDATE, ItemStatus.APPROVED):
-            continue
+    change_id = item.change_id or _derive_change_id(item)
+    # Update the item's change_id so it's tracked
+    item.change_id = change_id
 
-        change_id = item.change_id or _derive_change_id(item)
-        # Update the item's change_id so it's tracked
-        item.change_id = change_id
+    change_dir = repo_root / "openspec" / "changes" / change_id
+    change_dir.mkdir(parents=True, exist_ok=True)
 
-        change_dir = changes_dir / change_id
-        change_dir.mkdir(parents=True, exist_ok=True)
+    # Create specs directory — deliberately empty; the caller authors the deltas.
+    (change_dir / "specs").mkdir(exist_ok=True)
 
-        # Create specs directory
-        specs_dir = change_dir / "specs"
-        specs_dir.mkdir(exist_ok=True)
+    # Write proposal and tasks
+    _write_proposal(item, roadmap.roadmap_id, change_dir)
+    _write_tasks(item, change_dir)
 
-        # Write proposal and tasks
-        _write_proposal(item, roadmap.roadmap_id, change_dir)
-        _write_tasks(item, change_dir)
-
-        created.append(change_dir)
-
-    return created
+    return change_dir

@@ -69,6 +69,10 @@ The orchestrator queries `roadmap.ready_items()` to find items whose dependencie
 
 ### 3. Execute via /implement-feature
 
+**Create the item's change first.** `/plan-roadmap` deliberately leaves `openspec/changes/` empty — scaffolding every item up front would fail `openspec validate --strict --all` in CI, because a change with no spec delta is invalid. `/implement-feature`, meanwhile, requires an approved proposal to already exist at `openspec/changes/<change-id>/`.
+
+So the first dispatch for any item is planning, not implementation: run `/plan-feature` for the item (seeded from its `title`, `description`, `rationale`, and `acceptance_outcomes` in `roadmap.yaml`) and let it author the spec deltas. Only once that change validates does `/implement-feature` run against it. Items whose change directory already exists and validates skip straight to implementation on resume.
+
 For each ready item, the SKILL.md prompt layer invokes the existing skill workflow. The orchestrator provides a `dispatch_fn` callback interface:
 
 ```python

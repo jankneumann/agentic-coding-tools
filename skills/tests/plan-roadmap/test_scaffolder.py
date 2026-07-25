@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from models import Effort, ItemStatus, Roadmap, RoadmapItem, RoadmapStatus
-from scaffolder import scaffold_changes
+from scaffolder import scaffold_change
 
 
 # ---------------------------------------------------------------------------
@@ -41,54 +41,50 @@ def _make_roadmap(items: list[RoadmapItem] | None = None) -> Roadmap:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
-class TestScaffoldChanges:
+class TestScaffoldChange:
     def test_creates_change_directory(self, tmp_path: Path):
         roadmap = _make_roadmap()
-        created = scaffold_changes(roadmap, tmp_path)
-        assert len(created) == 1
-        assert created[0].is_dir()
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        assert created.is_dir()
 
     def test_creates_proposal_md(self, tmp_path: Path):
         roadmap = _make_roadmap()
-        created = scaffold_changes(roadmap, tmp_path)
-        proposal_path = created[0] / "proposal.md"
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        proposal_path = created / "proposal.md"
         assert proposal_path.exists()
-        content = proposal_path.read_text()
-        assert "Test Feature" in content
+        assert "Test Feature" in proposal_path.read_text()
 
     def test_proposal_contains_parent_roadmap(self, tmp_path: Path):
         roadmap = _make_roadmap()
-        created = scaffold_changes(roadmap, tmp_path)
-        proposal_path = created[0] / "proposal.md"
-        content = proposal_path.read_text()
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        content = (created / "proposal.md").read_text()
         assert "roadmap-test-proposal" in content
         assert "Parent roadmap" in content
 
     def test_proposal_contains_effort_and_priority(self, tmp_path: Path):
         roadmap = _make_roadmap()
-        created = scaffold_changes(roadmap, tmp_path)
-        content = (created[0] / "proposal.md").read_text()
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        content = (created / "proposal.md").read_text()
         assert "Effort: M" in content
         assert "Priority: 1" in content
 
     def test_proposal_contains_acceptance_outcomes(self, tmp_path: Path):
         roadmap = _make_roadmap()
-        created = scaffold_changes(roadmap, tmp_path)
-        content = (created[0] / "proposal.md").read_text()
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        content = (created / "proposal.md").read_text()
         assert "Tests pass" in content
         assert "Feature works" in content
 
     def test_proposal_contains_dependencies(self, tmp_path: Path):
         item = _make_item(depends_on=["ri-00-infra"])
         roadmap = _make_roadmap([item])
-        created = scaffold_changes(roadmap, tmp_path)
-        content = (created[0] / "proposal.md").read_text()
-        assert "ri-00-infra" in content
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        assert "ri-00-infra" in (created / "proposal.md").read_text()
 
     def test_creates_tasks_md(self, tmp_path: Path):
         roadmap = _make_roadmap()
-        created = scaffold_changes(roadmap, tmp_path)
-        tasks_path = created[0] / "tasks.md"
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        tasks_path = created / "tasks.md"
         assert tasks_path.exists()
         content = tasks_path.read_text()
         assert "Test Feature" in content
@@ -96,59 +92,85 @@ class TestScaffoldChanges:
 
     def test_creates_specs_directory(self, tmp_path: Path):
         roadmap = _make_roadmap()
-        created = scaffold_changes(roadmap, tmp_path)
-        specs_dir = created[0] / "specs"
-        assert specs_dir.is_dir()
-
-    def test_multiple_items_create_multiple_dirs(self, tmp_path: Path):
-        items = [
-            _make_item("ri-01", "Feature Alpha", priority=1),
-            _make_item("ri-02", "Feature Beta", priority=2),
-        ]
-        roadmap = _make_roadmap(items)
-        created = scaffold_changes(roadmap, tmp_path)
-        assert len(created) == 2
-        # Each should have its own directory
-        dir_names = {p.name for p in created}
-        assert len(dir_names) == 2
-
-    def test_skips_completed_items(self, tmp_path: Path):
-        items = [
-            _make_item("ri-01", "Active Feature", status=ItemStatus.CANDIDATE),
-            _make_item("ri-02", "Done Feature", status=ItemStatus.COMPLETED),
-        ]
-        roadmap = _make_roadmap(items)
-        created = scaffold_changes(roadmap, tmp_path)
-        assert len(created) == 1
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        assert (created / "specs").is_dir()
 
     def test_updates_item_change_id(self, tmp_path: Path):
         item = _make_item()
         assert item.change_id is None
         roadmap = _make_roadmap([item])
-        scaffold_changes(roadmap, tmp_path)
-        assert item.change_id is not None
+        scaffold_change(roadmap, tmp_path, "ri-01")
+        assert item.change_id
         assert len(item.change_id) > 0
 
     def test_uses_existing_change_id(self, tmp_path: Path):
         item = _make_item()
         item.change_id = "custom-change-id"
         roadmap = _make_roadmap([item])
-        created = scaffold_changes(roadmap, tmp_path)
-        assert created[0].name == "custom-change-id"
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        assert created.name == "custom-change-id"
 
     def test_directory_under_openspec_changes(self, tmp_path: Path):
         roadmap = _make_roadmap()
-        created = scaffold_changes(roadmap, tmp_path)
-        # Should be under repo_root/openspec/changes/
-        assert "openspec" in str(created[0])
-        assert "changes" in str(created[0])
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        assert created.parent.name == "changes"
+        assert created.parent.parent.name == "openspec"
 
     def test_idempotent_scaffold(self, tmp_path: Path):
         """Running scaffold twice should not fail or corrupt files."""
         roadmap = _make_roadmap()
-        created1 = scaffold_changes(roadmap, tmp_path)
-        created2 = scaffold_changes(roadmap, tmp_path)
-        assert len(created1) == len(created2)
-        # Files should still be valid
-        assert (created2[0] / "proposal.md").exists()
-        assert (created2[0] / "tasks.md").exists()
+        first = scaffold_change(roadmap, tmp_path, "ri-01")
+        second = scaffold_change(roadmap, tmp_path, "ri-01")
+        assert first == second
+        assert (second / "proposal.md").exists()
+        assert (second / "tasks.md").exists()
+
+
+class TestSingleItemOnly:
+    """Scaffolding is per-item at pickup time — never the whole roadmap up front.
+
+    Bulk scaffolding produced one `openspec validate --strict` failure per item,
+    because a change with an empty `specs/` directory has no delta. CI runs
+    `openspec validate --strict --all`, so an N-item roadmap turned CI red for
+    the whole life of the roadmap.
+    """
+
+    def test_scaffolds_only_the_requested_item(self, tmp_path: Path):
+        items = [
+            _make_item("ri-01", "Feature Alpha", priority=1),
+            _make_item("ri-02", "Feature Beta", priority=2),
+        ]
+        roadmap = _make_roadmap(items)
+        scaffold_change(roadmap, tmp_path, "ri-01")
+        changes = sorted(p.name for p in (tmp_path / "openspec" / "changes").iterdir())
+        assert changes == ["feature-alpha"]
+
+    def test_unknown_item_id_raises(self, tmp_path: Path):
+        roadmap = _make_roadmap()
+        with pytest.raises(KeyError):
+            scaffold_change(roadmap, tmp_path, "ri-99")
+
+    def test_completed_item_raises(self, tmp_path: Path):
+        item = _make_item("ri-01", "Done Feature", status=ItemStatus.COMPLETED)
+        roadmap = _make_roadmap([item])
+        with pytest.raises(ValueError, match="only candidate or approved"):
+            scaffold_change(roadmap, tmp_path, "ri-01")
+
+    def test_no_bulk_entry_point_exists(self):
+        """A bulk API is the footgun; it must not come back."""
+        import scaffolder
+
+        assert not hasattr(scaffolder, "scaffold_changes")
+
+
+class TestStubIsNotCommittable:
+    def test_specs_dir_has_no_deltas(self, tmp_path: Path):
+        """The stub is deliberately incomplete.
+
+        `openspec validate --strict` requires at least one delta file carrying a
+        `#### Scenario:` block. The scaffolder writes none, so the caller must
+        author spec deltas (normally via /plan-feature) before committing.
+        """
+        roadmap = _make_roadmap()
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        assert list((created / "specs").iterdir()) == []
