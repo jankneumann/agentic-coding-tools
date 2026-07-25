@@ -125,6 +125,7 @@ testpaths = [
     # by collecting with NO path argument — naming the directory bypasses
     # `testpaths` and passes identically whether or not this line exists.
     "tests/setup-coordinator",
+    "tests/codebase-atlas",
     "expedite/scripts/tests",
     # The CI-coverage guard itself. It used to sit loose in skills/tests, which
     # no testpaths entry names, so the test that asserts "every test directory

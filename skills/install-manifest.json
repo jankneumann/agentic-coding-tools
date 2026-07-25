@@ -215,6 +215,9 @@
     "cleanup-feature": {
       "distribution": "portable"
     },
+    "codebase-atlas": {
+      "distribution": "portable"
+    },
     "collect-transcripts": {
       "distribution": "portable"
     },
