@@ -1,6 +1,6 @@
 # Roadmap: skill-rightsizing
 
-> Source: `docs/proposals/skill-rightsizing-roadmap.md` | Status: **planning** | Items: 18
+> Source: `docs/proposals/skill-rightsizing-roadmap.md` | Status: **planning** | Items: 19
 
 
 <!-- GENERATED: begin phase-table -->
@@ -16,6 +16,7 @@
 | 1 | Give cross-skill scripts self-describing CLI interfaces | L | candidate | ri-09 |
 | 1 | Collapse the mechanical preamble into a session-start tool | L | candidate | ri-11 |
 | 1 | Run the sealed holdout and apply the pre-registered decision rule | M | candidate | ri-10, ri-12, ri-13, ri-14, ri-15 |
+| 1 | Assert in CI that skill-generated artifacts pass their own validators | S | candidate | - |
 | 2 | Aggregate process telemetry into a comparable scorecard feed | M | candidate | - |
 | 2 | Record the /doctor context-cost baseline | S | candidate | - |
 | 2 | Measure validator recall with a seeded-defect harness | L | candidate | ri-01 |
@@ -52,6 +53,7 @@ graph TD
     ri-16["Rescope review convergence from consensu"]
     ri-17["Run the sealed holdout and apply the pre"]
     ri-18["Invert the skill test suite from shape a"]
+    ri-19["Assert in CI that skill-generated artifa"]
     ri-02 --> ri-05
     ri-01 --> ri-06
     ri-05 --> ri-07
@@ -205,6 +207,21 @@ Unseal the 32-change holdout partition, run both arms across it, and accept or r
 - [ ] Both arms run across all 32 holdout changes at N=3 with blinded judging.
 - [ ] The accept/reject verdict is stated against the rule as registered, without amendment.
 - [ ] Per-metric deltas are published with variance, and any rejected cut is reverted or reworked rather than retained.
+
+### ri-19: Assert in CI that skill-generated artifacts pass their own validators
+
+- **Status**: candidate
+- **Priority**: 1
+- **Effort**: S
+- **Change ID**: assert-generated-artifacts-validate-in-ci
+
+For every skill that emits a structured artifact — OpenSpec change directories, roadmap.yaml, spec deltas, work-packages.yaml — add a test that generates the artifact and runs the real validator against it, wired into CI.
+
+**Acceptance outcomes**:
+- [ ] Every artifact-generating skill has a test that runs its artifact through the real validator, not a structural approximation.
+- [ ] Reverting the per-item scaffolder fix makes that test fail.
+- [ ] The checks run in CI on every push and block merge on failure.
+- [ ] Each generator documents which validator is authoritative for its output.
 
 ### ri-03: Aggregate process telemetry into a comparable scorecard feed
 
