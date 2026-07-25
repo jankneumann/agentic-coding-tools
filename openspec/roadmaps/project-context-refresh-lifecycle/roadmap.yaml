@@ -186,7 +186,7 @@ items:
   - ri-07
 - item_id: ri-08
   title: Add work-package context impact declarations
-  status: approved
+  status: completed
   priority: 8
   effort: M
   depends_on: []
@@ -330,4 +330,4 @@ items:
     coding-context utility gates pass.
   - A later regression or unavailable exact-revision index disables semantic injection
     and restores explicit exact-search fallback.
-updated_at: '2026-07-25T02:36:04.397880+00:00'
+updated_at: '2026-07-25T17:25:28.404181+00:00'
