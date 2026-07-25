@@ -80,6 +80,7 @@ if _VALIDATE_PACKAGES_SCRIPTS.is_dir() and str(_VALIDATE_PACKAGES_SCRIPTS) not i
 
 from context_impact import (  # noqa: E402
     SURFACES,
+    ContextImpactRulesError,
     ImpactRules,
     IndexScopes,
     index_scopes,
@@ -489,6 +490,19 @@ def load_package(repository: Path, change_id: str, package_id: str) -> Mapping[s
     raise CheckpointError(f"package {package_id!r} not found in {path}")
 
 
+def load_impact_rules(path: Path | str | None = None) -> ImpactRules:
+    """Load the ri-08 rule table, honouring an explicit override *path*.
+
+    A missing or malformed table is a :class:`CheckpointError`: ri-08 fails loud
+    rather than yielding an empty rule set, because a detector that matches
+    nothing would let every package look impact-free while appearing to work.
+    """
+    try:
+        return load_rules(Path(path)) if path else load_rules()
+    except ContextImpactRulesError as exc:
+        raise CheckpointError(str(exc)) from exc
+
+
 def _ensure_identifier(value: str, pattern: re.Pattern[str], label: str) -> str:
     if not pattern.match(value):
         raise CheckpointError(f"invalid {label}: {value!r}")
@@ -635,6 +649,7 @@ __all__ = [
     "ProducerRunner",
     "architecture_changed_nodes",
     "architecture_freshness",
+    "load_impact_rules",
     "load_package",
     "report_relative_path",
     "resolve_architecture",
