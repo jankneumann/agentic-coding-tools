@@ -57,11 +57,19 @@ The checkpoint invokes producers through the existing
 `registry.run_producer(producer_id, "check", repository, source_revision)` seam
 (`registry.py:159-211`) — never `"generate"`.
 
-This is what makes acceptance outcome #3 ("branch-local generated artifacts remain
-isolated from canonical main artifacts") true by construction rather than by care: a
-`check` producer has no write path into `docs/`, `docs/decisions/`, or `openspec/specs/`.
-It also means the checkpoint cannot create the diff noise that a tracked report would
-otherwise risk.
+This is what satisfies acceptance outcome #3 ("branch-local generated artifacts remain
+isolated from canonical main artifacts"): the four current `check`-mode producers have no
+write path into `docs/`, `docs/decisions/`, or `openspec/specs/`. It also means the
+checkpoint cannot create the diff noise that a tracked report would otherwise risk.
+
+**Precision about the strength of this guarantee.** `registry.run_producer` does not
+*structurally* prevent a `check`-mode adapter from writing — nothing in the registry
+enforces read-only behaviour, and the invariant holds because the four landed adapters
+respect it, not because the seam forbids it. The checkpoint's tests assert it from both
+sides (the mode argument passed, and a byte-identical tracked tree after a run against a
+dirty worktree), which is the strongest available check. Downstream work must not read
+this decision as a registry-level guarantee; **ri-10 in particular should assert
+read-only-ness rather than assume it.**
 
 Going through `registry.run_producer` rather than reimplementing dispatch is the
 mitigation for Approach B's acknowledged cost — the drift surface between the two paths
@@ -103,15 +111,30 @@ into nothing.
 
 The checkpoint therefore reports two independent architecture facts:
 
-1. **Freshness** — `run_architecture.py --check`, the read-only provenance comparison
-   (mtime-independent), answering "is this branch's architecture artifact current for
-   this revision?"
-2. **Delta** — `diff_architecture.py` between the merge-base `architecture.graph.json` and
-   the branch's committed one, yielding the affected architecture nodes for the report.
+1. **Freshness** — the read-only, mtime-independent provenance comparison, answering "is
+   this branch's architecture artifact current for this revision?"
+2. **Delta** — `diff_architecture.py` between the merge-base `architecture.graph.json`
+   (read out of git with `git show <base>:<path>`) and the **working-tree** graph,
+   yielding the affected architecture nodes for the report.
 
 These answer different questions and can disagree: a stale artifact produces an empty or
 misleading delta. The report carries both, and a stale-artifact delta is labelled as such
-rather than presented as authoritative.
+rather than presented as authoritative. That labelling is enforced by the contract, not
+merely described — `context-checkpoint.schema.json` carries an `if/then` making
+`delta_authoritative: true` invalid whenever `freshness` is not `fresh`.
+
+**Working-tree, not committed, is the correct "current" side.** A checkpoint exists to
+describe a branch mid-flight; diffing two *committed* graphs would blind it during exactly
+the window it is for — an uncommitted worktree between package completion and commit. The
+freshness finding already carries the caveat that the working-tree graph may be stale, so
+nothing is lost by reading it live.
+
+**Freshness is read via `arch_utils.provenance.check_freshness`, not by shelling
+`run_architecture.py --check`.** The CLI wrapper collapses ri-04's `stale` and `invalid`
+into a single non-zero exit, and the report needs them distinct: `invalid` maps to
+`unknown` ("we cannot vouch for this artifact"), which is not the same claim as `stale`
+("this artifact is out of date"). Same computation and same provenance basis — only the
+call boundary differs.
 
 ### D7 — The report is tracked, change-local, and byte-stable for a fixed revision
 
@@ -158,6 +181,45 @@ change behaviour for every existing caller — the checkpoint asserts its own in
 
 Widening `checkout_policy` to understand common-dir writes is a reasonable future change
 but would need its own proposal; it affects every mutating skill.
+
+## Edge cases the decisions above did not resolve
+
+These surfaced during implementation. Each is recorded with the resolution taken, so a
+later reader does not mistake a deliberate choice for drift.
+
+### The contract admits an `unmigrated` report that the trigger never produces
+
+D2 says an unmigrated package produces no checkpoint, yet
+`context-checkpoint.schema.json` accepts `context_impact.status: "unmigrated"`. That is
+intentional and the two are kept separate rather than collapsed: **D2 owns the trigger**
+(`should_checkpoint` returns `should_run=False` for unmigrated), while the **contract
+stays total** — a caller that invokes a checkpoint directly still gets a schema-valid
+report describing what it found. Narrowing the schema to make the state unrepresentable
+would couple the report format to one caller's policy, and ri-10 may well want to record
+"we looked, and this package was unmigrated".
+
+### `undeclared` and `spurious_rationale` cannot be reported at all
+
+ri-08's two *failing* statuses have no member in the contract's `context_impact.status`
+enum, so a package in either state cannot produce a schema-valid report. This is treated
+as "could not produce a valid report" under D8: the checkpoint raises, exits non-zero, and
+writes nothing.
+
+The alternative reading — exit 0 with a skip — was rejected because these statuses mean
+the package's declaration is *wrong*, not merely absent. Silently skipping would make a
+misdeclared package indistinguishable from a clean one, which is the same failure D2
+avoids for `unmigrated`.
+
+### A self-cancelling read scope degrades the index rather than failing the run
+
+`ReadScope` rejects a scope whose `deny` cancels every `read_allow` glob, because an empty
+`read_allow` means "no restriction" downstream — normalising it would *widen* the scope
+rather than narrow it, turning a scope error into a scope escape.
+
+When that happens the checkpoint follows D9 rather than aborting: the semantic index
+degrades to `failed` with an `exact-search` fallback, and every deterministic producer
+finding is retained. The deterministic half of the report is exactly the half that does
+not depend on the scope, so discarding it would lose information for no safety gain.
 
 ## Risks and Open Questions
 
