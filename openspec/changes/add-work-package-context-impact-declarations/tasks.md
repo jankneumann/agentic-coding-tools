@@ -7,6 +7,12 @@ The six surfaces map onto producers that already exist (ri-01/ri-02, ri-04,
 ri-05) — this change adds planning-time declaration and detection only, never
 producer execution.
 
+New tests go in `skills/tests/validate-packages/`, not
+`skills/validate-packages/scripts/tests/`, per the repo convention that keeps
+tests out of directories `install.sh` ships to runtime copies. That directory is
+new, so it needs a `testpaths` entry in `skills/pyproject.toml` or CI will not
+discover it.
+
 ## 1. Schema and template
 
 - [ ] 1.1 (S) Write failing schema tests: `context_impact` with valid surfaces
@@ -30,8 +36,14 @@ producer execution.
   so the `openspec/schemas/` copies regenerate.
   **Dependencies**: 1.2
 
+- [ ] 1.4 (S) Add `tests/validate-packages` to `testpaths` in
+  `skills/pyproject.toml` and a `conftest.py` that prepends
+  `skills/validate-packages/scripts` to `sys.path`, matching the
+  `skills/tests/project-context-refresh/conftest.py` pattern.
+  **Dependencies**: 1.1
+
 - [ ] Checkpoint: `skills/tests/install_sh/test_openspec_assets.py` green; both
-  schema copies byte-identical
+  schema copies byte-identical; new tests discovered by a bare pytest run
 
 ## 2. Impact rule table
 

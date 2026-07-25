@@ -53,8 +53,8 @@ packages:
         - "skills/validate-packages/install_assets/openspec/schemas/**"
         - "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/work-packages.yaml"
         - "openspec/schemas/**"
-        - "skills/validate-packages/scripts/tests/test_context_impact_schema.py"
-        - "skills/validate-packages/scripts/tests/fixtures/**"
+        - "skills/tests/validate-packages/**"
+        - "skills/pyproject.toml"
       read_allow:
         - "**"
       deny:
@@ -70,7 +70,7 @@ packages:
       steps:
         - name: "Schema tests pass"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/validate-packages/scripts/tests/test_context_impact_schema.py -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/validate-packages/test_context_impact_schema.py -q"
           evidence:
             artifacts: []
             result_keys: ["schema_tests_passed"]
@@ -115,8 +115,7 @@ packages:
         - "skills/validate-packages/scripts/context_impact.py"
         - "skills/validate-packages/install_assets/openspec/schemas/context-impact-rules.yaml"
         - "openspec/schemas/context-impact-rules.yaml"
-        - "skills/validate-packages/scripts/tests/test_context_impact.py"
-        - "skills/validate-packages/scripts/tests/fixtures/**"
+        - "skills/tests/validate-packages/**"
       read_allow:
         - "**"
       deny:
@@ -132,7 +131,7 @@ packages:
       steps:
         - name: "Detector tests pass without a git repository"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/validate-packages/scripts/tests/test_context_impact.py -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/validate-packages/test_context_impact.py -q"
           evidence:
             artifacts: []
             result_keys: ["detector_tests_passed"]
@@ -170,9 +169,7 @@ packages:
         - "skills/validate-packages/scripts/validate_context_impact.py"
         - "skills/validate-packages/scripts/context_impact.py"
         - "skills/validate-packages/SKILL.md"
-        - "skills/validate-packages/scripts/tests/test_validate_context_impact.py"
-        - "skills/validate-packages/scripts/tests/test_context_impact_compat.py"
-        - "skills/validate-packages/scripts/tests/fixtures/**"
+        - "skills/tests/validate-packages/**"
         - "openspec/changes/add-work-package-context-impact-declarations/work-packages.yaml"
       read_allow:
         - "**"
@@ -189,7 +186,7 @@ packages:
       steps:
         - name: "Gate and compatibility tests pass"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/validate-packages/scripts/tests/ -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/validate-packages/ skills/validate-packages/scripts/tests/ -q"
           evidence:
             artifacts: []
             result_keys: ["gate_tests_passed"]
