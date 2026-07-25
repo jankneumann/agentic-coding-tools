@@ -1,0 +1,78 @@
+# gen-eval driving gen-eval (UP-3, UP-4).
+#
+# The deepest layer of the dogfood: the outer run evaluates an inner run.
+# The inner invocation exercises descriptor loading, the orchestrator
+# lifecycle, the template generator, report writing and the exit-code
+# contract in a single subprocess — the whole pipeline, not a slice of it.
+#
+# Paths are relative to packages/gen-eval, which is the working directory
+# the dogfood runner uses.
+
+- id: self-run-without-startup-block
+  name: A descriptor with no startup block runs without --no-services
+  description: >
+    UP-4. InterfaceDescriptor.startup used to be required, so a CLI-only
+    project had to invent a no-op start command, a no-op teardown, and a
+    health check URL that had to genuinely succeed — the health check runs
+    even under --no-services, so it could not be faked with an inert string.
+
+    The inner descriptor omits `startup` entirely, and the inner run
+    deliberately does NOT pass --no-services. A regression that made the
+    block mandatory again surfaces here as an AttributeError on
+    NoneType.command rather than being masked by the skip flag.
+  category: descriptor-shape
+  priority: 1
+  interfaces: ["cli:gen-eval"]
+  tags: [up-4, descriptor, lifecycle]
+  steps:
+    - id: run-without-startup
+      transport: cli
+      args:
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/self-run"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        # Exit 1 is the UP-3 zero-scenario guard below, not a lifecycle
+        # failure. What this scenario asserts is the *absence* of a crash:
+        # a missing startup block would raise AttributeError and produce a
+        # traceback on stderr, which the next scenario pins explicitly.
+        exit_code: 1
+      timeout_seconds: 60
+
+- id: self-run-zero-scenarios-cannot-pass
+  name: A run that evaluates zero scenarios exits 1 even at --fail-threshold 0
+  description: >
+    UP-3. GenEvalReport.pass_rate is already 0.0 when total_scenarios == 0,
+    which fails any positive threshold — but --fail-threshold 0 would
+    otherwise let an empty run exit 0 and read as green in CI. Vacuous
+    success is the precise failure mode a coverage gate exists to catch, so
+    the guard is explicit rather than emergent from threshold arithmetic.
+
+    Asserting at threshold 0 is the point: at the 0.95 default this scenario
+    would pass even with the guard removed.
+  category: descriptor-shape
+  priority: 1
+  interfaces: ["cli:gen-eval"]
+  tags: [up-3, exit-codes, vacuous-pass]
+  steps:
+    - id: empty-run-at-zero-threshold
+      transport: cli
+      args:
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/self-run-threshold"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        exit_code: 1
+        # Pins the guard's own message. Without this the scenario would also
+        # pass on an unrelated exit-1 failure such as a missing descriptor.
+        # `error_contains` is a substring match over stderr *and* stdout
+        # (see Evaluator._compare), which is what we need — the guard prints
+        # to stdout.
+        error_contains: "no scenarios were evaluated"
+      timeout_seconds: 60

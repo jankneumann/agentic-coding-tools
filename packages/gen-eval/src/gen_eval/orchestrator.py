@@ -143,12 +143,24 @@ class GenEvalOrchestrator:
         from the interface descriptor file.  Descriptor files must be treated as
         trusted input — never load a descriptor from an untrusted source.
         """
+        if self.descriptor.startup is None:
+            logger.debug("No startup block in descriptor; nothing to start")
+            return
         cmd = self.descriptor.startup.command
         logger.info("Starting services: %s", cmd)
         subprocess.run(cmd, shell=True, check=True, capture_output=True, timeout=120)
 
     async def _health_check(self) -> None:
-        """Poll the health check endpoint with retry and exponential backoff."""
+        """Poll the health check endpoint with retry and exponential backoff.
+
+        Skipped entirely when the descriptor has no startup block. Note this
+        runs even under ``no_services`` (to verify externally-managed services
+        are reachable), so a descriptor with nothing to start must not be
+        forced to supply a health check URL that has to genuinely succeed.
+        """
+        if self.descriptor.startup is None:
+            logger.debug("No startup block in descriptor; skipping health check")
+            return
         health_target = self.descriptor.startup.health_check
         retries = self.config.health_check_retries
         interval = self.config.health_check_interval_seconds
@@ -190,6 +202,8 @@ class GenEvalOrchestrator:
         from the interface descriptor file.  Descriptor files must be treated as
         trusted input — never load a descriptor from an untrusted source.
         """
+        if self.descriptor.startup is None:
+            return
         seed_cmd = self.descriptor.startup.seed_command
         if not seed_cmd or not self.config.seed_data:
             return
@@ -203,6 +217,9 @@ class GenEvalOrchestrator:
         from the interface descriptor file.  Descriptor files must be treated as
         trusted input — never load a descriptor from an untrusted source.
         """
+        if self.descriptor.startup is None:
+            logger.debug("No startup block in descriptor; nothing to tear down")
+            return
         cmd = self.descriptor.startup.teardown
         logger.info("Tearing down services: %s", cmd)
         try:

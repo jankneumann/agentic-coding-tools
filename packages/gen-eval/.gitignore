@@ -12,3 +12,6 @@ build/
 .ruff_cache/
 __pycache__/
 *.py[cod]
+
+# Dogfood run output (`make dogfood`) — reports are artifacts, not sources
+evaluation/.reports/

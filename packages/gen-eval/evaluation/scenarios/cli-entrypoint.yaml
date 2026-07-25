@@ -1,0 +1,87 @@
+# The console-script entry point (UP-1).
+#
+# Every scenario here fails against the pre-UP-1 code, where the installed
+# `gen-eval` executable raised TypeError on *any* invocation because
+# [project.scripts] named an `async def main(args)`.
+#
+# This is the dogfood counterpart to tests/test_cli_entrypoint.py. That file
+# asserts the same contract via pytest; this one asserts it the way a
+# consumer would — through gen-eval's own descriptor, generator, CLI
+# transport and evaluator.
+
+- id: cli-help-exits-zero
+  name: gen-eval --help exits 0
+  description: >
+    The advertised entry point must run at all. This is the scenario that
+    fails with TypeError on the pre-UP-1 console script, and the reason
+    CliClient.health_check() (which runs `<command> --help`) would have
+    caught the defect had anything pointed it at gen-eval itself.
+  category: cli-entrypoint
+  priority: 1
+  interfaces: ["cli:gen-eval"]
+  tags: [entrypoint, up-1, smoke]
+  steps:
+    - id: help
+      transport: cli
+      args: ["--help"]
+      expect:
+        exit_code: 0
+        not_empty: true
+        # Proves argparse actually rendered usage, rather than the process
+        # exiting 0 having printed something unrelated.
+        error_contains: "--descriptor"
+
+- id: cli-missing-required-descriptor-exits-2
+  name: gen-eval with no --descriptor exits 2
+  description: >
+    Regression guard on parse_args() still being reached at all. Argparse's
+    default status for a missing required argument is 2; a non-2 exit here
+    means the launcher died before parsing, which is exactly how UP-1
+    presented.
+  category: cli-entrypoint
+  priority: 1
+  interfaces: ["cli:gen-eval"]
+  tags: [entrypoint, up-1, exit-codes]
+  steps:
+    - id: no-args
+      transport: cli
+      args: []
+      expect:
+        exit_code: 2
+
+- id: cli-invalid-openspec-change-exits-64
+  name: Invalid --openspec-change exits 64 (EX_USAGE)
+  description: >
+    The custom parser.error override maps change-id validation failures to
+    EX_USAGE (64) rather than argparse's default 2. Path separators must be
+    rejected — the flag is interpolated into a directory path, so accepting
+    `../` would be a traversal.
+  category: cli-entrypoint
+  priority: 1
+  interfaces: ["cli:gen-eval"]
+  tags: [entrypoint, up-1, exit-codes, security]
+  steps:
+    - id: traversal-attempt
+      transport: cli
+      args: ["--descriptor", "unused.yaml", "--openspec-change", "../etc/passwd"]
+      expect:
+        exit_code: 64
+
+- id: cli-valid-openspec-change-is-not-a-usage-error
+  name: A well-formed --openspec-change is accepted by the parser
+  description: >
+    Negative control for the scenario above. A valid change-id must not be
+    rejected as a usage error — without this, a parser that rejected every
+    value would pass the traversal test.
+  category: cli-entrypoint
+  priority: 2
+  interfaces: ["cli:gen-eval"]
+  tags: [entrypoint, exit-codes, negative-control]
+  steps:
+    - id: valid-change-id
+      transport: cli
+      # The descriptor does not exist, so this fails downstream — but it must
+      # not fail at argument validation with 64.
+      args: ["--descriptor", "does-not-exist.yaml", "--openspec-change", "some-change-id"]
+      expect:
+        exit_code: 1
