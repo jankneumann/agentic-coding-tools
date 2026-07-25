@@ -33,8 +33,10 @@ AI chat, multi-repo federation. Those remain the phases below.
 ### Discovery that outranks the rest of this roadmap
 
 Building the atlas surfaced a defect that invalidates the premise of every
-downstream phase. The architecture graph describes a small fraction of the
-repository, and silently reports success:
+downstream phase — tracked as
+[#275](https://github.com/jankneumann/agentic-coding-tools/issues/275). The
+architecture graph describes a small fraction of the repository, and silently
+reports success:
 
 | Language | Graph covers | On disk | Coverage |
 |---|---|---|---|
