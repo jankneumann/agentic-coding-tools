@@ -61,6 +61,22 @@ packages:
         - "packages/gen-eval/src/gen_eval/contracts/interface-descriptor.schema.json"
         - "packages/gen-eval/tests/test_public_api_parity.py"
         - "packages/gen-eval/tests/test_descriptor_naming.py"
+        # The 11 existing test files that reference the renamed types. Aliases
+        # mean these would still PASS untouched — which is the trap: the repo
+        # would land with 11 files on deprecated names, and any suite that
+        # escalates DeprecationWarning to an error would break. Task 0.4
+        # migrates them in the same package that performs the rename.
+        - "packages/gen-eval/tests/conftest.py"
+        - "packages/gen-eval/tests/test_descriptor.py"
+        - "packages/gen-eval/tests/test_cli_generator.py"
+        - "packages/gen-eval/tests/test_cli_transport_stderr.py"
+        - "packages/gen-eval/tests/test_feedback.py"
+        - "packages/gen-eval/tests/test_generator.py"
+        - "packages/gen-eval/tests/test_hybrid_generator.py"
+        - "packages/gen-eval/tests/test_integration_orchestrator.py"
+        - "packages/gen-eval/tests/test_integration_scenarios.py"
+        - "packages/gen-eval/tests/test_optional_startup.py"
+        - "packages/gen-eval/tests/test_sdk_generator.py"
       read_allow:
         - "**"
       deny:
@@ -75,9 +91,14 @@ packages:
     verification:
       tier_required: B
       steps:
-        - name: "Deprecation aliases still import under the old names"
+        # Asserts BOTH that each old name still resolves AND that it warns.
+        # Presence alone would be satisfied by a plain re-export that silently
+        # never deprecates; a warning alone would be satisfied by a broken alias.
+        # Must not be suffixed with `|| true` — a step that cannot fail is
+        # decoration, which is the defect class this whole change removes.
+        - name: "Old names resolve as deprecation aliases and emit DeprecationWarning"
           kind: command
-          command: "cd packages/gen-eval && python3 -c \"import warnings; warnings.simplefilter('error', DeprecationWarning); import gen_eval; [__import__('sys').exit('alias missing: '+n) for n in ('EndpointDescriptor','ToolDescriptor','CommandDescriptor','ServiceDescriptor') if not hasattr(gen_eval, n)]\" || true"
+          command: "cd packages/gen-eval && python3 -c \"import warnings, gen_eval, sys; failed=[]\nfor n in ('EndpointDescriptor','ToolDescriptor','CommandDescriptor','ServiceDescriptor'):\n    with warnings.catch_warnings(record=True) as w:\n        warnings.simplefilter('always')\n        obj=getattr(gen_eval, n, None)\n        if obj is None: failed.append(n+': missing')\n        elif not any(issubclass(x.category, DeprecationWarning) for x in w): failed.append(n+': no DeprecationWarning')\nsys.exit('alias check failed: '+'; '.join(failed)) if failed else print('4 aliases present and warning')\""
           evidence:
             artifacts: []
             result_keys: ["deprecation_aliases_present"]
@@ -93,6 +114,22 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["schema_regenerates_clean"]
+        # Task 0.4's gate. The suite passes with or without the migration
+        # because the aliases work, so the ONLY thing that distinguishes a
+        # migrated tree from an unmigrated one is that no source or test file
+        # still spells the old names.
+        #
+        # Only EndpointDescriptor and CommandDescriptor are checked, and that is
+        # deliberate: ServiceDescriptor and ToolDescriptor legitimately still
+        # exist after the rename, naming the new document-level archetypes. A
+        # naive grep for all four would fail on correct code. These two are the
+        # names that should appear nowhere after migration.
+        - name: "No src or test file still uses a deprecated name"
+          kind: command
+          command: "cd packages/gen-eval && python3 -c \"import pathlib,re,sys; pat=re.compile(r'\\b(EndpointDescriptor|CommandDescriptor)\\b'); hits=[str(p) for d in ('src','tests') for p in pathlib.Path(d).rglob('*.py') if pat.search(p.read_text())]; sys.exit('deprecated names still used in: '+', '.join(hits)) if hits else print('no deprecated-name usage')\""
+          evidence:
+            artifacts: []
+            result_keys: ["no_deprecated_name_usage"]
     outputs:
       result_keys:
         - renamed_models

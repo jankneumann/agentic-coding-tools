@@ -51,6 +51,19 @@ the archetypes. It is mechanical and changes no behaviour.
   change, so `scripts/generate_contract_schemas.py --check` must be re-run and
   `tests/test_contract_schemas.py` must pass against the regenerated copy
 
+- [ ] 0.4 Migrate the 11 existing test files off the deprecated names `[S]`
+  **Design decisions**: D9
+  **Dependencies**: 0.2
+  **Note**: `conftest.py`, `test_descriptor.py`, `test_cli_generator.py`,
+  `test_cli_transport_stderr.py`, `test_feedback.py`, `test_generator.py`,
+  `test_hybrid_generator.py`, `test_integration_orchestrator.py`,
+  `test_integration_scenarios.py`, `test_optional_startup.py`,
+  `test_sdk_generator.py`.
+  **Note**: these PASS untouched because the aliases work — that is exactly the
+  trap. Landing the rename without this leaves 11 files on deprecated names on
+  day one, and any suite escalating `DeprecationWarning` to an error breaks.
+  Verify with `pytest -W error::DeprecationWarning` after migrating.
+
 - [ ] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 1 — Tool contract + tool descriptor (gen-eval self-migration)
