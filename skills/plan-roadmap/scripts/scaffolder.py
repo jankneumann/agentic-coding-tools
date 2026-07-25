@@ -93,6 +93,50 @@ def _write_tasks(item: RoadmapItem, change_dir: Path) -> None:
     (change_dir / "tasks.md").write_text(content)
 
 
+def populate_change_ids(roadmap: Roadmap) -> dict[str, str]:
+    """Derive and set ``change_id`` on every item that lacks one, in place.
+
+    Call this **before** ``save_roadmap`` so the ids are persisted in
+    ``roadmap.yaml``. The generation contract does not ask the model for
+    ``change_id`` and the schema leaves it optional, so without this step a
+    generated roadmap carries none — and every downstream consumer that must
+    locate ``openspec/changes/<change-id>/`` has to re-derive it and hope it
+    agrees.
+
+    Derivation is deterministic and shares ``_derive_change_id`` with
+    :func:`scaffold_change`, so the id recorded in the roadmap is always the
+    id of the directory that later gets created. Items that already carry an
+    explicit ``change_id`` keep it, which makes this idempotent and safe to run
+    on a roadmap an operator has hand-edited.
+
+    Slugs that collide (two items whose titles reduce to the same slug) are
+    disambiguated with a numeric suffix in item order, so ids stay unique
+    without depending on title uniqueness.
+
+    Args:
+        roadmap: Roadmap to populate, mutated in place.
+
+    Returns:
+        Mapping of ``item_id`` to the resulting ``change_id`` for every item.
+    """
+    taken = {item.change_id for item in roadmap.items if item.change_id}
+    assigned: dict[str, str] = {}
+
+    for item in roadmap.items:
+        if not item.change_id:
+            base = _derive_change_id(item)
+            candidate = base
+            suffix = 2
+            while candidate in taken:
+                candidate = f"{base}-{suffix}"
+                suffix += 1
+            item.change_id = candidate
+            taken.add(candidate)
+        assigned[item.item_id] = item.change_id
+
+    return assigned
+
+
 def scaffold_change(roadmap: Roadmap, repo_root: Path, item_id: str) -> Path:
     """Create the OpenSpec change directory for a single roadmap item.
 
