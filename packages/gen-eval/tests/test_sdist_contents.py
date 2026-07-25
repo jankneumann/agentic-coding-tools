@@ -84,6 +84,17 @@ def test_sdist_contains_framework_data_and_not_coordinator_data(tmp_path: Path) 
         f"sdist must contain src/gen_eval/dtu/ entries; found none in: {tarball.name}"
     )
 
+    # Contract schemas: the published JSON Schema documents plus VERSION.
+    # These are the artifact a consumer validates against, so shipping them
+    # is part of the distribution contract (UP-2).
+    from gen_eval.contracts import SCHEMA_FILENAMES
+
+    for filename in [*SCHEMA_FILENAMES.values(), "VERSION"]:
+        assert any(m.endswith(f"/src/gen_eval/contracts/{filename}") for m in members), (
+            f"sdist must contain src/gen_eval/contracts/{filename}; "
+            f"found none in: {tarball.name}"
+        )
+
     # --- Forbidden content ---
     # No coordinator-specific descriptor files
     coordinator_descriptors = [

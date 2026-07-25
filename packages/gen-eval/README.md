@@ -61,8 +61,11 @@ read the report.
 
 ### CLI
 
+Two equivalent forms — the installed console script and the module path:
+
 ```bash
-python -m gen_eval --descriptor <path> [options]
+gen-eval --descriptor <path> [options]        # console script
+python -m gen_eval --descriptor <path> [...]  # module form
 ```
 
 | Flag | Default | Description |
@@ -76,6 +79,20 @@ python -m gen_eval --descriptor <path> [options]
 | `--report-format` | `both` | `markdown`, `json`, or `both`. |
 | `--output-dir` | `.` | Directory for report files. |
 | `--no-services` | off | Skip service startup/teardown. |
+| `--print-contract-version` | — | Print the JSON Schema contract version and exit 0. |
+
+Exit codes:
+
+| Code | Meaning |
+|------|---------|
+| `0` | Pass rate met `--fail-threshold`. |
+| `1` | Pass rate below threshold, **or no scenarios were evaluated**. |
+| `2` | Argparse usage error (e.g. missing `--descriptor`). |
+| `64` | `--openspec-change` failed validation (`EX_USAGE`). |
+
+A run that evaluated zero scenarios always exits `1`, regardless of
+`--fail-threshold`. Vacuous success is the failure mode a coverage gate exists
+to catch, so it is guarded explicitly rather than left to threshold arithmetic.
 
 ### Python
 
@@ -178,6 +195,71 @@ matching client-side credential the CLI subprocess can pick up.
 
 ---
 
+## Versioned schema contract
+
+gen-eval publishes JSON Schema documents for its three public data shapes, so
+a consumer can validate its descriptor, its scenarios, and the reports it
+receives **without installing gen-eval**. Schema conformance and runtime
+availability are deliberately decoupled.
+
+```
+src/gen_eval/contracts/
+  VERSION                            # contract version, one line
+  interface-descriptor.schema.json   # generated from descriptor.InterfaceDescriptor
+  scenario.schema.json               # generated from models.Scenario
+  eval-report.schema.json            # generated from reports.GenEvalReport
+```
+
+The files ship in the wheel *and* are readable straight from the repo or a raw
+URL. Pin the version, then validate with nothing but the stdlib and a JSON
+Schema validator:
+
+```python
+import json, urllib.request
+from jsonschema import Draft202012Validator
+
+BASE = ("https://raw.githubusercontent.com/jankneumann/agentic-coding-tools"
+        "/main/packages/gen-eval/src/gen_eval/contracts")
+
+schema = json.load(urllib.request.urlopen(f"{BASE}/eval-report.schema.json"))
+assert schema["x-gen-eval-contract-version"] == "1"          # pin the contract
+Draft202012Validator(schema).validate(json.load(open("gen-eval-report.json")))
+```
+
+If gen-eval *is* installed, load them from the package instead of vendoring:
+
+```python
+from gen_eval.contracts import CONTRACT_VERSION, load_schema
+
+assert CONTRACT_VERSION == "1"
+Draft202012Validator(load_schema("eval-report")).validate(report_data)
+```
+
+To assert the contract version of an arbitrary gen-eval on `PATH`:
+
+```bash
+test "$(gen-eval --print-contract-version)" = "1"
+```
+
+### Regenerating
+
+All four artifacts are generated from the pydantic models that actually
+produce and consume the data:
+
+```bash
+python scripts/generate_contract_schemas.py            # rewrite in place
+python scripts/generate_contract_schemas.py --check    # exit 1 on drift
+```
+
+`--check` runs in CI and is asserted by `tests/test_contract_schemas.py`, so a
+model change that is not reflected in the published schema fails the build.
+
+Bump `CONTRACT_VERSION` in `src/gen_eval/contracts/__init__.py` on any
+*breaking* change — a field removed, made required, or narrowed in type.
+Adding an optional field does not require a bump.
+
+---
+
 ## Layout
 
 ```
@@ -186,7 +268,8 @@ packages/gen-eval/
   README.md                # you are here
   src/gen_eval/
     __init__.py            # public re-exports
-    __main__.py            # python -m gen_eval entry point
+    __main__.py            # gen-eval console script + python -m gen_eval
+    contracts/             # published JSON Schema contract + VERSION
     descriptor.py          # InterfaceDescriptor loader
     models.py              # Scenario, Step data models
     evaluator.py           # verdict producer

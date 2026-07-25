@@ -1,7 +1,12 @@
 """CLI entry point for gen-eval framework.
 
 Usage:
-    python -m gen_eval --descriptor PATH [options]
+    gen-eval --descriptor PATH [options]        # installed console script
+    python -m gen_eval --descriptor PATH [...]  # equivalent module form
+
+Both forms route through :func:`main`, the synchronous entry point named by
+``[project.scripts]`` in pyproject.toml. :func:`run` holds the async pipeline
+body and is the one to call from an existing event loop.
 """
 
 import argparse
@@ -10,7 +15,9 @@ import json
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
+from .contracts import CONTRACT_VERSION
 from .openspec_seed import (  # noqa: F401  (InvalidChangeIdError re-exported for callers)
     InvalidChangeIdError,
     validate_change_id,
@@ -37,6 +44,31 @@ def _argparse_change_id(value: str) -> str:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
+class _PrintContractVersionAction(argparse.Action):
+    """Print the JSON Schema contract version and exit 0.
+
+    Implemented as an Action (rather than a flag checked after parsing) so it
+    fires *during* argument consumption. Argparse only enforces ``required=``
+    once every argument has been consumed, so this short-circuits before
+    ``--descriptor`` is demanded — the same mechanism ``--help`` and
+    ``--version`` rely on.
+    """
+
+    def __init__(self, option_strings: list[str], dest: str, **kwargs: Any) -> None:
+        kwargs.pop("nargs", None)
+        super().__init__(option_strings, dest, nargs=0, default=argparse.SUPPRESS, **kwargs)
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        print(CONTRACT_VERSION)
+        parser.exit(0)
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="gen-eval",
@@ -57,6 +89,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     parser.error = _error  # type: ignore[method-assign]
 
+    parser.add_argument(
+        "--print-contract-version",
+        action=_PrintContractVersionAction,
+        help=(
+            "Print the published JSON Schema contract version (one line) and "
+            "exit 0. Lets a consumer assert at runtime that the gen-eval it "
+            "found matches the contract it pinned."
+        ),
+    )
     parser.add_argument(
         "--descriptor",
         type=Path,
@@ -148,8 +189,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-async def main(args: argparse.Namespace) -> int:
+async def run(args: argparse.Namespace) -> int:
     """Run the gen-eval pipeline and return exit code.
+
+    This is the async body. Call it directly when you already have an event
+    loop; otherwise use :func:`main`, which owns ``asyncio.run``.
 
     Pipeline steps:
         1. Load configuration from CLI args
@@ -340,7 +384,18 @@ async def main(args: argparse.Namespace) -> int:
     for path in output_paths:
         print(f"gen-eval: report written to {path}")
 
-    # 9. Exit code based on pass rate
+    # 9. Exit code based on pass rate.
+    #
+    # A run that evaluated nothing is never a pass. GenEvalReport.pass_rate is
+    # already 0.0 when total_scenarios == 0, which fails against any positive
+    # threshold — but --fail-threshold 0 would otherwise let an empty run exit
+    # 0 and read as green. Vacuous success is the failure mode a coverage gate
+    # exists to prevent, so guard it explicitly rather than leaving it to the
+    # threshold arithmetic.
+    if report.total_scenarios == 0:
+        print("gen-eval: FAIL (no scenarios were evaluated)")
+        return 1
+
     if report.pass_rate >= config.fail_threshold:
         print(f"gen-eval: PASS ({report.pass_rate:.1%} >= {config.fail_threshold:.1%})")
         return 0
@@ -349,6 +404,16 @@ async def main(args: argparse.Namespace) -> int:
         return 1
 
 
+def main() -> int:
+    """Console-script entry point (``gen-eval``).
+
+    Takes no arguments: the ``[project.scripts]`` launcher generated at install
+    time calls this with an empty signature. Argument parsing and event-loop
+    ownership both live here so that the installed executable and
+    ``python -m gen_eval`` are the same code path.
+    """
+    return asyncio.run(run(parse_args()))
+
+
 if __name__ == "__main__":
-    args = parse_args()
-    sys.exit(asyncio.run(main(args)))
+    sys.exit(main())

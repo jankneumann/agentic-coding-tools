@@ -386,11 +386,18 @@ jobs:
         run: uv sync --all-extras
 
       - name: Lint (ruff)
-        run: uv run ruff check src/ tests/
+        run: uv run ruff check src/ tests/ scripts/
 
       - name: Type-check (mypy)
         run: uv run mypy src/gen_eval/ --strict --ignore-missing-imports
         continue-on-error: true
+
+      - name: Contract schemas are up to date
+        # Fails if src/gen_eval/contracts/*.json drifted from the pydantic
+        # models they are generated from. tests/test_contract_schemas.py
+        # asserts the same thing; this step surfaces it as its own signal
+        # with the regeneration command in the log.
+        run: uv run python scripts/generate_contract_schemas.py --check
 
       - name: Run gen-eval unit tests
         run: uv run pytest -v -m "not e2e and not integration" --tb=short
