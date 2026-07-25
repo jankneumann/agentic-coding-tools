@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/context-checkpoint.schema.json",
+  "title": "Branch-Local Context Checkpoint",
+  "description": "Read-only, scope-restricted report of the project context a single work package invalidated on a feature branch. Distinct from the canonical refresh manifest: a checkpoint is never promoted to canonical state and is never recorded in the refresh operation ledger. Named context-checkpoint to avoid collision with checkpoint.schema.json, which is the autopilot-roadmap resume contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "change_id",
+    "package_id",
+    "source_revision",
+    "namespace",
+    "scope",
+    "context_impact",
+    "producer_results",
+    "architecture",
+    "semantic_index",
+    "checkpoint_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Contract version. Incremented only on a breaking change."
+    },
+    "change_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,127}$",
+      "description": "OpenSpec change this checkpoint belongs to."
+    },
+    "package_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+      "description": "Work package the checkpoint was computed for. Matches PackageId in work-packages.schema.json."
+    },
+    "source_revision": {
+      "$ref": "./context-refresh-types.schema.json#/$defs/GitRevision",
+      "description": "Exact revision the checkpoint was computed against."
+    },
+    "merge_base_revision": {
+      "$ref": "./context-refresh-types.schema.json#/$defs/GitRevision",
+      "description": "Merge base against the integration branch, used as the architecture diff baseline. Absent when no merge base could be resolved."
+    },
+    "namespace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "key"],
+      "description": "Semantic index namespace. Constrained to non-canonical values so a checkpoint cannot reach the canonical promotion path, which is gated on kind=main and key=main.",
+      "properties": {
+        "kind": {
+          "enum": ["work_package", "feature"],
+          "description": "Never 'main'. A checkpoint is structurally barred from the canonical namespace."
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Namespace key identifying the change and package, joined with the '--' separator used for worktree branch names."
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_allow", "deny"],
+      "description": "The package's permitted read scope as supplied to the checkpoint. Resolved read_allow minus deny, with deny taking precedence.",
+      "properties": {
+        "read_allow": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "deny": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "context_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "surfaces"],
+      "description": "The ri-08 context-impact evaluation that triggered this checkpoint.",
+      "properties": {
+        "status": {
+          "enum": ["declared", "rationalized", "unmigrated"],
+          "description": "A package with no context_impact block is 'unmigrated' and is never reported as impact-free. Failing statuses (undeclared, spurious_rationale) cannot appear: they block before a checkpoint runs."
+        },
+        "surfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["capabilities", "apis", "architecture", "decisions", "documentation", "semantic_code"]
+          },
+          "description": "Affected context surfaces. An empty array is an explicit assertion of no impact and is distinct from status 'unmigrated'."
+        }
+      }
+    },
+    "producer_results": {
+      "type": "array",
+      "description": "Deterministic producer findings, all computed in check mode. Sorted by producer_id for byte stability.",
+      "items": { "$ref": "./context-refresh-types.schema.json#/$defs/ProducerResult" }
+    },
+    "architecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness", "delta_authoritative", "changed_nodes"],
+      "description": "Architecture freshness and delta reported as distinct findings. A delta computed from a stale artifact is not authoritative.",
+      "properties": {
+        "freshness": {
+          "enum": ["fresh", "stale", "unknown"],
+          "description": "Provenance-based freshness of the branch's architecture artifact for source_revision. Never mtime-based."
+        },
+        "delta_authoritative": {
+          "type": "boolean",
+          "description": "False whenever freshness is not 'fresh'. A non-authoritative delta must not be presented as the branch's true architecture impact."
+        },
+        "changed_nodes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Architecture nodes differing from the merge-base graph. Sorted for byte stability."
+        }
+      }
+    },
+    "semantic_index": {
+      "$ref": "./context-refresh-types.schema.json#/$defs/SemanticIndexReference",
+      "description": "Index outcome for the work-package namespace. A degraded or unconfigured index never fails the checkpoint."
+    },
+    "checkpoint_status": {
+      "enum": ["succeeded", "degraded"],
+      "description": "Terminal state. 'failed' is deliberately absent: a checkpoint that cannot produce a valid report writes no report at all. Drift is data, not failure — gating is the drift-gate capability's responsibility."
+    }
+  }
+}
