@@ -76,6 +76,49 @@ def test_refresh_refuses_real_shared_checkout(tmp_path):
         cli.main(["--repo", str(tmp_path), "--revision", FULL_SHA, "refresh"])
 
 
+def test_refresh_uses_the_configured_semantic_indexer(tmp_path, capsys, monkeypatch):
+    # Regression: the production refresh path called orchestrator.generate()
+    # without ``semantic_indexer``, so it always took the None default. The index
+    # was then reported not-configured even when the service was reachable,
+    # pinning every `make refresh-project-context` run to degraded. Only tests
+    # ever injected a working indexer.
+    from semantic_adapter import SemanticIndexOutcome
+
+    # A full (unscoped) refresh drives the durable store, which resolves its base
+    # directory from --git-common-dir, so the fixture must be a real repository.
+    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+    register(_FreshProducer("documentation.inventory"))
+    monkeypatch.setattr(cli, "_require_mutation", lambda repo: None)
+
+    def fake_indexer(repo, rev):
+        return SemanticIndexOutcome(
+            operation_id="op-1", registry_record_id="rec-1", indexed_revision=rev
+        )
+
+    monkeypatch.setattr(cli, "default_semantic_indexer", lambda: fake_indexer)
+    cli.main(["--repo", str(tmp_path), "--revision", FULL_SHA, "refresh"])
+    out = json.loads(capsys.readouterr().out)
+
+    assert out["semantic_index"]["status"] == "succeeded"
+    assert out["semantic_index"]["indexed_revision"] == FULL_SHA
+
+
+def test_refresh_degrades_when_indexing_is_unconfigured(tmp_path, capsys, monkeypatch):
+    # The other half of the contract: with no indexing stack the factory returns
+    # None and the refresh degrades cleanly instead of failing.
+    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+    register(_FreshProducer("documentation.inventory"))
+    monkeypatch.setattr(cli, "_require_mutation", lambda repo: None)
+    monkeypatch.setattr(cli, "default_semantic_indexer", lambda: None)
+
+    code = cli.main(["--repo", str(tmp_path), "--revision", FULL_SHA, "refresh"])
+    out = json.loads(capsys.readouterr().out)
+
+    assert out["semantic_index"]["status"] == "not-configured"
+    assert out["semantic_index"]["fallback"]["kind"] == "exact-search"
+    assert code == 2  # degraded, not failed
+
+
 def test_capability_producer_is_not_configured():
     # Configured-only scope: the proposal names a "capability" producer with no
     # canonical owner; it must never appear in the configured registry.

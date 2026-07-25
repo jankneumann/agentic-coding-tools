@@ -78,6 +78,33 @@ directory, with subcommands `list`, `generate <producer_id>`,
 and `refresh-check [--producer ID]`. Resolve the loaded skill directory first
 rather than hardcoding an install path.
 
+`--revision` must name the revision that is **actually checked out**: every
+producer reads the live working tree, so accepting another SHA would persist
+artifacts under a revision they did not come from. Use a worktree at the target
+revision instead.
+
+## Configuration
+
+All optional — with none of it set, `refresh` still runs every deterministic
+producer and degrades the semantic index to `not-configured` with an
+`exact-search` fallback.
+
+| Variable | Purpose |
+|----------|---------|
+| `PROJECT_CONTEXT_REPO_ID` | Repository identity shared with `refresh-architecture`'s `provenance.repository_id`. Both must agree or one clone splits across two operation ids. |
+| `POSTGRES_DSN` | Semantic-index database. Absent → indexing is unconfigured. |
+| `PROJECT_CONTEXT_EMBEDDING_MODEL` | Embedding model id. Required to enable indexing. |
+| `PROJECT_CONTEXT_EMBEDDING_DIMENSION` | Embedding dimension. Required to enable indexing. |
+| `PROJECT_CONTEXT_EMBEDDING_PROVIDER` | `local` (default) or `openai_compatible`. |
+| `PROJECT_CONTEXT_EMBEDDING_CREDENTIAL_REF` | Credential reference (`env:NAME` / `vault:path`) for a remote provider. |
+| `PROJECT_CONTEXT_INDEX_TIMEOUT` | Seconds allowed for one indexing run (default `1800`). |
+
+The embedding contract is complete-or-absent: a DSN without a model *and* a
+dimension is treated as unconfigured rather than dispatched. Indexing runs the
+`index_repo` console script from `packages/code-search` as a **subprocess** — it
+pins `asyncpg<0.31` against the coordinator's `>=0.31`, so it cannot be imported
+in-process. Every non-`ready` outcome degrades the refresh; it never fails it.
+
 ## What it owns / does not own
 
 - Owns: producer registration, fail-closed invocation, generate/check protocol,
