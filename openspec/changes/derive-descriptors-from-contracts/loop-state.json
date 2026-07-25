@@ -1,13 +1,21 @@
 {
   "schema_version": 4,
   "change_id": "derive-descriptors-from-contracts",
-  "current_phase": "PLAN_ITERATE",
-  "iteration": 0,
-  "total_iterations": 0,
+  "current_phase": "PLAN_REVIEW",
+  "iteration": 1,
+  "total_iterations": 1,
   "max_phase_iterations": 3,
-  "findings_trend": [],
+  "findings_trend": [
+    12
+  ],
   "blocking_findings": [],
-  "vendor_availability": {},
+  "vendor_availability": {
+    "claude_code": true,
+    "antigravity": false,
+    "codex": false,
+    "grok": false,
+    "pi": false
+  },
   "packages_status": {},
   "package_authors": {},
   "implementation_strategy": {},
@@ -16,7 +24,7 @@
   "last_handoff_id": null,
   "started_at": "2026-07-25T17:06:16.656806+00:00",
   "phase_started_at": "2026-07-25T17:06:16.656806+00:00",
-  "previous_phase": "PLAN",
+  "previous_phase": "PLAN_FIX",
   "escalation_reason": null,
   "val_review_enabled": false,
   "cli_review_enabled": true,
