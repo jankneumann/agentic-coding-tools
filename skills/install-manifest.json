@@ -24,7 +24,7 @@
     "context-engineering": ["coordination-bridge", "parallel-infrastructure", "session-log"],
     "explore-feature": ["coordination-bridge", "shared", "worktree"],
     "fix-scrub": ["worktree"],
-    "implement-feature": ["coordination-bridge", "coordinator-task-status-renderer", "parallel-infrastructure", "validate-feature", "worktree"],
+    "implement-feature": ["coordination-bridge", "coordinator-task-status-renderer", "parallel-infrastructure", "project-context-refresh", "validate-feature", "worktree"],
     "iterate-on-implementation": ["coordination-bridge", "parallel-infrastructure", "worktree"],
     "iterate-on-plan": ["coordination-bridge", "parallel-infrastructure", "shared", "worktree"],
     "langfuse": ["bao-vault"],
