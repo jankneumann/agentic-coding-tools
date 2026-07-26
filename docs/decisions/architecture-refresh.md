@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-07-26 — add-branch-local-context-checkpoints
+
+### Phase: Implementation
+
+**Architecture delta is computed against the working tree, not the committed graph** — A checkpoint describes a branch mid-flight; diffing two committed graphs would blind it during exactly the uncommitted window it exists for. The freshness finding already carries the caveat, so reading the working-tree graph loses nothing.
+
+- Status: `active`
+- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D3)
+
+---
+
+## 2026-07-25 — add-branch-local-context-checkpoints
+
+### Phase: Plan
+
+**Architecture coverage is a merge-base diff, not a slice** — architecture-provenance.schema.json pins mode to the enum full|quick, so a slice mode would be a contract change. diff_architecture.py already exists standalone and is wired into nothing. Freshness and delta are reported separately because a stale artifact yields a misleading delta.
+
+- Status: `active`
+- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D5)
+
+---
+
 ## 2026-07-23 — 2026-07-25-make-architecture-refresh-revision-aware
 
 ### Phase: Plan
