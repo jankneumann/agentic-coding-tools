@@ -47,7 +47,13 @@
         "additionalProperties": false,
         "required": ["file_path", "start_line", "end_line", "reason"],
         "properties": {
-          "file_path": { "type": "string", "minLength": 1, "maxLength": 4096 },
+          "file_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Repository-relative, normalized path — the same guarantee the rendered hits carry, because an omission names a file too.",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]+$"
+          },
           "start_line": { "type": "integer", "minimum": 1 },
           "end_line": { "type": "integer", "minimum": 1 },
           "reason": {
@@ -83,7 +89,12 @@
         "repo_slug": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,50}$" },
         "namespace_kind": { "enum": ["main", "feature", "work_package"] },
         "namespace_key": { "type": "string", "minLength": 1, "maxLength": 255 },
-        "index_id": { "type": "string", "format": "uuid" },
+        "index_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "description": "Identity of the index that answered. Pinned by `pattern` as well as `format`, which validators ignore by default."
+        },
         "scope_decision": { "const": "allowed" },
         "scope_authority": {
           "enum": ["principal_grant", "work_package_registry"],

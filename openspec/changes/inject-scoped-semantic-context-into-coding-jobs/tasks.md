@@ -5,11 +5,11 @@
 
 ## 0. Contracts (wp-contracts)
 
-- [ ] 0.1 Author `contracts/schemas/semantic-context-hit.schema.json` — the
+- [x] 0.1 Author `contracts/schemas/semantic-context-hit.schema.json` — the
       per-hit provenance record (`file_path`, `start_line`, `end_line`, `score`,
       `indexed_commit`, `index_id`, `scope_decision`, `language`, `content`),
       all required, `additionalProperties: false`.
-- [ ] 0.2 Author `contracts/schemas/semantic-context-section.schema.json` —
+- [x] 0.2 Author `contracts/schemas/semantic-context-section.schema.json` —
       `schema_version`, `status`, `consumer`, `requested_revision`, `hits`,
       `omissions`, `provenance`, `fallback`; closed enums for omission reasons
       and fallback triggers; `oneOf` enforcing `injected ⇒ fallback null` and
@@ -20,7 +20,7 @@
 - [x] 0.4 Promote both schemas to `openspec/contracts/code-search/schemas/` and
       add the byte-identity assertion to
       `skills/tests/context-engineering/test_promoted_semantic_context_contracts.py`.
-- [ ] 0.5 Add `skills/tests/context-engineering/test_semantic_context_schemas.py`
+- [x] 0.5 Add `skills/tests/context-engineering/test_semantic_context_schemas.py`
       proving each schema is a valid JSON Schema and rejects the two
       contradictory states (`injected` with a fallback, `fallback` with hits).
 
