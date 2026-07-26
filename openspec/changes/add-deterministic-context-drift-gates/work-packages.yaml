@@ -1,0 +1,530 @@
+schema_version: 1
+
+feature:
+  id: add-deterministic-context-drift-gates
+  title: "Add deterministic context drift gates"
+  plan_revision: 1
+  created_by: autopilot-roadmap
+
+# This change introduces no HTTP surface. Its canonical contract is the gate
+# report schema, so the contract file slot carries that schema rather than an
+# OpenAPI document -- the same convention ri-08 and ri-09 used.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-deterministic-context-drift-gates/contracts/context-drift-gate.schema.json"
+    files:
+      - "openspec/changes/add-deterministic-context-drift-gates/contracts/context-drift-gate.schema.json"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Gate report contract"
+    task_type: implementation
+    description: |
+      Tasks 1.1-1.4. Publish `context-drift-gate.schema.json` and close the
+      promoted-contract test gap.
+
+      The schema's four disjoint result groups are the whole point of the
+      contract: `blocking_drift`, `informational_drift`, `not_configured`, and
+      `failed` exist because the terminal refresh outcome collapses drift, an
+      absent optional owner, and a bad semantic index into one `degraded` value
+      with no discriminator (D2).
+
+      Two constraints are load-bearing and must be tested rather than assumed:
+      `semantic.status` is `const: "not-attempted"` -- deliberately not a
+      `SemanticIndexStatus` member, because those describe probe outcomes and the
+      gate never probes (D6); and `architecture.freshness` carries `unverifiable`
+      separately from `not-configured`, because unverifiable evidence blocks
+      while absent tooling does not (D4).
+
+      Task 1.1 must fail before 1.2 lands: `SCHEMA_NAMES` currently omits
+      `context-checkpoint.schema.json`, which is byte-identical across its three
+      locations only by luck.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/project-context-refresh/install_assets/openspec/schemas/context-drift-gate.schema.json"
+        - "openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json"
+      keys:
+        - "contract:context-drift-gate-schema"
+      ttl_minutes: 60
+      reason: "Publish the drift gate report contract"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/install_assets/openspec/schemas/context-drift-gate.schema.json"
+        - "openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json"
+        - "skills/tests/project-context-runtime/test_promoted_contracts.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # A published schema is an interface contract; the edited test module is
+      # source the semantic index embeds.
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: drift-gate-contracts
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Gate report schema is a valid JSON Schema"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import json;from jsonschema import Draft202012Validator as V;V.check_schema(json.load(open('openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json')))\""
+          evidence:
+            artifacts: []
+            result_keys: ["gate_schema_valid"]
+        - name: "Promoted contracts stay byte-identical"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-runtime/test_promoted_contracts.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["promoted_contracts_synced"]
+    metadata:
+      loc_estimate: 220
+      complexity: low
+      package_kind: data_model
+    outputs:
+      result_keys:
+        - "gate_schema_valid"
+        - "promoted_contracts_synced"
+
+  - package_id: wp-lifecycle
+    title: "Degradation classifier and architecture fail-closed fix"
+    task_type: implementation
+    description: |
+      Tasks 2.1-2.7. Two changes to `orchestrator.py` plus the read-only
+      assertion.
+
+      First, add `DegradationBreakdown` and `classify_degradation` alongside
+      `decide_outcome`. Strictly additive: `OperationState` is pinned by
+      `context-refresh-operation.schema.json` and `refresh_status` in the
+      manifest schema, and ri-07 D9 makes recorded operations immutable, so
+      widening the enum would be a breaking change to durable records. Every
+      existing consumer must be unaffected -- that is a verification step, not an
+      assumption (D2).
+
+      Second, fix the fail-open architecture producer.
+      `_default_architecture_producer` currently calls
+      `provenance.build_provenance(repository, mode="full")` -- which *builds*
+      provenance from the working tree -- then returns
+      `architecture_result_fresh(doc)` unconditionally. On the same tree where
+      `make architecture-check` reports `PROVENANCE_MISSING` / `invalid` / exit 1,
+      the producer reports `fresh`. Replace it with `check_freshness`, mapping
+      missing or malformed provenance to **drift**, not to `not-configured`:
+      routing it to `not-configured` would reintroduce fail-open behaviour
+      through the classifier instead of the producer (D4).
+
+      Third, assert check-mode read-only-ness over every producer from
+      `list_producers()`, digesting tracked *and* untracked paths. ri-09's D3
+      states plainly that `registry.run_producer` does not structurally forbid a
+      check-mode write and that ri-10 must assert rather than assume. No runtime
+      guard is added to the registry -- that would change a seam both existing
+      entry points depend on, for a property no current adapter violates (D8).
+
+      Verify tests 2.2 and 2.3 by mutation. A test for a live defect that passes
+      on first run is a broken test, not an absent defect.
+    role: implementer
+    priority: 2
+    depends_on: []
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/orchestrator.py"
+      keys:
+        - "contract:context-refresh-degradation-classifier"
+      ttl_minutes: 90
+      reason: "Add the degradation classifier and fix architecture freshness"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/orchestrator.py"
+        - "skills/tests/project-context-refresh/test_classify_degradation.py"
+        - "skills/tests/project-context-refresh/test_architecture_freshness.py"
+        - "skills/tests/project-context-refresh/test_check_mode_read_only.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Changes the orchestrator's public surface (a new exported classifier) and
+      # adds source modules the semantic index embeds.
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: drift-gate-lifecycle
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Classifier and architecture freshness tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_classify_degradation.py skills/tests/project-context-refresh/test_architecture_freshness.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["classifier_tests_passed"]
+        - name: "Every registered producer is read-only in check mode"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_check_mode_read_only.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["check_mode_read_only_asserted"]
+        - name: "Existing orchestrator behaviour does not regress"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_orchestrator.py skills/tests/project-context-refresh/test_checkpoint.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["orchestrator_no_regression"]
+    metadata:
+      loc_estimate: 380
+      complexity: high
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "classifier_tests_passed"
+        - "check_mode_read_only_asserted"
+        - "orchestrator_no_regression"
+
+  - package_id: wp-gate
+    title: "Gate composition, rendering, and entry points"
+    task_type: implementation
+    description: |
+      Tasks 3.1-3.8. The new `gate.py` module plus its CLI and Makefile seams.
+
+      Composition runs the deterministic producers in check mode, invokes
+      architecture freshness, and invokes the ri-08 context-impact validator over
+      work-package files present in the diff under test. Exit codes derive from
+      the classifier's breakdown, not from `OperationState` (D5): 1 on failure or
+      unverifiable provenance, 2 on blocking drift, 0 when only informational
+      drift or absent optional owners remain.
+
+      Two traps to handle explicitly. The context-impact validator returns 2 for
+      *usage* errors -- a missing file or unloadable rule table -- which collides
+      with the drift convention where 2 means drift; map it to the gate's 1
+      (D7). And `--strict-legacy` must never be passed: measured on main, 4 of 70
+      work-package files declare a context-impact block and 65 fail under that
+      flag, so enabling it would make the gate red on arrival.
+
+      Rendering joins each producer result with its canonical owner from the
+      registry `ProducerSpec`, because `ProducerResult` carries no owner field.
+      Output is sorted for byte stability and includes the semantic
+      `not-attempted` block; no indexer is constructed even when full semantic
+      configuration is present in the environment (D6).
+
+      Task 3.5 is the plan's only L. Decomposition was attempted and rejected --
+      splitting composition from classification would put exit-code derivation in
+      a package that cannot test it end to end.
+
+      Do not change `_exit_code` or the `refresh-check` mapping. The gate is a
+      third caller with its own documented codes; the existing two keep theirs.
+    role: implementer
+    priority: 3
+    depends_on:
+      - wp-contracts
+      - wp-lifecycle
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/gate.py"
+        - "skills/project-context-refresh/scripts/cli.py"
+        - "Makefile"
+      keys:
+        - "env:project-context-refresh-cli"
+        - "env:root-makefile"
+      ttl_minutes: 120
+      reason: "Implement the composed drift gate and its entry points"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/gate.py"
+        - "skills/project-context-refresh/scripts/cli.py"
+        - "Makefile"
+        - "skills/tests/project-context-refresh/test_gate.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # New CLI subcommand and Makefile target are interface surface; the new
+      # module is source the semantic index embeds.
+      surfaces:
+        - "apis"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: drift-gate-gate
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Gate composition and exit-code tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_gate.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["gate_tests_passed"]
+        - name: "Gate report validates against the published contract"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_gate.py -q -k schema"
+          evidence:
+            artifacts: []
+            result_keys: ["gate_report_conforms"]
+        - name: "Existing check entry points keep their exit codes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_cli.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["existing_exit_codes_unchanged"]
+    metadata:
+      loc_estimate: 520
+      complexity: high
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "gate_tests_passed"
+        - "gate_report_conforms"
+        - "existing_exit_codes_unchanged"
+
+  - package_id: wp-ci
+    title: "CI wiring and decision-index retirement"
+    task_type: implementation
+    description: |
+      Tasks 4.1-4.5. Wire the gate into CI, retire the job it replaces, and
+      record the one step a PR cannot perform.
+
+      `validate-decision-index` regenerates `docs/decisions/` and runs
+      `git diff --exit-code`. The `decisions.timeline` producer delegates to the
+      same emitter, so keeping both leaves two freshness authorities that can
+      disagree. Before removing it, prove the replacement covers its documented
+      blind spot: an orphaned `<capability>.md` whose *content* is unchanged is
+      invisible to `git diff` -- it is the presence that is stale. The producer
+      path uses `tree_diff.diff_trees`, which has a `deleted` bucket, so it
+      detects the orphan directly. Task 4.1 pins that (D9).
+
+      Task 4.2 adds the job and removes the old one in a single task
+      deliberately. Splitting them leaves an intermediate commit with no
+      decision-index gate at all.
+
+      Name the job so it does not read as skill-mirror drift.
+      `gate-drift-with-mirrors-hooks-and-blocking-ci` is a different change on a
+      different roadmap that also edits `ci.yml`, and `extract-gen-eval-package`
+      lists the same file in `write_allow` for three of its packages -- expect a
+      mechanical conflict and keep this delta short.
+
+      Task 4.3 is small and easy to forget: an undeclared sibling reference fails
+      `install.sh --check`, which fails the **required** `test-infra-skills` job.
+      This is not reachable by running pytest on the suites this change touches,
+      and it bit ri-09.
+
+      Task 4.4 is MANUAL. Branch protection currently requires exactly six
+      contexts; adding a seventh is a repository-settings operation a PR cannot
+      do. Record the exact `gh api` call and state that until applied, the gate
+      is "blocking job, not a required context" -- which is precisely how
+      `docs/decisions/` drifted in the first place (D11).
+    role: implementer
+    priority: 4
+    depends_on:
+      - wp-gate
+    locks:
+      files:
+        - ".github/workflows/ci.yml"
+        - "skills/install-manifest.json"
+      keys:
+        - "env:github-workflows-ci"
+      ttl_minutes: 60
+      reason: "Wire the gate into CI and retire validate-decision-index"
+    scope:
+      write_allow:
+        - ".github/workflows/ci.yml"
+        - "skills/install-manifest.json"
+        - "docs/guides/session-completion.md"
+        - "skills/tests/project-context-refresh/test_decision_index_orphan.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Edits a committed guide and adds a test module; the manifest change is an
+      # install-payload declaration, not an API.
+      surfaces:
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: drift-gate-ci
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Orphaned capability file is detected as drift"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_decision_index_orphan.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["orphan_detection_proven"]
+        - name: "Install manifest validates with the new dependency declared"
+          kind: command
+          command: "bash skills/install.sh --check"
+          evidence:
+            artifacts: []
+            result_keys: ["install_check_passed"]
+        - name: "Exactly one decision freshness check remains in CI"
+          kind: command
+          command: "test \"$(grep -c 'validate-decision-index' .github/workflows/ci.yml)\" -eq 0"
+          evidence:
+            artifacts:
+              - ".github/workflows/ci.yml"
+            result_keys: ["single_freshness_authority"]
+    metadata:
+      loc_estimate: 240
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "orphan_detection_proven"
+        - "install_check_passed"
+        - "single_freshness_authority"
+
+  - package_id: wp-integration
+    title: "Integration, remediation, and gate proof"
+    task_type: implementation
+    description: |
+      Tasks 5.1-5.5. Merge every package, then prove the gate works by showing it
+      fail and then pass.
+
+      Task 5.2 runs the gate on the merged, pre-remediation tree and expects
+      **exit 2**, naming `skills-inventory.md`, `contracts-inventory.md`, 18
+      `docs/decisions/*.md`, and missing architecture provenance. Capture the
+      output as evidence. A gate that cannot be shown to fail is decoration, and
+      this is the only point in the plan where that demonstration is possible.
+
+      Task 5.3 tracks `architecture.provenance.json` and regenerates the stale
+      artifacts as **one commit containing only generated output**, isolated from
+      every commit that touches gate code -- reviewing a 20-file generated diff
+      interleaved with new logic is how generated noise hides real changes. It
+      must land after the architecture producer fix, because fixing fail-open
+      behaviour may surface additional drift this regeneration then resolves
+      (D10).
+
+      Task 5.4 is roadmap acceptance outcome #4: a clean checkout at the recorded
+      revision passes with no diff. Projection drift will still be present and
+      reported -- assert it does not affect the exit code (D3).
+
+      Promotion of the contract to `openspec/contracts/` is not optional
+      bookkeeping: that directory is the durable system representation alongside
+      `openspec/specs/`, and a change archived without promoting its contracts
+      loses them.
+    role: integrator
+    priority: 5
+    depends_on:
+      - wp-contracts
+      - wp-lifecycle
+      - wp-gate
+      - wp-ci
+    locks:
+      files: []
+      keys:
+        - "feature:add-deterministic-context-drift-gates:integrate"
+      ttl_minutes: 90
+      reason: "Integrate all packages, remediate staleness, prove the gate"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Integration sees the union of every package's diff plus the regenerated
+      # architecture, documentation, and decision artifacts.
+      surfaces:
+        - "capabilities"
+        - "apis"
+        - "architecture"
+        - "decisions"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: drift-gate-integration
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full project-context-refresh suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["full_refresh_suite_passed"]
+        - name: "Skills lint and install check pass"
+          kind: command
+          command: "bash -c 'cd skills && uv run ruff check . && cd .. && bash skills/install.sh --check'"
+          evidence:
+            artifacts: []
+            result_keys: ["skills_lint_and_install_passed"]
+        - name: "OpenSpec change validates strictly"
+          kind: command
+          command: "openspec validate add-deterministic-context-drift-gates --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict_valid"]
+        - name: "Gate exits 0 on the remediated tree"
+          kind: command
+          command: "make context-drift-gate"
+          evidence:
+            artifacts: []
+            result_keys: ["gate_green_after_remediation"]
+        - name: "Gate demonstrably failed before remediation"
+          kind: manual
+          manual_instructions: |
+            Confirm the captured pre-remediation gate output from task 5.2 shows
+            exit 2 and names the stale artifacts individually. A gate that was
+            never shown to fail is not evidence that it works.
+          evidence:
+            artifacts: []
+            result_keys: ["gate_red_before_remediation"]
+        - name: "Contract promoted to the durable location"
+          kind: manual
+          manual_instructions: |
+            Confirm openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json
+            exists and is byte-identical to the change-local contracts/ copy and to
+            the install_assets copy.
+          evidence:
+            artifacts:
+              - "openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json"
+            result_keys: ["contract_promoted"]
+    metadata:
+      loc_estimate: 80
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "full_refresh_suite_passed"
+        - "skills_lint_and_install_passed"
+        - "openspec_strict_valid"
+        - "gate_green_after_remediation"
+        - "gate_red_before_remediation"
+        - "contract_promoted"
