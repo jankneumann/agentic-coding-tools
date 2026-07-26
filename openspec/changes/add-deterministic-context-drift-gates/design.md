@@ -222,20 +222,68 @@ silent regression.
 The emitter requirement itself is unchanged — it describes the emitter, not which job runs
 it — so no `MODIFIED` delta is needed against `software-factory-tooling`.
 
+**Conditional on D12.** Retirement is only safe once the producer stops reporting a false
+positive. Measured on `main`, `validate-decision-index` passes while the producer claims 17
+stale files; retiring the correct check in favour of the broken one would trade a green gate
+for a permanently red one. D9 and D12 ship together, and the orphan-detection proof (task
+4.1) runs against the *fixed* producer.
+
 ## D10 — Existing staleness is remediated in an isolated commit
 
-Twenty artifacts are stale on `main`: `skills-inventory.md`, `contracts-inventory.md`, and
-18 `docs/decisions/*.md`. A blocking gate cannot go green until they are regenerated.
+Two artifacts are genuinely stale on `main`: `skills-inventory.md` and
+`contracts-inventory.md`. `docs/decisions/` is **not** — it is byte-identical to a fresh
+render (18 files, `diff -rq` exit 0), and the producer's claim otherwise is D12's false
+positive. Additionally `architecture.provenance.json` must begin being tracked (D4).
 
 They ship in this change as **one commit containing only regenerated output**, separate
-from every commit that touches gate code. Rationale: reviewing a 20-file generated diff
+from every commit that touches gate code. Rationale: reviewing a generated diff
 interleaved with new logic is how generated noise hides real changes, and the roadmap's
 fourth acceptance outcome — "a clean checkout at the recorded revision passes regeneration
 checks with no diff" — is verifiable only if there is a commit at which that is true.
 
-Ordering matters: the remediation commit must land **after** D4's producer fix, because
-fixing the fail-open architecture producer may surface additional drift that the
-regeneration then resolves.
+`docs/decisions/` is regenerated too, **after** D12's emitter fix, and the expected result
+is a no-op. Committing a no-op regeneration sounds pointless but it is the positive
+demonstration that the fixed emitter and the fixed producer now agree — the alternative is
+asserting agreement without ever running it.
+
+Ordering matters: the remediation commit must land **after** D4's producer fix and D12's
+emitter fix, because both change what the producers report.
+
+## D12 — The decisions false positive is fixed at the emitter, not the caller
+
+`decisions.timeline` reports 17 stale files on a tree where `docs/decisions/` is provably
+fresh. Cause: `emit_decisions_from_archive` interpolates the `archive_root` it was given
+directly into every rendered `Source:` back-reference. The CLI resolves `--repo` to an
+absolute path before the producer runs, so the rendered output embeds the checkout's
+absolute path:
+
+```diff
+-- Source: [openspec/changes/archive/2026-05-20-…/session-log.md](/openspec/changes/…) (D1)
++- Source: [/Users/…/agentic-coding-tools/openspec/changes/archive/…](//Users/…) (D1)
+```
+
+Measured: relative root → 0 artifacts, absolute root → 17.
+
+**Fix at the emitter**, in `skills/explore-feature/scripts/archive_index.py`: render
+`Source:` links relative to the repository root regardless of how `archive_root` was
+passed.
+
+A narrower alternative — have `producer_decisions.py` pass a relative `archive_root` — was
+rejected on two grounds. It leaves the underlying footgun intact, so
+`make decisions --archive-root <absolute>` would still write machine-specific paths into a
+*committed* artifact. And it depends on the process cwd being the repository root, which
+nothing in the producer contract guarantees; `run_producer` is handed a `repository` path
+precisely so it need not care about cwd.
+
+This is why D9's retirement of `validate-decision-index` is conditional on D12 landing:
+retiring a correct gate in favour of a producer with a false positive would replace a
+passing check with a permanently failing one. The two decisions ship together.
+
+**Generalisation worth recording.** `tree_diff` carries an unstated precondition — the
+renderer's output must not depend on its input paths — and nothing enforces it. The
+marker-block producers satisfy it structurally. A test asserting that a producer's report
+is identical for relative and absolute repository paths would catch this class of bug for
+any future tempdir-diff producer, and is cheaper than auditing each renderer.
 
 ## D11 — The required-check promotion is a documented manual step, not a claimed one
 

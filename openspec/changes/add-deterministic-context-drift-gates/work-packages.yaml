@@ -405,6 +405,102 @@ packages:
         - "install_check_passed"
         - "single_freshness_authority"
 
+  - package_id: wp-emitter
+    title: "Path-independent decision index rendering"
+    task_type: implementation
+    description: |
+      Tasks 6.1-6.4. Added mid-implementation after the measured baseline exposed a false
+      positive; see design D12.
+
+      `decisions.timeline` reports 17 stale files on a tree where `docs/decisions/` is
+      provably fresh (18 rendered files byte-identical to 18 committed files, `diff -rq`
+      exit 0). Cause: `emit_decisions_from_archive` interpolates the `archive_root` it was
+      given straight into every rendered `Source:` back-reference. The CLI resolves
+      `--repo` to an absolute path before the producer runs, so rendered output embeds the
+      checkout's absolute path. Measured: relative root yields 0 artifacts, absolute
+      yields 17 -- so the gate would be permanently red, and *differently* red on every CI
+      runner.
+
+      Fix the **emitter**, not the caller. A relative-path fix in `producer_decisions.py`
+      would leave `make decisions --archive-root <absolute>` able to write machine paths
+      into a committed artifact, and would depend on process cwd, which the producer
+      contract does not guarantee -- `run_producer` is handed a `repository` path precisely
+      so callers need not care about cwd.
+
+      Committed output must stay byte-identical to today's. This removes a phantom diff; it
+      does not introduce a real one. That is the checkpoint condition for 6.4.
+
+      Task 6.1 generalises: assert over `list_producers()` that a producer's report is
+      identical for relative and absolute repository paths. `tree_diff` carries an unstated
+      precondition -- the renderer's output must not depend on its input paths -- and
+      nothing enforces it. One test guards every current and future tempdir-diff producer,
+      which is cheaper than auditing each renderer.
+
+      This package gates D9: retiring `validate-decision-index` (which passes on main) in
+      favour of a producer with a false positive would trade a green check for a
+      permanently red one.
+    role: implementer
+    priority: 2
+    depends_on: []
+    locks:
+      files:
+        - "skills/explore-feature/scripts/archive_index.py"
+      keys:
+        - "env:decision-index-emitter"
+      ttl_minutes: 60
+      reason: "Render decision index links repository-relative"
+    scope:
+      write_allow:
+        - "skills/explore-feature/scripts/archive_index.py"
+        - "skills/tests/explore-feature/test_decision_index_path_independence.py"
+        - "skills/tests/project-context-refresh/test_producer_path_independence.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Changes the emitter that owns a committed artifact's rendering, and adds test
+      # modules the semantic index embeds. No API surface changes.
+      surfaces:
+        - "decisions"
+        - "semantic_code"
+    worktree:
+      name: drift-gate-emitter
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Rendered links are repository-relative and roots render identically"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/explore-feature/test_decision_index_path_independence.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["emitter_path_independent"]
+        - name: "Every producer reports identically for relative and absolute repo paths"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_producer_path_independence.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["producer_path_independent"]
+        - name: "Committed decision index is unchanged by the fix"
+          kind: command
+          command: "git diff --exit-code docs/decisions/"
+          evidence:
+            artifacts: []
+            result_keys: ["decision_index_byte_stable"]
+    metadata:
+      loc_estimate: 200
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "emitter_path_independent"
+        - "producer_path_independent"
+        - "decision_index_byte_stable"
+
   - package_id: wp-integration
     title: "Integration, remediation, and gate proof"
     task_type: implementation
@@ -441,6 +537,7 @@ packages:
       - wp-lifecycle
       - wp-gate
       - wp-ci
+      - wp-emitter
     locks:
       files: []
       keys:

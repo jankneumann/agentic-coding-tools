@@ -1,11 +1,17 @@
 # Tasks — add-deterministic-context-drift-gates
 
-Five phases, one per work package. Test tasks precede the implementation they verify
+Six phases, one per work package. Test tasks precede the implementation they verify
 (TDD RED → GREEN). Sizes follow the plan-feature sizing reference; no task is XL and
 exactly one is L.
 
+Phase 6 (`wp-emitter`) was added mid-implementation after the measured baseline revealed a
+false positive in the `decisions.timeline` producer — see design D12. It is appended rather
+than renumbered so the already-seeded coordinator task keys stay valid; `depends_on` in
+`work-packages.yaml` is the authoritative execution order, not file position.
+
 Capability short names used in scenario references: `pcro` =
-`project-context-refresh-orchestration`, `ar` = `architecture-refresh`.
+`project-context-refresh-orchestration`, `ar` = `architecture-refresh`,
+`sft` = `software-factory-tooling`.
 
 ---
 
@@ -46,7 +52,7 @@ Capability short names used in scenario references: `pcro` =
 
 ## Phase 2 — wp-lifecycle: classification and the architecture fix
 
-- [ ] 2.1 Write tests for `classify_degradation` — disjoint grouping, projection is
+- [x] 2.1 Write tests for `classify_degradation` — disjoint grouping, projection is
       informational, and `decide_outcome` output is unchanged for every input
       **Spec scenarios**: `pcro` — Drift classification / Groups are disjoint; Drift classification / Existing outcome decision is unaffected; Projection drift is informational / Pending merges do not fail the gate; Projection drift is informational / Projection drift does not mask blocking drift
       **Contracts**: `contracts/context-drift-gate.schema.json`
@@ -54,7 +60,7 @@ Capability short names used in scenario references: `pcro` =
       **Dependencies**: None
       **Size**: M
 
-- [ ] 2.2 Write tests for architecture freshness fail-closed behaviour — missing and
+- [x] 2.2 Write tests for architecture freshness fail-closed behaviour — missing and
       malformed provenance yield drift, absent owner yields not-configured
       **Spec scenarios**: `pcro` — Architecture freshness fails closed / Missing provenance blocks; Architecture freshness fails closed / Absent owner degrades without blocking; Architecture freshness fails closed / Stale architecture blocks; `ar` — Architecture provenance is a committed baseline / Missing provenance fails closed
       **Contracts**: `architecture-provenance.schema.json` (consumed)
@@ -65,7 +71,7 @@ Capability short names used in scenario references: `pcro` =
       unconditionally. Confirm the RED state explicitly — a passing test here means the
       test is wrong, not that the defect is absent.
 
-- [ ] 2.3 Write the check-mode read-only assertion over every producer from
+- [x] 2.3 Write the check-mode read-only assertion over every producer from
       `list_producers()`, digesting tracked *and* untracked paths
       **Spec scenarios**: `pcro` — Check-mode read-only behaviour is asserted / A writing producer is caught; / Untracked writes are caught; / Newly registered producers are covered
       **Contracts**: none
@@ -76,9 +82,9 @@ Capability short names used in scenario references: `pcro` =
       and confirm the assertion fails. ri-09 established that a test which cannot be shown
       to fail is not evidence.
 
-- [ ] 2.4 Checkpoint: run tests, review diff, verify scope
+- [x] 2.4 Checkpoint: run tests, review diff, verify scope
 
-- [ ] 2.5 Implement `DegradationBreakdown` and `classify_degradation` in `orchestrator.py`
+- [x] 2.5 Implement `DegradationBreakdown` and `classify_degradation` in `orchestrator.py`
       **Spec scenarios**: `pcro` — Drift classification (all scenarios); Projection drift is informational (all scenarios)
       **Contracts**: `contracts/context-drift-gate.schema.json`
       **Design decisions**: D2, D3
@@ -88,7 +94,7 @@ Capability short names used in scenario references: `pcro` =
       manifest schemas must not change — ri-06 records are durable and ri-07 D9 makes them
       immutable.
 
-- [ ] 2.6 Replace `build_provenance` with `check_freshness` in
+- [x] 2.6 Replace `build_provenance` with `check_freshness` in
       `_default_architecture_producer`, mapping unverifiable provenance to drift
       **Spec scenarios**: `pcro` — Architecture freshness fails closed (all scenarios)
       **Contracts**: `architecture-provenance.schema.json` (consumed)
@@ -96,7 +102,7 @@ Capability short names used in scenario references: `pcro` =
       **Dependencies**: 2.2
       **Size**: M
 
-- [ ] 2.7 Checkpoint: run tests, review diff, verify scope
+- [x] 2.7 Checkpoint: run tests, review diff, verify scope
 
 ---
 
@@ -226,22 +232,25 @@ Capability short names used in scenario references: `pcro` =
       **Spec scenarios**: `pcro` — Deterministic context drift gate / Stale artifacts are named individually
       **Contracts**: `contracts/context-drift-gate.schema.json`
       **Design decisions**: D10
-      **Dependencies**: 5.1
+      **Dependencies**: 5.1, 6.4
       **Size**: S
       **Note**: Expected: exit 2, naming `skills-inventory.md`, `contracts-inventory.md`,
-      18 `docs/decisions/*.md`, and missing architecture provenance. A gate that cannot be
-      shown to fail is decoration — capture the output as evidence.
+      and missing `architecture.provenance.json`. **Not** `docs/decisions/*.md` — those were
+      D12's false positive and must be absent from the report once 6.x lands; their presence
+      means the emitter fix is incomplete. A gate that cannot be shown to fail is
+      decoration — capture the output as evidence.
 
 - [ ] 5.3 Track `architecture.provenance.json` and regenerate the stale artifacts as one
       commit containing only generated output
       **Spec scenarios**: `ar` — Architecture provenance is a committed baseline / Regeneration updates the committed baseline
       **Contracts**: `architecture-provenance.schema.json`
-      **Design decisions**: D4, D10
+      **Design decisions**: D4, D10, D12
       **Dependencies**: 5.2
       **Size**: M
-      **Note**: Must land after 2.6 — fixing the fail-open producer may surface additional
-      drift that this regeneration then resolves. Keep it isolated from every commit that
-      touches gate code.
+      **Note**: Must land after 2.6 and 6.x — both change what the producers report. Also
+      re-run `make decisions` and commit the result; a **no-op is the expected outcome** and
+      is the positive demonstration that the fixed emitter and fixed producer agree. Keep
+      isolated from every commit that touches gate code.
 
 - [ ] 5.4 Verify the gate PASSES on a clean checkout at the recorded revision, with no diff
       **Spec scenarios**: `ar` — Architecture provenance is a committed baseline / Clean checkout at the recorded revision is fresh; `pcro` — Projection drift is informational / Pending merges do not fail the gate
@@ -255,3 +264,48 @@ Capability short names used in scenario references: `pcro` =
 - [ ] 5.5 Checkpoint: run tests, review diff, verify scope, confirm contracts promoted
       **Dependencies**: 5.4
       **Size**: XS
+
+---
+
+## Phase 6 — wp-emitter: fix the decisions false positive at its root
+
+**Execution order note:** phases are presentational; `work-packages.yaml` `depends_on` is
+authoritative. `wp-emitter` has no dependencies and runs in parallel with `wp-gate`;
+`wp-integration` depends on it, so Phase 6 lands *before* Phase 5's tasks 5.2-5.4.
+
+- [ ] 6.1 Write a test proving a producer's report is identical for relative and absolute
+      repository paths
+      **Spec scenarios**: `sft` — Decision index rendering is path-independent / Rendered links do not embed the archive root
+      **Contracts**: none
+      **Design decisions**: D12
+      **Dependencies**: None
+      **Size**: S
+      **Note**: Must fail before 6.3. Measured baseline: relative root yields 0 artifacts,
+      absolute yields 17. Write it over `list_producers()` so it guards *every* current and
+      future tempdir-diff producer, not just this one — the generalisation D12 records as
+      cheaper than auditing each renderer.
+
+- [ ] 6.2 Write a test that rendered `Source:` links are repository-relative
+      **Spec scenarios**: `sft` — Decision index rendering is path-independent / Rendered links do not embed the archive root
+      **Contracts**: none
+      **Design decisions**: D12
+      **Dependencies**: None
+      **Size**: S
+      **Note**: Assert on the rendered bytes, not on the diff count, so the test names the
+      actual defect rather than a symptom of it.
+
+- [ ] 6.3 Render `Source:` links relative to the repository root in
+      `emit_decisions_from_archive`
+      **Spec scenarios**: `sft` — Decision index rendering is path-independent (all scenarios)
+      **Contracts**: none
+      **Design decisions**: D12
+      **Dependencies**: 6.1, 6.2
+      **Size**: M
+      **Note**: Fix the emitter, not the caller. A relative-path fix in
+      `producer_decisions.py` would leave `make decisions --archive-root <absolute>` able to
+      write machine paths into a committed artifact, and would depend on cwd, which the
+      producer contract does not guarantee. Committed output must stay byte-identical to
+      today's — this removes a phantom diff, it does not introduce a real one.
+
+- [ ] 6.4 Checkpoint: run tests, review diff, verify scope, confirm `docs/decisions/`
+      renders byte-identically to the committed tree
