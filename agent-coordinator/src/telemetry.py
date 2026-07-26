@@ -116,7 +116,7 @@ def _init_metrics() -> None:
     if _prometheus_enabled():
         from opentelemetry.exporter.prometheus import PrometheusMetricReader
 
-        readers.append(PrometheusMetricReader())  # type: ignore[arg-type]
+        readers.append(PrometheusMetricReader())
 
     if not readers:
         # Metrics enabled but no exporter configured — use a no-op reader

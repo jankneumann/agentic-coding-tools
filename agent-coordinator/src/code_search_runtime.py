@@ -11,9 +11,14 @@ from collections import Counter
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from time import monotonic
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+if TYPE_CHECKING:
+    # Imported for typing only; the runtime import stays inside the function
+    # below to avoid a circular import with code_search.
+    from .code_search import CodeSearchResponse
 
 logger = logging.getLogger(__name__)
 
@@ -383,7 +388,7 @@ class CodeSearchRuntime:
         )
         return status
 
-    async def search(self, request: Any, *, principal_id: str) -> Any:
+    async def search(self, request: Any, *, principal_id: str) -> CodeSearchResponse:
         self._assert_owner()
         if self._closed or self._service is None:
             return _sanitized_unavailable(request)
@@ -398,7 +403,9 @@ class CodeSearchRuntime:
         if task is not None:
             self._active.add(task)
         try:
-            result = await asyncio.wait_for(
+            # `_service` is an intentionally dynamic seam; state the contract it
+            # is required to honour here rather than propagating Any upward.
+            result: CodeSearchResponse = await asyncio.wait_for(
                 self._service.search(request, principal_id=principal_id),
                 timeout=self.config.operation_timeout_seconds,
             )
@@ -583,7 +590,7 @@ def _duration_bucket(elapsed_seconds: float) -> str:
     return "gte_1s"
 
 
-def _sanitized_unavailable(request: Any) -> Any:
+def _sanitized_unavailable(request: Any) -> CodeSearchResponse:
     from .code_search import (
         CodeSearchRequest,
         CodeSearchResponse,
