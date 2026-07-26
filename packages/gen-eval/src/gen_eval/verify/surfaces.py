@@ -7,6 +7,7 @@ and reports the elements that vocabulary does not contain.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Iterable
 from typing import Any
 
 from gen_eval.descriptor import InterfaceDescriptor
@@ -129,4 +130,63 @@ def verify_fastapi(
                     ),
                 )
             )
+    return violations
+
+
+def _tool_name(tool: Any) -> str | None:
+    """The name out of whichever shape the caller's MCP client returned."""
+    if isinstance(tool, str):
+        return tool
+    if isinstance(tool, dict):
+        name = tool.get("name")
+        return name if isinstance(name, str) else None
+    name = getattr(tool, "name", None)
+    return name if isinstance(name, str) else None
+
+
+def verify_mcp(
+    tools: Iterable[Any],
+    descriptor: InterfaceDescriptor,
+) -> list[Violation]:
+    """Report tools the server publishes and the service contract does not (D1).
+
+    ``tools`` is the server's own listing — bare names, SDK records, or the
+    dicts a ``tools/list`` response carries.
+
+    The comparison is against the set of **bound** elements, never against one
+    derived name per operation (D7). One tool may serve several operations:
+    the coordinator's ``check_locks`` answers both ``list_active_locks`` and
+    ``get_lock_status`` by branching on an argument being None. Comparing
+    against derived names reports three findings on a conformant server — the
+    tool that exists as excess, and two that do not as omissions — which is how
+    a verifier trains its operators to ignore it.
+
+    An operation the contract marks ``exposed: false`` on MCP contributes no
+    element, so publishing it is a violation. That is the point of recording
+    non-exposure rather than omitting the surface: the contract makes a claim
+    about what agents cannot reach, and this is what checks it.
+    """
+    declared = declared_elements(descriptor, "mcp")
+    violations: list[Violation] = []
+    seen: set[str] = set()
+
+    for tool in tools:
+        name = _tool_name(tool)
+        if name is None:
+            continue
+        element = f"mcp:{name}"
+        if element in declared or element in seen:
+            continue
+        seen.add(element)
+        violations.append(
+            Violation(
+                surface="mcp",
+                element=element,
+                message=(
+                    f"{name} is published by the MCP server but absent from the "
+                    f"service contract. Either contract it — on the operation it "
+                    f"serves, as an mcp element binding — or stop publishing it."
+                ),
+            )
+        )
     return violations

@@ -20,6 +20,7 @@ Each verifier takes the live artifact and a descriptor, and returns violations:
 
     verify_argparse(parser, descriptor)          # CLI
     verify_fastapi(app_or_document, descriptor)  # HTTP
+    verify_mcp(tools, descriptor)                # MCP
 
 None of them import the framework being introspected. FastAPI and the MCP SDK
 are consumer dependencies, not gen-eval's; taking the already-materialised
@@ -29,11 +30,12 @@ document or listing keeps it that way.
 from __future__ import annotations
 
 from gen_eval.verify.model import Violation, declared_elements
-from gen_eval.verify.surfaces import verify_argparse, verify_fastapi
+from gen_eval.verify.surfaces import verify_argparse, verify_fastapi, verify_mcp
 
 __all__ = [
     "Violation",
     "declared_elements",
     "verify_argparse",
     "verify_fastapi",
+    "verify_mcp",
 ]

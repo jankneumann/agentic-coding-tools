@@ -284,7 +284,7 @@ public API.
   reports THREE false findings here: `check_locks` as undocumented excess, plus
   two invented tools as omissions. Assert zero violations.
 
-- [ ] 4.6 Implement the MCP subset verifier over the server tool listing `[M]`
+- [x] 4.6 Implement the MCP subset verifier over the server tool listing `[M]`
   **Design decisions**: D1, D4, D7
   **Dependencies**: 4.5
   **Note**: compare against the set of BOUND elements, not against derived
