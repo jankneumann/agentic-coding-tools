@@ -431,3 +431,26 @@ refresh-project-context: ## Orchestrate every configured context producer into o
 
 refresh-project-context-check: ## Read-only orchestrated refresh drift check (exit 0 fresh / 2 drift / 1 failed)
 	@$(PYTHON) skills/project-context-refresh/scripts/cli.py refresh-check
+
+# Composed deterministic context drift gate (ri-10)
+#
+# The local reproduction of the blocking CI check, and the only thing CI runs --
+# so a failed build is reproduced verbatim here rather than approximated. It
+# composes the deterministic producers, architecture freshness against committed
+# provenance, and work-package context-impact validation scoped to the diff
+# against CONTEXT_GATE_BASE.
+#
+# Exit codes come from ri-10's classification, not from the refresh outcome:
+#   0  fresh, or only informational drift / absent optional owners
+#   2  blocking drift -- committed managed output is stale
+#   1  a producer failed, or the gate's apparatus could not run
+#
+# `--strict-legacy` is deliberately never passed: most work-package files predate
+# the context_impact contract, and ri-08's progressive enforcement keyed on
+# whether a declaration block exists is the intended migration path.
+
+CONTEXT_GATE_BASE ?= main
+
+.PHONY: context-drift-gate
+context-drift-gate: ## Composed deterministic context drift gate (exit 0 fresh / 2 blocking drift / 1 failure)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py gate --base $(CONTEXT_GATE_BASE)
