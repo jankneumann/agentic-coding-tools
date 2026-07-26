@@ -11,33 +11,41 @@ Nothing is implemented yet — this is all planning. Two coupled OpenSpec change
 plus one unrelated infrastructure fix that had to happen first to make review
 work at all.
 
-All three branches have been **rebased onto `main` (`cdff1e1e`) and pushed**. Two
-PRs are open; the feature branch deliberately has none until the rename merges.
-
-| Branch | Head | What it is | State |
-|---|---|---|---|
-| `openspec/fix-review-vendor-dispatch-config` | `be4c1b3c` | Repairs 3 broken review vendors | **PR #284 — merge first, independent** |
-| `openspec/rename-descriptor-model-levels` | `da4bb4f6` | Prerequisite: frees two type names | **PR #285 — merge before implementing** |
-| `openspec/derive-descriptors-from-contracts` | `170f23bc` | The feature | Rebased, no PR. Implement after #285 lands |
+| Branch | What it is | State |
+|---|---|---|
+| `openspec/fix-review-vendor-dispatch-config` | Repairs 3 broken review vendors | **PR #284 MERGED** (`ed56f6da`, `21f5afec`) |
+| `openspec/rename-descriptor-model-levels` | Prerequisite: frees two type names | **PR #285 MERGED** — but see the warning below |
+| `openspec/derive-descriptors-from-contracts` | The feature | Rebased onto `main`, pushed, no PR |
 
 Gates re-run after the rebase, all green: `openspec validate --strict` on both
 changes, `validate_work_packages.py` VALID on both (schema, refs, DAG, lock keys).
-The prerequisite check below was also run and correctly exits non-zero.
 
 ---
+
+## ⚠️ Merging #285 did NOT satisfy the prerequisite
+
+`rename-descriptor-model-levels` is a **planning** change. PR #285 landed six
+documents — proposal, design, delta spec, tasks, work packages, a `contracts/`
+README — and **no code**. On `main` today its `tasks.md` reads 11 unchecked, 0
+checked, and `McpToolSpec` does not exist anywhere in
+`packages/gen-eval/src/`.
+
+Read "the rename must land first" as **the rename must be implemented and
+merged**, not "its proposal must be merged". The prerequisite check below is the
+authority — it probes for `McpToolSpec` and will keep exiting non-zero until the
+rename is actually built.
 
 ## Start here
 
 ```
-/implement-feature derive-descriptors-from-contracts
+/implement-feature rename-descriptor-model-levels     # ← next
 ```
 
-…but **only after PR #285 has merged.** Until then:
+then, only once that has merged and the prerequisite check prints
+`prerequisite 2 satisfied`:
 
-```bash
-# Merge #284 whenever — independent of everything else, unblocks future reviews
-# Merge #285 next — it is the prerequisite
-git -C .git-worktrees/derive-descriptors-from-contracts rebase origin/main
+```
+/implement-feature derive-descriptors-from-contracts
 ```
 
 Implementation entry point once the rename has merged:
