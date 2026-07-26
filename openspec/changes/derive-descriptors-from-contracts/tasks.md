@@ -436,7 +436,7 @@ finding re-verified by direct execution, not by vendor assertion.
   **Design decisions**: D6
   **Dependencies**: 5.1
 
-- [ ] 5.3 Migrate `evaluation/descriptor.yaml` to a derived tool descriptor `[M]`
+- [x] 5.3 Migrate `evaluation/descriptor.yaml` to a derived tool descriptor `[M]`
   **Spec scenarios**: Dogfood (gen-eval evaluates its own CLI surface); Operation And Surface Coverage Model (flag-only tool surfaces are nameable)
   **Design decisions**: D8
   **Dependencies**: 1.6, 1.7, 3.6
