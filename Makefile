@@ -56,8 +56,18 @@ PG_ANALYSIS    := $(ARCH_DIR)/postgres_analysis.json
 # Accept BASE_SHA for diff target, FEATURE for feature-slice target
 # These are set via the command line: make architecture-diff BASE_SHA=abc123
 
-# Python interpreter
-PYTHON         ?= python3
+# Python interpreter.
+#
+# The architecture producers and the context-drift gate MUST run under the same
+# interpreter. `optional_tools` in architecture.provenance.json records whether
+# tree-sitter was importable when the artifacts were produced, and the gate
+# compares that against what *it* can import. A refresh under bare `python3` and
+# a gate under `skills/.venv/bin/python` therefore disagree by construction, and
+# report permanent, unfixable drift.
+#
+# Prefer this repository's declared toolchain (pinned by skills/uv.lock) when it
+# is installed; fall back to `python3` so a bare checkout still works.
+PYTHON         ?= $(if $(wildcard skills/.venv/bin/python),skills/.venv/bin/python,python3)
 
 # ---------------------------------------------------------------------------
 # Phony targets
