@@ -100,7 +100,7 @@ public API.
   spec delta pins. Omitting startup and observing no crash is not the same
   claim.
 
-- [ ] 1.4 Implement the `ToolDescriptor` model with contract-reference loading `[M]`
+- [x] 1.4 Implement the `ToolDescriptor` model with contract-reference loading `[M]`
   **Design decisions**: D1, D5, D6
   **Dependencies**: 1.3
 
