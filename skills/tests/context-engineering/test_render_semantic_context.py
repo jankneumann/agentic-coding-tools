@@ -23,6 +23,7 @@ the renderer happens to accept.
 
 from __future__ import annotations
 
+import ast
 import copy
 import sys
 from pathlib import Path
@@ -592,3 +593,145 @@ def test_the_renderer_does_not_mutate_the_section_it_is_given() -> None:
     before = copy.deepcopy(section)
     renderer.render_semantic_context(section, read_allow=PACKAGE_READ_ALLOW)
     assert section == before
+
+
+# --------------------------------------------------------------------------
+# Safe default: injection ships off, and a flag-off run renders nothing (task 3.4)
+# --------------------------------------------------------------------------
+
+
+def test_disabled_injection_renders_nothing_at_all() -> None:
+    """Not an empty section, not a heading, not a notice -- the empty string.
+
+    D9 is what makes ri-12 safe to merge before ri-13: with the switch unset the
+    assembled context must be byte-identical to the output that existed before
+    this capability did. A bare heading would already break that.
+    """
+    section = fallback_section("unavailable", "injection_disabled")
+    assert renderer.render_semantic_context(section, read_allow=PACKAGE_READ_ALLOW) == ""
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        "working_tree_dirty",
+        "revision_not_indexed",
+        "capability_absent",
+        "transport_unsupported",
+        "revision_unresolvable",
+        "bridge_failed",
+        "service_unavailable",
+        "service_overloaded",
+        "unknown_state",
+        "index_revision_differs",
+        "scope_rejected",
+        "no_declared_scope",
+        "scope_self_cancelling",
+        "all_hits_scope_filtered",
+    ],
+)
+def test_disabled_injection_is_the_only_silent_outcome(reason: str) -> None:
+    """Every other cause renders an explicit block.
+
+    Without this, widening the silent branch by one reason would turn a real
+    failure into an invisible one -- exactly the fail-open the fallback exists
+    to remove -- and the flag-off test above would still pass.
+    """
+    rendered = renderer.render_semantic_context(
+        fallback_section("unavailable", reason), read_allow=PACKAGE_READ_ALLOW
+    )
+    assert rendered != ""
+    assert rendered.startswith("## Semantic code context")
+
+
+# --------------------------------------------------------------------------
+# Determinism, structurally (task 3.5)
+# --------------------------------------------------------------------------
+
+
+def test_rendering_does_not_depend_on_key_insertion_order() -> None:
+    """Same content, every mapping rebuilt back-to-front, identical bytes.
+
+    A renderer that iterated a mapping instead of naming its fields would render
+    the header lines in whatever order the producer happened to build the dict.
+    """
+    section = injected_section()
+    reordered: dict[str, Any] = {key: section[key] for key in reversed(list(section))}
+    reordered["provenance"] = {
+        key: section["provenance"][key] for key in reversed(list(section["provenance"]))
+    }
+    reordered["hits"] = [{key: hit[key] for key in reversed(list(hit))} for hit in section["hits"]]
+    assert (
+        renderer.render_semantic_context(reordered, read_allow=PACKAGE_READ_ALLOW)
+        == GOLDEN_INJECTED
+    )
+
+
+def test_omissions_render_in_the_order_supplied() -> None:
+    """The retrieval helper owns omission order too; the renderer preserves it."""
+    section = injected_section()
+    section["omissions"] = list(reversed(section["omissions"]))
+    rendered = renderer.render_semantic_context(section, read_allow=PACKAGE_READ_ALLOW)
+    duplicate = "- `skills/context-engineering/scripts/semantic_context.py` lines 120-122 — `duplicate_exact`"
+    over_budget = "- `skills/context-engineering/scripts/render_semantic_context.py` lines 10-90 — `hit_line_cap`"
+    assert rendered.index(duplicate) < rendered.index(over_budget)
+
+
+@pytest.mark.parametrize(
+    "section",
+    [
+        injected_section(),
+        fallback_section("stale", "working_tree_dirty"),
+        fallback_section("mismatched", "index_revision_differs", "revision_mismatch"),
+        {"status": "nonsense"},
+    ],
+    ids=["injected", "stale", "mismatched", "uninterpretable"],
+)
+def test_the_heading_appears_at_most_once(section: Any) -> None:
+    """`skill-workflow.semantic-context-single-section`: one section, one heading."""
+    rendered = renderer.render_semantic_context(section, read_allow=PACKAGE_READ_ALLOW)
+    assert rendered.count(renderer.SECTION_HEADING) == 1
+
+
+# Reaching for any of these is how a "deterministic" renderer stops being one.
+NONDETERMINISTIC_MODULES = frozenset(
+    {"datetime", "os", "random", "secrets", "socket", "subprocess", "time", "uuid"}
+)
+
+
+def test_the_renderer_imports_nothing_nondeterministic() -> None:
+    """Determinism enforced at the import boundary, not just asserted in prose.
+
+    The golden-text tests catch a nondeterminism that shows up on the fixtures
+    they use. This catches the edit that introduces one -- a timestamp in the
+    header, a temp path, a shuffled tie-break -- before it has a fixture.
+    """
+    tree = ast.parse(Path(renderer.__file__).read_text(encoding="utf-8"))
+    imported: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".")[0])
+    offenders = sorted(imported & NONDETERMINISTIC_MODULES)
+    assert not offenders, (
+        f"{Path(renderer.__file__).name} imports {offenders}. The section must be "
+        "a pure function of the retrieval result; anything time-, environment- or "
+        "randomness-dependent makes the same result render two ways."
+    )
+
+
+def test_the_renderer_does_not_import_the_retrieval_helper() -> None:
+    """Rendering takes a section object, not a live retrieval.
+
+    The import would also make this module unloadable wherever
+    ``semantic_context.py`` is absent, which is every test that renders a stored
+    result.
+    """
+    source = Path(renderer.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            assert all(alias.name != "semantic_context" for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            assert node.module != "semantic_context"
