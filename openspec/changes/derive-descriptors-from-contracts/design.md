@@ -335,7 +335,7 @@ reported — it is informative — it is simply not the gate for tool descriptor
 | Dual-path loading rots | Deprecation warning from day one; removal tracked as an explicit follow-up, not left implicit |
 | Coordinator OpenAPI contract never gets authored | Out of scope by design; the service-descriptor path ships with fixtures and is proven on the coordinator in a follow-up |
 | `rename-descriptor-model-levels` does not land before this change | tasks.md Prerequisites gives an executable check; tasks 1.4 and 2.2 would otherwise redefine live public API |
-| The rename package becomes a merge bottleneck — it owns `descriptor.py`, which two archetype packages then extend | It is deliberately small (mechanical rename + aliases + regeneration, no behaviour change) and is the DAG root alongside `wp-contracts`; archetype packages branch from its completion |
+| The prerequisite rename lands but the reclamation of the exported names is forgotten | Task 5.8 owns it, backed by the ADDED requirement "Descriptor Reclamation Is Announced" and gated by `test_public_api_parity.py` |
 | Excess detection ships but never runs against a real surface | Task 4.7 wires a subset verifier into CI against gen-eval's own argparse — the one real surface this change owns end-to-end |
 
 ## Open questions
