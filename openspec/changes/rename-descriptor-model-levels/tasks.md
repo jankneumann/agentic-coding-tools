@@ -78,7 +78,7 @@ and 39 in `tests/`; `ToolDescriptor` 5 / 9; `CommandDescriptor` 5 / 6;
   `tests/test_descriptor_naming.py` is exempt: it must reference the old names
   in order to test them.
 
-- [ ] 3.2 Write the downstream notice `[S]`
+- [x] 3.2 Write the downstream notice `[S]`
   **Design decisions**: D2
   **Dependencies**: 2.2
   **Note**: must state that `ServiceDescriptor` and `ToolDescriptor` will be
@@ -87,6 +87,6 @@ and 39 in `tests/`; `ToolDescriptor` 5 / 9; `CommandDescriptor` 5 / 6;
   reappears as a different type. This is the one place the two changes are
   coupled and it must be said plainly.
 
-- [ ] Final checkpoint: full suite green under `-W error::DeprecationWarning`
+- [x] Final checkpoint: full suite green under `-W error::DeprecationWarning`
       (excluding `test_descriptor_naming.py`), `generate_contract_schemas.py
       --check` clean, `openspec validate --strict` passes
