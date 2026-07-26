@@ -170,7 +170,7 @@ public API.
   contract-derived one. This is the assertion that distinguishes the selected
   approach from rejected Approach 2; without it D1 is an unverified claim.
 
-- [ ] 2.2 Implement the `ServiceDescriptor` model with OpenAPI-backed operations `[M]`
+- [x] 2.2 Implement the `ServiceDescriptor` model with OpenAPI-backed operations `[M]`
   **Design decisions**: D1, D6
   **Dependencies**: 2.1
 
