@@ -364,7 +364,7 @@ finding re-verified by direct execution, not by vendor assertion.
   `"METHOD /path"`. The HTTP branch can never match, so the public fan-in API
   returns `[]` for the primary service surface. Write the failing test first.
 
-- [ ] 4.13 Write tests for `$ref` path items and path-level parameters `[S]`
+- [x] 4.13 Write tests for `$ref` path items and path-level parameters `[S]`
   **Spec scenarios**: Implemented Surface Subset Verification
   **Design decisions**: D1
   **Dependencies**: 2.2, 4.4
