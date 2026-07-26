@@ -93,7 +93,7 @@ class TestExpectationsReachableOnCliTransport:
 
     async def test_exit_code_expectation_passes_despite_stderr(self) -> None:
         from gen_eval.clients.base import TransportClientRegistry
-        from gen_eval.descriptor import InterfaceDescriptor, ServiceDescriptor
+        from gen_eval.descriptor import InterfaceDescriptor, ServiceSpec
         from gen_eval.evaluator import Evaluator
         from gen_eval.models import Scenario
 
@@ -102,7 +102,7 @@ class TestExpectationsReachableOnCliTransport:
         descriptor = InterfaceDescriptor(
             project="p",
             version="1",
-            services=[ServiceDescriptor(name="c", type="cli", command=sys.executable)],
+            services=[ServiceSpec(name="c", type="cli", command=sys.executable)],
         )
         evaluator = Evaluator(descriptor, registry)
 

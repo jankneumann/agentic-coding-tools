@@ -11,9 +11,9 @@ import yaml
 from gen_eval.cli_generator import CLIBackend, CLIBackendError, CLIGenerator
 from gen_eval.config import GenEvalConfig
 from gen_eval.descriptor import (
-    EndpointDescriptor,
+    EndpointSpec,
     InterfaceDescriptor,
-    ServiceDescriptor,
+    ServiceSpec,
     StartupConfig,
 )
 from gen_eval.models import EvalFeedback
@@ -25,13 +25,13 @@ def descriptor() -> InterfaceDescriptor:
         project="test-project",
         version="0.1.0",
         services=[
-            ServiceDescriptor(
+            ServiceSpec(
                 name="api",
                 type="http",
                 base_url="http://localhost:8081",
                 endpoints=[
-                    EndpointDescriptor(path="/health", method="GET"),
-                    EndpointDescriptor(path="/locks/acquire", method="POST"),
+                    EndpointSpec(path="/health", method="GET"),
+                    EndpointSpec(path="/locks/acquire", method="POST"),
                 ],
             ),
         ],

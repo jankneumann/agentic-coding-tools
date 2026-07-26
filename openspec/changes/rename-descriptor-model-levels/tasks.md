@@ -65,7 +65,7 @@ and 39 in `tests/`; `ToolDescriptor` 5 / 9; `CommandDescriptor` 5 / 6;
 
 ## Phase 3 — Migrate call sites and notify
 
-- [ ] 3.1 Migrate the 11 test files that reference pre-rename names `[S]`
+- [x] 3.1 Migrate the 11 test files that reference pre-rename names `[S]`
   **Design decisions**: D1
   **Dependencies**: 1.3
   **Note**: `conftest.py`, `test_descriptor.py`, `test_cli_generator.py`,
