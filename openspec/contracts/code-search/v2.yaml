@@ -1,0 +1,747 @@
+openapi: 3.1.0
+info:
+  title: Fail-closed semantic code search
+  version: 2.0.0
+  description: Exact-revision semantic retrieval over immutable RI02 indexes.
+paths:
+  /search/code:
+    post:
+      operationId: searchCodeV2
+      summary: Search one exact repository revision within an authoritative scope
+      security:
+        - bearerAuth: []
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CodeSearchRequest"
+            example:
+              query: "where is work-package scope enforced"
+              repo_slug: "agentic_coding_tools"
+              source_revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              namespace:
+                kind: main
+                key: main
+              scope:
+                kind: explicit
+                read_allow: ["agent-coordinator/**", "packages/code-search/**"]
+                deny: ["**/.env*", "**/secrets/**"]
+              limit: 10
+              offset: 0
+      responses:
+        "200":
+          description: Ready result or structured fail-closed operational state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodeSearchResponse"
+              examples:
+                ready:
+                  value:
+                    state: ready
+                    current: true
+                    request:
+                      repo_slug: "agentic_coding_tools"
+                      source_revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                      namespace: {kind: main, key: main}
+                      index_id: null
+                    index:
+                      index_id: "11111111-1111-4111-8111-111111111111"
+                      repo_slug: "agentic_coding_tools"
+                      source_revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                      namespace: {kind: main, key: main}
+                      embedder_model: "text-embedding-model"
+                      embedding_dim: 768
+                      embedder_fingerprint: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                      policy_fingerprint: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                      pipeline_fingerprint: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                      completed_at: "2026-07-23T12:00:00Z"
+                    scope:
+                      decision: allowed
+                      source: explicit
+                      authority: principal_grant
+                    results:
+                      - file_path: "agent-coordinator/src/code_search.py"
+                        language: python
+                        content: "class CodeSearchService:"
+                        start_line: 120
+                        end_line: 140
+                        similarity: 0.82
+                        repo_slug: "agentic_coding_tools"
+                        source_revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        index_id: "11111111-1111-4111-8111-111111111111"
+                        scope_decision: allowed
+                    fallback:
+                      required: false
+                      strategy: exact_search
+                      reason: null
+                revisionMismatch:
+                  value:
+                    state: revision_mismatch
+                    current: false
+                    request:
+                      repo_slug: "agentic_coding_tools"
+                      source_revision: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                      namespace: {kind: main, key: main}
+                      index_id: null
+                    index:
+                      index_id: "11111111-1111-4111-8111-111111111111"
+                      repo_slug: "agentic_coding_tools"
+                      source_revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                      namespace: {kind: main, key: main}
+                      embedder_model: "text-embedding-model"
+                      embedding_dim: 768
+                      embedder_fingerprint: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                      policy_fingerprint: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                      pipeline_fingerprint: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                      completed_at: "2026-07-23T12:00:00Z"
+                    scope:
+                      decision: allowed
+                      source: explicit
+                      authority: principal_grant
+                    results: []
+                    fallback:
+                      required: true
+                      strategy: exact_search
+                      reason: revision_mismatch
+        "404":
+          description: Code search feature is disabled
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: "urn:coordinator:code-search:disabled"
+                title: "Code search disabled"
+                status: 404
+                detail: "Semantic code search is disabled."
+        "401":
+          description: Missing or invalid coordinator credential
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: "urn:coordinator:authentication:required"
+                title: "Authentication required"
+                status: 401
+                detail: "A valid coordinator credential is required."
+        "403":
+          description: Principal has no server-owned grant for the requested repository scope
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: "urn:coordinator:code-search:forbidden"
+                title: "Code-search scope is not authorized"
+                status: 403
+                detail: "The principal has no code-search grant for this repository."
+        "429":
+          description: Bounded semantic-query capacity is exhausted
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                minimum: 1
+              example: 2
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: "urn:coordinator:code-search:overloaded"
+                title: "Code search is busy"
+                status: 429
+                detail: "Retry semantic search after the indicated delay."
+        "422":
+          description: Malformed request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: "urn:coordinator:code-search:invalid-request"
+                title: "Invalid code-search request"
+                status: 422
+                detail: "A full source revision and authoritative scope are required."
+  /search/code/status:
+    get:
+      operationId: getCodeSearchStatus
+      summary: Report body-verifiable semantic-search availability
+      responses:
+        "200":
+          description: Process-local code-search readiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CodeSearchStatus"
+              examples:
+                available:
+                  value:
+                    available: true
+                    state: ready
+                    reason: ready
+                    usable_index_count: 2
+                unavailable:
+                  value:
+                    available: false
+                    state: unavailable
+                    reason: no_usable_index
+                    usable_index_count: 0
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-Coordinator-API-Key
+  schemas:
+    FullRevision:
+      type: string
+      pattern: "^[0-9a-f]{40}([0-9a-f]{24})?$"
+      example: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    RepoSlug:
+      type: string
+      pattern: "^[a-z][a-z0-9_]{0,50}$"
+      example: "agentic_coding_tools"
+    Namespace:
+      type: object
+      additionalProperties: false
+      required: [kind, key]
+      properties:
+        kind:
+          type: string
+          enum: [main, feature, work_package]
+          example: main
+        key:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: main
+      allOf:
+        - if:
+            properties:
+              kind: {const: main}
+            required: [kind]
+          then:
+            properties:
+              key: {const: main}
+    SafeGlob:
+      type: string
+      minLength: 1
+      maxLength: 512
+      pattern: "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\x00).+$"
+      description: >
+        Coarse wire validation. The shared semantic validator additionally
+        rejects leading ./, dot segments, repeated or trailing separators,
+        control characters, and non-normal repository-relative forms.
+      example: "agent-coordinator/**"
+    ExplicitScope:
+      type: object
+      additionalProperties: false
+      required: [kind, read_allow]
+      properties:
+        kind: {const: explicit}
+        read_allow:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/SafeGlob"
+        deny:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/SafeGlob"
+          default: []
+    WorkPackageScope:
+      type: object
+      additionalProperties: false
+      required: [kind, change_id, package_id, scope_revision]
+      properties:
+        kind: {const: work_package}
+        change_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: "^[a-z0-9][a-z0-9_-]*$"
+          example: "expose-fail-closed-semantic-code-search"
+        package_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: "^[a-z0-9][a-z0-9_-]*$"
+          example: "wp-query-service"
+        scope_revision:
+          $ref: "#/components/schemas/FullRevision"
+    Scope:
+      oneOf:
+        - $ref: "#/components/schemas/ExplicitScope"
+        - $ref: "#/components/schemas/WorkPackageScope"
+      discriminator:
+        propertyName: kind
+        mapping:
+          explicit: "#/components/schemas/ExplicitScope"
+          work_package: "#/components/schemas/WorkPackageScope"
+    CodeSearchRequest:
+      type: object
+      additionalProperties: false
+      required: [query, repo_slug, source_revision, namespace, scope]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 8192
+          example: "how are stale index leases fenced"
+        repo_slug:
+          $ref: "#/components/schemas/RepoSlug"
+        source_revision:
+          $ref: "#/components/schemas/FullRevision"
+        namespace:
+          $ref: "#/components/schemas/Namespace"
+        index_id:
+          type: string
+          format: uuid
+          description: Required for feature and work-package namespaces.
+          example: "11111111-1111-4111-8111-111111111111"
+        scope:
+          $ref: "#/components/schemas/Scope"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+          example: 10
+        offset:
+          type: integer
+          minimum: 0
+          maximum: 1000
+          default: 0
+          example: 0
+        languages:
+          type: array
+          maxItems: 30
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+          example: [python, sql]
+        paths:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/SafeGlob"
+          example: ["agent-coordinator/**"]
+      allOf:
+        - if:
+            properties:
+              namespace:
+                properties:
+                  kind:
+                    enum: [feature, work_package]
+                required: [kind]
+            required: [namespace]
+          then:
+            required: [index_id]
+    RequestedIdentity:
+      type: object
+      additionalProperties: false
+      required: [repo_slug, source_revision, namespace, index_id]
+      properties:
+        repo_slug:
+          $ref: "#/components/schemas/RepoSlug"
+        source_revision:
+          $ref: "#/components/schemas/FullRevision"
+        namespace:
+          $ref: "#/components/schemas/Namespace"
+        index_id:
+          type: [string, "null"]
+          format: uuid
+    IndexProvenance:
+      type: object
+      additionalProperties: false
+      required:
+        - index_id
+        - repo_slug
+        - source_revision
+        - namespace
+        - embedder_model
+        - embedding_dim
+        - embedder_fingerprint
+        - policy_fingerprint
+        - pipeline_fingerprint
+        - completed_at
+      properties:
+        index_id:
+          type: string
+          format: uuid
+          example: "11111111-1111-4111-8111-111111111111"
+        repo_slug:
+          $ref: "#/components/schemas/RepoSlug"
+        source_revision:
+          $ref: "#/components/schemas/FullRevision"
+        namespace:
+          $ref: "#/components/schemas/Namespace"
+        embedder_model:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: "text-embedding-model"
+        embedding_dim:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          example: 768
+        embedder_fingerprint:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        policy_fingerprint:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        pipeline_fingerprint:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        completed_at:
+          type: string
+          format: date-time
+          example: "2026-07-23T12:00:00Z"
+    ScopeDisposition:
+      type: object
+      additionalProperties: false
+      required: [decision, source, authority]
+      properties:
+        decision:
+          type: string
+          enum: [allowed, rejected]
+          example: allowed
+        source:
+          type: string
+          enum: [explicit, work_package]
+          example: explicit
+        authority:
+          type: string
+          enum: [principal_grant, work_package_registry]
+          example: principal_grant
+    CodeSearchHit:
+      type: object
+      additionalProperties: false
+      required:
+        - file_path
+        - language
+        - content
+        - start_line
+        - end_line
+        - similarity
+        - repo_slug
+        - source_revision
+        - index_id
+        - scope_decision
+      properties:
+        file_path:
+          type: string
+          minLength: 1
+          maxLength: 4096
+          example: "agent-coordinator/src/code_search.py"
+        language:
+          type: string
+          minLength: 1
+          maxLength: 64
+          example: python
+        content:
+          type: string
+          maxLength: 200000
+          example: "class CodeSearchService:"
+        start_line:
+          type: integer
+          minimum: 1
+          example: 120
+        end_line:
+          type: integer
+          minimum: 1
+          example: 140
+        similarity:
+          type: number
+          minimum: -1
+          maximum: 1
+          example: 0.82
+        repo_slug:
+          $ref: "#/components/schemas/RepoSlug"
+        source_revision:
+          $ref: "#/components/schemas/FullRevision"
+        index_id:
+          type: string
+          format: uuid
+        scope_decision:
+          const: allowed
+    Fallback:
+      type: object
+      additionalProperties: false
+      required: [required, strategy, reason]
+      properties:
+        required:
+          type: boolean
+          example: true
+        strategy:
+          const: exact_search
+        reason:
+          type: [string, "null"]
+          enum:
+            - null
+            - revision_mismatch
+            - not_indexed
+            - not_configured
+            - unavailable
+            - scope_rejected
+          example: revision_mismatch
+    CodeSearchResponse:
+      type: object
+      additionalProperties: false
+      required: [state, current, request, index, scope, results, fallback]
+      properties:
+        state:
+          type: string
+          enum:
+            - ready
+            - revision_mismatch
+            - not_indexed
+            - not_configured
+            - unavailable
+            - scope_rejected
+          example: ready
+        current:
+          type: boolean
+          example: true
+        request:
+          $ref: "#/components/schemas/RequestedIdentity"
+        index:
+          oneOf:
+            - $ref: "#/components/schemas/IndexProvenance"
+            - type: "null"
+        scope:
+          $ref: "#/components/schemas/ScopeDisposition"
+        results:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/CodeSearchHit"
+        fallback:
+          $ref: "#/components/schemas/Fallback"
+      allOf:
+        - if:
+            properties:
+              state: {const: ready}
+            required: [state]
+          then:
+            properties:
+              current: {const: true}
+              index:
+                $ref: "#/components/schemas/IndexProvenance"
+              fallback:
+                allOf:
+                  - $ref: "#/components/schemas/Fallback"
+                  - properties:
+                      required: {const: false}
+                      reason: {const: null}
+              scope:
+                allOf:
+                  - $ref: "#/components/schemas/ScopeDisposition"
+                  - properties:
+                      decision: {const: allowed}
+        - if:
+            properties:
+              state:
+                not: {const: ready}
+            required: [state]
+          then:
+            properties:
+              current: {const: false}
+              results:
+                maxItems: 0
+              fallback:
+                allOf:
+                  - $ref: "#/components/schemas/Fallback"
+                  - properties:
+                      required: {const: true}
+        - if:
+            properties:
+              state: {const: revision_mismatch}
+            required: [state]
+          then:
+            properties:
+              fallback:
+                allOf:
+                  - $ref: "#/components/schemas/Fallback"
+                  - properties:
+                      reason: {const: revision_mismatch}
+        - if:
+            properties:
+              state: {const: not_indexed}
+            required: [state]
+          then:
+            properties:
+              fallback:
+                allOf:
+                  - $ref: "#/components/schemas/Fallback"
+                  - properties:
+                      reason: {const: not_indexed}
+        - if:
+            properties:
+              state: {const: not_configured}
+            required: [state]
+          then:
+            properties:
+              fallback:
+                allOf:
+                  - $ref: "#/components/schemas/Fallback"
+                  - properties:
+                      reason: {const: not_configured}
+        - if:
+            properties:
+              state: {const: unavailable}
+            required: [state]
+          then:
+            properties:
+              fallback:
+                allOf:
+                  - $ref: "#/components/schemas/Fallback"
+                  - properties:
+                      reason: {const: unavailable}
+        - if:
+            properties:
+              state: {const: scope_rejected}
+            required: [state]
+          then:
+            properties:
+              fallback:
+                allOf:
+                  - $ref: "#/components/schemas/Fallback"
+                  - properties:
+                      reason: {const: scope_rejected}
+              scope:
+                allOf:
+                  - $ref: "#/components/schemas/ScopeDisposition"
+                  - properties:
+                      decision: {const: rejected}
+        - if:
+            properties:
+              state:
+                not: {const: scope_rejected}
+            required: [state]
+          then:
+            properties:
+              scope:
+                allOf:
+                  - $ref: "#/components/schemas/ScopeDisposition"
+                  - properties:
+                      decision: {const: allowed}
+        - if:
+            properties:
+              state: {const: not_indexed}
+            required: [state]
+          then:
+            properties:
+              index: {type: "null"}
+        - if:
+            properties:
+              state: {const: scope_rejected}
+            required: [state]
+          then:
+            properties:
+              index: {type: "null"}
+    CodeSearchStatus:
+      oneOf:
+        - $ref: "#/components/schemas/CodeSearchStatusReady"
+        - $ref: "#/components/schemas/CodeSearchStatusDisabled"
+        - $ref: "#/components/schemas/CodeSearchStatusUninitialized"
+        - $ref: "#/components/schemas/CodeSearchStatusNotConfigured"
+        - $ref: "#/components/schemas/CodeSearchStatusUnavailable"
+      discriminator:
+        propertyName: state
+        mapping:
+          ready: "#/components/schemas/CodeSearchStatusReady"
+          disabled: "#/components/schemas/CodeSearchStatusDisabled"
+          uninitialized: "#/components/schemas/CodeSearchStatusUninitialized"
+          not_configured: "#/components/schemas/CodeSearchStatusNotConfigured"
+          unavailable: "#/components/schemas/CodeSearchStatusUnavailable"
+    CodeSearchStatusReady:
+      type: object
+      additionalProperties: false
+      required: [available, state, reason, usable_index_count]
+      properties:
+        available: {const: true}
+        state: {const: ready}
+        reason: {const: ready}
+        usable_index_count:
+          type: integer
+          minimum: 1
+          example: 2
+    CodeSearchStatusDisabled:
+      type: object
+      additionalProperties: false
+      required: [available, state, reason, usable_index_count]
+      properties:
+        available: {const: false}
+        state: {const: disabled}
+        reason: {const: disabled}
+        usable_index_count: {const: 0}
+    CodeSearchStatusUninitialized:
+      type: object
+      additionalProperties: false
+      required: [available, state, reason, usable_index_count]
+      properties:
+        available: {const: false}
+        state: {const: uninitialized}
+        reason: {const: uninitialized}
+        usable_index_count: {const: 0}
+    CodeSearchStatusNotConfigured:
+      type: object
+      additionalProperties: false
+      required: [available, state, reason, usable_index_count]
+      properties:
+        available: {const: false}
+        state: {const: not_configured}
+        reason: {const: missing_configuration}
+        usable_index_count: {const: 0}
+    CodeSearchStatusUnavailable:
+      type: object
+      additionalProperties: false
+      required: [available, state, reason, usable_index_count]
+      properties:
+        available: {const: false}
+        state: {const: unavailable}
+        reason:
+          type: string
+          enum:
+            - registry_unavailable
+            - provider_unavailable
+            - no_usable_index
+        usable_index_count: {const: 0}
+    Problem:
+      type: object
+      additionalProperties: true
+      required: [type, title, status, detail]
+      properties:
+        type:
+          type: string
+          format: uri
+          example: "urn:coordinator:code-search:invalid-request"
+        title:
+          type: string
+          example: "Invalid code-search request"
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          example: 422
+        detail:
+          type: string
+          example: "A full source revision and authoritative scope are required."
