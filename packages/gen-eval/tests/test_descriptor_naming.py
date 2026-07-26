@@ -13,6 +13,12 @@ exists to test them. Every other test file is scanned by a verification gate
 that fails on any pre-rename name, and the suite is additionally run under
 ``-W error::DeprecationWarning`` with this file excluded. Both exclusions are
 what make those gates satisfiable rather than self-contradictory.
+
+A **reclaimed** name is outside that rule. Once a name denotes a current type
+rather than a superseded one, using it is not a migration debt, so other
+modules may spell it freely — ``ToolDescriptor`` in ``test_tool_descriptor.py``
+is the first case. ``RECLAIMED`` below is the list; anything still in
+``ALIASES`` remains confined to this file.
 """
 
 from __future__ import annotations
@@ -27,13 +33,30 @@ import gen_eval
 from gen_eval import descriptor as descriptor_module
 from gen_eval.contracts import load_schema
 
-#: old name -> the renamed type it must alias.
-ALIASES: dict[str, str] = {
+#: old name -> the type it was renamed to. All four renames, whether or not
+#: the old name has since been reclaimed — the schema-level facts below hold
+#: either way.
+RENAMED: dict[str, str] = {
     "EndpointDescriptor": "EndpointSpec",
     "ToolDescriptor": "McpToolSpec",
     "CommandDescriptor": "CommandSpec",
     "ServiceDescriptor": "ServiceSpec",
 }
+
+#: Old names that no longer alias anything, because a *new* type has taken
+#: them. ``ToolDescriptor`` is now the document-level tool archetype rather
+#: than one MCP tool. A reclaimed name resolves successfully while meaning
+#: something different from one release ago, which a deprecation warning
+#: cannot express — hence the separate expectations in
+#: :class:`TestReclaimedNames`.
+RECLAIMED: frozenset[str] = frozenset({"ToolDescriptor"})
+
+#: old name -> the renamed type it must still alias.
+ALIASES: dict[str, str] = {k: v for k, v in RENAMED.items() if k not in RECLAIMED}
+
+#: Every model in ``descriptor.py`` allowed to carry the ``Descriptor``
+#: suffix. The suffix denotes the *document* level; these are documents.
+DOCUMENT_TYPES: frozenset[str] = frozenset({"InterfaceDescriptor", "ToolDescriptor"})
 
 #: renamed type -> a field it carried before the rename. Asserting a *specific*
 #: field rather than "some fields" is what distinguishes a real rename from a
@@ -49,16 +72,16 @@ PRE_RENAME_FIELDS: dict[str, str] = {
 class TestNewNames:
     """D1 — the renamed types are reachable and intact."""
 
-    @pytest.mark.parametrize("new_name", sorted(ALIASES.values()))
+    @pytest.mark.parametrize("new_name", sorted(RENAMED.values()))
     def test_reachable_on_the_defining_module(self, new_name: str) -> None:
         assert isinstance(getattr(descriptor_module, new_name), type)
 
-    @pytest.mark.parametrize("new_name", sorted(ALIASES.values()))
+    @pytest.mark.parametrize("new_name", sorted(RENAMED.values()))
     def test_reachable_on_the_package(self, new_name: str) -> None:
         """Consumers import from ``gen_eval``, not ``gen_eval.descriptor``."""
         assert getattr(gen_eval, new_name) is getattr(descriptor_module, new_name)
 
-    @pytest.mark.parametrize("new_name", sorted(ALIASES.values()))
+    @pytest.mark.parametrize("new_name", sorted(RENAMED.values()))
     def test_is_exported(self, new_name: str) -> None:
         assert new_name in gen_eval.__all__
 
@@ -76,7 +99,7 @@ class TestNewNames:
         """
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            for new_name in ALIASES.values():
+            for new_name in RENAMED.values():
                 getattr(gen_eval, new_name)
                 getattr(descriptor_module, new_name)
         assert [str(w.message) for w in caught] == []
@@ -159,6 +182,35 @@ class TestDeprecationAliases:
             gen_eval.NoSuchDescriptor  # type: ignore[attr-defined]
 
 
+class TestReclaimedNames:
+    """A reclaimed name denotes the new type, and says so by not warning.
+
+    Leaving a reclaimed name in the alias table would be worse than either
+    outcome on its own: the module would warn "use McpToolSpec instead" while
+    handing back something that is not McpToolSpec.
+    """
+
+    @pytest.mark.parametrize("old_name", sorted(RECLAIMED))
+    def test_is_defined_rather_than_aliased(self, old_name: str) -> None:
+        assert old_name not in descriptor_module._DEPRECATED_ALIASES
+        assert old_name in vars(descriptor_module), (
+            f"{old_name} is neither aliased nor defined — it resolves to nothing"
+        )
+
+    @pytest.mark.parametrize("old_name", sorted(RECLAIMED))
+    def test_no_longer_resolves_to_the_type_it_used_to_alias(self, old_name: str) -> None:
+        superseded = getattr(descriptor_module, RENAMED[old_name])
+        assert getattr(descriptor_module, old_name) is not superseded
+
+    @pytest.mark.parametrize("old_name", sorted(RECLAIMED))
+    def test_does_not_warn(self, old_name: str) -> None:
+        """It is not deprecated — it is a live name for a current type."""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            getattr(descriptor_module, old_name)
+        assert [str(w.message) for w in caught] == []
+
+
 class TestNamingLevels:
     """D1 — no single suffix denotes both an element and a document."""
 
@@ -178,16 +230,23 @@ class TestNamingLevels:
             and obj.__module__ == descriptor_module.__name__
         }
 
-    def test_descriptor_suffix_names_only_the_document(self) -> None:
+    def test_descriptor_suffix_names_only_documents(self) -> None:
+        """The suffix marks the document level — and only the document level.
+
+        ``ToolDescriptor`` joins the set as a document archetype, not as a
+        loosening: it describes a whole tool, the way ``InterfaceDescriptor``
+        describes a whole project. An *element* type taking the suffix (one
+        endpoint, one MCP tool, one command) is still the failure this guards.
+        """
         named = {n for n in self._defined_models() if n.endswith("Descriptor")}
-        assert named == {"InterfaceDescriptor"}, (
-            f"'Descriptor' must denote the document level only; also found: "
-            f"{sorted(named - {'InterfaceDescriptor'})}"
+        assert named == DOCUMENT_TYPES, (
+            f"'Descriptor' must denote the document level only; unexpected: "
+            f"{sorted(named - DOCUMENT_TYPES)}; missing: {sorted(DOCUMENT_TYPES - named)}"
         )
 
     def test_every_element_and_container_type_uses_the_spec_suffix(self) -> None:
         defined = self._defined_models()
-        for new_name in ALIASES.values():
+        for new_name in RENAMED.values():
             assert new_name in defined, f"{new_name} is not defined in descriptor.py"
             assert new_name.endswith("Spec")
 
@@ -212,15 +271,15 @@ class TestPublishedSchemaNaming:
         defs: dict[str, dict] = load_schema("interface-descriptor")["$defs"]
         return defs
 
-    @pytest.mark.parametrize("new_name", sorted(ALIASES.values()))
+    @pytest.mark.parametrize("new_name", sorted(RENAMED.values()))
     def test_defs_use_the_new_names(self, new_name: str) -> None:
         assert new_name in self._descriptor_defs()
 
-    @pytest.mark.parametrize("old_name", sorted(ALIASES))
+    @pytest.mark.parametrize("old_name", sorted(RENAMED))
     def test_defs_do_not_use_the_pre_rename_names(self, old_name: str) -> None:
         assert old_name not in self._descriptor_defs()
 
-    @pytest.mark.parametrize(("old_name", "new_name"), sorted(ALIASES.items()))
+    @pytest.mark.parametrize(("old_name", "new_name"), sorted(RENAMED.items()))
     def test_def_titles_follow_the_key(self, old_name: str, new_name: str) -> None:
         """pydantic writes both a ``$defs`` key and a ``title``; both must move.
 
@@ -232,5 +291,5 @@ class TestPublishedSchemaNaming:
     def test_no_dangling_ref_to_a_pre_rename_name(self) -> None:
         """A renamed ``$defs`` key with an unrenamed ``$ref`` is an unresolvable schema."""
         raw = json.dumps(load_schema("interface-descriptor"))
-        stale = sorted(old for old in ALIASES if f'#/$defs/{old}"' in raw)
+        stale = sorted(old for old in RENAMED if f'#/$defs/{old}"' in raw)
         assert not stale, f"schema still references pre-rename $defs: {stale}"

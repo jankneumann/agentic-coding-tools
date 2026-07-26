@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 import yaml
 from pydantic import BaseModel, Field
@@ -56,6 +56,110 @@ class CommandSpec(BaseModel):
     description: str = ""
     args_schema: dict[str, Any] | None = None
     tags: list[str] = Field(default_factory=list)
+
+
+class BindingSpec(BaseModel):
+    """How a CLI argument maps onto an operation parameter.
+
+    The binding spec named in design D1's cons: an operation's (path, query,
+    body) does not map mechanically onto argv, so where a tool is a client of
+    a contracted service the mapping has to be declared rather than guessed.
+    """
+
+    location: Literal["path", "query", "body", "header", "env", "stdin"]
+    parameter: str
+
+
+class FlagSpec(BaseModel):
+    """A single contracted flag — the tool archetype's coverage unit (D3).
+
+    Flags are why tool contracts are not OpenAPI (D5): a flag is process
+    configuration rather than an operation parameter. They are also what makes
+    a flat, subcommand-less CLI nameable at all — without flag-level
+    identifiers gen-eval's own descriptor declares zero interfaces and its
+    coverage assertion passes for free.
+    """
+
+    name: str
+    short: str | None = None
+    type: Literal["string", "integer", "number", "boolean", "path", "enum"] = "string"
+    required: bool = False
+    repeatable: bool = False
+    choices: list[str] = Field(default_factory=list)
+    default: Any = None
+    description: str = ""
+    #: Exits before required-argument enforcement (the ``--help`` /
+    #: ``--version`` / ``--print-contract-version`` class).
+    short_circuits: bool = False
+    binds_to: BindingSpec | None = None
+
+
+class PositionalSpec(BaseModel):
+    """A single contracted positional argument. A coverage unit like a flag."""
+
+    name: str
+    type: Literal["string", "integer", "number", "path"] = "string"
+    required: bool = True
+    variadic: bool = False
+    description: str = ""
+    binds_to: BindingSpec | None = None
+
+
+class ExitCodeSpec(BaseModel):
+    """A documented process exit code.
+
+    OpenAPI has no equivalent, which is the primary reason tool contracts get
+    their own schema (D5).
+    """
+
+    code: int
+    meaning: str
+    sysexits_name: str | None = None
+
+
+class ToolCommandSpec(BaseModel):
+    """An invocation unit of a contracted tool, with its arguments.
+
+    Distinct from :class:`CommandSpec`, which describes a command inside a
+    hand-authored :class:`ServiceSpec` and cannot express flags. Unifying the
+    two would change the published ``interface-descriptor`` schema, which this
+    change deliberately leaves alone — the contract-derived surface lives on
+    :class:`ToolDescriptor`, not inside the legacy service model.
+
+    A command with an empty ``name`` is the flat, subcommand-less form. It
+    contributes no coverage unit of its own (D3): only its flags and
+    positionals do.
+    """
+
+    name: str = ""
+    description: str = ""
+    flags: list[FlagSpec] = Field(default_factory=list)
+    positionals: list[PositionalSpec] = Field(default_factory=list)
+    #: Operations this command serves, when the tool is a client of a
+    #: contracted service. A list because one surface element may serve
+    #: several operations (D4/D7).
+    operation_ids: list[str] = Field(default_factory=list)
+
+    def coverage_units(self) -> list[str]:
+        """Identifiers this command contributes to the declared surface.
+
+        The vocabulary is shared with what a scenario records as tested, so a
+        tested element matches its declared counterpart rather than comparing
+        two disjoint string sets.
+        """
+        units: list[str] = []
+        if self.name:
+            units.append(_cli_unit(self.name))
+        for flag in self.flags:
+            units.append(_cli_unit(self.name, flag.name))
+        for positional in self.positionals:
+            units.append(_cli_unit(self.name, f"<{positional.name}>"))
+        return units
+
+
+def _cli_unit(command_name: str, leaf: str = "") -> str:
+    """Render one coverage-unit identifier, e.g. ``cli:lock acquire --ttl``."""
+    return "cli:" + " ".join(part for part in (command_name, leaf) if part)
 
 
 class FileInterfaceMapping(BaseModel):
@@ -148,7 +252,7 @@ class InterfaceDescriptor(BaseModel):
     file_interface_map: list[FileInterfaceMapping] = Field(default_factory=list)
 
     @classmethod
-    def from_yaml(cls, path: Path) -> InterfaceDescriptor:
+    def from_yaml(cls, path: Path) -> Self:
         """Load descriptor from a YAML file.
 
         Resolves any relative ``scenario_dirs`` entries against the descriptor's
@@ -160,7 +264,16 @@ class InterfaceDescriptor(BaseModel):
             data = yaml.safe_load(f)
         if not isinstance(data, dict):
             raise ValueError(f"Expected YAML mapping in {path}, got {type(data).__name__}")
-        descriptor_dir = Path(path).resolve().parent
+        cls._resolve_relative_paths(data, Path(path).resolve().parent)
+        return cls(**data)
+
+    @classmethod
+    def _resolve_relative_paths(cls, data: dict[str, Any], descriptor_dir: Path) -> None:
+        """Rewrite file-relative path entries in ``data`` to absolute paths.
+
+        A hook rather than inline code so an archetype can resolve its own
+        path-valued fields on the same terms, without restating the loader.
+        """
         raw_dirs = data.get("scenario_dirs") or []
         resolved: list[Path] = []
         for entry in raw_dirs:
@@ -168,7 +281,6 @@ class InterfaceDescriptor(BaseModel):
             resolved.append(p if p.is_absolute() else (descriptor_dir / p).resolve())
         if resolved:
             data["scenario_dirs"] = resolved
-        return cls(**data)
 
     def all_interfaces(self) -> list[str]:
         """Return all interface identifiers across all services."""
@@ -193,12 +305,120 @@ class InterfaceDescriptor(BaseModel):
         return len(self.all_interfaces())
 
 
-#: Pre-rename name -> its replacement (design D1). Every entry here is a plain
-#: deprecation: this change frees these names but reuses none of them (D2), so
-#: each has exactly one meaning throughout — "alias for the renamed type".
+class ToolDescriptor(InterfaceDescriptor):
+    """A program's own invocation surface, derived from a CLI contract.
+
+    The tool archetype (spec: Service And Tool Descriptor Archetypes). Where
+    :class:`InterfaceDescriptor` describes a project whose services are started
+    and probed, a tool descriptor describes an executable that is simply
+    invoked — so it carries no lifecycle at all, and its coverage unit is the
+    flag, positional or named subcommand rather than the operation.
+
+    **The name is reclaimed, not renamed.** For one release
+    ``descriptor.ToolDescriptor`` was a deprecation alias for
+    :class:`McpToolSpec`, a single MCP tool. It now denotes this document-level
+    archetype. Both resolve successfully while meaning different things, which
+    is why the spec requires a contract-version increment and a downstream
+    notice rather than a deprecation warning.
+
+    **Lifecycle is structurally absent, not merely unset.** ``startup`` is
+    typed ``None``, so a caller cannot hand one to a tool descriptor and have
+    the orchestrator run it. The orchestrator's existing ``startup is None``
+    branches then skip startup, health check, seeding and teardown.
+    """
+
+    #: Narrowed from the parent: a tool has nothing to start (spec: "A tool
+    #: descriptor SHALL NOT require service lifecycle configuration").
+    startup: None = None
+
+    #: The CLI contract this descriptor was derived from. Relative entries in
+    #: a descriptor file resolve against the file's own directory.
+    contract: Path | None = None
+
+    #: Console-script name resolved from PATH — the published artifact, not a
+    #: source module path.
+    executable: str
+
+    commands: list[ToolCommandSpec] = Field(default_factory=list)
+    exit_codes: list[ExitCodeSpec] = Field(default_factory=list)
+
+    @classmethod
+    def _resolve_relative_paths(cls, data: dict[str, Any], descriptor_dir: Path) -> None:
+        super()._resolve_relative_paths(data, descriptor_dir)
+        raw = data.get("contract")
+        if raw:
+            p = Path(raw)
+            data["contract"] = p if p.is_absolute() else (descriptor_dir / p).resolve()
+
+    @classmethod
+    def from_contract(
+        cls,
+        path: Path,
+        *,
+        project: str | None = None,
+        version: str | None = None,
+        scenario_dirs: list[Path] | None = None,
+    ) -> Self:
+        """Derive a tool descriptor from a CLI contract document.
+
+        This is the *generation-time* path (D2). Nothing here consults the
+        implementation: no ``--help`` probe, no PATH lookup, no subprocess.
+        That direction is the whole design (D1) — if introspection populated
+        the declared surface, an uninstalled or broken tool would derive an
+        empty one and then report full coverage of nothing.
+
+        Loading a checked-in descriptor deliberately does NOT re-derive. The
+        declared surface must not depend on generator success at run time;
+        detecting drift between contract and artifact is the drift guard's job.
+        """
+        contract_path = Path(path).resolve()
+        with open(contract_path) as f:
+            document = yaml.safe_load(f)
+        if not isinstance(document, dict):
+            raise ValueError(
+                f"Expected YAML mapping in {contract_path}, got {type(document).__name__}"
+            )
+
+        tool = document.get("tool") or {}
+        name = tool.get("name")
+        executable = tool.get("executable")
+        if not name or not executable:
+            raise ValueError(f"{contract_path} declares no tool.name / tool.executable")
+
+        return cls(
+            project=project or name,
+            version=version or str(document.get("contract_version", "1")),
+            executable=executable,
+            contract=contract_path,
+            commands=[ToolCommandSpec(**c) for c in document.get("commands") or []],
+            exit_codes=[ExitCodeSpec(**e) for e in document.get("exit_codes") or []],
+            # The tool under test, so the evaluator has something to invoke.
+            # The declared surface lives on ``commands`` above, not here.
+            services=[ServiceSpec(name=f"{name}-cli", type="cli", command=executable)],
+            scenario_dirs=scenario_dirs or [],
+        )
+
+    def all_interfaces(self) -> list[str]:
+        """Return the contracted coverage units (D3).
+
+        Overrides the parent's command-level vocabulary. Commands are not
+        coverage units for this archetype: a flat CLI declares exactly one
+        command with an empty name, so counting commands reports a surface of
+        1 for a tool that declares nothing testable.
+        """
+        return [unit for command in self.commands for unit in command.coverage_units()]
+
+
+#: Pre-rename name -> its replacement (design D1 of the prerequisite rename).
+#: Each entry is a plain deprecation — the alias resolves and warns.
+#:
+#: ``ToolDescriptor`` is deliberately absent. It was an alias for
+#: ``McpToolSpec``; it is now the tool archetype defined above, and a name that
+#: denotes a different type cannot be described by a warning that points
+#: somewhere else. That reclamation is announced by a contract-version
+#: increment and a downstream notice instead.
 _DEPRECATED_ALIASES: dict[str, str] = {
     "EndpointDescriptor": "EndpointSpec",
-    "ToolDescriptor": "McpToolSpec",
     "CommandDescriptor": "CommandSpec",
     "ServiceDescriptor": "ServiceSpec",
 }
