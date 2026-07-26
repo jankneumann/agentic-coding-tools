@@ -316,6 +316,47 @@ in the first place. Recorded as a known gap rather than described as done.
 
 ---
 
+## D13 — The architecture analyzers were repaired, because provenance could not be written otherwise
+
+Added during integration. Task 5.3 could not complete: `make architecture-refresh` failed
+before promotion on every run, so no provenance could be written, so the architecture arm
+of the gate could never leave `unverifiable`.
+
+Three pre-existing defects, none of them ri-10's doing:
+
+- `MIGRATIONS_DIR` pointed at `agent-coordinator/supabase/migrations`, removed when the
+  coordinator moved to ParadeDB. The postgres analyzer errored on every run.
+- `TS_SRC_DIR` defaulted to `web`, a directory that has never existed in this repository.
+  TypeScript lives under `apps/`.
+- The runner was `npx ts-node`, which couples the analyzer to whichever `typescript`
+  resolves. There is no root `package.json`, so `node_modules` is unmanaged, and ts-node
+  10.9.2 against the resolved typescript 7.0.2 dies inside its own config loader.
+
+**Writing provenance without fixing these was considered and rejected.**
+`build_provenance` records `input_fingerprint`, a digest of the *current* sources. Writing
+it over artifacts the failing analyzers own — `ts_analysis.json` last regenerated
+2026-02-23 — would have bound today's sources to five-month-old output, and
+`check_freshness` would then report `fresh`. That is manufacturing a false green: the exact
+fail-open behaviour D4 exists to remove, reintroduced by the change that removes it.
+
+**Portability.** The two path corrections live in the repository-specific root `Makefile`,
+which `install-manifest.json` does not distribute; the skill keeps its generic defaults
+(`src` / `web` / `database/migrations`) and reads env overrides. The runner change and the
+new validation live in the skill, so every consuming repository gets them.
+
+**The validation is the durable part.** `analyze_typescript.ts` exits 0 on a missing
+directory and writes `Modules: 0, Components: 0, Functions: 0` — indistinguishable from a
+repository that genuinely has no TypeScript. That silence is why an all-zeros artifact sat
+committed for five months. A configured input root that is absent is now a loud skip that
+writes *no* artifact. Recording zero modules from a missing directory misreports a
+configuration error as a result, which is the same category of defect as the fail-open
+architecture producer — a green signal for work never done.
+
+A repository-level config file (`.architecture.toml`, or a section in an existing config)
+would be a tidier home for these three variables than `?=` in a Makefile, and would let the
+skill validate them itself. It is not proposed here: it would not have prevented this bug,
+since all three mechanisms fail identically without the validation above.
+
 ## Risks and Open Questions
 
 - **A genuinely stale committed spec is invisible** (D3's stated cost). Correlating

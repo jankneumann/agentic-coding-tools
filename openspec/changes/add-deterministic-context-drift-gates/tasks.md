@@ -220,7 +220,7 @@ Capability short names used in scenario references: `pcro` =
 
 ## Phase 5 — wp-integration: remediation and proof
 
-- [ ] 5.1 Merge the package worktrees and run the full suite plus `bash install.sh --check`
+- [x] 5.1 Merge the package worktrees and run the full suite plus `bash install.sh --check`
       and `ruff check .` from `skills/`
       **Spec scenarios**: none
       **Contracts**: none
@@ -228,7 +228,7 @@ Capability short names used in scenario references: `pcro` =
       **Dependencies**: 1.4, 2.7, 3.8, 4.5
       **Size**: S
 
-- [ ] 5.2 Verify the gate FAILS on the merged, pre-remediation tree
+- [x] 5.2 Verify the gate FAILS on the merged, pre-remediation tree
       **Spec scenarios**: `pcro` — Deterministic context drift gate / Stale artifacts are named individually
       **Contracts**: `contracts/context-drift-gate.schema.json`
       **Design decisions**: D10
@@ -240,7 +240,7 @@ Capability short names used in scenario references: `pcro` =
       means the emitter fix is incomplete. A gate that cannot be shown to fail is
       decoration — capture the output as evidence.
 
-- [ ] 5.3 Track `architecture.provenance.json` and regenerate the stale artifacts as one
+- [x] 5.3 Track `architecture.provenance.json` and regenerate the stale artifacts as one
       commit containing only generated output
       **Spec scenarios**: `ar` — Architecture provenance is a committed baseline / Regeneration updates the committed baseline
       **Contracts**: `architecture-provenance.schema.json`
@@ -252,7 +252,7 @@ Capability short names used in scenario references: `pcro` =
       is the positive demonstration that the fixed emitter and fixed producer agree. Keep
       isolated from every commit that touches gate code.
 
-- [ ] 5.4 Verify the gate PASSES on a clean checkout at the recorded revision, with no diff
+- [x] 5.4 Verify the gate PASSES on a clean checkout at the recorded revision, with no diff
       **Spec scenarios**: `ar` — Architecture provenance is a committed baseline / Clean checkout at the recorded revision is fresh; `pcro` — Projection drift is informational / Pending merges do not fail the gate
       **Contracts**: `contracts/context-drift-gate.schema.json`
       **Design decisions**: D3, D10
@@ -261,7 +261,7 @@ Capability short names used in scenario references: `pcro` =
       **Note**: This is roadmap acceptance outcome #4. Projection drift will still be
       present and reported — assert it does not affect the exit code.
 
-- [ ] 5.5 Checkpoint: run tests, review diff, verify scope, confirm contracts promoted
+- [x] 5.5 Checkpoint: run tests, review diff, verify scope, confirm contracts promoted
       **Dependencies**: 5.4
       **Size**: XS
 

@@ -51,3 +51,57 @@
 ### Context
 Planned ri-10 of the project-context-refresh-lifecycle roadmap: a composed deterministic context drift gate. Discovery established that all the check machinery already exists and none of it is wired to anything that can fail a build. Running it against unmodified main proved the gate is red on baseline for four producers, that one of them (openspec.projection) reports drift permanently by construction, and that the architecture producer is fail-open. The plan is 23 sized tasks across 5 work packages, tier coordinated.
 
+---
+
+## Phase: Implementation (2026-07-26)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **The decisions producer false positive was fixed at the emitter, not the caller** — emit_decisions_from_archive interpolated the archive_root it was given into every rendered Source: link, and the CLI resolves --repo to an absolute path before the producer runs. Measured: relative root 0 artifacts, absolute 17. A producer-side relative-path fix was rejected because it would leave 'make decisions --archive-root <absolute>' able to write machine paths into a committed artifact, and would depend on cwd, which the producer contract does not guarantee. Retiring validate-decision-index was made conditional on this fix: replacing a passing check with a permanently failing one is not a consolidation.
+2. **The architecture analyzers were repaired rather than working around them** — make architecture-refresh failed before promotion on every run, so no provenance existed. Writing provenance anyway was rejected: build_provenance records an input_fingerprint over current sources, so committing it over artifacts last regenerated 2026-02-23 would have made check_freshness report fresh -- manufacturing the exact false green D4 exists to eliminate. Three defects fixed: MIGRATIONS_DIR pointed at the removed supabase path, TS_SRC_DIR pointed at a 'web' directory that never existed, and the ts-node runner was incompatible with the resolved typescript 7.x.
+3. **A missing configured input root is now a loud skip that writes no artifact** — analyze_typescript.ts exits 0 on a missing directory and writes 'Modules: 0, Components: 0' -- indistinguishable from a repository with no TypeScript. That silence is why an all-zeros ts_analysis.json sat committed for five months. Recording zero modules from a missing directory misreports a configuration error as analysis, which is the same category of defect as the fail-open architecture producer. The validation lives in the skill so every consuming repository gets it; the two path corrections live in the repo-specific Makefile that install.sh does not distribute.
+4. **Unverifiable provenance exits 2, not 1** — D5's original table contradicted D4 and the spec scenario 'Missing provenance blocks', which requires the drift exit code. The spec is normative and its behaviour is right: a missing baseline is fixed by regenerating and committing, which is drift remediation, not an apparatus repair. Exit 1 is now reserved for a producer that reached no verdict at all, including a drifted finding that names no artifact -- 'name every stale artifact by path' cannot be satisfied by a finding that names nothing.
+5. **Each package's claims were verified by the orchestrator, not accepted on report** — For every package: git worktree list to confirm placement, a diff against the feature branch to confirm scope, and independent reproduction of the RED state. The wp-contracts gate was re-failed by removing the install asset; the wp-lifecycle fix was confirmed by running the producer on the live tree; the wp-emitter fix was confirmed by re-running the relative-vs-absolute comparison. Self-reports about worktree placement are unreliable in this harness.
+
+### Alternatives Considered
+- Writing architecture provenance without repairing the analyzers: rejected because It would have bound current sources to five-month-old artifacts and produced a green gate for work never done -- the failure mode the change exists to remove.
+- A repository config file for the architecture input roots: rejected because Tidier than Makefile ?= variables and would let the skill validate them, but it would not have prevented this bug: all three config mechanisms fail identically without the missing-root validation. Recorded in D13 as a future option.
+- Excluding the architecture arm from the gate to land sooner: rejected because Would have given up a stated acceptance outcome; the operator chose to repair the analyzers instead.
+- Treating decisions.timeline drift as real and regenerating docs/decisions/: rejected because The index was provably fresh -- 18 rendered files byte-identical to committed, diff -rq exit 0, and CI's own job passing. Regenerating would have committed machine-specific absolute paths into a correct artifact.
+
+### Trade-offs
+- Accepted The change grew well beyond its planned scope over Landing a narrower change with a red or dishonest architecture arm because Two of the five producers were wrong in opposite directions and the architecture pipeline could not run at all. Fixing them was a precondition for the gate meaning anything, not an optional extra.
+- Accepted A large generated diff in the remediation commit over Leaving architecture artifacts stale because Isolated into a commit containing only generated output, so the generated noise cannot hide logic changes. Both analyzers ran for the first time since 2026-02-23, so the diff is correspondingly wide.
+- Accepted openspec.projection drift is invisible to the gate over Correlating projected capabilities against active changes because That correlation is cleanup-feature's archive-time reasoning. A genuinely stale committed spec is therefore undetected -- recorded in D3 as a stated cost.
+
+### Open Questions
+- [ ] Branch protection promotion is documented with an explicit NOT APPLIED status and must not be applied until the gate is green on main, since making a red check required would block every merge.
+- [ ] decision_index.py::_cli_main has the identical absolute-path defect as the emitter; make decisions routes around it, but that entry point is unguarded.
+- [ ] Dozens of session-log Decisions are tagged with capabilities absent from openspec/specs/, warned but not failed.
+- [ ] Coordinator issue seeding could not be verified: the seeder reported created=29 then created=33 existing=0, and three query paths returned nothing. Reads cap at 100 issues, so duplication is neither confirmed nor ruled out.
+- [ ] A repository config file for architecture input roots remains an open option (D13); it was not adopted because it would not have prevented the bug it appears to address.
+
+### Completed Work
+- wp-contracts: context-drift-gate.schema.json published, installed and promoted; promoted-contract test generalised to a SCHEMA_OWNERS map covering every owning skill
+- wp-lifecycle: classify_degradation with four disjoint groups, additive to an unchanged decide_outcome; architecture producer switched from build_provenance to check_freshness; check-mode read-only assertion over list_producers() digesting tracked and untracked paths
+- wp-emitter: decision index Source links rendered repository-relative; generalised path-independence guard over every registered producer
+- wp-gate: gate.py composition, classification wiring and report rendering; cli gate subcommand; make context-drift-gate target
+- wp-ci: blocking context-drift-gate job added, validate-decision-index retired, cross-skill dependency declared, branch-protection promotion documented as a known gap
+- wp-integration: architecture analyzers repaired, provenance tracked, stale inventories regenerated, gate proven to fail then pass
+
+### Next Steps
+- Validation should confirm the gate is green on main after merge, then apply the documented gh api branch-protection change -- in that order.
+- Re-run the gate after any rebase: openspec.projection's informational count tracks the number of active changes and will move.
+
+### Relevant Files
+- `skills/project-context-refresh/scripts/gate.py` — the composed gate
+- `skills/project-context-refresh/scripts/orchestrator.py` — classifier and the architecture fail-closed fix
+- `skills/explore-feature/scripts/archive_index.py` — path-independent decision index rendering
+- `skills/refresh-architecture/scripts/refresh_architecture.sh` — analyzer runner and missing-root validation
+- `openspec/changes/add-deterministic-context-drift-gates/gate-baseline-pre-remediation.json` — evidence the gate fails
+- `openspec/changes/add-deterministic-context-drift-gates/gate-green-post-remediation.json` — evidence the gate passes
+
+### Context
+Implemented the composed deterministic context drift gate across six work packages. The plan grew twice under measurement: wp-emitter was added after the baseline exposed a false positive in the decisions producer, and the architecture analyzers had to be repaired because provenance could not otherwise be written honestly. The gate now goes from exit 2 with three named stale artifacts to exit 0 on the remediated tree, with the fail and pass states both captured as evidence.
+
