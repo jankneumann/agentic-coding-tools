@@ -26,16 +26,16 @@
 
 ## 1. Transport helper (wp-bridge-transport)
 
-- [ ] 1.1 Add `try_code_search(...)` to
+- [x] 1.1 Add `try_code_search(...)` to
       `skills/coordination-bridge/scripts/coordination_bridge.py`, POSTing the
       ri-03 `CodeSearchRequest` body to `/search/code` and returning the
       discriminated response unmodified inside the standard envelope.
-- [ ] 1.2 Make the helper obey the *Uniform HTTP Helper Envelope* contract:
+- [x] 1.2 Make the helper obey the *Uniform HTTP Helper Envelope* contract:
       never raise; map transport failure, 401/403, 404, 422, 429 and 5xx onto
       distinct `status="failed"` reasons.
-- [ ] 1.3 Gate the helper on `CAN_CODE_SEARCH` from `detect_coordination()` and
+- [x] 1.3 Gate the helper on `CAN_CODE_SEARCH` from `detect_coordination()` and
       return `status="skipped"`, `reason="capability_absent"` when false.
-- [ ] 1.4 Add `skills/tests/coordination-bridge/test_try_code_search.py`
+- [x] 1.4 Add `skills/tests/coordination-bridge/test_try_code_search.py`
       covering ok / skipped / each failure mapping with a stubbed transport.
 
 ## 2. Retrieval helper (wp-retrieval)
