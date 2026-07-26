@@ -44,22 +44,22 @@
       the `SemanticContextRequest` / `SemanticContextResult` / `InjectedHit` /
       `Omission` / `ContextFallback` / `SectionProvenance` value types (D1),
       each with `to_dict()` matching the section schema.
-- [ ] 2.2 Implement revision resolution (D3): `--show-toplevel`, `rev-parse
+- [x] 2.2 Implement revision resolution (D3): `--show-toplevel`, `rev-parse
       HEAD`, `FullRevision` shape check, and the `status --porcelain`
       staleness short-circuit.
-- [ ] 2.3 Implement scope derivation (D2): `index_scopes()` →
+- [x] 2.3 Implement scope derivation (D2): `index_scopes()` →
       `ReadScope.from_index_scopes()` → explicit scope payload, including the
       `no_declared_scope` and `scope_self_cancelling` outcomes.
-- [ ] 2.4 Implement namespace/index selection (D4): read the ri-09 checkpoint
+- [x] 2.4 Implement namespace/index selection (D4): read the ri-09 checkpoint
       report, accept it only when `status=succeeded` and `indexed_revision ==
       revision`, else fall back to `CANONICAL_NAMESPACE`.
 - [x] 2.5 Implement the deterministic rank key and the dedup pass (D5):
       `duplicate_exact` and `duplicate_contained`, partial overlap retained.
 - [x] 2.6 Implement the first-fit budget pass (D6) with the four bounds, their
       env overrides, the fixed reason precedence, and no early break.
-- [ ] 2.7 Implement the local deny re-check and the `scope_filtered` /
+- [x] 2.7 Implement the local deny re-check and the `scope_filtered` /
       `all_hits_scope_filtered` outcome (D2).
-- [ ] 2.8 Implement `collect_semantic_context()` — the total
+- [x] 2.8 Implement `collect_semantic_context()` — the total
       `CodeSearchState` → trigger mapping (D8), the fixed local-precondition
       order, the `SEMANTIC_CONTEXT_INJECTION` gate (D9), and the guarantee that
       it never raises.

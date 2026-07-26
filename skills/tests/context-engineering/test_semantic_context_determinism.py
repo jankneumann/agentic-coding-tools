@@ -313,3 +313,201 @@ class TestNoNondeterministicInputs:
         first = json.dumps([h.to_dict() for h in sc.rank_hits(FIXTURE)], sort_keys=True)
         second = json.dumps([h.to_dict() for h in sc.rank_hits(FIXTURE)], sort_keys=True)
         assert first == second
+
+
+# --------------------------------------------------------------------------
+# End to end: the same determinism claim, but through the seams a real coding
+# job goes through -- git, the package scope, the bridge -- all stubbed.
+# --------------------------------------------------------------------------
+
+PACKAGE = {
+    "package_id": "wp-retrieval",
+    "scope": {
+        "read_allow": ["skills/**", "docs/**"],
+        "deny": ["**/.venv/**"],
+    },
+}
+
+
+def as_service_hit(item: sc.InjectedHit) -> dict:
+    """One hit in the *coordinator's* vocabulary, which is what the wire carries."""
+    return {
+        "file_path": item.file_path,
+        "language": item.language,
+        "content": item.content,
+        "start_line": item.start_line,
+        "end_line": item.end_line,
+        "similarity": item.score,
+        "repo_slug": "agentic_coding_tools",
+        "source_revision": item.indexed_commit,
+        "index_id": item.index_id,
+        "scope_decision": "allowed",
+    }
+
+
+def service_response(results: list[dict], state: str = "ready") -> dict:
+    return {
+        "state": state,
+        "current": state == "ready",
+        "request": {
+            "repo_slug": "agentic_coding_tools",
+            "source_revision": REVISION,
+            "namespace": {"kind": "main", "key": "main"},
+            "index_id": None,
+        },
+        "index": {
+            "index_id": I1,
+            "repo_slug": "agentic_coding_tools",
+            "source_revision": REVISION,
+            "namespace": {"kind": "main", "key": "main"},
+            "embedder_model": "text-embedding-3-small",
+            "embedding_dim": 1536,
+        },
+        "scope": {
+            "decision": "allowed",
+            "source": "explicit",
+            "authority": "principal_grant",
+        },
+        "results": results,
+        "fallback": {"required": False, "strategy": "exact_search", "reason": None},
+    }
+
+
+def git_stub(*, dirty: bool = False, revision: str = REVISION):
+    def run(repository, args):
+        args = tuple(args)
+        if args[:2] == ("rev-parse", "--show-toplevel"):
+            return f"{repository}\n"
+        if args == ("rev-parse", "HEAD"):
+            return f"{revision}\n"
+        if args == ("status", "--porcelain"):
+            return "M skills/a.py\n" if dirty else ""
+        return None
+    return run
+
+
+def stub_runtime(results: list[dict], **overrides):
+    """A runtime whose every boundary is a stub, and whose flag is on."""
+    captured: dict = {}
+
+    def search(body):
+        captured["body"] = body
+        return {"status": "ok", "status_code": 200, "response": service_response(results)}
+
+    defaults = dict(
+        search=search,
+        detect=lambda: {"CAN_CODE_SEARCH": True, "COORDINATION_TRANSPORT": "http"},
+        git=git_stub(),
+        load_package=lambda root, change_id, package_id: PACKAGE,
+        load_checkpoint=lambda root, change_id, package_id: None,
+        env={"SEMANTIC_CONTEXT_INJECTION": "1"},
+    )
+    defaults.update(overrides)
+    runtime = sc.SemanticContextRuntime(**defaults)
+    return runtime, captured
+
+
+def collect(results: list[dict], **overrides) -> sc.SemanticContextResult:
+    runtime, _ = stub_runtime(results, **overrides)
+    return sc.collect_semantic_context(
+        sc.SemanticContextRequest(
+            repository=Path("."),
+            query="deterministic ranking",
+            consumer="implement-feature",
+            change_id="inject-scoped-semantic-context-into-coding-jobs",
+            package_id="wp-retrieval",
+        ),
+        runtime,
+    )
+
+
+class TestEndToEndDeterminism:
+    """The whole pipeline, hand-derived from the same fixture.
+
+    Ranked order is [G, D, E, B, C, F, J, A, H]; B, C and F all sit inside E's
+    5-30 span and are dropped as ``duplicate_contained``; nothing exceeds the
+    default budget. So six hits survive, in exactly this order.
+    """
+
+    EXPECTED_INJECTED = [G, D, E, J, A, H]
+
+    def test_the_injected_hits_are_the_hand_derived_survivors_in_order(self) -> None:
+        result = collect([as_service_hit(h) for h in FIXTURE])
+        assert result.status == "injected"
+        assert [
+            (h.file_path, h.start_line, h.end_line, h.index_id) for h in result.hits
+        ] == [(h.file_path, h.start_line, h.end_line, h.index_id) for h in self.EXPECTED_INJECTED]
+
+    def test_the_contained_duplicates_are_recorded_with_their_reason(self) -> None:
+        result = collect([as_service_hit(h) for h in FIXTURE])
+        assert [(o.start_line, o.reason) for o in result.omissions] == [
+            (10, "duplicate_contained"),
+            (10, "duplicate_contained"),
+            (10, "duplicate_contained"),
+        ]
+
+    @pytest.mark.parametrize("seed", [0, 5, 42, 2026])
+    def test_the_service_result_order_does_not_change_the_section(self, seed: int) -> None:
+        shuffled = [as_service_hit(h) for h in FIXTURE]
+        random.Random(seed).shuffle(shuffled)
+        baseline = collect([as_service_hit(h) for h in FIXTURE]).to_dict()
+        assert collect(shuffled).to_dict() == baseline
+
+    def test_the_result_carries_the_revision_it_asked_for(self) -> None:
+        result = collect([as_service_hit(h) for h in FIXTURE])
+        assert result.requested_revision == REVISION
+        assert all(h.indexed_commit == REVISION for h in result.hits)
+
+    def test_the_request_sends_an_explicit_scope_not_a_work_package_scope(self) -> None:
+        # D2: `work_package` scope is rejected by the coordinator on every call
+        # because no resolver is wired, so sending one would guarantee a fallback.
+        runtime, captured = stub_runtime([as_service_hit(h) for h in FIXTURE])
+        sc.collect_semantic_context(
+            sc.SemanticContextRequest(
+                repository=Path("."),
+                query="q",
+                consumer="implement-feature",
+                change_id="inject-scoped-semantic-context-into-coding-jobs",
+                package_id="wp-retrieval",
+            ),
+            runtime,
+        )
+        assert captured["body"]["scope"]["kind"] == "explicit"
+        assert captured["body"]["scope"]["read_allow"] == ["skills/**", "docs/**"]
+        assert captured["body"]["scope"]["deny"] == ["**/.venv/**"]
+
+    def test_the_request_asks_for_more_hits_than_it_will_render(self) -> None:
+        runtime, captured = stub_runtime([as_service_hit(h) for h in FIXTURE])
+        sc.collect_semantic_context(
+            sc.SemanticContextRequest(
+                repository=Path("."),
+                query="q",
+                consumer="implement-feature",
+                change_id="inject-scoped-semantic-context-into-coding-jobs",
+                package_id="wp-retrieval",
+            ),
+            runtime,
+        )
+        assert captured["body"]["limit"] == sc.DEFAULT_BUDGET.query_limit
+        assert captured["body"]["limit"] <= sc.MAX_QUERY_LIMIT
+
+    def test_a_flag_off_run_never_touches_git_or_the_bridge(self) -> None:
+        touched: list[str] = []
+
+        def loud_git(repository, args):
+            touched.append("git")
+            return ""
+
+        def loud_search(body):
+            touched.append("search")
+            return {"status": "ok"}
+
+        result = collect(
+            [], env={}, git=loud_git, search=loud_search, detect=lambda: touched.append("detect")
+        )
+        assert result.status == "fallback"
+        assert (result.fallback.trigger, result.fallback.reason) == (
+            "unavailable",
+            "injection_disabled",
+        )
+        assert touched == []
