@@ -221,7 +221,7 @@ public API.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
-- [ ] 3.5 Write tests for tested-identifier extraction from `args`-only CLI steps `[M]`
+- [x] 3.5 Write tests for tested-identifier extraction from `args`-only CLI steps `[M]`
   **Spec scenarios**: Operation And Surface Coverage Model (a flag exercised by a scenario is recorded as covered)
   **Design decisions**: D10
   **Dependencies**: 3.2, 1.4
