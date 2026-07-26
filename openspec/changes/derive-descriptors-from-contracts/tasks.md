@@ -104,7 +104,7 @@ public API.
   **Design decisions**: D1, D5, D6
   **Dependencies**: 1.3
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 - [x] 1.5 Write tests for the drift guard's fail-closed assertions `[M]`
   **Spec scenarios**: Descriptor Derivation Drift Guard (all four scenarios — drift fails; empty fails; count mismatch fails; commands-but-no-coverage-units fails)
@@ -156,7 +156,7 @@ public API.
   operations binding to one MCP element) so task 2.3 and task 4.5 have a fixture
   for D4/D7's third carve-out.
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2 — Service descriptor derivation
 
@@ -174,7 +174,7 @@ public API.
   **Design decisions**: D1, D6
   **Dependencies**: 2.1
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 - [x] 2.3 Write tests for the MCP projection carve-outs — resources excluded, descriptions preserved, many-to-one honoured `[M]`
   **Spec scenarios**: Operation And Surface Coverage Model (a surface that does not expose an operation is not a gap); Operation And Surface Coverage Model (one surface element serving two operations is covered once)
@@ -194,7 +194,7 @@ public API.
   **Design decisions**: D2, D3
   **Dependencies**: 2.4
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 3 — Operation × surface coverage model
 
@@ -219,7 +219,7 @@ public API.
   **Design decisions**: D6
   **Dependencies**: 3.3
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 - [x] 3.5 Write tests for tested-identifier extraction from `args`-only CLI steps `[M]`
   **Spec scenarios**: Operation And Surface Coverage Model (a flag exercised by a scenario is recorded as covered)
@@ -250,7 +250,7 @@ public API.
   passes `--fail-threshold 1.0` which is pass-rate. Without this the spec's 80%
   coverage floor has no enforcement mechanism at all.
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 4 — Implemented-surface subset verifiers
 
@@ -263,7 +263,7 @@ public API.
   **Design decisions**: D1
   **Dependencies**: 4.1
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 - [x] 4.3 Write tests for the FastAPI subset verifier — undocumented route detected `[M]`
   **Spec scenarios**: Implemented Surface Subset Verification (undocumented endpoint is reported)
@@ -290,7 +290,7 @@ public API.
   **Note**: compare against the set of BOUND elements, not against derived
   one-per-operation names.
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 - [x] 4.7 Wire the argparse subset verifier into CI against gen-eval's own parser `[S]`
   **Spec scenarios**: Implemented Surface Subset Verification (undocumented CLI flag is reported)
@@ -423,7 +423,7 @@ finding re-verified by direct execution, not by vendor assertion.
   the gate fails open, the opposite of its purpose. Reject or warn on a value in
   `(0, 1)` rather than treating it as a sub-1% floor.
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 5 — Migration, gates, downstream notice
 
