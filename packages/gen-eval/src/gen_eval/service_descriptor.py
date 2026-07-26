@@ -42,10 +42,7 @@ from .descriptor import (
     McpToolSpec,
     ServiceSpec,
 )
-
-#: OpenAPI path-item keys that denote an operation. Everything else in a path
-#: item (``parameters``, ``summary``, ``$ref``) is not one.
-_HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
+from .openapi import iter_operations
 
 #: Surfaces in the order they are declared, so the derived surface list is
 #: stable across runs — an unstable order is permanent drift under ``--check``.
@@ -302,34 +299,33 @@ def project_mcp_tools(operations: list[OperationSpec]) -> list[McpToolProjection
 
 def _extract_operations(document: dict[str, Any], source: Path) -> list[OperationSpec]:
     operations: list[OperationSpec] = []
-    for path, item in (document.get("paths") or {}).items():
-        if not isinstance(item, dict):
-            continue
-        for method, raw in item.items():
-            if method.lower() not in _HTTP_METHODS or not isinstance(raw, dict):
-                continue
-            operation_id = raw.get("operationId")
-            if not operation_id:
-                # Fail closed. A nameless operation has no coverage key, and
-                # dropping it would shrink the declared surface — the exact
-                # failure this design exists to prevent, arriving through the
-                # contract instead of through introspection.
-                raise ValueError(
-                    f"{source}: {method.upper()} {path} declares no operationId; "
-                    "an operation without one cannot be a coverage key"
-                )
-            operations.append(
-                OperationSpec(
-                    operation_id=operation_id,
-                    method=method.upper(),
-                    path=path,
-                    summary=raw.get("summary") or "",
-                    description=raw.get("description") or "",
-                    parameters=list(raw.get("parameters") or []),
-                    request_body=_request_body_schema(raw),
-                    surfaces=_surface_bindings(raw, method, path),
-                )
+    for found in iter_operations(document):
+        operation_id = found.raw.get("operationId")
+        if not operation_id:
+            # Fail closed. A nameless operation has no coverage key, and
+            # dropping it would shrink the declared surface — the exact
+            # failure this design exists to prevent, arriving through the
+            # contract instead of through introspection.
+            raise ValueError(
+                f"{source}: {found.method.upper()} {found.path} declares no "
+                "operationId; an operation without one cannot be a coverage key"
             )
+        operations.append(
+            OperationSpec(
+                operation_id=operation_id,
+                method=found.method.upper(),
+                path=found.path,
+                summary=found.raw.get("summary") or "",
+                description=found.raw.get("description") or "",
+                # Path-level parameters are already folded in — they apply to
+                # every operation under the path item, so an operation that
+                # read only its own would derive an MCP tool missing the
+                # required path argument.
+                parameters=found.parameters,
+                request_body=_request_body_schema(found.raw),
+                surfaces=_surface_bindings(found.raw, found.method, found.path),
+            )
+        )
     return operations
 
 

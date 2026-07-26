@@ -371,7 +371,7 @@ finding re-verified by direct execution, not by vendor assertion.
   **Note**: must be RED, and must cover both call sites — `_extract_operations`
   and `verify_fastapi`.
 
-- [ ] 4.14 Resolve `$ref` path items and merge path-level parameters `[M]`
+- [x] 4.14 Resolve `$ref` path items and merge path-level parameters `[M]`
   **Design decisions**: D1
   **Dependencies**: 4.13
   **Note (round-7 high, 2 vendors)**: both call sites iterate path-item keys and
