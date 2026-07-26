@@ -1,0 +1,16 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "seam: the package that owns the reclamation is told not to do the one thing the reclamation normatively requires, and no gate catches the omission. work-packages.yaml:445, inside wp-integration's own description, reads 'refresh DOWNSTREAM.md (the CONTRACT_VERSION bump belongs to the prerequisite rename change, not here)'. That same description enumerates 'Tasks 4.7 and 5.1-5.8', and tasks.md:403 (task 5.8) instructs 'Bump `CONTRACT_VERSION` 2 -> 3 and add the DS entry.' A's own ADDED requirement 'Descriptor Reclamation Is Announced' makes it normative -- 'SHALL increment the descriptor contract version' (specs/gen-eval-framework/spec.md:215-217) -- and B's permitting clause independently requires it ('Such a reclamation SHALL increment the descriptor contract version'). DOWNSTREAM.md:161 and :171 agree: 'a second version increment (`CONTRACT_VERSION` 2 -> 3)', 'expect two increments, not one: 1 -> 2 at the rename, 2 -> 3 here'. So four artifacts require the bump and the owning package's charter denies it. Provenance confirms this is round-4 residue, not a deliberate reading: `git show --stat 2fddf37e` (the commit that added task 5.8, the ADDED requirement and DS-5) touched DOWNSTREAM.md, spec.md and tasks.md but NOT work-packages.yaml; `git show c9928c5d -- .../work-packages.yaml` shows the only later edit was widening '5.1-5.7 (including 5.4a/5.4b/5.4c)' to '5.1-5.8 (including 5.4a/5.4b/5.4c/5.4d)', leaving the parenthetical from the era when A had no bump. It is now false as written: A does bump. The omission is undetectable. Parsing every `verification.steps[].command` in A's work-packages.yaml yields 21 steps, and none mentions CONTRACT_VERSION -- unlike B, which gates it explicitly ('CONTRACT_VERSION is 2 and all generated artifacts regenerate clean', executed on B's unmodified worktree: 'CONTRACT_VERSION=1, expected 2'). Verified current state on this tree: `uv run python -c 'from gen_eval.contracts import CONTRACT_VERSION'` -> 1. If wp-integration follows its charter and skips the bump, `uv run pytest -q -m 'not e2e and not integration'` still passes (B's version test pins 2, which remains true), `uv run python scripts/generate_contract_schemas.py --check` still diffs clean (the stamp is unchanged), `make dogfood` and check_coverage_completeness.py are unaffected, and test_public_api_parity.py is satisfied by task 5.8's `__all__` edit alone -- so a normative SHALL ships unimplemented with every gate green. The implementer cannot resolve this from the plan: their package description says the work is someone else's, their task list says it is theirs, and no verification step arbitrates.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    }
+  ]
+}

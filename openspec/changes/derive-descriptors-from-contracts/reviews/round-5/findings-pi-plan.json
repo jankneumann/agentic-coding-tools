@@ -1,0 +1,43 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "seam: B's requirement that ToolDescriptor remain a warning-emitting deprecation alias directly conflicts with A's implementation of ToolDescriptor as a new document archetype. B's spec explicitly requires renamed types to retain warning aliases, but A's wp-tool-descriptor package redefines ToolDescriptor entirely in the same module (descriptor.py), making it impossible to maintain both the alias and the new implementation. No task in A addresses reconciling this contradiction.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "seam: B's requirement that ServiceDescriptor remain a warning-emitting deprecation alias conflicts with A's implementation. A's design D6 states it 'occupies the freed names' but wp-service-descriptor's write_allow explicitly excludes descriptor.py where the alias would need to be updated. No A package is assigned to update the package-level export (__all__ list) in __init__.py, creating a contradiction between the intended public API and the actual implementation.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "derive-descriptors: Prerequisites check in tasks.md fails to detect whether rename-descriptor-model-levels has landed because it doesn't use 'uv run python' to access the local tree. Current implementation shows McpToolSpec and ServiceSpec do not exist, indicating the prerequisite has not landed. Starting implementation would redefine live public API as warned in the check.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "unimplementable",
+      "criticality": "critical",
+      "description": "derive-descriptors: Multiple verification commands in work-packages.yaml use 'python3' instead of 'uv run python', which reads from installed packages rather than the local tree. This makes it impossible for gates to correctly verify the implementation since they cannot access the code being implemented. This affects core verification of CLI contract schema validation, contract instances, and promoted schema correctness.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    }
+  ]
+}
