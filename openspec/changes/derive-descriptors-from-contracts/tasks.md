@@ -451,7 +451,7 @@ finding re-verified by direct execution, not by vendor assertion.
   **Design decisions**: D3
   **Dependencies**: 5.3
 
-- [ ] 5.4a Write tests for the coverage-completeness rule `[S]`
+- [x] 5.4a Write tests for the coverage-completeness rule `[S]`
   **Spec scenarios**: Dogfood (an unexercised, unexcluded tool coverage unit fails the gate); Dogfood (an excluded coverage unit states why)
   **Design decisions**: D11
   **Dependencies**: 3.8, 5.3
