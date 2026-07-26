@@ -99,14 +99,28 @@ jobs:
       - name: Validate specs
         run: openspec validate --strict --all
 
-  # Regenerate docs/decisions/ from architectural tags in session-logs and
-  # fail if the result differs from what's committed. Catches missed
-  # regenerations after new `architectural:` tags are added to a session-log.
-  validate-decision-index:
+  # Read-only deterministic freshness gate over every generated context artifact:
+  # the decision index, the documentation/contract inventories, architecture
+  # provenance, and the OpenSpec projection. Nothing here is about `.claude/skills/`
+  # mirror drift.
+  #
+  # This is the single freshness authority for the decision index. It replaces
+  # the retired regenerate-and-`git diff` job, which compared content only and
+  # was therefore blind to an orphaned `docs/decisions/<capability>.md` — a file
+  # whose *presence*, not content, is what goes stale (see design D9 of
+  # add-deterministic-context-drift-gates; pinned by test_decision_index_orphan.py).
+  #
+  # Exit 2 is drift, exit 1 is an apparatus failure; both fail the job.
+  context-drift-gate:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The gate scopes work-package context-impact validation to
+          # `git diff main...HEAD`; a shallow clone has no `main` to diff against
+          # and would silently validate nothing.
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -118,21 +132,13 @@ jobs:
         working-directory: skills
         run: uv sync --all-extras
 
-      - name: Regenerate decision index (strict)
+      - name: Run deterministic context drift gate
         run: |
-          skills/.venv/bin/python skills/explore-feature/scripts/archive_index.py \
-            --emit-decisions \
-            --archive-root openspec/changes \
-            --decisions-output-dir docs/decisions \
-            --capabilities-root openspec/specs \
-            --strict
-
-      - name: Fail if decision index is stale
-        run: |
-          if ! git diff --exit-code docs/decisions/; then
-            echo "::error::docs/decisions/ is stale. Run 'make decisions' locally and commit the result."
-            exit 1
+          if make context-drift-gate PYTHON=skills/.venv/bin/python; then
+            exit 0
           fi
+          echo "::error::Deterministic context drift. The stale artifacts and their remediation commands are listed above. Reproduce locally with 'make context-drift-gate'."
+          exit 1
 
   # Static contract check: does every local package imported from src/
   # have a matching COPY statement in the Dockerfile runtime stage?
