@@ -21,6 +21,12 @@ operation ledger: read-only, scoped to one work package, and advisory.
     python scripts/cli.py checkpoint --change-id C --package-id P \
         --changed-file docs/guide.md
 
+The composed drift gate (ri-10) is a *fourth* mode: read-only, repository-wide,
+and blocking. It is what ``make context-drift-gate`` runs, so a CI failure
+reproduces verbatim in a developer checkout.
+
+    python scripts/cli.py gate --base main
+
 The exit code distinguishes deterministic drift from an internal failure:
 
 * ``0`` — fresh / succeeded (or a generate that wrote successfully);
@@ -29,6 +35,14 @@ The exit code distinguishes deterministic drift from an internal failure:
 
 ``checkpoint`` deliberately does not use ``2``: drift is data in its report, and
 its only non-zero exit is being unable to produce a valid report at all (D8).
+
+``gate`` uses the same three codes but derives them from ri-10's classification
+rather than from ``OperationState``, which is why the two can disagree on the
+same tree: an absent *optional* owner degrades ``refresh-check`` to ``2`` and
+leaves ``gate`` at ``0``, because a required producer reporting no configuration
+has already been rewritten to a failure by registry policy, so a surviving one
+is external degradation. ``_exit_code`` and ``refresh-check`` keep their
+mappings unchanged; the gate is a third caller with its own documented codes.
 
 Output is the canonical ri-06 ``ProducerResult`` JSON (a list for ``*-all``) or,
 for the orchestrator, a refresh summary, so callers parse exactly what ri-07
@@ -45,6 +59,7 @@ from pathlib import Path
 from typing import cast
 
 import checkpoint
+import gate as gate_module
 import orchestrator
 from _runtime import ProducerStatus
 from registry import Mode, ProducerError, list_producers, run_producer
@@ -116,14 +131,14 @@ def _owner_by_producer_id() -> dict[str, str]:
     """Map each configured producer id to its canonical owner.
 
     The ri-06 ``ProducerResult`` carries no ``owner`` field, so ownership lives on
-    the registry ``ProducerSpec``. The refresh summary joins them here so a caller
-    can recover each result's canonical owner without collapsing it into the id.
-    The architecture producer is not in the ri-05 registry (it is a separate
-    seam), so its canonical owner is mapped explicitly.
+    the registry ``ProducerSpec``, and every consumer that wants to *name* an
+    owner joins the two. One definition of that join lives in ``gate`` and both
+    the refresh summary and the gate report use it, so the two can never disagree
+    about who owns a producer. The map carries one entry the refresh summary never
+    looks up (the context-impact validator, which is not a producer); an unused
+    key is harmless, a second copy of the join would not be.
     """
-    owners = {spec.producer_id: spec.owner for spec in list_producers()}
-    owners.setdefault(orchestrator.ARCHITECTURE_PRODUCER_ID, "refresh-architecture")
-    return owners
+    return gate_module.owner_by_producer_id()
 
 
 def _refresh_summary(result: orchestrator.RefreshResult) -> dict:
@@ -165,6 +180,36 @@ def _refresh(
         )
     sys.stdout.write(json.dumps(_refresh_summary(result), indent=2) + "\n")
     return result.exit_code()
+
+
+def _gate(repository: Path, revision: str, args: argparse.Namespace) -> int:
+    """Run the composed drift gate and emit its report (ri-10 D1/D5).
+
+    A thin wrapper on purpose: composition, classification, and rendering all
+    live in ``gate.py`` so that ``make context-drift-gate`` reproduces a CI
+    failure verbatim rather than approximating it. The canonical JSON report goes
+    to stdout, where a caller can parse it; the human summary — which names every
+    stale artifact on its own line — goes to stderr, so a failing build log is
+    readable without a JSON tool and stdout stays machine-parsable.
+
+    The gate is read-only, so unlike ``refresh`` there is no checkout-policy
+    guard: there is no mutation to refuse.
+    """
+    try:
+        result = gate_module.run_gate(
+            repository,
+            revision=revision,
+            base=args.base,
+            changed_files=tuple(args.changed_files) if args.changed_files else None,
+            rules=args.rules,
+        )
+    except gate_module.GateError as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 1
+
+    sys.stdout.write(json.dumps(result.report, indent=2, sort_keys=True) + "\n")
+    sys.stderr.write(gate_module.render_text(result.report) + "\n")
+    return result.exit_code
 
 
 def _checkpoint(repository: Path, revision: str, args: argparse.Namespace) -> int:
@@ -249,6 +294,37 @@ def main(argv: list[str] | None = None) -> int:
             help="Limit the run to this producer id (repeatable).",
         )
 
+    gp = sub.add_parser(
+        "gate",
+        help=(
+            "composed, read-only deterministic drift gate "
+            "(exit 0 fresh / 2 blocking drift / 1 apparatus failure)"
+        ),
+    )
+    gp.add_argument(
+        "--base",
+        default=gate_module.DEFAULT_BASE,
+        help=(
+            "Git ref the diff under test is taken against, used only to scope "
+            "work-package context-impact validation."
+        ),
+    )
+    gp.add_argument(
+        "--changed-file",
+        action="append",
+        dest="changed_files",
+        metavar="PATH",
+        help=(
+            "Repository-relative changed path (repeatable). Overrides the git "
+            "diff, so the gate also works on an uncommitted worktree."
+        ),
+    )
+    gp.add_argument(
+        "--rules",
+        default=None,
+        help="Override path to the ri-08 context-impact rule table.",
+    )
+
     cp = sub.add_parser(
         "checkpoint",
         help=(
@@ -295,6 +371,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     revision = _resolve_revision(repository, args.revision)
+    if args.command == "gate":
+        return _gate(repository, revision, args)
     if args.command == "checkpoint":
         return _checkpoint(repository, revision, args)
     if args.command in ("refresh", "refresh-check"):

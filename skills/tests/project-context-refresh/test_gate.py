@@ -24,6 +24,8 @@ Organised by the requirement each class pins:
 * ``TestContextImpact`` — validation is scoped to the work-package files in the
   diff, ``--strict-legacy`` is never passed, ``unmigrated`` never fails, and the
   validator's usage exit code ``2`` maps to the gate's ``1`` (D7).
+* ``TestLocalReproduction`` — the ``gate`` subcommand and the
+  ``context-drift-gate`` Makefile target exist and agree with ``run_gate``.
 Producer fixtures are synthetic on purpose. This repository's live producer state
 is in flux while a sibling package fixes a ``decisions.timeline`` false positive,
 so asserting against real repository drift would pin the tests to noise.
@@ -696,6 +698,40 @@ class TestContextImpact:
         )
         assert seen == [(tmp_path, "origin/main")]
         assert result.report["context_impact"]["evaluated"] == [_WP_A]
+
+
+# --------------------------------------------------------------------------- #
+# Task 3.7 — the local reproduction seam
+# --------------------------------------------------------------------------- #
+class TestLocalReproduction:
+    def test_gate_subcommand_emits_the_report_and_the_gate_exit_code(
+        self, tmp_path, capsys, monkeypatch
+    ):
+        drifted = _drift(DOCUMENTATION_INVENTORY, "docs/architecture-analysis/a.md")
+        monkeypatch.setattr(gate, "_default_check_runner", _checker(drifted))
+        code = cli.main(
+            [
+                "--repo",
+                str(tmp_path),
+                "--revision",
+                FULL_SHA,
+                "gate",
+            ]
+        )
+        report = json.loads(capsys.readouterr().out)
+        assert code == 2
+        assert report["exit_code"] == 2
+        assert report["blocking_drift"][0]["artifacts"] == [
+            "docs/architecture-analysis/a.md"
+        ]
+
+    def test_makefile_target_reproduces_the_ci_invocation(self):
+        makefile = (_REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        assert "context-drift-gate:" in makefile
+        target = makefile.split("context-drift-gate:", 1)[1]
+        body = target.split("\n.PHONY", 1)[0]
+        assert "gate" in body
+        assert "--strict-legacy" not in body
 
 
 # --------------------------------------------------------------------------- #
