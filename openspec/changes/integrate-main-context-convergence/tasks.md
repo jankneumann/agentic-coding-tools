@@ -32,10 +32,10 @@ Each task is sized to one commit. Group numbers map to work packages in
 `skills/tests/project-context-refresh/`
 **Dependencies**: none
 
-- [ ] 2.1 Write a failing test proving `refresh` is refused from a shared checkout
+- [x] 2.1 Write a failing test proving `refresh` is refused from a shared checkout
       today and permitted with sync-point authorization (design D5). Assert against
       `checkout_policy.classify_checkout` reasons, not message strings.
-- [ ] 2.2 Add `--sync-point` to the `refresh` subparser and thread `sync_point=True`
+- [x] 2.2 Add `--sync-point` to the `refresh` subparser and thread `sync_point=True`
       through `_require_mutation` into `require_mutation_allowed`. Default stays
       `False`; no environment inference (D5).
 - [ ] 2.3 Write a failing test that a deferred-index refresh records a `pending`
