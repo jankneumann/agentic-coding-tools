@@ -274,7 +274,7 @@ public API.
   **Design decisions**: D1
   **Dependencies**: 4.3
 
-- [ ] 4.5 Write tests for the MCP subset verifier — undocumented tool detected, many-to-one not a false positive `[M]`
+- [x] 4.5 Write tests for the MCP subset verifier — undocumented tool detected, many-to-one not a false positive `[M]`
   **Spec scenarios**: Implemented Surface Subset Verification (verification distinguishes excess from omission); Operation And Surface Coverage Model (one surface element serving two operations is covered once)
   **Design decisions**: D1, D4, D7
   **Dependencies**: 2.4

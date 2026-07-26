@@ -36,7 +36,7 @@ import pytest
 
 from gen_eval.descriptor import ToolDescriptor
 from gen_eval.service_descriptor import ServiceDescriptor
-from gen_eval.verify import Violation, verify_argparse, verify_fastapi
+from gen_eval.verify import Violation, verify_argparse, verify_fastapi, verify_mcp
 from tests.test_service_descriptor import CONTRACT_PATH
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -308,3 +308,119 @@ class TestConformantApplicationIsSilent:
     ) -> None:
         """``release_lock`` is exposed on HTTP and not on CLI. This is the HTTP check."""
         assert verify_fastapi(openapi_document({"/locks/{lock_id}": {"delete": {}}}), service) == []
+
+
+# ---------------------------------------------------------------------------
+# MCP (task 4.5)
+# ---------------------------------------------------------------------------
+
+
+#: What the fixture contract's MCP surface actually exposes. Three tools for
+#: four exposed operations — list_active_locks and get_lock_status both bind
+#: to check_locks. reap_expired_locks is exposed: false on MCP.
+CONFORMANT_TOOLS = ["acquire_lock", "check_locks", "release_lock"]
+
+
+class _ToolObject:
+    """Stands in for an SDK tool record, which is an object with ``.name``."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
+class TestManyToOneIsNotAFalsePositive:
+    """The case the carve-out exists for (D4, D7).
+
+    The real coordinator's ``check_locks`` serves both ``list_active_locks``
+    and ``get_lock_status`` by branching on ``file_paths`` being None. A
+    verifier comparing the server's listing against one derived name per
+    operation reports THREE findings here, all wrong: ``check_locks`` as
+    undocumented excess, plus two tools that do not exist as omissions.
+
+    Comparison is against the set of BOUND elements, which is why zero is the
+    right answer.
+    """
+
+    def test_a_conformant_listing_reports_nothing(self, service: ServiceDescriptor) -> None:
+        assert verify_mcp(CONFORMANT_TOOLS, service) == []
+
+    def test_the_shared_tool_is_not_reported_as_undocumented(
+        self, service: ServiceDescriptor
+    ) -> None:
+        assert "mcp:check_locks" not in elements(verify_mcp(CONFORMANT_TOOLS, service))
+
+    @pytest.mark.parametrize("operation_id", ["list_active_locks", "get_lock_status"])
+    def test_the_bound_operations_are_not_reported_as_missing_tools(
+        self, service: ServiceDescriptor, operation_id: str
+    ) -> None:
+        assert f"mcp:{operation_id}" not in elements(verify_mcp(CONFORMANT_TOOLS, service))
+
+    def test_a_server_exposing_an_operation_id_instead_of_the_bound_element_is_excess(
+        self, service: ServiceDescriptor
+    ) -> None:
+        """The sharp edge: comparison is against bound elements, not operation ids.
+
+        ``list_active_locks`` is a real operation, and the contract says
+        ``check_locks`` serves it. A server publishing a tool by that name is
+        publishing something the contract does not describe.
+        """
+        tools = [*CONFORMANT_TOOLS, "list_active_locks"]
+        assert elements(verify_mcp(tools, service)) == {"mcp:list_active_locks"}
+
+
+class TestUndocumentedToolIsReported:
+    def test_an_undocumented_tool_produces_a_violation(self, service: ServiceDescriptor) -> None:
+        assert elements(verify_mcp([*CONFORMANT_TOOLS, "steal_lock"], service)) == {
+            "mcp:steal_lock"
+        }
+
+    def test_the_violation_names_the_tool_and_the_surface(
+        self, service: ServiceDescriptor
+    ) -> None:
+        (violation,) = verify_mcp([*CONFORMANT_TOOLS, "steal_lock"], service)
+        assert "steal_lock" in violation.message
+        assert violation.surface == "mcp"
+
+    def test_a_tool_the_contract_marks_unexposed_on_mcp_is_a_violation(
+        self, service: ServiceDescriptor
+    ) -> None:
+        """``reap_expired_locks`` is contracted `exposed: false` — internal only.
+
+        Publishing it anyway is the case exposed:false exists to catch: the
+        operation is real, and the contract's claim that agents cannot reach it
+        has stopped being true.
+        """
+        tools = [*CONFORMANT_TOOLS, "reap_expired_locks"]
+        assert elements(verify_mcp(tools, service)) == {"mcp:reap_expired_locks"}
+
+
+class TestMcpOmissionAndInputShapes:
+    def test_a_contracted_tool_the_server_lacks_is_not_a_violation(
+        self, service: ServiceDescriptor
+    ) -> None:
+        assert verify_mcp([], service) == []
+
+    def test_tool_objects_are_accepted_as_well_as_names(
+        self, service: ServiceDescriptor
+    ) -> None:
+        """An SDK listing yields records, not strings."""
+        tools = [_ToolObject(name) for name in [*CONFORMANT_TOOLS, "steal_lock"]]
+        assert elements(verify_mcp(tools, service)) == {"mcp:steal_lock"}
+
+    def test_tool_dicts_are_accepted_as_well_as_names(
+        self, service: ServiceDescriptor
+    ) -> None:
+        """A JSON-RPC ``tools/list`` response yields dicts."""
+        tools = [{"name": name} for name in [*CONFORMANT_TOOLS, "steal_lock"]]
+        assert elements(verify_mcp(tools, service)) == {"mcp:steal_lock"}
+
+    def test_a_tool_descriptor_has_no_mcp_surface_so_everything_is_excess(
+        self, widget: ToolDescriptor
+    ) -> None:
+        """Negative control on declared_elements: no MCP contract, no MCP tools.
+
+        A tool contract declares a CLI surface only. A server claiming to
+        implement it while publishing MCP tools is publishing surface the
+        contract does not describe at all.
+        """
+        assert elements(verify_mcp(["anything"], widget)) == {"mcp:anything"}
