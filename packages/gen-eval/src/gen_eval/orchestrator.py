@@ -387,15 +387,25 @@ class GenEvalOrchestrator:
             tested_interfaces.update(v.interfaces_tested)
         attribution = self._attribute_interfaces(tested_interfaces, all_interfaces)
         covered = {declared for declared in attribution.values() if declared in all_interfaces}
-        coverage_pct = (
-            (len(covered) / len(all_interfaces) * 100) if all_interfaces else 0.0
-        )
 
         # Operation × surface coverage (D4). Built from the declared elements
         # scenarios actually reached, so an operation published on three
         # surfaces and exercised through one is covered rather than two gaps.
         per_operation = build_operation_coverage(self.descriptor, covered)
         unevaluated_operations = [op.operation_id for op in per_operation if not op.covered]
+
+        # The headline number is denominated in operations, not elements, and
+        # is read off the records above rather than recomputed. Dividing by
+        # len(all_interfaces) counts each unexercised sibling surface as a
+        # miss, so an operation published on three surfaces and fully covered
+        # reports 33% — the arithmetic D4 exists to remove. For a
+        # single-surface descriptor the two denominators are equal, because
+        # build_operation_coverage synthesises one operation per element.
+        coverage_pct = (
+            (sum(1 for op in per_operation if op.covered) / len(per_operation) * 100)
+            if per_operation
+            else 0.0
+        )
 
         # Per-interface aggregation, keyed on the DECLARED interface (D6).
         # An identifier that matched nothing declared keeps its own name — see
