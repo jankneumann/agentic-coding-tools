@@ -277,7 +277,7 @@ BASE = ("https://raw.githubusercontent.com/jankneumann/agentic-coding-tools"
         "/main/packages/gen-eval/src/gen_eval/contracts")
 
 schema = json.load(urllib.request.urlopen(f"{BASE}/eval-report.schema.json"))
-assert schema["x-gen-eval-contract-version"] == "1"          # pin the contract
+assert schema["x-gen-eval-contract-version"] == "2"          # pin the contract
 Draft202012Validator(schema).validate(json.load(open("gen-eval-report.json")))
 ```
 
@@ -286,14 +286,14 @@ If gen-eval *is* installed, load them from the package instead of vendoring:
 ```python
 from gen_eval.contracts import CONTRACT_VERSION, load_schema
 
-assert CONTRACT_VERSION == "1"
+assert CONTRACT_VERSION == "2"
 Draft202012Validator(load_schema("eval-report")).validate(report_data)
 ```
 
 To assert the contract version of an arbitrary gen-eval on `PATH`:
 
 ```bash
-test "$(gen-eval --print-contract-version)" = "1"
+test "$(gen-eval --print-contract-version)" = "2"
 ```
 
 ### Regenerating

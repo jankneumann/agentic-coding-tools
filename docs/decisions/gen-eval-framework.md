@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-07-26 — rename-descriptor-model-levels
+
+### Phase: Implementation
+
+**Land tasks 1.2, 1.3, 1.4 and 2.2 as one commit** — They are separate tasks but not separable commits. Renaming the models breaks conftest.py and ten other test files until the aliases exist, and invalidates the checked-in schema until it is regenerated. Splitting them puts two red commits on main, and rebase-merge lands every commit individually, so a broken middle commit breaks git bisect.
+
+- Status: `active`
+- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D1)
+
+---
+
+## 2026-07-26 — rename-descriptor-model-levels
+
+### Phase: Implementation
+
+**The alias is deliberately not cached into globals()** — Caching the resolved type into the module dict would let the dict answer every access after the first, so only the first consumer to touch the name would ever see the DeprecationWarning. A test asserts two accesses produce two warnings specifically to forbid that implementation.
+
+- Status: `active`
+- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D2)
+
+---
+
+## 2026-07-26 — rename-descriptor-model-levels
+
+### Phase: Implementation
+
+**Deprecated names stay importable but leave __all__** — 'from gen_eval import *' should hand a new consumer only names that are not on their way out, while 'from gen_eval import ServiceDescriptor' keeps working for one release. PEP 562 __getattr__ supports both.
+
+- Status: `active`
+- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D3)
+
+---
+
+## 2026-07-26 — rename-descriptor-model-levels
+
+### Phase: Implementation
+
+**Published-schema naming assertions live in test_descriptor_naming.py** — They must spell the pre-rename names in order to assert their absence, and every test file except that one is scanned by a gate that fails on those literals. Placing them beside the other contract tests would make the gate unsatisfiable.
+
+- Status: `active`
+- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D4)
+
+---
+
 ## 2026-05-24 — extract-gen-eval-package
 
 ### Phase: Plan
