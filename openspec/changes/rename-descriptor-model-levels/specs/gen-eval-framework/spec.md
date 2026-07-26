@@ -34,6 +34,19 @@ Accessing an alias SHALL emit a deprecation warning naming the replacement.
 A rename of a published model type SHALL increment the descriptor contract
 version.
 
+A subsequent change MAY reclaim a previous name for a different type before the
+alias window elapses. Such a reclamation SHALL increment the descriptor contract
+version and SHALL be announced to downstream consumers, because a reclaimed name
+resolves successfully while denoting something else — a failure mode a
+deprecation warning does not cover.
+
+#### Scenario: A reclaimed name is announced rather than silently rebound
+
+- **WHEN** a change assigns a previously-aliased name to a different type
+- **THEN** the descriptor contract version SHALL be incremented
+- **AND** the reclamation SHALL be recorded in a downstream notice naming both
+  the old and the new meaning
+
 #### Scenario: An old name still resolves and warns
 
 - **WHEN** a caller imports a renamed type under its previous name
