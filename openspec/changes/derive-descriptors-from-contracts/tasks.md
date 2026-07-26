@@ -493,7 +493,7 @@ finding re-verified by direct execution, not by vendor assertion.
   reach. If the spec's "80%+" language implies otherwise, correct the spec text
   in this task rather than adopting an unreachable threshold.
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 - [x] 5.5 Wire both drift guards into the `gen-eval-tests` CI job `[S]`
   **Design decisions**: D2, D3
@@ -538,4 +538,4 @@ finding re-verified by direct execution, not by vendor assertion.
   prerequisite `rename-descriptor-model-levels`, not here. The reclamation is
   announced by the DS entry and by `__all__` parity, not by the schema version.
 
-- [ ] Final checkpoint: full suite green, `make dogfood` green, `openspec validate --strict` passes
+- [x] Final checkpoint: full suite green, `make dogfood` green, `openspec validate --strict` passes
