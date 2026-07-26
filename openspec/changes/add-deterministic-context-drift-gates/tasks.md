@@ -273,7 +273,7 @@ Capability short names used in scenario references: `pcro` =
 authoritative. `wp-emitter` has no dependencies and runs in parallel with `wp-gate`;
 `wp-integration` depends on it, so Phase 6 lands *before* Phase 5's tasks 5.2-5.4.
 
-- [ ] 6.1 Write a test proving a producer's report is identical for relative and absolute
+- [x] 6.1 Write a test proving a producer's report is identical for relative and absolute
       repository paths
       **Spec scenarios**: `sft` — Decision index rendering is path-independent / Rendered links do not embed the archive root
       **Contracts**: none
@@ -285,7 +285,7 @@ authoritative. `wp-emitter` has no dependencies and runs in parallel with `wp-ga
       future tempdir-diff producer, not just this one — the generalisation D12 records as
       cheaper than auditing each renderer.
 
-- [ ] 6.2 Write a test that rendered `Source:` links are repository-relative
+- [x] 6.2 Write a test that rendered `Source:` links are repository-relative
       **Spec scenarios**: `sft` — Decision index rendering is path-independent / Rendered links do not embed the archive root
       **Contracts**: none
       **Design decisions**: D12
@@ -294,7 +294,7 @@ authoritative. `wp-emitter` has no dependencies and runs in parallel with `wp-ga
       **Note**: Assert on the rendered bytes, not on the diff count, so the test names the
       actual defect rather than a symptom of it.
 
-- [ ] 6.3 Render `Source:` links relative to the repository root in
+- [x] 6.3 Render `Source:` links relative to the repository root in
       `emit_decisions_from_archive`
       **Spec scenarios**: `sft` — Decision index rendering is path-independent (all scenarios)
       **Contracts**: none
@@ -307,5 +307,5 @@ authoritative. `wp-emitter` has no dependencies and runs in parallel with `wp-ga
       producer contract does not guarantee. Committed output must stay byte-identical to
       today's — this removes a phantom diff, it does not introduce a real one.
 
-- [ ] 6.4 Checkpoint: run tests, review diff, verify scope, confirm `docs/decisions/`
+- [x] 6.4 Checkpoint: run tests, review diff, verify scope, confirm `docs/decisions/`
       renders byte-identically to the committed tree
