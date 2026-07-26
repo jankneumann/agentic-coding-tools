@@ -230,7 +230,7 @@ public API.
   `command`, so it yields `[]`. Test against those real scenarios, not a synthetic
   step — the whole defect is that the real ones produce nothing.
 
-- [ ] 3.6 Extend `_extract_interfaces` to emit flag-level and operation-level identifiers `[M]`
+- [x] 3.6 Extend `_extract_interfaces` to emit flag-level and operation-level identifiers `[M]`
   **Design decisions**: D10, D4
   **Dependencies**: 3.5
   **Note**: tested identifiers must share a vocabulary with the derived declared
