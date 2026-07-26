@@ -34,8 +34,9 @@ the network, so behaviour is byte-identical to a tree without this module.
 
 from __future__ import annotations
 
+import os
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -293,15 +294,152 @@ def deduplicate(
     return tuple(kept), tuple(omissions)
 
 
+# ---------------------------------------------------------------------------
+# Budget (D6)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ContextBudget:
+    """The four bounds a rendered section must respect.
+
+    Lines and hit counts rather than tokens: tokenization is vendor-specific, so
+    a token budget would let two vendors build two different sections from one
+    response and would make the determinism tests unwritable.
+    """
+
+    max_hits: int = 8
+    max_files: int = 5
+    max_total_lines: int = 240
+    max_hit_lines: int = 40
+
+    def __post_init__(self) -> None:
+        for name in ("max_hits", "max_files", "max_total_lines", "max_hit_lines"):
+            value = getattr(self, name)
+            _require(_is_int(value) and value >= 1, f"{name} must be a positive integer")
+
+    @property
+    def query_limit(self) -> int:
+        """How many hits to ask the service for.
+
+        Three times the render budget so dedup and budgeting have material to
+        work with, capped at ri-03's own server-side maximum of 50 so the request
+        can never be rejected for asking too much.
+        """
+        return min(self.max_hits * QUERY_LIMIT_MULTIPLIER, MAX_QUERY_LIMIT)
+
+    @classmethod
+    def from_env(cls, env: Mapping[str, str] | None = None) -> ContextBudget:
+        """Resolve the bounds from the environment, one override per bound.
+
+        An unusable value degrades to that bound's default rather than raising or
+        disabling the bound. ``collect_semantic_context`` never raises, and a
+        typo in an override must not be able to widen a budget.
+        """
+        source = os.environ if env is None else env
+        resolved: dict[str, int] = {}
+        for name, variable in BUDGET_ENV_VARS.items():
+            raw = source.get(variable)
+            if raw is None:
+                continue
+            try:
+                value = int(str(raw).strip())
+            except ValueError:
+                continue
+            if value >= 1:
+                resolved[name] = value
+        return cls(**resolved)
+
+    def to_dict(self) -> dict[str, int]:
+        return {
+            "max_hits": self.max_hits,
+            "max_files": self.max_files,
+            "max_total_lines": self.max_total_lines,
+            "max_hit_lines": self.max_hit_lines,
+        }
+
+
+#: The bounds' environment overrides, one per bound (D6).
+BUDGET_ENV_VARS: dict[str, str] = {
+    "max_hits": "SEMANTIC_CONTEXT_MAX_HITS",
+    "max_files": "SEMANTIC_CONTEXT_MAX_FILES",
+    "max_total_lines": "SEMANTIC_CONTEXT_MAX_TOTAL_LINES",
+    "max_hit_lines": "SEMANTIC_CONTEXT_MAX_HIT_LINES",
+}
+
+#: How many hits to request per rendered hit, and ri-03's own ceiling.
+QUERY_LIMIT_MULTIPLIER = 3
+MAX_QUERY_LIMIT = 50
+
+#: The fixed precedence of D6. A hit failing several bounds at once is recorded
+#: against the first of these that fails, so the reason is a function of the
+#: inputs and not of the order the implementation happens to test them in.
+BUDGET_REASON_ORDER: tuple[str, ...] = (
+    "hit_count_cap",
+    "file_count_cap",
+    "hit_line_cap",
+    "total_line_cap",
+)
+
+DEFAULT_BUDGET = ContextBudget()
+
+
+def apply_budget(
+    hits: Sequence[InjectedHit], budget: ContextBudget
+) -> tuple[tuple[InjectedHit, ...], tuple[Omission, ...]]:
+    """First-fit over the ranked, deduplicated hits. No early break.
+
+    A hit is admitted iff **all** four bounds hold. Otherwise it is omitted with
+    the first failing reason in :data:`BUDGET_REASON_ORDER` and **the scan
+    continues**, so a later small hit can still be admitted after a large one was
+    skipped.
+
+    Breaking out of the loop on the first failure would be cheaper and wrong: the
+    section's contents would then depend on where the first oversized hit landed
+    in the ranking, reintroducing exactly the arrival-order dependence the rank
+    key was built to remove.
+    """
+    kept: list[InjectedHit] = []
+    omissions: list[Omission] = []
+    files: dict[str, None] = {}
+    used_lines = 0
+
+    for hit in hits:
+        lines = hit.line_count
+        if len(kept) >= budget.max_hits:
+            reason = "hit_count_cap"
+        elif hit.file_path not in files and len(files) >= budget.max_files:
+            reason = "file_count_cap"
+        elif lines > budget.max_hit_lines:
+            reason = "hit_line_cap"
+        elif used_lines + lines > budget.max_total_lines:
+            reason = "total_line_cap"
+        else:
+            kept.append(hit)
+            files[hit.file_path] = None
+            used_lines += lines
+            continue
+        omissions.append(Omission.of(hit, reason))
+
+    return tuple(kept), tuple(omissions)
+
+
 __all__ = [
+    "BUDGET_ENV_VARS",
+    "BUDGET_REASON_ORDER",
+    "ContextBudget",
+    "DEFAULT_BUDGET",
     "FULL_REVISION_RE",
     "InjectedHit",
+    "MAX_QUERY_LIMIT",
     "OMISSION_REASONS",
     "Omission",
+    "QUERY_LIMIT_MULTIPLIER",
     "SAFE_RELATIVE_PATH_RE",
     "SCHEMA_VERSION",
     "SCORE_PRECISION",
     "UUID_RE",
+    "apply_budget",
     "deduplicate",
     "rank_hits",
     "rank_key",
