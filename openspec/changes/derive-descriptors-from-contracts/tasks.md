@@ -215,7 +215,7 @@ public API.
   `per_interface` is built at `orchestrator.py:382-388` from `interfaces_tested`,
   and DOWNSTREAM.md tells ACA to assert on it.
 
-- [ ] 3.4 Compute the legacy flat `unevaluated_interfaces` and `per_interface` from the operation model `[S]`
+- [x] 3.4 Compute the legacy flat `unevaluated_interfaces` and `per_interface` from the operation model `[S]`
   **Design decisions**: D6
   **Dependencies**: 3.3
 
