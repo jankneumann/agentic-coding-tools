@@ -38,10 +38,10 @@ Each task is sized to one commit. Group numbers map to work packages in
 - [x] 2.2 Add `--sync-point` to the `refresh` subparser and thread `sync_point=True`
       through `_require_mutation` into `require_mutation_allowed`. Default stays
       `False`; no environment inference (D5).
-- [ ] 2.3 Write a failing test that a deferred-index refresh records a `pending`
+- [x] 2.3 Write a failing test that a deferred-index refresh records a `pending`
       `SemanticIndexReference` with an `exact-search` fallback and produces
       byte-identical deterministic results to a non-deferred run (D7).
-- [ ] 2.4 Add a `defer_semantic_index` keyword to `orchestrator.generate` that skips
+- [x] 2.4 Add a `defer_semantic_index` keyword to `orchestrator.generate` that skips
       the inline attempt and records the pending reference. Do not change
       `decide_outcome`; a pending index degrades through the existing rule.
 - [ ] 2.5 Add `--defer-semantic-index` to the CLI and surface both new flags in the

@@ -58,6 +58,7 @@ from models import (
     ManifestPointerStatus,
     OperationState,
     SemanticIndexReference,
+    SemanticIndexStatus,
 )
 import results as R
 from registry import OPENSPEC_PROJECTION, Mode, list_producers, run_producer
@@ -438,8 +439,6 @@ def decide_outcome(
         r.status in (ProducerStatus.DEGRADED, ProducerStatus.NOT_CONFIGURED)
         for r in producer_results
     )
-    from models import SemanticIndexStatus
-
     semantic_ok = (
         semantic_index is None
         or semantic_index.status is SemanticIndexStatus.SUCCEEDED
@@ -545,6 +544,39 @@ def classify_degradation(
     )
 
 
+#: Fallback reason recorded for a deliberately deferred semantic index (ri-11 D7).
+#: Byte-stable so a repeat refresh at the same revision produces an identical
+#: record. It states *why* nothing was attempted, which is what separates a
+#: deferral from a failure: the attempt is owed at a later revision, not lost.
+_DEFERRED_INDEX_REASON = (
+    "Semantic indexing was deferred by the caller and is enqueued for the final "
+    "pushed revision; use exact search until that index completes."
+)
+
+
+def _deferred_semantic_index(revision: str) -> SemanticIndexReference:
+    """Build the ``pending`` reference a deferred run records (ri-11 D7).
+
+    A sync point refreshes a revision that is never main's final state — the
+    convergence commit follows it — so indexing inline would pin the index to a
+    revision that is stale the moment the pass finishes, and a correct system
+    would then index a second time. Deferral records the honest intermediate
+    claim instead.
+
+    ``pending`` with an ``exact-search`` fallback is the weakest claim available,
+    never a stronger one: ri-06 accepts a non-succeeded reference precisely
+    because it carries a fallback, and :func:`decide_outcome` already degrades any
+    non-succeeded index. Recording *nothing* would instead be read as "the index
+    was not part of this run" and report a clean ``succeeded`` while making no
+    currency claim at all — a silent fail-open this deliberately avoids.
+    """
+    return SemanticIndexReference(
+        status=SemanticIndexStatus.PENDING,
+        requested_revision=revision,
+        fallback=Fallback(kind=FallbackKind.EXACT_SEARCH, reason=_DEFERRED_INDEX_REASON),
+    )
+
+
 def _manifest_present(repo_root: Path, relative_path: str | None, sha256: str | None) -> bool:
     """True when the pointed-to manifest exists **in this worktree** and matches.
 
@@ -629,6 +661,7 @@ def generate(
     store: OperationStore | None = None,
     architecture: ArchitectureProducer | None = None,
     semantic_indexer: SemanticIndexer | None = None,
+    defer_semantic_index: bool = False,
     manifest_path: str = DEFAULT_MANIFEST_PATH,
 ) -> RefreshResult:
     """Run the full refresh for one revision and emit the durable manifest.
@@ -645,6 +678,12 @@ def generate(
     regenerate-and-report: it never drives the shared per-revision operation to a
     terminal state (which would poison a later full refresh) and emits no
     aggregate manifest.
+
+    ``defer_semantic_index`` (ri-11 D7) skips the inline index attempt and records
+    ``pending`` with an ``exact-search`` fallback instead, for a caller that will
+    enqueue the index itself against a *later* revision. It defaults to ``False``,
+    so every existing caller keeps attempting the index inline, and it only ever
+    weakens the recorded claim — deterministic output is unaffected.
     """
     repo_root, repository_id, rev = resolve_repository_identity(repository, revision)
 
@@ -697,8 +736,14 @@ def generate(
         return _reuse_terminal(op_store, op, repo_root, manifest_path)
 
     # The semantic index is mutable; always (re-)attempt it on a full run so a
-    # previously degraded operation can complete when the service returns.
-    semantic_ref = resolve_semantic_index(repo_root, rev, indexer=semantic_indexer)
+    # previously degraded operation can complete when the service returns —
+    # unless the caller deferred it, in which case nothing is attempted and the
+    # pending claim is recorded instead (D7).
+    semantic_ref = (
+        _deferred_semantic_index(rev)
+        if defer_semantic_index
+        else resolve_semantic_index(repo_root, rev, indexer=semantic_indexer)
+    )
     try:
         op = op_store.record_semantic_index(op.operation_id, semantic_ref)
     except InvalidTransitionError:
