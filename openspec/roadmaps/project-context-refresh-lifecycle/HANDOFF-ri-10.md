@@ -15,17 +15,27 @@ Start ri-10 with `/plan-feature`, not `/implement-feature`. Same trap applied to
 similar — it is a **different**, unrelated change about install-asset mirror drift. Do not
 mistake it for ri-10.)
 
-## Roadmap state is not merge state
+## Roadmap state now matches merge state — as of 2026-07-26
 
 | Item | roadmap.yaml | Actually on `main`? |
 |---|---|---|
 | ri-01 … ri-08 | completed | yes, merged |
 | **ri-09** | completed | **yes — PR #282, merged 2026-07-26** |
-| **ri-03** | **completed** | **NO — `openspec/expose-fail-closed-semantic-code-search` is unmerged, 32 commits ahead of main, no PR** |
+| **ri-03** | completed | **yes — PR #290, merged 2026-07-26** |
 
-**ri-12 depends on ri-03.** Reconcile that branch before starting ri-12, or ri-12 will be
-planned against code that is not on `main`. ri-10 does not depend on ri-03 and is safe to
-start now.
+**ri-03 was reconciled after this file was first written.** It had been marked `completed`
+while sitting unmerged (32 commits, no PR). It is now genuinely on `main`, so **ri-12 is
+unblocked**. Both ri-03 and ri-08 are archived (PR #291), and ri-03's
+`contracts/openapi/v2.yaml` was promoted to `openspec/contracts/code-search/`.
+
+Two things that merge surfaced, worth knowing before touching code-search:
+
+- The ri-03 branch's headline diff (52k insertions) was a three-dot artefact spanning
+  ri-01/ri-02 work already on `main`. Its real delta was ~4 files / 3.3k lines.
+- It fixed a genuine unsatisfiable pin: `agent-coordinator` needs `asyncpg>=0.31.0` while
+  `packages/code-search` had capped at `<0.31`. Now `<1`.
+
+Ready items are therefore **ri-10** and **ri-12**, by priority ri-10 first.
 
 ## What ri-10 inherits from ri-09
 
