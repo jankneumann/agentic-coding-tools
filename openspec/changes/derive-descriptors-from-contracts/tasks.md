@@ -341,7 +341,7 @@ finding re-verified by direct execution, not by vendor assertion.
   **Note**: 5.1, 5.2 and 5.3 have acceptance criteria that are unreachable
   without this. Do not start Phase 5 before it lands.
 
-- [ ] 4.10 Write tests asserting `coverage_pct` is operation-denominated `[S]`
+- [x] 4.10 Write tests asserting `coverage_pct` is operation-denominated `[S]`
   **Spec scenarios**: Operation And Surface Coverage Model
   **Design decisions**: D4
   **Dependencies**: 3.2
