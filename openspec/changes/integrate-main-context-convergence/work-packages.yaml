@@ -1,0 +1,627 @@
+schema_version: 1
+
+feature:
+  id: integrate-main-context-convergence
+  title: "Integrate main context convergence"
+  plan_revision: 1
+  created_by: autopilot-roadmap
+
+# This change introduces no HTTP surface. Its canonical contract is the tracked
+# convergence record schema, so the contract file slot carries that schema rather
+# than an OpenAPI document -- the same convention ri-08, ri-09, and ri-10 used.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/integrate-main-context-convergence/contracts/context-convergence-record.schema.json"
+    files:
+      - "openspec/changes/integrate-main-context-convergence/contracts/context-convergence-record.schema.json"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Convergence record contract"
+    task_type: implementation
+    description: |
+      Tasks 1.1-1.4. Publish `context-convergence-record.schema.json` in all three
+      canonical locations and extend the promoted-contract byte-compare test.
+
+      The record exists because ri-07's manifest cannot be the artifact that lands.
+      `.git-context/context-refresh-manifest.json` is gitignored on purpose
+      (`orchestrator.py:70`, `.gitignore:277`) so a repeat refresh at the same
+      revision produces no repository diff, and it is per-worktree and freely
+      cleaned -- `_manifest_present` re-checks its digest for exactly that reason.
+      Tracking it would undo ri-07 D6. The record pins it by `sha256` instead (D9).
+
+      Two fields are load-bearing and must be tested, not assumed.
+      `semantic_index.requested_revision` is deliberately a DIFFERENT revision from
+      `merged_revision`: the convergence commit changes main's tip, so indexing the
+      pre-convergence revision would be stale on arrival (D7). And
+      `refresh_status` carries `not-run` alongside the three ri-06 operation states,
+      because design D6's apparatus row commits cleanup output with no refresh at
+      all -- collapsing that into `failed` would make a successful partial
+      convergence indistinguishable from a producer crash.
+
+      Task 1.1 must fail before 1.2 lands.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/contracts/project-context-refresh/schemas/context-convergence-record.schema.json"
+        - "skills/project-context-refresh/install_assets/openspec/schemas/context-convergence-record.schema.json"
+        - "skills/install-manifest.json"
+      keys:
+        - "contract:context-convergence-record-schema"
+      ttl_minutes: 60
+      reason: "Publish the convergence record contract"
+    scope:
+      write_allow:
+        - "openspec/contracts/project-context-refresh/schemas/context-convergence-record.schema.json"
+        - "skills/project-context-refresh/install_assets/openspec/schemas/context-convergence-record.schema.json"
+        - "skills/install-manifest.json"
+        - "skills/tests/project-context-runtime/test_promoted_contracts.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # A published schema under openspec/contracts/ and install_assets/openspec/
+      # schemas/ is an interface contract by the ri-08 rule table; the edited test
+      # module is source the semantic index embeds.
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: convergence-contracts
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Convergence record schema is a valid JSON Schema"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import json;from jsonschema import Draft202012Validator as V;V.check_schema(json.load(open('openspec/contracts/project-context-refresh/schemas/context-convergence-record.schema.json')))\""
+          evidence:
+            artifacts: []
+            result_keys: ["convergence_schema_valid"]
+        - name: "Promoted contracts stay byte-identical"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-runtime/test_promoted_contracts.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["promoted_contracts_synced"]
+        - name: "Install manifest validates with the new asset declared"
+          kind: command
+          command: "bash skills/install.sh --check"
+          evidence:
+            artifacts: []
+            result_keys: ["install_check_passed"]
+    metadata:
+      loc_estimate: 210
+      complexity: low
+      package_kind: data_model
+    outputs:
+      result_keys:
+        - "convergence_schema_valid"
+        - "promoted_contracts_synced"
+        - "install_check_passed"
+
+  - package_id: wp-sync-point
+    title: "Sync-point authorization and deferred semantic index"
+    task_type: implementation
+    description: |
+      Tasks 2.1-2.6. Two additive seams on the refresh capability, both of which the
+      sync point cannot work without.
+
+      First, `--sync-point`. Measured on main: `cli.py:123` calls
+      `require_mutation_allowed(cwd=repository)` with no `sync_point` argument, and
+      `checkout_policy.py:109-121` has an `approved_sync_point` branch that nothing
+      reaches. From the shared checkout, `checkout_policy require-mutation --json`
+      returns `allowed: false, reason: shared_checkout_blocked`. So the refresh
+      command is mechanically unable to run where merge-pull-requests operates. This
+      package is the caller that branch was written for (D5).
+
+      Authorization is an explicit caller opt-in and must NEVER be inferred from the
+      environment. An environment sniff would re-open shared-checkout writes for
+      every skill that happens to run on main, which is the property the guard
+      exists to protect.
+
+      Second, `--defer-semantic-index`. `generate` attempts the index inline at
+      `orchestrator.py:699-708` unconditionally. Deferred mode skips the attempt and
+      records a `pending` reference with an `exact-search` fallback --
+      `SemanticIndexStatus.PENDING` already exists (`models.py:108`) and a
+      non-succeeded reference is valid so long as it carries a fallback
+      (`models.py:473-477`), so no schema change is needed (D7).
+
+      Do NOT change `decide_outcome`. A pending index degrades through the existing
+      rule, and `OperationState` is pinned by two published schemas with immutable
+      recorded operations behind them.
+
+      Verify 2.1 and 2.3 by mutation, clearing `__pycache__` between cycles: a test
+      for a live gap that passes on first run is a broken test.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/cli.py"
+        - "skills/project-context-refresh/scripts/orchestrator.py"
+      keys:
+        - "env:project-context-refresh-cli"
+      ttl_minutes: 90
+      reason: "Add sync-point authorization and the deferred semantic index"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/cli.py"
+        - "skills/project-context-refresh/scripts/orchestrator.py"
+        - "skills/project-context-refresh/SKILL.md"
+        - "skills/tests/project-context-refresh/test_sync_point_authorization.py"
+        - "skills/tests/project-context-refresh/test_deferred_semantic_index.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Two new CLI flags and a new orchestrator keyword are interface surface; the
+      # SKILL.md edit is documentation; the modules and tests are indexed source.
+      surfaces:
+        - "apis"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: convergence-sync-point
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Shared checkout is refused without authorization and permitted with it"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_sync_point_authorization.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["sync_point_authorization_proven"]
+        - name: "Deferred index records pending with fallback and identical output"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_deferred_semantic_index.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["deferred_index_proven"]
+        - name: "Existing orchestrator and CLI behaviour does not regress"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_orchestrator.py skills/tests/project-context-refresh/test_cli_refresh.py skills/tests/project-context-refresh/test_gate.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["refresh_no_regression"]
+    metadata:
+      loc_estimate: 320
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "sync_point_authorization_proven"
+        - "deferred_index_proven"
+        - "refresh_no_regression"
+
+  - package_id: wp-convergence
+    title: "Convergence driver: identity, locking, commit, enqueue"
+    task_type: implementation
+    description: |
+      Tasks 3.1-3.9. The new `main_convergence.py` driver -- the only new module in
+      this change, and where every hard invariant lives.
+
+      Identity (D4) is `derive_operation_id(repository_id, merged_main_sha)`
+      (`models.py:191-203`). Idempotence rests on TWO independent checks because
+      each has a hole the other covers: the ri-06 terminal record lives in the git
+      common dir (`store.py:76-90`) and is lost on a fresh clone; the
+      `Context-Refresh-Operation:` commit trailer travels with history but does not
+      exist until the commit lands. Either alone is sufficient to skip; neither
+      alone is sufficient as the only check.
+
+      Locking (D5) is three layers, and the layer count is not padding. The
+      `approved_sync_point` policy message itself says the caller must still enforce
+      clean-tree and active-agent guards. Layer 1 re-runs `shared/active_agents.py`
+      (an agent may have started a worktree during the merge loop). Layer 2 is the
+      coordinator lock, which degrades with a warning when absent -- this repo runs
+      solo often enough that a coordinator-only guard would be missing exactly when
+      it matters. Layer 3 is the pre-push compare-and-swap against `origin/main`,
+      the only layer a process that never asked cannot bypass. On a losing race:
+      abort, never `--force-with-lease`.
+
+      Failure semantics (D6) are the roadmap's hardest constraint: a refresh failure
+      must NOT un-merge or block the merge. Assert it structurally -- a test that no
+      code path in this module can revert, close, or reopen a pull request, not a
+      comment saying it does not.
+
+      Exit code 2 must still commit. `degraded` is the NORMAL outcome whenever the
+      index is deferred or an optional owner is absent; treating it as failure would
+      mean convergence never commits on a machine without the semantic stack.
+
+      The architecture step uses `make architecture-refresh` (`Makefile:147`), not
+      `make architecture` (`Makefile:138`): `write_provenance` is called only from
+      `run_staged` (`run_architecture.py:186`), and ri-10's architecture producer
+      routes missing provenance to drift rather than `not-configured` (D10).
+    role: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+      - wp-sync-point
+    locks:
+      files:
+        - "skills/merge-pull-requests/scripts/main_convergence.py"
+      keys:
+        - "env:merge-pull-requests-scripts"
+      ttl_minutes: 120
+      reason: "Implement the main convergence driver"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/scripts/main_convergence.py"
+        - "skills/tests/merge-pull-requests/test_convergence_identity.py"
+        - "skills/tests/merge-pull-requests/test_convergence_locking.py"
+        - "skills/tests/merge-pull-requests/test_convergence_outcomes.py"
+        - "skills/tests/merge-pull-requests/test_convergence_record.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # A new driver module with a CLI surface, plus test modules the semantic index
+      # embeds. It emits an artifact validated against a published schema.
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: convergence-driver
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Operation identity is stable per merged SHA and idempotent on retry"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/merge-pull-requests/test_convergence_identity.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["identity_idempotent"]
+        - name: "All three guard layers hold and a losing push race aborts without forcing"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/merge-pull-requests/test_convergence_locking.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["sync_point_locking_proven"]
+        - name: "No convergence outcome can revert, close, or reopen a pull request"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/merge-pull-requests/test_convergence_outcomes.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["merge_never_reversed"]
+        - name: "Emitted record validates against the published contract"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/merge-pull-requests/test_convergence_record.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["record_conforms"]
+    metadata:
+      loc_estimate: 620
+      complexity: high
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "identity_idempotent"
+        - "sync_point_locking_proven"
+        - "merge_never_reversed"
+        - "record_conforms"
+
+  - package_id: wp-cleanup
+    title: "Merge-driven cleanup mode and staged architecture target"
+    task_type: implementation
+    description: |
+      Tasks 4.1-4.5. Documentation-only changes to `cleanup-feature`, but two of
+      them are behavioural contracts the driver depends on.
+
+      `--defer-commit`: when invoked BY the sync point, cleanup operates in the
+      sync-point checkout on main rather than setting up its own `--cleanup`
+      worktree (`SKILL.md:81-100`), stages with `git add`, and returns without
+      committing or pushing. The sync point then makes exactly one commit (D3).
+      Without this, N archived changes produce N+1 commits and acceptance outcome 3
+      is unmeetable.
+
+      The architecture target swap is not cosmetic. `SKILL.md:251` runs `make
+      architecture`, the full generation target. Provenance is written ONLY by
+      `run_staged` (`run_architecture.py:186`, reached by `make architecture-refresh`,
+      `Makefile:147`). ri-10's producer treats missing or malformed provenance as
+      drift, not as an absent owner. So today's cleanup can regenerate every
+      artifact and still leave the gate red (D10). Write the failing assertion first.
+
+      This package flags a real ambiguity rather than hiding it: `SKILL.md:572` says
+      post-merge cleanup should "commit, and push" without naming a branch, while
+      Step 1 sets up a scratch worktree. Design D3 reads that as "land the archive on
+      main" and makes the sync point the committer. Record the reading in the skill
+      text so the next reader does not have to re-derive it.
+
+      Tests belong at `skills/tests/cleanup-feature/`, never inside the skill dir.
+    role: implementer
+    priority: 2
+    depends_on:
+      - wp-sync-point
+    locks:
+      files:
+        - "skills/cleanup-feature/SKILL.md"
+      keys:
+        - "env:cleanup-feature-skill"
+      ttl_minutes: 60
+      reason: "Document the merge-driven cleanup mode"
+    scope:
+      write_allow:
+        - "skills/cleanup-feature/SKILL.md"
+        - "skills/tests/cleanup-feature/test_skill_md.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # A SKILL.md edit is documentation surface by the ri-08 rule table; the test
+      # module is indexed source. No published schema or CLI contract changes here.
+      surfaces:
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: convergence-cleanup
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Cleanup skill documents deferred-commit mode and the staged architecture target"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/cleanup-feature/test_skill_md.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["cleanup_mode_documented"]
+        - name: "The non-provenance architecture target is gone from the post-merge path"
+          kind: command
+          command: "bash -c 'grep -n \"make architecture-refresh\" skills/cleanup-feature/SKILL.md && ! grep -qE \"^make architecture$\" skills/cleanup-feature/SKILL.md'"
+          evidence:
+            artifacts:
+              - "skills/cleanup-feature/SKILL.md"
+            result_keys: ["provenance_target_used"]
+    metadata:
+      loc_estimate: 140
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "cleanup_mode_documented"
+        - "provenance_target_used"
+
+  - package_id: wp-skill
+    title: "merge-pull-requests Step 11.6 and handoff reporting"
+    task_type: implementation
+    description: |
+      Tasks 5.1-5.6. The operator-facing surface: where convergence fires, what it
+      reports, and what it refuses.
+
+      Step 11.6 sits between Step 11.5 (post-merge cleanup approval,
+      `SKILL.md:536-578`) and Step 12 (Summary). Placement is the decision, not a
+      detail: the existing post-merge pipeline (`post_merge_pipeline.py:21-94`) is
+      per-PR and failure-isolated, so putting convergence there would produce N
+      convergences, N commits, and N index requests for N merges -- exactly what
+      acceptance outcomes 2 and 4 forbid (D1).
+
+      Measured baseline for the assertions: `grep -c` for
+      `project-context-refresh|context_refresh|convergence|context-drift-gate|
+      refresh-project-context` returns 0 across `SKILL.md` and all 14 helper
+      scripts. Every assertion in 5.1 must fail on that tree.
+
+      The summary must name three revisions plus the semantic status -- merged SHA,
+      context-refresh SHA, convergence commit SHA (acceptance outcome 5). Reporting
+      only "converged" loses the ability to tell which main state was indexed.
+
+      Step 12 and Step 13 run regardless of convergence outcome. Suppressing the
+      merge log because a derived artifact failed loses the more valuable record
+      (D6).
+    role: implementer
+    priority: 3
+    depends_on:
+      - wp-convergence
+      - wp-cleanup
+    locks:
+      files:
+        - "skills/merge-pull-requests/SKILL.md"
+      keys:
+        - "env:merge-pull-requests-skill"
+      ttl_minutes: 60
+      reason: "Author the convergence step and its reporting"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/SKILL.md"
+        - "skills/tests/merge-pull-requests/test_skill_md.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # A SKILL.md edit is documentation surface; the test module is indexed source.
+      surfaces:
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: convergence-skill
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Step 11.6 exists, is ordered correctly, and names cleanup before refresh"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/merge-pull-requests/test_skill_md.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["convergence_step_documented"]
+        - name: "Existing merge-pull-requests tests still pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/merge-pull-requests/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["merge_skill_no_regression"]
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "convergence_step_documented"
+        - "merge_skill_no_regression"
+
+  - package_id: wp-integration
+    title: "Integration, end-to-end convergence rehearsal, and idempotence proof"
+    task_type: implementation
+    description: |
+      Tasks 6.1-6.8. Merge every package, then prove the two properties that cannot
+      be proven inside any single package.
+
+      Task 6.2 is the gates-must-fail-before-work rule applied to authorization: on
+      an unmodified tree, `refresh` must be REFUSED from the shared checkout, and
+      permitted only with `--sync-point`. Capture both outputs. A guard that was
+      never shown to refuse is decoration.
+
+      Task 6.3-6.4 are the only place a full convergence can be exercised end to end:
+      one merged PR in a scratch clone, then the SAME merged SHA again. The second
+      run must produce no second commit, no second archive, and no second index
+      request -- acceptance outcome 4, and untestable within any one package because
+      it spans identity, locking, cleanup, and the driver.
+
+      Task 6.5 closes the loop with ri-10: convergence output must leave `make
+      context-drift-gate` at exit 0. A convergence that regenerates artifacts and
+      still leaves the gate red has solved nothing.
+
+      Promotion of the contract to `openspec/contracts/` is not optional
+      bookkeeping: that directory is the durable system representation alongside
+      `openspec/specs/`, and a change archived without promoting its contracts loses
+      them.
+    role: integrator
+    priority: 4
+    depends_on:
+      - wp-contracts
+      - wp-sync-point
+      - wp-convergence
+      - wp-cleanup
+      - wp-skill
+    locks:
+      files: []
+      keys:
+        - "feature:integrate-main-context-convergence:integrate"
+      ttl_minutes: 120
+      reason: "Integrate all packages and prove convergence end to end"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Integration sees the union of every package's diff plus any regenerated
+      # architecture, documentation, and decision artifacts produced by the
+      # rehearsal.
+      surfaces:
+        - "capabilities"
+        - "apis"
+        - "architecture"
+        - "decisions"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: convergence-integration
+      mode: shared
+    timeout_minutes: 150
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full affected test suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/ skills/tests/project-context-runtime/ skills/tests/merge-pull-requests/ skills/tests/cleanup-feature/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["full_suites_passed"]
+        - name: "OpenSpec change validates strictly"
+          kind: command
+          command: "openspec validate integrate-main-context-convergence --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict_valid"]
+        - name: "Drift gate exits 0 on the post-convergence tree"
+          kind: command
+          command: "make context-drift-gate"
+          evidence:
+            artifacts: []
+            result_keys: ["gate_green_after_convergence"]
+        - name: "Skills lint and install check pass"
+          kind: command
+          command: "bash -c 'cd skills && uv run ruff check . && cd .. && bash skills/install.sh --check'"
+          evidence:
+            artifacts: []
+            result_keys: ["skills_lint_and_install_passed"]
+        - name: "Authorization demonstrably refuses before it permits"
+          kind: manual
+          manual_instructions: |
+            Confirm the captured task 6.2 output shows `refresh` refused from the
+            shared checkout on an unmodified tree (reason `shared_checkout_blocked`)
+            and permitted with `--sync-point` (reason `approved_sync_point`). A guard
+            that was never shown to refuse is not evidence that it works.
+          evidence:
+            artifacts: []
+            result_keys: ["authorization_fails_first"]
+        - name: "A repeated convergence at the same merged SHA is a no-op"
+          kind: manual
+          manual_instructions: |
+            Confirm the task 6.4 rehearsal shows the second run reusing the existing
+            operation id and producing no second convergence commit, no re-archival,
+            and no second semantic index request. Cite the git log and the
+            context-convergence.jsonl line count before and after.
+          evidence:
+            artifacts:
+              - "docs/merge-logs/context-convergence.jsonl"
+            result_keys: ["convergence_idempotent_end_to_end"]
+        - name: "Contract promoted to the durable location"
+          kind: manual
+          manual_instructions: |
+            Confirm openspec/contracts/project-context-refresh/schemas/context-convergence-record.schema.json
+            exists and is byte-identical to the change-local contracts/ copy and to
+            the install_assets copy.
+          evidence:
+            artifacts:
+              - "openspec/contracts/project-context-refresh/schemas/context-convergence-record.schema.json"
+            result_keys: ["contract_promoted"]
+    metadata:
+      loc_estimate: 120
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "full_suites_passed"
+        - "openspec_strict_valid"
+        - "gate_green_after_convergence"
+        - "skills_lint_and_install_passed"
+        - "authorization_fails_first"
+        - "convergence_idempotent_end_to_end"
+        - "contract_promoted"
