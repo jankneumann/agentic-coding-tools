@@ -243,7 +243,7 @@ public API.
   **Design decisions**: D10
   **Dependencies**: 3.6
 
-- [ ] 3.8 Add a `--min-coverage` gate to the CLI `[S]`
+- [x] 3.8 Add a `--min-coverage` gate to the CLI `[S]`
   **Design decisions**: D10
   **Dependencies**: 3.7
   **Note**: `__main__.py:399` exits on `report.pass_rate` only, and `make dogfood`
