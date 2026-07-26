@@ -2,20 +2,23 @@
   "schema_version": 4,
   "change_id": "derive-descriptors-from-contracts",
   "current_phase": "PLAN_REVIEW",
-  "iteration": 2,
-  "total_iterations": 2,
-  "max_phase_iterations": 3,
+  "iteration": 5,
+  "total_iterations": 5,
+  "max_phase_iterations": 8,
   "findings_trend": [
-    12,
-    11
+    6,
+    15,
+    6,
+    4,
+    6
   ],
   "blocking_findings": [],
   "vendor_availability": {
     "claude_code": true,
     "codex": true,
-    "pi": false,
-    "antigravity": false,
-    "grok": false
+    "pi": true,
+    "antigravity": true,
+    "grok": true
   },
   "packages_status": {},
   "package_authors": {},
