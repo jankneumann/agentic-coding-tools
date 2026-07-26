@@ -80,7 +80,7 @@ packages:
       steps:
         - name: "CLI contract schema is valid JSON Schema"
           kind: command
-          command: "python3 -c \"import json,jsonschema,pathlib; jsonschema.Draft202012Validator.check_schema(json.loads(pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json').read_text()))\""
+          command: "uv run --project packages/gen-eval python -c \"import json,jsonschema,pathlib; jsonschema.Draft202012Validator.check_schema(json.loads(pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json').read_text()))\""
           evidence:
             artifacts: []
             result_keys: ["cli_contract_schema_valid"]
@@ -98,7 +98,7 @@ packages:
         # green on an empty set is the exact defect this change exists to remove.
         - name: "gen-eval CLI contract exists and validates against the schema"
           kind: command
-          command: "python3 -c \"import json,yaml,jsonschema,pathlib,glob; s=json.loads(pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json').read_text()); f=sorted(glob.glob('openspec/contracts/gen-eval-framework/cli/*.y*ml')); assert f, 'no CLI contract instance found under openspec/contracts/gen-eval-framework/cli/'; [jsonschema.Draft202012Validator(s).validate(yaml.safe_load(pathlib.Path(p).read_text())) for p in f]; print(f'validated {len(f)} contract instance(s)')\""
+          command: "uv run --project packages/gen-eval python -c \"import json,yaml,jsonschema,pathlib,glob; s=json.loads(pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json').read_text()); f=sorted(glob.glob('openspec/contracts/gen-eval-framework/cli/*.y*ml')); assert f, 'no CLI contract instance found under openspec/contracts/gen-eval-framework/cli/'; [jsonschema.Draft202012Validator(s).validate(yaml.safe_load(pathlib.Path(p).read_text())) for p in f]; print(f'validated {len(f)} contract instance(s)')\""
           evidence:
             artifacts: []
             result_keys: ["gen_eval_cli_contract_valid"]
@@ -109,13 +109,13 @@ packages:
         # be the same document.
         - name: "Promoted CLI contract schema is byte-identical to the reviewed source"
           kind: command
-          command: "python3 -c \"import json,pathlib,sys; src=pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json'); dst=pathlib.Path('openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json'); sys.exit(f'schema not promoted to {dst} — its \\$id points there and DS-3 directs consumers to it') if not dst.is_file() else None; a=src.read_bytes(); b=dst.read_bytes(); sys.exit('promoted schema differs from the reviewed source') if a!=b else None; d=json.loads(b); sys.exit('promoted \\$id does not match its location') if not d['\\$id'].endswith('/schemas/cli-contract.schema.json') else print('promotion verified: byte-identical')\""
+          command: "uv run --project packages/gen-eval python -c \"import json,pathlib,sys; src=pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json'); dst=pathlib.Path('openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json'); sys.exit(f'schema not promoted to {dst} — its \\$id points there and DS-3 directs consumers to it') if not dst.is_file() else None; a=src.read_bytes(); b=dst.read_bytes(); sys.exit('promoted schema differs from the reviewed source') if a!=b else None; d=json.loads(b); sys.exit('promoted \\$id does not match its location') if not d['\\$id'].endswith('/schemas/cli-contract.schema.json') else print('promotion verified: byte-identical')\""
           evidence:
             artifacts: []
             result_keys: ["cli_contract_schema_promoted"]
         - name: "Contract instances validate against the PROMOTED schema, not only the local copy"
           kind: command
-          command: "python3 -c \"import json,yaml,jsonschema,pathlib,glob,sys; p=pathlib.Path('openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json'); sys.exit('promoted schema missing') if not p.is_file() else None; s=json.loads(p.read_text()); jsonschema.Draft202012Validator.check_schema(s); f=sorted(glob.glob('openspec/contracts/gen-eval-framework/cli/*.y*ml')); sys.exit('no contract instance found') if not f else None; [jsonschema.Draft202012Validator(s).validate(yaml.safe_load(pathlib.Path(x).read_text())) for x in f]; print(f'{len(f)} instance(s) valid against the promoted schema')\""
+          command: "uv run --project packages/gen-eval python -c \"import json,yaml,jsonschema,pathlib,glob,sys; p=pathlib.Path('openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json'); sys.exit('promoted schema missing') if not p.is_file() else None; s=json.loads(p.read_text()); jsonschema.Draft202012Validator.check_schema(s); f=sorted(glob.glob('openspec/contracts/gen-eval-framework/cli/*.y*ml')); sys.exit('no contract instance found') if not f else None; [jsonschema.Draft202012Validator(s).validate(yaml.safe_load(pathlib.Path(x).read_text())) for x in f]; print(f'{len(f)} instance(s) valid against the promoted schema')\""
           evidence:
             artifacts: []
             result_keys: ["instances_valid_against_promoted_schema"]
@@ -442,8 +442,15 @@ packages:
       dogfood scenarios and exclusions that satisfy D11's completeness rule,
       wire the argparse subset verifier plus both drift guards and
       --min-coverage into the gen-eval-tests CI job, refresh DOWNSTREAM.md
-      (the CONTRACT_VERSION bump belongs to the prerequisite rename change,
-      not here), update the README.
+      (including DS-5), reclaim the ServiceDescriptor/ToolDescriptor exports and
+      bump CONTRACT_VERSION 2 -> 3 for that reclamation (task 5.8), update the
+      README.
+
+      TWO version bumps land across the pair, and this package owns the second.
+      The prerequisite rename takes 1 -> 2 for the renamed $defs titles; this
+      change takes 2 -> 3 because reclaiming a name is a distinct break — the
+      import keeps succeeding while the object is no longer what it was, which
+      no deprecation warning covers.
 
       Task 4.7 lands here rather than in wp-subset-verifiers because it wires
       CI: wp-subset-verifiers cannot write .github/workflows/ci.yml. Round 2
@@ -534,6 +541,25 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["real_surface_excess_gate"]
+        # Task 5.8's gate. Asserts the reclaimed names do NOT resolve to the
+        # *Spec types they aliased before this change — that is what makes the
+        # reclamation real at the package boundary.
+        #
+        # Deliberately NOT `gen_eval.X is gen_eval.descriptor.X`. The archetypes
+        # land asymmetrically: ToolDescriptor in descriptor.py (superseding its
+        # own alias there), ServiceDescriptor in service_descriptor.py (so
+        # descriptor.ServiceDescriptor legitimately remains the alias). An
+        # identity check between the two would fail a correct implementation.
+        #
+        # Also deliberately not asserting the archetypes' field shape, which is
+        # not settled until tasks 1.4 and 2.2 are written. "Is not the thing it
+        # used to be" is the strongest claim available that cannot go stale.
+        - name: "Reclaimed names no longer resolve to the *Spec types, and CONTRACT_VERSION is 3"
+          kind: command
+          command: "cd packages/gen-eval && uv run python -c \"import gen_eval, pathlib, sys; from gen_eval.contracts import CONTRACT_VERSION\nsrc=pathlib.Path(gen_eval.__file__).resolve()\nsys.exit(f'reading an installed copy, not this tree: {src}') if pathlib.Path('src').resolve() not in src.parents else None\npairs=(('ToolDescriptor','McpToolSpec'),('ServiceDescriptor','ServiceSpec'))\nmissing=[n for n,_ in pairs if not hasattr(gen_eval,n)]\nsys.exit('not exported at package level: '+', '.join(missing)) if missing else None\nstale=[n for n,s in pairs if getattr(gen_eval,n) is getattr(gen_eval,s,None)]\nsys.exit('still resolves to the superseded type: '+', '.join(stale)) if stale else None\nsys.exit(f'CONTRACT_VERSION={CONTRACT_VERSION}, expected 3 after reclamation') if str(CONTRACT_VERSION)!='3' else print('reclamation verified: both names rebound, version 3')\""
+          evidence:
+            artifacts: []
+            result_keys: ["reclamation_exports_verified", "contract_version_3"]
         - name: "Both drift guards pass in CI"
           kind: ci
           ci:
