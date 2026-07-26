@@ -254,7 +254,7 @@ public API.
 
 ## Phase 4 — Implemented-surface subset verifiers
 
-- [ ] 4.1 Write tests for the argparse subset verifier — undocumented flag detected `[M]`
+- [x] 4.1 Write tests for the argparse subset verifier — undocumented flag detected `[M]`
   **Spec scenarios**: Implemented Surface Subset Verification (undocumented CLI flag is reported; verification distinguishes excess from omission)
   **Design decisions**: D1
   **Dependencies**: 1.4
