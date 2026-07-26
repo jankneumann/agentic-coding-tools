@@ -3,25 +3,25 @@
     {
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "4b977cff9b8043041a84801ba3d4b7b225d00dc257c4e70a659b3074d288e875",
+      "sha256": "00fc4aa9f613e86ae681f3a639bc85284f37417c9b83a0b0a4c0ccd7881a0970",
       "size_bytes": 1076714
     },
     {
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "a52c2b60cfc9a117152b18e4c4b13c09334e95f4de5dc2966d4d0c44aed65ff7",
+      "sha256": "54551a522efb9016494dfe14a9a380fb61c6da6f3aa564d78e3e096654d41ae6",
       "size_bytes": 877663
     },
     {
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "178d45e13ce63f7b3dcfa8ad4b3b03c25ab7c800c7a930962379eb65d339fd5d",
-      "size_bytes": 55078
+      "sha256": "0534175962a9e9f34268ef50767227962eedb43704bea4af42101018e3cc5a76",
+      "size_bytes": 55080
     },
     {
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "c2775060b6022804b2f3ea1d84608d6762a82687526e590756bb1492bb78eb69",
+      "sha256": "69097d76000d17bb6d2d3ac39ec2ca73eb4e22f3c29a056ba2809fde937de5ce",
       "size_bytes": 22444
     },
     {
@@ -33,7 +33,7 @@
     {
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "9caf9bc52e057011808681a3f0effbd59819e80682c3f9502dcf04f89736ea3d",
+      "sha256": "7287b35ea801d1b55f6ec675fa3675d5f2beaaf4b4202f73887cf63d7b7600e8",
       "size_bytes": 512392
     },
     {
@@ -97,19 +97,19 @@
       "size_bytes": 144
     }
   ],
-  "generated_at": "2026-07-26T16:05:46+00:00",
-  "input_fingerprint": "fe1f5aeca97ac536455db7d5381313afd1d238621efd2737f8d42bda699480e5",
+  "generated_at": "2026-07-26T16:40:54+00:00",
+  "input_fingerprint": "4f9bb69122b73e9a2f125708e3bbf866b07501bcd784a784ecb2dd455b03173c",
   "input_roots": [
-    "database/migrations",
-    "src",
-    "web"
+    "agent-coordinator/database/migrations",
+    "agent-coordinator/src",
+    "apps"
   ],
   "mode": "full",
   "optional_tools": [
     {
-      "available": false,
+      "available": true,
       "name": "tree-sitter",
-      "version": null
+      "version": "0.25.2"
     }
   ],
   "producer": {
@@ -118,7 +118,7 @@
   },
   "repository_id": "add-deterministic-context-drift-gates",
   "schema_version": 1,
-  "source_revision": "24d66005fb696bb6a556f12c4cd183f43473e4e3",
+  "source_revision": "fa2ce9508c97a94abbb4b2b22b4fae98769a9482",
   "validation": {
     "error_count": 0,
     "status": "passed",
