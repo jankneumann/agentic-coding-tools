@@ -30,7 +30,9 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
-from models import SemanticIndexStatus
+from models import OperationState, SemanticIndexStatus, derive_operation_id
+from referencing import Registry, Resource
+from referencing.jsonschema import DRAFT202012
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMOTED = REPO_ROOT / "openspec/contracts/project-context-refresh/schemas"
@@ -41,6 +43,7 @@ SCHEMA_OWNERS = {
     "context-refresh-operation.schema.json": "project-context-runtime",
     "context-refresh-types.schema.json": "project-context-runtime",
     "context-checkpoint.schema.json": "project-context-refresh",
+    "context-convergence-record.schema.json": "project-context-refresh",
     "context-drift-gate.schema.json": "project-context-refresh",
 }
 
@@ -49,6 +52,10 @@ SCHEMA_NAMES = tuple(sorted(SCHEMA_OWNERS))
 OWNING_SKILLS = tuple(sorted(set(SCHEMA_OWNERS.values())))
 
 DRIFT_GATE = "context-drift-gate.schema.json"
+
+CONVERGENCE_RECORD = "context-convergence-record.schema.json"
+
+SHARED_TYPES = "context-refresh-types.schema.json"
 
 
 def install_assets_dir(skill: str) -> Path:
@@ -63,6 +70,51 @@ def install_asset(name: str) -> Path:
 
 def promoted_gate_schema() -> dict:
     return json.loads((PROMOTED / DRIFT_GATE).read_text(encoding="utf-8"))
+
+
+def promoted_convergence_schema() -> dict:
+    return json.loads((PROMOTED / CONVERGENCE_RECORD).read_text(encoding="utf-8"))
+
+
+def convergence_validator() -> Draft202012Validator:
+    """A validator for the promoted convergence record with local ``$ref``s.
+
+    The record ``$ref``s ``GitRevision``/``Sha256``/``RepositoryPath`` out of the
+    shared types schema instead of restating them. Building the registry from the
+    promoted directory keeps the resolution offline *and* proves the two promoted
+    schemas resolve against each other — a record that silently failed to resolve
+    its ``$ref`` would accept any string where a revision is required.
+    """
+    resources = []
+    for name in (CONVERGENCE_RECORD, SHARED_TYPES):
+        doc = json.loads((PROMOTED / name).read_text(encoding="utf-8"))
+        resources.append((doc["$id"], Resource.from_contents(doc, default_specification=DRAFT202012)))
+    registry = Registry().with_resources(resources)
+    return Draft202012Validator(promoted_convergence_schema(), registry=registry)
+
+
+def convergence_record(**overrides: object) -> dict:
+    """A minimal valid convergence record, mutated by keyword for negative cases."""
+    merged = "a" * 40
+    record = {
+        "schema_version": 1,
+        "operation_id": derive_operation_id("agentic-coding-tools", merged),
+        "merged_revision": merged,
+        "refresh_revision": merged,
+        "refresh_status": "degraded",
+        "producers": [{"producer_id": "documentation.inventory", "status": "fresh", "owner": None}],
+        "semantic_index": {
+            "status": "pending",
+            # The convergence commit moves main's tip, so the index is requested
+            # for a revision that does not exist yet at merged_revision.
+            "requested_revision": "b" * 40,
+            "operation_id": None,
+            "fallback": "exact search",
+        },
+        "merged_pull_requests": [{"number": 279, "origin": "openspec", "cleanup": "completed"}],
+    }
+    record.update(overrides)
+    return record
 
 
 @pytest.mark.parametrize("name", SCHEMA_NAMES)
@@ -149,6 +201,72 @@ def test_gate_semantic_status_is_not_a_semantic_index_status() -> None:
         "context-drift-gate's semantic.status must not be a SemanticIndexStatus "
         f"value; SemanticIndexStatus currently has {sorted(probe_outcomes)}."
     )
+
+
+def test_convergence_record_is_in_the_byte_compare_set() -> None:
+    """The convergence record is guarded like every other context-refresh schema.
+
+    ``SCHEMA_OWNERS`` drives the parametrized presence and byte-compare tests
+    above, so this is the assertion that keeps the record inside them: dropping
+    the entry to silence a drift failure fails here instead.
+    """
+    assert CONVERGENCE_RECORD in SCHEMA_NAMES
+    assert SCHEMA_OWNERS[CONVERGENCE_RECORD] == "project-context-refresh"
+    assert install_asset(CONVERGENCE_RECORD).is_file()
+    assert (PROMOTED / CONVERGENCE_RECORD).is_file()
+
+
+def test_convergence_refresh_status_keeps_not_run_out_of_the_operation_states() -> None:
+    """Design D6: ``not-run`` is a fourth value, not a spelling of ``failed``.
+
+    The apparatus row of D6 commits the cleanup output with no refresh at all.
+    Collapsing that into ``failed`` would make a successful partial convergence
+    indistinguishable from a producer crash, so the enum is the three terminal
+    ri-06 operation states plus ``not-run``. Deriving the expectation from the
+    live ``OperationState`` means widening that enum breaks this test rather
+    than silently leaving the record unable to express a new state.
+    """
+    statuses = promoted_convergence_schema()["properties"]["refresh_status"]["enum"]
+    terminal_states = {
+        OperationState.SUCCEEDED.value,
+        OperationState.DEGRADED.value,
+        OperationState.FAILED.value,
+    }
+    assert "not-run" not in {member.value for member in OperationState}
+    assert set(statuses) == terminal_states | {"not-run"}
+    assert len(statuses) == len(set(statuses))
+
+
+def test_convergence_semantic_index_revision_is_independent_of_merged_revision() -> None:
+    """Design D7: the index is requested for a revision that is not the merge SHA.
+
+    The convergence commit changes main's tip, so indexing ``merged_revision``
+    would be stale on arrival. The two fields must therefore be separately
+    settable — a schema that constrained them to be equal, or that reused one
+    property for both, would force the stale behaviour D7 rejects.
+    """
+    validator = convergence_validator()
+    record = convergence_record()
+    assert record["semantic_index"]["requested_revision"] != record["merged_revision"]
+    validator.validate(record)
+
+    # Both fields resolve the shared GitRevision definition rather than
+    # restating it, so a non-revision is rejected on either side. Without a
+    # resolving $ref the strings below would validate.
+    for mutate in (
+        lambda doc: doc.update(merged_revision="not-a-revision"),
+        lambda doc: doc["semantic_index"].update(requested_revision="not-a-revision"),
+    ):
+        broken = convergence_record()
+        mutate(broken)
+        assert not validator.is_valid(broken)
+
+
+def test_convergence_semantic_index_mirrors_the_live_semantic_index_status() -> None:
+    """The record cannot report an index state the runtime can never produce."""
+    schema = promoted_convergence_schema()
+    statuses = schema["properties"]["semantic_index"]["properties"]["status"]["enum"]
+    assert set(statuses) == {member.value for member in SemanticIndexStatus}
 
 
 def test_gate_architecture_freshness_separates_unverifiable_from_not_configured() -> None:
