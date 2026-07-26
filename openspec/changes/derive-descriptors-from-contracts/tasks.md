@@ -508,7 +508,7 @@ finding re-verified by direct execution, not by vendor assertion.
   `rename-descriptor-model-levels` and are covered by its own notice. DS-3 here
   carries only the sequencing pointer. Do not duplicate that notice.
 
-- [ ] 5.7 Update `packages/gen-eval/README.md` for the contract-derived model `[S]`
+- [x] 5.7 Update `packages/gen-eval/README.md` for the contract-derived model `[S]`
   **Dependencies**: 5.3
 
 - [x] 5.8 Reclaim the `ServiceDescriptor` / `ToolDescriptor` exports and announce it `[S]`
