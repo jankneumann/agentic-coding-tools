@@ -189,7 +189,7 @@ public API.
   **Dependencies**: 2.3
   **Note**: flatten path/query/body into one input object; copy `summary`/`description` verbatim (agent-readable, load-bearing). Derivation is the DEFAULT — an explicit `element` binding wins and emits the bound name once, recording the fan-in.
 
-- [ ] 2.5 Implement `scripts/generate_service_descriptor.py` with `--check` mode `[M]`
+- [x] 2.5 Implement `scripts/generate_service_descriptor.py` with `--check` mode `[M]`
   **Spec scenarios**: Descriptor Derivation Drift Guard (drift fails)
   **Design decisions**: D2, D3
   **Dependencies**: 2.4
