@@ -5,6 +5,83 @@
 
 ---
 
+## 2026-07-24 — expose-fail-closed-semantic-code-search
+
+### Phase: Plan
+
+**Exact immutable selection** — Main uses the guarded canonical pointer; non-main requests require exact index_id and full identity validation.
+
+- Status: `active`
+- Source: [openspec/changes/expose-fail-closed-semantic-code-search/session-log.md](/openspec/changes/expose-fail-closed-semantic-code-search/session-log.md) (D1)
+
+---
+
+## 2026-07-24 — expose-fail-closed-semantic-code-search
+
+### Phase: Implementation
+
+**Fail closed before embedding** — Revision, index, provider, and scope authority are validated before any semantic provider or storage work.
+
+- Status: `active`
+- Source: [openspec/changes/expose-fail-closed-semantic-code-search/session-log.md](/openspec/changes/expose-fail-closed-semantic-code-search/session-log.md) (D1)
+
+---
+
+## 2026-07-24 — expose-fail-closed-semantic-code-search
+
+### Phase: Validation
+
+**Treat deterministic evidence as the merge gate** — The default-off reader, authorization, lifecycle, and three transport surfaces are fully exercised without depending on unacknowledged external services.
+
+- Status: `active`
+- Source: [openspec/changes/expose-fail-closed-semantic-code-search/session-log.md](/openspec/changes/expose-fail-closed-semantic-code-search/session-log.md) (D1)
+
+---
+
+## 2026-07-24 — expose-fail-closed-semantic-code-search
+
+### Phase: Plan
+
+**Principal-bound scope ceiling** — Caller filters only narrow server-owned repository and namespace grants; unresolved work-package provenance fails closed.
+
+- Status: `active`
+- Source: [openspec/changes/expose-fail-closed-semantic-code-search/session-log.md](/openspec/changes/expose-fail-closed-semantic-code-search/session-log.md) (D2)
+
+---
+
+## 2026-07-24 — expose-fail-closed-semantic-code-search
+
+### Phase: Validation
+
+**Keep production enablement resource-gated** — Live Postgres/pgvector, embedding-provider, and retrieval-quality evidence must run against acknowledged scratch or deployment resources.
+
+- Status: `active`
+- Source: [openspec/changes/expose-fail-closed-semantic-code-search/session-log.md](/openspec/changes/expose-fail-closed-semantic-code-search/session-log.md) (D2)
+
+---
+
+## 2026-07-24 — expose-fail-closed-semantic-code-search
+
+### Phase: Plan
+
+**Loop-owned dynamic runtime** — HTTP and direct MCP own separate bounded runtimes with TTL, backoff, invalidation, and shutdown cancellation.
+
+- Status: `active`
+- Source: [openspec/changes/expose-fail-closed-semantic-code-search/session-log.md](/openspec/changes/expose-fail-closed-semantic-code-search/session-log.md) (D3)
+
+---
+
+## 2026-07-24 — expose-fail-closed-semantic-code-search
+
+### Phase: Plan
+
+**Declared query package dependency** — Coordinator local and production installs use one supported code-search-pkg and asyncpg boundary instead of Docker-only source copying.
+
+- Status: `active`
+- Source: [openspec/changes/expose-fail-closed-semantic-code-search/session-log.md](/openspec/changes/expose-fail-closed-semantic-code-search/session-log.md) (D4)
+
+---
+
 ## 2026-07-23 — 2026-07-25-add-revision-aware-semantic-index-registry
 
 ### Phase: Plan

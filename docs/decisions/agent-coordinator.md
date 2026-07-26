@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-07-24 — expose-fail-closed-semantic-code-search
+
+### Phase: Implementation
+
+**Publish body-aware dynamic capability** — CAN_CODE_SEARCH is true only when a ready provider and compatible canonical v2 storage are currently usable.
+
+- Status: `active`
+- Source: [openspec/changes/expose-fail-closed-semantic-code-search/session-log.md](/openspec/changes/expose-fail-closed-semantic-code-search/session-log.md) (D2)
+
+---
+
 ## 2026-07-19 — 2026-07-20-add-semantic-code-search
 
 ### Phase: Implementation

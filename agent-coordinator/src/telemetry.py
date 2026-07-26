@@ -77,13 +77,20 @@ def _init_metrics() -> None:
 
     from opentelemetry import metrics
     from opentelemetry.sdk.metrics import MeterProvider
-    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.metrics.export import (
+        MetricReader,
+        PeriodicExportingMetricReader,
+    )
     from opentelemetry.sdk.resources import Resource
 
     service_name = os.environ.get("OTEL_SERVICE_NAME", "agent-coordinator")
     resource = Resource.create({"service.name": service_name})
 
-    readers: list[PeriodicExportingMetricReader] = []
+    # Holds both PeriodicExportingMetricReader and PrometheusMetricReader, whose
+    # only common supertype is MetricReader -- which is also what MeterProvider
+    # accepts. Narrowing this to the periodic reader forced a `type: ignore` whose
+    # necessity flipped between opentelemetry versions.
+    readers: list[MetricReader] = []
 
     # OTLP exporter
     endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
