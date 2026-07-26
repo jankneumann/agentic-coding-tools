@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "roadmap_id": "project-context-refresh-lifecycle",
-  "current_item_id": "ri-09",
+  "current_item_id": "ri-10",
   "phase": "implementing",
   "created_at": "2026-07-23T18:00:40.446487+00:00",
-  "updated_at": "2026-07-25T17:25:28.410648+00:00",
+  "updated_at": "2026-07-26T01:27:44.887448+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -13,6 +13,7 @@
     "ri-04",
     "ri-05",
     "ri-07",
-    "ri-08"
+    "ri-08",
+    "ri-09"
   ]
 }
