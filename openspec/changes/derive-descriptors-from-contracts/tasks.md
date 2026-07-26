@@ -304,6 +304,126 @@ public API.
   this change owns end to end.
   **Note**: must be shown to FAIL — add a flag to the parser without contracting
   it and confirm CI goes red.
+  **Note (round-7)**: a synthetic parser built by adding one argument per
+  contracted unit is a mirror of the contract, not the real surface, and stays
+  green when `parse_args` drifts. `parse_args` currently discards its
+  `ArgumentParser`, so this task must first extract `build_parser()` and run the
+  verifier against THAT. Depends on 4.9 for the loader.
+
+## Phase 4b — Round-7 review remediation
+
+Inserted after the round-7 multi-vendor review (`reviews/round-7/synthesis.md`).
+Four independent vendors reviewed waves 1–3; every task below addresses a
+finding re-verified by direct execution, not by vendor assertion.
+
+- [ ] 4.8 Write tests for archetype-aware descriptor loading `[S]`
+  **Spec scenarios**: Service And Tool Descriptor Archetypes (a derived descriptor loads as its archetype)
+  **Design decisions**: D4, D6
+  **Dependencies**: 1.4, 2.2
+  **Note**: must be RED. Assert that loading a generated tool descriptor through
+  the runtime entrypoint yields the contracted flag count, and that a generated
+  service descriptor retains `operations` so `build_operation_coverage` takes the
+  operation path rather than the `_from_element` fallback.
+
+- [ ] 4.9 Implement archetype-aware descriptor loading `[M]`
+  **Design decisions**: D4, D6
+  **Dependencies**: 4.8
+  **Note (BLOCKING — round-7 critical, 2 vendors)**: `__main__.py` loads every
+  descriptor with `InterfaceDescriptor.from_yaml()`. Pydantic drops unknown
+  fields, so `ServiceDescriptor.operations` and
+  `ToolDescriptor.commands`/`executable`/`contract` are discarded on load.
+  Verified: the same generated file yields 17 interfaces as a `ToolDescriptor`
+  and 0 as the base model. Every derived artifact is inert at runtime.
+  **Note**: dispatch on the document's own shape (`operations` → service,
+  `executable`/`commands` → tool, neither → hand-authored base) or on an
+  explicit `kind` field. Rule 4 applies: a hand-authored descriptor must keep
+  loading exactly as it does today.
+  **Note**: 5.1, 5.2 and 5.3 have acceptance criteria that are unreachable
+  without this. Do not start Phase 5 before it lands.
+
+- [ ] 4.10 Write tests asserting `coverage_pct` is operation-denominated `[S]`
+  **Spec scenarios**: Operation And Surface Coverage Model
+  **Design decisions**: D4
+  **Dependencies**: 3.2
+  **Note**: must be RED. An operation exposed on three surfaces and exercised on
+  one must report 100%, not 33%.
+
+- [ ] 4.11 Compute `coverage_pct` over operations, not elements `[S]`
+  **Design decisions**: D4
+  **Dependencies**: 4.10
+  **Note (round-7 high)**: `orchestrator.py` divides by `len(all_interfaces)`.
+  That is precisely the element arithmetic D4 exists to remove — the operation
+  model was built and the headline number kept the old denominator. `--min-coverage`
+  gates on this number.
+
+- [ ] 4.12 Fix the HTTP prefix mismatch in `operations_for_element()` `[S]`
+  **Design decisions**: D7
+  **Dependencies**: 2.2
+  **Note (round-7, 2 vendors)**: the comparison key is `f"{surface}:{element}"`
+  for every surface, but `interface_id("http")` returns an unprefixed
+  `"METHOD /path"`. The HTTP branch can never match, so the public fan-in API
+  returns `[]` for the primary service surface. Write the failing test first.
+
+- [ ] 4.13 Write tests for `$ref` path items and path-level parameters `[S]`
+  **Spec scenarios**: Implemented Surface Subset Verification
+  **Design decisions**: D1
+  **Dependencies**: 2.2, 4.4
+  **Note**: must be RED, and must cover both call sites — `_extract_operations`
+  and `verify_fastapi`.
+
+- [ ] 4.14 Resolve `$ref` path items and merge path-level parameters `[M]`
+  **Design decisions**: D1
+  **Dependencies**: 4.13
+  **Note (round-7 high, 2 vendors)**: both call sites iterate path-item keys and
+  test membership in `_HTTP_METHODS`. `$ref` is not a method, so an OpenAPI 3.1
+  document using `components/pathItems` yields no operations and no violations —
+  the declared surface shrinks silently. That is a fail-open in the one
+  direction D1 requires to fail closed.
+  **Note**: path-item-level `parameters` are siblings of the verbs and apply to
+  every operation under them. Not merging them omits required path parameters
+  from derived MCP input schemas.
+
+- [ ] 4.15 Write tests for argv end-of-options and short-flag aliasing `[S]`
+  **Spec scenarios**: Coverage Vocabulary
+  **Design decisions**: D10
+  **Dependencies**: 3.6
+  **Note**: must be RED. Verified today:
+  `args=['--mode','template-only','--','--descriptor']` records
+  `cli:--descriptor` for a token the process never interpreted as a flag.
+
+- [ ] 4.16 Honour `--` and alias short flags to their long unit `[S]`
+  **Design decisions**: D10
+  **Dependencies**: 4.15
+  **Note (round-7, `--` found by 2 vendors)**: stop flag scanning at the first
+  bare `--`. Separately, `coverage_units` emits only `flag.name`, so a step
+  using `-v` produces `cli:-v`, fails the declared-membership filter, and
+  `cli:--verbose` stays uncovered despite a real exercise — the same vocabulary
+  split D10 exists to close. Map `FlagSpec.short` to the long unit.
+
+- [ ] 4.17 Descend into subparsers in `verify_argparse` `[S]`
+  **Design decisions**: D1
+  **Dependencies**: 4.2
+  **Note (round-7)**: `_SubParsersAction` carries no option strings, so an
+  undocumented `--force` on a subcommand is invisible to the verifier. Recurse
+  into `choices`, passing the subcommand name as `command`. Test first.
+
+- [ ] 4.18 Signal conflicting properties in `_merge_schemas` `[S]`
+  **Design decisions**: D7
+  **Dependencies**: 2.3
+  **Note (round-7)**: union-by-dict-spread is last-write-wins, so two operations
+  requiring the same property with incompatible schemas yield a single silent
+  type that matches neither. Intersecting `required` is argued in design;
+  property clobber is not. Fail loudly rather than picking a winner.
+
+- [ ] 4.19 Mitigate the `--min-coverage` unit ambiguity `[S]`
+  **Design decisions**: D10
+  **Dependencies**: 3.8
+  **Note (round-7, 2 vendors)**: `--min-coverage 0.8` is a legal 0.8% floor and
+  indistinguishable from a user meaning 80%. It silently PASSES a ~30% suite —
+  the gate fails open, the opposite of its purpose. Reject or warn on a value in
+  `(0, 1)` rather than treating it as a sub-1% floor.
+
+- [ ] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 5 — Migration, gates, downstream notice
 
@@ -363,7 +483,15 @@ public API.
 
 - [ ] 5.4d Wire `--min-coverage` and the completeness check into `make dogfood` `[S]`
   **Design decisions**: D10, D11
-  **Dependencies**: 5.4b, 5.4c
+  **Dependencies**: 5.4b, 5.4c, 4.19
+  **Note (round-7, 2 vendors)**: do NOT set `--min-coverage 80` here to match the
+  "80%+" language in `specs/gen-eval-framework/spec.md`. Dogfood covers ~5 of 17
+  flags (~29%), so an 80% floor makes `make dogfood` permanently red even when
+  D11 completeness is fully satisfied. **Completeness is the tool gate; the
+  percentage is informative.** Wire the completeness check as the failing gate
+  and pass `--min-coverage` only at a floor the contracted surface can actually
+  reach. If the spec's "80%+" language implies otherwise, correct the spec text
+  in this task rather than adopting an unreachable threshold.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
@@ -400,6 +528,14 @@ public API.
   successfully while denoting something different from one release ago. A
   deprecation warning does not cover that failure mode, so the prerequisite
   change's spec requires a version increment and a downstream notice naming both
-  meanings. Bump `CONTRACT_VERSION` 2 → 3 and add the DS entry.
+  meanings. Add the DS entry naming both meanings.
+  **Note (round-7)**: do NOT bump `CONTRACT_VERSION` in this task. That constant
+  versions the published JSON Schemas and bumps only on a breaking schema change
+  (field removed, made required, type narrowed). Reclaiming a Python export name
+  is not one, and bumping it would falsely signal a breaking schema change to
+  every consumer pinning the value. This also resolves a contradiction already
+  in the plan: the notes on 5.6 and above both state the bump belongs to the
+  prerequisite `rename-descriptor-model-levels`, not here. The reclamation is
+  announced by the DS entry and by `__all__` parity, not by the schema version.
 
 - [ ] Final checkpoint: full suite green, `make dogfood` green, `openspec validate --strict` passes
