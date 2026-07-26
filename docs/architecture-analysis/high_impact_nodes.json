@@ -1,23 +1,23 @@
 {
-  "generated_at": "2026-05-30T23:39:37.595754+00:00",
+  "generated_at": "2026-07-23T18:52:58.614207+00:00",
   "threshold": 5,
-  "total_high_impact": 73,
+  "total_high_impact": 98,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 177
+      "dependent_count": 179
     },
     {
       "id": "py:http_proxy.get_client",
-      "dependent_count": 107
+      "dependent_count": 109
     },
     {
       "id": "py:http_proxy._error_response",
-      "dependent_count": 107
+      "dependent_count": 109
     },
     {
       "id": "py:http_proxy._request",
-      "dependent_count": 106
+      "dependent_count": 108
     },
     {
       "id": "py:http_proxy._agent_identity",
@@ -29,31 +29,35 @@
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 31
+      "dependent_count": 32
     },
     {
       "id": "py:config",
-      "dependent_count": 30
+      "dependent_count": 31
     },
     {
       "id": "py:coordination_api.resolve_identity",
-      "dependent_count": 30
+      "dependent_count": 31
+    },
+    {
+      "id": "py:coordination_cli._print_dict",
+      "dependent_count": 28
     },
     {
       "id": "py:coordination_api.authorize_operation",
       "dependent_count": 27
     },
     {
-      "id": "py:coordination_cli._print_dict",
-      "dependent_count": 27
-    },
-    {
       "id": "py:coordination_cli._output",
-      "dependent_count": 26
+      "dependent_count": 27
     },
     {
       "id": "py:db.create_db_client",
       "dependent_count": 26
+    },
+    {
+      "id": "py:db_postgres",
+      "dependent_count": 25
     },
     {
       "id": "py:coordination_cli._run",
@@ -64,12 +68,8 @@
       "dependent_count": 25
     },
     {
-      "id": "py:db_postgres",
-      "dependent_count": 24
-    },
-    {
       "id": "py:db",
-      "dependent_count": 23
+      "dependent_count": 24
     },
     {
       "id": "py:merge_queue.get_merge_queue_service",
@@ -88,6 +88,14 @@
       "dependent_count": 17
     },
     {
+      "id": "py:audit",
+      "dependent_count": 16
+    },
+    {
+      "id": "py:audit_triage",
+      "dependent_count": 16
+    },
+    {
       "id": "py:profile_loader._load_secrets_file",
       "dependent_count": 16
     },
@@ -96,7 +104,7 @@
       "dependent_count": 16
     },
     {
-      "id": "py:audit",
+      "id": "py:openspec_proposals_api._run_git",
       "dependent_count": 14
     },
     {
@@ -132,6 +140,10 @@
       "dependent_count": 11
     },
     {
+      "id": "py:github_openspec_fetcher._parse_h1_title",
+      "dependent_count": 11
+    },
+    {
       "id": "py:merge_train_service.get_merge_train_service",
       "dependent_count": 10
     },
@@ -140,7 +152,27 @@
       "dependent_count": 9
     },
     {
+      "id": "py:agents_config._normalize_provider_model_map",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:github_openspec_fetcher._github_headers",
+      "dependent_count": 9
+    },
+    {
       "id": "py:notifications.templates._esc",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:openspec_proposals_api._resolve_branch",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:openspec_proposals_api._count_code_changes_outside_proposal",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:openspec_sources.derive_local_repo",
       "dependent_count": 9
     },
     {
@@ -160,6 +192,10 @@
       "dependent_count": 8
     },
     {
+      "id": "py:github_openspec_fetcher._count_outside_changes",
+      "dependent_count": 8
+    },
+    {
       "id": "py:guardrails.get_guardrails_service",
       "dependent_count": 8
     },
@@ -176,6 +212,14 @@
       "dependent_count": 8
     },
     {
+      "id": "py:openspec_proposals_api._detect_impl_state",
+      "dependent_count": 8
+    },
+    {
+      "id": "py:openspec_proposals_api._git_log_iso",
+      "dependent_count": 8
+    },
+    {
       "id": "py:telemetry.start_span",
       "dependent_count": 8
     },
@@ -188,10 +232,6 @@
       "dependent_count": 7
     },
     {
-      "id": "py:agents_config._normalize_provider_model_map",
-      "dependent_count": 7
-    },
-    {
       "id": "py:approval._parse_dt",
       "dependent_count": 7
     },
@@ -200,7 +240,31 @@
       "dependent_count": 7
     },
     {
+      "id": "py:axi_output.truncation_hint",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:github_openspec_fetcher._b64decode",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:github_openspec_fetcher._make_warning",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:github_openspec_fetcher._now_iso",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:github_openspec_fetcher._probe_branch",
+      "dependent_count": 7
+    },
+    {
       "id": "py:notifications.templates._wrap",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:openspec_proposals_api._enumerate_proposals",
       "dependent_count": 7
     },
     {
@@ -212,7 +276,23 @@
       "dependent_count": 7
     },
     {
+      "id": "py:agents_config.get_provider_model_map",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:agents_config._tier_entry_to_spec",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:axi_output.list_envelope",
+      "dependent_count": 6
+    },
+    {
       "id": "py:config._default_workdir_root",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:coordination_cli._emit_list",
       "dependent_count": 6
     },
     {
@@ -224,7 +304,15 @@
       "dependent_count": 6
     },
     {
+      "id": "py:github_openspec_fetcher._do_fetch",
+      "dependent_count": 6
+    },
+    {
       "id": "py:locks._get_instruments",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:openspec_sources._walk_local_source",
       "dependent_count": 6
     },
     {
@@ -233,6 +321,10 @@
     },
     {
       "id": "py:feature_registry",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:agents_config.resolve_provider_model_spec",
       "dependent_count": 5
     },
     {
@@ -249,6 +341,14 @@
     },
     {
       "id": "py:feature_flags.get_feature_flag_service",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:github_openspec_fetcher.fetch_proposals_from_github",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:github_prs_api._fetch_reviews",
       "dependent_count": 5
     },
     {

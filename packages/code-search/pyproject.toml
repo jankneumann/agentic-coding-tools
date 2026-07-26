@@ -8,7 +8,7 @@ requires-python = ">=3.12"
 # the fixture tripwire test (tests/test_indexer_e2e.py) makes an upstream break loud at upgrade
 # time. Upgrades are deliberate PRs, not transitive drift.
 dependencies = [
-    "asyncpg>=0.29,<0.31",
+    "asyncpg>=0.29,<1",
     "pathspec>=0.12,<2",
 ]
 

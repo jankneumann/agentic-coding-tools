@@ -30,6 +30,9 @@ RUN pip install --no-cache-dir uv
 # We put pyproject.toml at /app, so `../packages/gen-eval` resolves to
 # /packages/gen-eval — gen-eval must live there, not under /workspace.
 COPY packages/gen-eval/ /packages/gen-eval/
+# The coordinator declares code-search-pkg as a non-editable sibling path
+# dependency. Copy it into the builder so uv installs its wheel into .venv.
+COPY packages/code-search/ /packages/code-search/
 
 WORKDIR /app
 
@@ -58,15 +61,6 @@ COPY agent-coordinator/src/ /app/src/
 # Keep it outside coordinator internals so consumer skill installs can use the
 # same implementation without depending on /app/src.
 COPY skills/shared/github_classifier.py /app/skills/shared/github_classifier.py
-# code_search_pkg provides the pgvector query backend lazily imported by
-# src/code_search.py (`from code_search_pkg.query_pg import ...`) when code
-# search runs with the Postgres backend. Only the light query modules
-# (identifiers, schema, query_pg — pure Python, no asyncpg/cocoindex at import
-# time) are needed here; the coordinator supplies its own asyncpg pool at
-# call time, so this package is NOT a resolved venv dependency (its asyncpg
-# <0.31 pin would conflict with the coordinator's >=0.31). Sourced from
-# packages/code-search/src/ per the check-docker-imports contract.
-COPY packages/code-search/src/code_search_pkg/ /app/code_search_pkg/
 COPY agent-coordinator/profiles/ /app/profiles/
 COPY agent-coordinator/cedar/ /app/cedar/
 # Evaluation module is imported by src/coordination_api.py for the

@@ -1,0 +1,7 @@
+{
+  "change_id": "expose-fail-closed-semantic-code-search",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "codex"
+  ]
+}

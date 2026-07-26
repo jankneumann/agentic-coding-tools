@@ -23,6 +23,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aioimaplib" },
     { name = "aiosmtplib" },
+    { name = "code-search-pkg" },
     { name = "email-validator" },
     { name = "fastmcp" },
     { name = "gen-eval", extra = ["mcp"] },
@@ -94,6 +95,7 @@ requires-dist = [
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.31.0" },
     { name = "cedarpy", marker = "extra == 'cedar'", specifier = ">=4.8.6" },
     { name = "cedarpy", marker = "extra == 'dev'", specifier = ">=4.8.6" },
+    { name = "code-search-pkg", directory = "../packages/code-search" },
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.136.1" },
     { name = "fastmcp", specifier = ">=3.4.4,<4.0" },
@@ -526,6 +528,27 @@ wheels = [
 ]
 
 [[package]]
+name = "code-search-pkg"
+version = "0.1.0"
+source = { directory = "../packages/code-search" }
+dependencies = [
+    { name = "asyncpg" },
+    { name = "pathspec" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "asyncpg", specifier = ">=0.29,<1" },
+    { name = "cocoindex", extras = ["sentence-transformers"], marker = "extra == 'index'", specifier = ">=1.0.13,<1.1.0" },
+    { name = "cocoindex-code", marker = "extra == 'index'", specifier = "==0.2.37" },
+    { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4,<5" },
+    { name = "pathspec", specifier = ">=0.12,<2" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
+]
+provides-extras = ["index", "dev"]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -773,6 +796,7 @@ provides-extras = ["mcp", "sdk", "db", "all"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "jsonschema", specifier = ">=4.23" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-asyncio", specifier = ">=0.24" },

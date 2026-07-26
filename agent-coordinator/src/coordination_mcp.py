@@ -18,7 +18,10 @@ Usage (standalone for testing):
 """
 
 import logging
+import os
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastmcp import FastMCP
@@ -51,11 +54,38 @@ _RESOURCE_UNAVAILABLE_IN_PROXY_MODE = (
     "Use the corresponding tool instead (e.g., check_locks, read_handoff, recall)."
 )
 
+
+@asynccontextmanager
+async def _mcp_lifespan(_server: FastMCP) -> AsyncIterator[dict[str, Any]]:
+    """Own direct-search resources in the same loop that serves MCP calls."""
+
+    if _transport == "db":
+        from .code_search_runtime import start_code_search_runtime
+
+        try:
+            await start_code_search_runtime()
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "Code-search startup failed — semantic search unavailable.",
+                exc_info=False,
+            )
+    try:
+        yield {}
+    finally:
+        if _transport == "db":
+            from .code_search_runtime import stop_code_search_runtime
+
+            await stop_code_search_runtime()
+        else:
+            await http_proxy.shutdown_client()
+
+
 # Create the MCP server
 mcp = FastMCP(
     name="coordination",
     version="0.2.0",
     instructions="Multi-agent coordination: file locks, work queue, handoffs, and discovery",
+    lifespan=_mcp_lifespan,
 )
 
 
@@ -3105,54 +3135,86 @@ After completing work, I'll release locks and mark tasks as done.
 # MCP TOOL: Code Search (change: add-semantic-code-search)
 # =============================================================================
 
-# Design D5/D10: registered ONLY when CODE_SEARCH_ENABLED is on, so the tool does not appear in
-# the tool list while disabled (spec agent-coordinator "Code Search Feature Flag"). Exposed as a
-# tool (not an MCP resource) so it works through the http_proxy fallback.
-from .code_search import code_search_enabled as _code_search_enabled  # noqa: E402
+# The registration gate is deliberately stdlib-only. Disabled startup must not
+# import the optional query package merely to decide whether the tool exists.
+def _code_search_enabled() -> bool:
+    return os.environ.get("CODE_SEARCH_ENABLED", "").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+async def search_code(
+    query: str,
+    repo_slug: str,
+    source_revision: str,
+    namespace: dict[str, Any],
+    scope: dict[str, Any],
+    index_id: str | None = None,
+    limit: int = 10,
+    offset: int = 0,
+    languages: list[str] | None = None,
+    paths: list[str] | None = None,
+) -> dict[str, Any]:
+    """Search one exact revision under the configured local principal."""
+
+    payload: dict[str, Any] = {
+        "query": query,
+        "repo_slug": repo_slug,
+        "source_revision": source_revision,
+        "namespace": namespace,
+        "scope": scope,
+        "limit": limit,
+        "offset": offset,
+    }
+    if index_id is not None:
+        payload["index_id"] = index_id
+    if languages is not None:
+        payload["languages"] = languages
+    if paths is not None:
+        payload["paths"] = paths
+    if _transport == "http":
+        return await http_proxy.proxy_search_code(**payload)
+
+    from .code_search import CodeSearchError, CodeSearchRequest
+    from .code_search_runtime import (
+        CodeSearchOverloadedError,
+        _sanitized_unavailable,
+        get_code_search_runtime,
+    )
+
+    request = CodeSearchRequest.model_validate(payload)
+    try:
+        response = await get_code_search_runtime().search(
+            request,
+            principal_id=get_agent_id(),
+        )
+    except CodeSearchOverloadedError:
+        return {
+            "type": "urn:coordinator:code-search:overloaded",
+            "title": "Code search is busy",
+            "status": 429,
+            "detail": "Retry semantic search after the indicated delay.",
+            "retry_after": 2,
+        }
+    except CodeSearchError as exc:
+        if exc.status == 403:
+            return {
+                "type": "urn:coordinator:code-search:forbidden",
+                "title": "Code-search scope is not authorized",
+                "status": 403,
+                "detail": "The principal has no code-search grant for this repository.",
+            }
+        response = _sanitized_unavailable(request)
+    except Exception:  # noqa: BLE001
+        response = _sanitized_unavailable(request)
+    return response.to_dict()
+
 
 if _code_search_enabled():
-
-    @mcp.tool
-    async def search_code(
-        query: str,
-        repo: str,
-        limit: int = 10,
-        offset: int = 0,
-        languages: list[str] | None = None,
-        paths: list[str] | None = None,
-        scope: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """
-        Semantic search over an indexed repository's code (read-only).
-
-        Finds code by meaning, not just text — e.g. "how are file locks released after a crash"
-        surfaces the lock-expiry implementation even without matching identifiers.
-
-        Args:
-            query: Natural-language (or code-fragment) query.
-            repo: Registered repo slug (see code_search_registry).
-            limit: Max results (default 10).
-            offset: Results to skip (pagination).
-            languages: Optional tree-sitter language filter.
-            paths: Optional file_path LIKE-pattern filter.
-            scope: Optional {work_package} or {read_allow, deny} globs to restrict results.
-
-        Returns:
-            {"repo", "results": [{file_path, language, content, start_line, end_line, score}],
-             "scope_filtered"}
-        """
-        if _transport == "http":
-            return await http_proxy.proxy_search_code(
-                query=query, repo=repo, limit=limit, offset=offset,
-                languages=languages, paths=paths, scope=scope,
-            )
-        from .code_search import get_code_search_service
-
-        resp = await get_code_search_service().search(
-            query=query, repo=repo, limit=limit, offset=offset,
-            languages=languages, paths=paths, scope=scope,
-        )
-        return resp.to_dict()
+    mcp.tool(search_code)
 
 
 # =============================================================================

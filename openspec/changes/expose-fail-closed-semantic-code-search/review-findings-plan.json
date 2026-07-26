@@ -1,0 +1,106 @@
+{
+  "review_type": "plan",
+  "target": "expose-fail-closed-semantic-code-search",
+  "reviewer_vendor": "codex-multi-agent-external-dispatch",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Non-main requests originally supplied no immutable selector even though migration 030 permits multiple policy and pipeline fingerprint variants for one repository, namespace, and revision.",
+      "resolution": "Require index_id for feature and work-package namespaces and validate the selected record's complete identity. Add request-schema and no-arbitrary-selection tests.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/expose-fail-closed-semantic-code-search/contracts/openapi/v2.yaml"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "critical",
+      "description": "Critical: The coordinator depended on Docker-only source copying for code_search_pkg while the package asyncpg pin conflicted with the coordinator and no implementation package owned the dependency boundary.",
+      "resolution": "Declare code-search-pkg as a supported monorepo path dependency, widen and test the shared asyncpg compatibility range, regenerate both locks, install the wheel in Docker, and add clean-environment import tests.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/expose-fail-closed-semantic-code-search/design.md"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: Authentication alone did not prevent a valid principal from choosing another repository and read_allow=['**']; caller-provided scope was not bound to server authority.",
+      "resolution": "Make caller scope a narrowing only. Require a principal-bound server grant for repository, namespace, read ceiling, and deny rules, apply the same identity model to direct MCP, and return 403 before semantic work when no grant exists.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "openspec/changes/expose-fail-closed-semantic-code-search/design.md"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: Work-package scope resolution lacked an immutable repository and revision trust root and could otherwise authorize stale or cross-repository paths.",
+      "resolution": "Bind resolution to repository, change, package, and the full source Git revision; reject runtimes without a durable resolver and reserve durable registration for RI08 without failing open.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "openspec/changes/expose-fail-closed-semantic-code-search/design.md"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: Dynamic capability had no refresh, invalidation, timeout, backoff, cancellation, or recovery semantics, so startup state could remain stale or external calls could hang.",
+      "resolution": "Define bounded provider and index readiness TTLs, exponential failure backoff, immediate query-failure invalidation, configurable external-operation deadlines, overload limits, transition tests, and bounded shutdown.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/expose-fail-closed-semantic-code-search/design.md"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The first OpenAPI draft admitted contradictory ready/fallback/scope and availability/status documents, which would undermine body-aware capability detection.",
+      "resolution": "Constrain every search state with fallback/current/result/scope invariants and publish status as discriminated oneOf variants with an exact truth table. Add contradictory-document tests.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/expose-fail-closed-semantic-code-search/contracts/openapi/v2.yaml"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The first plan omitted the agent-coordinator delta and had stale task scenario references plus a capability package that could run before the runtime status surface.",
+      "resolution": "Add full modified coordinator requirements, remap tasks to scenarios 1-21, assign authorization/timeout/observability tests, bind capability implementation to the frozen status contract, and require integration to verify both packages together.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/expose-fail-closed-semantic-code-search/tasks.md"
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Nit: Status existed without bounded-cardinality metrics, transition logs, or explicit prohibitions on sensitive query and source data.",
+      "resolution": "Add D12, privacy-preserving state/latency evidence, transition logging, and no-sensitive-log tests.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "openspec/changes/expose-fail-closed-semantic-code-search/design.md"
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The plan correctly separates loop-owned HTTP and direct-MCP runtimes, avoids a second runtime in HTTP-proxy mode, prohibits legacy reads, and validates freshness before embedding.",
+      "resolution": "Preserve these boundaries during implementation and implementation review.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "openspec/changes/expose-fail-closed-semantic-code-search/design.md"
+    }
+  ]
+}

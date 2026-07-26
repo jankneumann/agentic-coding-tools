@@ -48,6 +48,7 @@ _CAPABILITY_FLAGS = (
     "CAN_FEATURE_REGISTRY",
     "CAN_MERGE_QUEUE",
     "CAN_ISSUES",
+    "CAN_CODE_SEARCH",
 )
 
 _CAPABILITY_PROBES: dict[str, list[tuple[str, str, dict[str, Any] | None]]] = {
@@ -71,6 +72,12 @@ _HANDOFF_WRITE_ENDPOINTS: list[tuple[str, str]] = [
 _HANDOFF_READ_ENDPOINTS: list[tuple[str, str]] = [
     ("POST", "/handoffs/read"),
 ]
+_CODE_SEARCH_STATUS_FIELDS = {
+    "available",
+    "state",
+    "reason",
+    "usable_index_count",
+}
 
 
 # SSRF Protection: URL Allowlist
@@ -165,6 +172,7 @@ def _coordinator_state(
         "guardrails": response["CAN_GUARDRAILS"],
         "feature_registry": response["CAN_FEATURE_REGISTRY"],
         "merge_queue": response["CAN_MERGE_QUEUE"],
+        "code_search": response["CAN_CODE_SEARCH"],
     }
     return response
 
@@ -306,6 +314,30 @@ def _probe_capability(
     return False
 
 
+def _is_code_search_ready(payload: object) -> bool:
+    """Validate the exact ready variant of the v2 code-search status contract."""
+    if not isinstance(payload, dict) or set(payload) != _CODE_SEARCH_STATUS_FIELDS:
+        return False
+    usable_index_count = payload.get("usable_index_count")
+    return (
+        payload.get("available") is True
+        and payload.get("state") == "ready"
+        and payload.get("reason") == "ready"
+        and type(usable_index_count) is int
+        and usable_index_count >= 1
+    )
+
+
+def _probe_code_search_status(*, http_url: str, api_key: str | None) -> bool:
+    response = _http_request(
+        method="GET",
+        path="/search/code/status",
+        http_url=http_url,
+        api_key=api_key,
+    )
+    return response["status_code"] == 200 and _is_code_search_ready(response["data"])
+
+
 def detect_coordination(
     http_url: str | None = None,
     api_key: str | None = None,
@@ -351,6 +383,10 @@ def detect_coordination(
         )
         for name, probes in _CAPABILITY_PROBES.items()
     }
+    flags["CAN_CODE_SEARCH"] = _probe_code_search_status(
+        http_url=resolved_url,
+        api_key=resolved_api_key,
+    )
 
     return _coordinator_state(
         available=True,

@@ -1,13 +1,17 @@
 flowchart TB
     __init__["__init__ (1 symbols)"]
-    agents_config["agents_config (37 symbols)"]
+    agents_config["agents_config (41 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (17 symbols)"]
-    config["config (43 symbols)"]
-    coordination_api["coordination_api (135 symbols)"]
-    coordination_cli["coordination_cli (33 symbols)"]
-    coordination_mcp["coordination_mcp (77 symbols)"]
+    audit_triage["audit_triage (11 symbols)"]
+    axi_output["axi_output (4 symbols)"]
+    cloudflare_access["cloudflare_access (12 symbols)"]
+    code_search["code_search (19 symbols)"]
+    config["config (45 symbols)"]
+    coordination_api["coordination_api (142 symbols)"]
+    coordination_cli["coordination_cli (34 symbols)"]
+    coordination_mcp["coordination_mcp (78 symbols)"]
     db["db (23 symbols)"]
     db_postgres["db_postgres (14 symbols)"]
     discovery["discovery (20 symbols)"]
@@ -17,11 +21,14 @@ flowchart TB
     feature_flags["feature_flags (26 symbols)"]
     feature_registry["feature_registry (19 symbols)"]
     git_adapter["git_adapter (25 symbols)"]
+    github_classifier["github_classifier (2 symbols)"]
     github_coordination["github_coordination (16 symbols)"]
-    guardrails["guardrails (15 symbols)"]
+    github_openspec_fetcher["github_openspec_fetcher (10 symbols)"]
+    github_prs_api["github_prs_api (8 symbols)"]
+    guardrails["guardrails (16 symbols)"]
     handoffs["handoffs (14 symbols)"]
     help_service["help_service (6 symbols)"]
-    http_proxy["http_proxy (68 symbols)"]
+    http_proxy["http_proxy (69 symbols)"]
     issue_service["issue_service (21 symbols)"]
     kanban_viz_files["kanban_viz_files (10 symbols)"]
     langfuse_middleware["langfuse_middleware (5 symbols)"]
@@ -32,7 +39,12 @@ flowchart TB
     merge_train["merge_train (30 symbols)"]
     merge_train_service["merge_train_service (29 symbols)"]
     merge_train_types["merge_train_types (14 symbols)"]
+    merge_watcher["merge_watcher (8 symbols)"]
     migrations["migrations (5 symbols)"]
+    model_routing____init__["model_routing.__init__ (1 symbols)"]
+    model_routing__exploration["model_routing.exploration (5 symbols)"]
+    model_routing__feedback["model_routing.feedback (8 symbols)"]
+    model_routing__resolver["model_routing.resolver (11 symbols)"]
     network_policies["network_policies (8 symbols)"]
     notifications____init__["notifications.__init__ (1 symbols)"]
     notifications__base["notifications.base (10 symbols)"]
@@ -42,6 +54,8 @@ flowchart TB
     notifications__telegram["notifications.telegram (11 symbols)"]
     notifications__templates["notifications.templates (11 symbols)"]
     notifications__webhook["notifications.webhook (8 symbols)"]
+    openspec_proposals_api["openspec_proposals_api (16 symbols)"]
+    openspec_sources["openspec_sources (10 symbols)"]
     policy_engine["policy_engine (36 symbols)"]
     policy_sync["policy_sync (17 symbols)"]
     port_allocator["port_allocator (12 symbols)"]
@@ -61,19 +75,25 @@ flowchart TB
     agents_config -->|"call"| profile_loader
     agents_config -->|"call"| teams
     approval -->|"call, import"| db
+    audit -->|"call, import"| audit_triage
     audit -->|"call, import"| config
     audit -->|"call, import"| db
+    audit_triage -->|"import"| audit
     config -->|"call"| agents_config
     config -->|"call"| profile_loader
     coordination_api -->|"call, import"| agents_config
     coordination_api -->|"call, import"| approval
     coordination_api -->|"call, import"| audit
+    coordination_api -->|"call, import"| axi_output
+    coordination_api -->|"call, import"| cloudflare_access
+    coordination_api -->|"call, import"| code_search
     coordination_api -->|"call, import"| config
     coordination_api -->|"call, import"| db
     coordination_api -->|"call, import"| discovery
     coordination_api -->|"call, import"| event_bus
     coordination_api -->|"call, import"| event_stream
     coordination_api -->|"call, import"| feature_registry
+    coordination_api -->|"call, import"| github_prs_api
     coordination_api -->|"call, import"| guardrails
     coordination_api -->|"call, import"| handoffs
     coordination_api -->|"call, import"| help_service
@@ -86,8 +106,10 @@ flowchart TB
     coordination_api -->|"call, import"| merge_queue
     coordination_api -->|"import"| merge_train
     coordination_api -->|"call, import"| merge_train_service
+    coordination_api -->|"call, import"| merge_watcher
     coordination_api -->|"call, import"| migrations
     coordination_api -->|"call, import"| notifications__notifier
+    coordination_api -->|"call, import"| openspec_proposals_api
     coordination_api -->|"call, import"| policy_engine
     coordination_api -->|"call, import"| port_allocator
     coordination_api -->|"call, import"| profiles
@@ -100,6 +122,7 @@ flowchart TB
     coordination_api -->|"call, import"| work_queue
     coordination_api -->|"import"| worktrees_view
     coordination_cli -->|"call, import"| audit
+    coordination_cli -->|"import"| axi_output
     coordination_cli -->|"call, import"| config
     coordination_cli -->|"call, import"| db
     coordination_cli -->|"call, import"| feature_registry
@@ -113,6 +136,7 @@ flowchart TB
     coordination_mcp -->|"call, import"| agents_config
     coordination_mcp -->|"call, import"| approval
     coordination_mcp -->|"call, import"| audit
+    coordination_mcp -->|"call, import"| code_search
     coordination_mcp -->|"call, import"| config
     coordination_mcp -->|"call, import"| discovery
     coordination_mcp -->|"call, import"| event_bus
@@ -151,6 +175,7 @@ flowchart TB
     feature_registry -->|"call"| discovery
     github_coordination -->|"call, import"| config
     github_coordination -->|"call, import"| db
+    github_prs_api -->|"import"| github_classifier
     guardrails -->|"call, import"| audit
     guardrails -->|"call, import"| config
     guardrails -->|"call, import"| db
@@ -199,6 +224,9 @@ flowchart TB
     notifications__gmail -->|"call"| notifications__templates
     notifications__gmail -->|"call"| status
     notifications__notifier -->|"call"| notifications__templates
+    openspec_proposals_api -->|"call"| github_openspec_fetcher
+    openspec_proposals_api -->|"call"| openspec_sources
+    openspec_sources -->|"call"| openspec_proposals_api
     policy_engine -->|"call, import"| audit
     policy_engine -->|"call, import"| config
     policy_engine -->|"call, import"| db

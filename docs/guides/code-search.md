@@ -1,17 +1,23 @@
 # Semantic Code Search
 
-Semantic ("find code by meaning") retrieval for coding agents, added by the
-`add-semantic-code-search` OpenSpec change. Adopts
+Semantic ("find code by meaning") retrieval for coding agents. The v2 reader
+serves one exact Git revision from an immutable, provenance-bearing semantic
+index and fails closed to exact source search whenever freshness, authority, or
+runtime readiness cannot be proved. The implementation adopts
 [`cocoindex-code`](https://github.com/cocoindex-io/cocoindex-code) with a Postgres/pgvector
 backend on the coordinator's ParadeDB, exposed through the coordinator's MCP + HTTP surfaces.
 
-See the decision memo and design at `openspec/changes/add-semantic-code-search/` for the full
-rationale and the D1–D10 decisions referenced below.
+See `docs/decisions/code-search.md`, the archived
+`openspec/changes/archive/2026-07-20-add-semantic-code-search/` change, and the
+active `expose-fail-closed-semantic-code-search` change for the full rationale.
 
 ## Status
 
-Behind the `CODE_SEARCH_ENABLED` flag (**default off**, design D10). Do not enable in production
-until the retrieval-quality gate (design D9) is closed — see "Retrieval-quality gate" below.
+Behind the `CODE_SEARCH_ENABLED` flag (**default off**). Enabling the flag only
+registers/starts the optional query surface; `CAN_CODE_SEARCH` remains false
+until the process has a ready provider and a compatible canonical v2 index with
+published, addressable storage. Do not enable in production until the
+retrieval-quality gate is closed.
 
 ## Components
 
@@ -19,8 +25,11 @@ until the retrieval-quality gate (design D9) is closed — see "Retrieval-qualit
 |---|---|
 | Vendored pgvector backend (indexer + query) | `packages/code-search/` |
 | Coordinator service | `agent-coordinator/src/code_search.py` |
+| Principal/work-package authorization | `agent-coordinator/src/code_search_authorization.py` |
+| Loop-owned query runtime and readiness | `agent-coordinator/src/code_search_runtime.py` |
 | MCP tool `search_code` (local agents) | `agent-coordinator/src/coordination_mcp.py` |
 | HTTP `POST /search/code` (cloud agents) | `agent-coordinator/src/coordination_api.py` |
+| Immutable Postgres query adapter | `packages/code-search/src/code_search_pkg/query_pg.py` |
 | Repository registry migration | `agent-coordinator/database/migrations/028_code_search_registry.sql` |
 | Revision-aware index registry migration | `agent-coordinator/database/migrations/029_revision_aware_code_search_indexes.sql` |
 | Incremental manifests and repository identity | `agent-coordinator/database/migrations/030_incremental_code_search_indexes.sql` |
@@ -47,6 +56,11 @@ ephemeral `not_configured` result. A configured but unreachable registry
 returns ephemeral `failed` with `registry_unavailable`. Once a durable operation is claimed, a
 missing package, credential, model, or endpoint is recorded as durable
 `not_configured`; provider or response failures are recorded as `failed`.
+
+The query runtime must use the same complete, non-secret embedding contract as
+the selected index: provider kind, model, dimension, base URL identity, and
+canonical indexing parameters contribute to its fingerprint. A model-name
+match alone is insufficient.
 
 ## Indexing (write path)
 
@@ -173,26 +187,200 @@ checkpoints use revision-isolated namespaces and cannot mutate the canonical mai
 pointer. Until the later convergence roadmap item lands, indexing remains a
 manual/deployment operation that requires `POSTGRES_DSN` and a reachable embedder.
 
-This change completes the write operation only. The follow-up
-`expose-fail-closed-semantic-code-search` change (`ri-03`) moves reads to ready
-revision-aware storage. Until that lands, callers must retain exact search
-(`rg` and direct source reads) as the authoritative fallback.
+The v2 reader consumes these ready indexes directly. Exact source search (`rg`,
+Git-aware file listing, and direct source reads) remains the mandatory fallback
+for every non-ready response.
 
-## Querying (read path)
+## Query runtime configuration
 
-```bash
-# HTTP (cloud agents) — 404 while CODE_SEARCH_ENABLED is off:
-curl -XPOST "$COORD_URL/search/code" -H "Authorization: Bearer $KEY" \
-  -d '{"query":"how are file locks released after a crash","repo":"agentic_coding_tools","limit":5}'
+The runtime is optional and performs no pool, provider, import, model-download,
+or search network work while `CODE_SEARCH_ENABLED` is unset. To enable it,
+configure:
+
+| Variable | Purpose |
+|---|---|
+| `CODE_SEARCH_ENABLED=1` | Start HTTP/direct-MCP query resources and register the MCP tool. Defaults off. |
+| `POSTGRES_DSN` | Registry and immutable chunk-storage connection. |
+| `CODE_SEARCH_EMBEDDING_PROVIDER` | Explicit `local` or `openai_compatible` query provider. |
+| `CODE_SEARCH_EMBEDDING_MODEL` | Exact model ID used by the selected index. |
+| `CODE_SEARCH_EMBEDDING_DIMENSION` | Exact positive vector dimension. |
+| `CODE_SEARCH_INDEXING_PARAMS_JSON` | Canonical provider/indexing parameters used to reproduce the index fingerprint. |
+| `CODE_SEARCH_EMBEDDING_BASE_URL` | Required for an OpenAI-compatible provider when applicable. |
+| `CODE_SEARCH_EMBEDDING_CREDENTIAL_REF` | Optional `env:NAME`/configured credential reference; never put the secret itself in fingerprints or logs. |
+| `CODE_SEARCH_PRINCIPAL_GRANTS_JSON` | Server-owned repository/namespace read ceilings and deny rules. |
+
+Operational bounds have safe defaults and can be tuned with
+`CODE_SEARCH_TIMEOUT_SECONDS`, `CODE_SEARCH_SHUTDOWN_TIMEOUT_SECONDS`,
+`CODE_SEARCH_PROVIDER_TTL_SECONDS`, `CODE_SEARCH_INDEX_TTL_SECONDS`,
+`CODE_SEARCH_FAILURE_BACKOFF_SECONDS`,
+`CODE_SEARCH_MAX_FAILURE_BACKOFF_SECONDS`, `CODE_SEARCH_MAX_CONCURRENCY`, and
+`CODE_SEARCH_OVERLOAD_TIMEOUT_SECONDS`. Index readiness refreshes within 15
+seconds by default and query outcomes invalidate affected caches immediately.
+
+Each authenticated identity needs exactly one matching server-owned grant. For
+example, if `COORDINATION_API_KEY_IDENTITIES` binds an HTTP key to
+`bound-agent`, a main-namespace grant can be configured as:
+
+```json
+[
+  {
+    "principal_id": "bound-agent",
+    "repo_slug": "agentic_coding_tools",
+    "namespace_kind": "main",
+    "namespace_key": "main",
+    "read_allow": ["agent-coordinator/**", "packages/code-search/**"],
+    "deny": ["**/.env*", "**/secrets/**"]
+  }
+]
 ```
 
-Local agents call the `search_code` MCP tool with the same arguments; both delegate to the one
-service, so payloads are identical. An optional `scope` (`{work_package}` or `{read_allow, deny}`
-globs) restricts results to files the caller is allowed to read (design D7).
+Direct MCP uses its configured local agent ID as the principal. HTTP-proxy MCP
+inherits the HTTP credential boundary and does not create a second query
+runtime.
+
+## Querying an exact revision
+
+The v2 request requires `query`, `repo_slug`, a full lowercase 40- or
+64-character `source_revision`, a strict namespace, and one authoritative scope
+variant. Unknown fields and abbreviated revisions are rejected.
+
+```bash
+curl -X POST "$COORD_URL/search/code" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "where are stale index leases fenced",
+    "repo_slug": "agentic_coding_tools",
+    "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "namespace": {"kind": "main", "key": "main"},
+    "scope": {
+      "kind": "explicit",
+      "read_allow": ["agent-coordinator/**", "packages/code-search/**"],
+      "deny": ["**/fixtures/secrets/**"]
+    },
+    "paths": ["agent-coordinator/**"],
+    "languages": ["python"],
+    "limit": 5,
+    "offset": 0
+  }'
+```
+
+Local agents call the direct MCP `search_code` tool with the same fields.
+HTTP-proxy MCP forwards that shape unchanged. Feature and work-package
+namespaces additionally require the exact immutable `index_id`; the reader
+never chooses the newest or an arbitrary fingerprint variant:
+
+```json
+{
+  "namespace": {"kind": "feature", "key": "openspec/example"},
+  "index_id": "11111111-1111-4111-8111-111111111111"
+}
+```
+
+### Scope is authorization
+
+An explicit scope is a caller-requested narrowing of the principal grant, not a
+grant of authority. The effective allow set is the intersection of the
+server-owned ceiling, caller `read_allow`, and optional `paths`; all principal
+and caller deny rules take precedence. Patterns must be normalized,
+repository-relative globs. Absolute paths, `./`, dot segments, backslashes,
+repeated/trailing separators, controls, empty allow sets, and unknown fields
+fail closed before embedding.
+
+A work-package request carries only an immutable reference:
+
+```json
+{
+  "kind": "work_package",
+  "change_id": "expose-fail-closed-semantic-code-search",
+  "package_id": "wp-query-service",
+  "scope_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}
+```
+
+The runtime must resolve that reference through a trusted, repository-bound
+declaration registry for the exact source revision. A deployment without that
+resolver returns `scope_rejected`; it never trusts caller-supplied work-package
+patterns or assumes packaged OpenSpec files are authoritative.
+
+### Provenance and operational states
+
+Only `state=ready` sets `current=true` and may return semantic hits. Its `index`
+object records the repository, exact revision, namespace, immutable index ID,
+model/dimension, all three fingerprints, and completion time. Every hit repeats
+`repo_slug`, `source_revision`, and `index_id`, so copied context retains its
+freshness evidence.
+
+Every other state—`revision_mismatch`, `not_indexed`, `not_configured`,
+`unavailable`, or `scope_rejected`—has:
+
+```json
+{
+  "current": false,
+  "results": [],
+  "fallback": {
+    "required": true,
+    "strategy": "exact_search",
+    "reason": "revision_mismatch"
+  }
+}
+```
+
+Do not use a selected index's provenance as permission to consume hits from a
+non-ready response. Run exact search against the requested Git revision and
+respect the same effective read scope. Provider mismatch, legacy-only metadata,
+missing final storage, stale work-package authority, timeouts, and optional
+resource failures never return partial or approximate-current results.
+
+Malformed input is 422 (or MCP validation failure), disabled HTTP search is
+404, missing/invalid HTTP credentials are 401, a missing principal grant is
+403, and exhausted bounded capacity is 429 with `Retry-After`. Expected
+operational degradation uses the typed HTTP 200 envelope so all transports
+carry identical fallback evidence.
+
+## Readiness and capability
+
+`GET /search/code/status` is body-aware:
+
+```json
+{
+  "available": true,
+  "state": "ready",
+  "reason": "ready",
+  "usable_index_count": 2
+}
+```
+
+`available=true` requires the flag, a process-local initialized runtime, a
+ready provider, and at least one compatible canonical v2 index with a published
+manifest, positive chunk count, and addressable final table. Disabled,
+uninitialized, unconfigured, provider/registry unavailable, legacy-only, and
+missing-storage states return `available=false` with zero usable indexes.
+
+Capability discovery sets `CAN_CODE_SEARCH=true` only after parsing a valid
+ready body. Route presence, HTTP status alone, MCP tool registration, malformed
+or contradictory bodies, and unverifiable MCP-only discovery remain false.
+Global coordinator readiness stays healthy when optional semantic resources
+fail.
+
+## Compatibility break and rollback
+
+The previous request used `repo` and could omit revision and scope. That shape
+is intentionally unsupported: it cannot prove freshness or authorization.
+Legacy `code_search_registry` fields and `code_chunks__<repo_slug>` tables are
+retained for rollback diagnostics, but v2 never queries them.
+
+Rollback is operational and does not require a data migration: unset
+`CODE_SEARCH_ENABLED` (or set it to `0`) and restart the coordinator. HTTP
+search then returns 404, direct MCP does not register `search_code`, capability
+discovery reports false, and no optional query resources start. Immutable v2
+indexes remain available for a later re-enable; exact source search remains the
+supported coding-context path throughout rollback.
 
 ## Retrieval-quality gate (design D9)
 
 Enabling in production requires closing the spike gate: run
-`openspec/changes/add-semantic-code-search/eval/` against a reachable embedder and confirm
-`semantic hit@5 >= 7/10` (see `eval/spike-report.md` for the procedure). Until then the flag stays
-off and nothing depends on unproven retrieval quality.
+`openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/` against a
+reachable embedder and confirm `semantic hit@5 >= 7/10` (see that directory's
+`spike-report.md` for the procedure). Until then the flag stays off and nothing
+depends on unproven retrieval quality.
