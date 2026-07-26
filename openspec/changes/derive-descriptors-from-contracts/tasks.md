@@ -160,7 +160,7 @@ public API.
 
 ## Phase 2 — Service descriptor derivation
 
-- [ ] 2.1 Write tests for OpenAPI operation extraction — paths, methods, operationIds `[M]`
+- [x] 2.1 Write tests for OpenAPI operation extraction — paths, methods, operationIds `[M]`
   **Spec scenarios**: Contract As Descriptor Source Of Truth (descriptor derives from a contract); Contract As Descriptor Source Of Truth (unreachable implementation does not shrink the declared surface)
   **Contracts**: `contracts/openapi/v1.yaml` (fixture, authored by task 1.10)
   **Design decisions**: D1
