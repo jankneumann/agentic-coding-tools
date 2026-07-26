@@ -356,7 +356,7 @@ finding re-verified by direct execution, not by vendor assertion.
   model was built and the headline number kept the old denominator. `--min-coverage`
   gates on this number.
 
-- [ ] 4.12 Fix the HTTP prefix mismatch in `operations_for_element()` `[S]`
+- [x] 4.12 Fix the HTTP prefix mismatch in `operations_for_element()` `[S]`
   **Design decisions**: D7
   **Dependencies**: 2.2
   **Note (round-7, 2 vendors)**: the comparison key is `f"{surface}:{element}"`

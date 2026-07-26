@@ -227,11 +227,28 @@ class ServiceDescriptor(InterfaceDescriptor):
         return project_mcp_tools(self.operations)
 
     def operations_for_element(self, surface: str, element: str) -> list[str]:
-        """Operation ids served by one surface element — the fan-in record."""
+        """Operation ids served by one surface element — the fan-in record.
+
+        ``element`` may be spelled bare, as the contract writes it
+        (``"check_locks"``, ``"POST /locks/acquire"``), or with its surface
+        prefix. Both resolve to the same answer.
+
+        Accepting both is not politeness. This method previously built one
+        comparison key, ``f"{surface}:{element}"``, for every surface — but
+        :meth:`OperationSpec.interface_id` returns HTTP identifiers
+        **unprefixed**, so the HTTP branch could never match and the method
+        returned ``[]`` for the primary service surface. That failure was
+        invisible: an empty list is also the correct answer for an element no
+        operation serves, so nothing distinguished a dead lookup from a real
+        miss.
+        """
+        prefix = f"{surface}:"
+        bare = element.removeprefix(prefix)
         return [
             op.operation_id
             for op in self.operations
-            if op.interface_id(surface) == f"{surface}:{element}"
+            if (identifier := op.interface_id(surface)) is not None
+            and identifier in (bare, f"{prefix}{bare}")
         ]
 
 
