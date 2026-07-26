@@ -118,7 +118,7 @@ def generate_container_view(graph: Graph) -> str:
     """
     nodes = graph.get("nodes", [])
     edges = graph.get("edges", [])
-    node_idx = _node_index(graph)
+    _node_idx = _node_index(graph)
 
     # Determine which container each node belongs to.
     node_container: dict[str, str] = {}
@@ -171,7 +171,7 @@ def generate_backend_component_view(graph: Graph) -> str:
     """
     nodes = graph.get("nodes", [])
     edges = graph.get("edges", [])
-    node_idx = _node_index(graph)
+    _node_idx = _node_index(graph)
 
     # Filter to Python nodes.
     py_nodes = [n for n in nodes if n["language"] == "python"]

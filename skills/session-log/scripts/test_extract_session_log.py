@@ -88,8 +88,8 @@ class TestAppendPhaseEntry:
         # First entry should NOT start with ---
         lines = content.split("\n")
         # Find the phase header — it should not be preceded by ---
-        phase_idx = next(i for i, l in enumerate(lines) if l.startswith("## Phase:"))
-        preceding = [l for l in lines[:phase_idx] if l.strip()]
+        phase_idx = next(i for i, ln in enumerate(lines) if ln.startswith("## Phase:"))
+        preceding = [ln for ln in lines[:phase_idx] if ln.strip()]
         assert "---" not in preceding
 
     def test_appends_with_separator(self, tmp_path: Path) -> None:

@@ -117,8 +117,8 @@ def run_mysql_query(service: str, query: str, timeout: int = 30) -> Tuple[int, s
     if code != 0:
         # Also filter warning from stderr
         stderr_clean = "\n".join(
-            l for l in stderr.split("\n")
-            if "Using a password on the command line" not in l
+            ln for ln in stderr.split("\n")
+            if "Using a password on the command line" not in ln
         )
         return code, stderr_clean or stdout
     return 0, stdout
@@ -129,7 +129,7 @@ def parse_mysql_batch(output: str) -> List[Dict[str, str]]:
 
     First line is column headers, subsequent lines are values.
     """
-    lines = [l for l in output.strip().split("\n") if l.strip()]
+    lines = [ln for ln in output.strip().split("\n") if ln.strip()]
     if len(lines) < 1:
         return []
     headers = lines[0].split("\t")
@@ -592,8 +592,8 @@ def generate_recommendations(result: MySQLAnalysisResult) -> List[Dict[str, str]
 
     # Temp tables to disk
     tmp_pct = qe.get("tmp_disk_table_percent", 0)
-    created_disk = qe.get("created_tmp_disk_tables", 0)
-    created_total = qe.get("created_tmp_tables", 0)
+    _created_disk = qe.get("created_tmp_disk_tables", 0)
+    _created_total = qe.get("created_tmp_tables", 0)
     if tmp_pct > 25:
         rec("warning", f"{tmp_pct}% of temp tables going to disk. Increase tmp_table_size/max_heap_table_size or optimize queries.")
     elif tmp_pct > 10:

@@ -231,7 +231,7 @@ def parse_slowlog_get(raw: str) -> List[Dict[str, Any]]:
     (IPv4 or IPv6 with port) marks the end of each entry's arguments.
     """
     entries: List[Dict[str, Any]] = []
-    lines = [l.strip() for l in raw.strip().splitlines() if l.strip()]
+    lines = [ln.strip() for ln in raw.strip().splitlines() if ln.strip()]
     if not lines:
         return entries
 

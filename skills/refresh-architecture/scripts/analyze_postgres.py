@@ -365,7 +365,7 @@ class SchemaParser:
 
         for seg in segments:
             seg_stripped = seg.strip()
-            seg_upper = seg_stripped.upper()
+            _seg_upper = seg_stripped.upper()
 
             # Table-level PRIMARY KEY
             pk_match = re.match(

@@ -76,12 +76,12 @@ def list_extensions(service: str, json_output: bool = False) -> List[Extension]:
 
     # Build extension list
     extensions = []
-    for name, info in available.items():
+    for name, ext_info in available.items():
         ext = Extension(
             name=name,
-            default_version=info["version"],
+            default_version=ext_info["version"],
             installed_version=installed.get(name),
-            comment=info["comment"]
+            comment=ext_info["comment"]
         )
         extensions.append(ext)
 
@@ -331,7 +331,7 @@ They cannot be automated or run with piped input.
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # list command (safe - no confirmation)
-    list_parser = subparsers.add_parser("list", help="List available and installed extensions")
+    _list_parser = subparsers.add_parser("list", help="List available and installed extensions")
 
     # install command (requires interactive confirmation)
     install_parser = subparsers.add_parser("install", help="Install an extension (requires confirmation)")

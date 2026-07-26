@@ -387,7 +387,16 @@ def main() -> None:
     session_log_findings = scan_session_logs(repo_root=args.repo_root)
 
     # Merge and deduplicate
-    all_findings = deduplicate_findings(memory_findings + session_log_findings)
+    # BUG: `all_findings` is never consumed. The ranking below re-reads the raw
+    # `memory_entries` instead, so both the deduplication and every
+    # `scan_session_logs()` result are silently discarded from the output.
+    # Deliberately left intact rather than deleted to satisfy the linter: the
+    # assignment is the evidence, and the correct fix (ranking the merged set)
+    # changes this tool's behaviour and needs its own change, since
+    # `rank_findings` expects the tag-based entry shape rather than a finding.
+    all_findings = deduplicate_findings(  # noqa: F841 -- see BUG note above
+        memory_findings + session_log_findings
+    )
 
     # Rank using the standard pipeline (convert back to tag-based format)
     ranked = rank_findings(memory_entries)
