@@ -7,12 +7,10 @@ multi-source pipeline unchanged — they appear in reports with
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from typing import Any
 
-import pytest
 
 # Path setup for both improve-harness and collect-transcripts scripts
 IMPROVE_SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"

@@ -17,7 +17,6 @@ import subprocess
 import textwrap
 from pathlib import Path
 
-import pytest
 
 
 # Bash fragment extracted from skills/validate-feature/SKILL.md section 4b.

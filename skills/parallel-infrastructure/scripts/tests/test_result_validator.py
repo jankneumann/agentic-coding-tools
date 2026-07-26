@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import pytest
 
 _SKILL_SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SKILL_SCRIPTS_DIR) not in sys.path:

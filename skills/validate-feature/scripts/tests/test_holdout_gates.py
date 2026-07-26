@@ -10,7 +10,6 @@ Design decisions: D2 (holdout enforcement), D4 (rework report)
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -20,7 +19,6 @@ from gate_logic import pre_merge_gate
 from rework_report import (
     ACTION_BLOCK_CLEANUP,
     ACTION_ITERATE,
-    ACTION_NONE,
     ReworkFailure,
     ReworkReport,
     check_holdout_gate,
