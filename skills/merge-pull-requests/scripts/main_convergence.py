@@ -53,6 +53,7 @@ import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -456,26 +457,356 @@ def _default_store(repository: Path) -> Any | None:
         return None
 
 
+# --------------------------------------------------------------------------- #
+# Three-layer sync-point guard (D5)
+# --------------------------------------------------------------------------- #
+class GuardLayer(str, Enum):
+    """The three layers, in the order they are enforced."""
+
+    ACTIVE_AGENTS = "active-agents"
+    COORDINATOR_LOCK = "coordinator-lock"
+    PUSH_COMPARE_AND_SWAP = "push-compare-and-swap"
+
+
+@dataclass(frozen=True, slots=True)
+class GuardResult:
+    """Verdict of one guard layer."""
+
+    layer: GuardLayer
+    allowed: bool
+    reason: str
+    warnings: tuple[str, ...] = ()
+    lock_acquired: bool = False
+    observed_revision: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "layer": self.layer.value,
+            "allowed": self.allowed,
+            "reason": self.reason,
+            "warnings": list(self.warnings),
+            "lock_acquired": self.lock_acquired,
+            "observed_revision": self.observed_revision,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class GuardState:
+    """Composite verdict of the layers that run *before* the write begins."""
+
+    allowed: bool
+    blocked_by: GuardLayer | None = None
+    reason: str | None = None
+    warnings: tuple[str, ...] = ()
+    lock_acquired: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "allowed": self.allowed,
+            "blocked_by": self.blocked_by.value if self.blocked_by else None,
+            "reason": self.reason,
+            "warnings": list(self.warnings),
+            "lock_acquired": self.lock_acquired,
+        }
+
+
+#: ``repo_root -> (clear, active_agents)``. Matches ``active_agents``' own shape.
+ActiveAgentChecker = Callable[[Path], tuple[bool, Sequence[Any]]]
+
+#: Default identity used for the coordinator lock when the caller names none.
+DEFAULT_AGENT_ID = "merge-pull-requests-sync-point"
+
+#: Coordinator lock lifetime. Generous enough for a full deterministic refresh
+#: plus an architecture regeneration, short enough that a crashed pass expires.
+DEFAULT_LOCK_TTL_MINUTES = 60
+
+
+def _default_active_agent_checker(repo_root: Path) -> tuple[bool, Sequence[Any]]:
+    from active_agents import check_no_active_agents
+
+    return check_no_active_agents(repo_root=repo_root)
+
+
+def check_active_agents(
+    repository: Path | str,
+    *,
+    checker: ActiveAgentChecker | None = None,
+) -> GuardResult:
+    """Layer 1: refuse to write main while any agent holds a managed worktree.
+
+    Re-run here rather than trusted from skill start: the merge loop takes long
+    enough for an agent to have set one up in between.
+
+    A checker that cannot run **blocks**. "The guard did not answer" is not the
+    same as "the guard said yes", and this roadmap exists because that
+    substitution was made once already.
+    """
+    resolved = checker or _default_active_agent_checker
+    try:
+        clear, active = resolved(Path(repository).resolve())
+    except Exception as exc:  # noqa: BLE001 - classified, never propagated
+        return GuardResult(
+            layer=GuardLayer.ACTIVE_AGENTS,
+            allowed=False,
+            reason="active_agent_check_unavailable",
+            warnings=(f"active-agent guard could not run: {exc}",),
+        )
+    if clear:
+        return GuardResult(
+            layer=GuardLayer.ACTIVE_AGENTS, allowed=True, reason="no_active_agents"
+        )
+    labels = ", ".join(str(_agent_label(agent)) for agent in active)
+    return GuardResult(
+        layer=GuardLayer.ACTIVE_AGENTS,
+        allowed=False,
+        reason=f"active_agents_hold_worktrees: {labels}",
+    )
+
+
+def _agent_label(agent: Any) -> str:
+    label = getattr(agent, "label", None)
+    if callable(label):
+        return str(label())
+    if label is not None:
+        return str(label)
+    return str(agent)
+
+
+def _default_lock_acquirer(**kwargs: Any) -> dict[str, Any]:
+    from coordination_bridge import try_lock
+
+    return try_lock(**kwargs)
+
+
+def _default_lock_releaser(**kwargs: Any) -> dict[str, Any]:
+    from coordination_bridge import try_unlock
+
+    return try_unlock(**kwargs)
+
+
+def acquire_coordinator_lock(
+    *,
+    agent_id: str = DEFAULT_AGENT_ID,
+    ttl_minutes: int = DEFAULT_LOCK_TTL_MINUTES,
+    acquirer: Callable[..., dict[str, Any]] | None = None,
+) -> GuardResult:
+    """Layer 2: hold ``sync-point:main-convergence`` for the whole of Step 11.6.
+
+    Coordinator *absence* degrades to layers 1 and 3 with a recorded warning and
+    never blocks: this repository runs solo often enough that a coordinator-only
+    guard would be missing exactly when it matters. Coordinator *contention* is a
+    different signal entirely -- another writer holds the sync point -- and
+    blocks.
+    """
+    resolved = acquirer or _default_lock_acquirer
+    try:
+        response = resolved(
+            file_path=COORDINATOR_LOCK_KEY,
+            agent_id=agent_id,
+            agent_type="merge-pull-requests",
+            reason="main context convergence sync point",
+            ttl_minutes=ttl_minutes,
+        )
+    except Exception as exc:  # noqa: BLE001 - unavailability is a warning, not a stop
+        return GuardResult(
+            layer=GuardLayer.COORDINATOR_LOCK,
+            allowed=True,
+            reason="coordinator_lock_unavailable",
+            warnings=(f"coordinator lock unavailable, proceeding on layers 1 and 3: {exc}",),
+        )
+
+    status = str((response or {}).get("status", "")).lower()
+    if status == "ok":
+        return GuardResult(
+            layer=GuardLayer.COORDINATOR_LOCK,
+            allowed=True,
+            reason="coordinator_lock_held",
+            lock_acquired=True,
+        )
+    if status == "skipped":
+        why = str((response or {}).get("reason", "unknown"))
+        return GuardResult(
+            layer=GuardLayer.COORDINATOR_LOCK,
+            allowed=True,
+            reason="coordinator_lock_unavailable",
+            warnings=(
+                f"coordinator lock skipped ({why}); proceeding on layers 1 and 3",
+            ),
+        )
+    return GuardResult(
+        layer=GuardLayer.COORDINATOR_LOCK,
+        allowed=False,
+        reason=f"coordinator_lock_contended: {(response or {}).get('status_code', status)}",
+    )
+
+
+def acquire_sync_point_guards(
+    repository: Path | str,
+    *,
+    agent_id: str = DEFAULT_AGENT_ID,
+    ttl_minutes: int = DEFAULT_LOCK_TTL_MINUTES,
+    active_agent_checker: ActiveAgentChecker | None = None,
+    lock_acquirer: Callable[..., dict[str, Any]] | None = None,
+) -> GuardState:
+    """Run layers 1 and 2 in order, stopping at the first that blocks.
+
+    Layer 2 is never reached once layer 1 blocked, so a blocked pass never takes
+    a lock it would then have to remember to release.
+    """
+    layer_one = check_active_agents(repository, checker=active_agent_checker)
+    if not layer_one.allowed:
+        return GuardState(
+            allowed=False,
+            blocked_by=layer_one.layer,
+            reason=layer_one.reason,
+            warnings=layer_one.warnings,
+        )
+
+    layer_two = acquire_coordinator_lock(
+        agent_id=agent_id, ttl_minutes=ttl_minutes, acquirer=lock_acquirer
+    )
+    if not layer_two.allowed:
+        return GuardState(
+            allowed=False,
+            blocked_by=layer_two.layer,
+            reason=layer_two.reason,
+            warnings=layer_one.warnings + layer_two.warnings,
+        )
+
+    return GuardState(
+        allowed=True,
+        warnings=layer_one.warnings + layer_two.warnings,
+        lock_acquired=layer_two.lock_acquired,
+    )
+
+
+def release_sync_point_guards(
+    state: GuardState,
+    *,
+    agent_id: str = DEFAULT_AGENT_ID,
+    releaser: Callable[..., dict[str, Any]] | None = None,
+) -> tuple[str, ...]:
+    """Release whatever :func:`acquire_sync_point_guards` took.
+
+    Returns warnings rather than raising: a lock that cannot be released is a
+    reporting problem, and letting it abort the pass would turn a coordinator
+    hiccup into a convergence failure.
+    """
+    if not state.lock_acquired:
+        return ()
+    resolved = releaser or _default_lock_releaser
+    try:
+        resolved(file_path=COORDINATOR_LOCK_KEY, agent_id=agent_id)
+    except Exception as exc:  # noqa: BLE001 - release failure is reported, not raised
+        return (f"coordinator lock {COORDINATOR_LOCK_KEY} could not be released: {exc}",)
+    return ()
+
+
+def verify_push_target(
+    repository: Path | str,
+    identity: ConvergenceIdentity,
+    *,
+    runner: CommandRunner = run_command,
+    remote: str = "origin",
+    branch: str = "main",
+    fetch: bool = True,
+) -> GuardResult:
+    """Layer 3: compare-and-swap ``<remote>/<branch>`` against the keyed revision.
+
+    Run immediately before the push. A mismatch means someone else landed a
+    commit while this pass worked, so the tree about to be pushed converges a
+    main state this pass did not produce: abort, leave the operation resumable,
+    report. Never force, and never ``--force-with-lease`` -- a lease that
+    succeeds still overwrites the other writer's commit.
+
+    A fetch or read that fails also blocks. A stale ref that happens to match is
+    indistinguishable from a real match, so "could not refresh the ref" cannot be
+    allowed to look like agreement.
+    """
+    root = Path(repository).resolve()
+    guarded = guarded_runner(runner)
+    if fetch:
+        try:
+            fetched = guarded(["git", "fetch", remote, branch], root)
+        except OSError as exc:
+            return GuardResult(
+                layer=GuardLayer.PUSH_COMPARE_AND_SWAP,
+                allowed=False,
+                reason=f"push_target_unreadable: {exc}",
+            )
+        if not fetched.ok:
+            return GuardResult(
+                layer=GuardLayer.PUSH_COMPARE_AND_SWAP,
+                allowed=False,
+                reason="push_target_unreadable: could not fetch "
+                f"{remote}/{branch}: {fetched.stderr.strip()}",
+            )
+
+    try:
+        observed = guarded(["git", "rev-parse", f"{remote}/{branch}"], root)
+    except OSError as exc:
+        return GuardResult(
+            layer=GuardLayer.PUSH_COMPARE_AND_SWAP,
+            allowed=False,
+            reason=f"push_target_unreadable: {exc}",
+        )
+    if not observed.ok or not observed.stdout.strip():
+        return GuardResult(
+            layer=GuardLayer.PUSH_COMPARE_AND_SWAP,
+            allowed=False,
+            reason=f"push_target_unreadable: could not resolve {remote}/{branch}",
+        )
+
+    actual = observed.stdout.strip()
+    if actual != identity.merged_revision:
+        return GuardResult(
+            layer=GuardLayer.PUSH_COMPARE_AND_SWAP,
+            allowed=False,
+            reason=(
+                f"push_race_lost: {remote}/{branch} is {actual[:12]}, not the merged "
+                f"revision {identity.merged_revision[:12]} this convergence is keyed on"
+            ),
+            observed_revision=actual,
+        )
+    return GuardResult(
+        layer=GuardLayer.PUSH_COMPARE_AND_SWAP,
+        allowed=True,
+        reason="push_target_matches_merged_revision",
+        observed_revision=actual,
+    )
+
+
 __all__ = [
     "CONVERGENCE_RECORD_PATH",
     "CONVERGENCE_TRAILER",
     "COORDINATOR_LOCK_KEY",
+    "DEFAULT_AGENT_ID",
+    "DEFAULT_LOCK_TTL_MINUTES",
     "FORBIDDEN_COMMANDS",
     "FORBIDDEN_FLAGS",
     "SOURCE_COMMIT_TRAILER",
     "SOURCE_OPERATION_RECORD",
+    "ActiveAgentChecker",
     "CommandResult",
     "CommandRunner",
     "ConvergenceApparatusError",
     "ConvergenceIdentity",
+    "GuardLayer",
+    "GuardResult",
+    "GuardState",
     "MergeReversalError",
     "PriorConvergence",
+    "acquire_coordinator_lock",
+    "acquire_sync_point_guards",
+    "check_active_agents",
     "derive_convergence_identity",
     "find_prior_commit_trailer",
     "find_prior_convergence",
     "find_prior_operation_record",
     "guarded_runner",
+    "release_sync_point_guards",
     "resolve_repository_id",
     "reverses_merge",
     "run_command",
+    "verify_push_target",
 ]
