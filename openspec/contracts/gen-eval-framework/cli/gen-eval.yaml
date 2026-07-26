@@ -131,7 +131,9 @@ commands:
           number the report prints, unlike --fail-threshold which is a rate.
           Checked independently of the pass rate: a run that gets every answer
           right on a tenth of the declared surface fails this gate. Default 0,
-          which gates nothing.
+          which gates nothing. Values between 0 and 1 are rejected as a usage
+          error: they are almost always a rate typed into a percent flag, and
+          as a percent they would pass silently.
 
       - name: --openspec-change
         type: string

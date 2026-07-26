@@ -354,9 +354,9 @@ class TestMinCoverageFlag:
     def test_a_value_outside_the_percentage_range_is_a_usage_error(self, value: str) -> None:
         """The flag is a percentage, not a rate. Out-of-range is caught loudly.
 
-        It cannot catch the other confusion — ``--min-coverage 0.8`` meaning
-        80% is a legal 0.8% floor — so the help text names the unit and the
-        run prints both numbers.
+        The other confusion — ``--min-coverage 0.8`` meaning 80% — is caught
+        separately, because it fails *open*. See
+        ``tests/test_min_coverage_units.py`` (task 4.19).
         """
         with pytest.raises(SystemExit):
             parse_args(["--descriptor", "d.yaml", "--min-coverage", value])

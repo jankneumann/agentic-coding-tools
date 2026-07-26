@@ -415,7 +415,7 @@ finding re-verified by direct execution, not by vendor assertion.
   type that matches neither. Intersecting `required` is argued in design;
   property clobber is not. Fail loudly rather than picking a winner.
 
-- [ ] 4.19 Mitigate the `--min-coverage` unit ambiguity `[S]`
+- [x] 4.19 Mitigate the `--min-coverage` unit ambiguity `[S]`
   **Design decisions**: D10
   **Dependencies**: 3.8
   **Note (round-7, 2 vendors)**: `--min-coverage 0.8` is a legal 0.8% floor and
