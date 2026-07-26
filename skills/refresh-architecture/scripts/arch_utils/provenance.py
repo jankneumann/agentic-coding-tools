@@ -22,6 +22,7 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -240,12 +241,22 @@ def deterministic_timestamp(repo_root: Path | str, source_revision: str | None) 
 # --------------------------------------------------------------------------- #
 # Relevant-input discovery and fingerprint
 # --------------------------------------------------------------------------- #
-def default_input_roots() -> list[str]:
-    """Relevant input roots, mirroring ``refresh_architecture.sh`` env overrides."""
+def default_input_roots(env: Mapping[str, str] | None = None) -> list[str]:
+    """Relevant input roots, mirroring ``refresh_architecture.sh`` env overrides.
+
+    ``env`` defaults to ``os.environ``, but callers that hand the analyzers a
+    *child* environment must pass that same mapping. ``run_architecture.py``
+    builds the overrides into a child dict without touching ``os.environ``, so
+    reading the ambient environment here silently recorded the fallback roots
+    (``src``/``web``/``database/migrations``) instead of the ones actually
+    analyzed — and a fingerprint over roots that do not exist can never change,
+    which makes the freshness check fail open.
+    """
+    source = os.environ if env is None else env
     roots = [
-        os.environ.get("PYTHON_SRC_DIR", "src"),
-        os.environ.get("TS_SRC_DIR", "web"),
-        os.environ.get("MIGRATIONS_DIR", "database/migrations"),
+        source.get("PYTHON_SRC_DIR", "src"),
+        source.get("TS_SRC_DIR", "web"),
+        source.get("MIGRATIONS_DIR", "database/migrations"),
     ]
     seen: set[str] = set()
     ordered: list[str] = []

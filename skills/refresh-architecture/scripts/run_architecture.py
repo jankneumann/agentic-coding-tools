@@ -176,7 +176,13 @@ def run_staged(target_dir: Path, args: argparse.Namespace) -> int:
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 
-    doc = provenance.build_provenance(target_dir, mode=mode)
+    # Record the roots the analyzers were actually pointed at. `env` carries the
+    # --python-src-dir/--ts-src-dir/--migrations-dir overrides; os.environ does
+    # not, so letting build_provenance fall back to the ambient environment
+    # stamps roots that may not exist and yields an inert input fingerprint.
+    doc = provenance.build_provenance(
+        target_dir, mode=mode, roots=provenance.default_input_roots(env)
+    )
     changed, _sha = provenance.write_provenance(target_dir, doc)
     print(
         json.dumps(

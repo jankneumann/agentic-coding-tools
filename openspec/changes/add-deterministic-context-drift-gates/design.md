@@ -357,6 +357,57 @@ would be a tidier home for these three variables than `?=` in a Makefile, and wo
 skill validate them itself. It is not proposed here: it would not have prevented this bug,
 since all three mechanisms fail identically without the validation above.
 
+## D14 — Provenance records the roots it analyzed, and the producer and gate share one interpreter
+
+Added after the gate's first CI run. The job went red with `architecture: unverifiable`
+while the same tree was `fresh` locally. Two independent defects, both surfaced only
+because the gate finally ran somewhere other than the machine that wrote the provenance.
+
+**Defect 1 — the recorded input roots were never the analyzed ones (silent, fail-open).**
+The committed provenance read `"input_roots": ["database/migrations", "src", "web"]`. None
+of those exist in this repository; they are the fallback defaults in
+`default_input_roots()`. `run_architecture.py` builds the `--python-src-dir` /
+`--ts-src-dir` / `--migrations-dir` overrides into a **child** environment dict and never
+touches `os.environ`, while `build_provenance` read the ambient environment — a flag/env
+impedance mismatch across a single function boundary.
+
+This is not cosmetic. `compute_input_fingerprint` hashes the files discovered under the
+recorded roots; over roots that do not exist it hashes a constant. Every source edit in the
+repository would have left the fingerprint untouched, so the input-change arm of
+`check_freshness` could never fire. D13 fixed the *analyzers* while this left the
+*freshness check* fail-open — the same defect class, one layer down.
+
+The fix is to pass the resolved roots explicitly: `default_input_roots(env)` now accepts the
+mapping the caller owns, and defaults to `os.environ` so existing callers are unchanged.
+`test_provenance_input_roots.py` pins the wiring, and separately asserts the repository
+invariant that **no recorded root may be missing** — a fingerprint over a missing root is
+inert, so a missing root is a blind gate.
+
+**Defect 2 — freshness depended on which interpreter asked (loud, environment-scoped).**
+`detect_optional_tools()` reports whether `tree_sitter` is importable *by the calling
+process*. `make architecture-refresh` defaulted to `PYTHON ?= python3`; CI runs the gate
+with `PYTHON=skills/.venv/bin/python`. Provenance was therefore stamped
+`tree-sitter: available=false` and checked against `available=true` — a guaranteed,
+permanent disagreement that no amount of regeneration could settle.
+
+The check itself is semantically right: if this environment would regenerate different
+bytes, the committed artifacts are not reproducible here, and that *is* drift. What was
+wrong is that the producer ran outside the repository's declared toolchain. So the binding
+is now explicit — `PYTHON` defaults to `skills/.venv/bin/python` when it exists, falling
+back to `python3` on a bare checkout. All 23 `$(PYTHON)` uses in the Makefile are the
+architecture pipeline and the context-refresh CLI, i.e. exactly the producer/gate pair that
+must agree, so the default is coherent rather than a blanket change.
+
+`skills/uv.lock` pins `tree-sitter==0.25.2` exactly, so local and CI resolve the same
+identity. The alternative — dropping tree-sitter from producer identity — was rejected: it
+is genuinely output-affecting (`treesitter_enrichment.json`), and removing it would trade a
+false positive for a false negative.
+
+**Why this was invisible until CI.** Every prior verification ran the producer and the gate
+on one machine, under one interpreter, from one checkout. Both defects are differences
+*between* environments, and a single-environment test cannot express them. That is the
+argument for the gate being a CI job rather than a local convention.
+
 ## Risks and Open Questions
 
 - **A genuinely stale committed spec is invisible** (D3's stated cost). Correlating
