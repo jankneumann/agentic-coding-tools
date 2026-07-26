@@ -270,7 +270,7 @@ public API.
   **Design decisions**: D1
   **Dependencies**: 2.2
 
-- [ ] 4.4 Implement the FastAPI subset verifier over `app.openapi()` `[M]`
+- [x] 4.4 Implement the FastAPI subset verifier over `app.openapi()` `[M]`
   **Design decisions**: D1
   **Dependencies**: 4.3
 
