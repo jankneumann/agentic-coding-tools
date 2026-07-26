@@ -245,11 +245,21 @@ If `CAN_MERGE_QUEUE=true`: `mark_merged(feature_id="<change-id>")` -- marks feat
 git fetch origin main
 ```
 
-After merge, refresh project-global architecture artifacts:
+After merge, refresh project-global architecture artifacts with the **staged**
+target:
 
 ```bash
-make architecture
+make architecture-refresh
 ```
+
+Use `make architecture-refresh`, never the bare `make architecture` generation
+target. Provenance is written only by the staged path (`run_staged` in
+`refresh-architecture/scripts/run_architecture.py`), and the deterministic
+architecture producer decides freshness by comparing *committed* provenance —
+missing or malformed provenance is routed to **drift**, not to "owner absent". So
+the full generation target can regenerate every artifact and still leave
+`make context-drift-gate` red. The staged target requires a committed HEAD, which
+holds here: this step runs after the merge has landed.
 
 ### 4.5. Fast-Forward Submodule Main Branches
 
