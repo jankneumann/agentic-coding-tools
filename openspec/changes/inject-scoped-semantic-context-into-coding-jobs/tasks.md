@@ -40,7 +40,7 @@
 
 ## 2. Retrieval helper (wp-retrieval)
 
-- [ ] 2.1 Create `skills/context-engineering/scripts/` with `__init__.py` and
+- [x] 2.1 Create `skills/context-engineering/scripts/` with `__init__.py` and
       the `SemanticContextRequest` / `SemanticContextResult` / `InjectedHit` /
       `Omission` / `ContextFallback` / `SectionProvenance` value types (D1),
       each with `to_dict()` matching the section schema.
@@ -53,7 +53,7 @@
 - [ ] 2.4 Implement namespace/index selection (D4): read the ri-09 checkpoint
       report, accept it only when `status=succeeded` and `indexed_revision ==
       revision`, else fall back to `CANONICAL_NAMESPACE`.
-- [ ] 2.5 Implement the deterministic rank key and the dedup pass (D5):
+- [x] 2.5 Implement the deterministic rank key and the dedup pass (D5):
       `duplicate_exact` and `duplicate_contained`, partial overlap retained.
 - [ ] 2.6 Implement the first-fit budget pass (D6) with the four bounds, their
       env overrides, the fixed reason precedence, and no early break.
@@ -63,7 +63,7 @@
       `CodeSearchState` → trigger mapping (D8), the fixed local-precondition
       order, the `SEMANTIC_CONTEXT_INJECTION` gate (D9), and the guarantee that
       it never raises.
-- [ ] 2.9 Add `skills/tests/context-engineering/test_semantic_context_determinism.py`
+- [x] 2.9 Add `skills/tests/context-engineering/test_semantic_context_determinism.py`
       — hand-derived expected order over a tie-heavy fixture, plus the
       seeded-shuffle invariance assertion (D12).
 - [ ] 2.10 Add `skills/tests/context-engineering/test_semantic_context_budget.py`
