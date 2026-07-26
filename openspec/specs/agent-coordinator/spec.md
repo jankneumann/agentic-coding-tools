@@ -2927,58 +2927,74 @@ The schema migration SHALL:
 
 ### Requirement: Code Search Dual-Surface Exposure
 
-The coordinator SHALL expose semantic code retrieval on both agent surfaces backed by a single
-shared service module (`src/code_search.py`): a `search_code` MCP tool in `coordination_mcp.py`
-for local agents and a `POST /search/code` HTTP endpoint in `coordination_api.py` for cloud
-agents. Both surfaces SHALL accept `query`, `repo`, `limit`, `offset`, `languages`, `paths`, and
-optional `scope`, and SHALL return identical result payloads. The capability SHALL be exposed as
-a tool/endpoint only — not as an MCP resource — so it remains available through the HTTP proxy
-transport. Query embedding SHALL happen inside the service; callers send text only.
+The coordinator SHALL expose semantic code retrieval through one typed service
+on the direct MCP `search_code` tool and authenticated `POST /search/code` HTTP
+endpoint. Both surfaces SHALL require query, repository slug, exact source
+revision, namespace, and authoritative scope; non-main namespaces additionally
+require an exact index ID. Limit, offset, language, and caller path filters are
+bounded optional narrowings. Direct MCP and HTTP-proxy MCP SHALL serialize the
+same discriminated operational envelope as HTTP. Query embedding SHALL happen
+inside the service after authorization, scope, revision, index, and provider
+validation.
 
-#### Scenario: Both surfaces return identical results
+#### Scenario: Exact ready request has three-surface parity
 
-- **WHEN** the same search request is issued via the MCP tool and via `POST /search/code`
-  against the same index state
-- **THEN** both SHALL return the same ranked chunk list with identical scores
+- **WHEN** the same valid request is issued through HTTP, direct MCP, and
+  HTTP-proxy MCP against the same ready index
+- **THEN** all surfaces SHALL return the same state and provenance-rich results
 
-#### Scenario: Search works through the HTTP proxy fallback
+#### Scenario: Fail-closed request has three-surface parity
 
-- **WHEN** a local agent's MCP server runs in HTTP proxy mode (no local database)
-- **THEN** `search_code` SHALL proxy to the coordination API and return results
-- **AND** no MCP resource SHALL be required for retrieval
+- **WHEN** the same request encounters revision mismatch, scope rejection, or
+  optional-resource unavailability
+- **THEN** all surfaces SHALL return the same non-ready envelope with zero hits
+  and exact-search fallback
 
 ### Requirement: Code Search Is a Direct Read
 
-`search_code` SHALL be classified as a read operation: it SHALL NOT acquire locks, enqueue work,
-or mutate any coordination state, and it SHALL NOT trigger indexing. Re-indexing SHALL be
-reachable only through the separate `index_repo` entrypoint. When the database is unreachable,
-the surfaces SHALL return the coordinator's standard unavailable envelope so agents can fall back
-to lexical search.
+`search_code` and `code_search_status` SHALL NOT acquire locks, enqueue work,
+trigger indexing, promote indexes, repair storage, or mutate coordination
+state. A query SHALL read only a guarded ready v2 index addressed by validated
+storage key. Database, provider, timeout, overload, and storage failures SHALL
+return a sanitized non-ready envelope or bounded overload response without
+partial hits or a hang beyond configured deadlines.
 
-#### Scenario: Searching never mutates state
+#### Scenario: Search never mutates or repairs
 
-- **WHEN** 100 concurrent `search_code` calls execute
-- **THEN** `file_locks`, `work_queue`, and audit-relevant coordination tables SHALL be unchanged
-- **AND** no chunk table SHALL be created or modified
+- **WHEN** concurrent code-search queries and status checks execute
+- **THEN** registry, chunk, lock, queue, and audit-relevant coordination state
+  SHALL remain unchanged
+- **AND** no index, table, or promotion operation SHALL be created
 
-#### Scenario: Database outage degrades gracefully
+#### Scenario: Optional outage preserves coordinator readiness
 
-- **WHEN** the coordinator database is unreachable and a `search_code` call arrives
-- **THEN** the response SHALL be the standard unavailable envelope, not a crash or a hang beyond
-  the configured timeout
+- **WHEN** code-search Postgres or embedding resources are unreachable
+- **THEN** global coordinator startup and readiness SHALL continue
+- **AND** code-search status and queries SHALL report sanitized unavailability
+  within configured deadlines
 
 ### Requirement: Code Search Feature Flag
 
-Code-search surface registration SHALL be gated by `CODE_SEARCH_ENABLED` (default off). While
-disabled, the MCP tool SHALL NOT be listed, the HTTP route SHALL return 404, and no code-search
-database objects beyond the additive registry migration SHALL be touched, preserving all existing
-coordinator behavior.
+Code-search runtime initialization and MCP tool registration SHALL be gated by
+`CODE_SEARCH_ENABLED` (default off). While disabled, no query pool, provider,
+model download, migration-specific query, or network request SHALL occur; the
+MCP tool SHALL not be listed and `POST /search/code` SHALL return 404.
+`CAN_CODE_SEARCH` SHALL be true only when body-aware status proves an initialized
+provider and at least one usable canonical v2 index. Route or tool presence
+alone MUST NOT establish capability.
 
-#### Scenario: Disabled flag hides the capability
+#### Scenario: Disabled flag performs no optional work
 
-- **WHEN** `CODE_SEARCH_ENABLED` is unset and the MCP tool list is requested
-- **THEN** `search_code` SHALL NOT appear
-- **AND** `POST /search/code` SHALL return 404
+- **WHEN** `CODE_SEARCH_ENABLED` is unset
+- **THEN** the MCP search tool SHALL not appear and HTTP search SHALL return 404
+- **AND** initialization MUST NOT touch optional code-search resources
+
+#### Scenario: Dynamic status controls capability
+
+- **WHEN** the status body is false, contradictory, malformed, unavailable, or
+  unverifiable over MCP-only discovery
+- **THEN** `CAN_CODE_SEARCH` MUST be false
+- **AND** it SHALL become true only after a valid `available=true` ready body
 
 ## Database Tables
 
