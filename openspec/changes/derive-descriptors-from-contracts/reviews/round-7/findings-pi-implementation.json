@@ -1,0 +1,42 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": "review-001",
+      "type": "plan-risk",
+      "criticality": "high",
+      "description": "tasks.md line 295-405: Task 4.7 is not implemented - the argparse subset verifier is not wired into CI against gen-eval's own parser. The gate must be shown to FAIL first by adding a flag to the parser without contracting it and confirm CI goes red, but no such CI integration exists yet.",
+      "disposition": "fix"
+    },
+    {
+      "id": "review-002",
+      "type": "plan-risk",
+      "criticality": "high",
+      "description": "tasks.md line 295-405: Task 5.8 is not implemented - ServiceDescriptor/ToolDescriptor exports are not reclaimed in gen_eval/__init__.py. The package-level export still points to deprecation aliases rather than the new document archetypes, which violates the reclamation requirement.",
+      "disposition": "fix"
+    },
+    {
+      "id": "review-003",
+      "type": "plan-risk",
+      "criticality": "medium",
+      "description": "tasks.md line 295-405: Multiple Phase 5 tasks (5.1, 5.2, 5.3, 5.4 series, 5.5, 5.6, 5.7) are not implemented and sequenced correctly. Task 5.3 depends on 3.6 but nothing in Phase 5 has been completed, creating a dependency risk for the migration path.",
+      "disposition": "fix"
+    },
+    {
+      "id": "review-004",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "src/gen_eval/__main__.py: The --min-coverage flag creates unit confusion as noted in deliberate choices - it takes a percent (80) but --min-coverage 0.8 is a legal 0.8% floor and cannot be distinguished from a user meaning 80%. This could lead to user confusion about coverage thresholds.",
+      "disposition": "accept"
+    },
+    {
+      "id": "review-005",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "src/gen_eval/evaluator.py: _cli_identifiers filters emitted flag units against the declared surface, which means a flag the suite exercises that the contract omits produces NO tested identifier. This hides potential coverage gaps but is argued as correct behavior to keep `--help` out.",
+      "disposition": "accept"
+    }
+  ]
+}

@@ -10,9 +10,12 @@
     15,
     6,
     4,
-    6
+    6,
+    25
   ],
-  "blocking_findings": [],
+  "blocking_findings": [
+    "round-7 BLOCKING: __main__.py:324 loads every descriptor with InterfaceDescriptor.from_yaml(), discarding ServiceDescriptor.operations and ToolDescriptor.commands/executable/contract. Verified: ToolDescriptor.from_yaml -> 17 interfaces, InterfaceDescriptor.from_yaml (same file) -> 0. No task in Phase 5 owns archetype-aware loading; tasks 5.1, 5.2 and 5.3 cannot meet their stated acceptance criteria without it. Requires a new task sequenced before 5.1."
+  ],
   "vendor_availability": {
     "claude_code": true,
     "codex": true,
@@ -30,7 +33,7 @@
   "phase_started_at": "2026-07-25T17:06:16.656806+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": null,
-  "plan_review_note": "PLAN_REVIEW exited by operator override, NOT by convergence. Round 6 was attempted twice and produced no vendor findings: attempt 1 crashed in checkpoint_findings._validate_finding (prompt specified severity/title/recommendation instead of the required id/type/criticality/description/disposition); attempt 2 was killed before any vendor returned. The last completed round is round-5, which reported 6 critical findings. Those were addressed in commit cfe4abda and independently re-verified here (bare-python3 gates, prerequisite detection, CONTRACT_VERSION ownership, package-level __all__ ownership), but no independent multi-vendor round has confirmed the current plan state.",
+  "plan_review_note": "PLAN_REVIEW exited by operator override, NOT by convergence. Round 6 was attempted twice and produced no vendor findings: attempt 1 crashed in checkpoint_findings._validate_finding (prompt specified severity/title/recommendation instead of the required id/type/criticality/description/disposition); attempt 2 was killed before any vendor returned. The last completed round is round-5, which reported 6 critical findings. Those were addressed in commit cfe4abda and independently re-verified here (bare-python3 gates, prerequisite detection, CONTRACT_VERSION ownership, package-level __all__ ownership), but no independent multi-vendor round has confirmed the current plan state. | ROUND 7 (IMPL_REVIEW, 4 vendors: codex/grok/antigravity/pi, claude excluded as author): 25 findings, 2 critical converging on one root cause (see reviews/round-7/synthesis.md). This is the first independent multi-vendor round to see any of the implementation.",
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
