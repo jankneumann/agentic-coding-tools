@@ -286,7 +286,7 @@ def project_mcp_tools(operations: list[OperationSpec]) -> list[McpToolProjection
                 f"{existing.description}\n{addition}" if existing.description else addition
             )
         existing.input_schema = _merge_schemas(
-            existing.input_schema, _flatten_parameters(operation)
+            existing.input_schema, _flatten_parameters(operation), element=identifier
         )
 
     return projections
@@ -384,7 +384,20 @@ def _flatten_parameters(operation: OperationSpec) -> dict[str, Any]:
     return flattened
 
 
-def _merge_schemas(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
+#: Schema keys that annotate rather than validate. Two operations may describe
+#: one shared argument in their own words without disagreeing about it, so a
+#: differing ``description`` is not a contract error.
+_ANNOTATION_KEYS = frozenset({"description", "title", "example", "examples"})
+
+
+def _validating_part(schema: dict[str, Any]) -> dict[str, Any]:
+    """The part of a property schema that decides whether a value is valid."""
+    return {key: value for key, value in schema.items() if key not in _ANNOTATION_KEYS}
+
+
+def _merge_schemas(
+    left: dict[str, Any], right: dict[str, Any], *, element: str
+) -> dict[str, Any]:
     """Union two flattened schemas for a tool that serves both operations.
 
     Properties union; ``required`` **intersects**. A parameter required by
@@ -392,8 +405,30 @@ def _merge_schemas(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any
     marking it so would make the tool unable to express the other call at all.
     The real ``check_locks`` is exactly this shape: it branches on
     ``file_paths`` being None to serve both a listing and a single lookup.
+
+    A property both operations declare *incompatibly* raises. Unioning by dict
+    spread would publish whichever came last, so every call routed to the other
+    operation fails against a schema that operation never declared — silently,
+    and decided by argument order. Note the contrast with ``required`` above:
+    intersecting is a reasoned narrowing that still serves both calls, whereas
+    there is no type that serves both an integer and a string.
+
+    D7 makes a many-to-one binding a claim the contract author writes down.
+    An incoherent claim is therefore an error in the contract, and derivation
+    time — while the author can still fix it — is when to say so.
     """
-    properties = {**(left.get("properties") or {}), **(right.get("properties") or {})}
+    properties = dict(left.get("properties") or {})
+    for name, schema in (right.get("properties") or {}).items():
+        existing = properties.get(name)
+        if existing is not None and _validating_part(existing) != _validating_part(schema):
+            raise ValueError(
+                f"{element}: operations bound to this element declare "
+                f"incompatible schemas for {name!r} — {existing!r} vs {schema!r}. "
+                f"A many-to-one binding is declared, not derived (D7), so the "
+                f"contract must agree with itself about the shared argument."
+            )
+        properties.setdefault(name, schema)
+
     left_required = set(left.get("required") or [])
     right_required = set(right.get("required") or [])
 

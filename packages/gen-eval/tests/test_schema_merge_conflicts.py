@@ -167,12 +167,12 @@ class TestTheConflictSurfacesThroughTheProjection:
     """The defect is only reachable via a declared many-to-one binding."""
 
     def test_deriving_a_conflicted_fan_in_tool_raises(self, tmp_path: Path) -> None:
+        """It fails at derivation, not at first use — the contract is read there."""
         path = write_contract(
             tmp_path, fan_in_contract({"type": "integer"}, {"type": "string"})
         )
-        descriptor = ServiceDescriptor.from_contract(path)
         with pytest.raises(ValueError, match="mcp:thing"):
-            descriptor.mcp_tools()
+            ServiceDescriptor.from_contract(path)
 
     def test_a_coherent_fan_in_tool_still_projects(self, tmp_path: Path) -> None:
         path = write_contract(
