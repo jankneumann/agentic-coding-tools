@@ -458,7 +458,7 @@ finding re-verified by direct execution, not by vendor assertion.
   **Note**: must prove the gate FAILS on (a) a unit that is neither exercised
   nor excluded, and (b) an exclusion with a blank reason.
 
-- [ ] 5.4b Implement `scripts/check_coverage_completeness.py` `[S]`
+- [x] 5.4b Implement `scripts/check_coverage_completeness.py` `[S]`
   **Design decisions**: D11
   **Dependencies**: 5.4a
   **Note**: asserts `coverage_pct > 0` (zero means declared and tested
