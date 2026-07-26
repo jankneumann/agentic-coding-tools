@@ -137,7 +137,9 @@ class Evaluator:
         # The declared surface is passed in so flag-level identifiers are drawn
         # from the same vocabulary they will be matched against (D10).
         interfaces_tested = self._extract_interfaces(
-            scenario.steps, declared=set(self.descriptor.all_interfaces())
+            scenario.steps,
+            declared=set(self.descriptor.all_interfaces()),
+            aliases=self.descriptor.coverage_aliases(),
         )
 
         return ScenarioVerdict(
@@ -544,7 +546,11 @@ class Evaluator:
         return len(token) > 1 and token[0] == "-" and token[1].isalpha()
 
     @staticmethod
-    def _cli_identifiers(step: ActionStep, declared: set[str] | None) -> list[str]:
+    def _cli_identifiers(
+        step: ActionStep,
+        declared: set[str] | None,
+        aliases: dict[str, str] | None = None,
+    ) -> list[str]:
         """Identifiers for one CLI step, in the declared surface's vocabulary.
 
         ``command`` and ``args`` are two spellings of one invocation, so both
@@ -559,8 +565,23 @@ class Evaluator:
         start with a dash is indistinguishable from a flag by shape alone. The
         declared surface is what makes the emitted vocabulary a subset of it
         by construction, rather than by hoping the tokeniser guessed right.
+
+        ``aliases`` maps a unit's alternate spelling to the declared one — a
+        flag's ``short`` form. The map comes from the descriptor because the
+        contract is what knows that ``-v`` means ``--verbose``; nothing in an
+        argv token list says so. Defaults to none, which is exactly the
+        previous behaviour (Rule 4).
         """
         tokens = (step.command.strip().split() if step.command else []) + list(step.args or [])
+
+        # A bare "--" ends option parsing: everything after it is a value,
+        # however it is spelled. Without this the shape test below records a
+        # flag for a token the process passed straight through, and coverage
+        # reports an exercise that never happened.
+        try:
+            tokens = tokens[: tokens.index("--")]
+        except ValueError:
+            pass
 
         # The command path is the leading run of non-flag tokens, as it has
         # always been: "lock status --file-path x" → "lock status".
@@ -583,13 +604,16 @@ class Evaluator:
             # "--fail-threshold=0.5" names the same flag as "--fail-threshold 0.5".
             flag = token.split("=", 1)[0]
             unit = "cli:" + " ".join(part for part in (command_name, flag) if part)
+            unit = (aliases or {}).get(unit, unit)
             if unit in declared:
                 identifiers.append(unit)
         return identifiers
 
     @staticmethod
     def _extract_interfaces(
-        steps: list[ActionStep], declared: set[str] | None = None
+        steps: list[ActionStep],
+        declared: set[str] | None = None,
+        aliases: dict[str, str] | None = None,
     ) -> list[str]:
         """Extract endpoint-specific interface identifiers from steps.
 
@@ -618,7 +642,7 @@ class Evaluator:
             elif step.transport == "mcp" and step.tool:
                 ifaces = [f"mcp:{step.tool}"]
             elif step.transport == "cli":
-                ifaces = Evaluator._cli_identifiers(step, declared)
+                ifaces = Evaluator._cli_identifiers(step, declared, aliases)
             for iface in ifaces:
                 if iface not in seen:
                     seen.add(iface)

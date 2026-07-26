@@ -156,6 +156,25 @@ class ToolCommandSpec(BaseModel):
             units.append(_cli_unit(self.name, f"<{positional.name}>"))
         return units
 
+    def coverage_aliases(self) -> dict[str, str]:
+        """Alternate spellings of this command's units → the declared unit.
+
+        A flag with a ``short`` form is one coverage unit invocable two ways.
+        ``coverage_units`` emits only the long name, so without this map a step
+        using ``-v`` records ``cli:-v``, fails the declared-membership filter,
+        and leaves ``cli:--verbose`` uncovered despite a real exercise — the
+        same vocabulary split D10 closes at the command level, reappearing one
+        level down.
+
+        Keyed by the full unit rather than the bare flag, because ``-t`` may
+        mean different things under different subcommands.
+        """
+        return {
+            _cli_unit(self.name, flag.short): _cli_unit(self.name, flag.name)
+            for flag in self.flags
+            if flag.short
+        }
+
 
 def _cli_unit(command_name: str, leaf: str = "") -> str:
     """Render one coverage-unit identifier, e.g. ``cli:lock acquire --ttl``."""
@@ -299,6 +318,16 @@ class InterfaceDescriptor(BaseModel):
                 if svc.launch_url:
                     interfaces.append(f"browser:{svc.launch_url}")
         return interfaces
+
+    def coverage_aliases(self) -> dict[str, str]:
+        """Alternate spellings of declared units → the unit they name.
+
+        Empty for every archetype but the tool: only a CLI contract declares a
+        second spelling for one element. Defined here rather than only on
+        :class:`ToolDescriptor` so the evaluator can ask any descriptor without
+        first discovering which archetype it holds.
+        """
+        return {}
 
     def total_interface_count(self) -> int:
         """Return total number of testable interfaces."""
@@ -450,6 +479,13 @@ class ToolDescriptor(InterfaceDescriptor):
         1 for a tool that declares nothing testable.
         """
         return [unit for command in self.commands for unit in command.coverage_units()]
+
+    def coverage_aliases(self) -> dict[str, str]:
+        """Short flag spellings → the long unit they name, across all commands."""
+        aliases: dict[str, str] = {}
+        for command in self.commands:
+            aliases.update(command.coverage_aliases())
+        return aliases
 
 
 #: Pre-rename name -> its replacement (design D1 of the prerequisite rename).
