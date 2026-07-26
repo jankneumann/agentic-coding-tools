@@ -238,7 +238,7 @@ public API.
   For the tool archetype emit contracted flags seen in `args`; for the service
   archetype emit operation ids via the element binding.
 
-- [ ] 3.7 Write tests for a coverage threshold that fails independently of pass-rate `[S]`
+- [x] 3.7 Write tests for a coverage threshold that fails independently of pass-rate `[S]`
   **Spec scenarios**: Operation And Surface Coverage Model (coverage below the threshold fails the run)
   **Design decisions**: D10
   **Dependencies**: 3.6
