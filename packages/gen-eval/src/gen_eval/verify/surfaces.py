@@ -49,15 +49,54 @@ def verify_argparse(
     contract declares more than one; a flat CLI leaves it empty and its units
     are bare flags.
 
+    Subcommands are followed. A ``_SubParsersAction`` declares no option
+    strings, so treating it as one more action skips every parser it holds and
+    leaves the verifier silent on exactly the programs it is pointed at.
+
     Only excess is reported. A contracted flag this parser lacks is a coverage
     gap the coverage model already names — see the package docstring.
     """
     declared = declared_elements(descriptor, "cli")
     violations: list[Violation] = []
     seen: set[str] = set()
+    _collect_argparse(parser, command, declared, seen, violations, set())
+    return violations
+
+
+def _collect_argparse(
+    parser: argparse.ArgumentParser,
+    command: str,
+    declared: set[str],
+    seen: set[str],
+    violations: list[Violation],
+    visited: set[int],
+) -> None:
+    """Append this parser's excess flags, then descend into its subcommands.
+
+    ``visited`` holds parser identities rather than command names. Two names
+    may hold one parser — that is what ``add_parser(aliases=...)`` builds — and
+    a hand-assembled ``_name_parser_map`` can point back at an ancestor, which
+    would otherwise recurse forever. Skipping an already-seen parser reports an
+    aliased command once, under the first name it was registered with, for the
+    same reason ``_action_name`` reports ``--quiet -q`` once.
+    """
+    if id(parser) in visited:
+        return
+    visited.add(id(parser))
 
     for action in parser._actions:
         if isinstance(action, _LIBRARY_ACTIONS):
+            continue
+        if isinstance(action, argparse._SubParsersAction):
+            for name, subparser in action.choices.items():
+                _collect_argparse(
+                    subparser,
+                    " ".join(part for part in (command, name) if part),
+                    declared,
+                    seen,
+                    violations,
+                    visited,
+                )
             continue
         flag = _action_name(action)
         if flag is None:
@@ -77,7 +116,6 @@ def verify_argparse(
                 ),
             )
         )
-    return violations
 
 
 def verify_fastapi(
