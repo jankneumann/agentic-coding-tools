@@ -48,6 +48,7 @@ produce N+1 commits.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -776,14 +777,483 @@ def verify_push_target(
     )
 
 
+# --------------------------------------------------------------------------- #
+# Phase sequence (D2, D3, D10)
+# --------------------------------------------------------------------------- #
+#: The staged, provenance-writing architecture target. NOT ``make architecture``:
+#: ``write_provenance`` is called only from ``run_staged``, and ri-10's producer
+#: routes missing provenance to *drift* rather than to ``not-configured``, so the
+#: full generation target can regenerate every artifact and still leave the gate
+#: red (D10).
+ARCHITECTURE_COMMAND: tuple[str, ...] = ("make", "architecture-refresh")
+
+#: Read-only composed drift gate, used by the dry run only (D12).
+DRIFT_GATE_COMMAND: tuple[str, ...] = ("make", "context-drift-gate")
+
+#: Refresh statuses, mirroring the refresh CLI's exit codes plus one value the
+#: CLI has no reason to know about: ``not-run`` records a convergence whose
+#: cleanup output was committed but whose refresh never started. Collapsing that
+#: into ``failed`` would make a successful partial convergence indistinguishable
+#: from a producer crash.
+REFRESH_NOT_RUN = "not-run"
+_REFRESH_STATUS_BY_EXIT: dict[int, str] = {0: "succeeded", 2: "degraded", 1: "failed"}
+
+#: Refresh outcomes whose output is safe to sweep into the convergence commit.
+#: A ``failed`` run is excluded on purpose: D6 commits the *cleanup* output and
+#: omits the failed run's partial artifacts, leaving the operation resumable.
+_SWEEPABLE_REFRESH_STATUSES = frozenset({"succeeded", "degraded"})
+
+
+@dataclass(frozen=True, slots=True)
+class MergedPullRequest:
+    """One merge that contributed to the main state being converged."""
+
+    number: int
+    origin: str
+    change_id: str | None = None
+    cleanup: str = "not-applicable"
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"number": self.number, "origin": self.origin}
+        if self.change_id is not None:
+            out["change_id"] = self.change_id
+        out["cleanup"] = self.cleanup
+        return out
+
+
+@dataclass(frozen=True, slots=True)
+class RefreshPhase:
+    """Outcome of the one deterministic refresh this pass runs."""
+
+    ran: bool
+    status: str
+    exit_code: int | None = None
+    summary: dict[str, Any] | None = None
+    warnings: tuple[str, ...] = ()
+
+    @property
+    def sweepable(self) -> bool:
+        return self.status in _SWEEPABLE_REFRESH_STATUSES
+
+
+def refresh_cli_path() -> Path:
+    """Absolute path to the refresh CLI that owns ``--sync-point``."""
+    return _SKILLS_DIR / "project-context-refresh" / "scripts" / "cli.py"
+
+
+def run_architecture_refresh(
+    repository: Path | str, *, runner: CommandRunner = run_command
+) -> CommandResult:
+    """Run the staged architecture target so provenance is written (D10)."""
+    return guarded_runner(runner)(list(ARCHITECTURE_COMMAND), Path(repository).resolve())
+
+
+def run_deterministic_refresh(
+    repository: Path | str,
+    *,
+    runner: CommandRunner = run_command,
+    python: str | None = None,
+) -> RefreshPhase:
+    """Run the single deterministic refresh for this pass.
+
+    ``--sync-point`` is what makes the write legal in the shared checkout where
+    ``merge-pull-requests`` operates; ``--defer-semantic-index`` keeps the index
+    out of the critical path, because the revision worth indexing is the one this
+    pass has not created yet (D7).
+
+    A refresh that exits non-zero is *data*, never an exception: the outcome maps
+    straight onto D6's table.
+    """
+    root = Path(repository).resolve()
+    argv = [
+        python or sys.executable,
+        str(refresh_cli_path()),
+        "--repo",
+        str(root),
+        "refresh",
+        "--sync-point",
+        "--defer-semantic-index",
+    ]
+    try:
+        result = guarded_runner(runner)(argv, root)
+    except OSError as exc:
+        return RefreshPhase(
+            ran=False,
+            status=REFRESH_NOT_RUN,
+            warnings=(f"deterministic refresh could not be started: {exc}",),
+        )
+
+    status = _REFRESH_STATUS_BY_EXIT.get(result.returncode, "failed")
+    warnings: list[str] = []
+    summary: dict[str, Any] | None = None
+    try:
+        parsed = json.loads(result.stdout)
+        summary = parsed if isinstance(parsed, dict) else None
+    except (ValueError, TypeError):
+        summary = None
+    if summary is None:
+        warnings.append(
+            "deterministic refresh emitted no parsable summary; producer detail is "
+            "unavailable for this record"
+        )
+    if status != "succeeded":
+        warnings.append(
+            f"deterministic refresh reported {status} (exit {result.returncode})"
+        )
+    return RefreshPhase(
+        ran=True,
+        status=status,
+        exit_code=result.returncode,
+        summary=summary,
+        warnings=tuple(warnings),
+    )
+
+
+def build_commit_message(
+    identity: ConvergenceIdentity,
+    *,
+    merged_pull_requests: Sequence[MergedPullRequest],
+    refresh_status: str,
+) -> str:
+    """Render the convergence commit message, deterministically.
+
+    No timestamps and no set iteration: the same inputs must render the same
+    message, or two runs of one pass would be indistinguishable only by luck.
+    The ``Context-Refresh-Operation`` trailer is the half of the idempotence
+    contract that survives a fresh clone, so it appears exactly once.
+    """
+    numbers = sorted(pr.number for pr in merged_pull_requests)
+    rendered = ", ".join(f"#{number}" for number in numbers)
+    plural = "" if len(numbers) == 1 else "s"
+    lines = [
+        f"chore(context): converge main after {len(numbers)} merged pull request{plural}",
+        "",
+        f"Merged pull request{plural}: {rendered}." if numbers else "No merged pull requests.",
+        f"Merged revision: {identity.merged_revision}.",
+        f"Deterministic refresh: {refresh_status}.",
+        "",
+        "Derived context regenerated at the authoritative main-synchronization",
+        "point. This commit is downstream of the merges above and reverses none",
+        "of them.",
+        "",
+        f"{CONVERGENCE_TRAILER}: {identity.operation_id}",
+    ]
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
+# Convergence outcomes (D6)
+# --------------------------------------------------------------------------- #
+class ConvergenceStatus(str, Enum):
+    """What the pass did. None of these values can mean "the merge failed"."""
+
+    CONVERGED = "converged"
+    ALREADY_CONVERGED = "already-converged"
+    NO_MERGES = "no-merges"
+    BLOCKED = "blocked"
+    DRY_RUN = "dry-run"
+
+
+@dataclass(frozen=True, slots=True)
+class ConvergenceResult:
+    """Everything the pass summary and the merge log need to report."""
+
+    status: ConvergenceStatus
+    identity: ConvergenceIdentity | None = None
+    refresh_status: str = REFRESH_NOT_RUN
+    convergence_commit: str | None = None
+    pushed_revision: str | None = None
+    record: dict[str, Any] | None = None
+    prior: PriorConvergence | None = None
+    reason: str | None = None
+    warnings: tuple[str, ...] = ()
+
+    def exit_code(self) -> int:
+        """D6's exit column. A non-zero code NEVER means the merge failed.
+
+        The merge is already terminal by the time this runs, so every code here
+        describes derived context only. Step 12 reports the merges either way.
+        """
+        if self.status in (
+            ConvergenceStatus.ALREADY_CONVERGED,
+            ConvergenceStatus.NO_MERGES,
+            ConvergenceStatus.DRY_RUN,
+        ):
+            return 0
+        if self.status is ConvergenceStatus.BLOCKED:
+            return 2
+        if self.refresh_status == "succeeded":
+            return 0
+        if self.refresh_status == "failed":
+            return 1
+        return 2
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status.value,
+            "identity": (
+                {
+                    "repository_id": self.identity.repository_id,
+                    "merged_revision": self.identity.merged_revision,
+                    "operation_id": self.identity.operation_id,
+                }
+                if self.identity
+                else None
+            ),
+            "refresh_status": self.refresh_status,
+            "convergence_commit": self.convergence_commit,
+            "pushed_revision": self.pushed_revision,
+            "record": self.record,
+            "prior": self.prior.to_dict() if self.prior else None,
+            "reason": self.reason,
+            "warnings": list(self.warnings),
+            "exit_code": self.exit_code(),
+        }
+
+
+def converge(
+    repository: Path | str,
+    *,
+    merged_pull_requests: Sequence[MergedPullRequest] = (),
+    merged_revision: str | None = None,
+    runner: CommandRunner = run_command,
+    store: Any | None = None,
+    environ: Mapping[str, str] | None = None,
+    agent_id: str = DEFAULT_AGENT_ID,
+    active_agent_checker: ActiveAgentChecker | None = None,
+    lock_acquirer: Callable[..., dict[str, Any]] | None = None,
+    lock_releaser: Callable[..., dict[str, Any]] | None = None,
+    semantic_enqueuer: Callable[[Path, str], Any] | None = None,
+    remote: str = "origin",
+    branch: str = "main",
+    python: str | None = None,
+) -> ConvergenceResult:
+    """Converge derived context for the main state this pass produced.
+
+    One invocation pass, one convergence (D8). ``k = 0`` merged pull requests
+    converge nothing: that pass was a read of main, not a write.
+
+    The sequence is fixed -- staged cleanup output (already in the index, owned by
+    ``cleanup-feature``), then the staged architecture target, then one
+    deterministic refresh, then one commit, then one push. Convergence never
+    archives, never merges spec deltas, and never migrates tasks; duplicating that
+    logic in two skills would make the first divergence between them a silent spec
+    corruption.
+    """
+    root = Path(repository).resolve()
+    recorded: list[tuple[str, ...]] = []
+
+    def _record_calls(argv: Sequence[str], cwd: Path) -> CommandResult:
+        recorded.append(tuple(str(a) for a in argv))
+        return runner(argv, cwd)
+
+    if not merged_pull_requests:
+        return ConvergenceResult(
+            status=ConvergenceStatus.NO_MERGES,
+            reason="no pull request merged during this pass; nothing to converge",
+        )
+
+    identity = derive_convergence_identity(
+        root, merged_revision=merged_revision, environ=environ, runner=_record_calls
+    )
+
+    prior = find_prior_convergence(root, identity, store=store, runner=_record_calls)
+    if prior.found:
+        return ConvergenceResult(
+            status=ConvergenceStatus.ALREADY_CONVERGED,
+            identity=identity,
+            prior=prior,
+            convergence_commit=prior.convergence_commit,
+            reason=f"already converged; evidence from {', '.join(prior.sources)}",
+        )
+    if not prior.conclusive:
+        return ConvergenceResult(
+            status=ConvergenceStatus.BLOCKED,
+            identity=identity,
+            prior=prior,
+            reason=(
+                "idempotence check inconclusive: could not read "
+                f"{', '.join(prior.unreadable)}. Refusing to converge a state that "
+                "may already have converged."
+            ),
+        )
+
+    guards = acquire_sync_point_guards(
+        root,
+        agent_id=agent_id,
+        active_agent_checker=active_agent_checker,
+        lock_acquirer=lock_acquirer,
+    )
+    if not guards.allowed:
+        return ConvergenceResult(
+            status=ConvergenceStatus.BLOCKED,
+            identity=identity,
+            prior=prior,
+            reason=guards.reason,
+            warnings=guards.warnings,
+        )
+
+    warnings: list[str] = list(guards.warnings)
+    try:
+        return _converge_under_guard(
+            root,
+            identity=identity,
+            prior=prior,
+            merged_pull_requests=tuple(merged_pull_requests),
+            runner=_record_calls,
+            warnings=warnings,
+            semantic_enqueuer=semantic_enqueuer,
+            remote=remote,
+            branch=branch,
+            python=python,
+        )
+    except ConvergenceApparatusError as exc:
+        return ConvergenceResult(
+            status=ConvergenceStatus.BLOCKED,
+            identity=identity,
+            prior=prior,
+            reason=f"convergence apparatus failed: {exc}",
+            warnings=tuple(warnings),
+        )
+    except OSError as exc:
+        return ConvergenceResult(
+            status=ConvergenceStatus.BLOCKED,
+            identity=identity,
+            prior=prior,
+            reason=f"convergence apparatus failed: {exc}",
+            warnings=tuple(warnings),
+        )
+    finally:
+        warnings.extend(
+            release_sync_point_guards(guards, agent_id=agent_id, releaser=lock_releaser)
+        )
+
+
+def _converge_under_guard(
+    root: Path,
+    *,
+    identity: ConvergenceIdentity,
+    prior: PriorConvergence,
+    merged_pull_requests: tuple[MergedPullRequest, ...],
+    runner: CommandRunner,
+    warnings: list[str],
+    semantic_enqueuer: Callable[[Path, str], Any] | None,
+    remote: str,
+    branch: str,
+    python: str | None,
+) -> ConvergenceResult:
+    """Phases 2 and 3, with layers 1 and 2 already held by the caller."""
+    guarded = guarded_runner(runner)
+
+    architecture = run_architecture_refresh(root, runner=runner)
+    if not architecture.ok:
+        warnings.append(
+            "staged architecture refresh failed "
+            f"(exit {architecture.returncode}); the architecture producer will "
+            "report drift for this revision"
+        )
+
+    refresh = run_deterministic_refresh(root, runner=runner, python=python)
+    warnings.extend(refresh.warnings)
+
+    if refresh.sweepable:
+        guarded(["git", "add", "-A"], root)
+
+    staged = guarded(["git", "diff", "--cached", "--quiet"], root)
+    if staged.returncode == 0:
+        return ConvergenceResult(
+            status=ConvergenceStatus.CONVERGED,
+            identity=identity,
+            prior=prior,
+            refresh_status=refresh.status,
+            reason="no repository diff to converge; derived context was already current",
+            warnings=tuple(warnings),
+        )
+
+    message = build_commit_message(
+        identity,
+        merged_pull_requests=merged_pull_requests,
+        refresh_status=refresh.status,
+    )
+    committed = guarded(["git", "commit", "-m", message], root)
+    if not committed.ok:
+        return ConvergenceResult(
+            status=ConvergenceStatus.BLOCKED,
+            identity=identity,
+            prior=prior,
+            refresh_status=refresh.status,
+            reason=f"convergence commit failed: {committed.stderr.strip()}",
+            warnings=tuple(warnings),
+        )
+    convergence_commit = _git_stdout(runner, root, "rev-parse", "HEAD") or None
+
+    swap = verify_push_target(
+        root, identity, runner=runner, remote=remote, branch=branch
+    )
+    if not swap.allowed:
+        return ConvergenceResult(
+            status=ConvergenceStatus.BLOCKED,
+            identity=identity,
+            prior=prior,
+            refresh_status=refresh.status,
+            convergence_commit=convergence_commit,
+            reason=swap.reason,
+            warnings=tuple(
+                [
+                    *warnings,
+                    "the convergence commit is present locally and unpushed; the "
+                    "operation remains resumable and nothing staged was discarded",
+                ]
+            ),
+        )
+
+    pushed = guarded(["git", "push", remote, f"HEAD:{branch}"], root)
+    if not pushed.ok:
+        return ConvergenceResult(
+            status=ConvergenceStatus.BLOCKED,
+            identity=identity,
+            prior=prior,
+            refresh_status=refresh.status,
+            convergence_commit=convergence_commit,
+            reason=f"push rejected: {pushed.stderr.strip()}",
+            warnings=tuple(
+                [
+                    *warnings,
+                    "the convergence commit is present locally and unpushed; it was "
+                    "not retried with force, because losing a sync-point race is "
+                    "information rather than an obstacle",
+                ]
+            ),
+        )
+
+    if semantic_enqueuer is not None and convergence_commit:
+        try:
+            semantic_enqueuer(root, convergence_commit)
+        except Exception as exc:  # noqa: BLE001 - the index never blocks a pass
+            warnings.append(f"semantic index enqueue failed: {exc}")
+
+    return ConvergenceResult(
+        status=ConvergenceStatus.CONVERGED,
+        identity=identity,
+        prior=prior,
+        refresh_status=refresh.status,
+        convergence_commit=convergence_commit,
+        pushed_revision=convergence_commit,
+        warnings=tuple(warnings),
+    )
+
+
 __all__ = [
+    "ARCHITECTURE_COMMAND",
     "CONVERGENCE_RECORD_PATH",
     "CONVERGENCE_TRAILER",
     "COORDINATOR_LOCK_KEY",
     "DEFAULT_AGENT_ID",
     "DEFAULT_LOCK_TTL_MINUTES",
+    "DRIFT_GATE_COMMAND",
     "FORBIDDEN_COMMANDS",
     "FORBIDDEN_FLAGS",
+    "REFRESH_NOT_RUN",
     "SOURCE_COMMIT_TRAILER",
     "SOURCE_OPERATION_RECORD",
     "ActiveAgentChecker",
@@ -791,22 +1261,31 @@ __all__ = [
     "CommandRunner",
     "ConvergenceApparatusError",
     "ConvergenceIdentity",
+    "ConvergenceResult",
+    "ConvergenceStatus",
     "GuardLayer",
     "GuardResult",
     "GuardState",
     "MergeReversalError",
+    "MergedPullRequest",
     "PriorConvergence",
+    "RefreshPhase",
     "acquire_coordinator_lock",
     "acquire_sync_point_guards",
+    "build_commit_message",
     "check_active_agents",
+    "converge",
     "derive_convergence_identity",
     "find_prior_commit_trailer",
     "find_prior_convergence",
     "find_prior_operation_record",
     "guarded_runner",
+    "refresh_cli_path",
     "release_sync_point_guards",
     "resolve_repository_id",
     "reverses_merge",
+    "run_architecture_refresh",
     "run_command",
+    "run_deterministic_refresh",
     "verify_push_target",
 ]

@@ -66,10 +66,10 @@ Each task is sized to one commit. Group numbers map to work packages in
       `origin/main` (D5).
 - [x] 3.4 Implement the guards. Coordinator unavailability degrades with a recorded
       warning; a losing push race aborts and never force-pushes.
-- [ ] 3.5 Implement the phase sequence: staged cleanup output → `make
+- [x] 3.5 Implement the phase sequence: staged cleanup output → `make
       architecture-refresh` → `cli.py refresh --sync-point --defer-semantic-index` →
       one commit → one push (D2, D3, D10).
-- [ ] 3.6 Implement the outcome mapping from design D6 (succeeded / degraded /
+- [x] 3.6 Implement the outcome mapping from design D6 (succeeded / degraded /
       failed / apparatus-failure) and assert with tests that no branch can revert,
       close, or reopen a pull request.
 - [ ] 3.7 Emit the convergence record as one JSONL line to
