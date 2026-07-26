@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/contracts/code-search/schemas/semantic-context-section.schema.json",
+  "title": "SemanticContextResult",
+  "description": "The machine-readable form of one `Semantic code context` section produced for one coding job. Either the section was injected with bounded, deduplicated, in-scope hits, or it fell back to exact search with an explicit trigger. There is no third state and no partial state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "consumer",
+    "requested_revision",
+    "hits",
+    "omissions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "status": {
+      "enum": ["injected", "fallback"]
+    },
+    "consumer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Which coding job requested the section, e.g. `implement-feature`. Distinct per consumer so ri-13 can evaluate injection value per job type.",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "requested_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+      "description": "Full Git object ID of HEAD in the agent's own worktree. Present on fallback too — it is what the fallback was requested for."
+    },
+    "hits": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "./semantic-context-hit.schema.json" },
+      "description": "Retained hits in final rendered order (the deterministic rank order of design decision D5)."
+    },
+    "omissions": {
+      "type": "array",
+      "maxItems": 200,
+      "description": "Every hit the service returned but the section did not render, with the single reason that excluded it. Present on fallback as an empty array.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file_path", "start_line", "end_line", "reason"],
+        "properties": {
+          "file_path": { "type": "string", "minLength": 1, "maxLength": 4096 },
+          "start_line": { "type": "integer", "minimum": 1 },
+          "end_line": { "type": "integer", "minimum": 1 },
+          "reason": {
+            "enum": [
+              "duplicate_exact",
+              "duplicate_contained",
+              "hit_count_cap",
+              "file_count_cap",
+              "hit_line_cap",
+              "total_line_cap",
+              "scope_filtered"
+            ],
+            "description": "The first failing check in the fixed evaluation order, so the reason is a function of the inputs alone."
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repo_slug",
+        "namespace_kind",
+        "namespace_key",
+        "index_id",
+        "scope_decision",
+        "scope_authority",
+        "read_allow_count",
+        "deny_count"
+      ],
+      "description": "Which index answered and under what authority. Present only when status is `injected`.",
+      "properties": {
+        "repo_slug": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,50}$" },
+        "namespace_kind": { "enum": ["main", "feature", "work_package"] },
+        "namespace_key": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "index_id": { "type": "string", "format": "uuid" },
+        "scope_decision": { "const": "allowed" },
+        "scope_authority": {
+          "enum": ["principal_grant", "work_package_registry"],
+          "description": "Mirrors ri-03's `ScopeDisposition.authority`. `principal_grant` today, because ri-12 sends an explicit scope."
+        },
+        "read_allow_count": { "type": "integer", "minimum": 1 },
+        "deny_count": { "type": "integer", "minimum": 0 },
+        "embedder_model": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "embedding_dim": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger", "reason", "strategy"],
+      "description": "Why no semantic context was injected and what to do instead. Present only when status is `fallback`.",
+      "properties": {
+        "trigger": {
+          "enum": ["stale", "unavailable", "mismatched", "out_of_scope"],
+          "description": "The four triggers of design decision D8."
+        },
+        "reason": {
+          "enum": [
+            "working_tree_dirty",
+            "revision_not_indexed",
+            "injection_disabled",
+            "capability_absent",
+            "transport_unsupported",
+            "revision_unresolvable",
+            "bridge_failed",
+            "service_unavailable",
+            "service_overloaded",
+            "unknown_state",
+            "index_revision_differs",
+            "scope_rejected",
+            "no_declared_scope",
+            "scope_self_cancelling",
+            "all_hits_scope_filtered"
+          ],
+          "description": "The specific cause. Distinct per cause so the four fallback tests can assert exactly, rather than only on the trigger."
+        },
+        "strategy": {
+          "const": "exact_search",
+          "description": "Matches ri-03's `Fallback.strategy`. Exact search plus direct source reading is the only fallback."
+        },
+        "service_state": {
+          "enum": [
+            "ready",
+            "revision_mismatch",
+            "not_indexed",
+            "not_configured",
+            "unavailable",
+            "scope_rejected"
+          ],
+          "description": "The coordinator's `CodeSearchState`, when a query was actually issued. Absent when a local precondition short-circuited before the call."
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "title": "Injected",
+      "properties": {
+        "status": { "const": "injected" },
+        "hits": { "minItems": 1 }
+      },
+      "required": ["provenance"],
+      "not": { "required": ["fallback"] }
+    },
+    {
+      "title": "Fallback",
+      "properties": {
+        "status": { "const": "fallback" },
+        "hits": { "maxItems": 0 }
+      },
+      "required": ["fallback"],
+      "not": { "required": ["provenance"] }
+    }
+  ]
+}
