@@ -24,7 +24,7 @@ from gen_eval.models import (
     ScenarioGenerator,
     ScenarioVerdict,
 )
-from gen_eval.reports import GenEvalReport
+from gen_eval.reports import GenEvalReport, build_operation_coverage
 
 logger = logging.getLogger(__name__)
 
@@ -378,6 +378,12 @@ class GenEvalOrchestrator:
             (len(covered) / len(all_interfaces) * 100) if all_interfaces else 0.0
         )
 
+        # Operation × surface coverage (D4). Built from the declared elements
+        # scenarios actually reached, so an operation published on three
+        # surfaces and exercised through one is covered rather than two gaps.
+        per_operation = build_operation_coverage(self.descriptor, covered)
+        unevaluated_operations = [op.operation_id for op in per_operation if not op.covered]
+
         # Per-interface aggregation
         per_interface: dict[str, dict[str, int]] = {}
         for v in verdicts:
@@ -427,4 +433,6 @@ class GenEvalOrchestrator:
             unevaluated_interfaces=unevaluated,
             cost_summary=cost_summary,
             iterations_completed=iterations_completed,
+            per_operation=per_operation,
+            unevaluated_operations=unevaluated_operations,
         )

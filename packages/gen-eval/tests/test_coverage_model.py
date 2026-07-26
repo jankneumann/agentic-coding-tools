@@ -38,7 +38,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from tests.test_service_descriptor import CONTRACT_PATH
 
 from gen_eval.config import GenEvalConfig
 from gen_eval.descriptor import InterfaceDescriptor, ToolDescriptor
@@ -46,6 +45,7 @@ from gen_eval.models import ScenarioVerdict
 from gen_eval.orchestrator import GenEvalOrchestrator
 from gen_eval.reports import GenEvalReport, OperationCoverage
 from gen_eval.service_descriptor import ServiceDescriptor
+from tests.test_service_descriptor import CONTRACT_PATH
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CLI_CONTRACT = REPO_ROOT / "openspec" / "contracts" / "gen-eval-framework" / "cli" / "gen-eval.yaml"
