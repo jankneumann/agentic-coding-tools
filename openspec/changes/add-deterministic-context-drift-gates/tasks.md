@@ -108,14 +108,14 @@ Capability short names used in scenario references: `pcro` =
 
 ## Phase 3 — wp-gate: composition, rendering, entry points
 
-- [ ] 3.1 Write tests for gate composition and the four exit-code conditions
+- [x] 3.1 Write tests for gate composition and the four exit-code conditions
       **Spec scenarios**: `pcro` — Gate exit codes / Failure outranks drift; / Absent optional owner alone passes; / Existing entry points keep their codes
       **Contracts**: `contracts/context-drift-gate.schema.json`
       **Design decisions**: D5
       **Dependencies**: None
       **Size**: M
 
-- [ ] 3.2 Write tests for report conformance and the precise artifact list
+- [x] 3.2 Write tests for report conformance and the precise artifact list
       **Spec scenarios**: `pcro` — Deterministic context drift gate / Stale artifacts are named individually; / Gate leaves the checkout unchanged; Semantic index status / No probe is performed; / Semantic status never gates
       **Contracts**: `contracts/context-drift-gate.schema.json`
       **Design decisions**: D1, D6
@@ -124,7 +124,7 @@ Capability short names used in scenario references: `pcro` =
       **Note**: Assert against the schema, and assert no indexer is constructed even when
       full semantic configuration is present in the environment.
 
-- [ ] 3.3 Write tests for context-impact scoping and usage-error mapping
+- [x] 3.3 Write tests for context-impact scoping and usage-error mapping
       **Spec scenarios**: `pcro` — Context-impact validation / Unchanged packages are not reported; / Legacy packages without declarations pass; / Validator usage error is an apparatus failure
       **Contracts**: none
       **Design decisions**: D7
@@ -133,9 +133,9 @@ Capability short names used in scenario references: `pcro` =
       **Note**: Assert `--strict-legacy` is never passed. Measured baseline: 4 of 70
       work-package files declare a block; 65 fail under that flag.
 
-- [ ] 3.4 Checkpoint: run tests, review diff, verify scope
+- [x] 3.4 Checkpoint: run tests, review diff, verify scope
 
-- [ ] 3.5 Implement `gate.py` composition — run producers in check mode, invoke architecture
+- [x] 3.5 Implement `gate.py` composition — run producers in check mode, invoke architecture
       freshness, invoke the context-impact validator over changed work-package files
       **Spec scenarios**: `pcro` — Deterministic context drift gate / Gate leaves the checkout unchanged; Context-impact validation (all scenarios)
       **Contracts**: `contracts/context-drift-gate.schema.json`
@@ -147,7 +147,7 @@ Capability short names used in scenario references: `pcro` =
       package that cannot test it end to end, and splitting per-arm would triple the
       fixture setup. Flagged rather than silently kept.
 
-- [ ] 3.6 Implement report rendering — join producer results with registry owners, sort for
+- [x] 3.6 Implement report rendering — join producer results with registry owners, sort for
       byte stability, emit the semantic `not-attempted` block
       **Spec scenarios**: `pcro` — Deterministic context drift gate / Stale artifacts are named individually; Semantic index status / No probe is performed
       **Contracts**: `contracts/context-drift-gate.schema.json`
@@ -157,7 +157,7 @@ Capability short names used in scenario references: `pcro` =
       **Note**: `ProducerResult` has no `owner` field — recover it from the registry
       `ProducerSpec`, as ri-07's summary does.
 
-- [ ] 3.7 Add the `gate` subcommand to `cli.py` and the `context-drift-gate` Makefile target
+- [x] 3.7 Add the `gate` subcommand to `cli.py` and the `context-drift-gate` Makefile target
       **Spec scenarios**: `pcro` — Deterministic context drift gate / Gate reproduces locally
       **Contracts**: none
       **Design decisions**: D1, D5
@@ -166,7 +166,7 @@ Capability short names used in scenario references: `pcro` =
       **Note**: Do not change `_exit_code` or the existing `refresh-check` mapping; the gate
       is a third caller with its own documented codes.
 
-- [ ] 3.8 Checkpoint: run tests, review diff, verify scope
+- [x] 3.8 Checkpoint: run tests, review diff, verify scope
 
 ---
 

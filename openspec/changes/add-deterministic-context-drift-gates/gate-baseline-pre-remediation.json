@@ -1,0 +1,226 @@
+{
+  "architecture": {
+    "freshness": "unverifiable",
+    "provenance": "missing"
+  },
+  "blocking_drift": [
+    {
+      "artifacts": [
+        "docs/architecture-analysis/contracts-inventory.md"
+      ],
+      "owner": "openspec/contracts/ (machine-readable contract schemas)",
+      "producer_id": "api.contracts",
+      "remediation": [
+        {
+          "command": "make context-refresh",
+          "summary": "Regenerate the contracts inventory."
+        }
+      ]
+    },
+    {
+      "artifacts": [
+        "docs/architecture-analysis/architecture.provenance.json"
+      ],
+      "owner": "refresh-architecture",
+      "producer_id": "architecture",
+      "remediation": [
+        {
+          "command": "make architecture-refresh",
+          "summary": "Committed architecture provenance does not match the current artifacts; re-run the deterministic staged refresh to rewrite it."
+        }
+      ]
+    },
+    {
+      "artifacts": [
+        "docs/architecture-analysis/skills-inventory.md"
+      ],
+      "owner": "skills/project-context-refresh (absorbs add-update-documentation-skill)",
+      "producer_id": "documentation.inventory",
+      "remediation": [
+        {
+          "command": "make context-refresh",
+          "summary": "Regenerate the Skills inventory inventory."
+        }
+      ]
+    }
+  ],
+  "context_impact": {
+    "evaluated": [
+      "openspec/changes/add-deterministic-context-drift-gates/work-packages.yaml",
+      "openspec/changes/archive/2026-07-26-add-work-package-context-impact-declarations/work-packages.yaml",
+      "openspec/changes/archive/2026-07-26-expose-fail-closed-semantic-code-search/work-packages.yaml"
+    ],
+    "findings": [
+      {
+        "package_id": "wp-capability-discovery",
+        "status": "unmigrated",
+        "surfaces": []
+      },
+      {
+        "package_id": "wp-ci",
+        "status": "declared",
+        "surfaces": [
+          "documentation",
+          "semantic_code"
+        ]
+      },
+      {
+        "package_id": "wp-contracts",
+        "status": "declared",
+        "surfaces": [
+          "apis",
+          "semantic_code"
+        ]
+      },
+      {
+        "package_id": "wp-contracts",
+        "status": "unmigrated",
+        "surfaces": []
+      },
+      {
+        "package_id": "wp-detector",
+        "status": "declared",
+        "surfaces": [
+          "apis",
+          "semantic_code"
+        ]
+      },
+      {
+        "package_id": "wp-emitter",
+        "status": "declared",
+        "surfaces": [
+          "decisions",
+          "semantic_code"
+        ]
+      },
+      {
+        "package_id": "wp-gate",
+        "status": "declared",
+        "surfaces": [
+          "apis",
+          "documentation",
+          "semantic_code"
+        ]
+      },
+      {
+        "package_id": "wp-gate",
+        "status": "declared",
+        "surfaces": [
+          "documentation",
+          "semantic_code"
+        ]
+      },
+      {
+        "package_id": "wp-integration",
+        "status": "declared",
+        "surfaces": [
+          "apis",
+          "architecture",
+          "capabilities",
+          "decisions",
+          "documentation",
+          "semantic_code"
+        ]
+      },
+      {
+        "package_id": "wp-integration",
+        "status": "unmigrated",
+        "surfaces": []
+      },
+      {
+        "package_id": "wp-lifecycle",
+        "status": "declared",
+        "surfaces": [
+          "apis",
+          "semantic_code"
+        ]
+      },
+      {
+        "package_id": "wp-query-adapter",
+        "status": "unmigrated",
+        "surfaces": []
+      },
+      {
+        "package_id": "wp-query-service",
+        "status": "unmigrated",
+        "surfaces": []
+      },
+      {
+        "package_id": "wp-runtime-surfaces",
+        "status": "unmigrated",
+        "surfaces": []
+      },
+      {
+        "package_id": "wp-schema",
+        "status": "declared",
+        "surfaces": [
+          "apis",
+          "semantic_code"
+        ]
+      }
+    ]
+  },
+  "exit_code": 2,
+  "failed": [],
+  "informational_drift": [
+    {
+      "artifacts": [
+        "openspec/specs/agent-archetypes/spec.md",
+        "openspec/specs/agent-coordinator/spec.md",
+        "openspec/specs/agent-trajectory-harness/spec.md",
+        "openspec/specs/ambient-review/spec.md",
+        "openspec/specs/approval-gate/spec.md",
+        "openspec/specs/architecture-refresh/spec.md",
+        "openspec/specs/coordinator-kanban-viz/spec.md",
+        "openspec/specs/cross-vendor-arbitrage/spec.md",
+        "openspec/specs/evaluation-framework/spec.md",
+        "openspec/specs/gen-eval-framework/spec.md",
+        "openspec/specs/harness-engineering/spec.md",
+        "openspec/specs/llm-gateway/spec.md",
+        "openspec/specs/loop-durability/spec.md",
+        "openspec/specs/merge-infrastructure/spec.md",
+        "openspec/specs/merge-pull-requests/spec.md",
+        "openspec/specs/model-routing/spec.md",
+        "openspec/specs/observability/spec.md",
+        "openspec/specs/product-discovery-workflow/spec.md",
+        "openspec/specs/project-context-refresh-orchestration/spec.md",
+        "openspec/specs/project-context-refresh/spec.md",
+        "openspec/specs/refine-loop/spec.md",
+        "openspec/specs/release-management/spec.md",
+        "openspec/specs/repo-quality-gates/spec.md",
+        "openspec/specs/review-issue-sync/spec.md",
+        "openspec/specs/review-ledger/spec.md",
+        "openspec/specs/roadmap-orchestration/spec.md",
+        "openspec/specs/skill-workflow/spec.md",
+        "openspec/specs/software-factory-tooling/spec.md",
+        "openspec/specs/task-routing/spec.md",
+        "openspec/specs/trust-posture/spec.md",
+        "openspec/specs/usage-api/spec.md",
+        "openspec/specs/usage-collection/spec.md",
+        "openspec/specs/usage-dashboard/spec.md",
+        "openspec/specs/validate-feature-ephemeral/spec.md",
+        "openspec/specs/validate-feature-findings/spec.md",
+        "openspec/specs/validate-feature-gate/spec.md",
+        "openspec/specs/validate-feature-triage/spec.md",
+        "openspec/specs/vendor-dispatch/spec.md",
+        "openspec/specs/vendor-registry/spec.md"
+      ],
+      "owner": "cleanup-feature / openspec archive (canonical spec merge owner)",
+      "producer_id": "openspec.projection",
+      "remediation": [
+        {
+          "command": "openspec archive <change-id>",
+          "summary": "Archive the active change(s) through cleanup-feature so the canonical spec merge lands at the sync point."
+        }
+      ]
+    }
+  ],
+  "not_configured": [],
+  "outcome": "drift",
+  "schema_version": 1,
+  "semantic": {
+    "reason": "deterministic-only gate; semantic availability is not deterministic drift",
+    "status": "not-attempted"
+  },
+  "source_revision": "2fd89e59fe936a8bf1a58bf93e81e763c1bbd7e4"
+}
