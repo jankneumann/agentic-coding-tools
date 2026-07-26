@@ -315,3 +315,121 @@ class TestArchetypesWithoutOperations:
         http = [i for i in sample_descriptor.all_interfaces() if i.startswith("POST ")]
         assert http, "fixture must declare an HTTP interface"
         assert coverage_for(report, http[0]).surfaces["http"].exposed is True
+
+
+# ---------------------------------------------------------------------------
+# The flat fields keep working, computed from the operation model (task 3.3)
+# ---------------------------------------------------------------------------
+
+
+class TestLegacyFlatFieldsBackCompat:
+    """D6 — the flat vocabulary survives the deprecation window.
+
+    ``unevaluated_interfaces`` and ``per_interface`` predate the operation
+    model and downstream consumers assert on both (DOWNSTREAM.md points ACA at
+    ``per_interface`` by name). The spec requires them to keep being emitted
+    *and* to be computed from the operation model rather than maintained
+    alongside it — two independently-maintained coverage computations is how
+    they disagree.
+
+    The flat fields stay **element**-keyed, which is not the same claim as the
+    operation model. An operation covered on HTTP and untested on MCP is one
+    covered operation and one uncovered element; both statements are true and
+    the report makes both.
+    """
+
+    def test_the_flat_gap_list_is_still_emitted(
+        self, service: ServiceDescriptor, tmp_path: Path
+    ) -> None:
+        report = report_for(service, [], tmp_path)
+        assert set(report.unevaluated_interfaces) == set(service.all_interfaces())
+
+    def test_the_flat_gap_list_stays_element_keyed_not_operation_keyed(
+        self, service: ServiceDescriptor, tmp_path: Path
+    ) -> None:
+        """One operation covered on HTTP still leaves its other elements listed."""
+        report = report_for(service, ["POST /locks/acquire"], tmp_path)
+        assert "acquire_lock" not in report.unevaluated_operations
+        assert "mcp:acquire_lock" in report.unevaluated_interfaces
+        assert "cli:lock acquire" in report.unevaluated_interfaces
+        assert "POST /locks/acquire" not in report.unevaluated_interfaces
+
+    def test_the_per_interface_map_is_still_emitted(
+        self, service: ServiceDescriptor, tmp_path: Path
+    ) -> None:
+        report = report_for(service, ["POST /locks/acquire"], tmp_path)
+        assert report.per_interface["POST /locks/acquire"] == {
+            "pass": 1,
+            "fail": 0,
+            "error": 0,
+        }
+
+    def test_per_interface_counts_failures_separately(
+        self, service: ServiceDescriptor, tmp_path: Path
+    ) -> None:
+        orchestrator = build(service, tmp_path)
+        report = orchestrator._build_report(
+            [
+                verdict("s1", "pass", ["POST /locks/acquire"]),
+                verdict("s2", "fail", ["POST /locks/acquire"]),
+            ],
+            duration=1.0,
+            iterations_completed=1,
+        )
+        assert report.per_interface["POST /locks/acquire"] == {
+            "pass": 1,
+            "fail": 1,
+            "error": 0,
+        }
+
+    def test_a_parametric_path_is_attributed_to_its_declared_template(
+        self, service: ServiceDescriptor, tmp_path: Path
+    ) -> None:
+        """The vocabulary requirement, applied to the legacy map.
+
+        A scenario tests a concrete path; the contract declares a template.
+        Keying ``per_interface`` on the raw tested string splits one declared
+        interface across as many keys as the suite used path values, and none
+        of them match the declared surface — so the two maps in the same
+        report speak different languages.
+        """
+        report = report_for(service, ["GET /locks/status/src/main.py"], tmp_path)
+        assert "GET /locks/status/{path}" in report.per_interface
+        assert "GET /locks/status/src/main.py" not in report.per_interface
+
+    def test_the_two_flat_fields_partition_the_declared_surface(
+        self, service: ServiceDescriptor, tmp_path: Path
+    ) -> None:
+        """Covered and uncovered are complements, not overlapping views."""
+        report = report_for(service, ["GET /locks/status/src/main.py"], tmp_path)
+        declared = set(service.all_interfaces())
+        covered = declared & set(report.per_interface)
+        assert covered == {"GET /locks/status/{path}"}
+        assert set(report.unevaluated_interfaces) == declared - covered
+
+    def test_a_tested_identifier_matching_nothing_declared_is_still_reported(
+        self, service: ServiceDescriptor, tmp_path: Path
+    ) -> None:
+        """Negative control against over-normalising.
+
+        Attributing tested identifiers to declared elements must not silently
+        drop the ones that match nothing — that is a scenario exercising an
+        undocumented surface, which is a finding, not noise.
+        """
+        report = report_for(service, ["GET /undocumented"], tmp_path)
+        assert "GET /undocumented" in report.per_interface
+
+    def test_a_shared_element_appears_once_in_the_flat_map(
+        self, service: ServiceDescriptor, tmp_path: Path
+    ) -> None:
+        report = report_for(service, ["mcp:check_locks"], tmp_path)
+        assert list(report.per_interface).count("mcp:check_locks") == 1
+
+    def test_the_flat_fields_are_populated_for_a_tool_descriptor(
+        self, tool: ToolDescriptor, tmp_path: Path
+    ) -> None:
+        """The archetype with no operations reports the same two fields."""
+        report = report_for(tool, ["cli:--descriptor"], tmp_path)
+        assert "cli:--descriptor" in report.per_interface
+        assert "cli:--descriptor" not in report.unevaluated_interfaces
+        assert "cli:--mode" in report.unevaluated_interfaces

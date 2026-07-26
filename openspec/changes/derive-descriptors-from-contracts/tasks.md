@@ -207,7 +207,7 @@ public API.
   **Design decisions**: D4
   **Dependencies**: 3.1
 
-- [ ] 3.3 Write tests for legacy flat-field back-compatibility `[S]`
+- [x] 3.3 Write tests for legacy flat-field back-compatibility `[S]`
   **Spec scenarios**: Operation And Surface Coverage Model (report continues to emit the flat interface list)
   **Design decisions**: D4, D6
   **Dependencies**: 3.2
