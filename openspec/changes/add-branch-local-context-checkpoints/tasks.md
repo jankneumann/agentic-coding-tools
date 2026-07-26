@@ -135,7 +135,7 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
 
 ## Phase 4 — Workflow trigger (wp-workflow)
 
-- [ ] 4.1 Write the trigger tests — a context-invalidating package produces a checkpoint;
+- [x] 4.1 Write the trigger tests — a context-invalidating package produces a checkpoint;
       an explicitly empty surface list does not; a missing block reports `unmigrated`
       rather than impact-free; evaluation uses the changed-file list with no git range.
       **Spec scenarios**: swf "A context-invalidating package produces a checkpoint",
@@ -147,19 +147,19 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
       **Dependencies**: None
       **Size**: M
 
-- [ ] 4.2 Write the scope-handoff test — the workflow supplies the completed package's
+- [x] 4.2 Write the scope-handoff test — the workflow supplies the completed package's
       read-allow and deny globs to the checkpoint.
       **Spec scenarios**: swf "Package scope is supplied to the checkpoint"
       **Design decisions**: D5
       **Dependencies**: None
       **Size**: S
 
-- [ ] 4.3 Document the per-package checkpoint trigger in `implement-feature/SKILL.md` at
+- [x] 4.3 Document the per-package checkpoint trigger in `implement-feature/SKILL.md` at
       the package-completion boundary, including the `unmigrated` reporting rule.
       **Dependencies**: 4.1, 4.2
       **Size**: M
 
-- [ ] 4.4 Checkpoint: run tests, review diff, verify scope.
+- [x] 4.4 Checkpoint: run tests, review diff, verify scope.
 
 ## Phase 5 — Integration (wp-integration)
 
