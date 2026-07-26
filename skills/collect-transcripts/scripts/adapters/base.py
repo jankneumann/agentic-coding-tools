@@ -12,7 +12,6 @@ import logging
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Iterator
 
 # Allow importing normalize from the parent scripts directory
 _SCRIPTS_DIR = Path(__file__).resolve().parent.parent

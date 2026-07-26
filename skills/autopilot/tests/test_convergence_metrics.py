@@ -20,9 +20,8 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 # Ensure the convergence_loop module can find its dependencies
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent / "scripts")
@@ -40,7 +39,7 @@ from consensus_synthesizer import (
     ConsensusReport,
     ConsensusSynthesizer,
 )
-from convergence_loop import converge, ConvergenceResult
+from convergence_loop import converge
 from review_dispatcher import ReviewResult
 
 

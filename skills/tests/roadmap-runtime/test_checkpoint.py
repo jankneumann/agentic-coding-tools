@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 
 import pytest
 from checkpoint import CheckpointManager
 from models import (
-    Checkpoint,
     CheckpointPhase,
     Effort,
     ItemStatus,
     Roadmap,
     RoadmapItem,
-    RoadmapStatus,
 )
 
 

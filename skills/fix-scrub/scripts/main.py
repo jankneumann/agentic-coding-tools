@@ -107,7 +107,7 @@ def run(
 
     # Plan
     fix_plan = plan(classified, max_agent_fixes=max_agent_fixes, dry_run=dry_run)
-    print(f"\nFix Plan:")
+    print("\nFix Plan:")
     print(f"  Auto: {fix_plan.summary.get('auto', 0)}")
     print(f"  Agent: {fix_plan.summary.get('agent', 0)}")
     print(f"  Manual: {fix_plan.summary.get('manual', 0)}")

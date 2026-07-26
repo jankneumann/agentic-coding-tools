@@ -21,10 +21,8 @@ Usage:
 
 import argparse
 import json
-import os
-import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -32,10 +30,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import dal
 from dal import (
     LOG_LINES_DEFAULT,
-    ProgressTimer,
     RailwayContext,
-    _analyze_window,
-    _build_metrics_history,
     _init_context,
     _trend_indicator,
     get_all_metrics_from_api,
@@ -43,7 +38,6 @@ from dal import (
     get_railway_status,
     get_recent_logs,
     progress,
-    run_railway_command,
     run_ssh_query,
 )
 

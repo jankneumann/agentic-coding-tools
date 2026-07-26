@@ -14,7 +14,7 @@ import subprocess
 import time
 from typing import Any
 
-from _helpers import GH_TIMEOUT, run_cmd, run_gh, run_gh_unchecked
+from _helpers import GH_TIMEOUT, run_cmd, run_gh
 from merge_events import MergeEvent, emit_event
 
 ROLLBACK_MONITOR_MINUTES = int(

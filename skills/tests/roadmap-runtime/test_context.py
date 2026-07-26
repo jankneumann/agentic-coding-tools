@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import pytest
-import yaml
 from context import assemble_context, assemble_summary
 from learning import write_entry
 from models import (

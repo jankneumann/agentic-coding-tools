@@ -110,7 +110,7 @@ class TestCodexCLINormalization:
         assert len(tool_result_events) >= 1
 
     def test_reasoning_mapped_to_thinking(self, adapter: "CodexCLIAdapter") -> None:
-        from normalize import ContentType, EventRole
+        from normalize import ContentType
 
         events = adapter.normalize_session("sess-xyz789")
         thinking_events = [

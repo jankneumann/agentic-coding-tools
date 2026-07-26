@@ -7,7 +7,6 @@ and can report them consistently to stderr or serialise them to JSON.
 from __future__ import annotations
 
 import logging
-import sys
 from dataclasses import dataclass, field
 from typing import Any
 
