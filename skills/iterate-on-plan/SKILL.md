@@ -34,8 +34,8 @@ Iteratively refine an OpenSpec proposal after `/plan-feature` creates it. Each i
 ## Provider-Neutral Dispatch
 
 When this skill delegates analysis work, treat the provider-neutral dispatch adapter
-as the canonical cross-provider path. Claude Code, Codex, and
-Gemini/Jules are first-class providers when configured; Claude-style `Task(...)`
+as the canonical cross-provider path. Claude Code, Codex, Antigravity, Grok, and
+Pi are first-class providers when configured; Claude-style `Task(...)`
 or `Agent(...)` snippets are provider-specific examples, with inline execution
 as the fallback.
 
@@ -44,7 +44,6 @@ as the fallback.
 Use OpenSpec-generated runtime assets first, then CLI fallback:
 - Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
 - Codex: `.codex/skills/openspec-*/SKILL.md`
-- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - Fallback: direct `openspec` CLI commands
 
 ## Coordinator Integration (Optional)

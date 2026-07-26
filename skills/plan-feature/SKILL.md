@@ -31,16 +31,15 @@ Optional flags:
 
 When this skill delegates context gathering or review work, treat the
 provider-neutral dispatch adapter as the canonical cross-provider path. Claude
-Code, Codex, and Gemini/Jules are first-class providers when configured; any
-Claude harness `Agent(...)` usage is a provider-specific adapter internal or
-example, with inline execution as the fallback.
+Code, Codex, Antigravity, Grok, and Pi are first-class providers when
+configured; any Claude harness `Agent(...)` usage is a provider-specific adapter
+internal or example, with inline execution as the fallback.
 
 ## OpenSpec Execution Preference
 
 Use OpenSpec-generated runtime assets first, then CLI fallback:
 - Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
 - Codex: `.codex/skills/openspec-*/SKILL.md`
-- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - Fallback: direct `openspec` CLI commands
 
 ## Interactive Planning

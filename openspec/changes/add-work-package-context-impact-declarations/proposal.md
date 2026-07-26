@@ -1,105 +1,87 @@
-# Change: Add work-package context impact declarations
+# Add Work-Package Context Impact Declarations
 
-> Parent roadmap: `project-context-refresh-lifecycle`
-> Roadmap item: `ri-08`
-> Change ID: `add-work-package-context-impact-declarations`
+Roadmap item **ri-08** of `project-context-refresh-lifecycle`
+(capability: *Add work-package context-impact checkpoints*).
 
 ## Why
 
-Work packages declare file scope and contracts, but they do not say which durable
-context surfaces a package is expected to change. A later branch checkpoint could
-guess from changed files, yet guessing alone cannot distinguish a real omission
-from a reviewed no-impact decision. Semantic retrieval also needs the package's
-existing read and deny scope in a normalized, validated handoff.
+A work package already declares *what files it may touch* (`scope.write_allow`)
+and *what it may read* (`scope.read_allow`). It declares nothing about which
+**derived project context** it invalidates. So when a package lands, nobody —
+human or agent — knows whether `docs/`, `openspec/specs/`, the architecture
+graph, the decision index, the API contract inventory, or the semantic index are
+now stale.
 
-## Selected approach
+ri-05 gave us deterministic producers that can *detect* drift and ri-07 gave us
+an orchestrator that can *refresh* it. Both operate on the whole repository after
+the fact. What is missing is the planning-time counterpart: a per-package,
+reviewable declaration of intended context impact, plus a check that catches the
+packages which forgot to declare one.
 
-Add an optional `context_impact` object to each work package with six required
-surface keys when present: capabilities, APIs, architecture, decisions,
-documentation, and semantic code. Each declaration uses a disposition of
-`refresh`, `no-impact`, or `unknown`, optional targets, and an optional reviewed
-exception.
+The declaration alone is not trustworthy — a planner can simply omit it. So the
+declaration is a **reviewable hint**, and changed-file plus contract analysis is
+the **detector**. The check compares the two and fails when the detector implies
+a surface the package never declared and never justified.
 
-Extend `validate-packages` with deterministic inference rules over changed files,
-declared contracts, and logical lock keys. An inferred impact is satisfied by
-`refresh`; `unknown` remains an actionable validation failure in strict mode; and
-`no-impact` is accepted only with a complete exception containing rationale,
-reviewer, and review timestamp.
+## What Changes
 
-For compatibility, existing packages without `context_impact` validate with a
-machine-readable `legacy-unclassified` warning in default mode. New templates
-include the object, and `--require-context-impact` turns missing metadata into an
-error. This creates an explicit migration path without breaking every active
-change at once.
+1. **Schema.** `work-packages.schema.json` gains an optional `context_impact`
+   block on every work package: the surfaces it may affect, and an optional
+   per-surface rationale for a surface the detector will flag.
 
-The package's existing `scope.read_allow` and `scope.deny` remain the source of
-truth. The validator emits a normalized context handoff that copies those values
-alongside declared impacts for branch refresh and semantic-query consumers.
+2. **Detector.** A new `context_impact.py` in the `validate-packages` skill maps
+   a package's changed files and the change's contract files onto the six
+   context surfaces using a reviewable glob rule table, then diffs implied
+   against declared.
 
-## Approaches considered
+3. **Gate.** A new `validate_context_impact.py` CLI fails when a package with a
+   `context_impact` block omits an implied surface without an approved
+   rationale. Packages with **no** block are reported as `unmigrated` with the
+   inferred surfaces spelled out — a compatibility result, not a hard failure,
+   until `--strict-legacy` is passed.
 
-### A. Authored declarations plus deterministic inference — selected
+4. **Downstream scope exposure.** `index_scopes()` resolves each package's
+   effective `read_allow` / `deny` globs so ri-12's scoped context injection and
+   the ri-01/ri-02 semantic index can query with the planner's own boundaries
+   instead of re-deriving them.
 
-Place a fixed six-surface declaration in the reviewed work-package contract,
-compare it with versioned path/contract/lock inference, and require review
-provenance for conflicts. This preserves intent while making omissions detectable.
+5. **Template + docs.** The `feature-workflow` work-packages template carries a
+   commented `context_impact` example; `validate-packages/SKILL.md` documents
+   the new script and surfaces.
 
-### B. Pure changed-file inference
+## Surfaces
 
-This minimizes planning work, but cannot distinguish a true no-impact change from
-an incomplete rule set. It also gives reviewers no early signal before code is
-written.
+The six surfaces are pinned to the producers that own them, so a declaration is
+directly actionable — refreshing surface *S* means running producer *P*.
 
-### C. Separate context-impact manifest
+| Surface | Owning producer / skill | Introduced by |
+|---|---|---|
+| `capabilities` | `openspec.projection` | ri-05 |
+| `apis` | `api.contracts` | ri-05 |
+| `architecture` | `refresh-architecture` | ri-04 |
+| `decisions` | `decisions.timeline` | ri-05 |
+| `documentation` | `documentation.inventory` | ri-05 |
+| `semantic_code` | `code-search` index | ri-01 / ri-02 |
 
-This could evolve independently, but duplicates package identity and scope and can
-drift from the execution contract. `work-packages.yaml` is already the reviewed
-coordination boundary.
+## Impact
 
-### D. LLM impact classification
+- **Affected specs:** `skill-workflow` (owns the work-package contract and DAG
+  scheduling requirements).
+- **Affected code:** `skills/validate-packages/` (new detector + CLI + tests),
+  `skills/validate-packages/install_assets/openspec/schemas/work-packages.schema.json`,
+  `skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/work-packages.yaml`,
+  plus the `install.sh`-regenerated copies under `openspec/schemas/`.
+- **Backward compatibility:** `context_impact` is optional and every existing
+  `work-packages.yaml` in the repo validates unchanged. The detector's default
+  mode never fails a package that predates the field.
 
-This may add useful advisory hints later, but is nondeterministic and unsuitable
-as a validation or merge gate. V1 uses inspectable rules and explicit exceptions.
+## Out of Scope
 
-## What changes
-
-- Extend canonical and installed work-package schemas and templates.
-- Add context-impact inference, validation, and normalized JSON output to
-  `validate-packages`.
-- Detect undeclared capability, API, architecture, decision, documentation, and
-  semantic-code impacts from changed paths/contracts using versioned rules.
-- Add a strict migration flag and clear legacy compatibility result.
-- Make the normalized read/deny scope available to downstream refresh/index
-  callers without introducing new authority.
-
-## Dependencies
-
-- None. This is a dependency root.
-- `ri-09` consumes declarations for branch-local checkpoints.
-- `ri-12` consumes normalized read/deny scope for semantic context injection.
-
-## Out of scope
-
-- Running any producer or semantic index.
-- Deciding whether a work package is "large"; `ri-09` owns checkpoint policy.
-- Expanding read permission beyond `scope.read_allow`.
-- Inferring semantic meaning with an LLM; v1 rules are deterministic and
-  reviewable.
-
-## Acceptance outcomes
-
-- Schemas/templates accept declarations for all six context surfaces.
-- Validation catches deterministically implied but undeclared impacts.
-- A no-impact exception requires review provenance and remains visible in output.
-- Legacy files receive an explicit compatibility warning; strict mode fails them.
-- Normalized output exposes read/deny scope exactly as declared, with deny taking
-  precedence.
-
-## Risks
-
-- Broad path rules may over-report impacts. Reviewed exceptions preserve forward
-  progress and provide evidence for tuning.
-- Optional migration mode could linger. `ri-09` must use strict mode when it makes
-  checkpointing operational.
-- Targets can become stale after refactors. Validation treats targets as hints;
-  declared disposition and inferred changed paths remain authoritative.
+- **Running the producers.** This change infers impact from paths and contracts
+  only. Executing ri-05 `check` producers to confirm real drift is ri-10
+  (`add-deterministic-context-drift-gates`).
+- **Branch-local checkpoints.** Generating the per-package checkpoint report and
+  the revision-isolated index is ri-09
+  (`add-branch-local-context-checkpoints`), which consumes this declaration.
+- **Consuming the scopes.** ri-12 injects scoped semantic context into coding
+  jobs; ri-08 only exposes the resolver.

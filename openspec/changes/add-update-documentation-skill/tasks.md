@@ -1,9 +1,13 @@
-# Tasks: Superseded
+# Tasks — SUPERSEDED
 
-> **Status: SUPERSEDED — DO NOT DISPATCH**
-> Replacement: `add-deterministic-context-producer-checks`
-
-There are no executable tasks in this change. The marker-preserving
-documentation producer is planned and tested by ri-05. Hook, cleanup,
-validate-feature, post-merge, and auto-commit tasks from the historical proposal
-were intentionally removed because ri-10 and ri-11 own gating and convergence.
+> **This change is superseded by `add-deterministic-context-producer-checks`
+> (roadmap `project-context-refresh-lifecycle`, item ri-05).**
+>
+> Its marker-preserving documentation-inventory behavior was absorbed into that
+> change's `documentation.inventory` producer. Its standalone hook, cleanup,
+> merge-time, validate-feature, and automatic-commit wiring were intentionally
+> dropped: deterministic drift gates are owned by ri-10 and main convergence by
+> ri-11.
+>
+> No executable tasks remain. The historical task plan is preserved only in
+> version control (see this file's git history) and the retained `design.md`.

@@ -109,7 +109,7 @@ class AblationFlags:
 class AgentBackendConfig:
     """Configuration for an agent backend."""
 
-    name: str  # e.g. "claude_code", "codex", "gemini_jules"
+    name: str  # e.g. "claude_code", "codex", "antigravity", "grok", "pi"
     command: str  # CLI command to invoke
     args: list[str] = field(default_factory=list)
     env: dict[str, str] = field(default_factory=dict)

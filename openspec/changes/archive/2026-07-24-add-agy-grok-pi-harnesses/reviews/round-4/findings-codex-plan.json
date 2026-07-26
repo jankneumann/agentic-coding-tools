@@ -1,0 +1,37 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 290,
+        "end": 292
+      },
+      "description": "Critical: `wp-frontend` verification is a no-op for the package's roster-fixture work. Verified by running the exact work-package command: `(cd apps/kanban-viz && npm ci && npm test -- --run) && diff <(git grep -lIi gemini -- apps/kanban-viz | sort) <(printf '%s\\n' apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx apps/kanban-viz/src/__tests__/useCoordinator.test.tsx apps/kanban-viz/src/hooks/useCoordinator.ts apps/kanban-viz/src/lib/coordinator-types.ts | sort) && git diff --quiet main... -- apps/kanban-viz/src/components/VendorSwimlanes.tsx`. On the unmodified tree it exited 0; real output included `added 163 packages`, `Test Files  19 passed (19)`, `Tests  222 passed | 6 skipped (228)`, and the following `diff` / `git diff --quiet` segments also returned 0. That means tasks 4.1/4.2 can be skipped while the package still passes; the command checks only existing historical gemini residue and component immutability, not that antigravity/grok/pi fixtures were added or that `skills/tests/agent-coordinator` fixtures changed.",
+      "resolution": "Add an assertion that fails until the new roster appears in the frontend and skills-tree kanban fixtures, for example by grepping expected antigravity/grok/pi fixture rows or adding a focused test that exercises those vendors."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 365,
+        "end": 367
+      },
+      "description": "Critical: The round-3 mirror-residue fix is incomplete in live `tasks.md`. `work-packages.yaml` uses non-vacuous plain `grep -rIl`, but task 6.1 still instructs `git grep` over `.claude/skills` and `.agents/skills`, which are gitignored. Verified with the task check: `test -z \"$(git grep -lIi gemini -- .claude/skills .agents/skills ':!*SKILL.md' ':!*/references/*' ':!*/templates/*' ':!*/install_assets/*')\"` exited 0 on the unmodified tree with output only `git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead`. The non-vacuous command `grep -rIl -i gemini .claude/skills .agents/skills --exclude='*SKILL.md' --exclude-dir=references --exclude-dir=templates --exclude-dir=install_assets` listed real residue including `.claude/skills/parallel-infrastructure/scripts/review_dispatcher.py`, `.claude/skills/autopilot/scripts/provider_dispatch.py`, `.agents/skills/parallel-infrastructure/scripts/review_dispatcher.py`, and `.agents/skills/autopilot/scripts/provider_dispatch.py`.",
+      "resolution": "Change task 6.1 to use the same plain `grep -rIl` mirror check as `wp-docs-finalize`, with matching exclusions, so the task-level verification cannot pass while mirrors still contain live gemini residue."
+    }
+  ]
+}

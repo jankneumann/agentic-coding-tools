@@ -14,7 +14,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 # ---------------------------------------------------------------------------
 # sys.path insertion so we can import collector modules from scripts/
@@ -25,7 +24,6 @@ import collect_mypy
 import collect_openspec
 import collect_pytest
 import collect_ruff
-from models import Finding, SourceResult
 
 
 # ========================================================================

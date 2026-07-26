@@ -69,11 +69,11 @@ def vendor_results() -> list[ReviewResult]:
             },
         ),
         ReviewResult(
-            vendor="gemini",
+            vendor="grok",
             success=False,
             error="429 rate_limit",
             error_class=ErrorClass.CAPACITY,
-            models_attempted=["gemini-2.5-pro"],
+            models_attempted=["grok-4.5"],
         ),
     ]
 
@@ -178,7 +178,7 @@ def test_cli_main_writes_per_vendor_files_at_legacy_paths(
 
     # Existing-glob caller continues to find files
     found = sorted(glob.glob(str(output_dir / "findings-*-plan.json")))
-    assert len(found) == 2  # claude_code + codex; gemini failed
+    assert len(found) == 2  # claude_code + codex; grok failed
     paths = {Path(p).name for p in found}
     assert paths == {"findings-claude_code-plan.json", "findings-codex-plan.json"}
 
@@ -243,7 +243,7 @@ def test_cli_main_manifest_has_vendor_index_pointing_at_files(
 
     manifest = read_manifest(output_dir)
     vendors = {v["name"]: v for v in manifest["vendors"]}
-    assert set(vendors) == {"claude_code", "codex"}  # gemini failed
+    assert set(vendors) == {"claude_code", "codex"}  # grok failed
     assert vendors["claude_code"]["finding_count"] == 2
     assert vendors["codex"]["finding_count"] == 1
     assert vendors["claude_code"]["findings_path"] == "findings-claude_code-plan.json"

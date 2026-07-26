@@ -45,7 +45,7 @@ from typing import Any
 DEFAULT_CHANGE_ID = "demo-kanban"
 DEFAULT_API_URL = "http://localhost:8081"
 SEED_LABEL_PREFIX = "seed:"
-VENDORS = ("claude", "codex", "gemini")
+VENDORS = ("claude", "codex", "antigravity", "grok", "pi")
 
 
 @dataclass(frozen=True)
@@ -74,7 +74,7 @@ SEED_SET: tuple[SeedIssue, ...] = (
               "File upstream issue + add regression test."),
 
     # ---------- backlog (blocked) ----------
-    SeedIssue("Migrate coordinator to ParadeDB 18.5", "blocked", 6, "gemini",
+    SeedIssue("Migrate coordinator to ParadeDB 18.5", "blocked", 6, "antigravity",
               "Blocked on upstream pgvector compat patch."),
 
     # ---------- in-flight (claimed) ----------
@@ -83,7 +83,9 @@ SEED_SET: tuple[SeedIssue, ...] = (
 
     # ---------- in-flight (running) ----------
     SeedIssue("Build kanban-viz vendor swimlane projection", "running", 1, "claude"),
-    SeedIssue("Sync skill-tier negotiation tests", "running", 4, "gemini"),
+    SeedIssue("Sync skill-tier negotiation tests", "running", 4, "grok"),
+    SeedIssue("Benchmark pi/Kimi-3 on tier-2 tasks", "running", 3, "pi",
+              "OpenRouter frontier route; compare against subscription harnesses."),
     SeedIssue("Wire merge-train priority into autopilot-roadmap", "running", 2, "codex"),
 
     # ---------- done (completed, recent) ----------

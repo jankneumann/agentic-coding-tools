@@ -17,7 +17,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-import pytest
 
 from collect_deferred import (
     _change_id_from_path,
@@ -26,7 +25,6 @@ from collect_deferred import (
     _severity_for,
     collect,
 )
-from models import Finding, FindingOrigin
 
 
 # ---------------------------------------------------------------------------

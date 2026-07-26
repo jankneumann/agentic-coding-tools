@@ -156,9 +156,27 @@ def _resolve_changed_to_node_ids(
     return out
 
 
+def _graph_is_fresh_by_provenance(
+    repo_root: Path, arch_dir: str, mode: str
+) -> bool:
+    """Return whether committed architecture provenance is fresh (content-based).
+
+    Mtime-independent per ri-04: freshness is decided by the architecture
+    provenance document, not the graph's file age (spec scenarios
+    architecture-refresh.3 and architecture-refresh.6).
+    """
+    from arch_utils.provenance import check_freshness
+
+    return check_freshness(repo_root, arch_dir, mode=mode).is_fresh
+
+
 def affected_tests(
     changed_files: list[str],
     graph_path: Path | str = Path("docs/architecture-analysis/architecture.graph.json"),
+    *,
+    repo_root: Path | str | None = None,
+    arch_dir: str = "docs/architecture-analysis",
+    mode: str = "full",
 ) -> list[str] | None:
     """Return the list of test file paths affected by *changed_files*.
 
@@ -166,17 +184,37 @@ def affected_tests(
         ``list[str]`` of relative test file paths (may be empty),
         or ``None`` if the result cannot be trusted (graph stale, missing,
         or traversal bound exceeded). Callers MUST run the full suite on None.
-    """
-    graph_path = Path(graph_path)
-    loaded = load_graph_with_mtime(graph_path)
-    if loaded is None:
-        logger.warning(
-            "affected_tests: graph missing or stale (>%dh) — falling back to full suite",
-            MAX_GRAPH_AGE_HOURS,
-        )
-        return None
 
-    graph, _mtime = loaded
+    When *repo_root* is provided, freshness is decided by the architecture
+    provenance document (content-based, mtime-independent). Callers that omit
+    it retain the legacy graph-mtime probe for backward compatibility; that
+    path is deprecated and never consulted once provenance gating is in use.
+    """
+    if repo_root is not None:
+        repo_root = Path(repo_root)
+        if not _graph_is_fresh_by_provenance(repo_root, arch_dir, mode):
+            logger.warning(
+                "affected_tests: architecture provenance not fresh/valid — "
+                "falling back to full suite",
+            )
+            return None
+        graph_path = repo_root / arch_dir / "architecture.graph.json"
+        try:
+            graph = json.loads(Path(graph_path).read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("affected_tests: cannot load graph: %s", exc)
+            return None
+    else:
+        graph_path = Path(graph_path)
+        loaded = load_graph_with_mtime(graph_path)
+        if loaded is None:
+            logger.warning(
+                "affected_tests: graph missing or stale (>%dh) — falling back to full suite",
+                MAX_GRAPH_AGE_HOURS,
+            )
+            return None
+        graph, _mtime = loaded
+
     if not changed_files:
         return []
 
@@ -260,7 +298,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--graph",
         type=Path,
         default=Path("docs/architecture-analysis/architecture.graph.json"),
-        help="Path to architecture.graph.json",
+        help="Path to architecture.graph.json (legacy mtime path when --repo-root absent)",
+    )
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        default=None,
+        help=(
+            "Repository root. When set, freshness is decided by architecture "
+            "provenance (content-based, mtime-independent) instead of graph age."
+        ),
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("full", "quick"),
+        default="full",
+        help="Architecture refresh mode to require in provenance (default: full)",
     )
     parser.add_argument(
         "files",
@@ -273,7 +326,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = parse_args(argv)
-    result = affected_tests(args.files, graph_path=args.graph)
+    if args.repo_root is not None:
+        result = affected_tests(args.files, repo_root=args.repo_root, mode=args.mode)
+    else:
+        result = affected_tests(args.files, graph_path=args.graph)
     if result is None:
         print("ALL")
         return 0

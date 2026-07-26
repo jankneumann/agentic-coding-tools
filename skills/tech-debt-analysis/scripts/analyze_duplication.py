@@ -25,7 +25,7 @@ ANALYZER = "duplication"
 
 SKIP_DIRS = {
     ".venv", "node_modules", "__pycache__", ".git", ".tox", "dist", "build",
-    ".agents", ".claude", ".codex", ".gemini",  # runtime skill copies
+    ".agents", ".claude", ".codex", ".grok",  # runtime skill copies
 }
 
 # ── Configurable thresholds ───────────────────────────────────────────
@@ -188,7 +188,7 @@ def analyze(project_dir: str) -> AnalyzerResult:
         else:
             scope = "same-file"
 
-        location_strs = [f"{f}:{l}" for f, l in locations[:5]]
+        location_strs = [f"{path}:{lineno}" for path, lineno in locations[:5]]
         if len(locations) > 5:
             location_strs.append(f"...and {len(locations) - 5} more")
 

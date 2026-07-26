@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 from models import Policy, PolicyAction
-from policy import PolicyDecision, VendorLimit, evaluate_policy
+from policy import VendorLimit, evaluate_policy
 
 
 class TestWaitPolicy:
@@ -19,7 +18,7 @@ class TestWaitPolicy:
         decision = evaluate_policy(
             policy=policy,
             vendor_limit=limit,
-            available_vendors=["codex", "gemini"],
+            available_vendors=["codex", "antigravity"],
             switch_attempts=0,
         )
 
@@ -69,13 +68,13 @@ class TestSwitchPolicy:
         decision = evaluate_policy(
             policy=policy,
             vendor_limit=limit,
-            available_vendors=["codex", "gemini"],
+            available_vendors=["codex", "antigravity"],
             switch_attempts=0,
         )
 
         assert decision.action == "switch"
         assert decision.from_vendor == "claude"
-        assert decision.to_vendor in ("codex", "gemini")
+        assert decision.to_vendor in ("codex", "antigravity")
         assert "claude" not in [decision.to_vendor]
 
     def test_switch_returns_fail_closed_when_no_alternates(self):
@@ -109,19 +108,19 @@ class TestSwitchPolicy:
     def test_switch_prefers_preferred_vendor(self):
         policy = Policy(
             default_action=PolicyAction.SWITCH,
-            preferred_vendor="gemini",
+            preferred_vendor="antigravity",
         )
         limit = VendorLimit(vendor="claude", reason="rate limit")
 
         decision = evaluate_policy(
             policy=policy,
             vendor_limit=limit,
-            available_vendors=["codex", "gemini"],
+            available_vendors=["codex", "antigravity"],
             switch_attempts=0,
         )
 
         assert decision.action == "switch"
-        assert decision.to_vendor == "gemini"
+        assert decision.to_vendor == "antigravity"
 
     def test_switch_includes_cost_delta(self):
         policy = Policy(default_action=PolicyAction.SWITCH)
@@ -150,7 +149,7 @@ class TestCascadingFailover:
         decision = evaluate_policy(
             policy=policy,
             vendor_limit=limit,
-            available_vendors=["codex", "gemini"],
+            available_vendors=["codex", "antigravity"],
             switch_attempts=2,  # Already at max
         )
 
@@ -203,7 +202,7 @@ class TestCostCeiling:
         decision = evaluate_policy(
             policy=policy,
             vendor_limit=limit,
-            available_vendors=["gemini"],  # gemini is cheaper, delta negative
+            available_vendors=["antigravity"],  # antigravity is cheaper, delta negative
             switch_attempts=0,
         )
 
@@ -214,9 +213,9 @@ class TestCostCeiling:
             default_action=PolicyAction.SWITCH,
             cost_ceiling_usd=0.01,  # Very tight ceiling
         )
-        limit = VendorLimit(vendor="gemini", reason="rate limit")
+        limit = VendorLimit(vendor="antigravity", reason="rate limit")
 
-        # Switch from gemini (0.6) to codex (0.8) = delta 0.2, exceeds 0.01
+        # Switch from antigravity (0.6) to codex (0.8) = delta 0.2, exceeds 0.01
         decision = evaluate_policy(
             policy=policy,
             vendor_limit=limit,

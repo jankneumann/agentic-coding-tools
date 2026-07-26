@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from review_dispatcher import (
     CliConfig,
     CliVendorAdapter,
@@ -114,27 +113,47 @@ class TestBuildCommand:
         cmd = adapter.build_command("review", "Review this", model="gpt-4.1")
         assert cmd == ["codex", "exec", "-s", "read-only", "-m", "gpt-4.1", "Review this"]
 
-    def test_gemini_flags(self) -> None:
+    def test_agy_flags(self) -> None:
+        # E7: agy ignores stdin and a trailing positional — the prompt must be
+        # the value of --prompt (prompt_via_flag).
         adapter = CliVendorAdapter(
-            agent_id="gemini-local",
-            vendor="gemini",
+            agent_id="antigravity-local",
+            vendor="antigravity",
             cli_config=CliConfig(
-                command="gemini",
+                command="agy",
+                dispatch_modes={
+                    "review": ModeConfig(args=["--print", "--mode", "plan"]),
+                },
+                model_flag="--model",
+                prompt_via_flag="--prompt",
+            ),
+        )
+        cmd = adapter.build_command("review", "prompt")
+        assert cmd == ["agy", "--print", "--mode", "plan", "--prompt", "prompt"]
+        # Prompt is the value of --prompt, not a trailing positional
+        assert cmd[-2:] == ["--prompt", "prompt"]
+
+    def test_grok_flags(self) -> None:
+        # E2: grok delivers the prompt under a subprocess pipe via
+        # --prompt-file /dev/stdin (prompt_via_stdin=True).
+        adapter = CliVendorAdapter(
+            agent_id="grok-local",
+            vendor="grok",
+            cli_config=CliConfig(
+                command="grok",
                 dispatch_modes={
                     "review": ModeConfig(args=[
-                        "-p", "Respond with ONLY valid JSON.",
-                        "--approval-mode", "default", "-o", "text",
+                        "--prompt-file", "/dev/stdin",
+                        "--output-format", "json",
                     ]),
                 },
                 model_flag="-m",
                 prompt_via_stdin=True,
             ),
         )
-        # With prompt_via_stdin=True, prompt is NOT appended to command
         cmd = adapter.build_command("review", "prompt")
         assert cmd == [
-            "gemini", "-p", "Respond with ONLY valid JSON.",
-            "--approval-mode", "default", "-o", "text",
+            "grok", "--prompt-file", "/dev/stdin", "--output-format", "json",
         ]
         assert "prompt" not in cmd  # prompt goes via stdin, not positional
 
@@ -270,12 +289,12 @@ class TestDispatch:
         assert result.findings is not None
 
     @patch("review_dispatcher.subprocess.run")
-    def test_gemini_json_envelope(self, mock_run: MagicMock, tmp_path: Path) -> None:
-        """Gemini -o json wraps model output in {"response": "<json>"}."""
+    def test_grok_structured_output_dict(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        """grok --output-format json nests the object under structuredOutput (E6)."""
         envelope = json.dumps({
-            "session_id": "abc-123",
-            "response": VALID_FINDINGS_JSON,
-            "stats": {"models": {}},
+            "text": "done",
+            "structuredOutput": json.loads(VALID_FINDINGS_JSON),
+            "usage": {},
         })
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout=envelope, stderr="",
@@ -287,14 +306,31 @@ class TestDispatch:
         assert len(result.findings["findings"]) == 1
 
     @patch("review_dispatcher.subprocess.run")
-    def test_gemini_envelope_with_invalid_inner_json(
+    def test_grok_structured_output_json_string(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """Gemini envelope with non-JSON response string → fails gracefully."""
+        """grok structuredOutput as a JSON-string is tolerated."""
         envelope = json.dumps({
-            "session_id": "abc-123",
-            "response": "I could not produce valid JSON.",
-            "stats": {},
+            "text": "done",
+            "structuredOutput": VALID_FINDINGS_JSON,
+        })
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=envelope, stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_grok_envelope_missing_findings_key(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """grok envelope whose structuredOutput lacks 'findings' → fails."""
+        envelope = json.dumps({
+            "text": "done",
+            "structuredOutput": {"review_type": "plan", "target": "test"},
         })
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout=envelope, stderr="",
@@ -304,22 +340,47 @@ class TestDispatch:
         assert result.success is False
 
     @patch("review_dispatcher.subprocess.run")
-    def test_gemini_envelope_missing_findings_key(
-        self, mock_run: MagicMock, tmp_path: Path,
-    ) -> None:
-        """Gemini envelope with JSON response but no 'findings' key."""
-        inner = json.dumps({"review_type": "plan", "target": "test"})
-        envelope = json.dumps({
-            "session_id": "abc-123",
-            "response": inner,
-            "stats": {},
-        })
+    def test_pi_ndjson_event_stream(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        """pi --mode json emits an NDJSON event stream (E8); the findings live
+        in the final assistant message_end event, not as a single JSON blob."""
+        stream = "\n".join([
+            json.dumps({"type": "session", "id": "s1"}),
+            json.dumps({"type": "message_update", "message": {
+                "role": "assistant", "content": [{"type": "text", "text": "thinking"}],
+            }}),
+            json.dumps({"type": "message_end", "message": {
+                "role": "assistant",
+                "content": [{"type": "text", "text": "Findings:\n" + VALID_FINDINGS_JSON}],
+            }}),
+            json.dumps({"type": "agent_settled"}),
+        ])
         mock_run.return_value = subprocess.CompletedProcess(
-            args=[], returncode=0, stdout=envelope, stderr="",
+            args=[], returncode=0, stdout=stream, stderr="",
         )
         adapter = _adapter()
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
-        assert result.success is False
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_pi_ndjson_findings_object_on_own_line(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """A bare findings object emitted on its own NDJSON line is picked up."""
+        stream = "\n".join([
+            json.dumps({"type": "session", "id": "s1"}),
+            VALID_FINDINGS_JSON,
+            json.dumps({"type": "agent_settled"}),
+        ])
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=stream, stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -327,10 +388,35 @@ class TestDispatch:
 # ---------------------------------------------------------------------------
 
 class TestOrchestrator:
+    def test_from_config_dict_propagates_prompt_via_flag(self) -> None:
+        """prompt_via_flag must survive from_config_dict into the CliConfig so
+        antigravity's prompt is dispatched as ``--prompt <value>`` (E7), not a
+        trailing positional."""
+        cfg = {"agents": [{
+            "agent_id": "antigravity-local",
+            "type": "antigravity",
+            "cli": {
+                "command": "agy",
+                "model_flag": "--model",
+                "model": "gemini-3.6-flash",
+                "prompt_via_flag": "--prompt",
+                "dispatch_modes": {"review": {"args": ["--mode", "plan"]}},
+            },
+        }]}
+        orch = ReviewOrchestrator.from_config_dict(cfg)
+        adapter = orch.adapters["antigravity-local"]
+        assert adapter.cli_config.prompt_via_flag == "--prompt"
+        cmd = adapter.build_command("review", "REVIEW THIS", None)
+        assert "--prompt" in cmd
+        # The prompt is the value of --prompt, not a bare trailing positional:
+        # it must be immediately preceded by the flag.
+        assert cmd[cmd.index("--prompt") + 1] == "REVIEW THIS"
+        assert cmd[-2] == "--prompt"
+
     def test_discover_reviewers(self) -> None:
         adapters = {
             "codex-local": _adapter("codex-local", "codex"),
-            "gemini-local": _adapter("gemini-local", "gemini", command="gemini"),
+            "grok-local": _adapter("grok-local", "grok", command="grok"),
         }
         orch = ReviewOrchestrator(adapters)
         with patch("shutil.which", return_value="/usr/bin/mock"):
@@ -340,23 +426,22 @@ class TestOrchestrator:
     def test_discover_excludes_vendor(self) -> None:
         adapters = {
             "codex-local": _adapter("codex-local", "codex"),
-            "gemini-local": _adapter("gemini-local", "gemini", command="gemini"),
+            "grok-local": _adapter("grok-local", "grok", command="grok"),
         }
         orch = ReviewOrchestrator(adapters)
         with patch("shutil.which", return_value="/usr/bin/mock"):
             reviewers = orch.discover_reviewers(exclude_vendor="codex")
         assert len(reviewers) == 1
-        assert reviewers[0].vendor == "gemini"
+        assert reviewers[0].vendor == "grok"
 
     def test_write_manifest(self, tmp_path: Path) -> None:
-        from review_dispatcher import ReviewResult
         orch = ReviewOrchestrator({})
         results = [
             ReviewResult(vendor="codex", success=True, model_used="gpt-5.4",
                         models_attempted=["gpt-5.4"], elapsed_seconds=120.5),
-            ReviewResult(vendor="gemini", success=False, error="429 capacity",
+            ReviewResult(vendor="grok", success=False, error="429 capacity",
                         error_class=ErrorClass.CAPACITY,
-                        models_attempted=["(default)", "gemini-2.5-pro"]),
+                        models_attempted=["(default)", "grok-4.5"]),
         ]
         output = tmp_path / "reviews" / "review-manifest.json"
         orch.write_manifest(results, output, "plan", "test-feature")
@@ -670,15 +755,15 @@ class TestThreeTierSelection:
     def test_skip_when_nothing_available(self) -> None:
         """When neither CLI nor SDK is available, vendor is skipped."""
         cli_adapters = {
-            "gemini-local": _adapter("gemini-local", "gemini", command="gemini"),
+            "pi-local": _adapter("pi-local", "pi", command="pi"),
         }
         sdk_adapters = {
-            "gemini-remote": SdkVendorAdapter(
-                agent_id="gemini-remote",
-                vendor="gemini",
+            "pi-remote": SdkVendorAdapter(
+                agent_id="pi-remote",
+                vendor="pi",
                 sdk_config=SdkConfig(
-                    package="google-generativeai",
-                    model="gemini-2.5-pro",
+                    package="openrouter",
+                    model="moonshotai/kimi-k3",
                 ),
             ),
         }

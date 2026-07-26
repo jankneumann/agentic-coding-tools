@@ -37,7 +37,6 @@ from _helpers import (
     parse_pr_numbers,
     run_gh,
     run_gh_unchecked,
-    safe_author,
 )
 
 # Use a longer timeout for merge operations which can be slow
@@ -315,7 +314,7 @@ def validate_pr(pr_number: int) -> dict:
 def _has_merge_queue() -> bool:
     """Check if the repository has a merge queue enabled."""
     try:
-        raw = run_gh([
+        _raw = run_gh([
             "repo", "view", "--json", "mergeCommitAllowed",
         ], timeout=GH_TIMEOUT)
         # If the repo has branch protection with merge queue, gh pr merge

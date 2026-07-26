@@ -188,6 +188,57 @@
         }
       }
     },
+    "ContextSurface": {
+      "type": "string",
+      "enum": [
+        "capabilities",
+        "apis",
+        "architecture",
+        "decisions",
+        "documentation",
+        "semantic_code"
+      ],
+      "description": "A derived project-context surface. Each maps to the producer that canonically owns it: capabilities->openspec.projection, apis->api.contracts, architecture->refresh-architecture, decisions->decisions.timeline, documentation->documentation.inventory, semantic_code->code-search index."
+    },
+    "ContextImpactRationale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "approved_by"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "description": "Why this implied surface is not declared."
+        },
+        "approved_by": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Attribution for the override. Required so a rationale cannot silence the gate anonymously."
+        }
+      }
+    },
+    "ContextImpact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surfaces"],
+      "description": "Reviewable declaration of which context surfaces this package may affect. Optional: a package that omits the block is reported as 'unmigrated' rather than failed. Once present, the declaration is checked strictly against changed-file and contract analysis.",
+      "properties": {
+        "surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ContextSurface" },
+          "uniqueItems": true,
+          "description": "Surfaces this package may affect. An empty list is a strict 'affects nothing' assertion, not a missing value."
+        },
+        "rationale": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/ContextSurface" },
+          "additionalProperties": { "$ref": "#/$defs/ContextImpactRationale" },
+          "description": "Per-surface approved justification for an implied but undeclared surface. A rationale for a surface the detector does not imply is a validation error."
+        }
+      }
+    },
     "Worktree": {
       "type": "object",
       "additionalProperties": false,
@@ -298,6 +349,7 @@
         },
         "locks": { "$ref": "#/$defs/Locks" },
         "scope": { "$ref": "#/$defs/Scope" },
+        "context_impact": { "$ref": "#/$defs/ContextImpact" },
         "worktree": { "$ref": "#/$defs/Worktree" },
         "timeout_minutes": { "type": "integer", "minimum": 1 },
         "retry_budget": { "type": "integer", "minimum": 0 },

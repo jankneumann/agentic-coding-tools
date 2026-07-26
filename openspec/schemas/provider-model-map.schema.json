@@ -58,7 +58,23 @@
     },
     "providers": {
       "type": "object",
-      "minProperties": 1,
+      "minProperties": 5,
+      "required": [
+        "claude_code",
+        "codex",
+        "antigravity",
+        "grok",
+        "pi"
+      ],
+      "propertyNames": {
+        "enum": [
+          "claude_code",
+          "codex",
+          "antigravity",
+          "grok",
+          "pi"
+        ]
+      },
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,

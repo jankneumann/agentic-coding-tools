@@ -47,10 +47,22 @@ AGENTS = [
         "label": "Codex (local)",
     },
     {
-        "id": "gemini-local",
-        "type": "gemini",
-        "key_flag": "gemini_local_key",
-        "label": "Gemini (local)",
+        "id": "antigravity-local",
+        "type": "antigravity",
+        "key_flag": "antigravity_local_key",
+        "label": "Antigravity (local)",
+    },
+    {
+        "id": "grok-local",
+        "type": "grok",
+        "key_flag": "grok_local_key",
+        "label": "Grok (local)",
+    },
+    {
+        "id": "pi-local",
+        "type": "pi",
+        "key_flag": "pi_local_key",
+        "label": "pi (local)",
     },
     # Cloud/remote agents
     {
@@ -64,12 +76,6 @@ AGENTS = [
         "type": "codex",
         "key_flag": "codex_remote_key",
         "label": "Codex (remote)",
-    },
-    {
-        "id": "gemini-remote",
-        "type": "gemini",
-        "key_flag": "gemini_remote_key",
-        "label": "Gemini (remote)",
     },
 ]
 
@@ -94,7 +100,7 @@ def write_env_file(domain: str, keys: dict[str, str], output: Path) -> None:
         f"# Generated for domain: {domain}",
         "#",
         "# Usage: source this file, or add to ~/.zshrc / ~/.bashrc",
-        "#   Then use: ccc, ccodex, cgemini aliases to launch with coordination",
+        "#   Then use: ccc, ccodex, cagy, cgrok, cpi aliases to launch with coordination",
         "",
         "# -- Shared coordinator settings --",
         f'export COORDINATION_API_URL="{url}"',
@@ -119,7 +125,9 @@ def write_env_file(domain: str, keys: dict[str, str], output: Path) -> None:
     alias_map = [
         ("claude_local_key", "ccc", "claude", "Claude Code"),
         ("codex_local_key", "ccodex", "codex", "Codex"),
-        ("gemini_local_key", "cgemini", "gemini", "Gemini"),
+        ("antigravity_local_key", "cagy", "agy", "Antigravity"),
+        ("grok_local_key", "cgrok", "grok", "Grok"),
+        ("pi_local_key", "cpi", "pi", "pi"),
     ]
 
     lines.append("# -- CLI aliases (launch with per-agent coordinator key) --")
@@ -279,10 +287,13 @@ def main() -> None:
     parser.add_argument("--domain", required=True, help="Coordinator domain")
     parser.add_argument("--claude-local-key", help="Claude local CLI key (generated if omitted)")
     parser.add_argument("--codex-local-key", help="Codex local CLI key (generated if omitted)")
-    parser.add_argument("--gemini-local-key", help="Gemini local CLI key (generated if omitted)")
+    parser.add_argument(
+        "--antigravity-local-key", help="Antigravity (agy) local CLI key (generated if omitted)"
+    )
+    parser.add_argument("--grok-local-key", help="Grok local CLI key (generated if omitted)")
+    parser.add_argument("--pi-local-key", help="pi local CLI key (generated if omitted)")
     parser.add_argument("--claude-remote-key", help="Claude remote/web key (generated if omitted)")
     parser.add_argument("--codex-remote-key", help="Codex cloud key (generated if omitted)")
-    parser.add_argument("--gemini-remote-key", help="Gemini cloud key (generated if omitted)")
     parser.add_argument("--railway", action="store_true", help="Push env vars to Railway")
     parser.add_argument("--railway-service", help="Railway service name (auto-detected if omitted)")
     parser.add_argument("--verify", action="store_true", help="Test /health after setup")
@@ -295,10 +306,11 @@ def main() -> None:
     keys = {
         "claude_local_key": args.claude_local_key or generate_key(),
         "codex_local_key": args.codex_local_key or generate_key(),
-        "gemini_local_key": args.gemini_local_key or generate_key(),
+        "antigravity_local_key": args.antigravity_local_key or generate_key(),
+        "grok_local_key": args.grok_local_key or generate_key(),
+        "pi_local_key": args.pi_local_key or generate_key(),
         "claude_remote_key": args.claude_remote_key or generate_key(),
         "codex_remote_key": args.codex_remote_key or generate_key(),
-        "gemini_remote_key": args.gemini_remote_key or generate_key(),
     }
 
     identities = build_identities(keys)

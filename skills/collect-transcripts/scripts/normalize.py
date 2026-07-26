@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -110,7 +109,7 @@ class NormalizedEvent:
     usage: TokenUsage | None = None
 
     # Provenance
-    harness: str = ""  # e.g. "claude_code_cli", "codex_cli", "gemini_cli"
+    harness: str = ""  # e.g. "claude_code_cli", "codex_cli", "antigravity_cli", "grok_cli", "pi_cli"
     model: str = ""
     version: str = ""
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """IMPL_REVIEW driver for add-coordinator-kanban-viz.
 
-Runs multi-vendor convergence loop (claude / codex / gemini) against the
+Runs multi-vendor convergence loop (claude / codex / antigravity / grok / pi) against the
 implementation, with targeted fix dispatch to package authors and post-fix
 quality-gate validation. Writes a handoff JSON on disk on completion.
 """

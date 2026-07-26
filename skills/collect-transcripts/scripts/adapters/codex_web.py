@@ -13,12 +13,10 @@ Fails soft if:
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:

@@ -6,7 +6,6 @@ import copy
 import tempfile
 from pathlib import Path
 
-import pytest
 from decomposer import (
     main,
     make_repo_relative,

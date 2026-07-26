@@ -462,7 +462,6 @@ def _build_metrics_history(raw_series: Dict[str, List[Dict[str, Any]]], hours: i
     produces a 24h short-window analysis from the tail of the data so the
     LLM can compare long-term vs short-term trends.
     """
-    from datetime import timedelta
 
     metric_info = {
         "CPU_USAGE": {"name": "cpu", "unit": "vCPU", "decimals": 2},

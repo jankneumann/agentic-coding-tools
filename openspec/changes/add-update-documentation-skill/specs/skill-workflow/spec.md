@@ -1,24 +1,26 @@
-# Superseded spec delta
-
-> **Status: SUPERSEDED — REPLACED BY
-> `add-deterministic-context-producer-checks`**
-
 ## ADDED Requirements
 
-### Requirement: Superseded Documentation Sync Proposal
+### Requirement: Documentation sync lifecycle superseded
 
-The skills system SHALL treat `add-update-documentation-skill` as superseded by
-`add-deterministic-context-producer-checks` and MUST NOT dispatch implementation
-from this change. Documentation inventory generation SHALL be obtained through
-the replacement change's registered producer.
+The standalone `update-documentation` skill and its integration wiring SHALL NOT
+be implemented; this change is superseded by
+`add-deterministic-context-producer-checks`, which owns the deterministic
+`documentation.inventory` producer within the shared project-context refresh
+lifecycle. The marker-preserving inventory and prose-preservation behavior
+described in this change's retained design is carried forward by that producer.
 
-This superseded change MUST NOT direct independent pre-commit, post-merge,
-cleanup-feature, validate-feature, auto-commit, or main-writing integration.
+The superseded proposal's standalone lifecycle wiring (commit-time hooks,
+merge-time documentation synchronization, cleanup-feature and validate-feature
+gates, and automatic follow-up commits) SHALL NOT be created. Deterministic
+context drift gates are owned by `add-deterministic-context-drift-gates` (ri-10)
+and main convergence by `integrate-main-context-convergence` (ri-11).
 
-#### Scenario: Superseded change is non-dispatchable
+#### Scenario: Superseded change is not dispatchable
 
-- **WHEN** a workflow inspects this change for implementation
+- **WHEN** a workflow inspects `add-update-documentation-skill`
 - **THEN** it SHALL find no executable task or work package
-- **AND** SHALL direct the caller to
-  `add-deterministic-context-producer-checks`
-- **AND** SHALL NOT modify hooks, cleanup-feature, validate-feature, or main
+- **AND** it SHALL find no normative requirement directing commit-time hooks,
+  merge-time documentation synchronization, gate integration, or automatic
+  follow-up commits
+- **AND** it SHALL treat `add-deterministic-context-producer-checks` as the
+  replacement that owns the documentation producer

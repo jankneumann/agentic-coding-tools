@@ -37,7 +37,6 @@ import json
 import logging
 import sqlite3
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "insights"))
 
 from arch_utils.graph_io import load_graph, save_json  # noqa: E402
+from arch_utils.determinism import generated_at_iso  # noqa: E402
 from insights import cross_layer_linker  # noqa: E402
 from insights import db_linker  # noqa: E402
 from insights import flow_tracer  # noqa: E402
@@ -179,7 +179,7 @@ async def _run_flow_tracer(graph: dict[str, Any], output_path: Path) -> None:
 
     flows = await asyncio.to_thread(_work)
     result = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": generated_at_iso(),
         "flows": flows,
     }
     save_json(output_path, result)
@@ -195,7 +195,7 @@ async def _run_impact_ranker(graph: dict[str, Any], output_path: Path, threshold
 
     high_impact = await asyncio.to_thread(_work)
     result = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": generated_at_iso(),
         "threshold": threshold,
         "total_high_impact": len(high_impact),
         "high_impact_nodes": high_impact,
@@ -222,7 +222,7 @@ async def _run_summary_builder(
 
         snapshots = graph.get("snapshots", [])
         git_sha = snapshots[-1].get("git_sha", "unknown") if snapshots else "unknown"
-        generated_at = datetime.now(timezone.utc).isoformat()
+        generated_at = generated_at_iso()
 
         return summary_builder.generate_summary(
             graph, flows, disconnected_eps, disconnected_fc,

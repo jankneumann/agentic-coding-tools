@@ -171,6 +171,55 @@ class TestIsGraphStale:
 # ---------------------------------------------------------------------------
 
 
+class TestProvenanceProjection:
+    """ri-04 D6/D7 — scenario architecture-refresh.14/.15.
+
+    Additive provenance fields flow through untouched on success; any transport
+    failure, malformed provenance, or corrupt/schema-incompatible shared record
+    degrades to the ``RefreshClientUnavailable`` sentinel so merge-train
+    full-suite fallback remains available.
+    """
+
+    def test_additive_provenance_fields_pass_through(
+        self, client: RefreshRpcClient, runner: _FakeRunner
+    ) -> None:
+        payload = {
+            # Legacy fields.
+            "stale": False,
+            "graph_mtime": "2026-04-09T10:00:00+00:00",
+            "node_count": 1234,
+            "refresh_in_flight": False,
+            "current_refresh_id": None,
+            # Additive provenance/operation projection.
+            "source_revision": "a" * 40,
+            "producer_version": "1.0.0",
+            "input_fingerprint": "b" * 64,
+            "provenance_path": "docs/architecture-analysis/architecture.provenance.json",
+            "operation_id": "pcr-0123456789abcdef01234567",
+            "reason": "fresh",
+        }
+        runner.queue(_FakeCompletedProcess(0, json.dumps(payload)))
+        result = client.is_graph_stale(max_age_hours=6)
+        assert result == payload
+        assert result["operation_id"].startswith("pcr-")
+
+    def test_corrupt_shared_record_degrades_to_sentinel(
+        self, client: RefreshRpcClient, runner: _FakeRunner
+    ) -> None:
+        # A corrupt/schema-incompatible shared operation surfaces server-side as a
+        # nonzero exit; the client must return the sentinel, never raise.
+        runner.queue(_FakeCompletedProcess(1, "", "CorruptRecordError: operation record"))
+        result = client.is_graph_stale()
+        assert isinstance(result, RefreshClientUnavailable)
+
+    def test_malformed_provenance_degrades_to_sentinel(
+        self, client: RefreshRpcClient, runner: _FakeRunner
+    ) -> None:
+        runner.queue(_FakeCompletedProcess(0, "not-json-provenance"))
+        result = client.is_graph_stale()
+        assert isinstance(result, RefreshClientUnavailable)
+
+
 class TestTriggerRefresh:
     def test_happy_path(self, client: RefreshRpcClient, runner: _FakeRunner) -> None:
         payload = {

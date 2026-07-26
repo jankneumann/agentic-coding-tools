@@ -229,7 +229,8 @@ Discovery order SHALL be:
 - **AND** `agent-coordinator/agents.yaml` exists in the repository
 - **WHEN** `ReviewOrchestrator.from_coordinator()` or equivalent config discovery runs
 - **THEN** it SHALL load dispatch config from the local `agents.yaml`
-- **AND** it SHALL discover Claude Code, Codex, and Gemini agents declared there
+- **AND** it SHALL discover Claude Code, Codex, antigravity, grok, and pi agents declared there
+- **AND** it SHALL NOT discover any `gemini` agent, because no such entry remains
 - **AND** it SHALL NOT require `~/.claude.json`
 
 #### Scenario: Explicit config path wins
@@ -241,15 +242,24 @@ Discovery order SHALL be:
 
 ### Requirement: Provider Model Mapping Configuration
 
-Provider dispatch configuration SHALL define model mappings for Claude Code, Codex, and Gemini/Jules so logical archetypes can resolve to provider-specific model IDs.
+Provider dispatch configuration SHALL define model mappings for Claude Code, Codex, antigravity, grok, and pi so logical archetypes can resolve to provider-specific model IDs.
 
-The model mapping SHALL conform to `contracts/provider-model-map.schema.json`.
+The model mapping SHALL conform to `openspec/schemas/provider-model-map.schema.json` (schema_version 2: provider key set closed to the five roster keys, all five required).
+
+The `pi` provider SHALL resolve to OpenRouter model slugs, and its default model SHALL be `qwen/qwen3-coder`, selected so the roster reaches models outside the subscription harnesses.
 
 #### Scenario: Provider map includes all first-class providers
 
 - **WHEN** the default provider model map is loaded
-- **THEN** it SHALL include entries for `claude_code`, `codex`, and `gemini`
+- **THEN** it SHALL include entries for `claude_code`, `codex`, `antigravity`, `grok`, and `pi`
 - **AND** each entry SHALL define `premium`, `standard`, and `economy` model IDs
+- **AND** it SHALL NOT include an entry for `gemini`
+
+#### Scenario: pi maps to OpenRouter slugs
+
+- **WHEN** the `pi` provider entry is loaded
+- **THEN** every tier value SHALL be an OpenRouter model slug in `<publisher>/<model>` form
+- **AND** the `standard` tier SHALL be `qwen/qwen3-coder`
 
 #### Scenario: Non-Claude provider rejects unmapped Claude alias
 

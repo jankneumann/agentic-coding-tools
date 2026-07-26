@@ -39,3 +39,18 @@ live code references.
 |---|---|---|
 | `prototyping` | `variant-descriptor.schema.json`, `synthesis-plan.schema.json` | `add-prototyping-stage` (archived 2026-05-04) |
 | `phase-record` | `phase-record.schema.json`, `handoff-local-fallback.schema.json` | `phase-record-compaction` (archived 2026-04-25) |
+| `project-context-refresh` | `context-refresh-manifest.schema.json`, `context-refresh-operation.schema.json`, `context-refresh-types.schema.json` | `add-durable-context-refresh-records` (archived 2026-07-25) |
+
+## Contracts a skill also ships as install assets
+
+A shared-library skill may need its schemas at runtime in repositories that have
+no `openspec/contracts/` at all. `project-context-refresh` is the current
+example: `skills/project-context-runtime/` loads its schemas from
+`install_assets/openspec/schemas/`, and `install.sh` copies that tree into each
+consumer repo.
+
+For those capabilities the promoted copy here is **not** what the runtime loads —
+it is the stable reference for tooling, review, and downstream repositories. The
+two copies must stay byte-identical, so change them in the same commit;
+`skills/tests/project-context-runtime/test_promoted_contracts.py` fails if they
+drift, and also fails if a new install-asset schema is never promoted.

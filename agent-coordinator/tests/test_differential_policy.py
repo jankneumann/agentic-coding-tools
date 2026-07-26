@@ -126,7 +126,10 @@ class TestResourceTypeVariations:
 class TestAgentTypeVariations:
     """Verify equivalence across different agent types."""
 
-    AGENT_TYPES = ["claude_code", "codex", "gemini", "unknown_agent", "test_agent"]
+    AGENT_TYPES = [
+        "claude_code", "codex", "antigravity", "grok", "pi",
+        "unknown_agent", "test_agent",
+    ]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("agent_type", AGENT_TYPES)
@@ -265,7 +268,7 @@ class TestPropertyBasedEquivalence:
     @given(
         operation=st.sampled_from(sorted(READ_ACTIONS | WRITE_ACTIONS | ADMIN_ACTIONS)),
         trust_level=st.integers(min_value=0, max_value=5),
-        agent_type=st.sampled_from(["claude_code", "codex", "gemini"]),
+        agent_type=st.sampled_from(["claude_code", "codex", "antigravity", "grok", "pi"]),
     )
     @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.asyncio

@@ -271,7 +271,7 @@ def assess_complexity(
     """
     data = _load_work_packages(work_packages_path)
     max_packages, max_external_deps = _get_thresholds(data)
-    packages = _get_packages(data)
+    _packages = _get_packages(data)
 
     result = GateResult()
     result.signals = gather_signals(work_packages_path, proposal_path)

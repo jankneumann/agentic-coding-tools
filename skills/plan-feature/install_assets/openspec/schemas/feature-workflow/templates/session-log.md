@@ -49,7 +49,7 @@
 
 | Field | Value |
 |-------|-------|
-| Agent Type | <!-- claude, codex, gemini, other --> |
+| Agent Type | <!-- claude, codex, antigravity, grok, pi, other --> |
 | Session ID(s) | <!-- session identifiers --> |
 | Date Range | <!-- start date — end date --> |
 | Interactions | <!-- approximate number of exchanges --> |

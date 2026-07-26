@@ -186,7 +186,7 @@ class TestTeardownWithSubmodules:
 
     def test_force_fallback_only_for_submodule_error(self, git_repo: Path) -> None:
         """Verify --force is used only for the submodule-specific error, not others."""
-        wt = _setup_worktree(git_repo, "force-test")
+        _wt = _setup_worktree(git_repo, "force-test")
 
         # Simulate a non-submodule error (e.g., dirty tree)
         other_error = subprocess.CalledProcessError(

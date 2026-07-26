@@ -8,15 +8,13 @@ and visibility-grouped results when a manifest is available.
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field, computed_field
 
 from gen_eval.metrics import GenEvalMetrics
 from gen_eval.models import ScenarioVerdict
 
 
-@dataclass
-class VisibilityBreakdown:
+class VisibilityBreakdown(BaseModel):
     """Pass/fail/error/skip counts for a single visibility bucket."""
 
     total: int = 0
@@ -25,14 +23,24 @@ class VisibilityBreakdown:
     errors: int = 0
     skipped: int = 0
 
+    # ``computed_field`` (rather than a bare ``@property``) so ``pass_rate``
+    # is emitted by model_dump_json *and* documented in the published
+    # serialization JSON Schema. The type: ignore is the documented pydantic
+    # idiom for stacking computed_field on top of property under mypy.
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def pass_rate(self) -> float:
         return self.passed / self.total if self.total > 0 else 0.0
 
 
-@dataclass
-class GenEvalReport:
-    """Complete gen-eval run report."""
+class GenEvalReport(BaseModel):
+    """Complete gen-eval run report.
+
+    This is a pydantic model rather than a plain dataclass so that
+    ``eval-report.schema.json`` can be *generated* from it (see
+    ``scripts/generate_contract_schemas.py``) instead of hand-authored and
+    left to drift away from the emitter.
+    """
 
     total_scenarios: int
     passed: int
@@ -50,7 +58,7 @@ class GenEvalReport:
     cost_summary: dict[str, float]  # cli_calls, time_minutes, sdk_cost_usd
     iterations_completed: int
     # Visibility-grouped results (populated when manifest is available)
-    per_visibility: dict[str, VisibilityBreakdown] = field(default_factory=dict)
+    per_visibility: dict[str, VisibilityBreakdown] = Field(default_factory=dict)
 
     def to_metrics(self) -> list[GenEvalMetrics]:
         """Convert verdicts to GenEvalMetrics for integration with MetricsCollector."""
@@ -173,34 +181,17 @@ def generate_markdown_report(report: GenEvalReport) -> str:
 
 
 def generate_json_report(report: GenEvalReport) -> str:
-    """Generate a JSON-formatted report."""
-    data: dict[str, object] = {
-        "total_scenarios": report.total_scenarios,
-        "passed": report.passed,
-        "failed": report.failed,
-        "errors": report.errors,
-        "skipped": report.skipped,
-        "pass_rate": report.pass_rate,
-        "coverage_pct": report.coverage_pct,
-        "duration_seconds": report.duration_seconds,
-        "budget_exhausted": report.budget_exhausted,
-        "iterations_completed": report.iterations_completed,
-        "cost_summary": report.cost_summary,
-        "per_interface": report.per_interface,
-        "per_category": report.per_category,
-        "unevaluated_interfaces": report.unevaluated_interfaces,
-        "verdicts": [v.model_dump() for v in report.verdicts],
-    }
-    if report.per_visibility:
-        data["per_visibility"] = {
-            vis: {
-                "total": b.total,
-                "passed": b.passed,
-                "failed": b.failed,
-                "errors": b.errors,
-                "skipped": b.skipped,
-                "pass_rate": b.pass_rate,
-            }
-            for vis, b in report.per_visibility.items()
-        }
-    return json.dumps(data, indent=2, default=str)
+    """Generate a JSON-formatted report.
+
+    Delegates to pydantic's serializer so the emitted document is, by
+    construction, an instance of the published
+    ``contracts/eval-report.schema.json`` (generated from this same model in
+    ``serialization`` mode). Hand-building the dict here is what would let the
+    two drift apart.
+
+    Contract note: ``per_visibility`` is now always present, emitted as ``{}``
+    when no manifest supplied visibility data. The previous hand-built dict
+    omitted the key entirely in that case. This is additive for readers that
+    use ``data.get("per_visibility", {})``.
+    """
+    return report.model_dump_json(indent=2)

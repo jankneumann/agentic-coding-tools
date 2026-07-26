@@ -29,7 +29,7 @@
               "type": "array",
               "items": {
                 "type": "string",
-                "enum": ["claude", "codex", "gemini", "chatgpt-pro"]
+                "enum": ["claude", "codex", "antigravity", "grok", "pi", "chatgpt-pro"]
               }
             }
           }

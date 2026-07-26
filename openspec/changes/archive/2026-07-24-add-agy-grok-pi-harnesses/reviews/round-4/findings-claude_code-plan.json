@@ -1,0 +1,119 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "wp-skills' verification gate is unpassable by wp-skills, because its residue grep covers a path wp-skills is explicitly denied. VERIFIED by running the gate's grep component verbatim: `git grep -lIi gemini -- skills scripts packages ':!*SKILL.md' ':!skills/langfuse/references' ':!skills/plan-feature/install_assets' ':!skills/plan-roadmap/templates' ':!skills/collect-transcripts/config.yaml.example'` returns 45 files, one of which is `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` (gemini at lines 995 and 1003: `(\"wp-db--gemini\", \"gemini\")` and `\"gemini\": \"gemini\"`). But wp-skills `scope.deny` lists `skills/tests/agent-coordinator/**` (work-packages.yaml:212), and the only task that edits that file \u2014 4.2 \u2014 was moved to wp-frontend by round-3 fix R3-C7. wp-frontend `depends_on: [wp-coordinator]`; wp-skills `depends_on: [wp-empirical]`. Neither depends on the other, so no scheduling order exists in which wp-skills' gate can go green: the file is either still gemini-bearing (gate fails) or was edited by a package wp-skills cannot wait on. Task 3.12's checkpoint carries the identical grep and the identical defect. This is a NEW defect introduced by the round-3 fix to finding 7 \u2014 the deny was added and the path was moved, but the gate's pathspec was never narrowed to match.",
+      "resolution": "Add `':!skills/tests/agent-coordinator'` to the wp-skills gate pathspec (work-packages.yaml:229) and to task 3.12's checkpoint grep (tasks.md:270). The path is then covered by wp-docs-finalize's full-suite gate, which runs `pytest skills/tests` after all three packages merge.",
+      "disposition": "fix",
+      "package_id": "wp-skills",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 209,
+        "end": 229
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Task 4.3's checkpoint contradicts both the wp-frontend gate and the `Historical vendor still renders` spec scenario \u2014 round-3 fix #4 was applied to work-packages.yaml but not to tasks.md. VERIFIED three ways. (a) tasks.md:296 says `git grep -lIi gemini -- apps/kanban-viz` must list \"exactly the three provenance files\"; task 4.1 (tasks.md:278-280) names those three as useCoordinator.ts, useCoordinator.test.tsx, coordinator-types.ts. (b) The wp-frontend gate (work-packages.yaml:292) diffs against an explicit FOUR-file set that additionally includes `apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx`. (c) specs/coordinator-kanban-viz/spec.md:30-35 requires that file to keep a gemini fixture: \"WHEN a card has a child agent whose agent_id suffix is `gemini` from a historical audit row THEN that agent SHALL render in its own lane labelled `gemini`\" \u2014 and `grep -n -i gemini apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx` shows the fixture at lines 22-23, 58, 62, 67, 72, 152. An implementer following checkpoint 4.3 literally would strip the gemini fixture to get down to three files, which simultaneously leaves the spec scenario untested and makes the wp-frontend gate's four-file diff fail. This is the exact class of contradiction round 3 killed, surviving in the sibling artifact.",
+      "resolution": "Rewrite tasks.md:296 to name the same four-file expected set as the gate, and state explicitly that VendorSwimlanes.test.tsx retains a gemini fixture to satisfy the `Historical vendor still renders` scenario.",
+      "disposition": "fix",
+      "package_id": "wp-frontend",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 294,
+        "end": 297
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "No gate anywhere \u2014 not in the plan, not in CI \u2014 executes the skill test directories that tasks 3.1, 3.4 and 3.8 write. VERIFIED by collection: `skills/.venv/bin/python -m pytest skills/tests --collect-only -q --ignore=skills/tests/agent-coordinator` collects 1249 tests and ZERO from `skills/parallel-infrastructure/scripts/tests`, `skills/collect-transcripts/tests`, or `skills/autopilot/scripts/tests` (grep -c over the collection output = 0). Every plan gate that runs skills tests uses exactly `pytest skills/tests` (wp-skills gate work-packages.yaml:229, task 3.12, wp-docs-finalize full-suite gate work-packages.yaml:382, task 6.2), and pytest does not recurse outside the path argument. CI does not close the hole either: `.github/workflows/ci.yml:40-64` job `test-infra-skills` runs `uv run pytest` from `skills/`, which uses `testpaths` in skills/pyproject.toml \u2014 that list contains `tests/parallel-infrastructure` but NOT `parallel-infrastructure/scripts/tests`, `collect-transcripts/tests`, or `autopilot/scripts/tests`; job `test-skills` (ci.yml:83) runs only `skills/bug-scrub/tests/ skills/fix-scrub/tests/`. `grep -rn 'collect-transcripts|parallel-infrastructure/scripts|autopilot/scripts/tests' .github/workflows/` returns nothing. Consequence: the wp-skills residue grep FORCES edits to six gemini-bearing files in those directories (test_consensus_synthesizer.py, test_integration_orchestrator.py, test_review_dispatcher.py, test_vendor_diversity.py is covered via skills/tests, test_implementation_strategy_selector.py, test_gemini_cli.py, fixtures/gemini_cli/) while never running them; and task 3.8's entire deliverable \u2014 three new transcript adapters plus their tests and fixtures under skills/collect-transcripts/ \u2014 lands on main with zero test execution in any gate or CI job.",
+      "resolution": "Extend the skills gate command in wp-skills, task 3.12, wp-docs-finalize and task 6.2 to `pytest skills/tests skills/parallel-infrastructure/scripts/tests skills/collect-transcripts/tests skills/autopilot/scripts/tests --rootdir=.` (or add those three paths to `testpaths` in skills/pyproject.toml as part of task 0.1, which already edits that file).",
+      "disposition": "fix",
+      "package_id": "wp-skills",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 227,
+        "end": 229
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "wp-frontend's gate verifies neither of its two roster tasks; its residue component passes unchanged on the unmodified tree. VERIFIED: running the gate's diff component verbatim against the current tree \u2014 `diff <(git grep -lIi gemini -- apps/kanban-viz | sort) <(printf '%s\\n' apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx apps/kanban-viz/src/__tests__/useCoordinator.test.tsx apps/kanban-viz/src/hooks/useCoordinator.ts apps/kanban-viz/src/lib/coordinator-types.ts | sort)` \u2014 exits 0 with no output, because those four files are exactly what the tree has today. `git diff --quiet main... -- apps/kanban-viz/src/components/VendorSwimlanes.tsx` also exits 0 today (correctly so \u2014 it is an invariant pin, not a progress check). That leaves `npm test -- --run` as the only live component, and task 4.1 changes fixture data and its assertions together, so the suite passes identically before and after the roster swap. Separately, wp-frontend also owns task 4.2 (`skills/tests/agent-coordinator/test_kanban_viz_endpoints.py`, moved here by round-3 fix R3-C7) but its gate neither greps nor executes that path at all. Net: wp-frontend can be reported complete with tasks 4.1 and 4.2 entirely unperformed. Note this is a narrower claim than round 3's finding #4 \u2014 the four-file expected set is the CORRECT set (see finding 2); it is simply not a progress signal.",
+      "resolution": "Add a positive assertion to the wp-frontend gate that the new roster actually appears \u2014 e.g. `git grep -q 'wp-[a-z]*--grok' -- apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx` \u2014 and add `skills/.venv/bin/python -m pytest skills/tests/agent-coordinator -q` plus a `grok`/`antigravity`/`pi` presence check for task 4.2.",
+      "disposition": "fix",
+      "package_id": "wp-frontend",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 290,
+        "end": 292
+      },
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Round-3 fixes #3 and #9 added tasks and write-scopes but no verification, so both new tasks are ungated. VERIFIED: `git grep -lIi gemini -- docs/cross-repo-setup.md openspec/schemas/feature-workflow/templates/session-log.md skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/session-log.md` returns all three files today, yet none of the three appears in wp-docs-finalize's residue file list (work-packages.yaml:374), which enumerates 21 paths explicitly and stops at `skills/collect-transcripts/SKILL.md`. They are also not reachable by any other gate: the wp-skills grep excludes `skills/plan-feature/install_assets`, the wp-coordinator grep is scoped to `agent-coordinator`, and the mirror-residue check passes `--exclude-dir=templates --exclude-dir=install_assets` (and neither `openspec/schemas/` nor `docs/` is under `.claude/skills`/`.agents/skills` anyway). So tasks 5.3's `docs/cross-repo-setup.md` edit and all of task 5.5a can be skipped and every gate still goes green \u2014 the same silent-skip condition that motivated adding them.",
+      "resolution": "Append `docs/cross-repo-setup.md openspec/schemas/feature-workflow/templates/session-log.md skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/session-log.md` to the wp-docs-finalize residue grep pathspec at work-packages.yaml:374 and to task 5.7's checkpoint.",
+      "disposition": "fix",
+      "package_id": "wp-docs-finalize",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+      "line_range": {
+        "start": 372,
+        "end": 374
+      },
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Round-3 fix #10 (R3-C10) is incomplete within the very paragraph it repaired: the operator live-billing authorization still names the wrong phase. VERIFIED by reading design.md:376-379: \"live dispatch against `agy`, `grok`, and `pi` is approved. **Tasks 1.1-1.3** may invoke these CLIs with real prompts ... No further approval is required for the **Phase 2** verification calls.\" The first sentence was renumbered correctly. The second was not: Phase 2 in tasks.md:116-189 is Coordinator config (2.1-2.10) and makes no CLI calls at all, while the actual billed live dispatch is task 6.3 in Phase 6 (tasks.md:378-381). wp-docs-finalize's manual gate (work-packages.yaml:390-393) rests its authorization on exactly this record: \"Operator authorization for billed calls is on record in design.md.\" So the manual reviewer of task 6.3 is pointed at an authorization that, read literally, covers a phase making no calls and does not cover theirs. This is the same defect R3-C10 identified (billing authority attached to the wrong task numbers) surviving one sentence deeper \u2014 a revision-1 phase number where revision-1's Phase 2 was the smoke phase.",
+      "resolution": "Change design.md:378-379 to \"No further approval is required for the task 6.3 live smoke dispatch (Phase 6).\" Then re-scan design.md for any remaining bare phase numbers in live sections, not only task numbers.",
+      "disposition": "fix",
+      "package_id": "wp-empirical",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/design.md",
+      "line_range": {
+        "start": 376,
+        "end": 379
+      },
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Task 5.6 does not name a target file, but its gate constrains one. VERIFIED: tasks.md:353-354 says only \"Document the optional `~/.grok/config.toml` `[skills] paths` setup as operator-level, citing https://docs.x.ai/build/features/skills-plugins-marketplaces\", while wp-docs-finalize's gate (work-packages.yaml:374) runs `git grep -q 'docs.x.ai/build/features/skills-plugins-marketplaces' -- docs/`, which restricts the citation to the `docs/` tree. `git grep -c` for that URL under `docs/` returns nothing today, so the gate is at least non-vacuous \u2014 but an implementer who reasonably places the operator note in `README.md` or `skills/setup-coordinator/SKILL.md` (both in wp-docs-finalize's write_allow) fails a gate the task never told them about.",
+      "resolution": "Name the target file in task 5.6 \u2014 `docs/cross-repo-setup.md` is the natural home given task 5.3 already opens it in the same package.",
+      "disposition": "fix",
+      "package_id": "wp-docs-finalize",
+      "file_path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+      "line_range": {
+        "start": 353,
+        "end": 357
+      },
+      "axis": "correctness",
+      "severity": "nit"
+    }
+  ]
+}

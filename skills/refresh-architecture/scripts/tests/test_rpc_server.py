@@ -235,3 +235,87 @@ class TestMainEntryPoint:
     def test_invalid_method(self, capsys: pytest.CaptureFixture[str]) -> None:
         rc = rpc_main(["not_a_method", "{}"])
         assert rc != 0
+
+
+# ---------------------------------------------------------------------------
+# Additive provenance projection (ri-04 D6/D7 — scenario architecture-refresh.14)
+# ---------------------------------------------------------------------------
+
+
+class TestProvenanceProjection:
+    def _repo_with_provenance(self, tmp_path: Path) -> Path:
+        import os
+        import subprocess
+
+        from arch_utils import provenance as prov
+
+        repo = tmp_path / "proj"
+        (repo / "src").mkdir(parents=True)
+        (repo / "src" / "app.py").write_text("print('x')\n")
+        arch = repo / prov.ARCH_DIR_DEFAULT
+        arch.mkdir(parents=True)
+        (arch / "architecture.graph.json").write_text('{"nodes": [], "edges": []}\n')
+        (arch / "architecture.summary.json").write_text('{"summary": "ok"}\n')
+        for args in (
+            ["git", "init", "-q"],
+            ["git", "config", "user.email", "t@e.com"],
+            ["git", "config", "user.name", "T"],
+            ["git", "config", "commit.gpgsign", "false"],
+            ["git", "add", "-A"],
+            ["git", "commit", "-q", "-m", "init"],
+        ):
+            subprocess.run(args, cwd=str(repo), check=True, capture_output=True)
+        rev = prov.analyzed_revision(repo)
+        os.environ["SOURCE_DATE_EPOCH"] = str(prov.deterministic_epoch(repo, rev))
+        try:
+            prov.write_provenance(repo, prov.build_provenance(repo, mode="full", roots=["src"]))
+        finally:
+            os.environ.pop("SOURCE_DATE_EPOCH", None)
+        return repo
+
+    def test_legacy_fields_remain_and_additive_fields_present(self, tmp_path: Path) -> None:
+        # Scenario .14 — legacy fields remain; provenance fields are added.
+        from arch_utils import provenance as prov
+
+        repo = self._repo_with_provenance(tmp_path)
+        server = RefreshServer(
+            graph_path=repo / prov.ARCH_DIR_DEFAULT / "architecture.graph.json",
+            repo_root=repo,
+        )
+        result = server.is_graph_stale(max_age_hours=6)
+        # Legacy fields still present.
+        for key in ("stale", "graph_mtime", "node_count", "refresh_in_flight"):
+            assert key in result
+        # Additive provenance fields present and populated.
+        assert result["stale"] is False  # content-based freshness
+        assert result["source_revision"] == prov.analyzed_revision(repo)
+        assert result["producer_version"] == prov.PRODUCER_VERSION
+        assert len(result["input_fingerprint"]) == 64
+        assert result["provenance_path"].endswith("architecture.provenance.json")
+        assert result["reason"] == "fresh"
+        assert result["operation_id"] is None  # no operation recorded yet
+
+    def test_mtime_does_not_override_content_freshness(self, tmp_path: Path) -> None:
+        # Scenario .3/.4 at the RPC layer: a stale relevant input → stale even if
+        # the graph file mtime is recent.
+        import os
+
+        from arch_utils import provenance as prov
+
+        repo = self._repo_with_provenance(tmp_path)
+        (repo / "src" / "app.py").write_text("print('changed input')\n")
+        graph = repo / prov.ARCH_DIR_DEFAULT / "architecture.graph.json"
+        os.utime(graph, None)  # bump mtime to "now"
+        server = RefreshServer(graph_path=graph, repo_root=repo)
+        result = server.is_graph_stale()
+        assert result["stale"] is True
+        assert result["reason"] == prov.INPUT_FINGERPRINT_MISMATCH
+
+    def test_legacy_mode_keeps_null_provenance_fields(self, tmp_path: Path) -> None:
+        path = tmp_path / "architecture.graph.json"
+        path.write_text(json.dumps({"nodes": []}))
+        server = RefreshServer(graph_path=path)  # no repo_root
+        result = server.is_graph_stale()
+        assert result["source_revision"] is None
+        assert result["operation_id"] is None
+        assert result["reason"] == "mtime"

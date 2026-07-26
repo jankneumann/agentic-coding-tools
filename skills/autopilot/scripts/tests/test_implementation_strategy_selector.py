@@ -40,7 +40,7 @@ class TestSelectStrategies:
         ])
         result = select_strategies(
             wp,
-            available_vendors=["claude", "gpt4", "gemini"],
+            available_vendors=["claude", "gpt4", "grok"],
         )
         assert result["wp-algo"] == "alternatives"
 
@@ -69,7 +69,7 @@ class TestSelectStrategies:
         ])
         result = select_strategies(
             wp,
-            available_vendors=["claude", "gpt4", "gemini"],
+            available_vendors=["claude", "gpt4", "grok"],
         )
         assert result["wp-bare"] == "lead_review"
 
@@ -136,7 +136,7 @@ class TestSelectStrategies:
         # With 3 vendors: loc(1) + alt(0) + kind(1) + vendors(1) = 3 -> alternatives
         result_3v = select_strategies(
             wp,
-            available_vendors=["claude", "gpt4", "gemini"],
+            available_vendors=["claude", "gpt4", "grok"],
         )
         assert result_3v["wp-few-vendors"] == "alternatives"
 
@@ -195,7 +195,7 @@ class TestSelectStrategies:
         ])
         result = select_strategies(
             wp,
-            available_vendors=["claude", "gpt4", "gemini"],
+            available_vendors=["claude", "gpt4", "grok"],
         )
         assert result["wp-algo"] == "alternatives"
         assert result["wp-crud"] == "lead_review"
@@ -224,7 +224,7 @@ class TestSelectStrategies:
         ])
         result = select_strategies(
             wp,
-            available_vendors=["claude", "gpt4", "gemini"],
+            available_vendors=["claude", "gpt4", "grok"],
         )
         # Explicit integration type
         assert result["wp-integration-final"] == "lead_review"
@@ -241,27 +241,27 @@ class TestSelectLeadVendor:
             return [
                 {"vendor": "claude", "fix_success_rate": 0.85},
                 {"vendor": "gpt4", "fix_success_rate": 0.92},
-                {"vendor": "gemini", "fix_success_rate": 0.78},
+                {"vendor": "grok", "fix_success_rate": 0.78},
             ]
 
         result = select_lead_vendor(
-            ["claude", "gpt4", "gemini"],
+            ["claude", "gpt4", "grok"],
             recall_fn=mock_recall,
         )
         assert result == "gpt4"
 
     def test_recall_fn_unavailable_uses_first_vendor(self) -> None:
         """recall_fn=None -> first available vendor."""
-        result = select_lead_vendor(["claude", "gpt4", "gemini"])
+        result = select_lead_vendor(["claude", "gpt4", "grok"])
         assert result == "claude"
 
     def test_recall_fn_returns_empty(self) -> None:
         """recall_fn returns empty list -> first available vendor."""
         result = select_lead_vendor(
-            ["gemini", "claude"],
+            ["grok", "claude"],
             recall_fn=lambda topic: [],
         )
-        assert result == "gemini"
+        assert result == "grok"
 
     def test_recall_fn_raises_exception(self) -> None:
         """recall_fn raises -> graceful fallback to first vendor."""

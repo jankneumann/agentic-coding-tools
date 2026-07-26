@@ -5,6 +5,138 @@
 
 ---
 
+## 2026-07-23 — 2026-07-25-add-revision-aware-semantic-index-registry
+
+### Phase: Plan
+
+**Separate repository metadata from index lifecycle records** — An additive code_search_indexes table preserves current readers while making exact revision and namespace lifecycle authoritative.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md) (D1)
+
+---
+
+## 2026-07-23 — 2026-07-25-add-revision-aware-semantic-index-registry
+
+### Phase: Implementation
+
+**Preserve canonical validity from both sides of the pointer** — Deferrable triggers on the repository pointer and referenced index prevent direct SQL from invalidating a promoted canonical main index.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md) (D1)
+
+---
+
+## 2026-07-23 — 2026-07-25-add-revision-aware-semantic-index-registry
+
+### Phase: Plan
+
+**Persist full Git object IDs and explicit namespaces** — Resolved revisions plus main, feature, and work_package kinds prevent ref movement and branch-local work from masquerading as canonical main.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md) (D2)
+
+---
+
+## 2026-07-23 — 2026-07-25-add-revision-aware-semantic-index-registry
+
+### Phase: Implementation
+
+**Recover expired garbage-collection leases with idempotent deletion** — A replacement collector can safely repeat storage deletion after crashes before or after the storage effect, then durably tombstone the registry row.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md) (D2)
+
+---
+
+## 2026-07-23 — 2026-07-25-add-revision-aware-semantic-index-registry
+
+### Phase: Plan
+
+**Guard lifecycle updates with leases and canonical promotion with compare-and-swap** — Concurrent or late workers cannot overwrite newer results, and only a ready main index for the same repository can become canonical.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md) (D3)
+
+---
+
+## 2026-07-23 — 2026-07-25-add-revision-aware-semantic-index-registry
+
+### Phase: Implementation
+
+**Separate pure registry models from persistence operations** — The extraction preserves the public API while keeping both modules below the structural file-size limit.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md) (D3)
+
+---
+
+## 2026-07-23 — 2026-07-25-add-revision-aware-semantic-index-registry
+
+### Phase: Plan
+
+**Garbage collect only expired noncanonical namespaces** — Storage deletion remains retryable while main and canonical records are excluded by both SQL and application guards.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md](/openspec/changes/archive/2026-07-25-add-revision-aware-semantic-index-registry/session-log.md) (D4)
+
+---
+
+## 2026-07-23 — 2026-07-25-complete-incremental-semantic-indexing
+
+### Phase: Plan
+
+**Copy forward immutable revision storage** — A compatible ready ancestor supplies unchanged rows while CocoIndex processes only added/changed eligible files; every ready revision remains isolated.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-complete-incremental-semantic-indexing/session-log.md](/openspec/changes/archive/2026-07-25-complete-incremental-semantic-indexing/session-log.md) (D1)
+
+---
+
+## 2026-07-23 — 2026-07-25-complete-incremental-semantic-indexing
+
+### Phase: Implement
+
+**Keep CocoIndex state on the filesystem** — Pinned CocoIndex 1.0.13 interprets `Settings.from_env(...)` as an LMDB state
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-complete-incremental-semantic-indexing/session-log.md](/openspec/changes/archive/2026-07-25-complete-incremental-semantic-indexing/session-log.md) (D1)
+
+---
+
+## 2026-07-23 — 2026-07-25-complete-incremental-semantic-indexing
+
+### Phase: Plan
+
+**Fingerprint policy, pipeline, and embedding parameters** — Exact commit plus model/dimension is insufficient when scope, chunking, dependency version, or provider parameters change.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-complete-incremental-semantic-indexing/session-log.md](/openspec/changes/archive/2026-07-25-complete-incremental-semantic-indexing/session-log.md) (D2)
+
+---
+
+## 2026-07-23 — 2026-07-25-complete-incremental-semantic-indexing
+
+### Phase: Implement
+
+**Treat changed zero-chunk files as completed work** — The final manifest records every eligible
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-complete-incremental-semantic-indexing/session-log.md](/openspec/changes/archive/2026-07-25-complete-incremental-semantic-indexing/session-log.md) (D3)
+
+---
+
+## 2026-07-23 — 2026-07-25-complete-incremental-semantic-indexing
+
+### Phase: Plan
+
+**Select a thin Postgres target adapter** — CocoIndex owns source/chunk/embed processing; storage_pg owns copy-forward, verification, and publication because those operations require an explicit fencing contract.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-25-complete-incremental-semantic-indexing/session-log.md](/openspec/changes/archive/2026-07-25-complete-incremental-semantic-indexing/session-log.md) (D8)
+
+---
+
 ## 2026-07-19 — 2026-07-20-add-semantic-code-search
 
 ### Phase: Plan

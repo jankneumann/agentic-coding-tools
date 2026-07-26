@@ -54,7 +54,6 @@ cedar = [
 sdk = [
     "anthropic>=0.117.0",
     "openai>=2.38.0",
-    "google-generativeai>=0.8.6",
 ]
 analysis = [
     "psycopg2-binary>=2.9.0",

@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fix_models import ClassifiedFinding, Finding  # noqa: E402
+from fix_models import ClassifiedFinding  # noqa: E402
 
 
 def _is_partial_task(line: str) -> bool:
@@ -48,7 +48,7 @@ def _update_tasks_md(
                 continue
             lines[i] = line.replace(
                 "- [ ]",
-                f"- [x]",
+                "- [x]",
             ) + f" (completed by fix-scrub {today})"
             updated = True
             break

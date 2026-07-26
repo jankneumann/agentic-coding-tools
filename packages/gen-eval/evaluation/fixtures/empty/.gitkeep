@@ -1,0 +1,2 @@
+# Intentionally empty: no-scenarios-descriptor.yaml points scenario_dirs here
+# to drive a zero-scenario run (UP-3). Git needs a file to track the dir.

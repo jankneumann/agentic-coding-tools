@@ -13,7 +13,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
 
 SKILL_SCRIPTS = (
     Path(__file__).resolve().parents[2] / "iterate-on-plan" / "scripts"

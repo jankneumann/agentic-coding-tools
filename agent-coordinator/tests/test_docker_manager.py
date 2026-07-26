@@ -67,6 +67,12 @@ class TestDetectRuntime:
         call_count = 0
 
         def _which(name: str) -> str | None:
+            # Narrow the mock to the binaries under test: returning a path for
+            # *every* name (including colima) makes is_colima_installed() True,
+            # so on a macOS host detect_runtime takes the Colima branch and
+            # returns "docker" instead of falling through to podman.
+            if name == "colima":
+                return None
             return f"/usr/bin/{name}"
 
         def _run(*args: object, **kwargs: object) -> sp.CompletedProcess[str]:
@@ -456,6 +462,10 @@ class TestStartContainer:
         with (
             patch("src.docker_manager.detect_runtime", return_value="docker"),
             patch("src.docker_manager.is_container_running", return_value=False),
+            # On macOS start_container evaluates is_colima_running() (which shells
+            # out via subprocess.run) before the compose command; neutralize it so
+            # the patched subprocess.run only sees the compose call under test.
+            patch("src.docker_manager.is_colima_running", return_value=False),
             patch("subprocess.run") as mock_run,
         ):
             mock_run.return_value.returncode = 0
@@ -475,6 +485,10 @@ class TestStartContainer:
         with (
             patch("src.docker_manager.detect_runtime", return_value="docker"),
             patch("src.docker_manager.is_container_running", return_value=False),
+            # See test_successful_start: keep the colima probe from consuming the
+            # patched subprocess.run so the CalledProcessError models the compose
+            # command failing, not the macOS colima-status check.
+            patch("src.docker_manager.is_colima_running", return_value=False),
             patch(
                 "subprocess.run",
                 side_effect=sp.CalledProcessError(1, "compose", stderr="image not found"),

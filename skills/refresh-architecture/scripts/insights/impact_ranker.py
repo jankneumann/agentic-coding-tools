@@ -18,12 +18,12 @@ import json
 import logging
 import sys
 from collections import defaultdict, deque
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from arch_utils.constants import DEPENDENCY_EDGE_TYPES  # noqa: E402
+from arch_utils.determinism import generated_at_iso  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
     high_impact = compute_high_impact_nodes(all_nodes, all_edges, threshold=args.threshold)
 
     output_data: dict[str, Any] = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": generated_at_iso(),
         "threshold": args.threshold,
         "total_nodes": len(all_nodes),
         "total_edges": len(all_edges),

@@ -1,118 +1,144 @@
 # Tasks: Add work-package context impact declarations
 
-Tests precede implementation. Checkpoint after each numbered phase.
+> Change ID: `add-work-package-context-impact-declarations`
 
-## 1. Extend contracts and templates
+Tests precede behavior changes. Sizes use the plan-feature attention budget.
+The six surfaces map onto producers that already exist (ri-01/ri-02, ri-04,
+ri-05) — this change adds planning-time declaration and detection only, never
+producer execution.
 
-- [ ] 1.1 (S) Write failing JSON Schema tests for the six required surface keys,
-  allowed dispositions, unique targets, complete exceptions, unknown properties,
-  and backward-compatible absence.
-  - **Scenarios:** Complete context declaration validates; Planning uncertainty is explicit
-  - **Design:** D1, D2, D4
-  - **Contracts:** `contracts/README.md`, `contracts/context-impact-handoff.schema.json`
-  - **Depends on:** none
-- [ ] 1.2 (S) Extend canonical and installed
-  `work-packages.schema.json` with `ContextImpact`, `ImpactDeclaration`, and
-  `ReviewedException` definitions.
-  - **Scenarios:** Complete context declaration validates
-  - **Design:** D1, D2, D4
-  - **Contracts:** canonical and installed `work-packages.schema.json`
-  - **Depends on:** 1.1
-- [ ] 1.3 (S) Update canonical and plan-feature-installed templates plus
-  `plan-feature` guidance with a complete declaration example and the default
-  rule: use `unknown` rather than silently claiming no impact.
-  - **Scenarios:** Planning uncertainty is explicit
-  - **Design:** D1, D2, D4
-  - **Contracts:** canonical and plan-feature-installed templates
-  - **Depends on:** 1.2
+New tests go in `skills/tests/validate-packages/`, not
+`skills/validate-packages/scripts/tests/`, per the repo convention that keeps
+tests out of directories `install.sh` ships to runtime copies. That directory is
+new, so it needs a `testpaths` entry in `skills/pyproject.toml` or CI will not
+discover it.
 
-## 2. Add deterministic impact inference
+## 1. Schema and template
 
-- [ ] 2.1 (M) Write table-driven tests for versioned path/contract/lock rules
-  covering all six surfaces, multi-surface paths, sorted output, and no-match
-  behavior.
-  - **Scenarios:** Contract change implies API impact; One path implies multiple surfaces
-  - **Design:** D3
-  - **Contract:** normalized `inferred` entries
-  - **Depends on:** 1.2
-- [ ] 2.2 (M) Implement the inference module under
-  `skills/validate-packages/scripts/`, keeping the rule table data-driven and
-  returning evidence for every inferred surface.
-  - **Scenarios:** Contract change implies API impact; One path implies multiple surfaces
-  - **Design:** D3
-  - **Contract:** `contracts/context-impact-handoff.schema.json`
-  - **Depends on:** 2.1
-- [ ] 2.3 (S) Add changed-file inputs (`--changed-file` repeatable and
-  `--changed-files-from`) without invoking Git implicitly, so callers control the
-  comparison boundary.
-  - **Scenario:** Contract change implies API impact
-  - **Design:** D3
-  - **Contract:** validate-packages CLI
-  - **Depends on:** 2.2
+- [x] 1.1 (S) Write failing schema tests: `context_impact` with valid surfaces
+  validates; an unknown surface is rejected; `surfaces` is required when the block
+  is present; `rationale.<surface>.approved_by` rejects an empty string; a
+  document with no `context_impact` still validates.
+  **Spec scenarios**: skill-workflow.context-impact-schema,
+  skill-workflow.context-impact-optional
+  **Design decisions**: D4, D5
+  **Dependencies**: none
+- [x] 1.2 (M) Add the `ContextImpact` and `ContextImpactRationale` `$defs` plus the
+  optional `context_impact` property on `WorkPackage` in
+  `skills/validate-packages/install_assets/openspec/schemas/work-packages.schema.json`.
+  Keep `additionalProperties: false` throughout.
+  **Spec scenarios**: skill-workflow.context-impact-schema
+  **Design decisions**: D4, D5
+  **Dependencies**: 1.1
+- [x] 1.3 (S) Add a commented `context_impact` example to
+  `skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/work-packages.yaml`,
+  then run `bash skills/install.sh --mode rsync --force --deps none --python-tools none`
+  so the `openspec/schemas/` copies regenerate.
+  **Dependencies**: 1.2
 
-## 3. Validate declarations and reviewed exceptions
+- [x] 1.4 (S) Add `tests/validate-packages` to `testpaths` in
+  `skills/pyproject.toml` and a `conftest.py` that prepends
+  `skills/validate-packages/scripts` to `sys.path`, matching the
+  `skills/tests/project-context-refresh/conftest.py` pattern.
+  **Dependencies**: 1.1
 
-- [ ] 3.1 (M) Write failing tests for refresh satisfaction, unknown failures,
-  undeclared inferred impacts, incomplete exceptions, approved no-impact
-  exceptions, and deny-precedence scope normalization.
-  - **Scenarios:** Reviewed exception permits deliberate no-impact; Unreviewed rationale fails; Deny scope remains authoritative
-  - **Design:** D2, D5
-  - **Contracts:** `ReviewedException`, normalized `read_scope`
-  - **Depends on:** 1.2, 2.1
-- [ ] 3.2 (M) Implement declaration validation and stable diagnostic codes:
-  `CONTEXT_IMPACT_MISSING`, `CONTEXT_IMPACT_UNKNOWN`,
-  `CONTEXT_IMPACT_UNDECLARED`, and `CONTEXT_IMPACT_EXCEPTION_INVALID`.
-  - **Scenarios:** Planning uncertainty is explicit; Contract change implies API impact; Unreviewed rationale fails
-  - **Design:** D2, D3
-  - **Contract:** validate-packages diagnostics
-  - **Depends on:** 2.2, 3.1
-- [ ] 3.3 (S) Add `--require-context-impact`; default mode emits
-  `legacy-unclassified` warnings for packages without metadata while strict mode
-  fails them.
-  - **Scenarios:** Legacy plan in compatibility mode; Strict consumer rejects missing declarations
-  - **Design:** D4
-  - **Contract:** validate-packages CLI
-  - **Depends on:** 3.2
+- [x] Checkpoint: `skills/tests/install_sh/test_openspec_assets.py` green; both
+  schema copies byte-identical; new tests discovered by a bare pytest run
 
-## 4. Emit the downstream handoff
+## 2. Impact rule table
 
-- [ ] 4.1 (S) Write failing golden/schema tests for normalized JSON containing
-  package ID, declarations, inference evidence, exceptions, read allow, and deny.
-  - **Scenarios:** Reviewed exception permits deliberate no-impact; Deny scope remains authoritative
-  - **Design:** D3, D5
-  - **Contract:** `contracts/context-impact-handoff.schema.json`
-  - **Depends on:** 2.1, 3.1
-- [ ] 4.2 (S) Add `--context-impact-output <path>` with deterministic key/list
-  ordering, schema validation, and fail-before-write behavior.
-  - **Scenarios:** One path implies multiple surfaces; Deny scope remains authoritative
-  - **Design:** D3, D5
-  - **Contract:** `contracts/context-impact-handoff.schema.json`
-  - **Depends on:** 3.2, 4.1
-- [ ] 4.3 (S) Prove output never broadens scope: deny entries are preserved and
-  downstream effective scope is described as read-allow minus deny.
-  - **Scenario:** Deny scope remains authoritative
-  - **Design:** D5
-  - **Contract:** normalized `read_scope`
-  - **Depends on:** 4.2
+- [x] 2.1 (S) Write failing tests for the loader: every surface in `SURFACES` has
+  at least one rule; a rule naming an unknown surface fails loading; a missing rule
+  file raises rather than yielding an empty rule set.
+  **Spec scenarios**: skill-workflow.context-impact-rule-integrity
+  **Design decisions**: D2
+  **Dependencies**: none
+- [x] 2.2 (M) Add
+  `skills/validate-packages/install_assets/openspec/schemas/context-impact-rules.yaml`
+  mapping globs to the six surfaces, and `load_rules()` in
+  `skills/validate-packages/scripts/context_impact.py`.
+  **Spec scenarios**: skill-workflow.context-impact-rule-integrity
+  **Design decisions**: D2
+  **Dependencies**: 2.1
 
-## 5. Integrate and verify
+## 3. Detector
 
-- [ ] 5.1 (S) Update canonical/install-asset parity tests and
-  validate-packages/plan-feature documentation.
-  - **Scenarios:** Complete context declaration validates; Legacy plan in compatibility mode
-  - **Design:** D1, D4
-  - **Contracts:** all schema/template copies
-  - **Depends on:** 1.3, 3.3
-- [ ] 5.2 (S) Add migration fixtures for a legacy v1 file, a fully declared file,
-  and a reviewed no-impact exception.
-  - **Scenarios:** Legacy plan in compatibility mode; Strict consumer rejects missing declarations; Reviewed exception permits deliberate no-impact
-  - **Design:** D2, D4
-  - **Contracts:** work-package and handoff schemas
-  - **Depends on:** 3.3, 4.2
-- [ ] 5.3 (XS) Run strict OpenSpec validation, work-package schema/overlap checks,
-  focused validate-packages and plan-feature pytest, install mirror checks, and
-  `git diff --check`.
-  - **Scenarios:** all
-  - **Design:** D1-D5
-  - **Contracts:** all
-  - **Depends on:** 4.3, 5.1, 5.2
+- [x] 3.1 (S) Write failing tests for `infer_surfaces`: each of the six surfaces is
+  inferred from a representative path; a changed file outside
+  `scope.write_allow` is excluded; a file listed in `contracts.openapi.files`
+  implies `apis`.
+  **Spec scenarios**: skill-workflow.context-impact-inference
+  **Design decisions**: D1, D6
+  **Dependencies**: 2.2
+- [x] 3.2 (M) Implement `infer_surfaces(package, changed_files, rules, contract_files)`
+  and `declared_surfaces(package)` in `context_impact.py`. Take changed files as a
+  sequence; do not shell out to git.
+  **Spec scenarios**: skill-workflow.context-impact-inference
+  **Design decisions**: D1, D6
+  **Dependencies**: 3.1
+- [x] 3.3 (S) Write failing tests for `index_scopes`: returns the package's
+  `read_allow` and `deny`; a path matching both resolves denied.
+  **Spec scenarios**: skill-workflow.context-impact-index-scopes
+  **Design decisions**: D8
+  **Dependencies**: 3.2
+- [x] 3.4 (S) Implement `index_scopes(package)` returning the resolved read scope
+  with `deny` precedence, adding no schema fields.
+  **Spec scenarios**: skill-workflow.context-impact-index-scopes
+  **Design decisions**: D8
+  **Dependencies**: 3.3
+
+- [x] Checkpoint: detector unit tests pass on fixtures with no git repository
+
+## 4. Enforcement gate
+
+- [x] 4.1 (M) Write failing tests covering every row of the D3 enforcement table:
+  `declared`, `rationalized`, `undeclared`, `spurious_rationale`, `unmigrated`
+  (default and `--strict-legacy`), and an empty `surfaces: []` treated strictly.
+  **Spec scenarios**: skill-workflow.context-impact-undeclared,
+  skill-workflow.context-impact-rationale,
+  skill-workflow.context-impact-empty-declaration,
+  skill-workflow.context-impact-unmigrated
+  **Design decisions**: D3, D4, D5
+  **Dependencies**: 3.4
+- [x] 4.2 (M) Implement `evaluate(package, changed_files, rules, contract_files)`
+  returning a `ContextImpactResult` with the status, implied set, undeclared set,
+  and the changed files that implied each surface.
+  **Spec scenarios**: skill-workflow.context-impact-undeclared,
+  skill-workflow.context-impact-rationale
+  **Design decisions**: D3
+  **Dependencies**: 4.1
+- [x] 4.3 (M) Add `skills/validate-packages/scripts/validate_context_impact.py`:
+  resolves changed files via `git diff --name-only <base>...HEAD`, supports
+  `--base`, `--strict-legacy`, and `--json`, and exits 1 on `undeclared` or
+  `spurious_rationale`.
+  **Spec scenarios**: skill-workflow.context-impact-undeclared,
+  skill-workflow.context-impact-unmigrated
+  **Design decisions**: D3, D7
+  **Dependencies**: 4.2
+
+- [x] Checkpoint: run the new CLI against this change's own `work-packages.yaml`
+  and confirm it reports `declared`
+
+## 5. Compatibility and documentation
+
+- [x] 5.1 (M) Write a compatibility test asserting that no
+  `openspec/changes/**/work-packages.yaml` in the repository gains a schema error
+  mentioning `context_impact`. 24 of 62 such files are already schema-invalid on
+  baseline (see D9), so "everything validates" is not a passable assertion —
+  the gate must isolate *new* constraints introduced by this change.
+  **Spec scenarios**: skill-workflow.context-impact-optional
+  **Design decisions**: D3, D9
+  **Dependencies**: 1.2
+- [x] 5.2 (S) Document the surfaces, the enforcement table, and the new CLI in
+  `skills/validate-packages/SKILL.md`.
+  **Dependencies**: 4.3
+- [x] 5.3 (S) Dogfood the gate: add a `context_impact` block to this change's own
+  `work-packages.yaml`. Confirm the gate reports `unmigrated` before the block is
+  added and `declared` after, which proves both enforcement branches on real data.
+  **Spec scenarios**: skill-workflow.context-impact-unmigrated,
+  skill-workflow.context-impact-undeclared
+  **Design decisions**: D3
+  **Dependencies**: 5.2
+
+- [x] Checkpoint: full infra suite green; `openspec validate --strict
+  add-work-package-context-impact-declarations` passes

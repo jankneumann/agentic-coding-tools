@@ -4,7 +4,9 @@
 # from the agent-coordinator codebase (Python, TypeScript, Postgres).
 #
 # Usage:
-#   make architecture                     # Full generation pipeline
+#   make architecture                     # Full generation pipeline (in place)
+#   make architecture-refresh             # Deterministic staged refresh + provenance
+#   make architecture-check               # Read-only content-based freshness check
 #   make architecture-diff BASE_SHA=abc123  # Compare to baseline
 #   make architecture-feature FEATURE="src/locks.py,src/db.py"
 #   make architecture-validate            # Validate existing graph
@@ -125,6 +127,18 @@ architecture: ## Full generation: analyzers -> compiler -> validator -> views
 		--migrations-dir $(MIGRATIONS_DIR) \
 		--arch-dir $(ARCH_DIR) \
 		--python $(PYTHON)
+
+architecture-refresh: ## Deterministic staged refresh: stage -> validate -> promote -> write provenance
+	@$(PYTHON) $(SCRIPTS_DIR)/run_architecture.py \
+		--target-dir . \
+		--python-src-dir $(PYTHON_SRC_DIR) \
+		--ts-src-dir $(TS_SRC_DIR) \
+		--migrations-dir $(MIGRATIONS_DIR) \
+		--python $(PYTHON) \
+		--staged
+
+architecture-check: ## Read-only, mtime-independent freshness check via architecture provenance
+	@$(PYTHON) $(SCRIPTS_DIR)/run_architecture.py --target-dir . --check
 
 # ---------------------------------------------------------------------------
 # Individual pipeline stages (used internally and for partial runs)
@@ -403,3 +417,17 @@ decisions: ## Regenerate docs/decisions/ from architectural tags in session-logs
 		--archive-root openspec/changes \
 		--decisions-output-dir docs/decisions \
 		--capabilities-root openspec/specs
+
+.PHONY: context-refresh context-refresh-check
+context-refresh: ## Regenerate all deterministic context producers (documentation, contracts, decisions)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py generate-all
+
+context-refresh-check: ## Read-only, mtime-independent drift check for all context producers (exit 2 = drift)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py check-all
+
+.PHONY: refresh-project-context refresh-project-context-check
+refresh-project-context: ## Orchestrate every configured context producer into one durable operation + emit the manifest (ri-07)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py refresh
+
+refresh-project-context-check: ## Read-only orchestrated refresh drift check (exit 0 fresh / 2 drift / 1 failed)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py refresh-check

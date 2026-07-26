@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import stat
 import sys
 import textwrap
 from pathlib import Path
@@ -67,7 +66,7 @@ def _agents_yaml(
 # ---------------------------------------------------------------------------
 
 class TestThreeVendorExclusion:
-    """Worker dispatched with claude; dispatcher MUST select codex or gemini."""
+    """Worker dispatched with claude; dispatcher MUST select codex or grok."""
 
     def test_excludes_worker_vendor(self, tmp_path, caplog):
         agents_yaml = _agents_yaml(tmp_path)
@@ -80,14 +79,14 @@ class TestThreeVendorExclusion:
 
         with caplog.at_level(logging.INFO, logger="review_dispatcher"):
             selected, msg = select_validator_vendor(
-                candidates=["claude", "codex", "gemini"],
+                candidates=["claude", "codex", "grok"],
                 change_id=CHANGE_ID,
                 agents_yaml_path=agents_yaml,
                 state_path=state_path,
             )
 
         assert selected != "claude"
-        assert selected in {"codex", "gemini"}
+        assert selected in {"codex", "grok"}
         # Spec requires the log line format.
         assert "vendor_diversity: excluded" in msg
         assert "claude (worker)" in msg
@@ -100,7 +99,7 @@ class TestThreeVendorExclusion:
 
         record_worker_vendor(CHANGE_ID, "claude", state_path=state_path)
         selected, _ = select_validator_vendor(
-            candidates=["claude", "codex", "gemini"],
+            candidates=["claude", "codex", "grok"],
             change_id=CHANGE_ID,
             agents_yaml_path=agents_yaml,
             state_path=state_path,
@@ -170,7 +169,7 @@ class TestPolicyDisabled:
 
         with caplog.at_level(logging.INFO, logger="review_dispatcher"):
             selected, msg = select_validator_vendor(
-                candidates=["claude", "codex", "gemini"],
+                candidates=["claude", "codex", "grok"],
                 change_id=CHANGE_ID,
                 agents_yaml_path=agents_yaml,
                 state_path=state_path,
@@ -297,19 +296,19 @@ class TestVendorExhaustionPerRole:
 
         # First validator request: must exclude claude.
         first, _ = select_validator_vendor(
-            ["claude", "codex", "gemini"],
+            ["claude", "codex", "grok"],
             change_id=change_id,
             repo_root=repo_root,
         )
-        assert first in {"codex", "gemini"}, first
+        assert first in {"codex", "grok"}, first
 
         # Second validator request: still excludes claude.
         second, log_msg = select_validator_vendor(
-            ["claude", "codex", "gemini"],
+            ["claude", "codex", "grok"],
             change_id=change_id,
             repo_root=repo_root,
         )
-        assert second in {"codex", "gemini"}, second
+        assert second in {"codex", "grok"}, second
         assert "claude" in log_msg, log_msg
 
     def test_pair_constraint_logs_role_check(self, tmp_path: Path):

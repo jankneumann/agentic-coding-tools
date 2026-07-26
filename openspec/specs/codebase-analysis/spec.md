@@ -752,7 +752,7 @@ The system SHALL analyze Python source files using the `ast` standard library to
 - The analyzer SHALL measure **nesting depth** of control-flow statements (if, for, while, with, try, except) and detect depth ≥ 4 (medium) or ≥ 6 (high)
 - The analyzer SHALL count function parameters excluding `self` and `cls`, detecting ≥ 5 (medium) or ≥ 8 (high)
 - The analyzer SHALL count top-level definitions (classes + functions) per module, detecting ≥ 20 (medium) or ≥ 40 (high)
-- The analyzer SHALL skip directories: `.venv`, `node_modules`, `__pycache__`, `.git`, `.tox`, `dist`, `build`, `.agents`, `.claude`, `.codex`, `.gemini`
+- The analyzer SHALL skip directories: `.venv`, `node_modules`, `__pycache__`, `.git`, `.tox`, `dist`, `build`, `.agents`, `.claude`, `.codex`
 - The analyzer SHALL gracefully skip files with `SyntaxError` without failing
 
 #### Scenario: Detect a Long Method
@@ -779,7 +779,7 @@ The system SHALL detect duplicated code blocks using structural fingerprinting.
 - The analyzer SHALL distinguish **cross-file** vs **same-file** duplication in finding titles
 - The analyzer SHALL filter out trivial windows (mostly imports, returns, closing brackets)
 - The analyzer SHALL assign severity based on copy count: 2 copies → low, 3-4 copies → medium, 5+ copies → high
-- The analyzer SHALL skip runtime skill copy directories (`.agents`, `.claude`, `.codex`, `.gemini`)
+- The analyzer SHALL skip runtime skill copy directories (`.agents`, `.claude`, `.codex`)
 
 #### Scenario: Detect cross-file duplication
 - **WHEN** the same 6-line code block appears in `a.py` and `b.py`

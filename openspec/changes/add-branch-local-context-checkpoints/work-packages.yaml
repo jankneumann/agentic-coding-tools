@@ -1,0 +1,400 @@
+schema_version: 1
+
+feature:
+  id: add-branch-local-context-checkpoints
+  title: "Add branch-local context checkpoints"
+  plan_revision: 1
+  created_by: autopilot-roadmap
+
+# This change introduces no HTTP surface. Its canonical contract is the
+# checkpoint report schema, so the contract file slot carries that schema
+# rather than an OpenAPI document — the same convention ri-08 used for the
+# work-package schema.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-branch-local-context-checkpoints/contracts/context-checkpoint.schema.json"
+    files:
+      - "openspec/changes/add-branch-local-context-checkpoints/contracts/context-checkpoint.schema.json"
+
+defaults:
+  priority: 9
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Checkpoint report contract"
+    task_type: implementation
+    description: |
+      Tasks 1.1-1.4. Add `context-checkpoint.schema.json` and install it into
+      `openspec/schemas/` plus the project-context-refresh install assets. The
+      schema composes the shared ri-06 `$defs` by relative `$ref`, exactly as
+      `context-refresh-manifest.schema.json` already does, so the three
+      referenced type definitions resolve once installed alongside them.
+
+      Two constraints in the schema are load-bearing rather than cosmetic and
+      must be tested: `namespace.kind` excludes `main` (a checkpoint is
+      structurally barred from the canonical namespace, D4), and
+      `checkpoint_status` has no `failed` member (drift is data, not failure —
+      gating belongs to ri-10, D8).
+
+      The name is `context-checkpoint.schema.json`, not `checkpoint.schema.json`:
+      the latter already exists in the same directory as the autopilot-roadmap
+      resume contract.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/schemas/context-checkpoint.schema.json"
+      keys:
+        - "contract:context-checkpoint-schema"
+      ttl_minutes: 60
+      reason: "Publish the checkpoint report contract"
+    scope:
+      write_allow:
+        - "openspec/schemas/context-checkpoint.schema.json"
+        - "skills/project-context-refresh/install_assets/openspec/schemas/**"
+        - "skills/tests/project-context-refresh/test_checkpoint_contract.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # The published schema is an interface contract; the new test module is
+      # source the semantic index embeds.
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: checkpoint-contracts
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Checkpoint contract tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_checkpoint_contract.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["checkpoint_contract_tests_passed"]
+        - name: "Install assets stay synced"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/install_sh/test_openspec_assets.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["install_assets_synced"]
+    metadata:
+      loc_estimate: 180
+      complexity: low
+      package_kind: data_model
+    outputs:
+      result_keys:
+        - "checkpoint_contract_tests_passed"
+        - "install_assets_synced"
+
+  - package_id: wp-adapter
+    title: "Index namespace and scope threading"
+    task_type: implementation
+    description: |
+      Tasks 2.1-2.5. Add optional namespace and read-scope parameters to
+      `semantic_adapter.py`, which today hardcodes
+      `--namespace-kind main --namespace-key main` into the indexer argv and
+      passes no scope flags at all.
+
+      Both capabilities already exist downstream and are already tested there:
+      the code-search CLI accepts `--namespace-kind {main,feature,work_package}`
+      and `--read-allow` / `--deny`, and `indexing_policy` enforces the read
+      scope. This package supplies those values; it must not reimplement the
+      enforcement.
+
+      Defaults are unchanged — omitting the new parameters must still produce
+      `main`/`main` and an empty policy — so the ri-07 canonical path does not
+      regress. That non-regression is a verification step, not an assumption.
+    role: implementer
+    priority: 2
+    depends_on: []
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/semantic_adapter.py"
+      keys:
+        - "contract:semantic-index-namespace"
+      ttl_minutes: 60
+      reason: "Thread index namespace and read scope through the adapter"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/semantic_adapter.py"
+        - "skills/tests/project-context-refresh/test_semantic_adapter_namespace.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: checkpoint-adapter
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Namespace and scope threading tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_semantic_adapter_namespace.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["namespace_threading_tests_passed"]
+        - name: "Existing adapter suite is unregressed"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_semantic_adapter.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["canonical_adapter_unregressed"]
+    metadata:
+      loc_estimate: 160
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "namespace_threading_tests_passed"
+        - "canonical_adapter_unregressed"
+
+  - package_id: wp-checkpoint
+    title: "Checkpoint module and CLI"
+    task_type: implementation
+    description: |
+      Tasks 3.1-3.11. Implement `checkpoint.py` and the `checkpoint` CLI
+      subcommand: infer surfaces via the ri-08 detector from the package's own
+      changed-file list, dispatch producers through `registry.run_producer` in
+      **check** mode, add architecture freshness and merge-base delta, and
+      assemble the report.
+
+      The load-bearing invariant is D1: this module must not construct an
+      `OperationStore` or write any refresh operation record or manifest. A
+      recorded producer result is immutable for its revision and is reused
+      verbatim by later refreshes, so a scope-restricted checkpoint result
+      admitted into the ledger would be unrecoverable within the ri-06 contract.
+      `checkout_policy` does not catch this — it reasons about the worktree path
+      only, while the operation ledger lives under the clone-global git common
+      dir — so the invariant is pinned by an explicit regression test.
+
+      Producer dispatch goes through the existing registry seam rather than
+      being reimplemented, which keeps the drift surface between this path and
+      the orchestrator's limited to orchestration.
+    role: implementer
+    priority: 3
+    depends_on:
+      - wp-contracts
+      - wp-adapter
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/checkpoint.py"
+        - "skills/project-context-refresh/scripts/cli.py"
+      keys:
+        - "feature:add-branch-local-context-checkpoints:implement"
+      ttl_minutes: 120
+      reason: "Implement the checkpoint module and its CLI entry point"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/checkpoint.py"
+        - "skills/project-context-refresh/scripts/cli.py"
+        - "skills/tests/project-context-refresh/test_checkpoint.py"
+        - "skills/tests/project-context-refresh/test_checkpoint_isolation.py"
+        - "skills/tests/project-context-refresh/test_checkpoint_architecture.py"
+        - "skills/tests/project-context-refresh/test_checkpoint_cli.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: checkpoint-core
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Checkpoint core and determinism tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_checkpoint.py skills/tests/project-context-refresh/test_checkpoint_architecture.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["checkpoint_core_tests_passed"]
+        - name: "Ledger isolation invariant holds"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_checkpoint_isolation.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["ledger_isolation_verified"]
+        - name: "CLI subcommand tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_checkpoint_cli.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["checkpoint_cli_tests_passed"]
+    metadata:
+      loc_estimate: 420
+      complexity: high
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "checkpoint_core_tests_passed"
+        - "ledger_isolation_verified"
+        - "checkpoint_cli_tests_passed"
+
+  - package_id: wp-workflow
+    title: "Per-package checkpoint trigger"
+    task_type: implementation
+    description: |
+      Tasks 4.1-4.4. Document and test the per-package checkpoint trigger in
+      `implement-feature`, evaluated at the package-completion boundary.
+
+      The trigger reads the package's context-impact surfaces from its own
+      changed-file list — never a git range — so the decision holds for
+      uncommitted work inside a feature worktree.
+
+      The reporting rule is the subtle part: a package with no `context_impact`
+      block must be reported as `unmigrated`, not as impact-free. The detector
+      returns `None` for a missing block and an empty frozenset for an explicit
+      empty list, and those mean different things — absence of evidence versus
+      an assertion that nothing is affected. Collapsing them would let an
+      unmigrated package look verified.
+    role: implementer
+    priority: 4
+    depends_on:
+      - wp-checkpoint
+    locks:
+      files:
+        - "skills/implement-feature/SKILL.md"
+      keys:
+        - "feature:add-branch-local-context-checkpoints:workflow"
+      ttl_minutes: 60
+      reason: "Wire the checkpoint trigger into the implementation workflow"
+    scope:
+      write_allow:
+        - "skills/implement-feature/SKILL.md"
+        - "skills/tests/implement-feature/test_context_checkpoint_trigger.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: checkpoint-workflow
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Trigger and unmigrated-reporting tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/implement-feature/test_context_checkpoint_trigger.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["checkpoint_trigger_tests_passed"]
+    metadata:
+      loc_estimate: 200
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "checkpoint_trigger_tests_passed"
+
+  - package_id: wp-integration
+    title: "Integration, full suite, and contract promotion"
+    task_type: integration
+    description: |
+      Tasks 5.1-5.4. Merge the work-package branches into the feature branch,
+      run the full infra skill suite and `openspec validate --strict`, and
+      promote `contracts/context-checkpoint.schema.json` into
+      `openspec/contracts/project-context-refresh/schemas/`.
+
+      The promotion step is not optional bookkeeping: `openspec/contracts/` is
+      the durable system representation alongside `openspec/specs/`, and a
+      change archived without promoting its contracts loses them.
+    role: integrator
+    priority: 5
+    depends_on:
+      - wp-contracts
+      - wp-adapter
+      - wp-checkpoint
+      - wp-workflow
+    locks:
+      files: []
+      keys:
+        - "feature:add-branch-local-context-checkpoints:integrate"
+      ttl_minutes: 60
+      reason: "Integrate all packages and promote contracts"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Integration sees the union of every package's diff, which includes the
+      # spec deltas under openspec/changes/**/specs/** and the promoted contract.
+      surfaces:
+        - "capabilities"
+        - "apis"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: checkpoint-integration
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full project-context-refresh suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["full_refresh_suite_passed"]
+        - name: "OpenSpec change validates strictly"
+          kind: command
+          command: "openspec validate add-branch-local-context-checkpoints --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict_valid"]
+        - name: "Contract promoted to the durable location"
+          kind: manual
+          manual_instructions: |
+            Confirm openspec/contracts/project-context-refresh/schemas/context-checkpoint.schema.json
+            exists and is byte-identical to the change-local contracts/ copy.
+          evidence:
+            artifacts:
+              - "openspec/contracts/project-context-refresh/schemas/context-checkpoint.schema.json"
+            result_keys: ["contract_promoted"]
+    metadata:
+      loc_estimate: 60
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "full_refresh_suite_passed"
+        - "openspec_strict_valid"
+        - "contract_promoted"

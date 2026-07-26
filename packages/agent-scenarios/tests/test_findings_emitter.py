@@ -33,7 +33,7 @@ def _matrix_with_failures() -> ParityMatrix:
         results=[
             VendorRunVerdict(
                 scenario_id="fix-add",
-                vendor="gemini",
+                vendor="grok",
                 gate_verdicts=[
                     GateVerdict(
                         gate_id="fixed",

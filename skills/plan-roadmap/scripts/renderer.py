@@ -15,7 +15,6 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
-from typing import Any
 
 _RUNTIME_DIR = Path(__file__).resolve().parent.parent.parent / "roadmap-runtime" / "scripts"
 if str(_RUNTIME_DIR) not in sys.path:
@@ -23,7 +22,6 @@ if str(_RUNTIME_DIR) not in sys.path:
 
 from models import (  # type: ignore[import-untyped]
     Roadmap,
-    RoadmapItem,
 )
 
 # ---------------------------------------------------------------------------

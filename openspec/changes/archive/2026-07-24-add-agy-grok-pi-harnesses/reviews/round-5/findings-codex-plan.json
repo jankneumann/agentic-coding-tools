@@ -1,0 +1,25 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "description": "Critical: `wp-frontend`'s gate does not cover what task 4.3 claims for the skills-tree kanban fixture. Verified by running the exact `wp-frontend` command: `npm ci && npm test -- --run` passed, then the command exited 1 on the unmodified tree at the positive roster greps. Inspecting `work-packages.yaml:292` shows full `antigravity`/`grok`/`pi` checks only for `apps/kanban-viz/src/__tests__/VendorSwimlanes.test.tsx`; for `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` it checks only `grep -q antigravity` and never runs that Python test path. Current evidence: the skills fixture still has only the historical gemini rows at lines 995 and 1003. An implementation that adds only `antigravity` to the skills fixture while omitting `grok` and `pi` can satisfy the package gate while violating the checkpoint's 'new roster present in both fixture files' claim."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "description": "Nit: executable verification commands still exist outside `work-packages.yaml`, contradicting the round-4 single-home invariant in `design.md:241-244`. Verified with `rg` over live plan artifacts excluding `work-packages.yaml`: examples remain in `tasks.md:80-82` (baseline pytest/npm commands), `tasks.md:260-261` (`uv run --project packages/agent-scenarios ...`), `tasks.md:376` (`bash skills/install.sh ...`), and `tasks.md:386-390` (the four full-suite commands). These are not just historical review records, so future fixes can again update YAML while leaving task prose stale."
+    }
+  ]
+}

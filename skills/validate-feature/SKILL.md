@@ -39,8 +39,8 @@ Valid phase names: `deploy`, `smoke`, `gen-eval`, `security`, `e2e`, `architectu
 ## Provider-Neutral Dispatch
 
 When validation delegates checks or evidence review, treat the provider-neutral dispatch adapter
-as the canonical cross-provider path. Claude Code, Codex, and
-Gemini/Jules are first-class providers when configured; Claude-specific harness
+as the canonical cross-provider path. Claude Code, Codex, Antigravity, Grok, and
+Pi are first-class providers when configured; Claude-specific harness
 examples are adapter internals, with inline validation as the fallback.
 
 ## OpenSpec Execution Preference
@@ -48,7 +48,6 @@ examples are adapter internals, with inline validation as the fallback.
 Use OpenSpec-generated runtime assets first, then CLI fallback:
 - Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
 - Codex: `.codex/skills/openspec-*/SKILL.md`
-- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - Fallback: direct `openspec` CLI commands
 
 ## Coordinator Integration (Optional)

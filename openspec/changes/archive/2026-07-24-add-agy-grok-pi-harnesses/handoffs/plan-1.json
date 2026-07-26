@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-22T03:25:31.902901+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Completed planning for the agy/grok/pi harness roster change, resumed from Step 6 against a pre-existing proposal. Produced spec deltas covering all 37 gemini-bearing requirements across 8 specs, a 67-task tasks.md, a 9-package work-package DAG, and a roster contract. Planning measured the live edit surface at 68 files versus the proposal's ~15, and corrected two factual errors in the proposal.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Spec delta covers normative roster AND illustrative scenario prose",
+        "rationale": "37 requirements across 8 specs mention gemini; about a third declare the roster contractually, the rest use it as an example vendor in WHEN/THEN prose. Both are rewritten. Leaving illustrative prose would keep a discontinued CLI presented as a live dispatch target across the spec tree - the silent-failure class this change exists to remove.",
+        "capability": "vendor-roster",
+        "supersedes": null
+      },
+      {
+        "title": "antigravity is the single canonical provider key; agy is only a binary name",
+        "rationale": "The proposal said 'antigravity', roadmap ri-01 acceptance said 'agy'. Existing keys follow product names (claude_code for the claude binary), so antigravity wins. No alias is permitted: a second string for one vendor is exactly what produced the ~13 drifting allow-lists this change removes.",
+        "capability": "vendor-roster",
+        "supersedes": null
+      },
+      {
+        "title": "No per-vendor runtime directories; .gemini/ is deleted with no replacement",
+        "rationale": "xAI docs confirm grok reads Claude Code assets with zero configuration, and install.sh already writes .claude/skills/. antigravity and pi read .agents/skills/, also already an install.sh target. Pointing grok at the project's .agents/skills/ needs ~/.grok/config.toml, a machine-local file outside the repo, so it is documented as optional operator setup rather than committed. Source: https://docs.x.ai/build/features/skills-plugins-marketplaces",
+        "capability": "skill-distribution",
+        "supersedes": null
+      },
+      {
+        "title": "Eval backends reach full roster parity in this change",
+        "rationale": "evaluation-framework's Agent Backend Abstraction enumerates a backend per first-class provider. Shipping the roster without backends would land spec and code in disagreement - the same drift class the canonical-key decision prevents.",
+        "capability": "evaluation-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Empirical CLI verification is a gating phase, not a validation afterthought",
+        "rationale": "Phase 2 resolves agy --model slugs, grok --prompt-file /dev/stdin behaviour under a subprocess pipe, pi's OPENROUTER_API_KEY passthrough, and re-login commands before any config is written. Ordering these last would mean writing agents.yaml against guessed flags and discovering the mistake after the config had propagated into tier maps, adapters, and tests.",
+        "capability": "vendor-roster",
+        "supersedes": null
+      },
+      {
+        "title": "provider-model-map.schema.json bumped to schema_version 2 with a closed key set",
+        "rationale": "Version 1 used open additionalProperties for providers, so a reintroduced gemini key would validate silently. Version 2 uses propertyNames.enum, making roster drift a validation failure rather than a runtime surprise.",
+        "capability": "vendor-roster",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run wp-contracts and wp-empirical first - they are the only two packages with no dependencies, and wp-empirical gates every config package.",
+      "Do NOT hardcode antigravity or grok tier slugs until task 2.5 folds the empirical findings into design.md.",
+      "Keep orchestrator.py's vendor list and policy.py's _STATIC_COST_TIERS structurally stable so roadmap ri-02 can delete them cleanly."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-agy-grok-pi-harnesses/proposal.md",
+        "description": "proposal with Gate 1 selected approach and decisions D1-D4"
+      },
+      {
+        "path": "openspec/changes/add-agy-grok-pi-harnesses/design.md",
+        "description": "scope inventory, decision rationale, empirical findings table"
+      },
+      {
+        "path": "openspec/changes/add-agy-grok-pi-harnesses/tasks.md",
+        "description": "67 tasks across 10 phases"
+      },
+      {
+        "path": "openspec/changes/add-agy-grok-pi-harnesses/contracts/roster.md",
+        "description": "canonical vendor strings - the coordination boundary"
+      },
+      {
+        "path": "openspec/changes/add-agy-grok-pi-harnesses/work-packages.yaml",
+        "description": "9-package DAG with non-overlapping write scopes"
+      }
+    ]
+  }
+}

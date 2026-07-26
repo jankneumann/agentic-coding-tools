@@ -31,8 +31,8 @@ Implement an approved OpenSpec proposal. Automatically selects execution tier ba
 ## Provider-Neutral Dispatch
 
 When this skill delegates work packages, treat the provider-neutral dispatch adapter
-as the canonical cross-provider path. Claude Code, Codex, and
-Gemini/Jules are first-class providers when configured; Claude-style `Task(...)`
+as the canonical cross-provider path. Claude Code, Codex, Antigravity, Grok, and
+Pi are first-class providers when configured; Claude-style `Task(...)`
 or `Agent(...)` snippets are provider-specific examples, with inline execution
 as the fallback.
 
@@ -41,7 +41,6 @@ as the fallback.
 Use OpenSpec-generated runtime assets first, then CLI fallback:
 - Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
 - Codex: `.codex/skills/openspec-*/SKILL.md`
-- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - Fallback: direct `openspec` CLI commands
 
 ## Steps
@@ -179,12 +178,14 @@ from validator selection — see `parallel-infrastructure/scripts/review_dispatc
 (`record_worker_vendor`, `select_validator_vendor`).
 
 ```bash
-# AGENT_TYPE is set by the harness (e.g., "claude_code", "codex", "gemini").
+# AGENT_TYPE is set by the harness (e.g., "claude_code", "codex", "antigravity").
 # Map agent type to vendor short-name; default to the type itself if unmapped.
 case "${AGENT_TYPE:-claude_code}" in
   claude_code) WORKER_VENDOR="claude" ;;
   codex)       WORKER_VENDOR="codex" ;;
-  gemini)      WORKER_VENDOR="gemini" ;;
+  antigravity) WORKER_VENDOR="antigravity" ;;
+  grok)        WORKER_VENDOR="grok" ;;
+  pi)          WORKER_VENDOR="pi" ;;
   *)           WORKER_VENDOR="${AGENT_TYPE}" ;;
 esac
 
@@ -289,6 +290,11 @@ Do NOT commit - the orchestrator will handle commits.",
 **When to parallelize:** 3+ independent tasks with no file overlap.
 **When NOT to:** Tasks that share files/state or have logical dependencies.
 
+**Per-package context checkpoint:** not applicable. This tier has no per-package
+completion boundary — tasks are not partitioned into work packages, so there is nothing to
+checkpoint per package. Do not invent a boundary to hang one on; see *Per-Package Context
+Checkpoint* below.
+
 ---
 
 #### Local Parallel Tier [local-parallel]
@@ -351,6 +357,13 @@ python3 "<skill-base-dir>/../parallel-infrastructure/scripts/scope_checker.py" \
   --diff <git diff output>
 ```
 
+**D.5 Run the per-package context checkpoint:**
+
+For each package whose results were just collected, evaluate it and run a checkpoint when
+it invalidated project context. Do this before **E**, so the change-context update reflects
+the checkpoint. See *Per-Package Context Checkpoint* below for the command and the
+`unmigrated` reporting rule.
+
 **E. Update change-context.md:**
 
 - Fill Files Changed column from `git diff --name-only main..HEAD`
@@ -390,6 +403,8 @@ python3 "<skill-base-dir>/../worktree/scripts/worktree.py" heartbeat "${CHANGE_I
 
 ```
 C1. Result validation against work-queue-result.schema.json
+C1.5. Per-package context checkpoint (see "Per-Package Context Checkpoint" below).
+      Runs here, before C3, so reviewers read the report.
 C2. Escalation processing
 C3. Per-package multi-vendor review (via /parallel-review-implementation)
     - Self-review + vendor dispatch via parallel-infrastructure/scripts/review_dispatcher.py
@@ -408,6 +423,52 @@ for pkg in <package-ids> integrator; do
 done
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" gc
 ```
+
+---
+
+#### Per-Package Context Checkpoint [local-parallel, coordinated]
+
+When a work package completes, evaluate it for context impact and run a branch-local
+checkpoint if its surfaces indicate project context was invalidated. The checkpoint is
+read-only and advisory: it never writes the shared refresh ledger, and detected drift is
+data in its report, not a build failure.
+
+Hook points, one per tier:
+
+| Tier | Where | Why there |
+|---|---|---|
+| Local Parallel | Step 3b **D.5** — after **D** collects results and runs `scope_checker.py`, before **E** | The package's changed-file list only exists once results are collected |
+| Coordinated | Phase C **C1.5** — after **C1** result validation, before **C3** review | The review reads the checkpoint report |
+| Sequential | *No hook* | This tier has no per-package boundary; do not invent one |
+
+```bash
+python3 "<skill-base-dir>/../project-context-refresh/scripts/cli.py" checkpoint \
+  --change-id "<change-id>" --package-id "<package-id>" \
+  --changed-file <path> [--changed-file <path> ...]
+```
+
+Supply the package's changed files explicitly. The trigger is deliberately git-free, so it
+decides correctly on an uncommitted worktree between package completion and commit — never
+substitute a git range for `--changed-file`. The report lands at
+`openspec/changes/<change-id>/context-checkpoints/<package-id>.json` and is tracked, so a
+reviewer sees it in the PR diff.
+
+**Reporting rule — `unmigrated` is never "no context impact" (REQUIRED).**
+
+| Package state | Status | Record in the implementation summary as |
+|---|---|---|
+| Declares surfaces its changed files invalidate | `declared` / `rationalized` | checkpoint ran, with the report path |
+| Declares an **explicitly empty** `context_impact.surfaces` list | `declared` | the package **asserted no impact** |
+| Declares **no `context_impact` block at all** | `unmigrated` | **`unmigrated`** — that literal word |
+
+The last two both skip the checkpoint, and reporting them the same way is the failure this
+rule exists to prevent: an empty list is an assertion that nothing is affected, a missing
+block is absence of evidence. Collapsing them lets a package nobody checked appear
+verified.
+
+`undeclared` and `spurious_rationale` are the context-impact gate's failing statuses — the
+package's declaration is wrong, not merely absent. The checkpoint refuses to run and exits
+non-zero; fix the declaration before treating the package as complete.
 
 ---
 

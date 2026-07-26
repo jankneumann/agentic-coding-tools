@@ -1,5 +1,11 @@
 version: 1
 change_id: add-update-documentation-skill
-status: superseded
+
+# SUPERSEDED by add-deterministic-context-producer-checks (ri-05).
+# The documentation-inventory behavior moved to that change's
+# `documentation.inventory` producer; the standalone hook/cleanup/merge-time/
+# validate-feature/auto-commit wiring was intentionally dropped (ri-10 owns
+# drift gates, ri-11 owns main convergence). No dispatchable package remains.
 superseded_by: add-deterministic-context-producer-checks
+
 packages: []

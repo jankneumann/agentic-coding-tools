@@ -7,9 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-import pytest
 
-from fix_models import ClassifiedFinding, Finding, FixGroup, FixPlan  # noqa: E402
+from fix_models import ClassifiedFinding, Finding  # noqa: E402
 from plan_fixes import plan  # noqa: E402
 
 

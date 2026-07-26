@@ -16,12 +16,12 @@ audit:
     enabled: false
 
     # Archetype for model selection (from archetypes.yaml).
-    # "analyst" = standard tier (sonnet / gpt-5.4 / gemini-3-flash).
+    # "analyst" = standard tier (sonnet / gpt-5.4 / grok-4.5).
     # Override to "reviewer" for premium tier if accuracy matters more than cost.
     archetype: analyst
 
     # Provider for model resolution.
-    # One of: claude_code, codex, gemini
+    # One of: claude_code, codex, antigravity, grok, pi
     provider: claude_code
 
     # Maximum entries per classifier invocation.

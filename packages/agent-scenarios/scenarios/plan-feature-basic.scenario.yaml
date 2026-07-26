@@ -12,7 +12,7 @@ skill_under_test: plan-feature
 vendors:
   - claude
   - codex
-  - gemini
+  - grok
 fixture:
   git_init: true
   base_branch: main
