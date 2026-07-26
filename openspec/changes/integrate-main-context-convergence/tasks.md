@@ -46,7 +46,7 @@ Each task is sized to one commit. Group numbers map to work packages in
       `decide_outcome`; a pending index degrades through the existing rule.
 - [x] 2.5 Add `--defer-semantic-index` to the CLI and surface both new flags in the
       skill's docstring and `SKILL.md`.
-- [ ] 2.6 Verify by mutation that 2.1 and 2.3 fail against the pre-change modules.
+- [x] 2.6 Verify by mutation that 2.1 and 2.3 fail against the pre-change modules.
       Clear `__pycache__` between mutation cycles.
 
 ## 3. Convergence driver (wp-convergence)
