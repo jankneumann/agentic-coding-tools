@@ -85,18 +85,18 @@ Each task is sized to one commit. Group numbers map to work packages in
 **Files**: `skills/cleanup-feature/SKILL.md`, `skills/tests/cleanup-feature/`
 **Dependencies**: wp-sync-point
 
-- [ ] 4.1 Write a failing `test_skill_md.py` assertion that `cleanup-feature`
+- [x] 4.1 Write a failing `test_skill_md.py` assertion that `cleanup-feature`
       documents a merge-driven deferred-commit mode and names the sync point as the
       committer.
-- [ ] 4.2 Document `--defer-commit` in the Arguments section and in the post-merge
+- [x] 4.2 Document `--defer-commit` in the Arguments section and in the post-merge
       mode section: operate in the sync-point checkout on main, stage with `git add`,
       commit nothing, push nothing (D3).
-- [ ] 4.3 Replace `make architecture` with `make architecture-refresh` in the
+- [x] 4.3 Replace `make architecture` with `make architecture-refresh` in the
       post-merge step and state why (provenance is written only by the staged target,
       D10). Add a failing assertion for this first.
-- [ ] 4.4 Document the partial-failure rule: staged output from changes that already
+- [x] 4.4 Document the partial-failure rule: staged output from changes that already
       succeeded is committed by the sync point, never discarded (D3).
-- [ ] 4.5 Update the Verification and Red Flags sections for the new mode.
+- [x] 4.5 Update the Verification and Red Flags sections for the new mode.
 
 ## 5. Merge skill integration (wp-skill)
 
