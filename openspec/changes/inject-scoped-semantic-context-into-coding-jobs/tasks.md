@@ -80,10 +80,10 @@
       fields plus `index_id`, using the `score` / `indexed_commit` names.
 - [x] 3.3 Render the fallback section variant with trigger, state, reason, and
       the suggested `rg` command built from the package's `read_allow`.
-- [ ] 3.4 Emit nothing at all (not even a heading) when the result's fallback
+- [x] 3.4 Emit nothing at all (not even a heading) when the result's fallback
       reason is `injection_disabled`, so a flag-off run is byte-identical to
       today (D9).
-- [ ] 3.5 Add `skills/tests/context-engineering/test_render_semantic_context.py`
+- [x] 3.5 Add `skills/tests/context-engineering/test_render_semantic_context.py`
       with golden-text assertions for injected, each fallback trigger, and the
       flag-off empty case.
 
