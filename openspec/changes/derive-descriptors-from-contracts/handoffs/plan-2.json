@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-26T01:53:23.672142+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planning complete after 5 multi-vendor review rounds. The change was split in two: rename-descriptor-model-levels (prerequisite, frees two type names) and derive-descriptors-from-contracts (the feature). Nothing implemented yet. A third branch repairs three review vendors that were silently broken.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Contract is the source; introspection is only the verifier",
+        "rationale": "Introspection-as-source fails open: a broken surface yields an empty declared set and a green gate. Verified this is live today \u2014 gen-eval's descriptor yields 0 interfaces, so ACA ri-06's coverage gate passes for free.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Extract the rename into its own change",
+        "rationale": "Freeing two names and reusing them in one DAG creates a state where a name's meaning depends on which wave ran; verification cannot assert a stable fact about it. Four blocking findings across three rounds all had that shape.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Reclamation is a distinct break from deprecation, and needs its own version bump plus notice",
+        "rationale": "A removed name fails loudly; a deprecated name warns; a reclaimed name does neither \u2014 the import succeeds and the object is not what it was. Hence CONTRACT_VERSION 1->2 in the rename and 2->3 for the reclamation.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Tool-archetype coverage floor is completeness with declared exclusions, not a percentage",
+        "rationale": "80% is arithmetically unreachable on gen-eval's own CLI (16 flags, 5 exercised = 31.2%). Asserting it would ship a gate that can never pass \u2014 the mirror of one that can never fail.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Rebase all three branches onto main (cdff1e1e); they are 18-24 commits behind.",
+      "Merge openspec/fix-review-vendor-dispatch-config first \u2014 independent, and it unblocks future multi-vendor review.",
+      "Land openspec/rename-descriptor-model-levels before starting implementation of the feature.",
+      "Run the Prerequisites check at the top of tasks.md before Phase 1; it exits non-zero until the rename lands.",
+      "Re-run the 27/27 gate audit after any edit to a work-package `command:`."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/HANDOFF.md",
+        "description": "full handoff \u2014 read this first"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/design.md",
+        "description": "D1-D8, D10, D11 (D9 moved to the rename change)"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/DOWNSTREAM.md",
+        "description": "DS-1..DS-5; DS-5 covers the name reclamation trap"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/",
+        "description": "5 rounds of multi-vendor findings, checked in"
+      }
+    ]
+  }
+}
