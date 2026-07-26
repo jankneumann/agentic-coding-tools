@@ -27,8 +27,14 @@ ARCH_DIR         ?= docs/architecture-analysis
 VIEWS_DIR        := $(ARCH_DIR)/views
 SCRIPTS_DIR      ?= skills/refresh-architecture/scripts
 PYTHON_SRC_DIR   ?= agent-coordinator/src
-TS_SRC_DIR       ?= web
-MIGRATIONS_DIR   ?= agent-coordinator/supabase/migrations
+# TypeScript sources live under apps/ (apps/kanban-viz). The previous default
+# `web` has never existed in this repository, which is why the committed
+# ts_analysis.json records zero modules, functions and components.
+TS_SRC_DIR       ?= apps
+# Migrations moved to database/migrations when the coordinator left Supabase for
+# ParadeDB; the supabase path no longer exists, so the postgres analyzer failed
+# with "Migrations directory not found" on every run.
+MIGRATIONS_DIR   ?= agent-coordinator/database/migrations
 
 GRAPH_FILE     := $(ARCH_DIR)/architecture.graph.json
 SUMMARY_FILE   := $(ARCH_DIR)/architecture.summary.json
@@ -78,8 +84,8 @@ help: ## Show available make targets with descriptions
 	@echo ""
 	@echo "Variables:"
 	@echo "  PYTHON_SRC_DIR=<path>  Python source directory (default: agent-coordinator/src)"
-	@echo "  TS_SRC_DIR=<path>      TypeScript source directory (default: web)"
-	@echo "  MIGRATIONS_DIR=<path>  SQL migrations directory (default: agent-coordinator/supabase/migrations)"
+	@echo "  TS_SRC_DIR=<path>      TypeScript source directory (default: apps)"
+	@echo "  MIGRATIONS_DIR=<path>  SQL migrations directory (default: agent-coordinator/database/migrations)"
 	@echo "  ARCH_DIR=<path>        Output directory (default: docs/architecture-analysis)"
 	@echo "  BASE_SHA=<sha>         Git SHA for baseline diff comparison"
 	@echo "  FEATURE=<glob>         File list or glob for feature slice extraction"
