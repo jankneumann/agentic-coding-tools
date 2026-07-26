@@ -210,6 +210,29 @@ computed from the operation model.
 - **THEN** the framework SHALL exit non-zero
 - **AND** it SHALL do so independently of whether the pass-rate threshold was met
 
+### Requirement: Descriptor Reclamation Is Announced
+
+A previously-aliased type name assigned to a different type SHALL resolve, at
+package level, to the new type; SHALL increment the descriptor contract version;
+and SHALL be recorded in a downstream notice naming both the previous and the
+new meaning.
+
+A reclaimed name SHALL NOT be left resolving to the superseded type at package
+level while resolving to the new type within its defining module.
+
+#### Scenario: A reclaimed name is announced rather than silently rebound
+
+- **WHEN** a descriptor archetype takes a name that previously denoted an
+  element or container type
+- **THEN** the descriptor contract version SHALL be incremented
+- **AND** a downstream notice SHALL name both the previous and the new meaning
+
+#### Scenario: Package-level export resolves to the reclaimed type
+
+- **WHEN** a caller imports a reclaimed name from the package root
+- **THEN** it SHALL receive the new archetype
+- **AND** it SHALL NOT receive the superseded element or container type
+
 ## MODIFIED Requirements
 
 ### Requirement: Interface Descriptor

@@ -1,0 +1,79 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "rename: three of wp-main's six verification gates import `gen_eval` through a bare `python3`, which does not resolve to the tree they are supposed to gate, so they cannot pass no matter how correctly B is implemented. `packages/gen-eval` is a src-layout package, so `cd packages/gen-eval && python3 -c \"import gen_eval\"` can never read `src/`; it reads whatever copy the ambient interpreter has installed. Executed in this worktree: `python3 -c \"import gen_eval; print(gen_eval.__file__)\"` -> `agent-coordinator/.venv/lib/python3.12/site-packages/gen_eval/__init__.py`, and `diff <that>/descriptor.py src/gen_eval/descriptor.py` -> DIFFERENT. The false negative is already demonstrable: `src/gen_eval/contracts/` exists in the tree (ls shows `__init__.py`, `VERSION`, three schemas), yet gate 3's first half, run verbatim, prints `ModuleNotFoundError: No module named 'gen_eval.contracts'`. Affected: gate 1 (`New *Spec names are exported...`), gate 2 (`All four old names resolve as aliases AND emit DeprecationWarning`), gate 3 first half (`CONTRACT_VERSION is 2`). These are the only gates that verify B's three core requirements (the *Spec renames, D4's alias-and-warn pair, D3's version bump). Gates 5 and 6 in the same file already use `uv run`, and `uv run python -c \"import gen_eval; print(gen_eval.__file__)\"` was executed and resolves correctly to `packages/gen-eval/src/gen_eval/__init__.py` \u2014 so the file is internally inconsistent about how to reach the package. Gate 3's second half (`python3 scripts/generate_contract_schemas.py --check`) is unaffected because that script self-injects `src/` at lines 32-33.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "derive-descriptors: the Prerequisites check in tasks.md does not read the tree whose state it is deciding, so it cannot detect whether `rename-descriptor-model-levels` has landed. Run verbatim it exits 1 with the intended message, but that answer comes from the interpreter's installed copy, not the branch. Evidence: the check is `cd packages/gen-eval && python3 -c \"import gen_eval.descriptor as d ... hasattr(d,'McpToolSpec')\"`; `python3 -c \"import gen_eval.descriptor as d; print(d.__file__)\"` resolves to `agent-coordinator/.venv/lib/python3.12/site-packages/gen_eval/descriptor.py`, which `diff` reports as DIFFERENT from `packages/gen-eval/src/gen_eval/descriptor.py`. Both failure directions are live. Cannot-pass: after B merges and this branch rebases, `src/gen_eval/descriptor.py` will define `McpToolSpec` while the stale non-editable site-packages copy will not, so the check reports 'has NOT landed' and instructs the implementer to stop, indefinitely, until someone happens to reinstall. Cannot-fail: run from any shell whose active environment has a post-rename `gen_eval` installed and it prints 'prerequisite 2 satisfied' against a tree that does not contain the rename \u2014 precisely the 'passes when the prerequisite is absent' case the block warns against. The `hasattr(d,'McpToolSpec')` predicate itself is correct and the two documented traps are accurately reasoned; only the interpreter is wrong. `uv run python -c ...` was executed and resolves to the tree.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "seam: B normatively requires `ToolDescriptor` to remain a warning-emitting deprecation alias, and A redefines that exact name in that exact module, with no task or spec delta reconciling the two. B's spec ADDs 'Renamed Published Types Retain Warning Aliases' ('SHALL retain a deprecation alias under the previous name for at least one release', scenario 'An old name still resolves and warns'); B's D2 and task 1.3 alias all four old names uniformly ('this change frees names but reuses none'); B task 1.1 ships `tests/test_descriptor_naming.py` asserting resolve-and-warn for all four. A's task 1.4 then implements `ToolDescriptor` as a document archetype, and A's wp-tool-descriptor pins it to the same file \u2014 write_allow is `packages/gen-eval/src/gen_eval/descriptor.py` and the lock reason states 'ToolDescriptor model lives in descriptor.py'. One module namespace cannot hold both a class named `ToolDescriptor` and a `__getattr__`-based alias for it; a module-level class wins normal attribute lookup, so the alias and its warning are destroyed. A's wp-integration gate 'Full gen-eval suite passes' (`uv run pytest -q -m 'not e2e and not integration'`) therefore runs B's `test_descriptor_naming.py` and goes red. No A package other than wp-integration is scoped to touch that file (per-package test write_allow lists are `test_cli_contract_schema.py`, `test_tool_descriptor.py`, `test_derivation_drift.py`, `test_service_descriptor.py`, `test_mcp_projection.py`, `test_coverage_model.py`, `test_coverage_vocabulary.py`, `test_subset_verifiers.py`), and no task in A instructs anyone to update it. A's spec delta does not MODIFY or REMOVE B's alias requirement \u2014 grep for 'alias', 'test_descriptor_naming', 'McpToolSpec' and 'ServiceSpec' across A's proposal/design/tasks/spec/work-packages returns nothing outside the Prerequisites block. The round-2 and round-3 contradiction between 'every published rename keeps an alias' and 'these two are hard breaks' was moved across the seam by the extraction, not resolved: B's out-of-scope list even says 'Removing the aliases. That is a later change with its own notice period', while A removes two of them immediately.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "seam: after A lands, `ServiceDescriptor` denotes two different classes at once and the package-level export is the wrong one, with no task owning the reconciliation. `gen_eval/__init__.py` lists `ServiceDescriptor` in `__all__` today (verified, line 50); after B it is the deprecation alias for `ServiceSpec`, the element container. A's task 2.2 implements the document archetype `ServiceDescriptor`, but wp-service-descriptor's write_allow is `service_descriptor.py` plus its generator and two test files, and its deny list explicitly contains `packages/gen-eval/src/gen_eval/descriptor.py` \u2014 so B's alias survives untouched and `gen_eval.ServiceDescriptor` keeps meaning the element container while the archetype is reachable only as `gen_eval.service_descriptor.ServiceDescriptor`. This contradicts A's design D6 ('This change *occupies* the freed names') and A's round-1 resolution ('Which name do the new archetypes take? `ServiceDescriptor` and `ToolDescriptor`'). It also contradicts the seam premise in A's tasks.md Prerequisites and design D6, which describe B as 'freeing' the names, whereas B's D2 and proposal table state all four become aliases \u2014 an aliased name is occupied, not free. No A artifact mentions `gen_eval/__init__.py` or `__all__` (grep across proposal, design, tasks, spec, work-packages returns only the unrelated `verify/__init__.py` path), and no task assigns the re-export. Round-2 review explicitly asked for 'an integration task that exports/wires both new document archetypes through `gen_eval/__init__.py` after both packages land'; the extraction dropped it. wp-integration is scoped broadly enough (`packages/gen-eval/**`) to do the work, but nothing tells it to, so the delivered public API contradicts the design that authorised it \u2014 the same one-name-two-meanings condition the extraction was performed to eliminate, reproduced across the seam instead of inside one DAG.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "derive-descriptors: the ADDED scenario 'Tool descriptor requires no lifecycle configuration' and its requirement clause 'A tool descriptor SHALL NOT require service lifecycle configuration' are referenced by no task. Grepping tasks.md for 'lifecycle', 'startup', 'teardown' and 'health' returns no matches, and no task's **Spec scenarios** line names it; task 1.4, which implements the archetype, cites only D1/D5/D6. If the orchestrator needs a change to honour it, no package can make one \u2014 wp-tool-descriptor's write_allow is `descriptor.py`, its generator and two test files, and `orchestrator.py` belongs to wp-coverage-model, whose tasks 3.1-3.8 are all coverage work. Reported as medium rather than blocking because the behaviour appears to be satisfied already by PR #277's optional-startup work: `src/gen_eval/descriptor.py:139` has `startup: StartupConfig | None = None` and `orchestrator.py` guards on `self.descriptor.startup is None` at lines 146, 161, 205 and 220, so a tool descriptor that simply omits the block already skips startup, health check, seeding and teardown. An implementer would need only to add the assertion, but currently has no task telling them to and no scenario-to-task link proving the requirement is covered.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "derive-descriptors: design.md's Risks table still contains a row for the work package the extraction deleted, describing a DAG the change no longer has. Line 338 reads 'The rename package becomes a merge bottleneck \u2014 it owns `descriptor.py`, which two archetype packages then extend | It is deliberately small (mechanical rename + aliases + regeneration, no behaviour change) and is the DAG root alongside `wp-contracts`; archetype packages branch from its completion'. No package named wp-rename exists in work-packages.yaml (the six packages are wp-contracts, wp-tool-descriptor, wp-service-descriptor, wp-coverage-model, wp-subset-verifiers, wp-integration), and wp-tool-descriptor / wp-service-descriptor both declare `depends_on: [wp-contracts]` only, so nothing branches from a rename package's completion. Every other removed artifact was checked and is clean: greps for 'D9', 'DS-5', 'Phase 0' (outside the historical explanation), 'CONTRACT_VERSION' (outside the two correct disclaimers in task 5.6 and wp-integration's description) and tasks 0.1-0.4 return nothing stale, and D9's content, the Phase 0 tasks, the 'Descriptor Model Naming Levels' requirement and the DS-5 notice all landed in B as D1/D2/D4, tasks 1.1-1.4 + 3.1, the ADDED requirement, and task 3.2 respectively. Non-blocking: the authoritative DAG is work-packages.yaml.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "fyi"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "rename: proposal.md contradicts itself on how many names keep aliases. The 'Why it was extracted' section says 'the rename is mechanical and has no reuse: four names move, two keep aliases, nothing is redefined', while the same file states nineteen lines later '**Nothing in this change reuses a freed name.** All four old names become deprecation aliases for one release', the renames table marks 'Old name reused here?' as 'no' for all four rows, and Approach 1 is titled 'all four renamed, uniform aliases'. D2, task 1.3 ('all four alias uniformly') and the executable gate (which iterates `('EndpointDescriptor','ToolDescriptor','CommandDescriptor','ServiceDescriptor')`) all require four. 'two keep aliases' is a leftover from the pre-extraction design where `ToolDescriptor` and `ServiceDescriptor` were hard breaks. Non-blocking because four independent statements plus the gate settle it, but the stale clause is the one place B still describes the old two-hard-breaks shape that finding 3 shows was never actually reconciled.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "fyi"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "derive-descriptors: task 5.4d is omitted from wp-integration's explicit letter-suffixed enumeration. The description reads 'Tasks 4.7 and 5.1-5.7 (including 5.4a/5.4b/5.4c)'; the parenthetical exists precisely to disambiguate the letter-suffixed tasks that a numeric range does not obviously cover, and 5.4d ('Wire `--min-coverage` and the completeness check into `make dogfood`') is missing from it. Reported only because the ownership cross-check was requested \u2014 this is not blocking: the `5.1-5.7` range covers 5.4d positionally, wp-integration's write_allow (`packages/gen-eval/**`) covers `packages/gen-eval/Makefile`, and wp-integration's `make dogfood` and `check_coverage_completeness.py` gates would fail if the wiring were skipped. Full ownership cross-check for both changes is otherwise clean: A's 41 task ids map to the six packages via 1.1/1.2/1.7-1.10, 1.3-1.6, 2.1-2.5, 3.1-3.8, 4.1-4.6 and 4.7+5.1-5.7; B's 8 ids all fall under wp-main's stated 1.1-1.4, 2.1-2.2, 3.1-3.2.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi"
+    }
+  ]
+}

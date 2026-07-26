@@ -39,16 +39,20 @@ defect before the pattern was recognised. See that change's design D2.
 test -f packages/gen-eval/scripts/generate_contract_schemas.py
 test -f packages/gen-eval/evaluation/descriptor.yaml
 
-# Prerequisite 2 — the rename has landed
-cd packages/gen-eval && python3 -c "
-import gen_eval.descriptor as d, sys
+# Prerequisite 2 — the rename has landed.
+# `uv run python`, NOT bare python3 — see the third trap below.
+cd packages/gen-eval && uv run python -c "
+import gen_eval, gen_eval.descriptor as d, pathlib, sys
+src = pathlib.Path(gen_eval.__file__).resolve()
+sys.exit(f'reading an installed copy, not this tree: {src}') \
+    if pathlib.Path('src').resolve() not in src.parents else None
 sys.exit('rename-descriptor-model-levels has NOT landed — McpToolSpec is absent, '
-         'so ToolDescriptor/ServiceDescriptor are still the legacy element types')  \
+         'so ToolDescriptor/ServiceDescriptor are still the legacy element types') \
     if not hasattr(d, 'McpToolSpec') else print('prerequisite 2 satisfied')"
 ```
 
-Probe `McpToolSpec` specifically, and not the reverse. Two traps make the
-obvious checks wrong:
+Probe `McpToolSpec` specifically, via `uv run`, and assert the import came from
+this tree. Three traps make the obvious checks wrong:
 
 - `gen_eval.ToolDescriptor` **does not exist** — only `ServiceDescriptor` and
   `InterfaceDescriptor` are exported at package level. Reaching for it raises
@@ -59,6 +63,13 @@ obvious checks wrong:
   deprecation alias for `McpToolSpec`, which still carries `input_schema`. That
   check cannot distinguish "rename landed" from "rename didn't", which is the
   only thing it exists to decide.
+- **Bare `python3` does not read this tree at all.** `packages/gen-eval` is a
+  src-layout package, so an unqualified interpreter resolves `gen_eval` from
+  whatever is installed — on this machine, the coordinator's venv at
+  `agent-coordinator/.venv/lib/python3.12/site-packages/gen_eval/`. A check run
+  that way answers a question about a different copy, and will report "not
+  landed" on a branch where it HAS landed. That is worse than no check. Hence
+  `uv run python` plus the explicit provenance assertion on the first line.
 
 `McpToolSpec` exists exactly when the rename has landed and at no other time.
 
@@ -365,5 +376,24 @@ public API.
 
 - [ ] 5.7 Update `packages/gen-eval/README.md` for the contract-derived model `[S]`
   **Dependencies**: 5.3
+
+- [ ] 5.8 Reclaim the `ServiceDescriptor` / `ToolDescriptor` exports and announce it `[S]`
+  **Spec scenarios**: Descriptor Reclamation Is Announced (a reclaimed name is announced rather than silently rebound)
+  **Design decisions**: D6
+  **Dependencies**: 1.4, 2.2
+  **Note**: `gen_eval/__init__.py` lists `ServiceDescriptor` in `__all__`. After
+  the prerequisite rename it points at the deprecation alias for `ServiceSpec` —
+  the element container. After tasks 1.4 and 2.2 the name should denote the new
+  document archetype. Without this task the package-level export keeps resolving
+  to the wrong class while `gen_eval.descriptor.ServiceDescriptor` resolves to
+  the right one, and the two disagree silently.
+  **Note**: `ToolDescriptor` is NOT currently exported at package level — only
+  `ServiceDescriptor` and `InterfaceDescriptor` are. Export the new archetype
+  and update `tests/test_public_api_parity.py`, which pins `__all__`.
+  **Note**: this is a **reclamation**, not a deprecation: both names resolve
+  successfully while denoting something different from one release ago. A
+  deprecation warning does not cover that failure mode, so the prerequisite
+  change's spec requires a version increment and a downstream notice naming both
+  meanings. Bump `CONTRACT_VERSION` 2 → 3 and add the DS entry.
 
 - [ ] Final checkpoint: full suite green, `make dogfood` green, `openspec validate --strict` passes
