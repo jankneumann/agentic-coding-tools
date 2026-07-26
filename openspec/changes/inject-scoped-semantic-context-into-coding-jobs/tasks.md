@@ -55,7 +55,7 @@
       revision`, else fall back to `CANONICAL_NAMESPACE`.
 - [x] 2.5 Implement the deterministic rank key and the dedup pass (D5):
       `duplicate_exact` and `duplicate_contained`, partial overlap retained.
-- [ ] 2.6 Implement the first-fit budget pass (D6) with the four bounds, their
+- [x] 2.6 Implement the first-fit budget pass (D6) with the four bounds, their
       env overrides, the fixed reason precedence, and no early break.
 - [ ] 2.7 Implement the local deny re-check and the `scope_filtered` /
       `all_hits_scope_filtered` outcome (D2).
@@ -66,7 +66,7 @@
 - [x] 2.9 Add `skills/tests/context-engineering/test_semantic_context_determinism.py`
       — hand-derived expected order over a tie-heavy fixture, plus the
       seeded-shuffle invariance assertion (D12).
-- [ ] 2.10 Add `skills/tests/context-engineering/test_semantic_context_budget.py`
+- [x] 2.10 Add `skills/tests/context-engineering/test_semantic_context_budget.py`
       — each of the six omission reasons produced deterministically, and the
       no-early-break property (a small hit admitted after a large one is
       skipped).
