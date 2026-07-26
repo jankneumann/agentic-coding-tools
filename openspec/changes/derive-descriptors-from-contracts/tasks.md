@@ -316,7 +316,7 @@ Inserted after the round-7 multi-vendor review (`reviews/round-7/synthesis.md`).
 Four independent vendors reviewed waves 1–3; every task below addresses a
 finding re-verified by direct execution, not by vendor assertion.
 
-- [ ] 4.8 Write tests for archetype-aware descriptor loading `[S]`
+- [x] 4.8 Write tests for archetype-aware descriptor loading `[S]`
   **Spec scenarios**: Service And Tool Descriptor Archetypes (a derived descriptor loads as its archetype)
   **Design decisions**: D4, D6
   **Dependencies**: 1.4, 2.2
