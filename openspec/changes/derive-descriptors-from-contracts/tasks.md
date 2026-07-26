@@ -184,7 +184,7 @@ public API.
   SUPPRESSES name derivation — two operations bound to one tool derive one tool,
   not two.
 
-- [ ] 2.4 Implement the OpenAPI-to-MCP tool projection with binding support `[M]`
+- [x] 2.4 Implement the OpenAPI-to-MCP tool projection with binding support `[M]`
   **Design decisions**: D4, D7
   **Dependencies**: 2.3
   **Note**: flatten path/query/body into one input object; copy `summary`/`description` verbatim (agent-readable, load-bearing). Derivation is the DEFAULT — an explicit `element` binding wins and emits the bound name once, recording the fan-in.

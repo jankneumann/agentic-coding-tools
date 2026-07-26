@@ -104,6 +104,21 @@ class OperationSpec(BaseModel):
         return f"{surface}:{element or self.operation_id}"
 
 
+class McpToolProjection(BaseModel):
+    """An MCP tool derived from one or more operations (D7).
+
+    Carries ``operation_ids`` because the projection is not injective: one
+    tool may serve several operations, and coverage has to credit all of them
+    when that tool is exercised. A projection that forgot the fan-in would
+    report the unnamed operations as never tested.
+    """
+
+    name: str
+    description: str = ""
+    input_schema: dict[str, Any] = Field(default_factory=dict)
+    operation_ids: list[str] = Field(default_factory=list)
+
+
 class ServiceDescriptor(InterfaceDescriptor):
     """A project's testable surface, derived from its OpenAPI contract."""
 
@@ -198,6 +213,19 @@ class ServiceDescriptor(InterfaceDescriptor):
         """The service archetype's coverage unit is the operation (D3)."""
         return len(self.operations)
 
+    def mcp_tools(self) -> list[McpToolProjection]:
+        """Project the MCP surface from the contract (D7).
+
+        Mechanical, but not total. Derivation is the default — one tool per
+        operation, named for the operation, with (path, query, body)
+        parameters flattened into one input object — and an explicit
+        ``mcp.element`` binding overrides it: the bound name is emitted once
+        and every operation behind it is recorded.
+
+        Resources and prompts are not projected. They are not operations.
+        """
+        return project_mcp_tools(self.operations)
+
     def operations_for_element(self, surface: str, element: str) -> list[str]:
         """Operation ids served by one surface element — the fan-in record."""
         return [
@@ -205,6 +233,49 @@ class ServiceDescriptor(InterfaceDescriptor):
             for op in self.operations
             if op.interface_id(surface) == f"{surface}:{element}"
         ]
+
+
+# ---------------------------------------------------------------------------
+# Projection
+# ---------------------------------------------------------------------------
+
+
+def project_mcp_tools(operations: list[OperationSpec]) -> list[McpToolProjection]:
+    """Derive the MCP tool set from a contract's operations (D7)."""
+    projections: list[McpToolProjection] = []
+    by_name: dict[str, McpToolProjection] = {}
+
+    for operation in operations:
+        identifier = operation.interface_id("mcp")
+        if identifier is None:
+            continue
+        name = identifier.removeprefix("mcp:")
+        existing = by_name.get(name)
+        if existing is None:
+            projection = McpToolProjection(
+                name=name,
+                description=operation.summary or operation.description,
+                input_schema=_flatten_parameters(operation),
+                operation_ids=[operation.operation_id],
+            )
+            by_name[name] = projection
+            projections.append(projection)
+            continue
+
+        # Fan-in: one element, several operations. The bound name is emitted
+        # once; every operation behind it is recorded so exercising the tool
+        # can credit all of them.
+        existing.operation_ids.append(operation.operation_id)
+        addition = operation.summary or operation.description
+        if addition and addition not in existing.description:
+            existing.description = (
+                f"{existing.description}\n{addition}" if existing.description else addition
+            )
+        existing.input_schema = _merge_schemas(
+            existing.input_schema, _flatten_parameters(operation)
+        )
+
+    return projections
 
 
 # ---------------------------------------------------------------------------
@@ -269,6 +340,57 @@ def _surface_bindings(
     }
 
 
+#: Parameter locations that become tool arguments (D7). Headers and cookies
+#: are transport concerns, not things an agent decides to pass.
+_ARGUMENT_LOCATIONS = ("path", "query")
+
+
+def _flatten_parameters(operation: OperationSpec) -> dict[str, Any]:
+    """Flatten (path, query, body) into one JSON Schema object."""
+    properties: dict[str, Any] = {}
+    required: list[str] = []
+
+    for parameter in operation.parameters:
+        if parameter.get("in") not in _ARGUMENT_LOCATIONS:
+            continue
+        name = parameter.get("name")
+        if not name:
+            continue
+        properties[name] = parameter.get("schema") or {}
+        if parameter.get("required"):
+            required.append(name)
+
+    body = operation.request_body or {}
+    for name, schema in (body.get("properties") or {}).items():
+        properties[name] = schema
+    required.extend(name for name in body.get("required") or [] if name not in required)
+
+    flattened: dict[str, Any] = {"type": "object", "properties": properties}
+    if required:
+        flattened["required"] = required
+    return flattened
+
+
+def _merge_schemas(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
+    """Union two flattened schemas for a tool that serves both operations.
+
+    Properties union; ``required`` **intersects**. A parameter required by
+    only one of the bound operations cannot be required by the shared tool —
+    marking it so would make the tool unable to express the other call at all.
+    The real ``check_locks`` is exactly this shape: it branches on
+    ``file_paths`` being None to serve both a listing and a single lookup.
+    """
+    properties = {**(left.get("properties") or {}), **(right.get("properties") or {})}
+    left_required = set(left.get("required") or [])
+    right_required = set(right.get("required") or [])
+
+    merged: dict[str, Any] = {"type": "object", "properties": properties}
+    shared = sorted(left_required & right_required)
+    if shared:
+        merged["required"] = shared
+    return merged
+
+
 def _build_services(
     project: str, operations: list[OperationSpec], base_url: str | None
 ) -> list[ServiceSpec]:
@@ -290,15 +412,17 @@ def _build_services(
             ServiceSpec(name=f"{project}-http", type="http", base_url=base_url, endpoints=endpoints)
         )
 
-    tools: list[McpToolSpec] = []
-    for op in operations:
-        identifier = op.interface_id("mcp")
-        if identifier is None:
-            continue
-        name = identifier.removeprefix("mcp:")
-        if any(tool.name == name for tool in tools):
-            continue  # many-to-one: one element, declared once
-        tools.append(McpToolSpec(name=name, description=op.summary or op.description))
+    # The projection already collapses many-to-one and flattens arguments, so
+    # the service's tool list is exactly it — deriving a second, simpler list
+    # here would let the two disagree.
+    tools = [
+        McpToolSpec(
+            name=projection.name,
+            description=projection.description,
+            input_schema=projection.input_schema,
+        )
+        for projection in project_mcp_tools(operations)
+    ]
     if tools:
         services.append(ServiceSpec(name=f"{project}-mcp", type="mcp", tools=tools))
 
