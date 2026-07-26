@@ -33,26 +33,29 @@ producer's output, which is **not a required check** (branch protection requires
 Running `make refresh-project-context-check` against unmodified `main` exits `2`. All
 four deterministic producers report drift, and one of them reports it permanently:
 
-| Producer | Status | Stale artifacts | Nature |
+| Producer | Status | Artifacts | Nature |
 |---|---|---|---|
 | `documentation.inventory` | degraded | 1 — `docs/architecture-analysis/skills-inventory.md` | genuine staleness |
 | `api.contracts` | degraded | 1 — `docs/architecture-analysis/contracts-inventory.md` | genuine staleness |
-| `decisions.timeline` | degraded | 18 — `docs/decisions/*.md` | genuine staleness |
+| `decisions.timeline` | degraded | 17 — `docs/decisions/*.md` | **false positive** (see defect #5) |
 | `openspec.projection` | degraded | 37 — 12 "pending merge" + 25 "would be created" | **structural, not staleness** |
 | `architecture` | **fresh** | — | **false negative** (see defect #4) |
 
-Two consequences shape the design:
+Three consequences shape the design:
 
 - **`openspec.projection` measures pending archival, not staleness.** Its 37 failed
   validations trace to the 31 active changes in `openspec/changes/`, and its own
   remediation is "Archive the active change(s) through cleanup-feature." A repository
   always has active changes, so this producer reports drift permanently. It cannot
   contribute to a failing exit code without blocking every PR forever.
-- **`docs/decisions/` is stale on `main` despite `validate-decision-index` existing.**
-  The job is not a required check, so the drift landed. That is the empirical case for
-  the required-check posture.
+- **Only two artifacts are genuinely stale**, not twenty. `docs/decisions/` is *fresh* —
+  verified byte-identically, 18 rendered files against 18 committed files with
+  `diff -rq` returning zero. CI's `validate-decision-index` is correct and passing.
+- **Two of the five producers are wrong in opposite directions on the same tree**, one
+  reporting drift that does not exist and one reporting freshness it never checked.
+  Fixing both is a precondition for a gate, not an optional extra.
 
-Four concrete defects block a gate from being built naively on top of what exists:
+Five concrete defects block a gate from being built naively on top of what exists:
 
 1. **The architecture gate has no committed baseline.** 21 artifacts under
    `docs/architecture-analysis/` are tracked, but
@@ -79,6 +82,28 @@ Four concrete defects block a gate from being built naively on top of what exist
    `make architecture-check` correctly fails closed with
    `{"status": "invalid", "reasons": [{"code": "PROVENANCE_MISSING"}]}` and exit `1`.
    The producer's own docstring names ri-10 as the owner of the fix.
+5. **The `decisions.timeline` producer reports drift that does not exist, and the drift is
+   machine-specific.** `emit_decisions_from_archive` embeds the `archive_root` it was
+   given verbatim into every rendered `Source:` back-reference. The producer passes an
+   absolute root (the CLI resolves `--repo` before the producer sees it), so every
+   rendered file carries the checkout's absolute path and differs from the committed
+   copy:
+
+   ```diff
+   -- Source: [openspec/changes/archive/2026-05-20-…/session-log.md](/openspec/changes/…) (D1)
+   +- Source: [/Users/…/agentic-coding-tools/openspec/changes/archive/…](//Users/…) (D1)
+   ```
+
+   Measured: a relative `archive_root` yields **0** artifacts, an absolute one yields
+   **17**. A gate built on this would be permanently red, and *differently* red on every
+   CI runner. This is also a latent footgun beyond the gate — running
+   `make decisions --archive-root <absolute>` would commit machine paths into
+   `docs/decisions/`.
+
+   The precondition `tree_diff` carries but never states is that the renderer's output
+   must not depend on its input paths. The marker-block producers
+   (`documentation.inventory`, `api.contracts`) satisfy it and are path-independent;
+   `decisions.timeline` violates it silently.
 
 ## What Changes
 
@@ -100,8 +125,10 @@ Four concrete defects block a gate from being built naively on top of what exist
   `check_freshness` instead of rebuilding provenance and declaring itself fresh.
 - Classify `openspec.projection` as informational-only in the gate, since its drift
   signals pending archival rather than staleness.
-- Regenerate and commit the 20 artifacts that are stale on `main` today, so the gate is
-  green on arrival.
+- Fix the emitter so rendered decision-index links are repository-relative, removing the
+  `decisions.timeline` false positive at its root.
+- Regenerate and commit the artifacts that are genuinely stale on `main`, and track
+  architecture provenance, so the gate is green on arrival.
 - Close the promoted-contract gap: add `context-checkpoint.schema.json` to the
   byte-compare test, which currently passes only by luck.
 
@@ -116,6 +143,7 @@ Four concrete defects block a gate from being built naively on top of what exist
 | `openspec.projection` in the gate | Runs and is **reported informationally**; its drift never contributes to a failing exit code, because "pending merge" means an active change exists, not that anything is stale. Stated as a normative requirement rather than left implicit. |
 | Existing staleness on `main` | Regenerated and committed **inside this change**, as its own isolated commit, so the gate is green the moment it lands. |
 | Architecture fail-open | Fixed here — `check_freshness` replaces `build_provenance`, pairing with the decision to commit provenance. |
+| `decisions.timeline` false positive | Fixed at the **root cause**: the emitter renders `Source:` links repository-relative regardless of how `archive_root` was passed. Chosen over a narrower producer-side relative-path fix because that would leave the `make decisions` footgun intact and depend on cwd, which the producer contract does not guarantee. |
 | Scope declined | Semantic index namespace retention/GC — left to ri-11, where convergence owns index lifecycle. |
 
 ### Explicit assumption carried from discovery
