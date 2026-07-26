@@ -265,7 +265,7 @@ public API.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
-- [ ] 4.3 Write tests for the FastAPI subset verifier — undocumented route detected `[M]`
+- [x] 4.3 Write tests for the FastAPI subset verifier — undocumented route detected `[M]`
   **Spec scenarios**: Implemented Surface Subset Verification (undocumented endpoint is reported)
   **Design decisions**: D1
   **Dependencies**: 2.2
