@@ -93,17 +93,47 @@ operation_id: acquire_lock
 An operation is unevaluated when **no exposed surface** was exercised. A surface
 that does not expose an operation is not a gap.
 
-**Compatibility.** The flat `unevaluated_interfaces` list is still emitted,
-computed from the operation model, for the deprecation window (design D6). Your
-existing assertion keeps working. Two caveats:
+**As built, this is less disruptive than planned. Read this paragraph rather
+than the one that was here at plan time.**
 
-- Its **values** change once a descriptor is contract-derived: entries become
-  operation ids rather than per-surface strings.
-- Its **cardinality** drops for multi-surface projects — one entry per
-  uncovered operation instead of up to three.
+`unevaluated_interfaces` **keeps its existing meaning and its existing
+values** — per-surface strings, one entry per uncovered element. It is not
+recomputed into operation ids. The operation view ships as a *new sibling
+field* instead:
 
-If ri-06 asserts only emptiness, nothing breaks. If it asserts on specific
-strings or on a count, it will need updating.
+| Field | Granularity | Status |
+|---|---|---|
+| `unevaluated_interfaces` | per surface element | unchanged |
+| `per_interface` | per surface element | unchanged |
+| `unevaluated_operations` | per operation | **new**, optional |
+| `per_operation` | per operation × surface | **new**, optional |
+| `declared_interface_count` | one integer | **new**, optional |
+
+Every existing assertion keeps working, on the same values, with the same
+cardinality. Nothing in ri-06 needs to change for this item.
+
+We chose this over rebinding the flat field because changing what a field
+*means* while keeping its name is the failure mode DS-5 below is entirely
+about — and doing it to a field a downstream gate already asserts on would
+have been the same trap, one layer down.
+
+One consequence worth naming: `coverage_pct` **is** now denominated in
+operations rather than elements, so an operation exposed on three surfaces and
+exercised on one reads 100%, not 33%. If you gate on the percentage, expect it
+to rise for multi-surface projects. It does not move for a flag-only CLI, where
+one element is one operation.
+
+**`declared_interface_count` is the field DS-1 asks you to guard with.** It is
+the declared surface size as a plain integer, so the recommended assertion
+above becomes a one-liner that cannot be fooled by an empty set:
+
+```python
+assert report["declared_interface_count"] > 0, "coverage is vacuous"
+```
+
+gen-eval now enforces exactly this on itself: a run whose descriptor declares
+nothing exits 1 with *"the descriptor declares no interfaces — coverage of
+nothing is not coverage"*, rather than reporting 0% and passing a 0% floor.
 
 ---
 
@@ -157,8 +187,18 @@ different.
 A name that is *removed* fails loudly at import. A name that is *deprecated*
 warns. A name that is **reclaimed** does neither — your import succeeds, your
 type checks pass if you did not annotate, and the object simply is not what it
-was. That is why this gets its own notice and a second version increment
-(`CONTRACT_VERSION` 2 → 3) rather than riding along with the rename.
+was. That is why this gets its own notice.
+
+**Correction to the plan-time text: there is no second `CONTRACT_VERSION`
+increment.** That constant versions the published JSON Schemas and bumps only
+on a breaking *schema* change — a field removed, made required, or narrowed.
+Reclaiming a Python export name is none of those, and bumping it would signal a
+breaking schema change to every consumer pinning the value when no schema
+changed. `CONTRACT_VERSION` stays at **2**, the value the rename set.
+
+The fields this change adds (`per_operation`, `unevaluated_operations`,
+`declared_interface_count`) are all optional with defaults, so the published
+schema grows without breaking a reader of the old one.
 
 **What to do:**
 
@@ -168,8 +208,8 @@ was. That is why this gets its own notice and a second version increment
    container type? Use `ServiceSpec` / `McpToolSpec`. Wanted a whole descriptor
    document? The reclaimed names are now correct, but confirm, because the code
    that compiled before this change meant the other thing.
-3. **If you pin `CONTRACT_VERSION`** — expect two increments, not one: 1 → 2 at
-   the rename, 2 → 3 here.
+3. **If you pin `CONTRACT_VERSION`** — expect **one** increment, not two:
+   1 → 2 at the rename, and no further bump here. See the correction above.
 
 The reclamation is deliberate: `*Descriptor` is reserved for document-level
 types, and these two archetypes are documents. But we would rather you learn it
@@ -196,14 +236,38 @@ they can bite a consumer.
 
 ---
 
-## Questions back to you
+## Questions back to you — answered
 
-1. Does ri-06 assert only `unevaluated_interfaces == []`, or also on specific
-   values or counts? DS-2 is a no-op for the first case and a change for the
-   others.
-2. Would you rather the flat field keep emitting **per-surface strings**
-   (maximum compatibility, but then it disagrees with the operation model), or
-   **operation ids** (consistent, but the values change)? Currently planned as
-   operation ids.
-3. Any objection to the eventual removal of the hand-authored descriptor path,
-   and what notice period would you want?
+The three questions asked at plan time are resolved. Kept here with their
+answers rather than deleted, so the reasoning is on the record.
+
+1. **Does ri-06 assert only `unevaluated_interfaces == []`, or also on values
+   or counts?** — *No longer load-bearing.* As built, the flat field keeps its
+   values and cardinality (see DS-2), so every form of that assertion keeps
+   working. We would still like to know, because it tells us whether the
+   eventual removal in question 3 needs a migration or just a notice.
+
+2. **Per-surface strings or operation ids in the flat field?** — **Per-surface
+   strings.** We planned operation ids and changed our minds while building it.
+   Rebinding the values of a field a downstream gate already asserts on is the
+   same trap DS-5 describes, one layer down: the assertion keeps passing and
+   quietly measures something else. The operation view ships as new fields
+   instead, so consistency is available without anyone's gate changing meaning
+   underneath them.
+
+3. **Removal of the hand-authored path, and what notice period?** — *Still
+   open, and still yours to set.* Nothing is scheduled. What shipped is the
+   warning only: loading a descriptor with no `contract:` now emits a
+   `DeprecationWarning` naming the generator to use. Removal will be its own
+   change with its own notice. **Tell us the notice period you want and we will
+   plan to it** — we have no reason to prefer one over another, and no work is
+   blocked on removing it.
+
+### One question we did not ask at plan time
+
+`--min-coverage` now rejects values between 0 and 1 as a usage error. If any of
+your pipelines passes a rate there (`--min-coverage 0.8` meaning 80%), that
+invocation will start failing with a message naming both readings. It was
+previously accepted as a **0.8% floor** — a gate that passed on any non-empty
+run — so the failure is surfacing a misconfiguration rather than creating one.
+Pass `80` for eighty percent, or `0` for no floor.
