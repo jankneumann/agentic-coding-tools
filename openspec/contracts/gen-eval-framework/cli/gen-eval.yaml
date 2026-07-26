@@ -9,7 +9,7 @@
 # Validates against ../schemas/cli-contract.schema.json.
 #
 # `--help` is deliberately NOT declared. argparse supplies it rather than the
-# application, and D11's coverage arithmetic counts the 16 application-declared
+# application, and D11's coverage arithmetic counts the 17 application-declared
 # long flags. The argparse subset verifier (task 4.7) must treat it as a
 # declared exclusion, not an undocumented flag.
 
@@ -122,6 +122,16 @@ commands:
         description: >-
           Minimum pass rate to exit 0. A run that evaluated zero scenarios
           always exits 1 regardless of this value.
+
+      - name: --min-coverage
+        type: number
+        default: 0.0
+        description: >-
+          Minimum interface coverage to exit 0, as a PERCENT (0-100) — the same
+          number the report prints, unlike --fail-threshold which is a rate.
+          Checked independently of the pass rate: a run that gets every answer
+          right on a tenth of the declared surface fails this gate. Default 0,
+          which gates nothing.
 
       - name: --openspec-change
         type: string

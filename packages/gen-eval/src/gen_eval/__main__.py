@@ -22,6 +22,7 @@ from .openspec_seed import (  # noqa: F401  (InvalidChangeIdError re-exported fo
     InvalidChangeIdError,
     validate_change_id,
 )
+from .reports import GenEvalReport
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,28 @@ logger = logging.getLogger(__name__)
 # --openspec-change fails the regex validation. Argparse's default of 2
 # is not specific enough; the spec calls for 64.
 EX_USAGE = 64
+
+#: Default coverage floor: none (D10, Rule 4). A run that exits 0 today must
+#: keep exiting 0 after upgrading, and gen-eval's own dogfood reports 0%
+#: coverage until its descriptor is derived from its contract.
+DEFAULT_MIN_COVERAGE = 0.0
+
+
+def _percentage(value: str) -> float:
+    """argparse type= adapter for a 0-100 percentage.
+
+    Rejecting out-of-range values catches ``--min-coverage 800`` from someone
+    thinking in basis points. It cannot catch the opposite confusion —
+    ``--min-coverage 0.8`` meaning 80% is a legal 0.8% floor — so the exit
+    message prints both numbers and the help text names the unit.
+    """
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"expected a number, got {value!r}") from exc
+    if not 0.0 <= number <= 100.0:
+        raise argparse.ArgumentTypeError(f"must be a percentage between 0 and 100, got {number}")
+    return number
 
 
 def _argparse_change_id(value: str) -> str:
@@ -174,6 +197,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=float,
         default=0.95,
         help="Minimum pass rate to exit 0 (default: 0.95)",
+    )
+    parser.add_argument(
+        "--min-coverage",
+        type=_percentage,
+        default=DEFAULT_MIN_COVERAGE,
+        help=(
+            "Minimum interface coverage to exit 0, as a PERCENT (0-100) — the "
+            "same number the report prints, unlike --fail-threshold which is a "
+            "rate. Checked independently of the pass rate: a suite that gets "
+            "every answer right on a tenth of the declared surface fails this "
+            "gate. Default: 0 (no coverage floor)."
+        ),
     )
     parser.add_argument(
         "--openspec-change",
@@ -384,24 +419,62 @@ async def run(args: argparse.Namespace) -> int:
     for path in output_paths:
         print(f"gen-eval: report written to {path}")
 
-    # 9. Exit code based on pass rate.
+    # 9. Exit code: pass rate and coverage, gated independently.
     #
-    # A run that evaluated nothing is never a pass. GenEvalReport.pass_rate is
-    # already 0.0 when total_scenarios == 0, which fails against any positive
-    # threshold — but --fail-threshold 0 would otherwise let an empty run exit
-    # 0 and read as green. Vacuous success is the failure mode a coverage gate
-    # exists to prevent, so guard it explicitly rather than leaving it to the
-    # threshold arithmetic.
-    if report.total_scenarios == 0:
-        print("gen-eval: FAIL (no scenarios were evaluated)")
-        return 1
+    # Read through getattr: run() is documented as callable from an existing
+    # event loop, so a caller assembling its own Namespace is a supported
+    # shape. Making a new attribute mandatory would break every such caller on
+    # upgrade; absent means "no coverage floor", which is what they get today
+    # (Rule 4).
+    code, message = exit_decision(
+        report,
+        fail_threshold=config.fail_threshold,
+        min_coverage=getattr(args, "min_coverage", DEFAULT_MIN_COVERAGE),
+    )
+    print(f"gen-eval: {message}")
+    return code
 
-    if report.pass_rate >= config.fail_threshold:
-        print(f"gen-eval: PASS ({report.pass_rate:.1%} >= {config.fail_threshold:.1%})")
-        return 0
-    else:
-        print(f"gen-eval: FAIL ({report.pass_rate:.1%} < {config.fail_threshold:.1%})")
-        return 1
+
+def exit_decision(
+    report: GenEvalReport,
+    *,
+    fail_threshold: float,
+    min_coverage: float,
+) -> tuple[int, str]:
+    """Decide the process exit code from a finished report (D10).
+
+    Returns ``(exit code, message)``. Pure, so the two gates can be asserted
+    without running a scenario.
+
+    The gates are independent. A pass rate says the scenarios that ran got the
+    right answers; coverage says how much of the declared surface ran at all. A
+    suite can be perfect at one and empty at the other — which is the vacuous
+    success a coverage floor exists to catch — so a failure of either fails the
+    run, and the message names every gate that tripped rather than only the
+    first. An operator told ``FAIL (100.0% < 95.0%)`` when the real problem is
+    coverage goes looking in the wrong place.
+
+    A run that evaluated nothing is never a pass. ``pass_rate`` is already 0.0
+    when ``total_scenarios == 0``, which fails any positive threshold — but
+    ``--fail-threshold 0`` would otherwise let an empty run exit 0 and read as
+    green, so the guard is explicit rather than left to threshold arithmetic.
+    """
+    if report.total_scenarios == 0:
+        return 1, "FAIL (no scenarios were evaluated)"
+
+    failures: list[str] = []
+    if report.pass_rate < fail_threshold:
+        failures.append(f"pass rate {report.pass_rate:.1%} < {fail_threshold:.1%}")
+    if report.coverage_pct < min_coverage:
+        failures.append(f"coverage {report.coverage_pct:.1f}% < {min_coverage:.1f}%")
+
+    if failures:
+        return 1, "FAIL (" + "; ".join(failures) + ")"
+
+    summary = f"pass rate {report.pass_rate:.1%} >= {fail_threshold:.1%}"
+    if min_coverage > 0:
+        summary += f"; coverage {report.coverage_pct:.1f}% >= {min_coverage:.1f}%"
+    return 0, f"PASS ({summary})"
 
 
 def main() -> int:
