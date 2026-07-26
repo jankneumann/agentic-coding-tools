@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-26T13:19:34.906587+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned ri-10 of the project-context-refresh-lifecycle roadmap: a composed deterministic context drift gate. Discovery established that all the check machinery already exists and none of it is wired to anything that can fail a build. Running it against unmodified main proved the gate is red on baseline for four producers, that one of them (openspec.projection) reports drift permanently by construction, and that the architecture producer is fail-open. The plan is 23 sized tasks across 5 work packages, tier coordinated.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Gate is a composed Python module with a CLI seam, not CI YAML",
+        "rationale": "The 'precise artifact list' acceptance outcome is a rendering requirement, and rendering assembled by shell over job output is untestable. A Python module makes the artifact list unit-testable and gives 'make context-drift-gate' as a one-line local reproduction of any CI failure. Also minimises the delta to a contended ci.yml.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Degradation classification is additive; no enum or schema change",
+        "rationale": "decide_outcome collapses drift, an absent optional owner, and a bad semantic index into one DEGRADED value. OperationState is pinned by the durable operation and manifest schemas and ri-07 D9 makes recorded operations immutable, so widening the enum would break existing records. A new pure classify_degradation function returning four disjoint groups leaves every existing consumer untouched.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "openspec.projection drift is informational and never blocks",
+        "rationale": "Measured: 37 failed validations on unmodified main, tracing to 31 active changes, with the producer's own remediation being 'archive the active change(s)'. Its degraded status means an active change has an unmerged spec delta, which is correct in-flight state, not staleness. A repository always has active changes, so blocking on it would block every PR forever. Written as a normative requirement because the opposite reading is superficially plausible and would look like a reasonable future fix.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Unverifiable architecture provenance blocks; absent tooling degrades",
+        "rationale": "_default_architecture_producer calls build_provenance (which builds from the working tree) then returns fresh unconditionally, reporting fresh on the same tree where make architecture-check reports PROVENANCE_MISSING and exits 1. Fixed via check_freshness. Missing or malformed provenance maps to drift rather than not-configured, because routing it to not-configured would reintroduce fail-open behaviour through the classifier instead of the producer. A genuinely absent owner stays not-configured.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Semantic index is reported as not-attempted, a value distinct from not-configured",
+        "rationale": "Acceptance outcome 3 wants explicit external-service degradation reporting, but ri-07 D4 and orchestrator.check deliberately never probe the index so CI stays green without a database. Reporting not-configured would falsely assert that a probe found no configuration. not-attempted makes no currency claim at all, which satisfies 'without treating stale semantic results as current' by construction. No Postgres or embedder is added to CI.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Read-only-ness is asserted by digesting the checkout, not enforced at runtime",
+        "rationale": "ri-09 D3 states registry.run_producer does not structurally forbid a check-mode write and that ri-10 must assert rather than assume. A runtime guard would change a seam both existing entry points depend on, for a property no current adapter violates. The assertion enumerates list_producers() so future producers are covered, and digests untracked paths too, which is strictly stronger than ri-09's tracked-tree version.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Context-impact validation is diff-scoped and never uses --strict-legacy",
+        "rationale": "Measured on main: 4 of 70 work-packages.yaml declare a context_impact block; 65 fail under --strict-legacy. Enabling it would make the gate red on arrival. ri-08's progressive enforcement keyed on block existence is deliberate. Also: the validator returns 2 for usage errors, colliding with the drift convention where 2 means drift, so it must be remapped to the gate's 1. Stated honestly that this arm is low-yield today.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Existing staleness is remediated inside this change, in an isolated commit",
+        "rationale": "20 artifacts are stale on main, so a blocking gate cannot go green until they are regenerated. They ship as one commit containing only generated output, ordered after the architecture producer fix because fixing fail-open behaviour may surface further drift. Acceptance outcome 4 is only verifiable if there exists a commit at which regeneration produces no diff.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Required-check promotion is documented as a manual step, not claimed as done",
+        "rationale": "Branch protection requires exactly six contexts and a PR cannot add a seventh. Until an admin applies it, the gate is 'blocking job, not a required context' -- which is precisely how docs/decisions/ drifted, since validate-decision-index has that exact posture. Recorded as a known gap.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Start with wp-contracts and wp-lifecycle -- they have no dependencies and are the only parallel pair the zone validator found.",
+      "Task 1.1 and tasks 2.2/2.3 must be confirmed RED before their implementations land; a test for a live defect that passes on first run is a broken test.",
+      "Do not run pytest alone as the quality gate: 'bash install.sh --check' and 'ruff check .' from skills/ both bit ri-09 and are unreachable from the touched suites."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-deterministic-context-drift-gates/proposal.md",
+        "description": "approved proposal with measured baseline"
+      },
+      {
+        "path": "openspec/changes/add-deterministic-context-drift-gates/design.md",
+        "description": "D1-D11 plus test strategy"
+      },
+      {
+        "path": "openspec/changes/add-deterministic-context-drift-gates/tasks.md",
+        "description": "23 sized tasks, 5 phases"
+      },
+      {
+        "path": "openspec/changes/add-deterministic-context-drift-gates/work-packages.yaml",
+        "description": "5 packages, validated for scope and lock overlap"
+      },
+      {
+        "path": "openspec/changes/add-deterministic-context-drift-gates/contracts/context-drift-gate.schema.json",
+        "description": "gate report contract"
+      }
+    ]
+  }
+}
