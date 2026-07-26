@@ -30,11 +30,14 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from gen_eval.descriptor import ToolDescriptor
-from gen_eval.verify import Violation, verify_argparse
+from gen_eval.service_descriptor import ServiceDescriptor
+from gen_eval.verify import Violation, verify_argparse, verify_fastapi
+from tests.test_service_descriptor import CONTRACT_PATH
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CLI_CONTRACT = REPO_ROOT / "openspec" / "contracts" / "gen-eval-framework" / "cli" / "gen-eval.yaml"
@@ -204,3 +207,104 @@ class TestAgainstGenEvalsOwnContract:
             parser.add_argument(unit.removeprefix("cli:"), action="store_true")
         parser.add_argument("--undeclared", action="store_true")
         assert elements(verify_argparse(parser, gen_eval_tool)) == {"cli:--undeclared"}
+
+
+# ---------------------------------------------------------------------------
+# HTTP (task 4.3)
+# ---------------------------------------------------------------------------
+
+
+CONFORMANT_PATHS = {
+    "/locks/acquire": {"post": {"operationId": "acquire_lock"}},
+    "/locks/active": {"get": {"operationId": "list_active_locks"}},
+    "/locks/status/{path}": {"get": {"operationId": "get_lock_status"}},
+    "/locks/{lock_id}": {"delete": {"operationId": "release_lock"}},
+    "/locks/reap": {"post": {"operationId": "reap_expired_locks"}},
+}
+
+
+def openapi_document(paths: dict[str, Any]) -> dict[str, Any]:
+    return {"openapi": "3.1.0", "info": {"title": "t", "version": "1"}, "paths": paths}
+
+
+class _AppLike:
+    """Stands in for a FastAPI app: something with a callable ``openapi()``."""
+
+    def __init__(self, document: dict[str, Any]) -> None:
+        self._document = document
+
+    def openapi(self) -> dict[str, Any]:
+        return self._document
+
+
+@pytest.fixture(scope="module")
+def service() -> ServiceDescriptor:
+    return ServiceDescriptor.from_contract(CONTRACT_PATH)
+
+
+class TestUndocumentedEndpointIsReported:
+    def test_an_undocumented_route_produces_a_violation(self, service: ServiceDescriptor) -> None:
+        paths = {**CONFORMANT_PATHS, "/locks/steal": {"post": {"operationId": "steal_lock"}}}
+        violations = verify_fastapi(openapi_document(paths), service)
+        assert elements(violations) == {"POST /locks/steal"}
+
+    def test_the_violation_names_the_route_and_the_surface(
+        self, service: ServiceDescriptor
+    ) -> None:
+        paths = {**CONFORMANT_PATHS, "/locks/steal": {"post": {}}}
+        (violation,) = verify_fastapi(openapi_document(paths), service)
+        assert "/locks/steal" in violation.message
+        assert violation.surface == "http"
+
+    def test_an_undocumented_method_on_a_contracted_path_is_reported(
+        self, service: ServiceDescriptor
+    ) -> None:
+        """The path is contracted; this verb on it is not. Method is part of the element."""
+        paths = {**CONFORMANT_PATHS, "/locks/acquire": {"post": {}, "put": {}}}
+        assert elements(verify_fastapi(openapi_document(paths), service)) == {
+            "PUT /locks/acquire"
+        }
+
+
+class TestConformantApplicationIsSilent:
+    def test_a_conformant_document_reports_nothing(self, service: ServiceDescriptor) -> None:
+        assert verify_fastapi(openapi_document(CONFORMANT_PATHS), service) == []
+
+    def test_a_parametric_path_matches_its_contracted_template(
+        self, service: ServiceDescriptor
+    ) -> None:
+        """Both sides spell the template the same way; no regex needed here."""
+        paths = {"/locks/status/{path}": {"get": {}}}
+        assert verify_fastapi(openapi_document(paths), service) == []
+
+    def test_a_contracted_route_the_app_lacks_is_not_a_violation(
+        self, service: ServiceDescriptor
+    ) -> None:
+        """Omission is coverage's job on this surface too."""
+        assert verify_fastapi(openapi_document({}), service) == []
+
+    def test_path_item_keys_that_are_not_methods_are_ignored(
+        self, service: ServiceDescriptor
+    ) -> None:
+        """``parameters`` and ``summary`` are siblings of the verbs, not verbs."""
+        paths = {
+            "/locks/acquire": {
+                "post": {},
+                "parameters": [{"name": "x", "in": "query"}],
+                "summary": "Locks.",
+            }
+        }
+        assert verify_fastapi(openapi_document(paths), service) == []
+
+    def test_an_app_object_is_accepted_as_well_as_a_document(
+        self, service: ServiceDescriptor
+    ) -> None:
+        """`verify_fastapi(app, ...)` is the documented call; fastapi is not imported."""
+        app = _AppLike(openapi_document({**CONFORMANT_PATHS, "/locks/steal": {"post": {}}}))
+        assert elements(verify_fastapi(app, service)) == {"POST /locks/steal"}
+
+    def test_a_surface_the_contract_marks_unexposed_is_not_an_http_violation(
+        self, service: ServiceDescriptor
+    ) -> None:
+        """``release_lock`` is exposed on HTTP and not on CLI. This is the HTTP check."""
+        assert verify_fastapi(openapi_document({"/locks/{lock_id}": {"delete": {}}}), service) == []
