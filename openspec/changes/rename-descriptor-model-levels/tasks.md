@@ -47,7 +47,7 @@ and 39 in `tests/`; `ToolDescriptor` 5 / 9; `CommandDescriptor` 5 / 6;
 
 ## Phase 2 — Version bump and artifact regeneration
 
-- [ ] 2.1 Write tests asserting the version bump and clean regeneration `[S]`
+- [x] 2.1 Write tests asserting the version bump and clean regeneration `[S]`
   **Spec scenarios**: Renamed Published Types Retain Warning Aliases (renaming a published type bumps the contract version)
   **Design decisions**: D3
   **Dependencies**: 1.4
