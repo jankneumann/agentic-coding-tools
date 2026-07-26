@@ -270,11 +270,18 @@ falls through to the inline-prose path (the slash-command invocation), and
 **The fallback is for capability absence only.** "No adapter is exposed" means the
 orchestrator session genuinely lacks a sub-agent dispatch tool (headless CI, a
 non-Claude harness without a configured provider adapter) — it does **not** mean the
-orchestrator is reluctant to dispatch, is unsure whether dispatch is permitted, or
-judges the phase small enough to inline. Taking this path is a degradation that
-forfeits the archetype routing, so every fallback **must be reported to the user**:
-name the phase, and state whether `build-dispatch` returned null or no adapter was
-present. A silent fallback reads as a successful multi-vendor run and is not one.
+orchestrator is reluctant to dispatch, is unsure whether dispatch is permitted,
+judges the phase small enough to inline, or **has diagnosed a hazard the protocol
+already handles**. In particular: observing that the harness worktree is rooted at
+`main` with no change directory is NOT a fallback justification — that is the
+designed launchpad state, and the sub-agent's mandated first step re-roots it (see
+the Worktree contract in §4 IMPLEMENT). If you believe you have found a NEW hazard
+the protocol does not handle, that is an ESCALATE-and-report situation, not a
+license to quietly inline the phase yourself. Taking the fallback is a degradation
+that forfeits the archetype routing, so every fallback **must be reported to the
+user**: name the phase, and state whether `build-dispatch` returned null or no
+adapter was present. A silent fallback reads as a successful multi-vendor run and
+is not one.
 
 The dispatch invocation uses paths relative to the autopilot skill dir.
 Substitute `<skill-base-dir>` with the autopilot skill's actual location
@@ -420,14 +427,38 @@ Implement the next slice of work per `tasks.md`. IMPLEMENT is one of the
 write-capable phases that runs with `isolation="worktree"` — sub-agent commits
 land on a sibling worktree branch and merge back at completion.
 
-**Claude harness worktree caveat**: Claude Code's `Agent(isolation="worktree")`
-may create the harness worktree from the default branch (`main`), not from the
-orchestrator's current feature branch. The sub-agent MUST run `/implement-feature
-<change-id>` as its first write-capable step so `worktree.py setup` can adopt
-the resolved feature parent branch and create/check out the agent child branch.
+**Worktree contract (read before deciding to fall back)**: The harness worktree
+created by `Agent(isolation="worktree")` is a **disposable launchpad, not the
+workspace**. It is EXPECTED to be rooted at the default branch (`main`), with no
+`openspec/changes/<change-id>/` directory and no feature branch checked out.
+This is the designed starting state, not a defect, and it is **never a reason
+to fall back to the inline path** — do not "confirm empirically" that the
+launchpad lacks the change context and conclude dispatch is unsafe; the first
+mission step below is precisely how the sub-agent leaves the launchpad.
+
+The full sequence, so both orchestrator and sub-agent share the same model:
+
+1. Orchestrator side (already done before IMPLEMENT): feature branch
+   `openspec/<change-id>` exists with its managed worktree at
+   `.git-worktrees/<change-id>/`, containing the change directory.
+2. Sub-agent's FIRST write-capable step: run `/implement-feature <change-id>`.
+   That skill calls `worktree.py setup`, which adopts the resolved feature
+   parent branch and creates/checks out the agent child worktree at
+   `.git-worktrees/<change-id>/<agent-id>/` on branch
+   `openspec/<change-id>--<agent-id>` — branched from the feature branch, so
+   the change directory and all prior slices are present.
+3. All edits and commits happen in that managed agent worktree (absolute
+   path), never in the harness launchpad checkout.
+4. On completion, agent branches merge back into the feature branch via
+   `merge_worktrees.py <change-id> <pkg-id>...`; SUBMIT_PR later opens the PR
+   from the feature branch to main.
+
 Do not merge the feature branch into a main-rooted harness checkout to get
-context; if branch adoption fails, return `"failed"` and let the orchestrator
-fix the branch/override state.
+context. The one legitimate branch-related failure is step 2 itself failing:
+if `worktree.py setup` cannot adopt the parent branch, the sub-agent returns
+`"failed"` and the orchestrator fixes the branch/override state. An anticipated
+hazard with a scripted recovery is a reason to dispatch, not a reason to
+refuse.
 
 Dispatch protocol (3 steps):
 
