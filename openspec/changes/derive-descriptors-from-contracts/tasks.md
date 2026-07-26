@@ -325,7 +325,7 @@ finding re-verified by direct execution, not by vendor assertion.
   service descriptor retains `operations` so `build_operation_coverage` takes the
   operation path rather than the `_from_element` fallback.
 
-- [ ] 4.9 Implement archetype-aware descriptor loading `[M]`
+- [x] 4.9 Implement archetype-aware descriptor loading `[M]`
   **Design decisions**: D4, D6
   **Dependencies**: 4.8
   **Note (BLOCKING — round-7 critical, 2 vendors)**: `__main__.py` loads every

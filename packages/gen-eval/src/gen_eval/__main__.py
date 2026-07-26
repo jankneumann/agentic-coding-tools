@@ -247,7 +247,7 @@ async def run(args: argparse.Namespace) -> int:
     from .clients.http_client import HttpClient
     from .clients.wait_client import WaitClient
     from .config import GenEvalConfig
-    from .descriptor import InterfaceDescriptor
+    from .descriptor import load_descriptor
     from .evaluator import Evaluator
     from .generator import TemplateGenerator
     from .hybrid_generator import HybridGenerator
@@ -320,8 +320,11 @@ async def run(args: argparse.Namespace) -> int:
     if args.verbose:
         print(f"gen-eval: loading descriptor from {args.descriptor}")
 
-    # 2. Load descriptor
-    descriptor = InterfaceDescriptor.from_yaml(args.descriptor)
+    # 2. Load descriptor — as its archetype, not as the base model. Loading
+    # through InterfaceDescriptor discards `operations` on a service descriptor
+    # and `commands`/`executable`/`contract` on a tool descriptor, which makes
+    # every derived descriptor inert at exactly this seam.
+    descriptor = load_descriptor(args.descriptor)
 
     if args.verbose:
         print(

@@ -32,7 +32,6 @@ import yaml
 from gen_eval.descriptor import InterfaceDescriptor, ToolDescriptor
 from gen_eval.reports import build_operation_coverage
 from gen_eval.service_descriptor import ServiceDescriptor
-
 from tests.test_service_descriptor import CONTRACT_PATH as SERVICE_CONTRACT
 from tests.test_tool_descriptor import CONTRACT_PATH as CLI_CONTRACT
 

@@ -305,6 +305,49 @@ class InterfaceDescriptor(BaseModel):
         return len(self.all_interfaces())
 
 
+def load_descriptor(path: Path) -> InterfaceDescriptor:
+    """Load a descriptor file as the archetype it actually is.
+
+    The runtime previously loaded every descriptor with
+    ``InterfaceDescriptor.from_yaml()``. Pydantic drops fields the model does
+    not declare, so a derived descriptor arrived at the evaluator stripped of
+    exactly what made it derived: ``ServiceDescriptor.operations`` and
+    ``ToolDescriptor.commands`` / ``executable`` / ``contract``. The same
+    generated file yielded 17 interfaces as a tool descriptor and 0 as the base
+    model, and the coverage model silently fell back to its element path — so
+    D4's operation keying never engaged outside the tests that construct the
+    derived class by hand.
+
+    Dispatch reads the document's own shape rather than a ``kind`` discriminator
+    so that already-generated files load correctly without reissuing them:
+
+    - ``operations``           → :class:`~gen_eval.service_descriptor.ServiceDescriptor`
+    - ``executable``           → :class:`ToolDescriptor`
+    - neither                  → :class:`InterfaceDescriptor`
+
+    Both markers are structural, not incidental. ``executable`` is required on
+    the tool archetype, and only the service archetype carries ``operations``,
+    so neither can appear on a hand-authored file by accident.
+
+    Rule 4: a descriptor carrying neither marker loads exactly as it did
+    before — same class, same fields, same behaviour.
+    """
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected YAML mapping in {path}, got {type(data).__name__}")
+
+    if data.get("operations"):
+        # Imported here, not at module scope: service_descriptor imports this
+        # module for InterfaceDescriptor, so a top-level import would cycle.
+        from gen_eval.service_descriptor import ServiceDescriptor
+
+        return ServiceDescriptor.from_yaml(path)
+    if data.get("executable"):
+        return ToolDescriptor.from_yaml(path)
+    return InterfaceDescriptor.from_yaml(path)
+
+
 class ToolDescriptor(InterfaceDescriptor):
     """A program's own invocation surface, derived from a CLI contract.
 
