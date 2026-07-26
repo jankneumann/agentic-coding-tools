@@ -29,7 +29,7 @@ empirical case for UP-4.
 
 ```
 evaluation/
-  descriptor.yaml              # gen-eval's descriptor for gen-eval — no startup block
+  descriptor.yaml              # GENERATED from the CLI contract — no startup block
   scenarios/
     cli-entrypoint.yaml        # UP-1: the console script and its exit codes
     contract-version.yaml      # UP-2: the published schema contract probe
@@ -107,24 +107,47 @@ Not fixed here — it is a CLI behaviour change beyond the scope of the upstream
 handoff, and picking the right exit code (2? 66/`EX_NOINPUT`?) is a contract
 decision. Recorded for a follow-up.
 
-## Known limitation: flag-only CLIs have no nameable interfaces
+## `descriptor.yaml` is generated — do not edit it
 
-`Evaluator._extract_interfaces` derives a CLI interface identifier from the
+It is derived from gen-eval's own CLI contract at
+`openspec/contracts/gen-eval-framework/cli/gen-eval.yaml`:
+
+```bash
+uv run python scripts/generate_tool_descriptor.py           # write
+uv run python scripts/generate_tool_descriptor.py --check   # CI gate
+```
+
+The contract is the declared surface (D1). Editing the artifact instead of the
+contract does not change what the surface *is*; it makes the artifact disagree
+with it, which is what `--check` fails on.
+
+Deliberately absent from the generated file: a `startup:` block. There is
+nothing to start — this is the empirical case for UP-4, which made startup
+optional. Before that, this descriptor carried a no-op `command`, a no-op
+`teardown` and a `health_check` URL that had to genuinely succeed: three lies
+to satisfy a schema.
+
+It also lives outside `src/` on purpose. Consumer evaluation data must not ship
+inside the distributed package — see `tests/test_sdist_contents.py`.
+
+## Resolved: flag-only CLIs are now nameable
+
+**This limitation is closed.** Recorded here because the shape of the fix is
+the reason the coverage numbers moved.
+
+`Evaluator._extract_interfaces` used to derive a CLI identifier only from the
 words in `step.command` *before the first flag* — the `cli:lock status` shape.
-gen-eval's own CLI is a single flat command with flags and no subcommands, so
-there is nothing to name.
+gen-eval's own CLI is one flat command with flags and no subcommands, so there
+was nothing to name. `descriptor.yaml` declared `commands: []`,
+`interfaces_tested` was empty on every verdict, `coverage_pct` was `0.0`, and
+`unevaluated_interfaces` was `[]` **vacuously** — nothing had been declared.
 
-Consequences for any flag-only project:
+That last point was the sharp end: a consumer asserting
+`unevaluated_interfaces == []` as a coverage gate (which is what ri-06 does)
+got a free pass on any flag-only project. Not a wrong assertion — a gap in the
+interface *model* underneath it.
 
-- `descriptor.yaml` declares `commands: []`
-- `interfaces_tested` is empty on every verdict
-- `per_interface` is `{}` and `coverage_pct` is `0.0`
-- `unevaluated_interfaces` is `[]` — **vacuously**, because nothing was declared
-
-That last point matters: a consumer asserting `unevaluated_interfaces == []`
-as a coverage gate (which is what ri-06 does) gets a free pass on a flag-only
-project. The assertion is sound for projects whose interfaces are nameable;
-this is a gap in the interface *model*, not in the assertion.
-
-Scenario-level pass/fail is unaffected, which is why this suite is still
-meaningful. Left as-is rather than stretching the model mid-handoff.
+D3 closes it by making the **flag** the tool archetype's coverage unit, so a
+flat CLI declares `cli:--descriptor`, `cli:--mode` and so on. gen-eval's own
+surface is 17 such units rather than 0, and the drift guard refuses to treat an
+empty declared surface as coverage at all.

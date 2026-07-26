@@ -60,6 +60,17 @@ DEFAULT_CONTRACT = (
 )
 DEFAULT_OUT = _PACKAGE_ROOT / "evaluation" / "descriptor.yaml"
 
+#: Scenario directories to record when none are given, relative to ``--out``.
+#:
+#: A default, not a special case: ``--contract`` and ``--out`` above are
+#: already gen-eval's own paths, and this script is gen-eval's own generator.
+#: It matters because ``--check`` asserts byte identity against what it would
+#: generate *from its own argv* — so if writing the artifact needed
+#: ``--scenario-dir scenarios`` and checking it did not, a bare ``--check``
+#: would report drift on a perfectly up-to-date file. A guard that cries wolf
+#: gets disabled.
+DEFAULT_SCENARIO_DIRS = [Path("scenarios")]
+
 _HEADER = """\
 # GENERATED FILE — do not edit by hand.
 #
@@ -220,7 +231,10 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         action="append",
         default=None,
-        help="Scenario directory, relative to the descriptor (repeatable)",
+        help=(
+            "Scenario directory, relative to the descriptor (repeatable). "
+            f"Default: {', '.join(str(d) for d in DEFAULT_SCENARIO_DIRS)}"
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -233,11 +247,10 @@ def main(argv: list[str] | None = None) -> int:
     document = _load_contract(contract)
     expected = contract_unit_count(document)
 
-    scenario_dirs = (
-        [(out.resolve().parent / d).resolve() for d in args.scenario_dir]
-        if args.scenario_dir
-        else None
-    )
+    scenario_dirs = [
+        (out.resolve().parent / d).resolve()
+        for d in (args.scenario_dir or DEFAULT_SCENARIO_DIRS)
+    ]
     derived = ToolDescriptor.from_contract(
         contract,
         project=args.project,
