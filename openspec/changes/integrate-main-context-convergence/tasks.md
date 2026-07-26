@@ -55,10 +55,10 @@ Each task is sized to one commit. Group numbers map to work packages in
 `skills/tests/merge-pull-requests/`
 **Dependencies**: wp-contracts, wp-sync-point
 
-- [ ] 3.1 Write failing tests for operation identity: the id derives from
+- [x] 3.1 Write failing tests for operation identity: the id derives from
       `(repository_id, merged_main_sha)`, is stable across retries, and differs when
       the SHA differs (D4).
-- [ ] 3.2 Implement identity resolution plus the two-source idempotence check —
+- [x] 3.2 Implement identity resolution plus the two-source idempotence check —
       terminal ri-06 record **or** `Context-Refresh-Operation:` commit trailer
       discoverable via `git log --grep` (D4). Either alone is sufficient to skip.
 - [ ] 3.3 Write failing tests for the three-layer guard: active-agent check,
