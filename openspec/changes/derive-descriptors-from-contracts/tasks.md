@@ -106,7 +106,7 @@ public API.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
-- [ ] 1.5 Write tests for the drift guard's fail-closed assertions `[M]`
+- [x] 1.5 Write tests for the drift guard's fail-closed assertions `[M]`
   **Spec scenarios**: Descriptor Derivation Drift Guard (all four scenarios — drift fails; empty fails; count mismatch fails; commands-but-no-coverage-units fails)
   **Design decisions**: D2, D3
   **Dependencies**: 1.4
