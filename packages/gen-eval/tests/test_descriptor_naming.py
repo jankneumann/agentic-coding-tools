@@ -45,11 +45,13 @@ RENAMED: dict[str, str] = {
 
 #: Old names that no longer alias anything, because a *new* type has taken
 #: them. ``ToolDescriptor`` is now the document-level tool archetype rather
-#: than one MCP tool. A reclaimed name resolves successfully while meaning
-#: something different from one release ago, which a deprecation warning
-#: cannot express — hence the separate expectations in
-#: :class:`TestReclaimedNames`.
-RECLAIMED: frozenset[str] = frozenset({"ToolDescriptor"})
+#: than one MCP tool; ``ServiceDescriptor`` is the document-level service
+#: archetype rather than one testable service (task 5.8). A reclaimed name
+#: resolves successfully while meaning something different from one release
+#: ago, which a deprecation warning cannot express — hence the separate
+#: expectations in :class:`TestReclaimedNames` and
+#: ``tests/test_export_reclamation.py``.
+RECLAIMED: frozenset[str] = frozenset({"ToolDescriptor", "ServiceDescriptor"})
 
 #: old name -> the renamed type it must still alias.
 ALIASES: dict[str, str] = {k: v for k, v in RENAMED.items() if k not in RECLAIMED}
@@ -192,8 +194,17 @@ class TestReclaimedNames:
 
     @pytest.mark.parametrize("old_name", sorted(RECLAIMED))
     def test_is_defined_rather_than_aliased(self, old_name: str) -> None:
+        """It resolves, and not through the alias table.
+
+        Asserts resolution rather than ``vars()`` membership. ``ToolDescriptor``
+        is a module global here; ``ServiceDescriptor`` cannot be, because
+        ``service_descriptor`` imports this module and a top-level import back
+        would cycle — it resolves lazily through ``__getattr__`` instead. Where
+        the object is stored is an artifact of the import graph; what the name
+        denotes is what consumers depend on.
+        """
         assert old_name not in descriptor_module._DEPRECATED_ALIASES
-        assert old_name in vars(descriptor_module), (
+        assert getattr(descriptor_module, old_name, None) is not None, (
             f"{old_name} is neither aliased nor defined — it resolves to nothing"
         )
 

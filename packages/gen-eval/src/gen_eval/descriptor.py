@@ -519,8 +519,18 @@ class ToolDescriptor(InterfaceDescriptor):
 _DEPRECATED_ALIASES: dict[str, str] = {
     "EndpointDescriptor": "EndpointSpec",
     "CommandDescriptor": "CommandSpec",
-    "ServiceDescriptor": "ServiceSpec",
 }
+
+#: Reclaimed here rather than aliased. ``ServiceDescriptor`` was an alias for
+#: ``ServiceSpec`` — *one testable service* — and is now the document-level
+#: service archetype in ``service_descriptor``. Leaving it in the table above
+#: would warn "use ServiceSpec instead" while the name's actual replacement is
+#: a different type entirely.
+#:
+#: Resolved lazily rather than imported at module scope: ``service_descriptor``
+#: imports this module, so a top-level import would cycle. Same technique as
+#: :func:`load_descriptor`.
+_RECLAIMED_NAMES: frozenset[str] = frozenset({"ServiceDescriptor"})
 
 
 def __getattr__(name: str) -> Any:
@@ -534,6 +544,14 @@ def __getattr__(name: str) -> Any:
     Unknown names still raise ``AttributeError`` so a typo stays a typo rather
     than becoming a warning about a name that was never real.
     """
+    if name in _RECLAIMED_NAMES:
+        # A live name for a current type, so no warning: one here would say
+        # "this is going away" when the truth is "this stayed and changed
+        # meaning" — the opposite claim.
+        from gen_eval import service_descriptor
+
+        return getattr(service_descriptor, name)
+
     replacement = _DEPRECATED_ALIASES.get(name)
     if replacement is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

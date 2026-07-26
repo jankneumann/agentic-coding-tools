@@ -21,6 +21,7 @@ from .descriptor import (
     ServiceSpec,
     StartupConfig,
     StateVerifier,
+    ToolDescriptor,
 )
 from .feedback import FeedbackSynthesizer
 from .manifest import ManifestEntry, ScenarioPackManifest
@@ -38,6 +39,7 @@ from .models import (
     SideEffectVerdict,
     StepVerdict,
 )
+from .service_descriptor import ServiceDescriptor
 
 __all__ = [
     "ActionStep",
@@ -60,6 +62,7 @@ __all__ = [
     "ScenarioVerdict",
     "SemanticBlock",
     "SemanticVerdict",
+    "ServiceDescriptor",
     "ServiceSpec",
     "SideEffectsBlock",
     "SideEffectStep",
@@ -68,6 +71,7 @@ __all__ = [
     "StateVerifier",
     "StepVerdict",
     "TimeBudget",
+    "ToolDescriptor",
 ]
 
 # The pre-rename names stay importable from the package for one release, but

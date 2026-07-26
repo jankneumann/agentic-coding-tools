@@ -499,7 +499,7 @@ finding re-verified by direct execution, not by vendor assertion.
   **Design decisions**: D2, D3
   **Dependencies**: 1.6, 2.5
 
-- [ ] 5.6 Refresh `DOWNSTREAM.md` with the as-built coverage semantics and the rename `[S]`
+- [x] 5.6 Refresh `DOWNSTREAM.md` with the as-built coverage semantics and the rename `[S]`
   **Design decisions**: D4, D6
   **Dependencies**: 3.4
   **Note**: the notice was authored at plan time (DS-1 is actionable by ACA immediately and does not depend on this change). This task reconciles DS-2's described shape with what actually shipped, then answers the three open questions at its end.
@@ -511,7 +511,7 @@ finding re-verified by direct execution, not by vendor assertion.
 - [ ] 5.7 Update `packages/gen-eval/README.md` for the contract-derived model `[S]`
   **Dependencies**: 5.3
 
-- [ ] 5.8 Reclaim the `ServiceDescriptor` / `ToolDescriptor` exports and announce it `[S]`
+- [x] 5.8 Reclaim the `ServiceDescriptor` / `ToolDescriptor` exports and announce it `[S]`
   **Spec scenarios**: Descriptor Reclamation Is Announced (a reclaimed name is announced rather than silently rebound)
   **Design decisions**: D6
   **Dependencies**: 1.4, 2.2
