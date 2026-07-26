@@ -176,7 +176,7 @@ public API.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
-- [ ] 2.3 Write tests for the MCP projection carve-outs — resources excluded, descriptions preserved, many-to-one honoured `[M]`
+- [x] 2.3 Write tests for the MCP projection carve-outs — resources excluded, descriptions preserved, many-to-one honoured `[M]`
   **Spec scenarios**: Operation And Surface Coverage Model (a surface that does not expose an operation is not a gap); Operation And Surface Coverage Model (one surface element serving two operations is covered once)
   **Design decisions**: D4, D7
   **Dependencies**: 2.2, 1.10
