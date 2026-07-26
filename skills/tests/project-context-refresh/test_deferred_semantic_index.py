@@ -26,6 +26,7 @@ import subprocess
 
 import pytest
 
+import cli
 import orchestrator
 from _runtime import (
     ProducerResult,
@@ -182,3 +183,50 @@ def test_deferred_and_inline_runs_agree_on_every_deterministic_result(
     # Only the index claim differs.
     assert inline.semantic_index.status is SemanticIndexStatus.SUCCEEDED
     assert deferred.semantic_index.status is SemanticIndexStatus.PENDING
+
+
+def test_cli_defer_flag_reaches_the_orchestrator(repository, monkeypatch, capsys):
+    seen: dict[str, object] = {}
+
+    def fake_generate(repo, **kwargs):  # noqa: ANN001
+        seen.update(kwargs)
+        return orchestrator.RefreshResult(
+            operation_id="op-1",
+            outcome=OperationState.SUCCEEDED,
+            producer_results=(),
+        )
+
+    monkeypatch.setattr(orchestrator, "generate", fake_generate)
+    monkeypatch.setattr(cli, "_require_mutation", lambda repo: None)
+
+    cli.main(["--repo", str(repository), "--revision", FULL_SHA, "refresh"])
+    capsys.readouterr()
+    assert seen["defer_semantic_index"] is False
+
+    cli.main(
+        [
+            "--repo",
+            str(repository),
+            "--revision",
+            FULL_SHA,
+            "refresh",
+            "--defer-semantic-index",
+        ]
+    )
+    capsys.readouterr()
+    assert seen["defer_semantic_index"] is True
+
+
+def test_refresh_check_has_no_defer_flag(repository):
+    """The read-only path never attempts the index, so there is nothing to defer."""
+    with pytest.raises(SystemExit):
+        cli.main(
+            [
+                "--repo",
+                str(repository),
+                "--revision",
+                FULL_SHA,
+                "refresh-check",
+                "--defer-semantic-index",
+            ]
+        )

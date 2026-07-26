@@ -44,7 +44,7 @@ Each task is sized to one commit. Group numbers map to work packages in
 - [x] 2.4 Add a `defer_semantic_index` keyword to `orchestrator.generate` that skips
       the inline attempt and records the pending reference. Do not change
       `decide_outcome`; a pending index degrades through the existing rule.
-- [ ] 2.5 Add `--defer-semantic-index` to the CLI and surface both new flags in the
+- [x] 2.5 Add `--defer-semantic-index` to the CLI and surface both new flags in the
       skill's docstring and `SKILL.md`.
 - [ ] 2.6 Verify by mutation that 2.1 and 2.3 fail against the pre-change modules.
       Clear `__pycache__` between mutation cycles.

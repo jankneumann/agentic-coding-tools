@@ -15,6 +15,19 @@ durable operation and emit the manifest:
     python scripts/cli.py refresh --producer api.contracts   # one producer
     python scripts/cli.py refresh-check                 # read-only drift
 
+``refresh`` carries two opt-in flags for the main-convergence sync point (ri-11),
+both defaulting to off so that every existing invocation behaves exactly as before:
+
+* ``--sync-point`` authorizes the mutation from the shared checkout by reaching
+  the checkout policy's ``approved_sync_point`` branch. It is a *caller* decision
+  and is never inferred from the environment — an environment sniff would re-open
+  shared-checkout writes for every skill that happens to run on ``main``. The
+  caller remains responsible for its own clean-tree and active-agent guards.
+* ``--defer-semantic-index`` skips the inline index attempt and records the index
+  as ``pending`` with an ``exact-search`` fallback, for a caller that enqueues the
+  index itself against a later revision. Pending is a weaker claim than attempted,
+  so a deferred run degrades (exit 2) rather than reporting success.
+
 The branch-local checkpoint (ri-09) is a *third* mode, deliberately outside the
 operation ledger: read-only, scoped to one work package, and advisory.
 
@@ -186,6 +199,7 @@ def _refresh(
     *,
     check: bool,
     sync_point: bool = False,
+    defer_semantic_index: bool = False,
 ) -> int:
     if check:
         result = orchestrator.check(
@@ -206,6 +220,7 @@ def _refresh(
             revision=revision,
             producer_ids=producer_ids,
             semantic_indexer=default_semantic_indexer(),
+            defer_semantic_index=defer_semantic_index,
         )
     sys.stdout.write(json.dumps(_refresh_summary(result), indent=2) + "\n")
     return result.exit_code()
@@ -336,6 +351,16 @@ def main(argv: list[str] | None = None) -> int:
                 "its own clean-tree and active-agent guards."
             ),
         )
+        p.add_argument(
+            "--defer-semantic-index",
+            action="store_true",
+            help=(
+                "Skip the inline semantic-index attempt and record it as pending "
+                "with an exact-search fallback, for a caller that enqueues the "
+                "index itself against a later revision. Off by default. A pending "
+                "index degrades the run (exit 2); it never reports success."
+            ),
+        )
 
     gp = sub.add_parser(
         "gate",
@@ -427,6 +452,7 @@ def main(argv: list[str] | None = None) -> int:
             # ``refresh-check`` never defines these; ``False`` is both the
             # argparse default and the pre-change behaviour.
             sync_point=getattr(args, "sync_point", False),
+            defer_semantic_index=getattr(args, "defer_semantic_index", False),
         )
     if args.command in ("generate", "check"):
         return _run(args.command, [args.producer_id], repository, revision)
