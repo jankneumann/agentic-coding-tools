@@ -113,7 +113,7 @@ public API.
   **Note**: each assertion must be proven to FAIL on a deliberately broken fixture, not merely pass on a good one. Fixtures: `empty`, `count_mismatch`, `drifted`, and `one_command_zero_flags` — the last is the case that passed all three original assertions while deriving an empty surface, and is why D3 counts coverage units rather than commands.
   **Note**: the guard counts the archetype's own unit — operations for a service descriptor, flags + positionals + named subcommands for a tool descriptor.
 
-- [ ] 1.6 Implement `scripts/generate_tool_descriptor.py` with `--check` mode `[M]`
+- [x] 1.6 Implement `scripts/generate_tool_descriptor.py` with `--check` mode `[M]`
   **Design decisions**: D2, D3
   **Dependencies**: 1.5
   **Note**: mirror `scripts/generate_contract_schemas.py` from PR #277
