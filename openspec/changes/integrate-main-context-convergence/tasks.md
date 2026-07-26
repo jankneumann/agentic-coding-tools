@@ -11,18 +11,18 @@ Each task is sized to one commit. Group numbers map to work packages in
 `skills/tests/project-context-runtime/`
 **Dependencies**: none
 
-- [ ] 1.1 Write a failing test asserting `context-convergence-record.schema.json` is
+- [x] 1.1 Write a failing test asserting `context-convergence-record.schema.json` is
       present in the promoted-contract byte-compare set. It must fail before 1.2.
-- [ ] 1.2 Author `context-convergence-record.schema.json`: closed object with
+- [x] 1.2 Author `context-convergence-record.schema.json`: closed object with
       `operation_id`, `merged_revision`, `refresh_revision`, `convergence_commit`,
       `manifest_path`, `manifest_sha256`, `refresh_status`, `producers[]`
       (`producer_id` / `status` / `owner`), `semantic_index` (`status`,
       `requested_revision`, `operation_id`), and `merged_pull_requests[]`. `$ref`
       `GitRevision` from `context-refresh-types.schema.json` rather than restating it.
-- [ ] 1.3 Install the schema under
+- [x] 1.3 Install the schema under
       `skills/project-context-refresh/install_assets/openspec/schemas/` and declare it
       in `skills/install-manifest.json`; verify with `bash skills/install.sh --check`.
-- [ ] 1.4 Copy the schema to
+- [x] 1.4 Copy the schema to
       `openspec/contracts/project-context-refresh/schemas/` and make 1.1 pass.
 
 ## 2. Sync-point authorization and deferred semantic index (wp-sync-point)
