@@ -671,6 +671,9 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 | "Latency went up 60%, but it's still within SLO — we'll keep going" | A 60% jump is a regression even when it's inside SLO. SLOs are the *floor*, not the rollback threshold. The rollback threshold is the threshold. |
 | "We can skip archiving until tomorrow" | The archive step closes the loop on spec drift. Postponing it leaves `openspec/changes/<id>/` and `openspec/specs/` out of sync, which silently breaks the next agent's view of the world. |
 | "`make decisions` is a separate cleanup — I'll regenerate `docs/decisions/` later" | Later never comes in the same commit. The archive move stales the index the instant it lands; a deferred regen means `main` fails `validate-decision-index` and blocks every unrelated PR until someone bisects it (this is exactly the 2026-05-12 incident). The regen costs one command — bind it to the archive commit. |
+| "I'm in `--defer-commit` mode, so the sync point will run `make decisions` for me" | `--defer-commit` defers the *commit* by one step, not the *regeneration*. The sync point commits whatever is staged; if the regen never ran, the convergence commit lands an archive move beside a stale index and reproduces the 2026-05-12 incident with an extra layer of indirection. Regenerate and `git add docs/decisions/` before returning. |
+| "Committing my own archive inside `--defer-commit` is harmless — the sync point can just add another commit" | That is the N+1 commits the mode exists to prevent, and it breaks the sync point's compare-and-swap: it keyed its operation on a `main` revision that your commit has already moved. Stage and return. |
+| "`make architecture` regenerated everything, so the architecture artifacts are fresh" | Freshness is decided by *committed provenance*, and provenance is written only by the staged `make architecture-refresh` path. The full generation target leaves provenance missing, which the producer routes to drift — every artifact current and the gate still red. |
 
 ## Red Flags
 
@@ -681,6 +684,12 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 - The OpenSpec change-id is archived but `openspec validate --strict` was not re-run after the archive.
 - The change was archived but `make decisions` was not run (or `docs/decisions/` was not staged into the archive commit) — `main` will fail `validate-decision-index` on the next PR.
 - Open tasks were silently dropped (no migration to coordinator issues or follow-up proposal).
+- A `--defer-commit` run created a commit, a push, a tag, or a branch of its own. That is N+1 commits for N archived changes, and it invalidates the sync point's pre-push compare-and-swap.
+- A `--defer-commit` run returned with `git diff --cached --name-only` empty while an archive directory moved — the work happened but was never staged, so the convergence commit will silently omit it.
+- A `--defer-commit` run staged an archive move without `docs/decisions/` alongside it — the regeneration was skipped or postponed, which is the deferred-regen failure in a new disguise.
+- A `--defer-commit` run set up its own `--cleanup` worktree instead of operating in the sync-point checkout, so its staged output is invisible to the commit the sync point is about to make.
+- A cleanup failed partway through a multi-change pass and the staged output of the changes that already succeeded was reset, stashed, or checked out — it must be preserved for the sync point.
+- The post-merge path ran `make architecture` rather than `make architecture-refresh` — provenance is unwritten, so `make context-drift-gate` stays red even though every artifact was regenerated.
 
 ## Verification
 
@@ -691,3 +700,7 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 4. The feature flag (or equivalent traffic gate) is identified by name in the session log, with the kill-switch procedure documented.
 5. If a rollback trigger fired during rollout, an issue tagged `rollback-postmortem` exists and the flag is currently at 0%.
 6. Open tasks from `tasks.md` are accounted for: either all checked, or migrated to coordinator issues / follow-up proposal with a Migration Notes line in the original `tasks.md`.
+7. The post-merge architecture step ran `make architecture-refresh` (the staged, provenance-writing target), not `make architecture`. Confirm the run wrote or updated the architecture provenance record.
+8. In `--defer-commit` mode: `git diff --cached --name-only` lists the archive destination, the merged `openspec/specs/` paths, and `docs/decisions/` — and `git log -1` on `main` is unchanged from before the cleanup ran (this skill created no commit of its own).
+9. In `--defer-commit` mode: `git status --short` shows no unstaged cleanup output left behind, and `make decisions && git diff --quiet -- docs/decisions/` is clean, proving the regeneration happened here rather than being left for the sync point.
+10. In `--defer-commit` mode after a partial failure: the staged index from the changes that already succeeded is intact — no `git reset`, `git stash`, or `git checkout --` appears in the cleanup transcript.

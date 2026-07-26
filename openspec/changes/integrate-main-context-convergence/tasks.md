@@ -96,7 +96,7 @@ Each task is sized to one commit. Group numbers map to work packages in
       D10). Add a failing assertion for this first.
 - [x] 4.4 Document the partial-failure rule: staged output from changes that already
       succeeded is committed by the sync point, never discarded (D3).
-- [ ] 4.5 Update the Verification and Red Flags sections for the new mode.
+- [x] 4.5 Update the Verification and Red Flags sections for the new mode.
 
 ## 5. Merge skill integration (wp-skill)
 

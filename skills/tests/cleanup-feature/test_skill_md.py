@@ -19,17 +19,21 @@ def _skill_text() -> str:
     return (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
 
 
-def _section(needle: str) -> str:
+def _section(needle: str, *, exact: bool = False) -> str:
     """Return the text of the first heading whose title contains ``needle``.
 
     The section runs from its own heading to the next heading at the same or a
     shallower level, so an assertion scoped to a section cannot be satisfied by
-    prose that lives somewhere else in the file.
+    prose that lives somewhere else in the file. Pass ``exact=True`` when a
+    substring match would collide with a step heading (``Final Verification``
+    versus the tail-block ``Verification``).
     """
     text = _skill_text()
     headings = list(_HEADING.finditer(text))
     for index, match in enumerate(headings):
-        if needle.lower() not in match.group(2).lower():
+        title = match.group(2).strip().lower()
+        matched = title == needle.lower() if exact else needle.lower() in title
+        if not matched:
             continue
         level = len(match.group(1))
         for following in headings[index + 1 :]:
@@ -195,4 +199,30 @@ def test_staged_architecture_target_states_why():
     assert re.search(r"provenance", section, re.I), (
         "The architecture step does not say why the staged target is required "
         "(provenance is written only by the staged target, D10)."
+    )
+
+
+# --- ri-11: the tail block covers the new mode -----------------------------
+
+
+def test_red_flags_cover_deferred_commit_mode():
+    section = _section("Red Flags", exact=True)
+    assert "--defer-commit" in section, (
+        "Red Flags does not name `--defer-commit`; the mode's failure signatures "
+        "(a self-made commit, a discarded index, a skipped regen) are unflagged."
+    )
+    assert "architecture-refresh" in section, (
+        "Red Flags does not flag the non-provenance architecture target, so the "
+        "silent drift-gate failure it causes has no operator-visible signal."
+    )
+
+
+def test_verification_covers_deferred_commit_mode():
+    section = _section("Verification", exact=True)
+    assert "--defer-commit" in section, (
+        "Verification has no check for deferred-commit mode; nothing confirms that "
+        "cleanup staged its output and made no commit of its own."
+    )
+    assert re.search(r"git diff --cached|staged", section, re.I), (
+        "Verification does not say how to confirm the cleanup output was staged."
     )
