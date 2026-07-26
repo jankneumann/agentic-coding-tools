@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/packages/gen-eval/src/gen_eval/contracts/scenario.schema.json",
   "title": "gen-eval scenario",
-  "x-gen-eval-contract-version": "1",
+  "x-gen-eval-contract-version": "2",
   "$defs": {
     "ActionStep": {
       "description": "A single step in a scenario.\n\nEach step targets a specific transport (http, mcp, cli, db, wait)\nand optionally captures response values for use in subsequent steps.",

@@ -8,6 +8,7 @@ service lifecycle configuration.
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Any, Literal
 
@@ -26,7 +27,7 @@ class AuthConfig(BaseModel):
     value: str | None = None
 
 
-class EndpointDescriptor(BaseModel):
+class EndpointSpec(BaseModel):
     """Description of a single HTTP endpoint."""
 
     path: str
@@ -38,7 +39,7 @@ class EndpointDescriptor(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
-class ToolDescriptor(BaseModel):
+class McpToolSpec(BaseModel):
     """Description of a single MCP tool."""
 
     name: str
@@ -47,7 +48,7 @@ class ToolDescriptor(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
-class CommandDescriptor(BaseModel):
+class CommandSpec(BaseModel):
     """Description of a single CLI command."""
 
     name: str
@@ -64,8 +65,13 @@ class FileInterfaceMapping(BaseModel):
     interfaces: list[str]  # endpoint/tool names affected
 
 
-class ServiceDescriptor(BaseModel):
-    """A single testable service within a project."""
+class ServiceSpec(BaseModel):
+    """A single testable service within a project.
+
+    A container of element specs describing one *surface* of a project, not the
+    project itself — the document describing the project is
+    :class:`InterfaceDescriptor`. Hence the ``Spec`` suffix (see design D1).
+    """
 
     name: str
     type: Literal["http", "mcp", "cli", "browser"]
@@ -73,17 +79,17 @@ class ServiceDescriptor(BaseModel):
     base_url: str | None = None
     openapi_spec: Path | None = None
     auth: AuthConfig | None = None
-    endpoints: list[EndpointDescriptor] = Field(default_factory=list)
+    endpoints: list[EndpointSpec] = Field(default_factory=list)
     # MCP-specific
     transport: Literal["stdio", "sse"] | None = None
     mcp_url: str | None = None
     tools_manifest: Path | None = None
-    tools: list[ToolDescriptor] = Field(default_factory=list)
+    tools: list[McpToolSpec] = Field(default_factory=list)
     # CLI-specific
     command: str | None = None
     cli_schema: Path | None = None
     json_flag: str | None = None
-    commands: list[CommandDescriptor] = Field(default_factory=list)
+    commands: list[CommandSpec] = Field(default_factory=list)
     # Browser-specific
     launch_url: str | None = None
 
@@ -127,7 +133,7 @@ class InterfaceDescriptor(BaseModel):
 
     project: str
     version: str
-    services: list[ServiceDescriptor]
+    services: list[ServiceSpec]
     state_verifiers: list[StateVerifier] = Field(default_factory=list)
     # Optional: a project with nothing to start (CLI-only surfaces, or
     # services managed entirely out-of-band) omits this block entirely. When
@@ -185,3 +191,39 @@ class InterfaceDescriptor(BaseModel):
     def total_interface_count(self) -> int:
         """Return total number of testable interfaces."""
         return len(self.all_interfaces())
+
+
+#: Pre-rename name -> its replacement (design D1). Every entry here is a plain
+#: deprecation: this change frees these names but reuses none of them (D2), so
+#: each has exactly one meaning throughout — "alias for the renamed type".
+_DEPRECATED_ALIASES: dict[str, str] = {
+    "EndpointDescriptor": "EndpointSpec",
+    "ToolDescriptor": "McpToolSpec",
+    "CommandDescriptor": "CommandSpec",
+    "ServiceDescriptor": "ServiceSpec",
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Resolve a pre-rename name, warning that it moved (PEP 562).
+
+    The alias is deliberately *not* cached into ``globals()``. Caching would
+    make the module dict answer every access after the first, so only the
+    first consumer to touch the name would ever see the warning — which is the
+    opposite of what a deprecation is for.
+
+    Unknown names still raise ``AttributeError`` so a typo stays a typo rather
+    than becoming a warning about a name that was never real.
+    """
+    replacement = _DEPRECATED_ALIASES.get(name)
+    if replacement is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    warnings.warn(
+        f"{__name__}.{name} is deprecated and will be removed after one "
+        f"release; use {__name__}.{replacement} instead. Note that {name} may "
+        f"later be reclaimed for a different type — see the change's "
+        f"DOWNSTREAM notice.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return globals()[replacement]

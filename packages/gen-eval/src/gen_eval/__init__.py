@@ -9,9 +9,19 @@ Supports HTTP APIs, MCP tools, CLI commands, and database state
 verification through pluggable transport clients.
 """
 
+from typing import Any
+
 from .change_detector import ChangeDetector
 from .config import BudgetConfig, BudgetTracker, GenEvalConfig, SDKBudget, TimeBudget
-from .descriptor import InterfaceDescriptor, ServiceDescriptor, StartupConfig, StateVerifier
+from .descriptor import (
+    CommandSpec,
+    EndpointSpec,
+    InterfaceDescriptor,
+    McpToolSpec,
+    ServiceSpec,
+    StartupConfig,
+    StateVerifier,
+)
 from .feedback import FeedbackSynthesizer
 from .manifest import ManifestEntry, ScenarioPackManifest
 from .models import (
@@ -34,12 +44,15 @@ __all__ = [
     "BudgetConfig",
     "BudgetTracker",
     "ChangeDetector",
+    "CommandSpec",
+    "EndpointSpec",
     "EvalFeedback",
     "ExpectBlock",
     "FeedbackSynthesizer",
     "GenEvalConfig",
     "InterfaceDescriptor",
     "ManifestEntry",
+    "McpToolSpec",
     "SDKBudget",
     "Scenario",
     "ScenarioGenerator",
@@ -47,7 +60,7 @@ __all__ = [
     "ScenarioVerdict",
     "SemanticBlock",
     "SemanticVerdict",
-    "ServiceDescriptor",
+    "ServiceSpec",
     "SideEffectsBlock",
     "SideEffectStep",
     "SideEffectVerdict",
@@ -56,4 +69,21 @@ __all__ = [
     "StepVerdict",
     "TimeBudget",
 ]
+
+# The pre-rename names stay importable from the package for one release, but
+# deliberately leave ``__all__``: ``from gen_eval import *`` should hand a new
+# consumer only names that are not on their way out.
+#
+# Resolution is delegated to ``descriptor.__getattr__`` rather than duplicated
+# here, so there is exactly one warning per access and one place that owns the
+# message.
+from .descriptor import _DEPRECATED_ALIASES as _DEPRECATED_ALIASES  # noqa: E402
+
+
+def __getattr__(name: str) -> Any:
+    if name in _DEPRECATED_ALIASES:
+        from . import descriptor
+
+        return getattr(descriptor, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

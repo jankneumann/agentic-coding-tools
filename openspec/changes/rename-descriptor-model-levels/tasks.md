@@ -23,27 +23,27 @@ and 39 in `tests/`; `ToolDescriptor` 5 / 9; `CommandDescriptor` 5 / 6;
   re-export that never deprecates; a warning alone is satisfied by a broken
   alias. Test file: `tests/test_descriptor_naming.py`.
 
-- [ ] 1.2 Rename the four element/container models `[M]`
+- [x] 1.2 Rename the four element/container models `[M]`
   **Design decisions**: D1
   **Dependencies**: 1.1
   **Note**: `EndpointDescriptor`→`EndpointSpec`, `ToolDescriptor`→`McpToolSpec`,
   `CommandDescriptor`→`CommandSpec`, `ServiceDescriptor`→`ServiceSpec`.
   `InterfaceDescriptor` is unchanged.
 
-- [ ] 1.3 Add warning deprecation aliases for all four old names `[S]`
+- [x] 1.3 Add warning deprecation aliases for all four old names `[S]`
   **Design decisions**: D2, D4
   **Dependencies**: 1.2
   **Note**: all four alias uniformly — this change frees names but reuses none
   (D2), so there is no special case. `derive-descriptors-from-contracts` reuses
   two of them later; that is its concern, not this change's.
 
-- [ ] 1.4 Update `__init__.py` exports and `test_public_api_parity.py` `[S]`
+- [x] 1.4 Update `__init__.py` exports and `test_public_api_parity.py` `[S]`
   **Design decisions**: D1
   **Dependencies**: 1.3
   **Note**: `ServiceDescriptor` is in `__all__` today and pinned by the parity
   test, so both must move together or the parity test fails.
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2 — Version bump and artifact regeneration
 
@@ -52,7 +52,7 @@ and 39 in `tests/`; `ToolDescriptor` 5 / 9; `CommandDescriptor` 5 / 6;
   **Design decisions**: D3
   **Dependencies**: 1.4
 
-- [ ] 2.2 Bump `CONTRACT_VERSION` 1 → 2 and regenerate all four artifacts `[S]`
+- [x] 2.2 Bump `CONTRACT_VERSION` 1 → 2 and regenerate all four artifacts `[S]`
   **Design decisions**: D3
   **Dependencies**: 2.1
   **Note**: the generator writes `interface-descriptor.schema.json`,
@@ -61,7 +61,7 @@ and 39 in `tests/`; `ToolDescriptor` 5 / 9; `CommandDescriptor` 5 / 6;
   descriptor schema leaves `test_contract_schemas.py::TestNoDrift` failing on
   the other two.
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 3 — Migrate call sites and notify
 

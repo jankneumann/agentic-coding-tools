@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/packages/gen-eval/src/gen_eval/contracts/interface-descriptor.schema.json",
   "title": "gen-eval interface descriptor",
-  "x-gen-eval-contract-version": "1",
+  "x-gen-eval-contract-version": "2",
   "$defs": {
     "AuthConfig": {
       "description": "Authentication configuration for a service.",
@@ -88,7 +88,7 @@
       "title": "BudgetConfig",
       "type": "object"
     },
-    "CommandDescriptor": {
+    "CommandSpec": {
       "description": "Description of a single CLI command.",
       "properties": {
         "name": {
@@ -131,10 +131,10 @@
       "required": [
         "name"
       ],
-      "title": "CommandDescriptor",
+      "title": "CommandSpec",
       "type": "object"
     },
-    "EndpointDescriptor": {
+    "EndpointSpec": {
       "description": "Description of a single HTTP endpoint.",
       "properties": {
         "path": {
@@ -193,7 +193,7 @@
       "required": [
         "path"
       ],
-      "title": "EndpointDescriptor",
+      "title": "EndpointSpec",
       "type": "object"
     },
     "FileInterfaceMapping": {
@@ -218,8 +218,47 @@
       "title": "FileInterfaceMapping",
       "type": "object"
     },
-    "ServiceDescriptor": {
-      "description": "A single testable service within a project.",
+    "McpToolSpec": {
+      "description": "Description of a single MCP tool.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "input_schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Schema"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "McpToolSpec",
+      "type": "object"
+    },
+    "ServiceSpec": {
+      "description": "A single testable service within a project.\n\nA container of element specs describing one *surface* of a project, not the\nproject itself \u2014 the document describing the project is\n:class:`InterfaceDescriptor`. Hence the ``Spec`` suffix (see design D1).",
       "properties": {
         "name": {
           "title": "Name",
@@ -273,7 +312,7 @@
         },
         "endpoints": {
           "items": {
-            "$ref": "#/$defs/EndpointDescriptor"
+            "$ref": "#/$defs/EndpointSpec"
           },
           "title": "Endpoints",
           "type": "array"
@@ -321,7 +360,7 @@
         },
         "tools": {
           "items": {
-            "$ref": "#/$defs/ToolDescriptor"
+            "$ref": "#/$defs/McpToolSpec"
           },
           "title": "Tools",
           "type": "array"
@@ -365,7 +404,7 @@
         },
         "commands": {
           "items": {
-            "$ref": "#/$defs/CommandDescriptor"
+            "$ref": "#/$defs/CommandSpec"
           },
           "title": "Commands",
           "type": "array"
@@ -387,7 +426,7 @@
         "name",
         "type"
       ],
-      "title": "ServiceDescriptor",
+      "title": "ServiceSpec",
       "type": "object"
     },
     "StartupConfig": {
@@ -479,45 +518,6 @@
       ],
       "title": "StateVerifier",
       "type": "object"
-    },
-    "ToolDescriptor": {
-      "description": "Description of a single MCP tool.",
-      "properties": {
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "description": {
-          "default": "",
-          "title": "Description",
-          "type": "string"
-        },
-        "input_schema": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Input Schema"
-        },
-        "tags": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Tags",
-          "type": "array"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "title": "ToolDescriptor",
-      "type": "object"
     }
   },
   "description": "Top-level project descriptor.\n\nDescribes an entire project's testable surface: services (HTTP, MCP, CLI),\nstate verifiers (databases), lifecycle configuration, and file-to-interface\nmappings for change detection.",
@@ -532,7 +532,7 @@
     },
     "services": {
       "items": {
-        "$ref": "#/$defs/ServiceDescriptor"
+        "$ref": "#/$defs/ServiceSpec"
       },
       "title": "Services",
       "type": "array"

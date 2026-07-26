@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/packages/gen-eval/src/gen_eval/contracts/eval-report.schema.json",
   "title": "gen-eval report",
-  "x-gen-eval-contract-version": "1",
+  "x-gen-eval-contract-version": "2",
   "$defs": {
     "ScenarioVerdict": {
       "description": "Result of evaluating one scenario.",
