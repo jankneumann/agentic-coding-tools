@@ -1927,6 +1927,12 @@
           "type": "code_search_indexes_natural_key",
           "nullable": true,
           "default": null
+        },
+        {
+          "name": "IF",
+          "type": "NOT EXISTS policy_fingerprint TEXT",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1934,6 +1940,145 @@
       ],
       "file": "029_revision_aware_code_search_indexes.sql",
       "line": 1
+    },
+    {
+      "name": "public.code_search_index_file_attempts",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "index_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "attempt_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "file_path",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "git_blob_id",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "git_entry_type",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "eligible",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "eligibility_reason",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "content_digest",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "chunk_digest",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "chunk_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "0"
+        }
+      ],
+      "primary_key": [
+        "index_id",
+        "attempt_count",
+        "file_path"
+      ],
+      "file": "030_incremental_code_search_indexes.sql",
+      "line": 175
+    },
+    {
+      "name": "public.code_search_index_files",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "index_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "file_path",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "git_blob_id",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "git_entry_type",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "eligible",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "eligibility_reason",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "content_digest",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "chunk_digest",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "chunk_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "0"
+        }
+      ],
+      "primary_key": [
+        "index_id",
+        "file_path"
+      ],
+      "file": "030_incremental_code_search_indexes.sql",
+      "line": 210
     }
   ],
   "foreign_keys": [
@@ -2044,6 +2189,30 @@
       ],
       "constraint_name": "",
       "on_delete": "RESTRICT"
+    },
+    {
+      "from_table": "public.code_search_index_file_attempts",
+      "from_columns": [
+        "index_id"
+      ],
+      "to_table": "public.code_search_indexes",
+      "to_columns": [
+        "index_id"
+      ],
+      "constraint_name": "",
+      "on_delete": "CASCADE"
+    },
+    {
+      "from_table": "public.code_search_index_files",
+      "from_columns": [
+        "index_id"
+      ],
+      "to_table": "public.code_search_indexes",
+      "to_columns": [
+        "index_id"
+      ],
+      "constraint_name": "",
+      "on_delete": "CASCADE"
     }
   ],
   "indexes": [
@@ -2621,6 +2790,31 @@
         "status"
       ],
       "unique": false
+    },
+    {
+      "name": "code_search_indexes_compatible_parent_idx",
+      "table": "public.code_search_indexes",
+      "columns": [
+        "repo_slug",
+        "namespace_kind",
+        "namespace_key",
+        "embedder_model",
+        "embedding_dim",
+        "policy_fingerprint",
+        "pipeline_fingerprint",
+        "embedder_fingerprint",
+        "completed_at DESC"
+      ],
+      "unique": false
+    },
+    {
+      "name": "code_search_index_files_blob_idx",
+      "table": "public.code_search_index_files",
+      "columns": [
+        "index_id",
+        "git_blob_id"
+      ],
+      "unique": false
     }
   ],
   "stored_functions": [
@@ -2827,6 +3021,24 @@
       "file": "029_revision_aware_code_search_indexes.sql",
       "line": 189,
       "language": "plpgsql"
+    },
+    {
+      "name": "public.validate_code_search_repository_identity",
+      "file": "030_incremental_code_search_indexes.sql",
+      "line": 31,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.validate_code_search_parent",
+      "file": "030_incremental_code_search_indexes.sql",
+      "line": 248,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.validate_code_search_parent_target",
+      "file": "030_incremental_code_search_indexes.sql",
+      "line": 330,
+      "language": "plpgsql"
     }
   ],
   "triggers": [
@@ -2971,13 +3183,27 @@
       "columns": [
         "repo_slug"
       ]
+    },
+    {
+      "from": "public.code_search_index_file_attempts",
+      "to": "public.code_search_indexes",
+      "columns": [
+        "index_id"
+      ]
+    },
+    {
+      "from": "public.code_search_index_files",
+      "to": "public.code_search_indexes",
+      "columns": [
+        "index_id"
+      ]
     }
   ],
   "summary": {
-    "total_tables": 27,
-    "total_columns": 273,
-    "total_foreign_keys": 9,
-    "total_indexes": 70,
+    "total_tables": 29,
+    "total_columns": 293,
+    "total_foreign_keys": 11,
+    "total_indexes": 72,
     "most_referenced_tables": [
       {
         "table": "public.changesets",
@@ -2989,6 +3215,10 @@
       },
       {
         "table": "public.work_queue",
+        "references": 2
+      },
+      {
+        "table": "public.code_search_indexes",
         "references": 2
       },
       {
@@ -3007,7 +3237,7 @@
     "widest_tables": [
       {
         "table": "public.code_search_indexes",
-        "column_count": 22
+        "column_count": 23
       },
       {
         "table": "public.work_queue",

@@ -107,8 +107,32 @@ erDiagram
         TEXT status
         TIMESTAMPTZ updated_at
     }
+    public__code_search_index_file_attempts {
+        INTEGER attempt_count
+        INTEGER chunk_count
+        TEXT chunk_digest
+        TEXT content_digest
+        TEXT eligibility_reason
+        BOOLEAN eligible
+        TEXT file_path
+        TEXT git_blob_id
+        TEXT git_entry_type
+        UUID index_id
+    }
+    public__code_search_index_files {
+        INTEGER chunk_count
+        TEXT chunk_digest
+        TEXT content_digest
+        TEXT eligibility_reason
+        BOOLEAN eligible
+        TEXT file_path
+        TEXT git_blob_id
+        TEXT git_entry_type
+        UUID index_id
+    }
     public__code_search_indexes {
         code_search_indexes_natural_key CONSTRAINT
+        NOT_EXISTS_policy_fingerprint_TEXT IF
         INTEGER attempt_count
         INTEGER chunk_count
         TIMESTAMPTZ completed_at

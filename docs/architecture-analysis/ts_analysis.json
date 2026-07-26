@@ -1,16 +1,2657 @@
 {
-  "modules": [],
-  "functions": [],
-  "components": [],
-  "custom_hooks": [],
-  "import_graph": [],
-  "api_call_sites": [],
+  "modules": [
+    {
+      "name": "kanban-viz/vite.config",
+      "file": "kanban-viz/vite.config.ts",
+      "imports": [
+        {
+          "source": "vite",
+          "specifiers": [
+            "defineConfig"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "@vitejs/plugin-react",
+          "specifiers": [
+            "react"
+          ],
+          "is_internal": false
+        }
+      ],
+      "exports": [
+        {
+          "name": "default",
+          "kind": "variable"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/App",
+      "file": "kanban-viz/src/App.tsx",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useCallback",
+            "useState"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "./components/SaveViewButton",
+          "specifiers": [
+            "SaveViewButton"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./components/SourceSwimlanes",
+          "specifiers": [
+            "SourceSwimlanes"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./components/SyncPointBanner",
+          "specifiers": [
+            "SyncPointBanner"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./hooks/useBoardCards",
+          "specifiers": [
+            "useBoardCards"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "default",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/main",
+      "file": "kanban-viz/src/main.tsx",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "StrictMode"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "react-dom/client",
+          "specifiers": [
+            "createRoot"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "./App.tsx",
+          "specifiers": [
+            "App"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": []
+    },
+    {
+      "name": "kanban-viz/src/vite-env.d",
+      "file": "kanban-viz/src/vite-env.d.ts",
+      "imports": [],
+      "exports": []
+    },
+    {
+      "name": "kanban-viz/src/__tests__/fixtures",
+      "file": "kanban-viz/src/__tests__/fixtures.ts",
+      "imports": [
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "IssueCard"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "Issue",
+          "kind": "type"
+        },
+        {
+          "name": "pendingIssue",
+          "kind": "variable"
+        },
+        {
+          "name": "claimedIssue",
+          "kind": "variable"
+        },
+        {
+          "name": "runningIssue",
+          "kind": "variable"
+        },
+        {
+          "name": "completedRecentIssue",
+          "kind": "variable"
+        },
+        {
+          "name": "completedOldIssue",
+          "kind": "variable"
+        },
+        {
+          "name": "blockedIssue",
+          "kind": "variable"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/__tests__/setup",
+      "file": "kanban-viz/src/__tests__/setup.ts",
+      "imports": [
+        {
+          "source": "@testing-library/jest-dom",
+          "specifiers": [],
+          "is_internal": false
+        }
+      ],
+      "exports": []
+    },
+    {
+      "name": "kanban-viz/src/components/Board",
+      "file": "kanban-viz/src/components/Board.tsx",
+      "imports": [
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "IssueCard",
+            "ColumnId"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "issueStatusToColumn"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./Column",
+          "specifiers": [
+            "Column"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./VendorSwimlanes",
+          "specifiers": [
+            "AgentActivity"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "Board",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/Card",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useState"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "IssueCard"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../lib/reversibility",
+          "specifiers": [
+            "classify"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./VendorSwimlanes",
+          "specifiers": [
+            "VendorSwimlanes"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./VendorSwimlanes",
+          "specifiers": [
+            "AgentActivity"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./RepoBadge",
+          "specifiers": [
+            "RepoBadge"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "Card",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/ClusterBadge",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useEffect",
+            "useRef",
+            "useState"
+          ],
+          "is_internal": false
+        }
+      ],
+      "exports": [
+        {
+          "name": "ClusterBadge",
+          "kind": "function"
+        },
+        {
+          "name": "ClusterHighlightWrapper",
+          "kind": "function"
+        },
+        {
+          "name": "emitHighlight",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/Column",
+      "file": "kanban-viz/src/components/Column.tsx",
+      "imports": [
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "IssueCard",
+            "ColumnId"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./Card",
+          "specifiers": [
+            "Card"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./VendorSwimlanes",
+          "specifiers": [
+            "AgentActivity"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "Column",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/ConsentPrompt",
+      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
+      "imports": [],
+      "exports": [
+        {
+          "name": "ConsentPrompt",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/HiddenReposToggle",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "imports": [],
+      "exports": [
+        {
+          "name": "HiddenReposToggle",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/PRCardView",
+      "file": "kanban-viz/src/components/PRCardView.tsx",
+      "imports": [
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "PRCard"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./ClusterBadge",
+          "specifiers": [
+            "ClusterBadge",
+            "ClusterHighlightWrapper"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../hooks/useBoardCards",
+          "specifiers": [
+            "AnnotatedCard"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./RepoBadge",
+          "specifiers": [
+            "RepoBadge"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "PRCardView",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/ProposalCardView",
+      "file": "kanban-viz/src/components/ProposalCardView.tsx",
+      "imports": [
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "ProposalCard"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./ClusterBadge",
+          "specifiers": [
+            "ClusterBadge",
+            "ClusterHighlightWrapper"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../hooks/useBoardCards",
+          "specifiers": [
+            "AnnotatedCard"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./RepoBadge",
+          "specifiers": [
+            "RepoBadge"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "ProposalCardView",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/PROriginFilter",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useEffect",
+            "useState"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "PROrigin"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "PROriginFilter",
+          "kind": "function"
+        },
+        {
+          "name": "filterByOrigin",
+          "kind": "function"
+        },
+        {
+          "name": "ALL_PR_ORIGINS",
+          "kind": "variable"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/RefreshButton",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useState"
+          ],
+          "is_internal": false
+        }
+      ],
+      "exports": [
+        {
+          "name": "RefreshButton",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/RepoBadge",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "imports": [],
+      "exports": [
+        {
+          "name": "RepoBadge",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/SaveViewButton",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useState"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "../lib/reversibility",
+          "specifiers": [
+            "classify"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../lib/saveView",
+          "specifiers": [
+            "saveView"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "SaveViewButton",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/SourceSwimlanes",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useState"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "BoardCard",
+            "IssueCard",
+            "PRCard",
+            "ProposalCard",
+            "ColumnId",
+            "PROrigin",
+            "SourceWarning"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "issueStatusToColumn",
+            "prStatusToColumn",
+            "proposalStatusToColumn"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./PROriginFilter",
+          "specifiers": [
+            "PROriginFilter",
+            "ALL_PR_ORIGINS",
+            "filterByOrigin"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./PRCardView",
+          "specifiers": [
+            "PRCardView"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./ProposalCardView",
+          "specifiers": [
+            "ProposalCardView"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./ClusterBadge",
+          "specifiers": [
+            "ClusterBadge",
+            "ClusterHighlightWrapper"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./HiddenReposToggle",
+          "specifiers": [
+            "HiddenReposToggle"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../hooks/useBoardCards",
+          "specifiers": [
+            "AnnotatedCard"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "SourceSwimlanes",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/SyncPointBanner",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useCallback",
+            "useEffect",
+            "useRef",
+            "useState"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "SyncPointStatus"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "./ConsentPrompt",
+          "specifiers": [
+            "ConsentPrompt"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "SyncPointBanner",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/components/VendorSwimlanes",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "imports": [],
+      "exports": [
+        {
+          "name": "extractVendor",
+          "kind": "function"
+        },
+        {
+          "name": "VendorSwimlanes",
+          "kind": "function"
+        },
+        {
+          "name": "AgentActivity",
+          "kind": "interface"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/hooks/useBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useCallback",
+            "useEffect",
+            "useMemo",
+            "useRef",
+            "useState"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "./useCoordinator",
+          "specifiers": [
+            "fetchIssuesUnioned"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "BoardCard",
+            "IssueCard",
+            "MultiSourceProposalListResponse",
+            "PRCard",
+            "PRListResponse",
+            "ProposalCard",
+            "SourceWarning"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "getClusterKey",
+            "deriveIssueRepo"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "clusterBoardCards",
+          "kind": "function"
+        },
+        {
+          "name": "useBoardCards",
+          "kind": "function"
+        },
+        {
+          "name": "AnnotatedCard",
+          "kind": "type"
+        },
+        {
+          "name": "ClusterResult",
+          "kind": "interface"
+        },
+        {
+          "name": "RowState",
+          "kind": "interface"
+        },
+        {
+          "name": "UseBoardCardsOptions",
+          "kind": "interface"
+        },
+        {
+          "name": "UseBoardCardsResult",
+          "kind": "interface"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/hooks/useCoordinator",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useCallback",
+            "useEffect",
+            "useMemo",
+            "useRef",
+            "useState"
+          ],
+          "is_internal": false
+        },
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "ActiveWorktree",
+            "IssueCard",
+            "RawIssueFromBackend",
+            "SnapshotPayload",
+            "TransitionPayload",
+            "AuditPayload"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../lib/coordinator-types",
+          "specifiers": [
+            "toIssueCard"
+          ],
+          "is_internal": true
+        },
+        {
+          "source": "../components/VendorSwimlanes",
+          "specifiers": [
+            "AgentActivity"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "fetchIssuesUnioned",
+          "kind": "function"
+        },
+        {
+          "name": "useCoordinator",
+          "kind": "function"
+        },
+        {
+          "name": "UseCoordinatorOptions",
+          "kind": "interface"
+        },
+        {
+          "name": "UseCoordinatorResult",
+          "kind": "interface"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/lib/coordinator-types",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "imports": [],
+      "exports": [
+        {
+          "name": "assertNever",
+          "kind": "function"
+        },
+        {
+          "name": "issueStatusToColumn",
+          "kind": "function"
+        },
+        {
+          "name": "prStatusToColumn",
+          "kind": "function"
+        },
+        {
+          "name": "proposalStatusToColumn",
+          "kind": "function"
+        },
+        {
+          "name": "toIssueCard",
+          "kind": "function"
+        },
+        {
+          "name": "deriveIssueRepo",
+          "kind": "function"
+        },
+        {
+          "name": "getClusterKey",
+          "kind": "function"
+        },
+        {
+          "name": "IssueStatus",
+          "kind": "type"
+        },
+        {
+          "name": "ColumnId",
+          "kind": "type"
+        },
+        {
+          "name": "PROrigin",
+          "kind": "type"
+        },
+        {
+          "name": "PRStatus",
+          "kind": "type"
+        },
+        {
+          "name": "ReviewState",
+          "kind": "type"
+        },
+        {
+          "name": "ProposalStatus",
+          "kind": "type"
+        },
+        {
+          "name": "ReviewSummary",
+          "kind": "interface"
+        },
+        {
+          "name": "IssueCard",
+          "kind": "interface"
+        },
+        {
+          "name": "Issue",
+          "kind": "type"
+        },
+        {
+          "name": "PRCard",
+          "kind": "interface"
+        },
+        {
+          "name": "ProposalCard",
+          "kind": "interface"
+        },
+        {
+          "name": "BoardCard",
+          "kind": "type"
+        },
+        {
+          "name": "SourceWarningError",
+          "kind": "type"
+        },
+        {
+          "name": "SourceWarning",
+          "kind": "interface"
+        },
+        {
+          "name": "CacheMeta",
+          "kind": "interface"
+        },
+        {
+          "name": "PRListResponse",
+          "kind": "interface"
+        },
+        {
+          "name": "ProposalListResponse",
+          "kind": "interface"
+        },
+        {
+          "name": "MultiSourceProposalListResponse",
+          "kind": "interface"
+        },
+        {
+          "name": "CoordinatorError",
+          "kind": "interface"
+        },
+        {
+          "name": "statusToColumn",
+          "kind": "variable"
+        },
+        {
+          "name": "ActiveWorktree",
+          "kind": "interface"
+        },
+        {
+          "name": "SyncPointBlocker",
+          "kind": "interface"
+        },
+        {
+          "name": "SyncPointStatus",
+          "kind": "interface"
+        },
+        {
+          "name": "RawIssueFromBackend",
+          "kind": "type"
+        },
+        {
+          "name": "SnapshotPayload",
+          "kind": "interface"
+        },
+        {
+          "name": "TransitionPayload",
+          "kind": "interface"
+        },
+        {
+          "name": "AuditPayload",
+          "kind": "interface"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/lib/reversibility",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "imports": [],
+      "exports": [
+        {
+          "name": "classify",
+          "kind": "function"
+        },
+        {
+          "name": "classifyOrDefault",
+          "kind": "function"
+        },
+        {
+          "name": "requiresConsent",
+          "kind": "function"
+        },
+        {
+          "name": "ReversibilityClass",
+          "kind": "type"
+        },
+        {
+          "name": "ActionKey",
+          "kind": "type"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/lib/runtime",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "imports": [],
+      "exports": [
+        {
+          "name": "isTauri",
+          "kind": "function"
+        },
+        {
+          "name": "isBrowser",
+          "kind": "function"
+        }
+      ]
+    },
+    {
+      "name": "kanban-viz/src/lib/saveView",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "imports": [
+        {
+          "source": "./runtime",
+          "specifiers": [
+            "isTauri"
+          ],
+          "is_internal": true
+        }
+      ],
+      "exports": [
+        {
+          "name": "saveView",
+          "kind": "function"
+        },
+        {
+          "name": "SavedViewPayload",
+          "kind": "interface"
+        },
+        {
+          "name": "SaveViewResult",
+          "kind": "interface"
+        }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "name": "relativeTime",
+      "qualified_name": "relativeTime",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "line_start": 28,
+      "line_end": 39,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "isoStr",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "emitHighlight",
+      "qualified_name": "emitHighlight",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line_start": 22,
+      "line_end": 26,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "changeId",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "useHighlightState",
+      "qualified_name": "useHighlightState",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line_start": 32,
+      "line_end": 63,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "changeId",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "shortForm",
+      "qualified_name": "shortForm",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "line_start": 16,
+      "line_end": 19,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "repo",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "relativeTime",
+      "qualified_name": "relativeTime",
+      "file": "kanban-viz/src/components/PRCardView.tsx",
+      "line_start": 21,
+      "line_end": 32,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "isoStr",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "loadFromStorage",
+      "qualified_name": "loadFromStorage",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line_start": 28,
+      "line_end": 43,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": []
+    },
+    {
+      "name": "saveToStorage",
+      "qualified_name": "saveToStorage",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line_start": 45,
+      "line_end": 51,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "origins",
+          "type": "PROrigin[]",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "filterByOrigin",
+      "qualified_name": "filterByOrigin",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line_start": 137,
+      "line_end": 143,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "cards",
+          "type": "T[]",
+          "is_optional": false
+        },
+        {
+          "name": "selectedOrigins",
+          "type": "PROrigin[]",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "formatRelative",
+      "qualified_name": "formatRelative",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "line_start": 134,
+      "line_end": 142,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "date",
+          "type": "Date",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "hashString",
+      "qualified_name": "hashString",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line_start": 22,
+      "line_end": 30,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "str",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "repoToColor",
+      "qualified_name": "repoToColor",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line_start": 33,
+      "line_end": 40,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "repo",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "shortForm",
+      "qualified_name": "shortForm",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line_start": 43,
+      "line_end": 46,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "repo",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "slugify",
+      "qualified_name": "slugify",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "line_start": 43,
+      "line_end": 51,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "name",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "bucketIssues",
+      "qualified_name": "bucketIssues",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line_start": 70,
+      "line_end": 76,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "cards",
+          "type": "IssueCard[]",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "bucketPRs",
+      "qualified_name": "bucketPRs",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line_start": 79,
+      "line_end": 85,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "cards",
+          "type": "PRCard[]",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "bucketProposals",
+      "qualified_name": "bucketProposals",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line_start": 88,
+      "line_end": 94,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "cards",
+          "type": "ProposalCard[]",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "fetchSyncStatus",
+      "qualified_name": "fetchSyncStatus",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_start": 24,
+      "line_end": 33,
+      "is_async": true,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "apiUrl",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "relativeTime",
+      "qualified_name": "relativeTime",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_start": 35,
+      "line_end": 41,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "isoStr",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "extractVendor",
+      "qualified_name": "extractVendor",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line_start": 29,
+      "line_end": 32,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "relativeTime",
+      "qualified_name": "relativeTime",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line_start": 35,
+      "line_end": 43,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "isoStr",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "groupByVendor",
+      "qualified_name": "groupByVendor",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line_start": 46,
+      "line_end": 57,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "agents",
+          "type": "AgentActivity[]",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "determineConsensus",
+      "qualified_name": "determineConsensus",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line_start": 60,
+      "line_end": 62,
+      "is_async": false,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "agents",
+          "type": "AgentActivity[]",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "clusterBoardCards",
+      "qualified_name": "clusterBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line_start": 57,
+      "line_end": 127,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "cards",
+          "type": "readonly BoardCard[]",
+          "is_optional": false
+        },
+        {
+          "name": "clusterKeyOverride",
+          "type": "(card: BoardCard) => string | null",
+          "is_optional": true
+        }
+      ]
+    },
+    {
+      "name": "fetchPRs",
+      "qualified_name": "fetchPRs",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line_start": 179,
+      "line_end": 188,
+      "is_async": true,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "apiUrl",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "bust",
+          "type": "boolean",
+          "is_optional": true
+        }
+      ]
+    },
+    {
+      "name": "fetchProposals",
+      "qualified_name": "fetchProposals",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line_start": 190,
+      "line_end": 209,
+      "is_async": true,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "apiUrl",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "bust",
+          "type": "boolean",
+          "is_optional": true
+        }
+      ]
+    },
+    {
+      "name": "useBoardCards",
+      "qualified_name": "useBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line_start": 211,
+      "line_end": 360,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "{\n  apiUrl = \"http://localhost:8081\",\n  apiKey,\n  changeIds,\n  hiddenRepos,\n}",
+          "type": "UseBoardCardsOptions",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "fetchIssuesForSingleChange",
+      "qualified_name": "fetchIssuesForSingleChange",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line_start": 64,
+      "line_end": 84,
+      "is_async": true,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "apiUrl",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "changeId",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "fetchIssuesUnioned",
+      "qualified_name": "fetchIssuesUnioned",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line_start": 96,
+      "line_end": 112,
+      "is_async": true,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "apiUrl",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "changeIds",
+          "type": "string[]",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "mintEventsToken",
+      "qualified_name": "mintEventsToken",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line_start": 114,
+      "line_end": 130,
+      "is_async": true,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "apiUrl",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "changeIds",
+          "type": "string[]",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "useCoordinator",
+      "qualified_name": "useCoordinator",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line_start": 132,
+      "line_end": 321,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "{\n  apiUrl = \"http://localhost:8081\",\n  apiKey,\n  changeIds,\n  pollIntervalMs = 5000,\n}",
+          "type": "UseCoordinatorOptions",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "assertNever",
+      "qualified_name": "assertNever",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line_start": 208,
+      "line_end": 212,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "x",
+          "type": "never",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "issueStatusToColumn",
+      "qualified_name": "issueStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line_start": 218,
+      "line_end": 230,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "status",
+          "type": "IssueStatus",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "prStatusToColumn",
+      "qualified_name": "prStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line_start": 236,
+      "line_end": 247,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "status",
+          "type": "PRStatus",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "proposalStatusToColumn",
+      "qualified_name": "proposalStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line_start": 250,
+      "line_end": 257,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "status",
+          "type": "ProposalStatus",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "toIssueCard",
+      "qualified_name": "toIssueCard",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line_start": 295,
+      "line_end": 297,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "raw",
+          "type": "RawIssueFromBackend",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "deriveIssueRepo",
+      "qualified_name": "deriveIssueRepo",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line_start": 336,
+      "line_end": 352,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "labels",
+          "type": "readonly string[]",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "getClusterKey",
+      "qualified_name": "getClusterKey",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line_start": 364,
+      "line_end": 374,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "card",
+          "type": "BoardCard",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "classify",
+      "qualified_name": "classify",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line_start": 46,
+      "line_end": 48,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "action",
+          "type": "ActionKey",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "classifyOrDefault",
+      "qualified_name": "classifyOrDefault",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line_start": 54,
+      "line_end": 56,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "action",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "requiresConsent",
+      "qualified_name": "requiresConsent",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line_start": 59,
+      "line_end": 61,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "action",
+          "type": "ActionKey",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "isTauri",
+      "qualified_name": "isTauri",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "line_start": 12,
+      "line_end": 14,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": []
+    },
+    {
+      "name": "isBrowser",
+      "qualified_name": "isBrowser",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "line_start": 21,
+      "line_end": 23,
+      "is_async": false,
+      "is_exported": true,
+      "parameters": []
+    },
+    {
+      "name": "saveView",
+      "qualified_name": "saveView",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line_start": 35,
+      "line_end": 45,
+      "is_async": true,
+      "is_exported": true,
+      "parameters": [
+        {
+          "name": "slug",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "view",
+          "type": "SavedViewPayload",
+          "is_optional": false
+        },
+        {
+          "name": "apiUrl",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "saveBrowser",
+      "qualified_name": "saveBrowser",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line_start": 47,
+      "line_end": 66,
+      "is_async": true,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "slug",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "view",
+          "type": "SavedViewPayload",
+          "is_optional": false
+        },
+        {
+          "name": "apiUrl",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "is_optional": false
+        }
+      ]
+    },
+    {
+      "name": "saveTauri",
+      "qualified_name": "saveTauri",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line_start": 68,
+      "line_end": 90,
+      "is_async": true,
+      "is_exported": false,
+      "parameters": [
+        {
+          "name": "slug",
+          "type": "string",
+          "is_optional": false
+        },
+        {
+          "name": "view",
+          "type": "SavedViewPayload",
+          "is_optional": false
+        }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "App",
+      "file": "kanban-viz/src/App.tsx",
+      "line_start": 14,
+      "line_end": 109,
+      "hooks": [
+        "useState",
+        "useBoardCards",
+        "useCallback"
+      ],
+      "children": [
+        "SyncPointBanner",
+        "SaveViewButton",
+        "SourceSwimlanes"
+      ],
+      "props": [],
+      "is_exported": true,
+      "api_calls": [
+        {
+          "url": "<dynamic>",
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "name": "Board",
+      "file": "kanban-viz/src/components/Board.tsx",
+      "line_start": 24,
+      "line_end": 81,
+      "hooks": [],
+      "children": [
+        "Column"
+      ],
+      "props": [
+        "issues",
+        "agentsByIssueId",
+        "apiUrl",
+        "apiKey",
+        "onAuditEmit"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "Card",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "line_start": 41,
+      "line_end": 206,
+      "hooks": [
+        "useState"
+      ],
+      "children": [
+        "RepoBadge",
+        "VendorSwimlanes"
+      ],
+      "props": [
+        "issue",
+        "agents",
+        "apiUrl",
+        "apiKey",
+        "onAuditEmit"
+      ],
+      "is_exported": true,
+      "api_calls": [
+        {
+          "url": "<dynamic>",
+          "method": "PATCH"
+        }
+      ]
+    },
+    {
+      "name": "ClusterBadge",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line_start": 72,
+      "line_end": 79,
+      "hooks": [],
+      "children": [
+        "ClusterBadgeInner"
+      ],
+      "props": [
+        "changeId",
+        "clusterCount"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "ClusterBadgeInner",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line_start": 81,
+      "line_end": 124,
+      "hooks": [
+        "useHighlightState"
+      ],
+      "children": [],
+      "props": [
+        "changeId",
+        "clusterCount"
+      ],
+      "is_exported": false,
+      "api_calls": []
+    },
+    {
+      "name": "ClusterHighlightWrapper",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line_start": 130,
+      "line_end": 152,
+      "hooks": [
+        "useHighlightState"
+      ],
+      "children": [],
+      "props": [
+        "changeId",
+        "children"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "Column",
+      "file": "kanban-viz/src/components/Column.tsx",
+      "line_start": 25,
+      "line_end": 70,
+      "hooks": [],
+      "children": [
+        "Card"
+      ],
+      "props": [
+        "columnId",
+        "title",
+        "issues",
+        "agentsByIssueId",
+        "apiUrl",
+        "apiKey",
+        "onAuditEmit"
+      ],
+      "is_exported": true,
+      "api_calls": [
+        {
+          "url": "<dynamic>",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "name": "ConsentPrompt",
+      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
+      "line_start": 12,
+      "line_end": 69,
+      "hooks": [],
+      "children": [],
+      "props": [
+        "message",
+        "onConfirm",
+        "onDecline"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "HiddenReposToggle",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "line_start": 30,
+      "line_end": 83,
+      "hooks": [],
+      "children": [],
+      "props": [
+        "repos",
+        "hiddenRepos",
+        "onHiddenReposChange"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "PRCardView",
+      "file": "kanban-viz/src/components/PRCardView.tsx",
+      "line_start": 75,
+      "line_end": 226,
+      "hooks": [],
+      "children": [
+        "ClusterHighlightWrapper",
+        "RepoBadge",
+        "ClusterBadge"
+      ],
+      "props": [
+        "card"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "ProposalCardView",
+      "file": "kanban-viz/src/components/ProposalCardView.tsx",
+      "line_start": 22,
+      "line_end": 175,
+      "hooks": [],
+      "children": [
+        "ClusterHighlightWrapper",
+        "RepoBadge",
+        "ClusterBadge"
+      ],
+      "props": [
+        "card"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "PROriginFilter",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line_start": 69,
+      "line_end": 131,
+      "hooks": [
+        "useState",
+        "useEffect"
+      ],
+      "children": [],
+      "props": [
+        "value",
+        "onSelectionChange"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "RefreshButton",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "line_start": 30,
+      "line_end": 132,
+      "hooks": [
+        "useState"
+      ],
+      "children": [],
+      "props": [
+        "onRefresh",
+        "rowErrors"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "RepoBadge",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line_start": 53,
+      "line_end": 81,
+      "hooks": [],
+      "children": [],
+      "props": [
+        "repo"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "SaveViewButton",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "line_start": 53,
+      "line_end": 162,
+      "hooks": [
+        "useState"
+      ],
+      "children": [],
+      "props": [
+        "apiUrl",
+        "apiKey",
+        "currentFilters",
+        "suggestedName",
+        "onAuditEmit"
+      ],
+      "is_exported": true,
+      "api_calls": []
+    },
+    {
+      "name": "IssueSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line_start": 108,
+      "line_end": 229,
+      "hooks": [],
+      "children": [
+        "ClusterHighlightWrapper",
+        "ClusterBadge"
+      ],
+      "props": [
+        "rowKey",
+        "label",
+        "bucketed",
+        "annotatedByKey",
+        "visible",
+        "onToggle"
+      ],
+      "is_exported": false,
+      "api_calls": [
+        {
+          "url": "<dynamic>",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "name": "PRSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line_start": 245,
+      "line_end": 377,
+      "hooks": [
+        "useState"
+      ],
+      "children": [
+        "PROriginFilter",
+        "PRCardView"
+      ],
+      "props": [
+        "rowKey",
+        "label",
+        "allPrCards",
+        "annotatedByKey",
+        "visible",
+        "onToggle",
+        "initialOrigins",
+        "onOriginsChange"
+      ],
+      "is_exported": false,
+      "api_calls": [
+        {
+          "url": "<dynamic>",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "name": "PartialResultChip",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line_start": 393,
+      "line_end": 440,
+      "hooks": [
+        "useState"
+      ],
+      "children": [],
+      "props": [
+        "warnings"
+      ],
+      "is_exported": false,
+      "api_calls": []
+    },
+    {
+      "name": "ProposalSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line_start": 442,
+      "line_end": 549,
+      "hooks": [],
+      "children": [
+        "PartialResultChip",
+        "ProposalCardView"
+      ],
+      "props": [
+        "rowKey",
+        "label",
+        "bucketed",
+        "annotatedByKey",
+        "visible",
+        "onToggle",
+        "warnings"
+      ],
+      "is_exported": false,
+      "api_calls": [
+        {
+          "url": "<dynamic>",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "name": "SourceSwimlanes",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line_start": 554,
+      "line_end": 645,
+      "hooks": [
+        "useState"
+      ],
+      "children": [
+        "HiddenReposToggle",
+        "IssueSourceRow",
+        "PRSourceRow",
+        "ProposalSourceRow"
+      ],
+      "props": [
+        "cards",
+        "annotatedCards",
+        "initialHiddenRows",
+        "initialPrOrigins",
+        "onPrOriginsChange",
+        "proposalsWarnings",
+        "hiddenRepos",
+        "onHiddenReposChange"
+      ],
+      "is_exported": true,
+      "api_calls": [
+        {
+          "url": "<dynamic>",
+          "method": "DELETE"
+        }
+      ]
+    },
+    {
+      "name": "SyncPointBanner",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_start": 43,
+      "line_end": 302,
+      "hooks": [
+        "useState",
+        "useRef",
+        "useCallback",
+        "useEffect"
+      ],
+      "children": [
+        "ConsentPrompt"
+      ],
+      "props": [
+        "apiUrl",
+        "apiKey",
+        "lastUpdateAt",
+        "onAuditEmit"
+      ],
+      "is_exported": true,
+      "api_calls": [
+        {
+          "url": "<dynamic>",
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "name": "VendorSwimlanes",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line_start": 64,
+      "line_end": 139,
+      "hooks": [],
+      "children": [],
+      "props": [
+        "agents",
+        "completed"
+      ],
+      "is_exported": true,
+      "api_calls": [
+        {
+          "url": "<dynamic>",
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "custom_hooks": [
+    {
+      "name": "useHighlightState",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "hooks_used": [
+        "useState",
+        "useRef",
+        "useEffect"
+      ]
+    },
+    {
+      "name": "useBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "hooks_used": [
+        "useMemo",
+        "useState",
+        "useRef",
+        "useCallback",
+        "useEffect"
+      ]
+    },
+    {
+      "name": "useCoordinator",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "hooks_used": [
+        "useMemo",
+        "useState",
+        "useRef",
+        "useCallback",
+        "useEffect"
+      ]
+    }
+  ],
+  "import_graph": [
+    {
+      "from": "kanban-viz/src/App",
+      "to": "kanban-viz/src/components/SaveViewButton"
+    },
+    {
+      "from": "kanban-viz/src/App",
+      "to": "kanban-viz/src/components/SourceSwimlanes"
+    },
+    {
+      "from": "kanban-viz/src/App",
+      "to": "kanban-viz/src/components/SyncPointBanner"
+    },
+    {
+      "from": "kanban-viz/src/App",
+      "to": "kanban-viz/src/hooks/useBoardCards"
+    },
+    {
+      "from": "kanban-viz/src/main",
+      "to": "kanban-viz/src/App"
+    },
+    {
+      "from": "kanban-viz/src/__tests__/fixtures",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/components/Board",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/components/Board",
+      "to": "kanban-viz/src/components/Column"
+    },
+    {
+      "from": "kanban-viz/src/components/Board",
+      "to": "kanban-viz/src/components/VendorSwimlanes"
+    },
+    {
+      "from": "kanban-viz/src/components/Card",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/components/Card",
+      "to": "kanban-viz/src/lib/reversibility"
+    },
+    {
+      "from": "kanban-viz/src/components/Card",
+      "to": "kanban-viz/src/components/VendorSwimlanes"
+    },
+    {
+      "from": "kanban-viz/src/components/Card",
+      "to": "kanban-viz/src/components/RepoBadge"
+    },
+    {
+      "from": "kanban-viz/src/components/Column",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/components/Column",
+      "to": "kanban-viz/src/components/Card"
+    },
+    {
+      "from": "kanban-viz/src/components/Column",
+      "to": "kanban-viz/src/components/VendorSwimlanes"
+    },
+    {
+      "from": "kanban-viz/src/components/PRCardView",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/components/PRCardView",
+      "to": "kanban-viz/src/components/ClusterBadge"
+    },
+    {
+      "from": "kanban-viz/src/components/PRCardView",
+      "to": "kanban-viz/src/hooks/useBoardCards"
+    },
+    {
+      "from": "kanban-viz/src/components/PRCardView",
+      "to": "kanban-viz/src/components/RepoBadge"
+    },
+    {
+      "from": "kanban-viz/src/components/ProposalCardView",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/components/ProposalCardView",
+      "to": "kanban-viz/src/components/ClusterBadge"
+    },
+    {
+      "from": "kanban-viz/src/components/ProposalCardView",
+      "to": "kanban-viz/src/hooks/useBoardCards"
+    },
+    {
+      "from": "kanban-viz/src/components/ProposalCardView",
+      "to": "kanban-viz/src/components/RepoBadge"
+    },
+    {
+      "from": "kanban-viz/src/components/PROriginFilter",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/components/SaveViewButton",
+      "to": "kanban-viz/src/lib/reversibility"
+    },
+    {
+      "from": "kanban-viz/src/components/SaveViewButton",
+      "to": "kanban-viz/src/lib/saveView"
+    },
+    {
+      "from": "kanban-viz/src/components/SourceSwimlanes",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/components/SourceSwimlanes",
+      "to": "kanban-viz/src/components/PROriginFilter"
+    },
+    {
+      "from": "kanban-viz/src/components/SourceSwimlanes",
+      "to": "kanban-viz/src/components/PRCardView"
+    },
+    {
+      "from": "kanban-viz/src/components/SourceSwimlanes",
+      "to": "kanban-viz/src/components/ProposalCardView"
+    },
+    {
+      "from": "kanban-viz/src/components/SourceSwimlanes",
+      "to": "kanban-viz/src/components/ClusterBadge"
+    },
+    {
+      "from": "kanban-viz/src/components/SourceSwimlanes",
+      "to": "kanban-viz/src/components/HiddenReposToggle"
+    },
+    {
+      "from": "kanban-viz/src/components/SourceSwimlanes",
+      "to": "kanban-viz/src/hooks/useBoardCards"
+    },
+    {
+      "from": "kanban-viz/src/components/SyncPointBanner",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/components/SyncPointBanner",
+      "to": "kanban-viz/src/components/ConsentPrompt"
+    },
+    {
+      "from": "kanban-viz/src/hooks/useBoardCards",
+      "to": "kanban-viz/src/hooks/useCoordinator"
+    },
+    {
+      "from": "kanban-viz/src/hooks/useBoardCards",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/hooks/useCoordinator",
+      "to": "kanban-viz/src/lib/coordinator-types"
+    },
+    {
+      "from": "kanban-viz/src/hooks/useCoordinator",
+      "to": "kanban-viz/src/components/VendorSwimlanes"
+    },
+    {
+      "from": "kanban-viz/src/lib/saveView",
+      "to": "kanban-viz/src/lib/runtime"
+    }
+  ],
+  "api_call_sites": [
+    {
+      "component_or_function": "App",
+      "url": "<dynamic>",
+      "method": "POST",
+      "file": "kanban-viz/src/App.tsx",
+      "line": 41
+    },
+    {
+      "component_or_function": "Card",
+      "url": "<dynamic>",
+      "method": "PATCH",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "line": 69
+    },
+    {
+      "component_or_function": "useHighlightState",
+      "url": "<dynamic>",
+      "method": "DELETE",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 57
+    },
+    {
+      "component_or_function": "Column",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/components/Column.tsx",
+      "line": 61
+    },
+    {
+      "component_or_function": "IssueSourceRow",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 198
+    },
+    {
+      "component_or_function": "PRSourceRow",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 363
+    },
+    {
+      "component_or_function": "ProposalSourceRow",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 535
+    },
+    {
+      "component_or_function": "SourceSwimlanes",
+      "url": "<dynamic>",
+      "method": "DELETE",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 572
+    },
+    {
+      "component_or_function": "fetchSyncStatus",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line": 28
+    },
+    {
+      "component_or_function": "SyncPointBanner",
+      "url": "<dynamic>",
+      "method": "POST",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line": 111
+    },
+    {
+      "component_or_function": "groupByVendor",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 52
+    },
+    {
+      "component_or_function": "VendorSwimlanes",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 96
+    },
+    {
+      "component_or_function": "clusterBoardCards",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 68
+    },
+    {
+      "component_or_function": "clusterBoardCards",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 85
+    },
+    {
+      "component_or_function": "clusterBoardCards",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 106
+    },
+    {
+      "component_or_function": "clusterBoardCards",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 122
+    },
+    {
+      "component_or_function": "fetchPRs",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 182
+    },
+    {
+      "component_or_function": "fetchProposals",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 197
+    },
+    {
+      "component_or_function": "fetchIssuesForSingleChange",
+      "url": "<dynamic>",
+      "method": "POST",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 69
+    },
+    {
+      "component_or_function": "mintEventsToken",
+      "url": "<dynamic>",
+      "method": "POST",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 119
+    },
+    {
+      "component_or_function": "useCoordinator",
+      "url": "<dynamic>",
+      "method": "GET",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 184
+    },
+    {
+      "component_or_function": "saveBrowser",
+      "url": "<dynamic>",
+      "method": "PUT",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 53
+    }
+  ],
   "summary": {
-    "total_modules": 0,
-    "total_components": 0,
-    "total_functions": 0,
-    "total_custom_hooks": 0,
-    "top_components": [],
-    "complex_components": []
+    "total_modules": 27,
+    "total_components": 22,
+    "total_functions": 45,
+    "total_custom_hooks": 3,
+    "top_components": [
+      "RepoBadge",
+      "ClusterHighlightWrapper",
+      "ClusterBadge",
+      "SyncPointBanner",
+      "SaveViewButton",
+      "SourceSwimlanes",
+      "Column",
+      "VendorSwimlanes",
+      "ClusterBadgeInner",
+      "Card"
+    ],
+    "complex_components": [
+      "App",
+      "SourceSwimlanes",
+      "SyncPointBanner",
+      "Card",
+      "PRSourceRow",
+      "PRCardView",
+      "ProposalCardView",
+      "IssueSourceRow",
+      "ProposalSourceRow",
+      "Column"
+    ]
   }
 }
