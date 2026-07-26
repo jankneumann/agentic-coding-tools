@@ -1196,6 +1196,67 @@ def append_record(
 
 
 # --------------------------------------------------------------------------- #
+# Semantic index enqueue (D7)
+# --------------------------------------------------------------------------- #
+_ENQUEUE_FALLBACK = (
+    "exact-search: the semantic index is enqueued for the pushed revision and has "
+    "not completed; use exact search until it does"
+)
+_ENQUEUE_FAILED_FALLBACK = (
+    "exact-search: the semantic index could not be enqueued for the pushed "
+    "revision; use exact search"
+)
+
+
+def enqueue_semantic_index(
+    repository: Path | str,
+    revision: str,
+    *,
+    repository_id: str | None = None,
+    store: Any | None = None,
+    environ: Mapping[str, str] | None = None,
+    runner: CommandRunner = run_command,
+) -> SemanticIndexRecord:
+    """Enqueue exactly one index for the **final pushed** revision, and return.
+
+    The pushed revision is a different revision from the one the operation is
+    keyed on -- the convergence commit moved main's tip -- and therefore a
+    separate ri-06 operation of its own. Creating that operation *is* the
+    enqueue: it makes a durable, discoverable ``pending`` request for the exact
+    revision, which a later indexer resumes.
+
+    Never awaited. One indexing run defaults to a 1800-second ceiling, and
+    blocking a sync point on a half-hour rebuild would make the semantic index a
+    hard dependency of merging, which this change explicitly rules out.
+
+    Never fail-open: an enqueue that did not happen is reported ``failed`` with a
+    fallback, not ``pending``. ``pending`` is a claim that a request exists.
+    """
+    root = Path(repository).resolve()
+    try:
+        ensure_git_revision(revision)
+        resolved_id = repository_id or resolve_repository_id(
+            root, environ=environ, runner=runner
+        )
+        resolved_store = store if store is not None else _default_store(root)
+        if resolved_store is None:
+            raise ConvergenceApparatusError("no operation ledger is available")
+        record = resolved_store.create_or_load(resolved_id, revision)
+    except Exception:  # noqa: BLE001 - the index never blocks or crashes a pass
+        return SemanticIndexRecord(
+            status="failed",
+            requested_revision=revision,
+            fallback=_ENQUEUE_FAILED_FALLBACK,
+        )
+    return SemanticIndexRecord(
+        status="pending",
+        requested_revision=revision,
+        operation_id=getattr(record, "operation_id", None),
+        fallback=_ENQUEUE_FALLBACK,
+    )
+
+
+# --------------------------------------------------------------------------- #
 # Convergence outcomes (D6)
 # --------------------------------------------------------------------------- #
 class ConvergenceStatus(str, Enum):
@@ -1349,6 +1410,17 @@ def converge(
         )
 
     warnings: list[str] = list(guards.warnings)
+
+    def _enqueue(target: Path, revision: str) -> SemanticIndexRecord:
+        return enqueue_semantic_index(
+            target,
+            revision,
+            repository_id=identity.repository_id,
+            store=store,
+            environ=environ,
+            runner=_record_calls,
+        )
+
     try:
         return _converge_under_guard(
             root,
@@ -1357,7 +1429,7 @@ def converge(
             merged_pull_requests=tuple(merged_pull_requests),
             runner=_record_calls,
             warnings=warnings,
-            semantic_enqueuer=semantic_enqueuer,
+            semantic_enqueuer=semantic_enqueuer or _enqueue,
             remote=remote,
             branch=branch,
             python=python,
@@ -1393,7 +1465,7 @@ def _converge_under_guard(
     merged_pull_requests: tuple[MergedPullRequest, ...],
     runner: CommandRunner,
     warnings: list[str],
-    semantic_enqueuer: Callable[[Path, str], Any] | None,
+    semantic_enqueuer: Callable[[Path, str], Any],
     remote: str,
     branch: str,
     python: str | None,
@@ -1499,7 +1571,7 @@ def _converge_under_guard(
         )
 
     enqueued: SemanticIndexRecord | None = None
-    if semantic_enqueuer is not None and convergence_commit:
+    if convergence_commit:
         try:
             candidate = semantic_enqueuer(root, convergence_commit)
         except Exception as exc:  # noqa: BLE001 - the index never blocks a pass
@@ -1507,6 +1579,11 @@ def _converge_under_guard(
         else:
             if isinstance(candidate, SemanticIndexRecord):
                 enqueued = candidate
+                if enqueued.status != "pending":
+                    warnings.append(
+                        "semantic index could not be enqueued for the pushed "
+                        f"revision; recorded as {enqueued.status}"
+                    )
 
     completed = build_record(
         identity=identity,
@@ -1557,18 +1634,27 @@ __all__ = [
     "MergeReversalError",
     "MergedPullRequest",
     "PriorConvergence",
+    "ProducerOutcome",
     "RefreshPhase",
+    "SemanticIndexRecord",
     "acquire_coordinator_lock",
     "acquire_sync_point_guards",
     "build_commit_message",
     "check_active_agents",
+    "enqueue_semantic_index",
     "converge",
     "derive_convergence_identity",
     "find_prior_commit_trailer",
     "find_prior_convergence",
     "find_prior_operation_record",
     "guarded_runner",
+    "append_record",
+    "build_record",
+    "producers_from_summary",
     "refresh_cli_path",
+    "render_record_line",
+    "semantic_from_summary",
+    "validate_record",
     "release_sync_point_guards",
     "resolve_repository_id",
     "reverses_merge",

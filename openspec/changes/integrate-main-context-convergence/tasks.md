@@ -75,7 +75,7 @@ Each task is sized to one commit. Group numbers map to work packages in
 - [x] 3.7 Emit the convergence record as one JSONL line to
       `docs/merge-logs/context-convergence.jsonl` and validate it against the
       wp-contracts schema in a test (D9).
-- [ ] 3.8 Implement post-push semantic enqueue for the final pushed SHA, fire-and-
+- [x] 3.8 Implement post-push semantic enqueue for the final pushed SHA, fire-and-
       report, with a test that an unavailable service still lets the pass complete (D7).
 - [ ] 3.9 Add a `--dry-run` path that derives and reports the identity, checks for an
       existing convergence, and runs `make context-drift-gate` read-only (D12).
