@@ -203,7 +203,7 @@ public API.
   **Design decisions**: D4
   **Dependencies**: 2.2
 
-- [ ] 3.2 Implement the operation-keyed coverage structures in the report model `[M]`
+- [x] 3.2 Implement the operation-keyed coverage structures in the report model `[M]`
   **Design decisions**: D4
   **Dependencies**: 3.1
 
