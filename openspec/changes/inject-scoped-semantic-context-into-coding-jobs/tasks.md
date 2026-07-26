@@ -73,12 +73,12 @@
 
 ## 3. Renderer (wp-renderer)
 
-- [ ] 3.1 Implement `skills/context-engineering/scripts/render_semantic_context.py`
+- [x] 3.1 Implement `skills/context-engineering/scripts/render_semantic_context.py`
       producing the injected `## Semantic code context` section exactly per D7,
       including the untrusted-content line.
-- [ ] 3.2 Render the per-hit provenance line with all five roadmap-required
+- [x] 3.2 Render the per-hit provenance line with all five roadmap-required
       fields plus `index_id`, using the `score` / `indexed_commit` names.
-- [ ] 3.3 Render the fallback section variant with trigger, state, reason, and
+- [x] 3.3 Render the fallback section variant with trigger, state, reason, and
       the suggested `rg` command built from the package's `read_allow`.
 - [ ] 3.4 Emit nothing at all (not even a heading) when the result's fallback
       reason is `injection_disabled`, so a flag-off run is byte-identical to
