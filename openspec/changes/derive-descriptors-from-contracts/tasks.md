@@ -400,7 +400,7 @@ finding re-verified by direct execution, not by vendor assertion.
   `cli:--verbose` stays uncovered despite a real exercise — the same vocabulary
   split D10 exists to close. Map `FlagSpec.short` to the long unit.
 
-- [ ] 4.17 Descend into subparsers in `verify_argparse` `[S]`
+- [x] 4.17 Descend into subparsers in `verify_argparse` `[S]`
   **Design decisions**: D1
   **Dependencies**: 4.2
   **Note (round-7)**: `_SubParsersAction` carries no option strings, so an
