@@ -11,7 +11,7 @@ Capability short names used in scenario references: `pcro` =
 
 ## Phase 1 — wp-contracts: the gate report contract
 
-- [ ] 1.1 Extend the promoted-contract byte-compare test to cover
+- [x] 1.1 Extend the promoted-contract byte-compare test to cover
       `context-checkpoint.schema.json` and the new `context-drift-gate.schema.json`
       **Spec scenarios**: none (repo hygiene gate, not a spec requirement)
       **Contracts**: `contracts/context-drift-gate.schema.json`
@@ -22,7 +22,7 @@ Capability short names used in scenario references: `pcro` =
       currently omits `context-checkpoint.schema.json`, which is byte-identical across its
       three locations only by luck. This task must fail before 1.2 lands the new schema.
 
-- [ ] 1.2 Author `context-drift-gate.schema.json` under
+- [x] 1.2 Author `context-drift-gate.schema.json` under
       `skills/project-context-refresh/install_assets/openspec/schemas/`
       **Spec scenarios**: `pcro` — Deterministic context drift gate / Stale artifacts are named individually
       **Contracts**: `contracts/context-drift-gate.schema.json`
@@ -30,7 +30,7 @@ Capability short names used in scenario references: `pcro` =
       **Dependencies**: 1.1
       **Size**: S
 
-- [ ] 1.3 Promote the schema to `openspec/contracts/project-context-refresh/schemas/`,
+- [x] 1.3 Promote the schema to `openspec/contracts/project-context-refresh/schemas/`,
       byte-identical to the installed copy
       **Spec scenarios**: none
       **Contracts**: `contracts/context-drift-gate.schema.json`
@@ -40,7 +40,7 @@ Capability short names used in scenario references: `pcro` =
       **Note**: Promotion before archive is a hard repo rule, not bookkeeping — see
       `openspec/contracts/README.md`.
 
-- [ ] 1.4 Checkpoint: run tests, review diff, verify scope
+- [x] 1.4 Checkpoint: run tests, review diff, verify scope
 
 ---
 
