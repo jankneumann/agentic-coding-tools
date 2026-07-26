@@ -1,24 +1,26 @@
 {
-  "generated_at": "2026-07-23T18:52:58.614804+00:00",
-  "git_sha": "a0362aa37f40181c8806a478bd96cc50ee46f549",
+  "generated_at": "2026-07-26T16:05:46+00:00",
+  "git_sha": "24d66005fb696bb6a556f12c4cd183f43473e4e3",
   "stats": {
-    "total_nodes": 1681,
-    "total_edges": 1078,
+    "total_nodes": 1909,
+    "total_edges": 1160,
     "by_language": {
-      "python": 1269,
-      "sql": 412
+      "python": 1380,
+      "typescript": 90,
+      "sql": 439
     },
     "by_kind": {
-      "module": 73,
-      "class": 217,
-      "function": 979,
-      "table": 27,
-      "column": 273,
-      "index": 69,
-      "stored_function": 34,
+      "module": 102,
+      "class": 242,
+      "function": 1104,
+      "component": 22,
+      "table": 29,
+      "column": 293,
+      "index": 71,
+      "stored_function": 37,
       "trigger": 9
     },
-    "entrypoint_count": 95
+    "entrypoint_count": 96
   },
   "cross_layer_flows": [],
   "disconnected_endpoints": [
@@ -347,6 +349,10 @@
       "path": "/openspec/proposals"
     },
     {
+      "node_id": "py:coordination_api.create_coordination_api.code_search_status_endpoint",
+      "path": "/search/code/status"
+    },
+    {
       "node_id": "py:coordination_api.create_coordination_api.search_code_endpoint",
       "path": "/search/code"
     },
@@ -407,7 +413,7 @@
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 179
+      "dependent_count": 181
     },
     {
       "id": "py:http_proxy.get_client",
@@ -474,6 +480,14 @@
       "dependent_count": 24
     },
     {
+      "id": "py:code_search_authorization._is_normalized_relative",
+      "dependent_count": 21
+    },
+    {
+      "id": "py:code_search_authorization.validate_safe_glob",
+      "dependent_count": 20
+    },
+    {
       "id": "py:merge_queue.get_merge_queue_service",
       "dependent_count": 20
     },
@@ -534,6 +548,10 @@
       "dependent_count": 12
     },
     {
+      "id": "py:code_search_authorization.glob_to_postgres_regex",
+      "dependent_count": 12
+    },
+    {
       "id": "py:agents_config.load_agents_config",
       "dependent_count": 11
     },
@@ -587,6 +605,10 @@
     },
     {
       "id": "py:profiles",
+      "dependent_count": 8
+    },
+    {
+      "id": "py:code_search_runtime._grant_resolver_from_env.resolve",
       "dependent_count": 8
     },
     {
@@ -690,11 +712,19 @@
       "dependent_count": 6
     },
     {
+      "id": "py:code_search_authorization._canonical_patterns",
+      "dependent_count": 6
+    },
+    {
       "id": "py:config._default_workdir_root",
       "dependent_count": 6
     },
     {
       "id": "py:coordination_cli._emit_list",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:coordination_mcp.get_agent_id",
       "dependent_count": 6
     },
     {
@@ -722,6 +752,10 @@
       "dependent_count": 6
     },
     {
+      "id": "py:code_search_authorization",
+      "dependent_count": 5
+    },
+    {
       "id": "py:feature_registry",
       "dependent_count": 5
     },
@@ -730,11 +764,19 @@
       "dependent_count": 5
     },
     {
-      "id": "py:config.resolve_workdir_path",
+      "id": "py:code_search.code_search_enabled",
       "dependent_count": 5
     },
     {
-      "id": "py:coordination_mcp.get_agent_id",
+      "id": "py:code_search_authorization._glob_layer_closure",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:code_search_runtime._sanitized_unavailable",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:config.resolve_workdir_path",
       "dependent_count": 5
     },
     {

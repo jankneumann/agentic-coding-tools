@@ -7,11 +7,13 @@ flowchart TB
     audit_triage["audit_triage (11 symbols)"]
     axi_output["axi_output (4 symbols)"]
     cloudflare_access["cloudflare_access (12 symbols)"]
-    code_search["code_search (19 symbols)"]
+    code_search["code_search (37 symbols)"]
+    code_search_authorization["code_search_authorization (40 symbols)"]
+    code_search_runtime["code_search_runtime (45 symbols)"]
     config["config (45 symbols)"]
-    coordination_api["coordination_api (142 symbols)"]
+    coordination_api["coordination_api (148 symbols)"]
     coordination_cli["coordination_cli (34 symbols)"]
-    coordination_mcp["coordination_mcp (78 symbols)"]
+    coordination_mcp["coordination_mcp (80 symbols)"]
     db["db (23 symbols)"]
     db_postgres["db_postgres (14 symbols)"]
     discovery["discovery (20 symbols)"]
@@ -79,7 +81,11 @@ flowchart TB
     audit -->|"call, import"| config
     audit -->|"call, import"| db
     audit_triage -->|"import"| audit
+    code_search -->|"call, import"| code_search_authorization
+    code_search_runtime -->|"call, import"| code_search
+    code_search_runtime -->|"import"| code_search_authorization
     config -->|"call"| agents_config
+    config -->|"call"| code_search_runtime
     config -->|"call"| profile_loader
     coordination_api -->|"call, import"| agents_config
     coordination_api -->|"call, import"| approval
@@ -87,6 +93,7 @@ flowchart TB
     coordination_api -->|"call, import"| axi_output
     coordination_api -->|"call, import"| cloudflare_access
     coordination_api -->|"call, import"| code_search
+    coordination_api -->|"call, import"| code_search_runtime
     coordination_api -->|"call, import"| config
     coordination_api -->|"call, import"| db
     coordination_api -->|"call, import"| discovery
@@ -136,7 +143,8 @@ flowchart TB
     coordination_mcp -->|"call, import"| agents_config
     coordination_mcp -->|"call, import"| approval
     coordination_mcp -->|"call, import"| audit
-    coordination_mcp -->|"call, import"| code_search
+    coordination_mcp -->|"import"| code_search
+    coordination_mcp -->|"call, import"| code_search_runtime
     coordination_mcp -->|"call, import"| config
     coordination_mcp -->|"call, import"| discovery
     coordination_mcp -->|"call, import"| event_bus
@@ -184,6 +192,8 @@ flowchart TB
     handoffs -->|"call, import"| config
     handoffs -->|"call, import"| db
     handoffs -->|"call, import"| policy_engine
+    http_proxy -->|"import"| code_search
+    http_proxy -->|"call, import"| code_search_runtime
     http_proxy -->|"call"| config
     issue_service -->|"call, import"| config
     issue_service -->|"call, import"| db
@@ -240,6 +250,7 @@ flowchart TB
     risk_scorer -->|"call, import"| db
     session_grants -->|"call"| approval
     session_grants -->|"call, import"| db
+    sync_points -->|"call"| code_search_runtime
     watchdog -->|"call, import"| db
     watchdog -->|"call, import"| event_bus
     work_queue -->|"call, import"| agents_config
@@ -253,3 +264,4 @@ flowchart TB
     work_queue -->|"call, import"| profiles
     work_queue -->|"call, import"| telemetry
     worktrees_view -->|"call"| approval
+    worktrees_view -->|"call"| code_search_runtime
