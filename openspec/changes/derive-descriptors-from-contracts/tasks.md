@@ -383,7 +383,7 @@ finding re-verified by direct execution, not by vendor assertion.
   every operation under them. Not merging them omits required path parameters
   from derived MCP input schemas.
 
-- [ ] 4.15 Write tests for argv end-of-options and short-flag aliasing `[S]`
+- [x] 4.15 Write tests for argv end-of-options and short-flag aliasing `[S]`
   **Spec scenarios**: Coverage Vocabulary
   **Design decisions**: D10
   **Dependencies**: 3.6
