@@ -72,7 +72,7 @@ Each task is sized to one commit. Group numbers map to work packages in
 - [x] 3.6 Implement the outcome mapping from design D6 (succeeded / degraded /
       failed / apparatus-failure) and assert with tests that no branch can revert,
       close, or reopen a pull request.
-- [ ] 3.7 Emit the convergence record as one JSONL line to
+- [x] 3.7 Emit the convergence record as one JSONL line to
       `docs/merge-logs/context-convergence.jsonl` and validate it against the
       wp-contracts schema in a test (D9).
 - [ ] 3.8 Implement post-push semantic enqueue for the final pushed SHA, fire-and-

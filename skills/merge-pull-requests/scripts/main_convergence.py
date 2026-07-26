@@ -942,6 +942,260 @@ def build_commit_message(
 
 
 # --------------------------------------------------------------------------- #
+# The tracked convergence record (D9)
+# --------------------------------------------------------------------------- #
+RECORD_SCHEMA_VERSION = 1
+_RECORD_SCHEMA_FILE = "context-convergence-record.schema.json"
+
+#: Contract bounds, mirrored so the driver truncates rather than emitting a
+#: record the published schema would reject.
+_MAX_WARNING_LEN = 500
+_MAX_FALLBACK_LEN = 500
+
+#: Where the published schemas may live, most specific first. The install-asset
+#: copies travel with the skills into a consumer repository that has no
+#: ``openspec/contracts/`` of its own; the promoted copy is the stable
+#: capability-scoped home in this repository.
+_SCHEMA_SEARCH_DIRS: tuple[Path, ...] = (
+    _SKILLS_DIR / "project-context-refresh" / "install_assets" / "openspec" / "schemas",
+    _SKILLS_DIR / "project-context-runtime" / "install_assets" / "openspec" / "schemas",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class ProducerOutcome:
+    """One producer's outcome joined with its canonical owner.
+
+    The join exists because the ri-06 ``ProducerResult`` carries no ``owner``
+    field -- ownership lives on the registry ``ProducerSpec`` -- so a record that
+    wants to *name* who must act has to carry both.
+    """
+
+    producer_id: str
+    status: str
+    owner: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"producer_id": self.producer_id, "status": self.status, "owner": self.owner}
+
+
+@dataclass(frozen=True, slots=True)
+class SemanticIndexRecord:
+    """The index enqueued for a revision, as recorded rather than as awaited."""
+
+    status: str
+    requested_revision: str
+    operation_id: str | None = None
+    fallback: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "status": self.status,
+            "requested_revision": self.requested_revision,
+            "operation_id": self.operation_id,
+        }
+        if self.fallback is not None:
+            out["fallback"] = self.fallback[:_MAX_FALLBACK_LEN]
+        return out
+
+
+def producers_from_summary(summary: Mapping[str, Any] | None) -> tuple[ProducerOutcome, ...]:
+    """Project the refresh summary's producer results onto record entries."""
+    if not summary:
+        return ()
+    results = summary.get("producer_results") or []
+    outcomes: list[ProducerOutcome] = []
+    for item in results:
+        if not isinstance(item, Mapping):
+            continue
+        producer_id = item.get("producer_id")
+        status = item.get("status")
+        if not isinstance(producer_id, str) or not isinstance(status, str):
+            continue
+        owner = item.get("owner")
+        outcomes.append(
+            ProducerOutcome(
+                producer_id=producer_id,
+                status=status,
+                owner=owner if isinstance(owner, str) else None,
+            )
+        )
+    # Sorted so a re-run over the same results renders byte-identical bytes; the
+    # registry's iteration order is not part of this contract.
+    return tuple(sorted(outcomes, key=lambda outcome: outcome.producer_id))
+
+
+def semantic_from_summary(
+    summary: Mapping[str, Any] | None, *, requested_revision: str
+) -> SemanticIndexRecord:
+    """Project the refresh summary's semantic reference onto a record entry.
+
+    Recording *nothing* was rejected: ``decide_outcome`` reads a missing
+    reference as "the index was not part of this run" and would report a clean
+    success while making no currency claim at all. ``pending`` with a fallback is
+    the honest value, so an absent summary degrades to exactly that rather than
+    to silence.
+    """
+    reference = (summary or {}).get("semantic_index") if summary else None
+    if not isinstance(reference, Mapping):
+        return SemanticIndexRecord(
+            status="pending",
+            requested_revision=requested_revision,
+            fallback="exact-search: no semantic reference was reported by the refresh",
+        )
+    fallback = reference.get("fallback")
+    rendered: str | None = None
+    if isinstance(fallback, Mapping):
+        rendered = f"{fallback.get('kind')}: {fallback.get('reason')}"
+    elif isinstance(fallback, str):
+        rendered = fallback
+    status = reference.get("status")
+    return SemanticIndexRecord(
+        status=status if isinstance(status, str) else "pending",
+        requested_revision=(
+            reference.get("requested_revision")
+            if isinstance(reference.get("requested_revision"), str)
+            else requested_revision
+        ),
+        operation_id=(
+            reference.get("operation_id")
+            if isinstance(reference.get("operation_id"), str)
+            else None
+        ),
+        fallback=rendered,
+    )
+
+
+def build_record(
+    *,
+    identity: ConvergenceIdentity,
+    refresh_revision: str,
+    refresh_status: str,
+    summary: Mapping[str, Any] | None,
+    merged_pull_requests: Sequence[MergedPullRequest],
+    convergence_commit: str | None = None,
+    semantic_index: SemanticIndexRecord | None = None,
+    warnings: Sequence[str] = (),
+) -> dict[str, Any]:
+    """Build one convergence record.
+
+    Two shapes come out of this one builder, on purpose.
+
+    The *in-flight* shape (``convergence_commit=None``) is what lands inside the
+    convergence commit, because a commit cannot contain its own SHA. Its
+    ``semantic_index`` is the deferred ``pending`` reference the refresh actually
+    recorded -- a true statement about the moment the commit was made.
+
+    The *completed* shape names the convergence commit and the index enqueued for
+    that final pushed revision, and is returned to the pass summary and merge log.
+
+    Deterministic by construction: producers and pull requests are sorted, and
+    nothing derived from a clock or from set iteration order enters the record.
+    """
+    index = semantic_index or semantic_from_summary(
+        summary, requested_revision=refresh_revision
+    )
+    return {
+        "schema_version": RECORD_SCHEMA_VERSION,
+        "operation_id": identity.operation_id,
+        "merged_revision": identity.merged_revision,
+        "refresh_revision": refresh_revision,
+        "convergence_commit": convergence_commit,
+        "manifest_path": (summary or {}).get("manifest_path"),
+        "manifest_sha256": (summary or {}).get("manifest_sha256"),
+        "refresh_status": refresh_status,
+        "producers": [outcome.to_dict() for outcome in producers_from_summary(summary)],
+        "semantic_index": index.to_dict(),
+        "merged_pull_requests": [
+            pr.to_dict() for pr in sorted(merged_pull_requests, key=lambda pr: pr.number)
+        ],
+        "warnings": [warning[:_MAX_WARNING_LEN] for warning in warnings],
+    }
+
+
+def render_record_line(record: Mapping[str, Any]) -> str:
+    """Render one record as its canonical single JSONL line."""
+    return json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+
+
+def _record_schema_dirs(repository: Path | None) -> tuple[Path, ...]:
+    dirs = list(_SCHEMA_SEARCH_DIRS)
+    if repository is not None:
+        dirs.append(
+            Path(repository) / "openspec" / "contracts" / "project-context-refresh" / "schemas"
+        )
+    return tuple(d for d in dirs if d.is_dir())
+
+
+def _build_record_validator(repository: Path | None) -> Any:
+    from jsonschema import Draft202012Validator
+    from referencing import Registry, Resource
+    from referencing.jsonschema import DRAFT202012
+
+    resources = []
+    schema: dict[str, Any] | None = None
+    for directory in _record_schema_dirs(repository):
+        for path in sorted(directory.glob("*.schema.json")):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            identifier = data.get("$id")
+            if not isinstance(identifier, str):
+                continue
+            resources.append(
+                (identifier, Resource.from_contents(data, default_specification=DRAFT202012))
+            )
+            if schema is None and path.name == _RECORD_SCHEMA_FILE:
+                schema = data
+    if schema is None:
+        raise ConvergenceApparatusError(
+            "the convergence record contract "
+            f"({_RECORD_SCHEMA_FILE}) is not installed; refusing to emit an "
+            "unvalidatable record"
+        )
+    return Draft202012Validator(schema, registry=Registry().with_resources(resources))
+
+
+def validate_record(record: Mapping[str, Any], *, repository: Path | str | None = None) -> None:
+    """Validate a record against the published contract, failing closed.
+
+    A record that cannot be validated is never emitted: the whole point of a
+    tracked record is that a later reader can trust it, and an unvalidated line
+    is a claim with no contract behind it.
+    """
+    validator = _build_record_validator(Path(repository) if repository else None)
+    errors = sorted(validator.iter_errors(record), key=lambda err: list(err.absolute_path))
+    if errors:
+        rendered = "; ".join(
+            f"{'/'.join(str(p) for p in err.absolute_path) or '<root>'}: {err.message}"
+            for err in errors
+        )
+        raise ConvergenceApparatusError(f"convergence record is invalid: {rendered}")
+
+
+def append_record(
+    repository: Path | str,
+    record: Mapping[str, Any],
+    *,
+    path: str = CONVERGENCE_RECORD_PATH,
+) -> Path:
+    """Append one record as a single line, creating the file if needed.
+
+    Append-only and one object per line, following the existing
+    ``docs/merge-logs/metrics.jsonl`` convention: a per-SHA file under ``docs/``
+    would grow without bound in a directory the documentation producer reads, and
+    recording only in the human merge log would leave the idempotence check with
+    nothing machine-readable to consult.
+    """
+    target = Path(repository).resolve() / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a", encoding="utf-8") as handle:
+        handle.write(render_record_line(record))
+    return target
+
+
+# --------------------------------------------------------------------------- #
 # Convergence outcomes (D6)
 # --------------------------------------------------------------------------- #
 class ConvergenceStatus(str, Enum):
@@ -1027,6 +1281,7 @@ def converge(
     remote: str = "origin",
     branch: str = "main",
     python: str | None = None,
+    record_path: str = CONVERGENCE_RECORD_PATH,
 ) -> ConvergenceResult:
     """Converge derived context for the main state this pass produced.
 
@@ -1106,6 +1361,7 @@ def converge(
             remote=remote,
             branch=branch,
             python=python,
+            record_path=record_path,
         )
     except ConvergenceApparatusError as exc:
         return ConvergenceResult(
@@ -1141,6 +1397,7 @@ def _converge_under_guard(
     remote: str,
     branch: str,
     python: str | None,
+    record_path: str,
 ) -> ConvergenceResult:
     """Phases 2 and 3, with layers 1 and 2 already held by the caller."""
     guarded = guarded_runner(runner)
@@ -1156,8 +1413,23 @@ def _converge_under_guard(
     refresh = run_deterministic_refresh(root, runner=runner, python=python)
     warnings.extend(refresh.warnings)
 
+    # The in-flight record: validated before it is written, so an unvalidatable
+    # claim never reaches a commit, and written before staging so it lands in the
+    # single convergence commit rather than trailing it.
+    in_flight = build_record(
+        identity=identity,
+        refresh_revision=identity.merged_revision,
+        refresh_status=refresh.status,
+        summary=refresh.summary,
+        merged_pull_requests=merged_pull_requests,
+        warnings=warnings,
+    )
+    validate_record(in_flight, repository=root)
+    append_record(root, in_flight, path=record_path)
+
     if refresh.sweepable:
         guarded(["git", "add", "-A"], root)
+    guarded(["git", "add", "--", record_path], root)
 
     staged = guarded(["git", "diff", "--cached", "--quiet"], root)
     if staged.returncode == 0:
@@ -1226,11 +1498,26 @@ def _converge_under_guard(
             ),
         )
 
+    enqueued: SemanticIndexRecord | None = None
     if semantic_enqueuer is not None and convergence_commit:
         try:
-            semantic_enqueuer(root, convergence_commit)
+            candidate = semantic_enqueuer(root, convergence_commit)
         except Exception as exc:  # noqa: BLE001 - the index never blocks a pass
             warnings.append(f"semantic index enqueue failed: {exc}")
+        else:
+            if isinstance(candidate, SemanticIndexRecord):
+                enqueued = candidate
+
+    completed = build_record(
+        identity=identity,
+        refresh_revision=identity.merged_revision,
+        refresh_status=refresh.status,
+        summary=refresh.summary,
+        merged_pull_requests=merged_pull_requests,
+        convergence_commit=convergence_commit,
+        semantic_index=enqueued,
+        warnings=warnings,
+    )
 
     return ConvergenceResult(
         status=ConvergenceStatus.CONVERGED,
@@ -1239,6 +1526,7 @@ def _converge_under_guard(
         refresh_status=refresh.status,
         convergence_commit=convergence_commit,
         pushed_revision=convergence_commit,
+        record=completed,
         warnings=tuple(warnings),
     )
 
