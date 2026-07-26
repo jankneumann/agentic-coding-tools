@@ -391,7 +391,7 @@ finding re-verified by direct execution, not by vendor assertion.
   `args=['--mode','template-only','--','--descriptor']` records
   `cli:--descriptor` for a token the process never interpreted as a flag.
 
-- [ ] 4.16 Honour `--` and alias short flags to their long unit `[S]`
+- [x] 4.16 Honour `--` and alias short flags to their long unit `[S]`
   **Design decisions**: D10
   **Dependencies**: 4.15
   **Note (round-7, `--` found by 2 vendors)**: stop flag scanning at the first

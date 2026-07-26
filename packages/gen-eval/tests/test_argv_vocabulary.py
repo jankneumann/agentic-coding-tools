@@ -67,6 +67,7 @@ def aliased_descriptor() -> ToolDescriptor:
         project="aliased",
         version="1",
         executable="aliased",
+        services=[],
         commands=[
             ToolCommandSpec(
                 name="",
@@ -175,6 +176,7 @@ class TestShortFlagsCreditTheirLongUnit:
             project="scoped",
             version="1",
             executable="scoped",
+            services=[],
             commands=[
                 ToolCommandSpec(
                     name="lock acquire",
