@@ -40,11 +40,13 @@ from pathlib import Path
 # Importing _runtime first inserts the ri-06 runtime scripts dir onto sys.path,
 # so the bare ``store``/``manifest``/``models`` imports below resolve.
 from _runtime import (
+    ChangeKind,
     Fallback,
     FallbackKind,
     ProducerResult,
     ProducerStatus,
     Remediation,
+    RepositoryArtifact,
     SafeError,
     ensure_git_revision,
     sha256_hex,
@@ -57,7 +59,8 @@ from models import (
     OperationState,
     SemanticIndexReference,
 )
-from registry import Mode, list_producers, run_producer
+import results as R
+from registry import OPENSPEC_PROJECTION, Mode, list_producers, run_producer
 from semantic_adapter import SemanticIndexer, resolve_semantic_index
 from store import OperationStore
 
@@ -158,16 +161,86 @@ def resolve_repository_identity(
     return repo_root, repository_id, rev
 
 
+#: Fallback reason for a non-fresh architecture result. Byte-stable so a repeat
+#: check of the same tree produces an identical result. It states the ownership
+#: boundary explicitly: neither mode of this producer writes, because architecture
+#: *regeneration* is refresh-architecture's own staged command.
+_ARCHITECTURE_NO_WRITE = (
+    "Architecture freshness was compared against committed provenance; "
+    "regeneration is refresh-architecture's own staged command and no checkout "
+    "write was performed."
+)
+
+#: Remediation for *drifted* architecture provenance. Distinct from
+#: ``_ARCHITECTURE_REMEDIATION`` (absent owner) because the action differs: drift
+#: is fixed by re-running the staged refresh, which rewrites provenance.
+_ARCHITECTURE_DRIFT_REMEDIATION = Remediation(
+    summary=(
+        "Committed architecture provenance does not match the current artifacts; "
+        "re-run the deterministic staged refresh to rewrite it."
+    ),
+    command="make architecture-refresh",
+)
+
+
+def _architecture_drift_artifacts(
+    repository: Path, paths: Sequence[str]
+) -> tuple[RepositoryArtifact, ...]:
+    """Name the artifacts a drift verdict implicates, for the gate's stale list.
+
+    A path that is absent from the checkout is reported ``deleted`` (ri-06 requires
+    a null digest there); anything present is reported ``modified`` with its
+    *recomputed* digest, which is the value that disagrees with provenance.
+    """
+    artifacts: list[RepositoryArtifact] = []
+    for rel in dict.fromkeys(paths):
+        target = repository / rel
+        try:
+            digest: str | None = sha256_hex(target.read_bytes())
+        except OSError:
+            digest = None
+        artifacts.append(
+            RepositoryArtifact(
+                path=rel,
+                change=ChangeKind.MODIFIED if digest else ChangeKind.DELETED,
+                sha256=digest,
+            )
+        )
+    return R.sort_artifacts(artifacts)
+
+
 def _default_architecture_producer(
     repository: Path, revision: str, mode: Mode
 ) -> ProducerResult:
-    """Read the current architecture provenance via the ri-04 canonical owner.
+    """Compare committed architecture provenance against the current artifacts.
+
+    Freshness comes from ``arch_utils.provenance.check_freshness``, which is
+    read-only and mtime-independent, and which the CLI wrapper collapses
+    ``stale`` and ``invalid`` together — so this calls the library, not
+    ``make architecture-check``, in order to keep the two apart.
 
     Architecture *regeneration* is refresh-architecture's own staged command
-    (`make architecture`, gated by ri-10); orchestration only collects the
-    producer's current result. If refresh-architecture is not importable or its
-    provenance cannot be built, architecture is reported ``not-configured`` with a
-    skip fallback rather than failing the whole refresh.
+    (``make architecture-refresh``); orchestration only collects the verdict, and
+    neither mode of this producer writes.
+
+    The mapping fails closed (design D4):
+
+    * ``fresh`` → ``fresh``;
+    * ``stale`` → ``degraded`` (drift), naming the stale artifacts;
+    * ``invalid`` — missing, malformed, or schema-invalid provenance → ``degraded``
+      (drift), **not** ``not-configured``;
+    * refresh-architecture genuinely not importable → ``not-configured``.
+
+    The third rule is load-bearing. ``not-configured`` means "an optional owner is
+    absent" and by design must not fail the gate; unverifiable evidence is not an
+    absent owner, so routing it there would reintroduce fail-open behaviour
+    through the classifier instead of the producer. Absent tooling degrades;
+    unverifiable evidence blocks.
+
+    The previous implementation called ``provenance.build_provenance(repository,
+    mode="full")`` — which *builds* provenance from the working tree — and
+    returned ``fresh`` unconditionally, reporting ``fresh`` on the very tree that
+    ``make architecture-check`` failed closed on with ``PROVENANCE_MISSING``.
     """
     arch_scripts = (
         Path(__file__).resolve().parents[2] / "refresh-architecture" / "scripts"
@@ -176,21 +249,89 @@ def _default_architecture_producer(
         sys.path.insert(0, str(arch_scripts))
     try:
         from arch_utils import provenance  # type: ignore[import-not-found]
-        from context_runtime_adapter import (  # type: ignore[import-not-found]
-            architecture_result_fresh,
-            architecture_result_not_configured,
-        )
     except Exception as exc:  # noqa: BLE001 - missing owner degrades, never fails
         return _architecture_not_configured_fallback(
             f"refresh-architecture not importable: {exc}"
         )
+
+    version = provenance.PRODUCER_VERSION
+    provenance_rel = f"{provenance.ARCH_DIR_DEFAULT}/{provenance.PROVENANCE_FILENAME}"
     try:
-        doc = provenance.build_provenance(repository, mode="full")
-        return architecture_result_fresh(doc)
-    except Exception as exc:  # noqa: BLE001
-        return architecture_result_not_configured(
-            f"architecture provenance unavailable for {revision[:12]}: {exc}"
+        outcome = provenance.check_freshness(repository)
+    except Exception as exc:  # noqa: BLE001 - a check that cannot run is not evidence
+        # Deliberately drift, not not-configured: the owner *is* present, so this
+        # is an unverifiable claim about the committed baseline, and the whole
+        # point of D4 is that unverifiable evidence must not pass the gate.
+        return R.drift(
+            ARCHITECTURE_PRODUCER_ID,
+            version,
+            artifacts=(),
+            validations=[
+                R.failed_validation(
+                    "architecture-provenance",
+                    f"architecture freshness could not be determined for "
+                    f"{revision[:12]}: {exc.__class__.__name__}",
+                )
+            ],
+            remediation=[_ARCHITECTURE_DRIFT_REMEDIATION],
+            reason=_ARCHITECTURE_NO_WRITE,
         )
+
+    if outcome.status == "fresh":
+        recorded = (outcome.provenance or {}).get("artifacts", [])
+        return R.fresh(
+            ARCHITECTURE_PRODUCER_ID,
+            version,
+            validations=[
+                R.passed(
+                    "architecture-provenance",
+                    "committed architecture provenance matches the recomputed "
+                    "input fingerprint, producer identity, and artifact digests",
+                )
+            ],
+            artifacts=R.sort_artifacts(
+                RepositoryArtifact(
+                    path=art["path"], change=ChangeKind.MODIFIED, sha256=art["sha256"]
+                )
+                for art in recorded
+            ),
+        )
+
+    # A reason that carries a path names an owned artifact; a provenance-level
+    # reason names the provenance document itself, which is the artifact that is
+    # actually wrong when there is no committed baseline to compare against.
+    provenance_codes = (provenance.PROVENANCE_MISSING, provenance.PROVENANCE_INVALID)
+    drifted_paths = [
+        reason.path
+        if reason.path
+        else provenance_rel
+        if reason.code in provenance_codes
+        else ""
+        for reason in outcome.reasons
+    ]
+    validations = [
+        R.failed_validation(
+            R.vid("architecture", reason.code, reason.path or ""),
+            f"{reason.code}: {reason.detail}"
+            + (f" [{reason.path}]" if reason.path else ""),
+        )
+        for reason in outcome.reasons
+    ] or [
+        R.failed_validation(
+            "architecture-provenance",
+            f"architecture provenance reported {outcome.status!r} without a reason",
+        )
+    ]
+    return R.drift(
+        ARCHITECTURE_PRODUCER_ID,
+        version,
+        artifacts=_architecture_drift_artifacts(
+            repository, [p for p in drifted_paths if p]
+        ),
+        validations=validations,
+        remediation=[_ARCHITECTURE_DRIFT_REMEDIATION],
+        reason=_ARCHITECTURE_NO_WRITE,
+    )
 
 
 #: Remediation for a not-configured architecture producer. ri-06 rejects *any*
@@ -306,6 +447,102 @@ def decide_outcome(
     if degraded or not semantic_ok:
         return OperationState.DEGRADED, None
     return OperationState.SUCCEEDED, None
+
+
+#: Producer ids whose drift is *informational* rather than blocking (design D3).
+#:
+#: ``openspec.projection`` never writes canonical specs — the archive sync point
+#: owns that merge — so its drift means "an active change carries an unmerged
+#: spec delta", which is the correct state for in-flight work, not stale
+#: committed output. Its own remediation is "Archive the active change(s) through
+#: cleanup-feature". A repository always has active changes, so treating this as
+#: blocking would fail every pull request forever.
+#:
+#: The cost is recorded rather than solved: a genuinely stale committed spec for a
+#: capability with *no* active change pending is invisible to this classification.
+#: Detecting it needs correlation between projected capabilities and active
+#: changes, which is reasoning ``cleanup-feature`` already owns at archive time.
+INFORMATIONAL_PRODUCERS: frozenset[str] = frozenset({OPENSPEC_PROJECTION})
+
+
+@dataclass(frozen=True, slots=True)
+class DegradationBreakdown:
+    """Four disjoint views of one refresh outcome, plus the semantic reference.
+
+    :func:`decide_outcome` maps deterministic drift, an absent optional owner, and
+    a non-succeeded semantic index onto the single ``OperationState.DEGRADED``, so
+    a caller holding that state cannot tell external degradation from real drift.
+    This is the discriminator, kept **beside** the terminal decision rather than
+    inside it: ``OperationState`` is pinned by ``context-refresh-operation.schema.json``
+    (``state``) and ``context-refresh-manifest.schema.json`` (``refresh_status``),
+    and ri-07 D9 makes recorded operations immutable, so widening the enum would
+    be a breaking change to records that already exist.
+
+    Every non-fresh result appears in exactly one group; ``fresh`` results appear
+    in none. ``semantic_index`` is carried, not classified: it is external service
+    state rather than a producer result, and per D6 a gate reports it as
+    ``not-attempted`` instead of making any currency claim about it.
+    """
+
+    blocking_drift: tuple[ProducerResult, ...] = ()
+    informational_drift: tuple[ProducerResult, ...] = ()
+    not_configured: tuple[ProducerResult, ...] = ()
+    failed: tuple[ProducerResult, ...] = ()
+    semantic_index: SemanticIndexReference | None = None
+
+
+def classify_degradation(
+    producer_results: tuple[ProducerResult, ...],
+    semantic_index: SemanticIndexReference | None,
+    *,
+    informational_producer_ids: frozenset[str] = INFORMATIONAL_PRODUCERS,
+) -> DegradationBreakdown:
+    """Partition *producer_results* into four disjoint groups (design D2).
+
+    IO-free and total, exactly like :func:`decide_outcome`, and derived entirely
+    from fields that already exist on :class:`ProducerResult`:
+
+    * ``failed`` — the producer could not render or compare at all;
+    * ``not_configured`` — an *optional* owner is absent. ``run_producer`` already
+      rewrites a **required** producer's ``not-configured`` to ``failed``, so a
+      surviving one here can only be external degradation;
+    * ``informational_drift`` — drift from a producer in
+      *informational_producer_ids*, which reports pending state rather than stale
+      committed output (D3);
+    * ``blocking_drift`` — every other drifted producer.
+
+    Status is decided first and membership in *informational_producer_ids* only
+    afterwards, so an informational producer that *fails* is a failure. The
+    exemption covers a producer's drift, never its apparatus.
+
+    Input order is preserved within each group, and this function never mutates
+    its arguments: callers hand the same results to :func:`decide_outcome`, whose
+    behaviour must be unchanged.
+    """
+    blocking: list[ProducerResult] = []
+    informational: list[ProducerResult] = []
+    absent: list[ProducerResult] = []
+    failed: list[ProducerResult] = []
+
+    for result in producer_results:
+        if result.status is ProducerStatus.FAILED:
+            failed.append(result)
+        elif result.status is ProducerStatus.NOT_CONFIGURED:
+            absent.append(result)
+        elif result.status is ProducerStatus.DEGRADED:
+            if result.producer_id in informational_producer_ids:
+                informational.append(result)
+            else:
+                blocking.append(result)
+        # ProducerStatus.FRESH contributes to no group.
+
+    return DegradationBreakdown(
+        blocking_drift=tuple(blocking),
+        informational_drift=tuple(informational),
+        not_configured=tuple(absent),
+        failed=tuple(failed),
+        semantic_index=semantic_index,
+    )
 
 
 def _manifest_present(repo_root: Path, relative_path: str | None, sha256: str | None) -> bool:
@@ -533,10 +770,13 @@ def check(
 __all__ = [
     "DEFAULT_MANIFEST_PATH",
     "ARCHITECTURE_PRODUCER_ID",
+    "INFORMATIONAL_PRODUCERS",
     "ArchitectureProducer",
+    "DegradationBreakdown",
     "RefreshResult",
     "RevisionMismatchError",
     "resolve_repository_identity",
+    "classify_degradation",
     "decide_outcome",
     "generate",
     "check",
