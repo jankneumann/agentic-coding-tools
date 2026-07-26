@@ -90,9 +90,15 @@ public API.
   **Dependencies**: 1.1
 
 - [ ] 1.3 Write tests for tool-descriptor derivation from a CLI contract `[M]`
-  **Spec scenarios**: Contract As Descriptor Source Of Truth (descriptor derives from a contract); Operation And Surface Coverage Model (flag-only tool surfaces are nameable)
+  **Spec scenarios**: Contract As Descriptor Source Of Truth (descriptor derives from a contract); Operation And Surface Coverage Model (flag-only tool surfaces are nameable); Service And Tool Descriptor Archetypes (tool descriptor requires no lifecycle configuration)
   **Design decisions**: D1, D5
   **Dependencies**: 1.2
+  **Note**: the lifecycle scenario is normative and easy to leave untested,
+  because a tool descriptor that merely *omits* startup config passes trivially.
+  Assert the orchestrator actually SKIPS startup, health check, seeding and
+  teardown for the tool archetype — that is the behaviour UP-4 shipped and this
+  spec delta pins. Omitting startup and observing no crash is not the same
+  claim.
 
 - [ ] 1.4 Implement the `ToolDescriptor` model with contract-reference loading `[M]`
   **Design decisions**: D1, D5, D6

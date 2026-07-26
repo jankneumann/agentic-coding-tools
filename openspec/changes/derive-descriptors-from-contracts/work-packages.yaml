@@ -427,7 +427,7 @@ packages:
     title: "gen-eval self-migration, CI gates, downstream notice"
     task_type: integration
     description: |
-      Tasks 4.7 and 5.1-5.7 (including 5.4a/5.4b/5.4c). Merge every
+      Tasks 4.7 and 5.1-5.8 (including 5.4a/5.4b/5.4c/5.4d). Merge every
       implementation worktree, wire the deprecation warning, migrate
       evaluation/descriptor.yaml to a derived tool descriptor, author the
       dogfood scenarios and exclusions that satisfy D11's completeness rule,
