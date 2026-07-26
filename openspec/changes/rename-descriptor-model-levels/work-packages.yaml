@@ -81,7 +81,7 @@ packages:
       steps:
         - name: "New *Spec names are exported and carry the pre-rename fields"
           kind: command
-          command: "cd packages/gen-eval && python3 -c \"import sys, gen_eval; missing=[n for n in ('EndpointSpec','McpToolSpec','CommandSpec','ServiceSpec') if not hasattr(gen_eval,n)]; sys.exit(f'not exported: {missing}') if missing else None; assert 'endpoints' in gen_eval.ServiceSpec.model_fields, 'ServiceSpec lost its container fields'; assert 'input_schema' in gen_eval.McpToolSpec.model_fields, 'McpToolSpec lost its element fields'; print('4 Spec names exported with fields intact')\""
+          command: "cd packages/gen-eval && uv run python -c \"import sys, gen_eval; missing=[n for n in ('EndpointSpec','McpToolSpec','CommandSpec','ServiceSpec') if not hasattr(gen_eval,n)]; sys.exit(f'not exported: {missing}') if missing else None; assert 'endpoints' in gen_eval.ServiceSpec.model_fields, 'ServiceSpec lost its container fields'; assert 'input_schema' in gen_eval.McpToolSpec.model_fields, 'McpToolSpec lost its element fields'; print('4 Spec names exported with fields intact')\""
           evidence:
             artifacts: []
             result_keys: ["spec_names_exported"]
@@ -91,13 +91,13 @@ packages:
         # reuses no freed name (D2).
         - name: "All four old names resolve as aliases AND emit DeprecationWarning"
           kind: command
-          command: "cd packages/gen-eval && python3 -c \"import warnings, gen_eval, sys; failed=[]\nfor n in ('EndpointDescriptor','ToolDescriptor','CommandDescriptor','ServiceDescriptor'):\n    with warnings.catch_warnings(record=True) as w:\n        warnings.simplefilter('always')\n        obj=getattr(gen_eval, n, None)\n        if obj is None: failed.append(n+': missing')\n        elif not any(issubclass(x.category, DeprecationWarning) for x in w): failed.append(n+': no DeprecationWarning')\nsys.exit('alias check failed: '+'; '.join(failed)) if failed else print('4 aliases resolve and warn')\""
+          command: "cd packages/gen-eval && uv run python -c \"import warnings, gen_eval, sys; failed=[]\nfor n in ('EndpointDescriptor','ToolDescriptor','CommandDescriptor','ServiceDescriptor'):\n    with warnings.catch_warnings(record=True) as w:\n        warnings.simplefilter('always')\n        obj=getattr(gen_eval, n, None)\n        if obj is None: failed.append(n+': missing')\n        elif not any(issubclass(x.category, DeprecationWarning) for x in w): failed.append(n+': no DeprecationWarning')\nsys.exit('alias check failed: '+'; '.join(failed)) if failed else print('4 aliases resolve and warn')\""
           evidence:
             artifacts: []
             result_keys: ["aliases_resolve_and_warn"]
         - name: "CONTRACT_VERSION is 2 and all generated artifacts regenerate clean"
           kind: command
-          command: "cd packages/gen-eval && python3 -c \"from gen_eval.contracts import CONTRACT_VERSION; import sys; sys.exit(f'CONTRACT_VERSION={CONTRACT_VERSION}, expected 2') if str(CONTRACT_VERSION)!='2' else print('version 2')\" && python3 scripts/generate_contract_schemas.py --check"
+          command: "cd packages/gen-eval && uv run python -c \"from gen_eval.contracts import CONTRACT_VERSION; import sys; sys.exit(f'CONTRACT_VERSION={CONTRACT_VERSION}, expected 2') if str(CONTRACT_VERSION)!='2' else print('version 2')\" && uv run python scripts/generate_contract_schemas.py --check"
           evidence:
             artifacts: []
             result_keys: ["contract_version_bumped", "artifacts_regenerate_clean"]
@@ -107,7 +107,7 @@ packages:
         # test them, and excluding it is what makes this gate satisfiable.
         - name: "No test file outside the naming test still uses a pre-rename name"
           kind: command
-          command: "cd packages/gen-eval && python3 -c \"import pathlib,re,sys; files=[p for p in pathlib.Path('tests').rglob('*.py') if p.name!='test_descriptor_naming.py']; sys.exit('no test corpus found — gate would pass vacuously') if not files else None; pat=re.compile(r'\\b(EndpointDescriptor|ToolDescriptor|CommandDescriptor|ServiceDescriptor)\\b'); hits=sorted(str(p) for p in files if pat.search(p.read_text())); sys.exit('pre-rename names still used in: '+', '.join(hits)) if hits else print(f'{len(files)} test files scanned, none using pre-rename names')\""
+          command: "cd packages/gen-eval && uv run python -c \"import pathlib,re,sys; files=[p for p in pathlib.Path('tests').rglob('*.py') if p.name!='test_descriptor_naming.py']; sys.exit('no test corpus found — gate would pass vacuously') if not files else None; pat=re.compile(r'\\b(EndpointDescriptor|ToolDescriptor|CommandDescriptor|ServiceDescriptor)\\b'); hits=sorted(str(p) for p in files if pat.search(p.read_text())); sys.exit('pre-rename names still used in: '+', '.join(hits)) if hits else print(f'{len(files)} test files scanned, none using pre-rename names')\""
           evidence:
             artifacts: []
             result_keys: ["no_pre_rename_usage"]
