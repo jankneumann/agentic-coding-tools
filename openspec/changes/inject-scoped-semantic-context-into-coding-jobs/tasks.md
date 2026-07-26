@@ -17,7 +17,7 @@
 - [ ] 0.3 Author `contracts/README.md` documenting the two schemas, the
       `similarity → score` and `source_revision → indexed_commit` render
       mapping (D7), and the promote-before-archive obligation.
-- [ ] 0.4 Promote both schemas to `openspec/contracts/code-search/schemas/` and
+- [x] 0.4 Promote both schemas to `openspec/contracts/code-search/schemas/` and
       add the byte-identity assertion to
       `skills/tests/context-engineering/test_promoted_semantic_context_contracts.py`.
 - [ ] 0.5 Add `skills/tests/context-engineering/test_semantic_context_schemas.py`
