@@ -34,6 +34,7 @@ from typing import Any
 
 import pytest
 
+from gen_eval.__main__ import build_parser, parse_args
 from gen_eval.descriptor import ToolDescriptor
 from gen_eval.service_descriptor import ServiceDescriptor
 from gen_eval.verify import Violation, verify_argparse, verify_fastapi, verify_mcp
@@ -188,25 +189,63 @@ class TestOmissionIsCoveragesJob:
 
 
 class TestAgainstGenEvalsOwnContract:
-    """The surface this change owns end to end (task 4.7 wires it into CI)."""
+    """The surface this change owns end to end (task 4.7 wires it into CI).
 
-    def test_a_parser_matching_the_contract_is_silent(
+    Round-7 amended this class. It previously built a parser by adding one
+    argument per contracted unit, which cannot fail: it is the contract read
+    back to itself, and it stays green no matter what ``parse_args`` grows.
+    A gate whose subject is derived from its own reference measures nothing.
+
+    ``build_parser`` is therefore the subject here. The real parser is the only
+    artifact that can drift from the contract, which is the entire point of a
+    subset verifier.
+    """
+
+    def test_the_real_parser_declares_nothing_the_contract_omits(
         self, gen_eval_tool: ToolDescriptor
     ) -> None:
-        parser = argparse.ArgumentParser(prog="gen-eval")
-        for unit in gen_eval_tool.all_interfaces():
-            parser.add_argument(unit.removeprefix("cli:"), action="store_true")
-        assert verify_argparse(parser, gen_eval_tool) == []
+        violations = verify_argparse(build_parser(), gen_eval_tool)
+        assert violations == [], (
+            "gen-eval's argparse exposes flags its own CLI contract does not "
+            f"declare: {sorted(elements(violations))}. Either contract them or "
+            f"remove them."
+        )
 
     def test_adding_one_uncontracted_flag_turns_it_red(
         self, gen_eval_tool: ToolDescriptor
     ) -> None:
         """The gate must be shown to fail, not merely to pass."""
-        parser = argparse.ArgumentParser(prog="gen-eval")
-        for unit in gen_eval_tool.all_interfaces():
-            parser.add_argument(unit.removeprefix("cli:"), action="store_true")
+        parser = build_parser()
         parser.add_argument("--undeclared", action="store_true")
         assert elements(verify_argparse(parser, gen_eval_tool)) == {"cli:--undeclared"}
+
+    def test_the_verified_parser_is_the_one_the_cli_actually_uses(self) -> None:
+        """The extraction must not become a second, divergent parser.
+
+        ``build_parser`` is only a real subject while ``parse_args`` delegates
+        to it. If someone later re-inlines the argument declarations, this gate
+        silently reverts to verifying a copy — the same defect in a new place.
+        """
+        parser = build_parser()
+        declared = {
+            name for action in parser._actions for name in action.option_strings
+        }
+        args = parse_args(["--descriptor", "d.yaml"])
+        for attribute in vars(args):
+            flag = "--" + attribute.replace("_", "-")
+            assert flag in declared or attribute == "print_contract_version", (
+                f"parse_args produced {attribute!r}, which build_parser does not "
+                f"declare — the two have diverged"
+            )
+
+    def test_build_parser_returns_a_fresh_parser_each_call(self) -> None:
+        """Tests mutate the returned parser; a shared instance would leak."""
+        first = build_parser()
+        first.add_argument("--scratch", action="store_true")
+        second_flags = {
+            name for action in build_parser()._actions for name in action.option_strings
+        }
+        assert "--scratch" not in second_flags
 
 
 # ---------------------------------------------------------------------------
