@@ -85,7 +85,7 @@ public API.
   **Design decisions**: D5 (tool contracts are a separate schema)
   **Dependencies**: None
 
-- [ ] 1.2 Create `contracts/cli-contract.schema.json` — commands, flags, argument types, exit codes `[S]`
+- [x] 1.2 Create `contracts/cli-contract.schema.json` — commands, flags, argument types, exit codes `[S]`
   **Design decisions**: D5
   **Dependencies**: 1.1
 
@@ -118,12 +118,12 @@ public API.
   **Dependencies**: 1.5
   **Note**: mirror `scripts/generate_contract_schemas.py` from PR #277
 
-- [ ] 1.7 Author gen-eval's own CLI contract under `openspec/contracts/gen-eval-framework/cli/` `[S]`
+- [x] 1.7 Author gen-eval's own CLI contract under `openspec/contracts/gen-eval-framework/cli/` `[S]`
   **Spec scenarios**: Dogfood (gen-eval evaluates its own CLI surface)
   **Design decisions**: D8
   **Dependencies**: 1.2
 
-- [ ] 1.8 Document the `<capability>/cli/` sub-path in `openspec/contracts/README.md` `[XS]`
+- [x] 1.8 Document the `<capability>/cli/` sub-path in `openspec/contracts/README.md` `[XS]`
   **Design decisions**: D1, D5
   **Dependencies**: 1.7
   **Note**: the README currently documents only `<capability>/schemas/*.schema.json`
@@ -133,7 +133,7 @@ public API.
   contracts directory was created to prevent. Also add the `gen-eval-framework`
   row to the "Current contents" table.
 
-- [ ] 1.9 Promote `cli-contract.schema.json` to `openspec/contracts/gen-eval-framework/schemas/` `[XS]`
+- [x] 1.9 Promote `cli-contract.schema.json` to `openspec/contracts/gen-eval-framework/schemas/` `[XS]`
   **Design decisions**: D5
   **Dependencies**: 1.2
   **Note**: promotion happens while the change is in flight, NOT on archival —
