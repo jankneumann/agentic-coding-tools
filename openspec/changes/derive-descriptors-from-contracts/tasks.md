@@ -427,7 +427,7 @@ finding re-verified by direct execution, not by vendor assertion.
 
 ## Phase 5 — Migration, gates, downstream notice
 
-- [ ] 5.1 Write tests for the deprecation warning on the hand-authored path `[S]`
+- [x] 5.1 Write tests for the deprecation warning on the hand-authored path `[S]`
   **Spec scenarios**: Service And Tool Descriptor Archetypes (hand-authored descriptor still loads)
   **Design decisions**: D6
   **Dependencies**: 1.4
