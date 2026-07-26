@@ -310,3 +310,166 @@ class TestOmissionRecordsValidateAgainstTheContract:
         enum = section["properties"]["omissions"]["items"]["properties"]["reason"]["enum"]
         assert set(sc.BUDGET_REASON_ORDER) <= set(enum)
         assert set(sc.OMISSION_REASONS) == set(enum)
+
+
+class DenySkillsOnly:
+    """A stand-in for ri-08's ``IndexScopes``: only ``skills/`` is readable."""
+
+    def allows(self, path: str) -> bool:
+        return path.startswith("skills/")
+
+
+class TestScopeFiltering:
+    """The seventh omission reason, and the one that is a security claim.
+
+    The service cannot return a path its own scope excluded, so this re-check is
+    redundant by design. It exists because ri-12 supplies the scope from the
+    client side: without a local check the skill's boundary claim would be a
+    claim about someone else's code.
+    """
+
+    def test_a_hit_outside_the_read_scope_is_omitted_as_scope_filtered(self) -> None:
+        inside = hit("skills/a.py", 1, 2, 0.9)
+        outside = hit("agent-coordinator/src/x.py", 1, 2, 0.8)
+        kept, omissions = sc.filter_scope([inside, outside], DenySkillsOnly())
+        assert list(kept) == [inside]
+        assert [(o.file_path, o.reason) for o in omissions] == [
+            ("agent-coordinator/src/x.py", "scope_filtered")
+        ]
+
+    def test_a_filtered_hit_never_appears_among_the_rendered_hits(self) -> None:
+        kept, _ = sc.select_hits(
+            [hit("agent-coordinator/src/x.py", 1, 2, 0.9), hit("skills/a.py", 1, 2, 0.8)],
+            sc.DEFAULT_BUDGET,
+            DenySkillsOnly(),
+        )
+        assert [h.file_path for h in kept] == ["skills/a.py"]
+
+    def test_a_filtered_hit_does_not_spend_the_budget_it_was_denied(self) -> None:
+        # The out-of-scope hit outranks the in-scope one and would exhaust a
+        # one-hit budget if it were filtered after budgeting instead of before.
+        kept, omissions = sc.select_hits(
+            [hit("agent-coordinator/src/x.py", 1, 2, 0.9), hit("skills/a.py", 1, 2, 0.8)],
+            budget(max_hits=1),
+            DenySkillsOnly(),
+        )
+        assert [h.file_path for h in kept] == ["skills/a.py"]
+        assert [o.reason for o in omissions] == ["scope_filtered"]
+
+    def test_a_filtered_hit_does_not_consume_a_file_slot(self) -> None:
+        # The denied hit outranks the allowed one and is in a different file, so
+        # filtering after budgeting would spend the single file slot on a file
+        # the package is not allowed to read and then drop it, leaving nothing.
+        denied = hit("agent-coordinator/src/x.py", 10, 20, 0.9)
+        allowed = hit("skills/a.py", 10, 20, 0.8)
+        kept, omissions = sc.select_hits([denied, allowed], budget(max_files=1), DenySkillsOnly())
+        assert [h.file_path for h in kept] == ["skills/a.py"]
+        assert [o.reason for o in omissions] == ["scope_filtered"]
+
+    def test_omissions_are_grouped_scope_then_dedup_then_budget(self) -> None:
+        hits = [
+            hit("agent-coordinator/src/x.py", 1, 2, 0.95),  # scope_filtered
+            hit("skills/a.py", 1, 20, 0.9),  # kept
+            hit("skills/a.py", 5, 10, 0.8),  # duplicate_contained
+            hit("skills/b.py", 1, 2, 0.7),  # file_count_cap
+        ]
+        _, omissions = sc.select_hits(hits, budget(max_files=1), DenySkillsOnly())
+        assert [o.reason for o in omissions] == [
+            "scope_filtered",
+            "duplicate_contained",
+            "file_count_cap",
+        ]
+
+    def test_all_seven_omission_reasons_are_reachable(self) -> None:
+        # Six from the other cases in this file and its determinism sibling,
+        # plus scope_filtered here. The enum being closed is only useful if no
+        # member is dead.
+        produced = {"scope_filtered"}
+        produced.update(sc.BUDGET_REASON_ORDER)
+        produced.update({"duplicate_exact", "duplicate_contained"})
+        assert produced == set(sc.OMISSION_REASONS)
+
+
+class TestFilteredHitsFailClosed:
+    def test_a_response_whose_hits_are_all_out_of_scope_is_not_an_empty_success(
+        self,
+    ) -> None:
+        # An empty "injected" section is unrepresentable by the contract, and a
+        # silent absence reads to a worker as "no relevant code exists".
+        def search(body: dict) -> dict:
+            return {
+                "status": "ok",
+                "status_code": 200,
+                "response": {
+                    "state": "ready",
+                    "current": True,
+                    "index": {
+                        "index_id": INDEX_ID,
+                        "repo_slug": "agentic_coding_tools",
+                        "source_revision": REVISION,
+                    },
+                    "scope": {
+                        "decision": "allowed",
+                        "source": "explicit",
+                        "authority": "principal_grant",
+                    },
+                    "results": [
+                        {
+                            "file_path": "agent-coordinator/src/x.py",
+                            "language": "python",
+                            "content": "x",
+                            "start_line": 1,
+                            "end_line": 2,
+                            "similarity": 0.9,
+                            "repo_slug": "agentic_coding_tools",
+                            "source_revision": REVISION,
+                            "index_id": INDEX_ID,
+                            "scope_decision": "allowed",
+                        }
+                    ],
+                    "fallback": {
+                        "required": False,
+                        "strategy": "exact_search",
+                        "reason": None,
+                    },
+                },
+            }
+
+        def git(repository, args):
+            args = tuple(args)
+            if args[:2] == ("rev-parse", "--show-toplevel"):
+                return f"{repository}\n"
+            if args == ("rev-parse", "HEAD"):
+                return f"{REVISION}\n"
+            if args == ("status", "--porcelain"):
+                return ""
+            return None
+
+        runtime = sc.SemanticContextRuntime(
+            search=search,
+            detect=lambda: {"CAN_CODE_SEARCH": True, "COORDINATION_TRANSPORT": "http"},
+            git=git,
+            load_package=lambda root, change_id, package_id: {
+                "package_id": "wp-retrieval",
+                "scope": {"read_allow": ["skills/**"], "deny": []},
+            },
+            load_checkpoint=lambda root, change_id, package_id: None,
+            env={"SEMANTIC_CONTEXT_INJECTION": "1"},
+        )
+        result = sc.collect_semantic_context(
+            sc.SemanticContextRequest(
+                repository=Path("."),
+                query="q",
+                consumer="implement-feature",
+                change_id="inject-scoped-semantic-context-into-coding-jobs",
+                package_id="wp-retrieval",
+            ),
+            runtime,
+        )
+        assert result.status == "fallback"
+        assert (result.fallback.trigger, result.fallback.reason) == (
+            "out_of_scope",
+            "all_hits_scope_filtered",
+        )
+        assert result.hits == ()
+        assert result.fallback.strategy == "exact_search"
