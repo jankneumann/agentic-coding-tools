@@ -198,7 +198,7 @@ public API.
 
 ## Phase 3 — Operation × surface coverage model
 
-- [ ] 3.1 Write tests for operation-keyed coverage — exposure separate from coverage `[M]`
+- [x] 3.1 Write tests for operation-keyed coverage — exposure separate from coverage `[M]`
   **Spec scenarios**: Operation And Surface Coverage Model (one operation tested via one surface is not three gaps; a surface that does not expose an operation is not a gap)
   **Design decisions**: D4
   **Dependencies**: 2.2
