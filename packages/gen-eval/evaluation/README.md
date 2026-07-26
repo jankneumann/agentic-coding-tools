@@ -49,7 +49,7 @@ evaluation/
 | `cli-invalid-openspec-change-exits-64` | exit 64 | the `EX_USAGE` override lost; path traversal accepted |
 | `cli-valid-openspec-change-is-not-a-usage-error` | exit ≠ 64 | negative control — a parser rejecting everything |
 | `contract-version-probe-exits-zero` | exit 0 without `--descriptor` | the version probe stops short-circuiting the required flag |
-| `contract-version-value-is-pinned` | version is exactly `1` | an unannounced contract bump |
+| `contract-version-value-is-pinned` | version is exactly `2` | an unannounced contract bump |
 | `self-run-without-startup-block` | runs with no `startup:` and no `--no-services` | UP-4 regression making the block mandatory again |
 | `self-run-zero-scenarios-cannot-pass` | exit 1 at `--fail-threshold 0` | UP-3 vacuous-pass guard removed |
 
