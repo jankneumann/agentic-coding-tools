@@ -432,7 +432,7 @@ finding re-verified by direct execution, not by vendor assertion.
   **Design decisions**: D6
   **Dependencies**: 1.4
 
-- [ ] 5.2 Emit the deprecation warning when a descriptor declares no contract `[S]`
+- [x] 5.2 Emit the deprecation warning when a descriptor declares no contract `[S]`
   **Design decisions**: D6
   **Dependencies**: 5.1
 
