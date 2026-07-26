@@ -41,3 +41,48 @@
 ### Context
 Planned ri-09 (branch-local context checkpoints) at coordinated tier. Four parallel explore agents established that the isolation levers ri-09 needs already exist but are unconnected: the index namespace is hardcoded to main/main in semantic_adapter.py while the downstream CLI and promotion gate already support work_package namespaces, and the refresh path enforces no read scope while indexing_policy already enforces one. Selected Approach B at Gate 1: a composing module that reuses ri-06 types and the ri-05 producer registry but never writes the ri-06 operation store.
 
+---
+
+## Phase: Implementation (2026-07-26)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **The stale-delta invariant is encoded in the contract, not described** `architectural: project-context-refresh-orchestration` — Spec pcro.7 and D6 require a stale-artifact delta to be labelled non-authoritative, but the schema stated that only in a description -- {freshness: stale, delta_authoritative: true} validated. Encoded as an if/then following the precedent in context-refresh-types.schema.json, and verified failing against the pre-fix schema.
+2. **The trigger decision lives in checkpoint.py, not in workflow prose** `architectural: skill-workflow` — wp-workflow's scope is a SKILL.md plus a test file, and implement-feature has no scripts/ directory -- so its tests had nothing to import. should_checkpoint() gives the decision a real home and keeps the workflow tests asserting against code rather than markdown.
+3. **Architecture delta is computed against the working tree, not the committed graph** `architectural: architecture-refresh` — A checkpoint describes a branch mid-flight; diffing two committed graphs would blind it during exactly the uncommitted window it exists for. The freshness finding already carries the caveat, so reading the working-tree graph loses nothing.
+4. **D3's read-only guarantee was downgraded from structural to asserted** `architectural: project-context-refresh-orchestration` — registry.run_producer does not forbid a check-mode adapter from writing; the invariant holds because the four landed adapters respect it. The wording was corrected so ri-10 asserts read-only-ness rather than inheriting an overclaim.
+
+### Alternatives Considered
+- Widening checkout_policy to understand git-common-dir writes: rejected because It would change behaviour for every mutating skill in the repo. The checkpoint asserts its own D1 invariant with a regression test instead; widening the shared policy deserves its own proposal.
+- Narrowing the contract so an unmigrated report is unrepresentable: rejected because It would couple the report format to one caller's trigger policy. D2 owns the trigger; the contract stays total so ri-10 can record 'we looked, and this package was unmigrated'.
+
+### Trade-offs
+- Accepted Mutation-checking wp-workflow's tests over A genuine RED-before-GREEN cycle because checkpoint.py had already landed with wp-checkpoint, so a natural RED was impossible. The tests were instead verified non-vacuous by collapsing unmigrated into declared and confirming 3/3 failed.
+- Accepted Two nested package worktrees left on disk over Force-deleting them to reclaim the space because Removal needs --force because they carry pre-existing install.sh byproducts. Their commits are merged, so this is disk hygiene rather than risk, and destructive deletion is the operator's call.
+
+### Open Questions
+- [ ] mypy over skills/ is not a CI gate and cannot simply be switched on: skills/tests/agent-coordinator/ is a hyphenated directory with an __init__.py, and the flat-import layout needs MYPYPATH per skill. Tracked as separate work alongside a ruff gate.
+- [ ] pytest over skills/tests/ fails collection with 18 errors on an unmodified tree, from module-name collisions across skill script dirs (models, registry, checkpoint). Pre-existing.
+- [ ] No GC or retention exists for per-package index namespaces; left to ri-10/ri-11.
+- [ ] openspec/expose-fail-closed-semantic-code-search (ri-03) is unmerged and rewrites packages/code-search/**; the semantic_adapter.py changes will need reconciling when it lands.
+
+### Completed Work
+- wp-contracts: context-checkpoint.schema.json published to openspec/schemas/ and the install asset, plus 52 contract tests including a genuine $ref-resolution proof with a negative control.
+- wp-adapter: IndexNamespace/ReadScope threaded through semantic_adapter.py; defaults reproduce ri-07's argv byte-for-byte; 22 new tests, existing suite untouched.
+- wp-checkpoint: checkpoint.py, the CLI subcommand, and 66 tests including an AST-level guard that the module never names the operation store.
+- wp-workflow: per-package trigger documented at three tier-specific hook points (+60/-0 in SKILL.md) with 11 tests.
+- Integration: contract promoted to openspec/contracts/project-context-refresh/schemas/, all four copies byte-identical; 403 tests green; ruff clean; openspec --strict valid.
+
+### Next Steps
+- validate-feature should confirm the D1 ledger-isolation guard holds on a machine where the refresh-operations ledger already exists -- it was empty here, so the test proved 'nothing created' rather than 'nothing added to an existing ledger'.
+- Reconcile with PR #276 (codebase-atlas), which ships an overlapping branch-local docs freshness gate.
+
+### Relevant Files
+- `skills/project-context-refresh/scripts/checkpoint.py` — the checkpoint module; D1 invariant lives here
+- `openspec/contracts/project-context-refresh/schemas/context-checkpoint.schema.json` — promoted durable contract
+- `openspec/changes/add-branch-local-context-checkpoints/change-context.md` — 12/12 requirements traced with evidence and seven findings
+
+### Context
+Implemented ri-09 at coordinated tier across four work packages in isolated worktrees (wp-contracts and wp-adapter in parallel, then wp-checkpoint, then wp-workflow). The change landed as mostly wiring, as planned: the index-namespace lever and the read-scope enforcement already existed downstream and only needed threading. Implementation surfaced seven findings, one of which was a real contract defect, all reconciled into design.md rather than left implicit.
+

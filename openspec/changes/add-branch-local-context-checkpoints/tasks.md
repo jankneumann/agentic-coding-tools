@@ -163,18 +163,18 @@ they verify (TDD RED → GREEN). Scenarios are referenced by name; capabilities 
 
 ## Phase 5 — Integration (wp-integration)
 
-- [ ] 5.1 Merge work-package branches into the feature branch.
+- [x] 5.1 Merge work-package branches into the feature branch.
       **Dependencies**: all prior phases
       **Size**: S
 
-- [ ] 5.2 Run the full infra skill suite and `openspec validate --strict`.
+- [x] 5.2 Run the full infra skill suite and `openspec validate --strict`.
       **Dependencies**: 5.1
       **Size**: S
 
-- [ ] 5.3 Promote `contracts/context-checkpoint.schema.json` to
+- [x] 5.3 Promote `contracts/context-checkpoint.schema.json` to
       `openspec/contracts/project-context-refresh/schemas/` per the repository's
       promote-before-archive rule.
       **Dependencies**: 5.2
       **Size**: XS
 
-- [ ] 5.4 Checkpoint: run tests, review diff, verify scope.
+- [x] 5.4 Checkpoint: run tests, review diff, verify scope.
