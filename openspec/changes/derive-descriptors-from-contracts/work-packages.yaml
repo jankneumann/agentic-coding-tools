@@ -346,7 +346,16 @@ packages:
         # touches the report model, so no earlier --check covers these edits.
         - name: "Published contract artifacts regenerate clean after the report-model change"
           kind: command
-          command: "python3 scripts/generate_contract_schemas.py --check"
+          # `uv run`, NOT bare python3. gen-eval is src-layout, so an unqualified
+          # interpreter resolves gen_eval from whatever is installed — verified:
+          # agent-coordinator/.venv/lib/python3.12/site-packages/gen_eval/.
+          # The generator imports gen_eval.reports.GenEvalReport, the exact model
+          # THIS package modifies, so a bare-python3 run would regenerate from
+          # the unmodified installed copy, diff clean, and report success while
+          # this package's changes stayed invisible. The gate that exists to
+          # catch "model changed, schema not regenerated" would pass regardless
+          # of whether the model changed.
+          command: "uv run python scripts/generate_contract_schemas.py --check"
           cwd: "packages/gen-eval"
           evidence:
             artifacts: []
