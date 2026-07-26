@@ -292,7 +292,7 @@ public API.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
-- [ ] 4.7 Wire the argparse subset verifier into CI against gen-eval's own parser `[S]`
+- [x] 4.7 Wire the argparse subset verifier into CI against gen-eval's own parser `[S]`
   **Spec scenarios**: Implemented Surface Subset Verification (undocumented CLI flag is reported)
   **Design decisions**: D1, D3
   **Dependencies**: 4.2, 1.7

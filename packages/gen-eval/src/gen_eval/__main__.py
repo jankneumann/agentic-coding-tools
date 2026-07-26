@@ -107,7 +107,16 @@ class _PrintContractVersionAction(argparse.Action):
         parser.exit(0)
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def build_parser() -> argparse.ArgumentParser:
+    """The CLI's argument parser, as an inspectable object.
+
+    Split out of :func:`parse_args` so the argparse subset verifier has the
+    *real* surface to check (D1, task 4.7). While the parser existed only as a
+    local, any gate had to rebuild one from the contract — a mirror of its own
+    reference, which stays green however far ``parse_args`` drifts.
+
+    Returns a fresh parser per call: callers verify by mutating it.
+    """
     parser = argparse.ArgumentParser(
         prog="gen-eval",
         description="Generator-Evaluator testing framework",
@@ -236,7 +245,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "Effective only with --mode cli-augmented."
         ),
     )
-    return parser.parse_args(argv)
+    return parser
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse argv with the parser :func:`build_parser` defines.
+
+    Delegating rather than declaring is what keeps the verifier's subject and
+    the CLI's actual surface the same object.
+    """
+    return build_parser().parse_args(argv)
 
 
 async def run(args: argparse.Namespace) -> int:
