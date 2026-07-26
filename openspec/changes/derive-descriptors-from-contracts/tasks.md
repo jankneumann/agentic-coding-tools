@@ -143,7 +143,7 @@ public API.
   The schema goes to `schemas/`; the contract *instance* from task 1.7 goes to
   `cli/`.
 
-- [ ] 1.10 Author an OpenAPI service-contract fixture for Phase 2 `[S]`
+- [x] 1.10 Author an OpenAPI service-contract fixture for Phase 2 `[S]`
   **Spec scenarios**: Contract As Descriptor Source Of Truth (descriptor derives from a contract)
   **Design decisions**: D1, D7
   **Dependencies**: None

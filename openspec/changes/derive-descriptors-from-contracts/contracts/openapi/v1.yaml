@@ -1,0 +1,155 @@
+# Service-contract fixture for Phase 2 (task 1.10, design D1/D4/D7).
+#
+# Modelled on agent-coordinator's lock API, which is where D4 and D7 got their
+# evidence. It is a fixture, not the coordinator's real contract — issue #288
+# tracks that the coordinator declares 38 endpoints while src/ carries 82 route
+# decorators, and authoring its true contract needs its own change.
+#
+# Three properties this fixture exists to exercise. Phase 2 and Phase 4 both
+# depend on all three being present:
+#
+#   1. many-to-one  — list_active_locks and get_lock_status BOTH bind to the
+#                     single MCP element `check_locks`. This is the
+#                     non-injective case D7 says only an explicit binding can
+#                     express. The real coordinator tool branches on
+#                     `file_paths` being None to serve both.
+#   2. exposed:false — release_lock is not on the CLI, and reap_expired_locks
+#                      is on neither MCP nor CLI. Without first-class
+#                      exposed:false, every derived descriptor carries these as
+#                      permanent false coverage gaps.
+#   3. total surface — acquire_lock is on all three surfaces, so a test cannot
+#                      pass by treating every operation as partially exposed.
+
+openapi: 3.1.0
+
+info:
+  title: Lock coordination API (fixture)
+  version: "1.0.0"
+  description: >-
+    Fixture service contract for gen-eval descriptor derivation tests. Not a
+    deployed API.
+
+paths:
+  /locks/acquire:
+    post:
+      operationId: acquire_lock
+      summary: Acquire a lock on one or more file paths.
+      x-gen-eval-surface:
+        http: { exposed: true, element: "POST /locks/acquire" }
+        mcp: { exposed: true, element: acquire_lock }
+        cli: { exposed: true, element: "lock acquire" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_paths, agent_id]
+              properties:
+                file_paths:
+                  type: array
+                  items: { type: string }
+                  minItems: 1
+                agent_id: { type: string }
+                ttl_minutes: { type: integer, default: 120 }
+      responses:
+        "200":
+          description: Lock acquired.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lock_id]
+                properties:
+                  lock_id: { type: string }
+        "409":
+          description: Already held by another agent.
+
+  /locks/active:
+    get:
+      operationId: list_active_locks
+      summary: List every currently held lock.
+      # Many-to-one, first of the pair: the MCP surface collapses this and
+      # get_lock_status into one tool, while the CLI keeps them separate.
+      x-gen-eval-surface:
+        http: { exposed: true, element: "GET /locks/active" }
+        mcp: { exposed: true, element: check_locks }
+        cli: { exposed: true, element: "lock list" }
+      responses:
+        "200":
+          description: Active locks.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    lock_id: { type: string }
+                    file_path: { type: string }
+                    agent_id: { type: string }
+
+  /locks/status/{path}:
+    get:
+      operationId: get_lock_status
+      summary: Report lock status for a single path.
+      # Many-to-one, second of the pair. Same mcp.element as list_active_locks
+      # above — a projection that emits `check_locks` twice, or that reports
+      # one of these operations as uncovered when the tool was exercised, is
+      # wrong.
+      x-gen-eval-surface:
+        http: { exposed: true, element: "GET /locks/status/{path}" }
+        mcp: { exposed: true, element: check_locks }
+        cli: { exposed: true, element: "lock status" }
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Lock status for the path.
+        "404":
+          description: No lock held on that path.
+
+  /locks/{lock_id}:
+    delete:
+      operationId: release_lock
+      summary: Release a held lock.
+      # exposed:false on exactly one surface. The operation is real and
+      # testable; the CLI simply does not offer it, so counting it as an
+      # uncovered CLI interface would be a permanent false gap.
+      x-gen-eval-surface:
+        http: { exposed: true, element: "DELETE /locks/{lock_id}" }
+        mcp: { exposed: true, element: release_lock }
+        cli: { exposed: false, reason: "release is implicit in the CLI's session teardown" }
+      parameters:
+        - name: lock_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Released.
+
+  /locks/reap:
+    post:
+      operationId: reap_expired_locks
+      summary: Reap locks whose TTL has elapsed.
+      # exposed:false on BOTH non-HTTP surfaces — an internal maintenance
+      # operation. Distinguishes "unexposed" from "unexercised": this must
+      # never appear in unevaluated_interfaces for MCP or CLI, however the
+      # suite is run.
+      x-gen-eval-surface:
+        http: { exposed: true, element: "POST /locks/reap" }
+        mcp: { exposed: false, reason: "internal maintenance, not agent-facing" }
+        cli: { exposed: false, reason: "internal maintenance, not agent-facing" }
+      responses:
+        "200":
+          description: Count of locks reaped.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reaped: { type: integer }
