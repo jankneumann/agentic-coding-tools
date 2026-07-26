@@ -81,7 +81,7 @@ class TestMergeWatcherTick:
 
         with patch("merge_watcher.monitor_ci_for_rollback") as mock_rollback:
             mock_rollback.return_value = {"action": "stable"}
-            result = merge_watcher_tick()
+            _result = merge_watcher_tick()
 
         mock_rebase.assert_called_once()
 

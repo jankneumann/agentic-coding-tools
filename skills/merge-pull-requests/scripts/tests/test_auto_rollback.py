@@ -184,7 +184,7 @@ class TestMonitorCIForRollback:
         }
 
         with patch("auto_rollback.emit_event") as mock_emit:
-            result = monitor_ci_for_rollback(
+            _result = monitor_ci_for_rollback(
                 merge_sha="abc123",
                 pr_number=42,
                 pr_title="feat: add API",
