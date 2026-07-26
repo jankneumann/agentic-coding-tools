@@ -172,7 +172,7 @@ Capability short names used in scenario references: `pcro` =
 
 ## Phase 4 — wp-ci: wiring and the retirement
 
-- [ ] 4.1 Write the orphaned-capability-file detection test
+- [x] 4.1 Write the orphaned-capability-file detection test
       **Spec scenarios**: `pcro` — The gate is the single freshness authority / Orphaned capability file is detected
       **Contracts**: none
       **Design decisions**: D9
@@ -182,7 +182,7 @@ Capability short names used in scenario references: `pcro` =
       is unchanged, so `git diff` misses it. Removing the old job without proving the
       replacement covers this would be a silent regression.
 
-- [ ] 4.2 Add the blocking CI job and remove `validate-decision-index`
+- [x] 4.2 Add the blocking CI job and remove `validate-decision-index`
       **Spec scenarios**: `pcro` — The gate is the single freshness authority / Only one decision freshness check exists
       **Contracts**: none
       **Design decisions**: D9, D11
@@ -193,7 +193,7 @@ Capability short names used in scenario references: `pcro` =
       drift; `gate-drift-with-mirrors-hooks-and-blocking-ci` is a different, unrelated
       change that also edits this file.
 
-- [ ] 4.3 Declare the `project-context-refresh → validate-packages` cross-skill dependency
+- [x] 4.3 Declare the `project-context-refresh → validate-packages` cross-skill dependency
       in `skills/install-manifest.json`
       **Spec scenarios**: none
       **Contracts**: none
@@ -204,7 +204,7 @@ Capability short names used in scenario references: `pcro` =
       **required** `test-infra-skills` job. This bit ri-09 and is not reachable by running
       pytest on the suites this change touches.
 
-- [ ] 4.4 Document the branch-protection promotion as an explicit manual follow-up
+- [x] 4.4 Document the branch-protection promotion as an explicit manual follow-up
       **Spec scenarios**: none
       **Contracts**: none
       **Design decisions**: D11
@@ -214,7 +214,7 @@ Capability short names used in scenario references: `pcro` =
       call and state that until it is applied the gate is "blocking job, not a required
       context", which is how `docs/decisions/` drifted in the first place.
 
-- [ ] 4.5 Checkpoint: run tests, review diff, verify scope
+- [x] 4.5 Checkpoint: run tests, review diff, verify scope
 
 ---
 
