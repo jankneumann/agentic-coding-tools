@@ -15,6 +15,19 @@ durable operation and emit the manifest:
     python scripts/cli.py refresh --producer api.contracts   # one producer
     python scripts/cli.py refresh-check                 # read-only drift
 
+``refresh`` carries two opt-in flags for the main-convergence sync point (ri-11),
+both defaulting to off so that every existing invocation behaves exactly as before:
+
+* ``--sync-point`` authorizes the mutation from the shared checkout by reaching
+  the checkout policy's ``approved_sync_point`` branch. It is a *caller* decision
+  and is never inferred from the environment — an environment sniff would re-open
+  shared-checkout writes for every skill that happens to run on ``main``. The
+  caller remains responsible for its own clean-tree and active-agent guards.
+* ``--defer-semantic-index`` skips the inline index attempt and records the index
+  as ``pending`` with an ``exact-search`` fallback, for a caller that enqueues the
+  index itself against a later revision. Pending is a weaker claim than attempted,
+  so a deferred run degrades (exit 2) rather than reporting success.
+
 The branch-local checkpoint (ri-09) is a *third* mode, deliberately outside the
 operation ledger: read-only, scoped to one work package, and advisory.
 
@@ -106,25 +119,46 @@ def _run(mode: str, producer_ids, repository: Path, revision: str) -> int:
     return max((_exit_code(r.status) for r in results), default=0)
 
 
-def _require_mutation(repository: Path) -> None:
-    """Refuse a shared or bare checkout before the mutating refresh (D7).
+def _enforce_checkout_policy(repository: Path, *, sync_point: bool) -> None:
+    """Classify the checkout and refuse the mutation when it is not allowed.
 
     Best-effort: if the shared checkout-policy module is unavailable the guard is
     skipped rather than blocking the run.
+
+    The refusal chains the ``CheckoutPolicyError``, so a caller that needs the
+    machine-readable ``PolicyReason`` reads it off ``__cause__.policy`` instead of
+    parsing the message.
     """
     try:
-        from checkout_policy import (  # type: ignore[import-not-found]
-            CheckoutPolicyError,
-            require_mutation_allowed,
-        )
+        import checkout_policy  # type: ignore[import-not-found]
     except Exception:  # noqa: BLE001 - guard is best-effort when the module is absent
         return
     try:
-        require_mutation_allowed(cwd=repository)
-    except CheckoutPolicyError as exc:
+        checkout_policy.require_mutation_allowed(cwd=repository, sync_point=sync_point)
+    except checkout_policy.CheckoutPolicyError as exc:
         raise ProducerError(
             f"refusing to write outside a managed worktree: {exc}"
         ) from exc
+
+
+def _require_mutation(repository: Path) -> None:
+    """Refuse a shared or bare checkout before a mutating command (D7)."""
+    _enforce_checkout_policy(repository, sync_point=False)
+
+
+def _require_sync_point_mutation(repository: Path) -> None:
+    """Authorize an explicit sync-point mutation on the shared checkout (ri-11 D5).
+
+    A separate entry point rather than a defaulted parameter on
+    :func:`_require_mutation`: sync-point authorization is a decision the caller
+    must name, and threading it as an ordinary argument makes it reachable — and
+    eventually reached by accident — from every other mutating call site.
+
+    The policy's own message says the caller must still enforce clean-tree and
+    active-agent guards. This function is layer 2 of that contract only; the
+    convergence driver owns layers 1 and 3.
+    """
+    _enforce_checkout_policy(repository, sync_point=True)
 
 
 def _owner_by_producer_id() -> dict[str, str]:
@@ -159,14 +193,23 @@ def _refresh_summary(result: orchestrator.RefreshResult) -> dict:
 
 
 def _refresh(
-    repository: Path, revision: str, producer_ids: list[str] | None, *, check: bool
+    repository: Path,
+    revision: str,
+    producer_ids: list[str] | None,
+    *,
+    check: bool,
+    sync_point: bool = False,
+    defer_semantic_index: bool = False,
 ) -> int:
     if check:
         result = orchestrator.check(
             repository, revision=revision, producer_ids=producer_ids
         )
     else:
-        _require_mutation(repository)
+        if sync_point:
+            _require_sync_point_mutation(repository)
+        else:
+            _require_mutation(repository)
         # Without this the production path always took the ``None`` default, so
         # the semantic index was reported ``not-configured`` even when the
         # service was available — pinning every refresh to ``degraded``. The
@@ -177,6 +220,7 @@ def _refresh(
             revision=revision,
             producer_ids=producer_ids,
             semantic_indexer=default_semantic_indexer(),
+            defer_semantic_index=defer_semantic_index,
         )
     sys.stdout.write(json.dumps(_refresh_summary(result), indent=2) + "\n")
     return result.exit_code()
@@ -293,6 +337,30 @@ def main(argv: list[str] | None = None) -> int:
             metavar="ID",
             help="Limit the run to this producer id (repeatable).",
         )
+        if command != "refresh":
+            # ``refresh-check`` writes nothing, so it has no mutation to
+            # authorize and no index attempt to defer.
+            continue
+        p.add_argument(
+            "--sync-point",
+            action="store_true",
+            help=(
+                "Authorize this run as an explicit sync-point mutation, allowing "
+                "it to write in the shared checkout. Off by default and never "
+                "inferred from the environment; the caller must still enforce "
+                "its own clean-tree and active-agent guards."
+            ),
+        )
+        p.add_argument(
+            "--defer-semantic-index",
+            action="store_true",
+            help=(
+                "Skip the inline semantic-index attempt and record it as pending "
+                "with an exact-search fallback, for a caller that enqueues the "
+                "index itself against a later revision. Off by default. A pending "
+                "index degrades the run (exit 2); it never reports success."
+            ),
+        )
 
     gp = sub.add_parser(
         "gate",
@@ -381,6 +449,10 @@ def main(argv: list[str] | None = None) -> int:
             revision,
             args.producers,
             check=args.command == "refresh-check",
+            # ``refresh-check`` never defines these; ``False`` is both the
+            # argparse default and the pre-change behaviour.
+            sync_point=getattr(args, "sync_point", False),
+            defer_semantic_index=getattr(args, "defer_semantic_index", False),
         )
     if args.command in ("generate", "check"):
         return _run(args.command, [args.producer_id], repository, revision)

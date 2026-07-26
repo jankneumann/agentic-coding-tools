@@ -32,21 +32,21 @@ Each task is sized to one commit. Group numbers map to work packages in
 `skills/tests/project-context-refresh/`
 **Dependencies**: none
 
-- [ ] 2.1 Write a failing test proving `refresh` is refused from a shared checkout
+- [x] 2.1 Write a failing test proving `refresh` is refused from a shared checkout
       today and permitted with sync-point authorization (design D5). Assert against
       `checkout_policy.classify_checkout` reasons, not message strings.
-- [ ] 2.2 Add `--sync-point` to the `refresh` subparser and thread `sync_point=True`
+- [x] 2.2 Add `--sync-point` to the `refresh` subparser and thread `sync_point=True`
       through `_require_mutation` into `require_mutation_allowed`. Default stays
       `False`; no environment inference (D5).
-- [ ] 2.3 Write a failing test that a deferred-index refresh records a `pending`
+- [x] 2.3 Write a failing test that a deferred-index refresh records a `pending`
       `SemanticIndexReference` with an `exact-search` fallback and produces
       byte-identical deterministic results to a non-deferred run (D7).
-- [ ] 2.4 Add a `defer_semantic_index` keyword to `orchestrator.generate` that skips
+- [x] 2.4 Add a `defer_semantic_index` keyword to `orchestrator.generate` that skips
       the inline attempt and records the pending reference. Do not change
       `decide_outcome`; a pending index degrades through the existing rule.
-- [ ] 2.5 Add `--defer-semantic-index` to the CLI and surface both new flags in the
+- [x] 2.5 Add `--defer-semantic-index` to the CLI and surface both new flags in the
       skill's docstring and `SKILL.md`.
-- [ ] 2.6 Verify by mutation that 2.1 and 2.3 fail against the pre-change modules.
+- [x] 2.6 Verify by mutation that 2.1 and 2.3 fail against the pre-change modules.
       Clear `__pycache__` between mutation cycles.
 
 ## 3. Convergence driver (wp-convergence)
