@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,9 @@ from referencing import Registry, Resource
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMOTED = REPO_ROOT / "openspec/contracts/code-search/schemas"
+CHANGE_ID = "inject-scoped-semantic-context-into-coding-jobs"
+CONTRACTS_README = REPO_ROOT / "openspec/changes" / CHANGE_ID / "contracts/README.md"
+COORDINATOR_SOURCE = REPO_ROOT / "agent-coordinator/src/code_search.py"
 
 HIT_SCHEMA_NAME = "semantic-context-hit.schema.json"
 SECTION_SCHEMA_NAME = "semantic-context-section.schema.json"
@@ -386,3 +390,117 @@ def test_non_uuid_provenance_index_id_is_rejected() -> None:
     document = valid_injected_section()
     document["provenance"]["index_id"] = "not-a-uuid"
     assert not section_validator.is_valid(document)
+
+
+# --------------------------------------------------------------------------
+# The rendered vocabulary diverges from ri-03's deliberately (D7)
+# --------------------------------------------------------------------------
+
+NUMBER_WORDS = {
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+}
+
+# ri-03 `CodeSearchHit` field -> the name ri-12 renders it under. The roadmap's
+# acceptance wording says "score" and "indexed commit"; the shipped coordinator
+# contract says "similarity" and "source_revision". Both names are correct in
+# their own layer, so the divergence is pinned here rather than resolved by
+# quietly renaming one side.
+RENDER_MAPPING = {
+    "similarity": "score",
+    "source_revision": "indexed_commit",
+}
+
+
+def readme_text() -> str:
+    return CONTRACTS_README.read_text(encoding="utf-8")
+
+
+def omission_reason_enum() -> list[str]:
+    return SECTION_SCHEMA["properties"]["omissions"]["items"]["properties"]["reason"][
+        "enum"
+    ]
+
+
+def fallback_trigger_enum() -> list[str]:
+    return SECTION_SCHEMA["properties"]["fallback"]["properties"]["trigger"]["enum"]
+
+
+@pytest.mark.parametrize(("coordinator_name", "rendered_name"), RENDER_MAPPING.items())
+def test_coordinator_still_uses_the_name_the_mapping_translates_from(
+    coordinator_name: str, rendered_name: str
+) -> None:
+    """If ri-03 renames a field the mapping is stale, and this fails loudly.
+
+    The mapping is only meaningful while both vocabularies exist. Asserting
+    against the real coordinator model, rather than against a copy of it, is what
+    makes that detectable.
+    """
+    source = COORDINATOR_SOURCE.read_text(encoding="utf-8")
+    hit_model = source.split("class CodeSearchHit", 1)[-1].split("\nclass ", 1)[0]
+    assert re.search(rf"^\s+{coordinator_name}: ", hit_model, re.MULTILINE), (
+        f"agent-coordinator CodeSearchHit no longer declares {coordinator_name!r}; "
+        f"the {coordinator_name} -> {rendered_name} render mapping is stale."
+    )
+
+
+@pytest.mark.parametrize(("coordinator_name", "rendered_name"), RENDER_MAPPING.items())
+def test_hit_schema_uses_the_rendered_name_only(
+    coordinator_name: str, rendered_name: str
+) -> None:
+    """The divergence is deliberate: never both names, never the wire name."""
+    properties = HIT_SCHEMA["properties"]
+    assert rendered_name in properties
+    assert coordinator_name not in properties, (
+        f"{coordinator_name!r} leaked into the ri-12 hit schema. The rendered "
+        f"surface uses {rendered_name!r}; unifying the two vocabularies silently "
+        "is exactly what the mapping table exists to prevent."
+    )
+
+
+@pytest.mark.parametrize(("coordinator_name", "rendered_name"), RENDER_MAPPING.items())
+def test_readme_pins_the_render_mapping(
+    coordinator_name: str, rendered_name: str
+) -> None:
+    """The mapping is documented where a reader of the contract will find it."""
+    assert re.search(
+        rf"\|\s*`{coordinator_name}`\s*\|\s*`{rendered_name}`\s*\|", readme_text()
+    ), (
+        f"the contracts README has no mapping row for "
+        f"`{coordinator_name}` -> `{rendered_name}`."
+    )
+
+
+@pytest.mark.parametrize(
+    ("label", "values"),
+    [
+        ("omissions[].reason", omission_reason_enum()),
+        ("fallback.trigger", fallback_trigger_enum()),
+    ],
+)
+def test_readme_enum_count_matches_the_schema(label: str, values: list[str]) -> None:
+    """A prose count that drifts from the enum misleads every later reader."""
+    match = re.search(
+        rf"`{re.escape(label)}`[^\n]*?exactly (\w+) values", readme_text()
+    )
+    assert match, f"the README states no value count for `{label}`."
+    claimed = NUMBER_WORDS.get(match.group(1))
+    assert claimed == len(values), (
+        f"the README says `{label}` has {match.group(1)} values; the schema "
+        f"defines {len(values)}: {values}."
+    )
+
+
+@pytest.mark.parametrize(
+    "value", sorted(set(omission_reason_enum()) | set(fallback_trigger_enum()))
+)
+def test_readme_documents_every_enum_value(value: str) -> None:
+    """Adding a code to the schema without documenting it fails here."""
+    assert f"`{value}`" in readme_text(), (
+        f"{value!r} is in the schema but never named in the contracts README."
+    )
