@@ -348,7 +348,7 @@ finding re-verified by direct execution, not by vendor assertion.
   **Note**: must be RED. An operation exposed on three surfaces and exercised on
   one must report 100%, not 33%.
 
-- [ ] 4.11 Compute `coverage_pct` over operations, not elements `[S]`
+- [x] 4.11 Compute `coverage_pct` over operations, not elements `[S]`
   **Design decisions**: D4
   **Dependencies**: 4.10
   **Note (round-7 high)**: `orchestrator.py` divides by `len(all_interfaces)`.
