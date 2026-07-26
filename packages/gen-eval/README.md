@@ -79,27 +79,41 @@ python -m gen_eval --descriptor <path> [...]  # module form
 | `--report-format` | `both` | `markdown`, `json`, or `both`. |
 | `--output-dir` | `.` | Directory for report files. |
 | `--no-services` | off | Skip service startup/teardown. |
+| `--min-coverage` | 0 | Minimum interface coverage to exit 0, as a **percent** (0–100). Unlike `--fail-threshold`, which is a rate — values between 0 and 1 are rejected as a usage error rather than read as a sub-1% floor. |
 | `--print-contract-version` | — | Print the JSON Schema contract version and exit 0. |
 
 Exit codes:
 
 | Code | Meaning |
 |------|---------|
-| `0` | Pass rate met `--fail-threshold`. |
-| `1` | Pass rate below threshold, **or no scenarios were evaluated**. |
+| `0` | Pass rate met `--fail-threshold` and coverage met `--min-coverage`. |
+| `1` | Either gate failed, **or no scenarios were evaluated**, **or the descriptor declared no interfaces**. |
 | `2` | Argparse usage error (e.g. missing `--descriptor`). |
 | `64` | `--openspec-change` failed validation (`EX_USAGE`). |
 
-A run that evaluated zero scenarios always exits `1`, regardless of
-`--fail-threshold`. Vacuous success is the failure mode a coverage gate exists
-to catch, so it is guarded explicitly rather than left to threshold arithmetic.
+Two vacuous-success guards are explicit rather than left to threshold
+arithmetic, because no threshold can express either one:
+
+- **Zero scenarios evaluated** always exits `1`, regardless of
+  `--fail-threshold`.
+- **A descriptor declaring zero interfaces** always exits `1`. `coverage_pct`
+  is covered ÷ declared, so an empty surface reports `0.0` and satisfies every
+  floor at or below zero — the same exit as a suite that exercised everything.
+  Both numerator and denominator are empty, so lowering or raising a floor
+  cannot separate the two states.
+
+The pass-rate and coverage gates are otherwise independent, and a failure
+message names every gate that tripped. An operator told `FAIL (100.0% <
+95.0%)` when the real problem is coverage goes looking in the wrong place.
 
 ### Python
 
 ```python
 # Top-level re-exports (via gen_eval.__init__)
 from gen_eval import run_evaluation                    # async pipeline runner
-from gen_eval.descriptor import InterfaceDescriptor   # descriptor loader
+from gen_eval.descriptor import load_descriptor       # archetype-aware loader
+from gen_eval import InterfaceDescriptor              # the legacy flat document
+from gen_eval import ServiceDescriptor, ToolDescriptor  # the two archetypes
 from gen_eval.models import Scenario, Step            # data models
 from gen_eval.evaluator import Evaluator              # verdict producer
 from gen_eval.orchestrator import GenEvalOrchestrator # full pipeline
@@ -127,6 +141,80 @@ The MCP service reads scenario data from the directory set by:
 1. `base_dir` constructor argument.
 2. `GEN_EVAL_DATA_DIR` environment variable.
 3. Fallback: `Path(__file__).parent` (for package-internal fixtures).
+
+---
+
+## Contract-derived descriptors
+
+A descriptor names the interfaces gen-eval measures coverage against. Where
+that list comes from decides what coverage can mean.
+
+**Hand-authored** — the original form, still supported. The declared surface is
+whatever someone typed. That makes drift between it and the implementation
+undetectable by construction: a flag added without a descriptor entry is not
+uncovered, it is invisible, and coverage stays at 100% of a surface that no
+longer describes the program. Loading one now emits a `DeprecationWarning`
+naming the generator to use. It is deprecated, not removed, and removal will
+get its own notice.
+
+**Contract-derived** — the descriptor is generated from a machine-readable
+contract and says so:
+
+```yaml
+contract: ../../openspec/contracts/my-tool/cli/my-tool.yaml
+```
+
+The contract is the source; introspection only *verifies* against it. That
+direction matters: if introspection populated the declared surface, an
+uninstalled or broken tool would derive an empty one and then report full
+coverage of nothing.
+
+### Two archetypes
+
+|  | Ground truth | Coverage unit | Lifecycle |
+|---|---|---|---|
+| `ServiceDescriptor` | OpenAPI contract | operation × surface | starts services |
+| `ToolDescriptor` | CLI contract (`cli-contract.schema.json`) | flag, positional, named subcommand | starts nothing |
+
+The unit is the point of the split. Counting *commands* reports a surface of
+one for a flat CLI that declares nothing testable — which is how gen-eval's own
+dogfood ran at `0 interfaces` and passed its coverage assertion for free. The
+flag is what a flat CLI can be named by.
+
+For a service, coverage is keyed on the **operation**, with per-surface
+`exposed` and `covered` recorded separately. One operation published on HTTP,
+MCP and CLI and exercised once is covered — not one-third covered — and a
+surface that does not expose an operation is not a gap.
+
+```bash
+python scripts/generate_tool_descriptor.py            # write the artifact
+python scripts/generate_tool_descriptor.py --check    # CI drift gate
+```
+
+`--check` fails on three things: the artifact drifting from the contract, the
+derivation producing an *empty* declared surface, and the unit count
+disagreeing with the contract's. The first is the obvious one; the other two
+exist because an empty artifact would otherwise compare equal to an empty
+derivation forever.
+
+Load a descriptor with `load_descriptor()`, which dispatches on the document's
+own shape. Loading a derived descriptor through the base `InterfaceDescriptor`
+silently discards exactly the fields that make it derived, so it arrives
+declaring nothing.
+
+### Coverage floors
+
+The 80% interface-coverage floor applies to **service** descriptors. For a
+**tool** descriptor the gate is completeness, not a percentage: every
+contracted coverage unit is either exercised by a scenario or listed in an
+exclusions file with a written reason.
+
+A percentage answers the wrong question here. "84% covered" does not say
+whether the missing 16% is `--verbose` or `--fail-threshold`. It is also
+frequently unreachable — gen-eval's own suite would need 14 of its 17 flags
+exercised, and a gate that can never pass gets disabled as fast as one that can
+never fail. See `evaluation/coverage-exclusions.yaml` for the shape, and
+`scripts/check_coverage_completeness.py` for the gate.
 
 ---
 
@@ -323,12 +411,15 @@ packages/gen-eval/
   Makefile                 # dogfood / test / lint / contracts
   README.md                # you are here
   evaluation/              # gen-eval's dogfood suite for gen-eval
-  scripts/                 # contract schema generator
+  scripts/                 # schema + descriptor generators, coverage gate
   src/gen_eval/
     __init__.py            # public re-exports
     __main__.py            # gen-eval console script + python -m gen_eval
     contracts/             # published JSON Schema contract + VERSION
-    descriptor.py          # InterfaceDescriptor loader
+    descriptor.py          # InterfaceDescriptor / ToolDescriptor + load_descriptor
+    service_descriptor.py  # ServiceDescriptor — the OpenAPI-derived archetype
+    openapi.py             # the OpenAPI reader both the extractor and verifier share
+    verify/                # per-surface subset verifiers (excess detection)
     models.py              # Scenario, Step data models
     evaluator.py           # verdict producer
     orchestrator.py        # end-to-end pipeline
