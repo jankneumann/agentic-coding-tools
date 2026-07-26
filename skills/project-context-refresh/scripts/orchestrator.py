@@ -57,7 +57,7 @@ from models import (
     OperationState,
     SemanticIndexReference,
 )
-from registry import Mode, list_producers, run_producer
+from registry import OPENSPEC_PROJECTION, Mode, list_producers, run_producer
 from semantic_adapter import SemanticIndexer, resolve_semantic_index
 from store import OperationStore
 
@@ -308,6 +308,102 @@ def decide_outcome(
     return OperationState.SUCCEEDED, None
 
 
+#: Producer ids whose drift is *informational* rather than blocking (design D3).
+#:
+#: ``openspec.projection`` never writes canonical specs — the archive sync point
+#: owns that merge — so its drift means "an active change carries an unmerged
+#: spec delta", which is the correct state for in-flight work, not stale
+#: committed output. Its own remediation is "Archive the active change(s) through
+#: cleanup-feature". A repository always has active changes, so treating this as
+#: blocking would fail every pull request forever.
+#:
+#: The cost is recorded rather than solved: a genuinely stale committed spec for a
+#: capability with *no* active change pending is invisible to this classification.
+#: Detecting it needs correlation between projected capabilities and active
+#: changes, which is reasoning ``cleanup-feature`` already owns at archive time.
+INFORMATIONAL_PRODUCERS: frozenset[str] = frozenset({OPENSPEC_PROJECTION})
+
+
+@dataclass(frozen=True, slots=True)
+class DegradationBreakdown:
+    """Four disjoint views of one refresh outcome, plus the semantic reference.
+
+    :func:`decide_outcome` maps deterministic drift, an absent optional owner, and
+    a non-succeeded semantic index onto the single ``OperationState.DEGRADED``, so
+    a caller holding that state cannot tell external degradation from real drift.
+    This is the discriminator, kept **beside** the terminal decision rather than
+    inside it: ``OperationState`` is pinned by ``context-refresh-operation.schema.json``
+    (``state``) and ``context-refresh-manifest.schema.json`` (``refresh_status``),
+    and ri-07 D9 makes recorded operations immutable, so widening the enum would
+    be a breaking change to records that already exist.
+
+    Every non-fresh result appears in exactly one group; ``fresh`` results appear
+    in none. ``semantic_index`` is carried, not classified: it is external service
+    state rather than a producer result, and per D6 a gate reports it as
+    ``not-attempted`` instead of making any currency claim about it.
+    """
+
+    blocking_drift: tuple[ProducerResult, ...] = ()
+    informational_drift: tuple[ProducerResult, ...] = ()
+    not_configured: tuple[ProducerResult, ...] = ()
+    failed: tuple[ProducerResult, ...] = ()
+    semantic_index: SemanticIndexReference | None = None
+
+
+def classify_degradation(
+    producer_results: tuple[ProducerResult, ...],
+    semantic_index: SemanticIndexReference | None,
+    *,
+    informational_producer_ids: frozenset[str] = INFORMATIONAL_PRODUCERS,
+) -> DegradationBreakdown:
+    """Partition *producer_results* into four disjoint groups (design D2).
+
+    IO-free and total, exactly like :func:`decide_outcome`, and derived entirely
+    from fields that already exist on :class:`ProducerResult`:
+
+    * ``failed`` — the producer could not render or compare at all;
+    * ``not_configured`` — an *optional* owner is absent. ``run_producer`` already
+      rewrites a **required** producer's ``not-configured`` to ``failed``, so a
+      surviving one here can only be external degradation;
+    * ``informational_drift`` — drift from a producer in
+      *informational_producer_ids*, which reports pending state rather than stale
+      committed output (D3);
+    * ``blocking_drift`` — every other drifted producer.
+
+    Status is decided first and membership in *informational_producer_ids* only
+    afterwards, so an informational producer that *fails* is a failure. The
+    exemption covers a producer's drift, never its apparatus.
+
+    Input order is preserved within each group, and this function never mutates
+    its arguments: callers hand the same results to :func:`decide_outcome`, whose
+    behaviour must be unchanged.
+    """
+    blocking: list[ProducerResult] = []
+    informational: list[ProducerResult] = []
+    absent: list[ProducerResult] = []
+    failed: list[ProducerResult] = []
+
+    for result in producer_results:
+        if result.status is ProducerStatus.FAILED:
+            failed.append(result)
+        elif result.status is ProducerStatus.NOT_CONFIGURED:
+            absent.append(result)
+        elif result.status is ProducerStatus.DEGRADED:
+            if result.producer_id in informational_producer_ids:
+                informational.append(result)
+            else:
+                blocking.append(result)
+        # ProducerStatus.FRESH contributes to no group.
+
+    return DegradationBreakdown(
+        blocking_drift=tuple(blocking),
+        informational_drift=tuple(informational),
+        not_configured=tuple(absent),
+        failed=tuple(failed),
+        semantic_index=semantic_index,
+    )
+
+
 def _manifest_present(repo_root: Path, relative_path: str | None, sha256: str | None) -> bool:
     """True when the pointed-to manifest exists **in this worktree** and matches.
 
@@ -533,10 +629,13 @@ def check(
 __all__ = [
     "DEFAULT_MANIFEST_PATH",
     "ARCHITECTURE_PRODUCER_ID",
+    "INFORMATIONAL_PRODUCERS",
     "ArchitectureProducer",
+    "DegradationBreakdown",
     "RefreshResult",
     "RevisionMismatchError",
     "resolve_repository_identity",
+    "classify_degradation",
     "decide_outcome",
     "generate",
     "check",
