@@ -143,6 +143,40 @@ and `ToolDescriptor` do not disappear, they come back meaning something else.
 
 ---
 
+## DS-5 — `ServiceDescriptor` and `ToolDescriptor` are RECLAIMED, not removed ⚠️
+
+**This is the sharpest edge across both changes, and a deprecation warning does
+not cover it.** Both names keep importing successfully. They mean something
+different.
+
+| Name | Meaning before | After the rename | After this change |
+|---|---|---|---|
+| `ServiceDescriptor` | one testable service (a container of endpoints/tools/commands) | deprecation alias → `ServiceSpec` | **the service document archetype** |
+| `ToolDescriptor` | one MCP tool | deprecation alias → `McpToolSpec` | **the tool document archetype** |
+
+A name that is *removed* fails loudly at import. A name that is *deprecated*
+warns. A name that is **reclaimed** does neither — your import succeeds, your
+type checks pass if you did not annotate, and the object simply is not what it
+was. That is why this gets its own notice and a second version increment
+(`CONTRACT_VERSION` 2 → 3) rather than riding along with the rename.
+
+**What to do:**
+
+1. **If you only load descriptors (YAML in, report out)** — nothing. No
+   behavioural change from either the rename or the reclamation.
+2. **If you import either name** — decide which you meant. Wanted the element or
+   container type? Use `ServiceSpec` / `McpToolSpec`. Wanted a whole descriptor
+   document? The reclaimed names are now correct, but confirm, because the code
+   that compiled before this change meant the other thing.
+3. **If you pin `CONTRACT_VERSION`** — expect two increments, not one: 1 → 2 at
+   the rename, 2 → 3 here.
+
+The reclamation is deliberate: `*Descriptor` is reserved for document-level
+types, and these two archetypes are documents. But we would rather you learn it
+from this table than from a type error three weeks out.
+
+---
+
 ## DS-4 — Two things we recorded but did not fix
 
 Both are in `packages/gen-eval/evaluation/README.md`. Flagging them because
