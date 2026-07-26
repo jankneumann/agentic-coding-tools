@@ -1,0 +1,145 @@
+# gen-eval's own CLI contract (design D8).
+#
+# Ground truth for deriving gen-eval's tool descriptor. This is the flat
+# flag-only archetype: one command with an empty name, whose flags are the
+# coverage units. There are no subcommands to name, which is exactly why the
+# interface model needed flag-level identifiers — see the "flag-only CLIs have
+# no nameable interfaces" limitation recorded in evaluation/README.md.
+#
+# Validates against ../schemas/cli-contract.schema.json.
+#
+# `--help` is deliberately NOT declared. argparse supplies it rather than the
+# application, and D11's coverage arithmetic counts the 16 application-declared
+# long flags. The argparse subset verifier (task 4.7) must treat it as a
+# declared exclusion, not an undocumented flag.
+
+contract_version: "1"
+
+tool:
+  name: gen-eval
+  executable: gen-eval
+  description: >-
+    Generator-evaluator framework for agentic-system testing. Runs
+    scenario-driven behavioural tests against live services and emits
+    structured verdicts.
+
+commands:
+  - name: ""
+    description: >-
+      gen-eval has no subcommands. The single invocation form is
+      `gen-eval --descriptor <path> [options]`, equivalently
+      `python -m gen_eval --descriptor <path> [...]`.
+
+    flags:
+      - name: --print-contract-version
+        type: boolean
+        short_circuits: true
+        description: >-
+          Print the published JSON Schema contract version (one line) and exit
+          0. Short-circuits before --descriptor is enforced, so a consumer can
+          probe an arbitrary gen-eval on PATH without owning a descriptor.
+
+      - name: --descriptor
+        type: path
+        required: true
+        description: Path to the interface descriptor YAML.
+
+      - name: --mode
+        type: enum
+        choices:
+          - template-only
+          - cli-augmented
+          - sdk-only
+        default: template-only
+        description: Generator mode.
+
+      - name: --cli-command
+        type: string
+        default: claude
+        description: CLI tool for cli-augmented mode.
+
+      - name: --time-budget
+        type: number
+        default: 60.0
+        description: Time budget in minutes for CLI mode.
+
+      - name: --sdk-budget
+        type: number
+        description: USD budget cap for SDK mode.
+
+      - name: --max-iterations
+        type: integer
+        default: 1
+        description: Feedback loop iterations.
+
+      - name: --parallel
+        type: integer
+        default: 5
+        description: Concurrent scenario execution.
+
+      - name: --changed-features-ref
+        type: string
+        description: Git ref for change detection; filters scenarios to changed features.
+
+      - name: --categories
+        type: string
+        repeatable: true
+        description: >-
+          Filter to specific scenario categories. Declared repeatable because
+          argparse binds it with nargs="*" — an array parameter reached by
+          repeating the flag rather than by a delimited value.
+
+      - name: --report-format
+        type: enum
+        choices:
+          - markdown
+          - json
+          - both
+        default: both
+        description: Report output format.
+
+      - name: --output-dir
+        type: path
+        default: "."
+        description: Report output directory.
+
+      - name: --verbose
+        type: boolean
+        default: false
+        description: Enable verbose output.
+
+      - name: --no-services
+        type: boolean
+        default: false
+        description: >-
+          Skip service startup and teardown, assuming services are already
+          running. The health check still runs, so an unreachable service is
+          still caught.
+
+      - name: --fail-threshold
+        type: number
+        default: 0.95
+        description: >-
+          Minimum pass rate to exit 0. A run that evaluated zero scenarios
+          always exits 1 regardless of this value.
+
+      - name: --openspec-change
+        type: string
+        description: >-
+          OpenSpec change-id whose Requirement+Scenario blocks augment the
+          cli-augmented prompt as constraints. Must match ^[a-zA-Z0-9_-]+$;
+          effective only with --mode cli-augmented.
+
+exit_codes:
+  - code: 0
+    meaning: Pass rate met --fail-threshold.
+  - code: 1
+    meaning: >-
+      Pass rate below --fail-threshold, or no scenarios were evaluated.
+      Vacuous success is guarded explicitly rather than left to threshold
+      arithmetic.
+  - code: 2
+    meaning: Argparse usage error, e.g. missing --descriptor.
+  - code: 64
+    meaning: --openspec-change failed validation.
+    sysexits_name: EX_USAGE
