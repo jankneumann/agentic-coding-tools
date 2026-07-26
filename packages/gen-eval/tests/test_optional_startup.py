@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from gen_eval.config import GenEvalConfig
-from gen_eval.descriptor import InterfaceDescriptor, ServiceDescriptor, StartupConfig
+from gen_eval.descriptor import InterfaceDescriptor, ServiceSpec, StartupConfig
 from gen_eval.evaluator import Evaluator
 from gen_eval.orchestrator import GenEvalOrchestrator
 
@@ -41,7 +41,7 @@ class TestDescriptorAcceptsNoStartup:
         descriptor = InterfaceDescriptor(
             project="cli-only",
             version="1.0",
-            services=[ServiceDescriptor(name="my-cli", type="cli", command="my-tool")],
+            services=[ServiceSpec(name="my-cli", type="cli", command="my-tool")],
         )
         assert descriptor.startup is None
 
@@ -93,7 +93,7 @@ def cli_only(tmp_path: Path) -> GenEvalOrchestrator:
     descriptor = InterfaceDescriptor(
         project="cli-only",
         version="1.0",
-        services=[ServiceDescriptor(name="my-cli", type="cli", command="my-tool")],
+        services=[ServiceSpec(name="my-cli", type="cli", command="my-tool")],
     )
     return _orchestrator(descriptor, tmp_path)
 
@@ -137,7 +137,7 @@ class TestLifecycleSkippedWithoutStartup:
         descriptor = InterfaceDescriptor(
             project="with-startup",
             version="1.0",
-            services=[ServiceDescriptor(name="my-cli", type="cli", command="my-tool")],
+            services=[ServiceSpec(name="my-cli", type="cli", command="my-tool")],
             startup=StartupConfig(
                 command="true",
                 health_check="http://127.0.0.1:9/health",

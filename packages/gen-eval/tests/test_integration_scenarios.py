@@ -20,9 +20,9 @@ from gen_eval.clients.http_client import HttpClient
 from gen_eval.config import GenEvalConfig
 from gen_eval.descriptor import (
     AuthConfig,
-    EndpointDescriptor,
+    EndpointSpec,
     InterfaceDescriptor,
-    ServiceDescriptor,
+    ServiceSpec,
     StartupConfig,
     StateVerifier,
 )
@@ -60,7 +60,7 @@ def _build_descriptor(
         project="agent-coordinator",
         version="test",
         services=[
-            ServiceDescriptor(
+            ServiceSpec(
                 name="coordination-api",
                 type="http",
                 base_url=base_url,
@@ -70,32 +70,32 @@ def _build_descriptor(
                     env_var="COORDINATION_API_KEY",
                 ),
                 endpoints=[
-                    EndpointDescriptor(
+                    EndpointSpec(
                         path="/locks/acquire",
                         method="POST",
                         auth_required=True,
                     ),
-                    EndpointDescriptor(
+                    EndpointSpec(
                         path="/locks/release",
                         method="POST",
                         auth_required=True,
                     ),
-                    EndpointDescriptor(
+                    EndpointSpec(
                         path="/health",
                         method="GET",
                         auth_required=False,
                     ),
-                    EndpointDescriptor(
+                    EndpointSpec(
                         path="/work/submit",
                         method="POST",
                         auth_required=True,
                     ),
-                    EndpointDescriptor(
+                    EndpointSpec(
                         path="/work/claim",
                         method="POST",
                         auth_required=True,
                     ),
-                    EndpointDescriptor(
+                    EndpointSpec(
                         path="/work/complete",
                         method="POST",
                         auth_required=True,
