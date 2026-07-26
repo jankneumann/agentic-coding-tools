@@ -495,7 +495,7 @@ finding re-verified by direct execution, not by vendor assertion.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
-- [ ] 5.5 Wire both drift guards into the `gen-eval-tests` CI job `[S]`
+- [x] 5.5 Wire both drift guards into the `gen-eval-tests` CI job `[S]`
   **Design decisions**: D2, D3
   **Dependencies**: 1.6, 2.5
 

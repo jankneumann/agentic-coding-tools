@@ -410,6 +410,26 @@ jobs:
         # with the regeneration command in the log.
         run: uv run python scripts/generate_contract_schemas.py --check
 
+      - name: Tool descriptor matches its CLI contract
+        # D2/D3. evaluation/descriptor.yaml is derived from
+        # openspec/contracts/gen-eval-framework/cli/gen-eval.yaml; this fails
+        # if someone edited the artifact instead of the contract, if the
+        # derivation produced an empty declared surface, or if the unit count
+        # drifted from what the contract declares.
+        #
+        # Bare invocation on purpose: --check asserts byte identity against
+        # what it would generate from its own argv, so passing flags here that
+        # the write step does not (or vice versa) reports drift on a
+        # perfectly up-to-date file.
+        #
+        # No sibling step for generate_service_descriptor.py: it takes
+        # --contract and --out as required arguments and this repo checks in
+        # no derived service descriptor, because the coordinator OpenAPI
+        # contract it would derive from does not exist yet (out of scope by
+        # design). Its behaviour is covered by the unit suite above; there is
+        # simply no artifact here for it to guard.
+        run: uv run python scripts/generate_tool_descriptor.py --check
+
       - name: Run gen-eval unit tests
         run: uv run pytest -v -m "not e2e and not integration" --tb=short
         env:
