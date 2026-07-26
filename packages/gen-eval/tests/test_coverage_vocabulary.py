@@ -30,9 +30,11 @@ from pathlib import Path
 import pytest
 import yaml
 
+from gen_eval.__main__ import DEFAULT_MIN_COVERAGE, exit_decision, parse_args
 from gen_eval.descriptor import ToolDescriptor
 from gen_eval.evaluator import Evaluator
 from gen_eval.models import ActionStep, Scenario
+from gen_eval.reports import GenEvalReport
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = PACKAGE_ROOT.parent.parent
@@ -240,3 +242,125 @@ class TestOtherTransportsAlreadyShareTheVocabulary:
         """
         steps = [ActionStep(id="s1", transport="http", method="GET", endpoint="/undocumented")]
         assert extracted(steps, {"POST /locks/acquire"}) == ["GET /undocumented"]
+
+
+# ---------------------------------------------------------------------------
+# The coverage threshold (task 3.7)
+# ---------------------------------------------------------------------------
+
+
+def report_with(pass_rate: float, coverage_pct: float, total: int = 4) -> GenEvalReport:
+    """A report carrying only the two numbers the exit gate reads."""
+    return GenEvalReport(
+        total_scenarios=total,
+        passed=total,
+        failed=0,
+        errors=0,
+        skipped=0,
+        pass_rate=pass_rate,
+        coverage_pct=coverage_pct,
+        duration_seconds=1.0,
+        budget_exhausted=False,
+        verdicts=[],
+        per_interface={},
+        per_category={},
+        unevaluated_interfaces=[],
+        cost_summary={},
+        iterations_completed=1,
+    )
+
+
+class TestMinCoverageGate:
+    """D10 — a coverage floor that fails a run on its own.
+
+    Today ``__main__`` exits on ``report.pass_rate`` alone, and ``make
+    dogfood`` passes ``--fail-threshold 1.0``, which is a pass rate. The spec's
+    coverage floor therefore has no enforcement mechanism at all: a suite that
+    exercises one flag out of sixteen and passes exits 0.
+
+    The two gates are independent by construction. A pass rate says the
+    scenarios that ran got the right answers; coverage says how much of the
+    declared surface ran at all. A suite can be perfect at one and empty at the
+    other, which is precisely the vacuous-success shape the dogfood exists to
+    catch.
+    """
+
+    def test_coverage_below_the_threshold_fails_a_fully_passing_run(self) -> None:
+        """The headline claim. Pass rate 100%, coverage 30%, exit 1."""
+        code, _ = exit_decision(report_with(1.0, 30.0), fail_threshold=0.95, min_coverage=80.0)
+        assert code == 1
+
+    def test_the_failure_names_coverage_rather_than_the_pass_rate(self) -> None:
+        """An operator reading `FAIL (100.0% < 95.0%)` would chase the wrong gate."""
+        _, message = exit_decision(report_with(1.0, 30.0), fail_threshold=0.95, min_coverage=80.0)
+        assert "coverage" in message.lower()
+
+    def test_coverage_exactly_at_the_threshold_passes(self) -> None:
+        code, _ = exit_decision(report_with(1.0, 80.0), fail_threshold=0.95, min_coverage=80.0)
+        assert code == 0
+
+    def test_coverage_above_the_threshold_passes(self) -> None:
+        code, _ = exit_decision(report_with(1.0, 95.0), fail_threshold=0.95, min_coverage=80.0)
+        assert code == 0
+
+    def test_the_pass_rate_gate_still_fails_on_its_own(self) -> None:
+        """Negative control in the other direction: coverage complete, answers wrong."""
+        code, message = exit_decision(
+            report_with(0.5, 100.0), fail_threshold=0.95, min_coverage=80.0
+        )
+        assert code == 1
+        assert "pass rate" in message.lower()
+
+    def test_both_gates_failing_reports_both(self) -> None:
+        """Fixing the one named is not enough; the operator needs both."""
+        _, message = exit_decision(report_with(0.5, 30.0), fail_threshold=0.95, min_coverage=80.0)
+        assert "coverage" in message.lower()
+        assert "pass rate" in message.lower()
+
+    def test_a_zero_scenario_run_still_fails_regardless(self) -> None:
+        """UP-3's guard survives. Vacuous success is not reachable through it."""
+        code, message = exit_decision(
+            report_with(0.0, 100.0, total=0), fail_threshold=0.0, min_coverage=0.0
+        )
+        assert code == 1
+        assert "no scenarios" in message.lower()
+
+    def test_the_default_threshold_gates_nothing(self) -> None:
+        """Rule 4 — a run that passes today must keep passing.
+
+        gen-eval's own dogfood reports 0% coverage on the branch before task
+        5.3 lands. A default floor above zero would fail every consumer's
+        existing pipeline the moment they upgraded.
+        """
+        code, _ = exit_decision(
+            report_with(1.0, 0.0), fail_threshold=0.95, min_coverage=DEFAULT_MIN_COVERAGE
+        )
+        assert code == 0
+
+    def test_the_default_is_zero(self) -> None:
+        assert DEFAULT_MIN_COVERAGE == 0.0
+
+
+class TestMinCoverageFlag:
+    def test_the_flag_is_accepted_and_parsed_as_a_percentage(self) -> None:
+        args = parse_args(["--descriptor", "d.yaml", "--min-coverage", "80"])
+        assert args.min_coverage == 80.0
+
+    def test_the_flag_defaults_to_the_no_op_threshold(self) -> None:
+        args = parse_args(["--descriptor", "d.yaml"])
+        assert args.min_coverage == DEFAULT_MIN_COVERAGE
+
+    @pytest.mark.parametrize("value", ["101", "-1"])
+    def test_a_value_outside_the_percentage_range_is_a_usage_error(self, value: str) -> None:
+        """The flag is a percentage, not a rate. Out-of-range is caught loudly.
+
+        It cannot catch the other confusion — ``--min-coverage 0.8`` meaning
+        80% is a legal 0.8% floor — so the help text names the unit and the
+        run prints both numbers.
+        """
+        with pytest.raises(SystemExit):
+            parse_args(["--descriptor", "d.yaml", "--min-coverage", value])
+
+    def test_the_flag_is_declared_in_the_cli_contract(self, declared: set[str]) -> None:
+        """A flag argparse accepts and the contract omits is undocumented surface."""
+        assert "cli:--min-coverage" in declared
