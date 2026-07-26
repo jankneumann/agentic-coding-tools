@@ -26,11 +26,26 @@ dogfood: ## Run gen-eval against its own CLI surface
 	@# No --no-services flag: evaluation/descriptor.yaml has no startup
 	@# block (UP-4), so passing one would mask a regression that made the
 	@# block mandatory again.
+	@# --min-coverage 1: a floor the contracted surface can actually reach,
+	@# not the spec's 80% service figure. Dogfood exercises 10 of 17 flags
+	@# (58.8%), so an 80% floor would make this target permanently red even
+	@# with D11 completeness fully satisfied — a gate that can never pass is
+	@# the mirror of one that can never fail. `1` catches the state that
+	@# matters here: declared and tested vocabularies failing to connect at
+	@# all, which reads as 0%.
 	uv run gen-eval \
 		--descriptor evaluation/descriptor.yaml \
 		--output-dir $(GEN_EVAL_REPORTS) \
 		--fail-threshold 1.0 \
+		--min-coverage 1 \
 		--verbose
+	@# The acceptance gate (D11). Completeness, not a percentage: every
+	@# contracted coverage unit is exercised by a scenario or carries a
+	@# written reason in evaluation/coverage-exclusions.yaml. The percentage
+	@# above is informative; this is what fails the build.
+	uv run python scripts/check_coverage_completeness.py \
+		--report $(GEN_EVAL_REPORTS)/gen-eval-report.json \
+		--exclusions evaluation/coverage-exclusions.yaml
 
 test: ## Run the unit suite (excludes slow build/install tests)
 	uv run pytest -q -m "not slow"

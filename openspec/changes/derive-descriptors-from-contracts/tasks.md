@@ -467,7 +467,7 @@ finding re-verified by direct execution, not by vendor assertion.
   NOT `declared_interfaces_non_empty`, which goes green on a 0% run, and NOT
   `coverage_pct >= 80`, which is unreachable for this surface.
 
-- [ ] 5.4c Author dogfood scenarios and exclusions covering the contracted flag surface `[M]`
+- [x] 5.4c Author dogfood scenarios and exclusions covering the contracted flag surface `[M]`
   **Spec scenarios**: Dogfood (gen-eval evaluates its own CLI surface)
   **Design decisions**: D11
   **Dependencies**: 5.4b
@@ -481,7 +481,7 @@ finding re-verified by direct execution, not by vendor assertion.
   written exclusion reason. Do not close the gap by lowering a threshold —
   D11 has no threshold to lower.
 
-- [ ] 5.4d Wire `--min-coverage` and the completeness check into `make dogfood` `[S]`
+- [x] 5.4d Wire `--min-coverage` and the completeness check into `make dogfood` `[S]`
   **Design decisions**: D10, D11
   **Dependencies**: 5.4b, 5.4c, 4.19
   **Note (round-7, 2 vendors)**: do NOT set `--min-coverage 80` here to match the

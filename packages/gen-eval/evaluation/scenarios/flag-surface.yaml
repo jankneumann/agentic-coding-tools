@@ -1,0 +1,164 @@
+# Contracted flags whose behaviour a dogfood scenario can actually assert.
+#
+# D11 asks that every contracted coverage unit be exercised or excluded with a
+# reason. Exercising here means asserting an observable consequence, not merely
+# passing the flag and watching the process survive — a flag that is only
+# parsed contributes a number to the coverage percentage and no evidence, which
+# is the laundering D11 exists to stop.
+#
+# Flags whose behaviour needs a live generator CLI, an SDK budget, a git
+# working tree or a multi-minute run are excluded instead, with their reasons
+# recorded in evaluation/coverage-exclusions.yaml.
+#
+# Paths are relative to packages/gen-eval, which is the dogfood runner's
+# working directory.
+
+- id: cli-verbose-announces-the-declared-surface
+  name: --verbose reports the descriptor's interface count
+  description: >
+    The verbose path prints "descriptor loaded — N services, M interfaces",
+    which is the only place a run states the size of the declared surface it
+    is about to measure. It is also the line that read "0 interfaces" for
+    every gen-eval dogfood run before the descriptor was derived from a
+    contract, so a regression to an empty surface is visible here.
+
+    Asserted on the inner fixture rather than gen-eval's own descriptor: the
+    fixture's count is stable, whereas the real one moves whenever a flag is
+    contracted.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--verbose"]
+  tags: [flags, d11, verbose]
+  steps:
+    - id: verbose-run
+      transport: cli
+      args:
+        - "--verbose"
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/flag-verbose"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        # Exit 1 is the zero-scenario guard, as in self-run.yaml.
+        exit_code: 1
+        error_contains: "descriptor loaded"
+      timeout_seconds: 60
+
+- id: cli-min-coverage-rejects-a-rate
+  name: --min-coverage rejects a value that is a rate, not a percent
+  description: >
+    --fail-threshold is a rate in [0, 1] and --min-coverage is a percent in
+    [0, 100], so 0.8 reads differently in each. Read as a percent it is a 0.8%
+    floor that every non-empty run clears, so the gate passes silently and a
+    green build looks like an enforced coverage floor.
+
+    This asserts the flag's validation rather than its threshold arithmetic,
+    because the failure being pinned is a usage error: the run must refuse the
+    value rather than accept a meaning the operator did not intend.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--min-coverage"]
+  tags: [flags, d11, d10, usage-errors]
+  steps:
+    - id: rate-shaped-min-coverage
+      transport: cli
+      args:
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--min-coverage"
+        - "0.8"
+      expect:
+        # argparse's own usage exit; the EX_USAGE=64 override is scoped to
+        # --openspec-change (see cli-entrypoint.yaml).
+        exit_code: 2
+        error_contains: "not a rate"
+      timeout_seconds: 60
+
+- id: cli-report-format-json-writes-only-json
+  name: --report-format json suppresses the markdown report
+  description: >
+    The default is `both`, so a scenario that does not pass this flag cannot
+    tell the formats apart. Asserting the *absence* of the markdown report is
+    what makes this an exercise of the flag rather than of the report writer:
+    under the default the same run emits both files.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--report-format"]
+  tags: [flags, d11, reports]
+  steps:
+    - id: json-only-run
+      transport: cli
+      args:
+        - "--verbose"
+        - "--report-format"
+        - "json"
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/flag-report-format"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        exit_code: 1
+        error_contains: "gen-eval-report.json"
+      timeout_seconds: 60
+
+- id: cli-mode-template-only-is-accepted
+  name: --mode template-only runs without a generator CLI
+  description: >
+    The three modes differ in what they require to be present. `template-only`
+    is the only one that needs no generator CLI and no SDK credentials, which
+    is why it is the mode the dogfood suite can assert and the other two are
+    excluded. Passing it explicitly pins that the enum still accepts the value
+    the whole suite depends on.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--mode"]
+  tags: [flags, d11, modes]
+  steps:
+    - id: template-only-run
+      transport: cli
+      args:
+        - "--verbose"
+        - "--mode"
+        - "template-only"
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/flag-mode"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        exit_code: 1
+        error_contains: "mode=template-only"
+      timeout_seconds: 60
+
+- id: cli-no-services-skips-startup
+  name: --no-services runs a descriptor without starting its services
+  description: >
+    The flag's whole job is to skip the startup path. The fixture declares no
+    startup block at all, so this asserts the flag is still accepted and still
+    reaches the run — the negative control for a regression that made
+    --no-services incompatible with UP-4's optional startup.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--no-services"]
+  tags: [flags, d11, lifecycle]
+  steps:
+    - id: no-services-run
+      transport: cli
+      args:
+        - "--verbose"
+        - "--no-services"
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/flag-no-services"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        exit_code: 1
+        error_contains: "no scenarios were evaluated"
+      timeout_seconds: 60
