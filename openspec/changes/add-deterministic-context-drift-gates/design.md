@@ -116,10 +116,27 @@ distinction is the whole point: absent tooling degrades, unverifiable evidence b
 
 | Condition | Exit |
 |---|---|
-| any `failed` producer, or unverifiable architecture provenance | `1` |
-| any `blocking_drift`, no failures | `2` |
+| any `failed` producer, or a drifted producer whose finding names no artifact | `1` |
+| any `blocking_drift`, no failures — **including unverifiable architecture provenance** | `2` |
 | only `informational_drift` and/or `not_configured` | `0` |
 | all fresh | `0` |
+
+**Corrected during implementation.** This table originally routed unverifiable
+architecture provenance to `1`, which contradicted both D4 (missing or malformed
+provenance maps to `R.drift`) and the spec scenario *"Missing provenance blocks"*, which
+requires the drift exit code. The spec is normative and the behaviour it describes is the
+right one: a missing baseline is fixed by regenerating and committing provenance, which is
+drift remediation, not an apparatus repair. Exit `1` is reserved for a producer that
+reached **no verdict at all**.
+
+The report keeps `architecture.freshness: "unverifiable"` distinct from `"stale"`, so "no
+baseline exists" and "digests disagree" remain separable even though both exit `2`.
+
+**A drifted finding that names no artifact is an apparatus failure.** The requirement
+"name every stale artifact by repository-relative path" cannot be satisfied by a finding
+that names nothing. Such a result falls back to the producer's registry-declared managed
+outputs; with neither available it is reported under `failed` and exits `1`, rather than
+being reported as drift with an empty list.
 
 This reconciles an existing inconsistency rather than inheriting it: per-producer
 `_exit_code` (`cli.py:78-83`) maps `NOT_CONFIGURED → 1` while `decide_outcome` folds the
