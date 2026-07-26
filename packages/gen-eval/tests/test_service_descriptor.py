@@ -23,6 +23,7 @@ outbound call sabotaged must be *identical*, not merely non-empty.
 from __future__ import annotations
 
 import subprocess
+import sys
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -167,7 +168,7 @@ class TestSurfaceExposure:
         assert release.surfaces["cli"].reason
 
     def test_an_unexposed_surface_contributes_no_declared_interface(self) -> None:
-        """"Not exposed" is not "not covered" — it must not become a gap."""
+        """ "Not exposed" is not "not covered" — it must not become a gap."""
         descriptor = ServiceDescriptor.from_contract(CONTRACT_PATH)
         surface = descriptor.all_interfaces()
         assert "cli:lock release" not in surface
@@ -233,9 +234,7 @@ class TestUnreachableImplementationDoesNotShrinkTheSurface:
 
     def test_a_base_url_that_answers_nothing_changes_nothing(self, tmp_path: Path) -> None:
         """The descriptor may know where the service lives; it must not ask."""
-        with_url = ServiceDescriptor.from_contract(
-            CONTRACT_PATH, base_url="http://127.0.0.1:9/"
-        )
+        with_url = ServiceDescriptor.from_contract(CONTRACT_PATH, base_url="http://127.0.0.1:9/")
         without = ServiceDescriptor.from_contract(CONTRACT_PATH)
         assert with_url.all_interfaces() == without.all_interfaces()
 
@@ -267,9 +266,89 @@ class TestArchetype:
         http = next(s for s in descriptor.services if s.type == "http")
         assert http.base_url == "http://127.0.0.1:8000"
 
-    def test_a_contract_with_one_surface_declares_only_that_surface(
-        self, tmp_path: Path
-    ) -> None:
+    def test_a_contract_with_one_surface_declares_only_that_surface(self, tmp_path: Path) -> None:
         """Negative control for the test above: surfaces come from the contract."""
         descriptor = ServiceDescriptor.from_contract(write_contract(tmp_path, MINIMAL_CONTRACT))
         assert {s.type for s in descriptor.services} == {"http", "mcp"}
+
+
+# ---------------------------------------------------------------------------
+# D2/D3 — the service drift guard (task 2.5)
+# ---------------------------------------------------------------------------
+
+GENERATOR = PACKAGE_ROOT / "scripts" / "generate_service_descriptor.py"
+
+
+def run_generator(*args: str | Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(GENERATOR), *(str(a) for a in args)],
+        cwd=str(PACKAGE_ROOT),
+        capture_output=True,
+        text=True,
+    )
+
+
+@pytest.fixture
+def generated(tmp_path: Path) -> tuple[Path, Path]:
+    contract = write_contract(tmp_path, load_contract())
+    out = tmp_path / "descriptor.yaml"
+    result = run_generator("--contract", contract, "--out", out)
+    assert result.returncode == 0, result.stderr
+    return contract, out
+
+
+class TestServiceDriftGuard:
+    def test_generates_a_loadable_descriptor(self, generated: tuple[Path, Path]) -> None:
+        _, out = generated
+        assert ServiceDescriptor.from_yaml(out).coverage_unit_count() == 5
+
+    def test_generation_is_deterministic(self, generated: tuple[Path, Path]) -> None:
+        contract, out = generated
+        first = out.read_text()
+        assert run_generator("--contract", contract, "--out", out).returncode == 0
+        assert out.read_text() == first
+
+    def test_check_passes_on_a_fresh_artifact(self, generated: tuple[Path, Path]) -> None:
+        """Negative control: the guard is satisfiable."""
+        contract, out = generated
+        assert run_generator("--contract", contract, "--out", out, "--check").returncode == 0
+
+    def test_drift_fails_and_names_the_artifact(self, generated: tuple[Path, Path]) -> None:
+        contract, out = generated
+        document = yaml.safe_load(out.read_text())
+        document["operations"][0]["summary"] = "edited by hand"
+        out.write_text(yaml.safe_dump(document, sort_keys=False))
+
+        result = run_generator("--contract", contract, "--out", out, "--check")
+        assert result.returncode != 0
+        assert out.name in result.stderr
+
+    def test_operation_count_mismatch_fails_and_reports_both_counts(
+        self, generated: tuple[Path, Path]
+    ) -> None:
+        contract, out = generated
+        document = yaml.safe_load(out.read_text())
+        document["operations"] = document["operations"][:3]
+        out.write_text(yaml.safe_dump(document, sort_keys=False))
+
+        result = run_generator("--contract", contract, "--out", out, "--check")
+        assert result.returncode != 0
+        assert "3" in result.stderr and "5" in result.stderr
+
+    def test_an_empty_contract_fails_rather_than_generating_an_empty_surface(
+        self, tmp_path: Path
+    ) -> None:
+        contract = write_contract(tmp_path, {"openapi": "3.1.0", "info": {}, "paths": {}})
+        out = tmp_path / "descriptor.yaml"
+        result = run_generator("--contract", contract, "--out", out)
+        assert result.returncode != 0
+        assert "zero operations" in result.stderr
+        assert not out.exists()
+
+    def test_the_coverage_unit_is_the_operation_not_the_interface(
+        self, generated: tuple[Path, Path]
+    ) -> None:
+        """Counting interfaces here would report 11 for a 5-operation contract."""
+        contract, out = generated
+        stdout = run_generator("--contract", contract, "--out", out, "--check").stdout
+        assert "5 operations" in stdout
