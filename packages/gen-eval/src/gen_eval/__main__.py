@@ -41,9 +41,17 @@ def _percentage(value: str) -> float:
     """argparse type= adapter for a 0-100 percentage.
 
     Rejecting out-of-range values catches ``--min-coverage 800`` from someone
-    thinking in basis points. It cannot catch the opposite confusion —
-    ``--min-coverage 0.8`` meaning 80% is a legal 0.8% floor — so the exit
-    message prints both numbers and the help text names the unit.
+    thinking in basis points. That mistake fails *closed*, which is why the
+    band just above zero needs its own check: ``--fail-threshold`` is a rate in
+    ``[0, 1]``, so ``--min-coverage 0.8`` from someone reading the two flags
+    alike is a legal 0.8% floor that any real suite clears. The run exits 0 and
+    the operator reads a green build as an enforced coverage gate — the exact
+    outcome the flag exists to prevent.
+
+    Nothing legitimate lives in ``(0, 1)``. Coverage is denominated in
+    operations, so the smallest non-zero reading is ``100/N`` and a sub-1%
+    floor cannot separate any two outcomes. ``0`` (no floor) and ``1`` (any
+    coverage at all) both remain available.
     """
     try:
         number = float(value)
@@ -51,6 +59,13 @@ def _percentage(value: str) -> float:
         raise argparse.ArgumentTypeError(f"expected a number, got {value!r}") from exc
     if not 0.0 <= number <= 100.0:
         raise argparse.ArgumentTypeError(f"must be a percentage between 0 and 100, got {number}")
+    if 0.0 < number < 1.0:
+        raise argparse.ArgumentTypeError(
+            f"{number} is a percent, so it means {number}% — a floor every "
+            f"non-empty run clears, which would pass silently. If you meant "
+            f"{number * 100:g}%, pass {number * 100:g}. If you meant no floor "
+            f"at all, pass 0. Unlike --fail-threshold, this flag is not a rate."
+        )
     return number
 
 
