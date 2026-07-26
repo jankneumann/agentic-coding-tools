@@ -498,6 +498,19 @@ def exit_decision(
     if report.total_scenarios == 0:
         return 1, "FAIL (no scenarios were evaluated)"
 
+    # An empty declared surface is not full coverage. `coverage_pct` is
+    # covered/declared, so a descriptor declaring nothing reports 0.0 and
+    # satisfies every floor at or below zero — the same exit as a suite that
+    # exercised everything. No threshold can separate the two, because both
+    # numerator and denominator are empty, so the guard is on the surface
+    # itself. gen-eval's own descriptor was in exactly this state until its
+    # migration to a contract-derived artifact.
+    if report.declared_interface_count == 0:
+        return 1, (
+            "FAIL (the descriptor declares no interfaces — coverage of nothing "
+            "is not coverage)"
+        )
+
     failures: list[str] = []
     if report.pass_rate < fail_threshold:
         failures.append(f"pass rate {report.pass_rate:.1%} < {fail_threshold:.1%}")

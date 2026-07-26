@@ -462,6 +462,7 @@ class GenEvalOrchestrator:
             per_interface=per_interface,
             per_category=per_category,
             unevaluated_interfaces=unevaluated,
+            declared_interface_count=len(all_interfaces),
             cost_summary=cost_summary,
             iterations_completed=iterations_completed,
             per_operation=per_operation,

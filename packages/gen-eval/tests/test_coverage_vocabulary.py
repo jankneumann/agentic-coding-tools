@@ -250,8 +250,15 @@ class TestOtherTransportsAlreadyShareTheVocabulary:
 
 
 def report_with(pass_rate: float, coverage_pct: float, total: int = 4) -> GenEvalReport:
-    """A report carrying only the two numbers the exit gate reads."""
+    """A report carrying only the numbers the exit gate reads.
+
+    ``declared_interface_count`` is non-zero deliberately. Task 5.4 makes an
+    empty declared surface its own failure, and it fires *before* the two
+    gates below — so a fixture leaving it at 0 would exercise that guard
+    instead of the coverage threshold it is written to test.
+    """
     return GenEvalReport(
+        declared_interface_count=17,
         total_scenarios=total,
         passed=total,
         failed=0,
