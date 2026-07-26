@@ -172,6 +172,38 @@ class TestDescriptorAndScenarioConformance:
             Draft202012Validator(schema).validate({"name": "no id here"})
 
 
+class TestContractVersionBump:
+    """A rename of a published model type increments the contract version (D3).
+
+    Spec scenario:
+      - gen-eval-framework.renaming-a-published-type-bumps-the-contract-version
+
+    ``TestPublishedArtifacts`` already asserts every artifact carries
+    ``CONTRACT_VERSION``, but only *relatively* — it passes for any value as
+    long as all four agree. These pin the value, so silently regenerating at
+    version 1 after a breaking rename fails here rather than shipping.
+    """
+
+    def test_contract_version_is_two(self) -> None:
+        assert CONTRACT_VERSION == "2", (
+            "renaming published model types is a breaking schema change and "
+            "must bump CONTRACT_VERSION 1 -> 2"
+        )
+
+    @pytest.mark.parametrize("name", sorted(SCHEMA_FILENAMES))
+    def test_every_generated_schema_carries_the_bumped_version(self, name: str) -> None:
+        """D3 — the stamp lands in all three schemas, not just the descriptor.
+
+        The generator writes ``x-gen-eval-contract-version`` into every schema,
+        so regenerating only the file whose ``$defs`` changed leaves the other
+        two behind and ``TestNoDrift`` failing on them.
+        """
+        assert load_schema(name)["x-gen-eval-contract-version"] == "2"
+
+    def test_version_file_carries_the_bumped_version(self) -> None:
+        assert (CONTRACTS_DIR / "VERSION").read_text(encoding="utf-8").strip() == "2"
+
+
 class TestOfflineConsumerPath:
     """A consumer must be able to validate with no gen-eval import at all."""
 

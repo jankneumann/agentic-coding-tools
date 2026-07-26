@@ -17,6 +17,7 @@ what make those gates satisfiable rather than self-contradictory.
 
 from __future__ import annotations
 
+import json
 import warnings
 
 import pytest
@@ -24,6 +25,7 @@ from pydantic import BaseModel
 
 import gen_eval
 from gen_eval import descriptor as descriptor_module
+from gen_eval.contracts import load_schema
 
 #: old name -> the renamed type it must alias.
 ALIASES: dict[str, str] = {
@@ -195,3 +197,40 @@ class TestNamingLevels:
         service_spec = descriptor_module.ServiceSpec
         for field in ("endpoints", "tools", "commands"):
             assert field in service_spec.model_fields
+
+
+class TestPublishedSchemaNaming:
+    """The rename must reach the published schema, not stop at the Python names.
+
+    These live here rather than in ``test_contract_schemas.py`` because they
+    must spell the pre-rename names in order to assert their absence, and every
+    test file except this one is scanned by a gate that fails on those literals.
+    """
+
+    @staticmethod
+    def _descriptor_defs() -> dict[str, dict]:
+        defs: dict[str, dict] = load_schema("interface-descriptor")["$defs"]
+        return defs
+
+    @pytest.mark.parametrize("new_name", sorted(ALIASES.values()))
+    def test_defs_use_the_new_names(self, new_name: str) -> None:
+        assert new_name in self._descriptor_defs()
+
+    @pytest.mark.parametrize("old_name", sorted(ALIASES))
+    def test_defs_do_not_use_the_pre_rename_names(self, old_name: str) -> None:
+        assert old_name not in self._descriptor_defs()
+
+    @pytest.mark.parametrize(("old_name", "new_name"), sorted(ALIASES.items()))
+    def test_def_titles_follow_the_key(self, old_name: str, new_name: str) -> None:
+        """pydantic writes both a ``$defs`` key and a ``title``; both must move.
+
+        A stale title is the kind of thing a key-only check misses and a
+        consumer generating client types from the schema then inherits.
+        """
+        assert self._descriptor_defs()[new_name].get("title") == new_name
+
+    def test_no_dangling_ref_to_a_pre_rename_name(self) -> None:
+        """A renamed ``$defs`` key with an unrenamed ``$ref`` is an unresolvable schema."""
+        raw = json.dumps(load_schema("interface-descriptor"))
+        stale = sorted(old for old in ALIASES if f'#/$defs/{old}"' in raw)
+        assert not stale, f"schema still references pre-rename $defs: {stale}"
