@@ -11,14 +11,8 @@ from collections.abc import Iterable
 from typing import Any
 
 from gen_eval.descriptor import InterfaceDescriptor
+from gen_eval.openapi import iter_operations
 from gen_eval.verify.model import Violation, declared_elements
-
-#: OpenAPI path-item keys that name an operation. Everything else in a path
-#: item — ``parameters``, ``summary``, ``servers`` — is a sibling of the verbs,
-#: not a verb, and reading it as one would invent routes.
-_HTTP_METHODS = frozenset(
-    {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
-)
 
 #: argparse action classes the library installs itself. The application never
 #: declared them, so a contract that omits them is correct and reporting them
@@ -108,28 +102,29 @@ def verify_fastapi(
 
     declared = declared_elements(descriptor, "http")
     violations: list[Violation] = []
+    seen: set[str] = set()
 
-    for path, item in (document.get("paths") or {}).items():
-        if not isinstance(item, dict):
+    # Shares the contract reader's traversal, so a route behind a `$ref` path
+    # item is seen here exactly as it is seen there. Two readers disagreeing
+    # about what a document declares is how a live route stays invisible to
+    # the one check that exists to find it.
+    for found in iter_operations(document):
+        element = f"{found.method.upper()} {found.path}"
+        if element in declared or element in seen:
             continue
-        for method in item:
-            if method.lower() not in _HTTP_METHODS:
-                continue
-            element = f"{method.upper()} {path}"
-            if element in declared:
-                continue
-            violations.append(
-                Violation(
-                    surface="http",
-                    element=element,
-                    message=(
-                        f"{element} is served by the application but absent from the "
-                        f"service contract. Either contract it or remove it — a route "
-                        f"callers can reach that nothing documents is undocumented "
-                        f"surface."
-                    ),
-                )
+        seen.add(element)
+        violations.append(
+            Violation(
+                surface="http",
+                element=element,
+                message=(
+                    f"{element} is served by the application but absent from the "
+                    f"service contract. Either contract it or remove it — a route "
+                    f"callers can reach that nothing documents is undocumented "
+                    f"surface."
+                ),
             )
+        )
     return violations
 
 
