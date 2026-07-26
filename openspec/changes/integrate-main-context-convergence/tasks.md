@@ -91,7 +91,7 @@ Each task is sized to one commit. Group numbers map to work packages in
 - [ ] 4.2 Document `--defer-commit` in the Arguments section and in the post-merge
       mode section: operate in the sync-point checkout on main, stage with `git add`,
       commit nothing, push nothing (D3).
-- [ ] 4.3 Replace `make architecture` with `make architecture-refresh` in the
+- [x] 4.3 Replace `make architecture` with `make architecture-refresh` in the
       post-merge step and state why (provenance is written only by the staged target,
       D10). Add a failing assertion for this first.
 - [ ] 4.4 Document the partial-failure rule: staged output from changes that already
