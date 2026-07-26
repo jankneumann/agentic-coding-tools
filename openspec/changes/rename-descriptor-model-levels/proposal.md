@@ -37,8 +37,8 @@ that depends on it. The gate could not pass. Reviewers found four variants of
 this before the pattern was recognised.
 
 Separating the two changes removes the boundary entirely. Here, the rename is
-mechanical and has no reuse: four names move, two keep aliases, nothing is
-redefined. The consuming change then starts from a settled namespace.
+mechanical and has no reuse: four names move, all four keep aliases, nothing
+is redefined. The consuming change then starts from a settled namespace.
 
 ## What Changes
 
