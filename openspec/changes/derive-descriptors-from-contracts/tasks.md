@@ -79,7 +79,7 @@ public API.
 
 ## Phase 1 — Tool contract + tool descriptor (gen-eval self-migration)
 
-- [ ] 1.1 Write tests for CLI contract schema validation — required fields, exit codes, flag types `[S]`
+- [x] 1.1 Write tests for CLI contract schema validation — required fields, exit codes, flag types `[S]`
   **Spec scenarios**: Descriptor Derivation Drift Guard (a tool contract declaring commands but no coverage units fails)
   **Contracts**: `contracts/cli-contract.schema.json`
   **Design decisions**: D5 (tool contracts are a separate schema)
