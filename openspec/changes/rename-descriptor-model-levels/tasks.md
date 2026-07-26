@@ -14,7 +14,7 @@ and 39 in `tests/`; `ToolDescriptor` 5 / 9; `CommandDescriptor` 5 / 6;
 
 ## Phase 1 — Rename with warning aliases
 
-- [ ] 1.1 Write tests pinning the new names, the aliases, and the warnings `[S]`
+- [x] 1.1 Write tests pinning the new names, the aliases, and the warnings `[S]`
   **Spec scenarios**: Descriptor Model Naming Levels (a renamed element type is reachable under its new name); Renamed Published Types Retain Warning Aliases (an old name still resolves and warns); (an alias that does not warn fails the gate)
   **Design decisions**: D1, D4
   **Dependencies**: None
