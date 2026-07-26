@@ -36,11 +36,10 @@ drift apart silently:
 
 ## Closed enums
 
-`omissions[].reason` — exactly six values, from design decisions D5 and D6:
-
-`duplicate_exact`, `duplicate_contained`, `hit_count_cap`, `file_count_cap`,
-`hit_line_cap`, `total_line_cap`, plus `scope_filtered` for a hit dropped by the
-local deny re-check (D2).
+`omissions[].reason` — exactly seven values. Two dedup reasons from D5
+(`duplicate_exact`, `duplicate_contained`), four budget reasons from D6
+(`hit_count_cap`, `file_count_cap`, `hit_line_cap`, `total_line_cap`), and
+`scope_filtered` for a hit dropped by the local deny re-check (D2).
 
 `fallback.trigger` — exactly four values, from D8: `stale`, `unavailable`,
 `mismatched`, `out_of_scope`. `fallback.strategy` is the constant
@@ -61,6 +60,27 @@ This mirrors ri-03's own `validate_state_invariants`
 zero results. A section that claims to be injected while carrying a fallback is
 unrepresentable.
 
+## Enforced, not merely described
+
+A description is not a constraint, so two invariants these schemas assert in
+prose are also enforced by `pattern`:
+
+- **`index_id` is a UUID.** `format: uuid` is an *annotation*; a JSON Schema
+  validator ignores it unless a format checker is explicitly installed, and
+  neither the tests nor any consumer installs one. Without the accompanying
+  pattern, any string — `"not-a-uuid"` — would validate, and "which index served
+  this hit" would stop being answerable. Both the per-hit `index_id` and
+  `provenance.index_id` carry the pattern.
+- **`file_path` is repository-relative with no `..` segment.** It applies to
+  rendered hits and to `omissions[].file_path` alike. The rendered section names
+  files a worker is invited to open, so a path escaping the repository would be a
+  scope claim the artifact must be structurally unable to make. The pattern still
+  admits ordinary names containing dots (`docs/guides/a..b.md`).
+
+One invariant is stated but *not* enforceable: `end_line >= start_line` compares
+two sibling properties, which JSON Schema cannot express. It is a producer
+obligation, checked by the retrieval helper's own tests rather than here.
+
 ## Promotion
 
 Both schemas are promoted to `openspec/contracts/code-search/schemas/` **inside
@@ -68,3 +88,14 @@ this change**, before archival, per `openspec/contracts/README.md`. Tests load
 them from that stable path, never from `openspec/changes/<id>/contracts/`, so
 archiving this change cannot break them. The two copies must stay
 byte-identical and are changed in the same commit.
+
+Both obligations are gates, not conventions:
+
+| Test | Fails when |
+|---|---|
+| `skills/tests/context-engineering/test_promoted_semantic_context_contracts.py` | a schema is authored but never promoted, the two copies drift by a byte, or a promoted schema still declares a change-local `$id` |
+| `skills/tests/context-engineering/test_semantic_context_schemas.py` | a schema stops rejecting a contradictory state, or this README's enum counts and mapping table drift from the schemas |
+
+Because `$id` names the promoted location, the section schema's relative
+`$ref` to the hit schema resolves to its promoted sibling — a change-local `$id`
+would send that reference into the directory archival moves.

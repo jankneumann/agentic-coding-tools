@@ -14,7 +14,7 @@
       `omissions`, `provenance`, `fallback`; closed enums for omission reasons
       and fallback triggers; `oneOf` enforcing `injected ⇒ fallback null` and
       `fallback ⇒ hits empty`.
-- [ ] 0.3 Author `contracts/README.md` documenting the two schemas, the
+- [x] 0.3 Author `contracts/README.md` documenting the two schemas, the
       `similarity → score` and `source_revision → indexed_commit` render
       mapping (D7), and the promote-before-archive obligation.
 - [x] 0.4 Promote both schemas to `openspec/contracts/code-search/schemas/` and
