@@ -259,7 +259,7 @@ public API.
   **Design decisions**: D1
   **Dependencies**: 1.4
 
-- [ ] 4.2 Implement the argparse subset verifier `[M]`
+- [x] 4.2 Implement the argparse subset verifier `[M]`
   **Design decisions**: D1
   **Dependencies**: 4.1
 
