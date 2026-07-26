@@ -186,6 +186,13 @@ class GenEvalReport(BaseModel):
     #: ``unevaluated_interfaces``, which is per-element: an operation covered
     #: on HTTP still leaves its untested MCP element in the flat list.
     unevaluated_operations: list[str] = Field(default_factory=list)
+    #: How many units the descriptor declared. Without it nothing in this
+    #: report distinguishes "covered everything" from "declared nothing":
+    #: ``coverage_pct`` is 0.0, ``per_interface`` is ``{}`` and
+    #: ``unevaluated_interfaces`` is ``[]`` in both cases, so no threshold can
+    #: separate them. Defaults to 0, so every existing constructor keeps
+    #: working and the published schema gains an optional field.
+    declared_interface_count: int = 0
     iterations_completed: int
     # Visibility-grouped results (populated when manifest is available)
     per_visibility: dict[str, VisibilityBreakdown] = Field(default_factory=dict)

@@ -437,6 +437,11 @@
       "title": "Unevaluated Operations",
       "type": "array"
     },
+    "declared_interface_count": {
+      "default": 0,
+      "title": "Declared Interface Count",
+      "type": "integer"
+    },
     "iterations_completed": {
       "title": "Iterations Completed",
       "type": "integer"

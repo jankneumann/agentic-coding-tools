@@ -446,7 +446,7 @@ finding re-verified by direct execution, not by vendor assertion.
   empty — turning today's vacuous pass into a guaranteed 0% coverage violation.
   Do not reorder these.
 
-- [ ] 5.4 Write tests asserting an empty declared surface fails the dogfood gate `[S]`
+- [x] 5.4 Write tests asserting an empty declared surface fails the dogfood gate `[S]`
   **Spec scenarios**: Dogfood (an empty declared surface fails rather than reporting coverage)
   **Design decisions**: D3
   **Dependencies**: 5.3
