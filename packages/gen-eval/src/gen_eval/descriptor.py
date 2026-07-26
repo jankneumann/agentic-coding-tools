@@ -360,11 +360,31 @@ def load_descriptor(path: Path) -> InterfaceDescriptor:
 
     Rule 4: a descriptor carrying neither marker loads exactly as it did
     before — same class, same fields, same behaviour.
+
+    A file that declares no ``contract`` warns (D6). It still loads, and the
+    flat fields it produces stay populated — ACA and the coordinator read that
+    shape and a hard cutover would block on a coordinator OpenAPI contract that
+    does not exist yet. What it stops doing is doing so silently: without a
+    contract there is no source of truth behind the declared surface, so drift
+    between it and the implementation is undetectable by construction.
     """
     with open(path) as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError(f"Expected YAML mapping in {path}, got {type(data).__name__}")
+
+    if not data.get("contract"):
+        warnings.warn(
+            f"{path} declares no `contract:`, so its interface list is whatever "
+            f"was typed rather than what a contract declares — drift between it "
+            f"and the implementation cannot be detected. Derive it instead: "
+            f"scripts/generate_tool_descriptor.py or "
+            f"scripts/generate_service_descriptor.py. Hand-authored descriptors "
+            f"still load and still emit the flat fields (D6); this path is "
+            f"deprecated, not removed.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     if data.get("operations"):
         # Imported here, not at module scope: service_descriptor imports this
