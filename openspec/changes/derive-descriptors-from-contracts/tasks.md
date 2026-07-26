@@ -89,7 +89,7 @@ public API.
   **Design decisions**: D5
   **Dependencies**: 1.1
 
-- [ ] 1.3 Write tests for tool-descriptor derivation from a CLI contract `[M]`
+- [x] 1.3 Write tests for tool-descriptor derivation from a CLI contract `[M]`
   **Spec scenarios**: Contract As Descriptor Source Of Truth (descriptor derives from a contract); Operation And Surface Coverage Model (flag-only tool surfaces are nameable); Service And Tool Descriptor Archetypes (tool descriptor requires no lifecycle configuration)
   **Design decisions**: D1, D5
   **Dependencies**: 1.2
