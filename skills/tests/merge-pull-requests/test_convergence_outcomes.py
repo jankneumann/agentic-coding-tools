@@ -495,6 +495,143 @@ def test_a_crashing_phase_still_releases_the_lock_and_reports(tmp_path: Path) ->
 
 
 # --------------------------------------------------------------------------- #
+# Semantic index: enqueued for the pushed revision, never awaited (D7)
+# --------------------------------------------------------------------------- #
+class _FakeStore:
+    """Records every enqueue, so "exactly one" is measurable."""
+
+    def __init__(self, *, explode: bool = False) -> None:
+        self.explode = explode
+        self.enqueued: list[tuple[str, str]] = []
+
+    base_dir = "/nonexistent-ledger"
+
+    def load(self, operation_id: str):  # noqa: ANN201, ARG002
+        raise RuntimeError("no operation record")
+
+    def create_or_load(self, repository_id: str, source_revision: str):  # noqa: ANN201
+        if self.explode:
+            raise RuntimeError("the indexing service is unreachable")
+        self.enqueued.append((repository_id, source_revision))
+
+        class _Record:
+            operation_id = "pcr-" + "9" * 24
+
+        return _Record()
+
+
+def test_the_index_is_enqueued_for_the_pushed_revision_not_the_merged_one(
+    tmp_path: Path,
+) -> None:
+    """The convergence commit moves main's tip; indexing the pre-convergence
+    revision would be stale on arrival and force a second index."""
+    store = _FakeStore()
+
+    reference = mc.enqueue_semantic_index(
+        tmp_path, CONVERGED_SHA, repository_id="repo", store=store
+    )
+
+    assert store.enqueued == [("repo", CONVERGED_SHA)]
+    assert CONVERGED_SHA != MERGED_SHA
+    assert reference.status == "pending"
+    assert reference.requested_revision == CONVERGED_SHA
+    assert reference.operation_id == "pcr-" + "9" * 24
+    assert reference.fallback and "exact" in reference.fallback
+
+
+def test_an_unavailable_index_service_never_reports_success(tmp_path: Path) -> None:
+    """Never fail open: an enqueue that did not happen is not 'pending'."""
+    reference = mc.enqueue_semantic_index(
+        tmp_path, CONVERGED_SHA, repository_id="repo", store=_FakeStore(explode=True)
+    )
+
+    assert reference.status == "failed"
+    assert reference.operation_id is None
+    assert reference.fallback
+
+
+def test_an_unavailable_index_service_still_lets_the_pass_complete(tmp_path: Path) -> None:
+    fake = _FakeRepo()
+    store = _FakeStore(explode=True)
+
+    result = mc.converge(
+        tmp_path,
+        runner=fake,
+        store=store,
+        environ={},
+        merged_revision=MERGED_SHA,
+        merged_pull_requests=_prs(42),
+        active_agent_checker=lambda root: (True, []),
+        lock_acquirer=lambda **kw: {"status": "ok"},
+        lock_releaser=lambda **kw: {"status": "ok"},
+    )
+
+    assert result.status is mc.ConvergenceStatus.CONVERGED
+    assert len(fake.issued("git push")) == 1
+    assert result.record["semantic_index"]["status"] == "failed"
+
+
+def test_exactly_one_index_request_per_pass(tmp_path: Path) -> None:
+    fake = _FakeRepo()
+    store = _FakeStore()
+
+    mc.converge(
+        tmp_path,
+        runner=fake,
+        store=store,
+        environ={},
+        merged_revision=MERGED_SHA,
+        merged_pull_requests=_prs(42, 43, 44),
+        active_agent_checker=lambda root: (True, []),
+        lock_acquirer=lambda **kw: {"status": "ok"},
+        lock_releaser=lambda **kw: {"status": "ok"},
+    )
+
+    assert len(store.enqueued) == 1
+    assert store.enqueued[0][1] == CONVERGED_SHA
+
+
+def test_a_retry_makes_no_second_index_request(tmp_path: Path) -> None:
+    identity = mc.derive_convergence_identity(tmp_path, merged_revision=MERGED_SHA, environ={})
+    fake = _FakeRepo(trailer_sha=CONVERGED_SHA, trailer_operation_id=identity.operation_id)
+    store = _FakeStore()
+
+    result = mc.converge(
+        tmp_path,
+        runner=fake,
+        store=store,
+        environ={},
+        merged_revision=MERGED_SHA,
+        merged_pull_requests=_prs(42),
+        active_agent_checker=lambda root: (True, []),
+        lock_acquirer=lambda **kw: {"status": "ok"},
+        lock_releaser=lambda **kw: {"status": "ok"},
+    )
+
+    assert result.status is mc.ConvergenceStatus.ALREADY_CONVERGED
+    assert store.enqueued == []
+
+
+def test_a_blocked_pass_makes_no_index_request(tmp_path: Path) -> None:
+    fake = _FakeRepo(origin_main=FOREIGN_SHA)
+    store = _FakeStore()
+
+    mc.converge(
+        tmp_path,
+        runner=fake,
+        store=store,
+        environ={},
+        merged_revision=MERGED_SHA,
+        merged_pull_requests=_prs(42),
+        active_agent_checker=lambda root: (True, []),
+        lock_acquirer=lambda **kw: {"status": "ok"},
+        lock_releaser=lambda **kw: {"status": "ok"},
+    )
+
+    assert store.enqueued == []
+
+
+# --------------------------------------------------------------------------- #
 # Determinism
 # --------------------------------------------------------------------------- #
 def test_the_commit_message_is_deterministic_for_one_input(tmp_path: Path) -> None:
