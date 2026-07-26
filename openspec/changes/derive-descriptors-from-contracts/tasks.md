@@ -407,7 +407,7 @@ finding re-verified by direct execution, not by vendor assertion.
   undocumented `--force` on a subcommand is invisible to the verifier. Recurse
   into `choices`, passing the subcommand name as `command`. Test first.
 
-- [ ] 4.18 Signal conflicting properties in `_merge_schemas` `[S]`
+- [x] 4.18 Signal conflicting properties in `_merge_schemas` `[S]`
   **Design decisions**: D7
   **Dependencies**: 2.3
   **Note (round-7)**: union-by-dict-spread is last-write-wins, so two operations
