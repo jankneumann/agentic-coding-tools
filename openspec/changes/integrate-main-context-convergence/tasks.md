@@ -61,10 +61,10 @@ Each task is sized to one commit. Group numbers map to work packages in
 - [x] 3.2 Implement identity resolution plus the two-source idempotence check —
       terminal ri-06 record **or** `Context-Refresh-Operation:` commit trailer
       discoverable via `git log --grep` (D4). Either alone is sufficient to skip.
-- [ ] 3.3 Write failing tests for the three-layer guard: active-agent check,
+- [x] 3.3 Write failing tests for the three-layer guard: active-agent check,
       coordinator lock when available, and the pre-push compare-and-swap against
       `origin/main` (D5).
-- [ ] 3.4 Implement the guards. Coordinator unavailability degrades with a recorded
+- [x] 3.4 Implement the guards. Coordinator unavailability degrades with a recorded
       warning; a losing push race aborts and never force-pushes.
 - [ ] 3.5 Implement the phase sequence: staged cleanup output → `make
       architecture-refresh` → `cli.py refresh --sync-point --defer-semantic-index` →
