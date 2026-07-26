@@ -55,6 +55,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
+      # Lint runs before the slower install/test steps so a style-only break
+      # fails in seconds rather than after the full suite.
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
       - name: Validate standalone skill install payload
         run: |
           bash install.sh --check
