@@ -11,3 +11,4 @@
 | ri-07 | validation | orchestrator.py + semantic_adapter.py in the ri-05 skill import the ri-06 Operat |
 | ri-08 | validation | context_impact.surfaces is never treated as evidence of completeness -- a planne |
 | ri-09 | validation | semantic_adapter.py hardcoded --namespace-kind main --namespace-key main while c |
+| ri-10 | validation | Five defects blocked a naive gate, and four of them were fail-open: the architec |

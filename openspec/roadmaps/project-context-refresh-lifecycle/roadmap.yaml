@@ -232,7 +232,7 @@ items:
   - Checkpoint execution enforces the work package's read_allow and deny scopes.
 - item_id: ri-10
   title: Add deterministic context drift gates
-  status: approved
+  status: completed
   priority: 10
   effort: M
   depends_on:
