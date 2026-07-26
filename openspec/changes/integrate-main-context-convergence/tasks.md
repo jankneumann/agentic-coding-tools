@@ -77,7 +77,7 @@ Each task is sized to one commit. Group numbers map to work packages in
       wp-contracts schema in a test (D9).
 - [x] 3.8 Implement post-push semantic enqueue for the final pushed SHA, fire-and-
       report, with a test that an unavailable service still lets the pass complete (D7).
-- [ ] 3.9 Add a `--dry-run` path that derives and reports the identity, checks for an
+- [x] 3.9 Add a `--dry-run` path that derives and reports the identity, checks for an
       existing convergence, and runs `make context-drift-gate` read-only (D12).
 
 ## 4. Merge-driven cleanup mode (wp-cleanup)

@@ -1280,6 +1280,7 @@ class ConvergenceResult:
     pushed_revision: str | None = None
     record: dict[str, Any] | None = None
     prior: PriorConvergence | None = None
+    drift: dict[str, Any] | None = None
     reason: str | None = None
     warnings: tuple[str, ...] = ()
 
@@ -1320,10 +1321,77 @@ class ConvergenceResult:
             "pushed_revision": self.pushed_revision,
             "record": self.record,
             "prior": self.prior.to_dict() if self.prior else None,
+            "drift": self.drift,
             "reason": self.reason,
             "warnings": list(self.warnings),
             "exit_code": self.exit_code(),
         }
+
+
+#: Drift-gate exit codes, in the gate's own vocabulary. ``1`` is deliberately
+#: NOT folded into "drift": an apparatus failure is unknown state, and reporting
+#: unknown as either fresh or drifted would be a guess presented as a finding.
+_DRIFT_VERDICT_BY_EXIT: dict[int, str] = {0: "fresh", 2: "drift"}
+
+
+def dry_run(
+    repository: Path | str,
+    *,
+    merged_revision: str | None = None,
+    runner: CommandRunner = run_command,
+    store: Any | None = None,
+    environ: Mapping[str, str] | None = None,
+) -> ConvergenceResult:
+    """Report what a convergence *would* do, having done none of it (D12).
+
+    A dry run performs no merge, so there is no merged SHA and no convergence.
+    It reports the identity it would derive from the current ``main`` HEAD,
+    whether a terminal record or a commit trailer already exists for that
+    identity, and a read-only drift assessment.
+
+    Running the real refresh here "to show what would change" was rejected: the
+    mutating path writes producer output into the working tree, and a dry run
+    that dirties main is not a dry run. ``make context-drift-gate`` writes
+    nothing by construction, which is why it is the assessment used.
+    """
+    root = Path(repository).resolve()
+    identity = derive_convergence_identity(
+        root, merged_revision=merged_revision, environ=environ, runner=runner
+    )
+    prior = find_prior_convergence(root, identity, store=store, runner=runner)
+
+    try:
+        gate = guarded_runner(runner)(list(DRIFT_GATE_COMMAND), root)
+        verdict = _DRIFT_VERDICT_BY_EXIT.get(gate.returncode, "apparatus-failure")
+        exit_code: int | None = gate.returncode
+    except OSError as exc:
+        verdict = "apparatus-failure"
+        exit_code = None
+        prior = prior  # unchanged; the gate says nothing about idempotence
+        gate_error: str | None = str(exc)
+    else:
+        gate_error = None
+
+    return ConvergenceResult(
+        status=ConvergenceStatus.DRY_RUN,
+        identity=identity,
+        prior=prior,
+        drift={
+            "command": list(DRIFT_GATE_COMMAND),
+            "exit_code": exit_code,
+            "verdict": verdict,
+            "error": gate_error,
+        },
+        reason=(
+            "dry run: no merge was performed, so nothing was converged. "
+            f"Identity that would have been used: {identity.operation_id}."
+        ),
+    )
+
+
+#: Stable alias for :func:`dry_run`, used inside ``converge`` where the
+#: ``dry_run`` keyword parameter shadows the function name.
+_dry_run_report = dry_run
 
 
 def converge(
@@ -1343,6 +1411,7 @@ def converge(
     branch: str = "main",
     python: str | None = None,
     record_path: str = CONVERGENCE_RECORD_PATH,
+    dry_run: bool = False,
 ) -> ConvergenceResult:
     """Converge derived context for the main state this pass produced.
 
@@ -1362,6 +1431,16 @@ def converge(
     def _record_calls(argv: Sequence[str], cwd: Path) -> CommandResult:
         recorded.append(tuple(str(a) for a in argv))
         return runner(argv, cwd)
+
+    if dry_run:
+        # Aliased before the keyword parameter shadows the module-level name.
+        return _dry_run_report(
+            root,
+            merged_revision=merged_revision,
+            runner=_record_calls,
+            store=store,
+            environ=environ,
+        )
 
     if not merged_pull_requests:
         return ConvergenceResult(
@@ -1608,6 +1687,98 @@ def _converge_under_guard(
     )
 
 
+# --------------------------------------------------------------------------- #
+# CLI
+# --------------------------------------------------------------------------- #
+def load_merged_pull_requests(path: Path | str) -> tuple[MergedPullRequest, ...]:
+    """Read the merged-PR records collected during the pass.
+
+    Accepts the same shape ``post_merge_cleanup.py --merged-json`` reads, so the
+    merge skill collects the records once and both consumers read them.
+    """
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    records = data.get("merged", data) if isinstance(data, Mapping) else data
+    if not isinstance(records, list):
+        raise ConvergenceApparatusError(f"{path} does not contain a list of merges")
+    merges: list[MergedPullRequest] = []
+    for record in records:
+        if not isinstance(record, Mapping):
+            continue
+        number = record.get("pr_number") or record.get("number")
+        if not isinstance(number, int):
+            continue
+        change_id = record.get("change_id")
+        cleanup = record.get("cleanup")
+        merges.append(
+            MergedPullRequest(
+                number=number,
+                origin=str(record.get("origin") or "other"),
+                change_id=change_id if isinstance(change_id, str) else None,
+                cleanup=cleanup if isinstance(cleanup, str) else "not-applicable",
+            )
+        )
+    return tuple(merges)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run one convergence pass and print its result as JSON.
+
+    The exit code follows D6 and describes derived context only. It can never
+    mean that a merge failed: by the time this runs, every merge in the pass is
+    already terminal, and Step 12 reports them regardless of what happens here.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Converge derived context for the main state a merge pass produced "
+            "(ri-11 Step 11.6). Runs once per pass, never once per pull request."
+        )
+    )
+    parser.add_argument("--repo", type=Path, default=Path("."), help="Repository root.")
+    parser.add_argument(
+        "--merged-json",
+        type=Path,
+        default=None,
+        help="Path to the merged-PR records collected during this pass.",
+    )
+    parser.add_argument(
+        "--merged-revision",
+        default=None,
+        help="Full SHA of main after every merge in the pass (default: HEAD).",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Converge nothing. Report the identity that would be used, whether a "
+            "convergence already exists for it, and a read-only drift assessment."
+        ),
+    )
+    args = parser.parse_args(list(argv) if argv is not None else None)
+
+    try:
+        merges = (
+            load_merged_pull_requests(args.merged_json) if args.merged_json else ()
+        )
+        result = converge(
+            args.repo,
+            merged_pull_requests=merges,
+            merged_revision=args.merged_revision,
+            dry_run=args.dry_run,
+        )
+    except ConvergenceApparatusError as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 1
+
+    sys.stdout.write(json.dumps(result.to_dict(), indent=2, sort_keys=True) + "\n")
+    for warning in result.warnings:
+        sys.stderr.write(f"warning: {warning}\n")
+    if result.reason:
+        sys.stderr.write(f"{result.status.value}: {result.reason}\n")
+    return result.exit_code()
+
+
 __all__ = [
     "ARCHITECTURE_COMMAND",
     "CONVERGENCE_RECORD_PATH",
@@ -1643,11 +1814,14 @@ __all__ = [
     "check_active_agents",
     "enqueue_semantic_index",
     "converge",
+    "dry_run",
     "derive_convergence_identity",
     "find_prior_commit_trailer",
     "find_prior_convergence",
     "find_prior_operation_record",
     "guarded_runner",
+    "load_merged_pull_requests",
+    "main",
     "append_record",
     "build_record",
     "producers_from_summary",
@@ -1663,3 +1837,7 @@ __all__ = [
     "run_deterministic_refresh",
     "verify_push_target",
 ]
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

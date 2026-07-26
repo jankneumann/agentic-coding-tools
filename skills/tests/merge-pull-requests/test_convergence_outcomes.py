@@ -632,6 +632,96 @@ def test_a_blocked_pass_makes_no_index_request(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Dry run (D12)
+# --------------------------------------------------------------------------- #
+def test_a_dry_run_writes_nothing_at_all(tmp_path: Path) -> None:
+    """A dry run that dirties main is not a dry run. The mutating refresh path
+    writes producer output into the working tree, so it must not be reached."""
+    fake = _FakeRepo()
+
+    result = mc.converge(
+        tmp_path,
+        runner=fake,
+        store=_NoStore(),
+        environ={},
+        merged_pull_requests=_prs(42),
+        dry_run=True,
+    )
+
+    assert result.status is mc.ConvergenceStatus.DRY_RUN
+    assert fake.issued("git commit") == []
+    assert fake.issued("git push") == []
+    assert fake.issued("git add") == []
+    assert fake.issued("architecture-refresh") == []
+    assert fake.issued("--sync-point") == []
+    assert not (tmp_path / mc.CONVERGENCE_RECORD_PATH).exists()
+    assert result.exit_code() == 0
+
+
+def test_a_dry_run_reports_the_identity_it_would_have_used(tmp_path: Path) -> None:
+    fake = _FakeRepo()
+
+    result = mc.dry_run(tmp_path, runner=fake, store=_NoStore(), environ={})
+
+    assert result.identity is not None
+    assert result.identity.merged_revision == MERGED_SHA
+    assert result.identity.operation_id.startswith("pcr-")
+    assert result.prior is not None
+    assert result.prior.found is False
+
+
+def test_a_dry_run_reports_an_existing_convergence(tmp_path: Path) -> None:
+    identity = mc.derive_convergence_identity(tmp_path, merged_revision=MERGED_SHA, environ={})
+    fake = _FakeRepo(trailer_sha=CONVERGED_SHA, trailer_operation_id=identity.operation_id)
+
+    result = mc.dry_run(tmp_path, runner=fake, store=_NoStore(), environ={})
+
+    assert result.prior.found is True
+    assert result.prior.convergence_commit == CONVERGED_SHA
+
+
+def test_a_dry_run_runs_the_read_only_drift_gate(tmp_path: Path) -> None:
+    fake = _FakeRepo()
+
+    result = mc.dry_run(tmp_path, runner=fake, store=_NoStore(), environ={})
+
+    assert ("make", "context-drift-gate") in fake.calls
+    assert result.drift is not None
+    assert result.drift["exit_code"] == 0
+    assert result.drift["verdict"] == "fresh"
+
+
+def test_a_dry_run_reports_drift_without_failing(tmp_path: Path) -> None:
+    class _Drifted(_FakeRepo):
+        def __call__(self, argv, cwd):  # noqa: ANN001
+            parts = tuple(str(a) for a in argv)
+            if parts == ("make", "context-drift-gate"):
+                self.calls.append(parts)
+                return mc.CommandResult(argv=parts, returncode=2)
+            return super().__call__(argv, cwd)
+
+    fake = _Drifted()
+    result = mc.dry_run(tmp_path, runner=fake, store=_NoStore(), environ={})
+
+    assert result.drift["verdict"] == "drift"
+    assert result.exit_code() == 0
+
+
+def test_a_dry_run_never_treats_an_unreadable_gate_as_fresh(tmp_path: Path) -> None:
+    class _Broken(_FakeRepo):
+        def __call__(self, argv, cwd):  # noqa: ANN001
+            parts = tuple(str(a) for a in argv)
+            if parts == ("make", "context-drift-gate"):
+                self.calls.append(parts)
+                return mc.CommandResult(argv=parts, returncode=1)
+            return super().__call__(argv, cwd)
+
+    result = mc.dry_run(tmp_path, runner=_Broken(), store=_NoStore(), environ={})
+
+    assert result.drift["verdict"] == "apparatus-failure"
+
+
+# --------------------------------------------------------------------------- #
 # Determinism
 # --------------------------------------------------------------------------- #
 def test_the_commit_message_is_deterministic_for_one_input(tmp_path: Path) -> None:
