@@ -220,7 +220,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--fail-threshold",
         type=float,
         default=0.95,
-        help="Minimum pass rate to exit 0 (default: 0.95)",
+        help=(
+            "Minimum pass rate to exit 0, as a RATE in [0, 1] — 0.95 means "
+            "95%%. Note the asymmetry with --min-coverage, which is a percent: "
+            "`--fail-threshold 1.0 --min-coverage 1` is 100%% pass rate and a "
+            "1%% coverage floor, not two of the same number. The units differ "
+            "because this flag predates the coverage model and changing it now "
+            "would silently redefine every existing invocation (a rate of 1.0 "
+            "would become a 1%% floor). Default: 0.95."
+        ),
     )
     parser.add_argument(
         "--min-coverage",

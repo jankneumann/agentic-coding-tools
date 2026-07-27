@@ -8,7 +8,7 @@ either of the two obvious alternatives:
   exercised nothing, which is the vacuous pass the whole coverage model exists
   to catch.
 - **Not** ``coverage_pct >= 80``. Unreachable for this surface — 14 of
-  gen-eval's 17 flags would have to be exercised and 5 are. A gate that can
+  gen-eval's 17 flags would have to be exercised and 10 are. A gate that can
   never pass is the mirror of one that can never fail, and gets disabled just
   as fast.
 
@@ -109,6 +109,25 @@ def check(report: dict[str, Any], excluded: dict[str, str], source: str) -> int:
     # place it accumulates, and the next flag to reuse the name inherits an
     # approval nobody granted it.
     known = set(unevaluated) | exercised
+
+    # `known` is reconstructed from the report's own key space, so it is only
+    # as trustworthy as the report. An identifier that reached `per_interface`
+    # without being declared would inflate both the "N of M exercised" line and
+    # `known` — and a wider `known` is what shields a stale exclusion from the
+    # check below. The declared COUNT is the independent number, so require the
+    # two to agree before trusting either.
+    if len(known) != declared:
+        failures.append(
+            f"the report declares {declared} coverage units but names "
+            f"{len(known)} distinct ones ({len(exercised)} exercised, "
+            f"{len(unevaluated)} unevaluated). One of the two is wrong, and "
+            f"until they agree neither the printed percentage nor the "
+            f"stale-exclusion check below means anything: an undeclared "
+            f"identifier that reaches `per_interface` inflates the count it is "
+            f"measured against and silently vouches for any exclusion naming "
+            f"it."
+        )
+
     stale = [unit for unit in excluded if unit not in known]
     if stale:
         failures.append(
@@ -138,6 +157,8 @@ def main(argv: list[str] | None = None) -> int:
             f"no report at {args.report} — a missing report is not a passing "
             f"one. Run `make dogfood` first."
         )
+    import yaml
+
     try:
         excluded = load_exclusions(args.exclusions)
     except FileNotFoundError:
@@ -148,8 +169,19 @@ def main(argv: list[str] | None = None) -> int:
         )
     except ValueError as exc:
         return _fail(str(exc))
+    except yaml.YAMLError as exc:
+        # Already fail-closed via the traceback, but a traceback is not an
+        # operator message. Every other failure here names the file and says
+        # what to do; a malformed exclusions file should too.
+        return _fail(f"{args.exclusions} is not valid YAML: {exc}")
 
-    report = json.loads(args.report.read_text())
+    try:
+        report = json.loads(args.report.read_text())
+    except json.JSONDecodeError as exc:
+        return _fail(
+            f"{args.report} is not valid JSON: {exc}. A report that cannot be "
+            f"read is not a passing one — re-run `make dogfood`."
+        )
     return check(report, excluded, str(args.report))
 
 

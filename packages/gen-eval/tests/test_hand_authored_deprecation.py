@@ -157,3 +157,121 @@ class TestTheWarningIsSuppressible:
             warnings.simplefilter("ignore", DeprecationWarning)
             load_descriptor(path)
         assert caught == []
+
+
+class TestDeclaringAContractIsAClaim:
+    """Round-8 M1/M2: the key's presence is what silences the warning.
+
+    The warning above fires on falsy ``contract``. So the two cheapest ways to
+    look migrated without being migrated are to point ``contract:`` at nothing,
+    or to declare it on a document with no archetype marker — where pydantic's
+    ``extra: ignore`` then discards ``contract`` itself. Both leave the surface
+    as whatever was typed, with the warning silent: strictly worse than not
+    declaring one, because the signal is gone AND the state is unchanged.
+
+    Both now raise. Note what is NOT asserted here: that the contract's
+    contents match the descriptor. That is the subset verifier's job. This only
+    establishes that a declared source of truth exists and was dispatched on.
+    """
+
+    def test_an_unresolvable_contract_path_raises(self, tmp_path: Path) -> None:
+        path = write(
+            tmp_path,
+            "tool.yaml",
+            {
+                "project": "claims-a-contract",
+                "version": "1",
+                "contract": "does-not-exist.yaml",
+                "executable": "claims-a-contract",
+                "services": [],
+                "commands": [
+                    {"name": "", "flags": [{"name": "--a", "type": "boolean"}]}
+                ],
+            },
+        )
+        with pytest.raises(ValueError, match="does not resolve to a readable file"):
+            load_descriptor(path)
+
+    def test_the_message_names_the_path_it_looked_at(self, tmp_path: Path) -> None:
+        """Relative paths resolve against the descriptor, not the cwd."""
+        path = write(
+            tmp_path,
+            "tool.yaml",
+            {
+                "project": "claims-a-contract",
+                "version": "1",
+                "contract": "sub/dir/contract.yaml",
+                "executable": "x",
+                "services": [],
+                "commands": [],
+            },
+        )
+        with pytest.raises(ValueError) as excinfo:
+            load_descriptor(path)
+        assert str(tmp_path / "sub" / "dir" / "contract.yaml") in str(excinfo.value)
+
+    def test_a_contract_with_no_archetype_marker_raises(self, tmp_path: Path) -> None:
+        """The narrow shape of round-7's blocker.
+
+        Previously this loaded on the base model, silently dropping
+        ``contract`` and every derived field, and failed three layers later
+        with "no scenarios were evaluated" — which sends the reader to the
+        scenario directory instead of the descriptor.
+        """
+        contract = tmp_path / "contract.yaml"
+        contract.write_text("openapi: 3.1.0\n")
+        path = write(
+            tmp_path,
+            "markerless.yaml",
+            {
+                "project": "markerless",
+                "version": "1",
+                "contract": "contract.yaml",
+                "services": [
+                    {"name": "s", "type": "cli", "command": "x", "commands": []}
+                ],
+            },
+        )
+        with pytest.raises(ValueError, match="no recognisable archetype payload"):
+            load_descriptor(path)
+
+    def test_an_empty_operations_list_is_not_a_marker(self, tmp_path: Path) -> None:
+        """``operations: []`` is falsy, so it fell through to the base model."""
+        contract = tmp_path / "contract.yaml"
+        contract.write_text("openapi: 3.1.0\n")
+        path = write(
+            tmp_path,
+            "empty-ops.yaml",
+            {
+                "project": "empty-ops",
+                "version": "1",
+                "contract": "contract.yaml",
+                "operations": [],
+                "services": [],
+            },
+        )
+        with pytest.raises(ValueError, match="no recognisable archetype payload"):
+            load_descriptor(path)
+
+    def test_a_descriptor_without_a_contract_is_untouched(
+        self, tmp_path: Path
+    ) -> None:
+        """Rule 4. Every refusal above is gated on ``contract:`` being set.
+
+        The legacy flat shape declares none, so it still loads, still warns,
+        and still produces its flat fields — the D6 promise this change made
+        to ACA and the coordinator.
+        """
+        path = hand_authored_flat(tmp_path)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            descriptor = load_descriptor(path)
+        assert descriptor.project == "legacy"
+        assert [w.category for w in caught] == [DeprecationWarning]
+
+    def test_a_resolvable_contract_still_loads(self, tmp_path: Path) -> None:
+        """The happy path is unaffected — proven on a real derived descriptor."""
+        path = derived_tool(tmp_path)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            assert load_descriptor(path).all_interfaces()

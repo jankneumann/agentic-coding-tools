@@ -47,8 +47,22 @@ dogfood: ## Run gen-eval against its own CLI surface
 		--report $(GEN_EVAL_REPORTS)/gen-eval-report.json \
 		--exclusions evaluation/coverage-exclusions.yaml
 
-test: ## Run the unit suite (excludes slow build/install tests)
-	uv run pytest -q -m "not slow"
+test: ## Run the unit suite (CI's selector, minus slow build/install tests)
+	@# `not e2e and not integration` is CI's selector verbatim
+	@# (.github/workflows/ci.yml, gen-eval-tests job). It has to match: a
+	@# developer entry point that is red where CI is green gets ignored just
+	@# as fast as a gate that can never fail, and the next real failure in it
+	@# is then invisible. The integration tests resolve scenarios against a
+	@# coordinator-repo path that does not exist in this package, so the
+	@# previous `-m "not slow"` left this target permanently red on a clean
+	@# tree while CI stayed green.
+	@#
+	@# `not slow` is the one deliberate difference, and it points the safe
+	@# way: those build/install tests DO run in CI, so this target is a
+	@# strict SUBSET of the CI gate. Green here does not prove green there;
+	@# red here is always real. Run `uv run pytest -q -m "not e2e and not
+	@# integration"` to reproduce the CI selector exactly.
+	uv run pytest -q -m "not slow and not e2e and not integration"
 
 lint: ## ruff over every Python tree in the package
 	uv run ruff check src/ tests/ scripts/

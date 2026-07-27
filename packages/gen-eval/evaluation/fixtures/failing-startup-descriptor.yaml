@@ -1,0 +1,49 @@
+# A descriptor whose startup block cannot succeed — the negative control for
+# --no-services.
+#
+# `no-scenarios-descriptor.yaml` has no startup block at all, which makes it
+# useless for exercising --no-services: a run that skips startup and a run that
+# has no startup to skip produce identical output, so a scenario asserting that
+# output credits the flag for something it did not do.
+#
+# Here the startup COMMAND exits non-zero while the health check passes.
+# WITHOUT --no-services the run must fail in the startup path; WITH it the run
+# must reach the zero-scenario guard instead. The two are distinguishable, which
+# is the whole point — see evaluation/scenarios/flag-surface.yaml.
+#
+# The health check must SUCCEED for this fixture to isolate the flag. Per
+# orchestrator.run(), --no-services skips the startup command and the teardown
+# but deliberately still runs the health check, so that externally-managed
+# services are verified reachable rather than assumed. A failing health_check
+# here would fail both runs identically and reproduce the very defect this
+# fixture exists to remove.
+#
+# `command` and `teardown` run through `subprocess.run(shell=True)`, so each
+# must be inert as well as decisive: `false` writes nothing and exits 1, `true`
+# writes nothing and exits 0.
+#
+# `health_check` is NOT a shell command — orchestrator._health_check() opens it
+# with `urllib.request.urlopen`, and a successful open on a non-HTTP scheme
+# counts as healthy. `file:///dev/null` therefore passes without a network,
+# a port or a server, and exists on both macOS and Linux.
+
+project: gen-eval-failing-startup
+version: "0.1.0"
+
+startup:
+  command: "false"
+  health_check: "file:///dev/null"
+  health_timeout_seconds: 1
+  health_retry_count: 1
+  teardown: "true"
+
+services:
+  - name: noop-cli
+    type: cli
+    command: "true"
+    commands: []
+
+# Same empty directory as the sibling fixture: once startup is skipped, the run
+# must exit 1 on the zero-scenario guard rather than on anything it started.
+scenario_dirs:
+  - empty

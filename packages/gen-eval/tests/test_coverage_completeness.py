@@ -9,7 +9,7 @@ Design decisions: D11 (the tool floor is completeness with declared
 exclusions, not a percentage).
 
 An 80% floor on gen-eval's own CLI is arithmetically unreachable — 14 of 17
-flags would have to be exercised and only 5 are. Shipping it would be a gate
+flags would have to be exercised and 10 are. Shipping it would be a gate
 that can never pass, the exact mirror of the gate that could never fail, and
 equally useless.
 
@@ -215,6 +215,86 @@ class TestTheGatePasses:
         )
         assert result.returncode == 0
         assert "50.0" in result.stdout
+
+
+class TestTheReportMustAgreeWithItself:
+    """`known` is rebuilt from the report's keys; the count is independent.
+
+    Round-8 finding L5. The stale-exclusion check asks whether an excluded unit
+    is in ``unevaluated | per_interface``. Both come from the report, so an
+    identifier that reached ``per_interface`` without being declared widens the
+    very set that decides whether an exclusion is stale — it inflates the
+    printed "N of M exercised" AND vouches for an exclusion naming it. The
+    declared count is the one number that does not come from that key space,
+    so requiring the two to agree is what makes the other checks mean anything.
+    """
+
+    def test_an_undeclared_exercised_unit_fails(self, tmp_path: Path) -> None:
+        # 2 declared, but three distinct units named: the extra one is the
+        # self-mapped identifier that matches nothing in the contract.
+        result = run_checker(
+            write_report(
+                tmp_path,
+                declared=2,
+                covered=["cli:--a", "cli:--not-declared"],
+                unevaluated=["cli:--b"],
+            ),
+            write_exclusions(tmp_path, [{"unit": "cli:--b", "reason": "documented"}]),
+        )
+        assert result.returncode == 1
+        assert "declares 2 coverage units but names 3" in result.stderr
+
+    def test_a_stale_exclusion_cannot_hide_behind_an_undeclared_unit(
+        self, tmp_path: Path
+    ) -> None:
+        """The two failures compose rather than mask each other."""
+        result = run_checker(
+            write_report(
+                tmp_path,
+                declared=1,
+                covered=["cli:--a", "cli:--phantom"],
+                unevaluated=[],
+            ),
+            # Names the phantom, so the stale check alone would pass it.
+            write_exclusions(
+                tmp_path, [{"unit": "cli:--phantom", "reason": "documented"}]
+            ),
+        )
+        assert result.returncode == 1
+        assert "but names 2" in result.stderr
+
+    def test_a_consistent_report_still_passes(self, tmp_path: Path) -> None:
+        """Rule 4: the check is silent on every report that was already valid."""
+        result = run_checker(
+            write_report(
+                tmp_path, declared=2, covered=["cli:--a"], unevaluated=["cli:--b"]
+            ),
+            write_exclusions(tmp_path, [{"unit": "cli:--b", "reason": "documented"}]),
+        )
+        assert result.returncode == 0, result.stderr
+
+
+class TestMalformedInputsGetAnOperatorMessage:
+    """Round-8 finding L3: fail-closed is not the same as fail-legibly."""
+
+    def test_unparseable_exclusions_yaml_is_named(self, tmp_path: Path) -> None:
+        report = write_report(
+            tmp_path, declared=1, covered=["cli:--a"], unevaluated=[]
+        )
+        broken = tmp_path / "coverage-exclusions.yaml"
+        broken.write_text("exclusions: [\n  - unit: 'cli:--a'\n   bad indent\n")
+        result = run_checker(report, broken)
+        assert result.returncode == 1
+        assert "not valid YAML" in result.stderr
+        assert "Traceback" not in result.stderr
+
+    def test_unparseable_report_json_is_named(self, tmp_path: Path) -> None:
+        report = tmp_path / "gen-eval-report.json"
+        report.write_text("{not json")
+        result = run_checker(report, write_exclusions(tmp_path, []))
+        assert result.returncode == 1
+        assert "not valid JSON" in result.stderr
+        assert "Traceback" not in result.stderr
 
 
 class TestGenEvalsOwnSuiteSatisfiesIt:

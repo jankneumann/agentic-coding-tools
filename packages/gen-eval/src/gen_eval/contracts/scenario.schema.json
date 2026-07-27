@@ -300,6 +300,18 @@
           "default": null,
           "title": "Error Contains"
         },
+        "error_excludes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Excludes"
+        },
         "not_empty": {
           "anyOf": [
             {

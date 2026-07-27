@@ -539,3 +539,112 @@ finding re-verified by direct execution, not by vendor assertion.
   announced by the DS entry and by `__all__` parity, not by the schema version.
 
 - [x] Final checkpoint: full suite green, `make dogfood` green, `openspec validate --strict` passes
+
+## Phase 6 — Round-8 review remediation
+
+Round 8 (IMPL_REVIEW, 3-vendor quorum: codex, grok, pi; antigravity returned
+invalid JSON; claude excluded as author) confirmed all twelve round-7 defect
+classes fixed and raised two blocking findings, one high, three medium and five
+low. Every item below was reproduced before being fixed.
+
+- [x] 6.1 Align `make test` with the CI selector `[S]`
+  **Dependencies**: 5.4
+  **Note (round-8 B1)**: the `test` target is introduced by this change and
+  exited 1 on a clean tree — `-m "not slow"` does not exclude the `integration`
+  marker, and 7 integration tests resolve scenarios to a coordinator-repo path
+  absent from this package. CI stayed green because its selector is
+  `-m "not e2e and not integration"`. A developer entry point that is red where
+  CI is green is ignored exactly as fast as a gate that can never fail, and the
+  next real failure in it is invisible. Now `-m "not slow and not e2e and not
+  integration"` — a strict subset of the CI gate, documented as such.
+
+- [x] 6.2 Amend the reclamation requirement to match the implementation `[S]`
+  **Spec scenarios**: Descriptor Reclamation Is Announced (a reclaimed name is announced rather than silently rebound)
+  **Dependencies**: 5.8
+  **Note (round-8 B2)**: the delta spec required reclamation to "SHALL increment
+  the descriptor contract version". Round-7 finding 9 established the opposite
+  and task 5.8 deliberately left `CONTRACT_VERSION` at `"2"`. Blocking because
+  the delta spec is what archives into `openspec/specs/`: merging as-is would
+  publish a durable requirement this change's own implementation violates. The
+  requirement and its scenario now state the negative explicitly, and the
+  superseded claim in `descriptor.py`'s `ToolDescriptor` docstring is corrected.
+
+- [x] 6.3 Add `ExpectBlock.error_excludes` `[S]`
+  **Design decisions**: D11
+  **Dependencies**: 5.4c
+  **Note (round-8 H1)**: three of five `flag-surface.yaml` scenarios asserted an
+  observable the CLI emits identically with the flag omitted. The root cause was
+  expressive — flags whose effect is to REMOVE output cannot be discriminated by
+  a presence assertion, and `ExpectBlock` had no negative form. Symmetric with
+  the existing `body_excludes`; searches the same two haystacks as
+  `error_contains` so the pair are exact opposites. Additive and optional, so
+  `CONTRACT_VERSION` stays at `"2"` per 6.2's own reasoning.
+
+- [x] 6.4 Make the three non-discriminating flag scenarios discriminate `[S]`
+  **Design decisions**: D11
+  **Dependencies**: 6.3
+  **Note (round-8 H1)**: `--report-format json` now asserts the markdown report
+  line is absent; `--mode` asserts its enum refuses an unknown value (its former
+  assertion named the DEFAULT mode, so no positive assertion was available);
+  `--no-services` drives a new `failing-startup-descriptor.yaml` whose startup
+  command always fails and whose health check always passes — against a
+  descriptor with no startup block, skipping startup and having none to skip are
+  indistinguishable. Verified by removing each flag and confirming the suite
+  goes RED; `tests/test_expect_error_excludes.py` pins that the assertions stay.
+
+- [x] 6.5 Fail closed on a `contract:` that does not resolve `[S]`
+  **Design decisions**: D1, D6
+  **Dependencies**: 5.1
+  **Note (round-8 M1)**: the D6 deprecation warning tested only truthiness, so
+  `contract: does-not-exist.yaml` silenced it while leaving the surface exactly
+  as hand-authored — strictly worse than declaring nothing, because the signal
+  is gone and the state is unchanged. Truthiness is not resolution.
+
+- [x] 6.6 Refuse a declared contract with no archetype marker `[S]`
+  **Design decisions**: D1
+  **Dependencies**: 4.9
+  **Note (round-8 M2)**: round-7's blocker in a narrower shape. `load_descriptor`
+  dispatches on `operations` / `executable`; a descriptor declaring `contract:`
+  with the marker absent or empty fell through to the base model, where
+  pydantic's `extra: ignore` discarded `contract`, `commands` and `operations`
+  with no warning. It failed three layers later as "no scenarios were
+  evaluated", which points the reader at the scenario directory. Gated on
+  `contract:` being present, so Rule 4 holds for every legacy descriptor.
+
+- [x] 6.7 Require the coverage report to agree with its own declared count `[S]`
+  **Design decisions**: D11
+  **Dependencies**: 5.4a
+  **Note (round-8 L5)**: the completeness gate rebuilt its known-unit set from
+  `unevaluated_interfaces | per_interface`, both of which come from the report.
+  An identifier reaching `per_interface` without being declared inflated the
+  printed count AND widened the set that decides whether an exclusion is stale —
+  so it vouched for the exclusion naming it. `declared_interface_count` is the
+  one number not drawn from that key space; the two must now agree.
+
+- [x] 6.8 Refuse sibling keys beside a path-item `$ref` `[S]`
+  **Design decisions**: D1
+  **Dependencies**: 4.14
+  **Note (round-8 L4)**: `resolve_path_item` returned the target alone, silently
+  dropping anything declared beside the `$ref`. A dropped `parameters` list
+  publishes MCP tools missing the path parameters they cannot work without. OAS
+  3.1 leaves the merge undefined, which is the argument for refusing rather than
+  guessing — a guess is an invisible decision about what the surface is.
+  `summary` and `description` are permitted; neither changes the surface.
+
+- [x] 6.9 Correct stale counts and add operator messages `[S]`
+  **Dependencies**: 5.4a
+  **Note (round-8 L1/L2/L3/M3)**: the completeness gate's docstring and its
+  test's docstring both said "5 are" exercised; the real figure is 10.
+  `evaluation/README.md` now documents `flag-surface.yaml`,
+  `coverage-exclusions.yaml`, the two new fixtures, the D11 gate and the
+  remove-the-flag discrimination check. Malformed exclusions YAML and a
+  malformed report JSON now produce the same operator message every other guard
+  gives instead of a traceback. `--fail-threshold`'s help states its unit and
+  names the asymmetry with `--min-coverage`; the units are deliberately NOT
+  reconciled, because redefining a rate as a percent would silently turn every
+  existing `--fail-threshold 1.0` into a 1% floor (Rule 4).
+
+- [x] Round-8 checkpoint: 1068 passed, `make test` green, `make dogfood` green
+  (13/13, 10 of 17 units, 7 excluded), ruff clean, contract artifacts up to date
+  at version 2, mypy unchanged at its 5 pre-existing errors, `openspec validate
+  --strict` passes

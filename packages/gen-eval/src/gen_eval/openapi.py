@@ -58,10 +58,29 @@ def resolve_path_item(
     Anything unresolvable raises. Skipping it is the failure this exists to
     prevent: the operation disappears from the declared surface, coverage of
     nothing reports complete, and no error is ever printed.
+
+    Sibling keys beside a ``$ref`` also raise, for the same reason one level
+    down. Returning the target alone silently discards them, and a discarded
+    ``parameters`` list means the derived operation is missing required path
+    parameters that the document plainly declared. OAS 3.1 permits ``summary``
+    and ``description`` beside a ``$ref`` and neither affects the declared
+    surface, so those two are allowed through; anything else is a claim being
+    dropped, and this refuses rather than guesses which of the two definitions
+    was meant to win.
     """
     ref = item.get("$ref")
     if not ref:
         return item
+    siblings = set(item) - {"$ref", "summary", "description"}
+    if siblings:
+        raise ValueError(
+            f"{path}: path item declares {sorted(siblings)} alongside "
+            f"$ref {ref!r}. Only summary and description may accompany a "
+            f"$ref — everything else would be silently discarded when the "
+            f"reference is resolved, and a dropped `parameters` list yields "
+            f"operations missing parameters the document declares. Move them "
+            f"into the referenced path item."
+        )
     if not isinstance(ref, str) or not ref.startswith(_PATH_ITEM_REF_PREFIX):
         raise ValueError(
             f"{path}: cannot resolve path item $ref {ref!r}. Only local "

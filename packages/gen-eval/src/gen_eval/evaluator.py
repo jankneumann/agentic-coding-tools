@@ -410,6 +410,21 @@ class Evaluator:
                     "actual_body": result.body,
                 }
 
+        if expect.error_excludes is not None:
+            expected["error_excludes"] = expect.error_excludes
+            error_str = result.error or ""
+            body_str = str(result.body)
+            # Searched over the same two haystacks as error_contains, so the
+            # pair is exact opposites. Checking fewer would let a substring
+            # "pass" as absent merely because this branch never looked where
+            # error_contains would have found it.
+            if expect.error_excludes in error_str or expect.error_excludes in body_str:
+                diff["error_excludes"] = {
+                    "forbidden_substring": expect.error_excludes,
+                    "actual_error": result.error,
+                    "actual_body": result.body,
+                }
+
         if expect.not_empty is True:
             expected["not_empty"] = True
             if not result.body:

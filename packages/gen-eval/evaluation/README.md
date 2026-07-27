@@ -30,13 +30,16 @@ empirical case for UP-4.
 ```
 evaluation/
   descriptor.yaml              # GENERATED from the CLI contract — no startup block
+  coverage-exclusions.yaml     # units this suite cannot exercise, each with a reason
   scenarios/
     cli-entrypoint.yaml        # UP-1: the console script and its exit codes
     contract-version.yaml      # UP-2: the published schema contract probe
     self-run.yaml              # UP-3 + UP-4: gen-eval driving gen-eval
+    flag-surface.yaml          # D11: contracted flags with an assertable consequence
   fixtures/
-    no-scenarios-descriptor.yaml   # inner descriptor for the self-run
-    empty/                         # deliberately empty scenario dir
+    no-scenarios-descriptor.yaml    # inner descriptor for the self-run
+    failing-startup-descriptor.yaml # startup that fails — the --no-services control
+    empty/                          # deliberately empty scenario dir
   .reports/                    # run output (gitignored)
 ```
 
@@ -52,6 +55,56 @@ evaluation/
 | `contract-version-value-is-pinned` | version is exactly `2` | an unannounced contract bump |
 | `self-run-without-startup-block` | runs with no `startup:` and no `--no-services` | UP-4 regression making the block mandatory again |
 | `self-run-zero-scenarios-cannot-pass` | exit 1 at `--fail-threshold 0` | UP-3 vacuous-pass guard removed |
+| `cli-verbose-announces-the-declared-surface` | "descriptor loaded — N services, M interfaces" | a regression to an empty declared surface |
+| `cli-min-coverage-rejects-a-rate` | exit 2 on `0.8` | a rate read as a percent, i.e. a 0.8% floor every run clears |
+| `cli-report-format-json-writes-only-json` | the markdown report line is **absent** | `--report-format` stops suppressing anything |
+| `cli-mode-rejects-an-unknown-value` | exit 2 on an unknown mode | the enum silently falling back to the default |
+| `cli-no-services-skips-startup` | reaches the run despite a failing startup command | `--no-services` stops skipping startup |
+
+## The acceptance gate is completeness, not a percentage (D11)
+
+`make dogfood` runs a second command after the evaluation:
+
+```bash
+uv run python scripts/check_coverage_completeness.py \
+    --report evaluation/.reports/gen-eval-report.json \
+    --exclusions evaluation/coverage-exclusions.yaml
+```
+
+Every contracted coverage unit must be exercised by a scenario **or** carry a
+written reason in `coverage-exclusions.yaml`. The percentage is printed and is
+not the gate: "58.8% covered" does not say whether the missing 41% is
+`--verbose` or `--fail-threshold`, and an 80% floor on this surface would need
+14 of 17 flags exercised — a gate that could never pass, which gets disabled
+exactly as fast as one that could never fail.
+
+### What "exercised" has to mean
+
+Passing a flag and watching the process survive is not exercise. A flag that is
+only parsed contributes a number to the percentage and no evidence, which is
+the laundering D11 exists to stop.
+
+The operational test: **remove the flag under test from the scenario's args and
+the scenario must fail.** Three of the five `flag-surface.yaml` scenarios once
+passed either way — they asserted output the default run produced too
+(`mode=template-only` *is* the default; `gen-eval-report.json` is written under
+`--report-format both` as well). Round 8 of the multi-vendor review caught it.
+
+Two things came out of the fix and both are load-bearing:
+
+- **`ExpectBlock.error_excludes`** — assert a substring is ABSENT. Flags whose
+  effect is to *remove* output cannot be discriminated by a presence assertion,
+  so the suite could not express the check it needed. Guarded by
+  `tests/test_expect_error_excludes.py`.
+- **`fixtures/failing-startup-descriptor.yaml`** — a startup command that always
+  fails and a health check that always passes. `--no-services` was previously
+  asserted against a descriptor with no startup block at all, where skipping
+  startup and having nothing to skip are indistinguishable.
+
+To re-run the discrimination check by hand, delete a flag from a scenario's
+`args:` and run `make dogfood`. A green run means that scenario is not
+exercising its flag, and the unit belongs in `coverage-exclusions.yaml` with an
+honest reason instead.
 
 ## Findings this suite surfaced
 
