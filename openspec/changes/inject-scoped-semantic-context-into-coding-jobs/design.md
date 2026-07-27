@@ -486,3 +486,85 @@ follow-up.
 **Consequence, stated plainly in the spec delta so it is not discovered later:**
 a CLI agent with MCP-only coordination never receives injected semantic context.
 It receives the `unavailable` fallback and proceeds with `rg` and direct reads.
+
+## D14 — A healthy index that yields nothing gets its own trigger, `no_context`
+
+**Amendment.** Discovered during `wp-retrieval` implementation, after D1–D13
+were written. It amends **D8**'s trigger list from four values to five; D8 is
+otherwise unchanged, and its four triggers keep their exact meanings.
+
+The section schema requires a non-empty `hits` array when `status="injected"`,
+which is correct: an "injected" section with nothing in it is not a section. But
+that left a `state=ready`, `current=true` response returning zero results with no
+honest representation. The implementation mapped it to
+`unavailable` / `unknown_state` — **reporting a correctly functioning service as
+broken.** That is the same misreporting the rest of this roadmap exists to
+remove, pointed the other way, and it is worse than a missing feature: it sends a
+reader looking for an outage that never happened.
+
+`no_context` is the fifth trigger and the only one that describes a healthy,
+current index. It admits exactly two reasons, because they are **different facts
+about the world**:
+
+- `index_returned_no_hits` — the index held nothing similar enough inside the
+  declared scope.
+- `all_hits_omitted` — the index returned hits and this client's own dedup and
+  budget selection retained none of them.
+
+Only the second could have been changed by a larger budget. A reader deciding
+whether to raise `SEMANTIC_CONTEXT_MAX_HITS` needs to know which one happened,
+and a single reason cannot tell them.
+
+Three conditional constraints in the schema keep the pairing honest: the two
+relevance reasons are reachable only from `no_context`; `no_context` admits only
+those two reasons; and `no_context` requires `service_state: "ready"`. The last
+one matters most — a `no_context` emitted from a path that never issued a query
+would be an unfalsifiable claim about a service nobody asked.
+
+**Scope filtering keeps `out_of_scope` / `all_hits_scope_filtered`.** Scope is a
+safety decision, not a relevance one. Relabelling it `no_context` would hide a
+scope event behind a relevance one, and scope events are the ones that matter
+for correctness.
+
+**Alternatives rejected:**
+
+- *Allow `hits: []` on an injected section.* Removes the contradiction by
+  removing the invariant. An injected-but-empty section is indistinguishable from
+  a rendering bug, and every consumer would need its own emptiness check.
+- *Reuse `unavailable` and add only a reason.* The trigger is what consumers
+  branch on and what an operator reads first. A working service under
+  `unavailable` is wrong at the level people actually look at.
+- *One reason for both cases.* Collapses a distinction that changes what the
+  reader should do next. The budget is tunable; the index's contents are not.
+- *Treat "nothing relevant" as success with an empty render.* Silence is
+  indistinguishable from injection never having been attempted — the precise
+  fail-open shape ri-12 exists to prevent.
+
+## D15 — `requested_revision` uses git's null object id when no revision resolved
+
+**Ratification.** `wp-retrieval` chose `UNRESOLVED_REVISION = "0" * 40` while
+implementing, and the choice was inherited rather than decided. It is correct and
+is now decided.
+
+D9 returns before touching git when `SEMANTIC_CONTEXT_INJECTION` is off, and the
+`revision_unresolvable` path by definition has no revision. But the section
+schema marks `requested_revision` required, with a full-revision pattern, on
+fallbacks as well as injections. Something has to go in the field.
+
+Git's null object id (forty zeros) is the right filler: it is a well-known,
+pattern-valid "no commit" sentinel that cannot collide with a real revision, and
+a reader who encounters it recognizes it immediately. In practice it rarely
+surfaces — the renderer emits nothing at all for `injection_disabled` (D9) — but
+"rarely surfaces" is a reason to decide it deliberately, not a reason to leave it
+implicit.
+
+**Alternatives rejected:**
+
+- *Make `requested_revision` optional on fallbacks.* Weakens the contract for
+  every fallback in order to serve two paths, and an absent field is easier to
+  overlook than a conspicuous sentinel.
+- *Invent a plausible-looking hash.* Actively harmful: a reader cannot tell it
+  from a real revision, which is the definition of misreporting.
+- *Use the literal string `"unresolved"`.* Fails the schema's revision pattern,
+  so it would require relaxing the pattern — trading a narrow sentinel for a
+  field that no longer validates as a revision at all.
