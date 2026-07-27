@@ -97,7 +97,7 @@
 - [x] 4.3 Add the consumer protocol block to `skills/quick-task/SKILL.md` and
       `skills/debugging-and-error-recovery/SKILL.md`, including the
       `no_declared_scope` behaviour for change-less jobs.
-- [ ] 4.4 Add the consumer protocol block to `skills/validate-feature/SKILL.md`
+- [x] 4.4 Add the consumer protocol block to `skills/validate-feature/SKILL.md`
       and `skills/parallel-review-implementation/SKILL.md`.
 - [ ] 4.5 Add `skills/tests/context-engineering/test_consumer_protocol_blocks.py`
       asserting all six consumer SKILL.md files declare a distinct `consumer`
