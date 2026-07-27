@@ -128,6 +128,40 @@ A retry consults both. A terminal record *or* a discoverable trailer means the
 convergence for that SHA already happened; the pass reports the existing identity
 and does nothing.
 
+**Correction, measured during the ri-11 rehearsal (task 6.3/6.4).** The trailer
+check is scoped by `operation_id`, and `operation_id` is
+`sha256(domain \0 repository_id \0 merged_revision)` where `repository_id`
+falls back to the **repository directory name** (`resolve_repository_id`). Two
+clones of the same repository into differently named directories therefore
+compute different operation ids for the *same* merged revision, and neither
+finds the other's trailer. Rehearsed: `reh1` produced
+`pcr-d1f79f036271c8ff`, a fresh clone at `reh2` computed
+`pcr-2ae8ac65e1dee545` and reported `prior.found=false` even though the trailer
+was sitting in `HEAD`.
+
+The directory-name rule is **not ri-11's to change**: it is ri-04's canonical
+`provenance.repository_id`, inherited byte-for-byte by ri-07's
+`resolve_repository_identity` so the ledger does not split *within* a clone.
+Changing it would alter every committed `architecture.provenance.json` and make
+ri-10's drift gate report a producer-identity mismatch repository-wide.
+
+Two things make this survivable rather than dangerous, and both were observed:
+
+1. **Layer 3 catches it.** The pre-push compare-and-swap saw `origin/main` was
+   already the other clone's convergence commit, blocked with
+   `push_race_lost`, exited 2, pushed nothing, and reported the operation
+   resumable with nothing staged discarded. No duplicate reached `origin`.
+2. **`PROJECT_CONTEXT_REPO_ID` already fixes it.** Setting it to a stable value
+   makes the identity clone-independent, and both the ri-07 orchestrator and
+   this driver honor it. Any environment that converges the same repository
+   from more than one checkout path — CI plus a developer machine — must set it.
+
+So the trailer survives a fresh clone *of the same repository identity*, which
+is weaker than "survives a fresh clone" and is what the table above should be
+read to mean. Making the identity intrinsically portable (a normalized origin
+URL, or the root-commit SHA) is filed as a follow-up spanning ri-04, ri-07, and
+this change, because all three must move together.
+
 **Rejected: keying on the set of merged PR numbers.** Not stable — a retry after a
 partial pass merges a different set and would mint a new identity for the same
 tree.

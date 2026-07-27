@@ -122,22 +122,22 @@ Each task is sized to one commit. Group numbers map to work packages in
 **Files**: repository-wide
 **Dependencies**: all packages
 
-- [ ] 6.1 Merge every package worktree and run the full affected test suites.
-- [ ] 6.2 Demonstrate the guard fails before it passes: on an unmodified tree, show
+- [x] 6.1 Merge every package worktree and run the full affected test suites.
+- [x] 6.2 Demonstrate the guard fails before it passes: on an unmodified tree, show
       that `refresh` is refused from the shared checkout, then show it permitted with
       `--sync-point`. Capture both outputs as evidence.
-- [ ] 6.3 Rehearse one full convergence end to end against a scratch clone with a
+- [x] 6.3 Rehearse one full convergence end to end against a scratch clone with a
       single merged PR; capture the convergence record, the commit trailer, and the
       handoff report.
-- [ ] 6.4 Prove idempotence: re-run the rehearsal at the same merged SHA and show no
+- [x] 6.4 Prove idempotence: re-run the rehearsal at the same merged SHA and show no
       second commit, no second archive, and no second index request.
-- [ ] 6.5 Run `make context-drift-gate` on the post-convergence tree and confirm
+- [x] 6.5 Run `make context-drift-gate` on the post-convergence tree and confirm
       exit 0.
-- [ ] 6.6 Run `openspec validate integrate-main-context-convergence --strict`,
+- [x] 6.6 Run `openspec validate integrate-main-context-convergence --strict`,
       `bash skills/install.sh --check`, and the skills lint gate at the locked
       version.
 - [ ] 6.7 Sync skills to runtimes with
       `bash skills/install.sh --mode rsync --force --deps none --python-tools none`.
-- [ ] 6.8 Confirm the contract is promoted to
+- [x] 6.8 Confirm the contract is promoted to
       `openspec/contracts/project-context-refresh/schemas/` and byte-identical to the
       change-local and install-asset copies.

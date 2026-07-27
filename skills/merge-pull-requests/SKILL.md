@@ -671,6 +671,18 @@ Two independent checks detect a prior convergence:
 If either finds one, the driver reports **already-converged** with the existing
 identity and does nothing further.
 
+**Set `PROJECT_CONTEXT_REPO_ID` in any environment that converges this repository
+from more than one checkout path.** The operation id is
+`sha256(domain \0 repository_id \0 merged_revision)`, and `repository_id` falls
+back to the *repository directory name*. Two clones in differently named
+directories therefore compute different ids for the same merged revision, and
+neither finds the other's trailer — CI and a developer machine would each
+believe they were first. The pre-push compare-and-swap still blocks the second
+one (`push_race_lost`, exit 2, nothing pushed, resumable), so this degrades
+safely rather than duplicating; but setting the variable is what makes the
+trailer check work as intended. The ri-07 orchestrator honors the same variable,
+so one value keeps both in agreement.
+
 #### Outcomes
 
 No convergence outcome reverts a merge. Merges are terminal by the time this step
