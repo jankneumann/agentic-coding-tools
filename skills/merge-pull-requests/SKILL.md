@@ -619,7 +619,7 @@ refresh that ran first would be stale the instant the archive moved.
 **Phases 2 and 3 — refresh and land, through the driver:**
 
 ```bash
-skills/.venv/bin/python skills/merge-pull-requests/scripts/main_convergence.py \
+python3 <agent-skills-dir>/merge-pull-requests/scripts/main_convergence.py \
   --merged-json <merged_prs_this_pass.json> \
   --merged-revision <full SHA of main after every merge in the pass>
 ```
