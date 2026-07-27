@@ -89,7 +89,7 @@
 
 ## 4. Consumers (wp-consumers)
 
-- [ ] 4.1 Extend `skills/context-engineering/SKILL.md` — semantic code as a
+- [x] 4.1 Extend `skills/context-engineering/SKILL.md` — semantic code as a
       Level-3 augmentation, the retrieval protocol, the budget table, the
       omission and fallback vocabularies, and the opt-in flag.
 - [ ] 4.2 Add the consumer protocol block to `skills/implement-feature/SKILL.md`
