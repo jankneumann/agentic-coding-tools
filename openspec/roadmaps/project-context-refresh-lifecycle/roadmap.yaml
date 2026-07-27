@@ -255,7 +255,7 @@ items:
   - A clean checkout at the recorded revision passes regeneration checks with no diff.
 - item_id: ri-11
   title: Integrate main context convergence
-  status: approved
+  status: completed
   priority: 11
   effort: L
   depends_on:
@@ -282,7 +282,7 @@ items:
     status for the final pushed main SHA.
 - item_id: ri-12
   title: Inject scoped semantic context into coding jobs
-  status: approved
+  status: completed
   priority: 12
   effort: L
   depends_on:

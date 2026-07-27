@@ -12,3 +12,5 @@
 | ri-08 | validation | context_impact.surfaces is never treated as evidence of completeness -- a planne |
 | ri-09 | validation | semantic_adapter.py hardcoded --namespace-kind main --namespace-key main while c |
 | ri-10 | validation | Five defects blocked a naive gate, and four of them were fail-open: the architec |
+| ri-11 | validation | Tasks 6.3/6.4 rehearsed a real convergence against a scratch clone with a local  |
+| ri-12 | validation | The section schema requires non-empty hits when status=injected -- correct, an i |
