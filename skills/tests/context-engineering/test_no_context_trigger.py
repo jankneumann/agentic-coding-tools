@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
@@ -243,4 +244,69 @@ def test_the_renderer_surfaces_no_context_with_its_reason() -> None:
     )
     assert "exact" in text.lower(), (
         "The rendered fallback does not state the exact-search strategy."
+    )
+
+
+def test_the_renderer_never_raises_even_on_a_hostile_section() -> None:
+    """The fail-closed path must not re-trust the section that already failed.
+
+    `render_semantic_context` documents "never raises", and every consumer
+    relies on it: semantic context is an optional input, and an optional input
+    that can abort its consumer is not optional. The blanket guard covered
+    `_render`, but the fail-closed `_render_fallback` on the next line re-read
+    the SAME untrusted section through `_requested_revision`, so a section whose
+    own `.get` raises escaped the function entirely.
+    """
+    render = pytest.importorskip("render_semantic_context")
+
+    class _Hostile(Mapping):
+        def __getitem__(self, key: object) -> object:
+            raise RuntimeError("hostile section")
+
+        def __iter__(self):
+            return iter(())
+
+        def __len__(self) -> int:
+            return 0
+
+        def get(self, key: object, default: object = None) -> object:
+            raise RuntimeError("hostile section")
+
+    text = render.render_semantic_context(_Hostile())
+    assert "Semantic code context" in text, (
+        "A hostile section produced no fail-closed block at all."
+    )
+    assert "Not injected" in text and "exact search" in text.lower(), (
+        "The fail-closed block does not tell the worker to use exact search, so "
+        "an unreadable section reads as an unexplained absence."
+    )
+
+
+@pytest.mark.parametrize(
+    ("results", "needle"),
+    [
+        ([], "would not have changed"),
+        ([_hit(1, sc.DEFAULT_BUDGET.max_hit_lines + 10)], "may have produced context"),
+    ],
+)
+def test_each_relevance_reason_renders_prose_not_a_raw_enum(
+    results: list[dict[str, object]], needle: str
+) -> None:
+    """D14's distinction is only useful if the reader can see it.
+
+    The section is produced by the real collector rather than hand-built: a
+    hand-built dict missing a field the renderer validates degrades to the
+    uninterpretable fallback, and the test would then be asserting against a
+    block that never reaches a real worker.
+    """
+    render = pytest.importorskip("render_semantic_context")
+    result = sc.collect_semantic_context(_request(), _runtime(results=results))
+    assert result.fallback is not None
+    assert result.fallback.trigger == "no_context"
+    text = render.render_semantic_context(result.to_dict())
+    assert needle in text, (
+        f"{result.fallback.reason!r} renders without prose, so it falls back to "
+        "the generic 'the retrieval helper reported `<reason>`' line -- which "
+        "discards the one distinction D14 exists to draw: whether a larger "
+        "budget would have helped."
     )
