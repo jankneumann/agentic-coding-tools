@@ -1,0 +1,97 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "B1 verified fixed. Executed `make -C packages/gen-eval test` on a clean tree: 1068 passed, 1 skipped, 12 deselected (0 failures). Running `uv run pytest -v -m \"not e2e and not integration\"` directly in packages/gen-eval also passed (1072 passed, 1 skipped, 8 deselected). The local selector `-m \"not slow and not e2e and not integration\"` in Makefile is a principled strict subset of CI's `-m \"not e2e and not integration\"`, excluding slow build/install tests locally for fast developer iterations while CI continues running the full non-e2e suite.",
+      "resolution": "No action required; fix independently verified by execution.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/Makefile",
+      "line_range": {
+        "start": 50,
+        "end": 66
+      }
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "B2 verified fixed. `openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md` updated the 'Descriptor Reclamation Is Announced' requirement and scenario to explicitly assert that reclaiming a Python export name SHALL NOT increment the descriptor contract version. Observed code behaviour (`CONTRACT_VERSION = \"2\"`, `contracts/VERSION` = \"2\\n\", and `x-gen-eval-contract-version` = \"2\" on all published JSON Schemas) matches the spec requirement exactly. `npx -y @fission-ai/openspec validate --strict --all` passed with 60/60 specs passing.",
+      "resolution": "No action required; spec-to-code alignment verified across the full spec.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": {
+        "start": 213,
+        "end": 237
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "H1 verified fixed. The new `ExpectBlock.error_excludes` primitive in `src/gen_eval/evaluator.py` searches the exact same haystacks (`error_str` and `body_str`) as `error_contains`, making them exact opposites. Tested all 5 scenarios in `evaluation/scenarios/flag-surface.yaml` by invoking `gen-eval` without each flag under test: all 5 scenarios went RED when their flag under test was omitted (including `--verbose`, `--min-coverage`, `--report-format`, `--mode`, `--no-services`), proving zero coverage laundering. `error_excludes` defaults to None and is purely additive.",
+      "resolution": "No action required; flag discrimination and error_excludes behavior verified by execution.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/evaluation/scenarios/flag-surface.yaml",
+      "line_range": {
+        "start": 1,
+        "end": 202
+      }
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "M1 and M2 verified fixed. Executed `load_descriptor` against a descriptor with unresolvable `contract: does-not-exist.yaml` (M1) and against a descriptor declaring a contract but omitting archetype markers `operations` / `executable` (M2): both failed closed raising clear `ValueError` exceptions instead of silently dropping contract fields. Rule 4 verified: a legacy descriptor declaring no `contract:` key loads as `InterfaceDescriptor` with a DeprecationWarning, retaining exact class type, fields, and behavior.",
+      "resolution": "No action required; fail-closed contract loading and legacy fallback verified by execution.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py",
+      "line_range": {
+        "start": 391,
+        "end": 448
+      }
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "M3 verified resolved. The unit asymmetry between `--fail-threshold` (rate in [0, 1]) and `--min-coverage` (percent in [0, 100]) is clearly documented in `__main__.py` help strings and Makefile comments. Furthermore, the `_percentage` parser enforces the [0, 100] range for `--min-coverage`, rejecting rate values like `0.8` with an explicit `not a rate` usage error (tested in scenario `cli-min-coverage-rejects-a-rate`), preventing silent misconfiguration.",
+      "resolution": "No action required; documentation and validation bounds verified.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/src/gen_eval/__main__.py",
+      "line_range": {
+        "start": 220,
+        "end": 244
+      }
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "L1-L5 and all new deterministic gates verified fixed and tested for fail-closed behavior. (1) `check_coverage_completeness.py` (D11 gate) went RED when `len(known)` differed from `declared_interface_count` or when unexcluded units were present, and fails closed if `declared_interface_count` is 0/missing; (2) `scripts/generate_tool_descriptor.py --check` went RED when `evaluation/descriptor.yaml` was mutated; (3) `test_the_real_parser_declares_nothing_the_contract_omits` (argparse gate) went RED when an uncontracted flag was added to `build_parser()`. `resolve_path_item` in `openapi.py` refuses non-OAS 3.1 `$ref` sibling keys. All mutated files were restored byte-for-byte and `git status` / `git diff` confirmed clean.",
+      "resolution": "No action required; gate fail-closed behavior and tree hygiene verified by execution.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/scripts/check_coverage_completeness.py",
+      "line_range": {
+        "start": 65,
+        "end": 140
+      }
+    }
+  ]
+}

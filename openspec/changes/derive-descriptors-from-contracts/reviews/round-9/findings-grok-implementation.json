@@ -1,0 +1,150 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Round-8 B1 CONFIRMED FIXED. On an unmodified tree, `make -C packages/gen-eval test` exits 0: `1068 passed, 1 skipped, 12 deselected`. Makefile line 65 uses `-m \"not slow and not e2e and not integration\"`. CI (`.github/workflows/ci.yml` gen-eval-tests) uses `-m \"not e2e and not integration\"`. Collect-only comparison: CI selector \u2192 1073 tests; make test \u2192 1069 tests; the 4-test gap is exactly the `slow` install/wheel suite (`test_cli_entrypoint.py` \u00d73, `test_sdist_contents.py` \u00d71). The new selector is a strict subset of CI\u2019s, not a hide-the-failures exclusion: integration/e2e (pre-existing red here) match CI; `not slow` only drops long build/install tests that still run in CI. Principled.",
+      "resolution": "None \u2014 fix verified by execution.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/Makefile"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Round-8 B2 CONFIRMED FIXED. Delta requirement `Descriptor Reclamation Is Announced` now states the negative: reclamation SHALL NOT alone increment the descriptor contract version; scenario requires version SHALL NOT be incremented. Observed: `CONTRACT_VERSION == \"2\"`, `contracts/VERSION == 2`, and all three published schemas carry `x-gen-eval-contract-version: 2` (scenario.schema.json, interface-descriptor.schema.json, eval-report.schema.json). `ToolDescriptor` docstring (descriptor.py ~468\u2013472) matches. Package export resolves to the archetype (`from gen_eval import ToolDescriptor` is `gen_eval.descriptor.ToolDescriptor`, not `McpToolSpec`). Downstream notice at `openspec/changes/derive-descriptors-from-contracts/DOWNSTREAM.md` DS-5 documents both meanings and the no-bump correction. `openspec validate derive-descriptors-from-contracts --strict` \u2192 valid. Spot-checked remaining ADDED/MODIFIED requirements against dogfood/loader/gates; no other delta SHALL observed to be violated by current code.",
+      "resolution": "None \u2014 spec and implementation agree.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md"
+    },
+    {
+      "id": 3,
+      "type": "behavioral_failure",
+      "criticality": "low",
+      "description": "Round-8 H1 CONFIRMED FIXED for all five flag-surface scenarios. Baseline `make dogfood`: 13/13 pass including all five flag-surface ids. In-place removal of each flag under test (file restored to original md5 `2ac53ec6a2a0cc7166548cb233f96065` after each cycle) made that scenario FAIL: (1) `--verbose` removed \u2192 fail `error_contains: descriptor loaded` (verbose-only line absent); (2) `--min-coverage 0.8` removed \u2192 exit 1 not 2, no `not a rate`; (3) `--report-format json` removed \u2192 fail `error_excludes: gen-eval-report.md` (default `both` writes md); (4) `--mode not-a-mode` removed \u2192 exit 1 not 2, no invalid-choice; (5) `--no-services` removed against `failing-startup-descriptor.yaml` \u2192 fail both `error_contains: no scenarios were evaluated` and `error_excludes: CalledProcessError` (startup `false` raises). `error_excludes` searches the same haystacks as `error_contains` (evaluator.py:401\u2013426: `result.error` and `str(result.body)`); optional default None; `tests/test_expect_error_excludes.py` 7/7 pass.",
+      "resolution": "None \u2014 discrimination holds for all five scenarios.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/evaluation/scenarios/flag-surface.yaml"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Round-8 M1 CONFIRMED FIXED. `load_descriptor` with `contract: does-not-exist.yaml` raises ValueError naming the path and the looked-up location (not a silent deprecation silence). Absolute missing path likewise refused. Command: constructed temp descriptor; observed `ValueError: ... declares contract: does-not-exist.yaml, which does not resolve to a readable file`.",
+      "resolution": "None \u2014 fail-closed on non-resolving contract.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Round-8 M2 CONFIRMED FIXED; Rule 4 preserved. Descriptor with readable `contract:` but no `executable`/`operations` raises ValueError naming the missing archetype payload. Empty `operations: []` is falsy and likewise refused. Rule 4: hand-authored YAML with no `contract:` loads as exact `InterfaceDescriptor` (`type(loaded) is InterfaceDescriptor`), populates `all_interfaces()` from services, emits DeprecationWarning \u2014 verified via `tests/test_descriptor_loading.py` (13 passed) and a constructed legacy fixture. New refusals are gated on `contract:` presence only.",
+      "resolution": "None \u2014 refuse declared-contract-without-marker; legacy path unchanged.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py"
+    },
+    {
+      "id": 6,
+      "type": "style",
+      "criticality": "low",
+      "description": "Round-8 M3 adjudicated: unit asymmetry remains (`--fail-threshold` rate in [0,1], `--min-coverage` percent 0\u2013100) but is now named in CLI help (explicit example that `1.0` + `1` is 100% pass / 1% coverage, and why redefining the rate would silently turn `1.0` into a 1% floor). Makefile comments match. Documenting is the correct Rule-4 resolution; reconciling units would be a silent behavioural break for existing invocations. Residual footgun for copy-pasters is real but mitigated; not a defect requiring code change.",
+      "resolution": "Accept documentation; do not redefine --fail-threshold units without a major-version migration.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/src/gen_eval/__main__.py"
+    },
+    {
+      "id": 7,
+      "type": "style",
+      "criticality": "low",
+      "description": "Round-8 L1 CONFIRMED FIXED. `scripts/check_coverage_completeness.py` docstring now says 10 of 17 units are exercised (was \"5 are\"). Matches dogfood output `coverage complete: 10 of 17 units exercised (58.8%), 7 excluded with reasons`.",
+      "resolution": "None.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "none",
+      "file_path": "packages/gen-eval/scripts/check_coverage_completeness.py"
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Round-8 L2 CONFIRMED FIXED. `evaluation/README.md` documents layout entries for `coverage-exclusions.yaml` and `scenarios/flag-surface.yaml`, the D11 completeness gate, the remove-the-flag discrimination check, and `ExpectBlock.error_excludes`.",
+      "resolution": "None.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "none",
+      "file_path": "packages/gen-eval/evaluation/README.md"
+    },
+    {
+      "id": 9,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Round-8 L3 CONFIRMED FIXED. Malformed exclusions YAML is caught as `yaml.YAMLError` and reported via `_fail` (exit 1), not a raw traceback. Command: `uv run python scripts/check_coverage_completeness.py --report evaluation/.reports/gen-eval-report.json --exclusions /tmp/bad-excl.yaml` \u2192 exit 1, message `/tmp/bad-excl.yaml is not valid YAML: ...`. Corrupt report JSON similarly gets an operator message (exit 1).",
+      "resolution": "None.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/scripts/check_coverage_completeness.py"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Round-8 L4 CONFIRMED FIXED. `resolve_path_item` refuses non-summary/description siblings of `$ref` with ValueError naming the path and siblings; permits pure `$ref` and `$ref`+summary/description. Observed: parameters sibling \u2192 refused; servers sibling \u2192 refused; pure ref \u2192 resolves. Behaviour change is fail-closed and gated only when `$ref` is present with extra keys \u2014 does not reject previously-working pure refs or non-ref path items. Allowed summary/description siblings are not merged onto the target (returned target only); consistent with the claim they do not affect the declared surface.",
+      "resolution": "None \u2014 refuse rather than silently drop is correct for this reader.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/src/gen_eval/openapi.py"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Round-8 L5 CONFIRMED FIXED. Completeness gate cross-checks `len(known) != declared_interface_count`. Injecting undeclared `cli:--not-a-real-flag` into `per_interface` on a real dogfood report \u2192 exit 1 with message that report declares 17 units but names 18. Missing `declared_interface_count` fails closed as zero declared units (exit 1), not a green bootstrap hole. Clean dogfood report \u2192 exit 0.",
+      "resolution": "None \u2014 count agreement required before trusting report key space.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/scripts/check_coverage_completeness.py"
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Phase-5/6 gates fail closed under mutation (not decoration). (1) `check_coverage_completeness.py`: missing report exit 1; blank exclusion reason exit 1; stale exclusion exit 1; 0% coverage exit 1; unexplained unit exit 1; count mismatch exit 1; clean report exit 0. (2) `generate_tool_descriptor.py --check`: clean \u2192 exit 0 `tool descriptor up to date (17 coverage units)`; mutated checked-in flag name `--verbose`\u2192`--verboseX` \u2192 exit 1 with unified diff (restored). (3) Task 4.7 argparse gate: mutated `build_parser` to add `--rogue-undocumented-flag`, cleared `__pycache__`, `tests/test_subset_verifiers.py::TestAgainstGenEvalsOwnContract::test_the_real_parser_declares_nothing_the_contract_omits` FAILED naming `cli:--rogue-undocumented-flag`; restored `__main__.py`, re-ran \u2192 2 passed. All mutated files restored; `git diff -- packages/gen-eval/` is empty (0 bytes).",
+      "resolution": "None \u2014 gates go red on broken trees and green when restored.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/scripts/check_coverage_completeness.py"
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Independent Phase-6 review: no new blocking/high defect found. `error_excludes` is additive optional on ExpectBlock + scenario.schema.json; contract artifacts remain version 2 (`generate_contract_schemas.py --check` \u2192 up to date). Full package suite after restores: `make test` \u2192 1068 passed / 1 skipped. `make dogfood` \u2192 13/13, 58.8%, completeness 10/17 + 7 exclusions. Residual nit only: `check()` does bare `int(report.get(\"declared_interface_count\") or 0)` \u2014 a non-numeric string raises uncaught ValueError (traceback) rather than `_fail(...)`; still fail-closed, only affects hand-crafted corrupt reports, not the dogfood path. Tree left clean of review mutations.",
+      "resolution": "Optional: wrap field coercion in check()/main() with _fail messages consistent with L3. Not blocking.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "packages/gen-eval/scripts/check_coverage_completeness.py"
+    }
+  ]
+}

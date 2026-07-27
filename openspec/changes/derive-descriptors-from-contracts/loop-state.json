@@ -4,7 +4,7 @@
   ],
   "change_id": "derive-descriptors-from-contracts",
   "cli_review_enabled": true,
-  "current_phase": "IMPL_REVIEW",
+  "current_phase": "VALIDATE",
   "error": null,
   "escalation_reason": null,
   "findings_trend": [
@@ -28,27 +28,39 @@
   },
   "gate_verdict": "proceed",
   "handoff_ids": [
-    "impl-review-8"
+    "impl-review-8",
+    "impl-review-9",
+    "validation-1"
   ],
   "implementation_strategy": {},
   "iteration": 5,
-  "last_handoff_id": "impl-review-8",
+  "last_handoff_id": "validation-1",
   "max_phase_iterations": 8,
   "memory_ids": [],
   "package_authors": {},
   "packages_status": {},
-  "phase_archetype": null,
+  "phase_archetype": "validator",
   "phase_history": [
     {
       "at": "2026-07-27T15:19:17.204289+00:00",
       "outcome": "not_converged",
       "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-07-27T16:40:08.055448+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-07-27T19:36:13.966276+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
   "phase_started_at": "2026-07-25T17:06:16.656806+00:00",
   "plan_review_note": "PLAN_REVIEW exited by operator override, NOT by convergence. Round 6 was attempted twice and produced no vendor findings: attempt 1 crashed in checkpoint_findings._validate_finding (prompt specified severity/title/recommendation instead of the required id/type/criticality/description/disposition); attempt 2 was killed before any vendor returned. The last completed round is round-5, which reported 6 critical findings. Those were addressed in commit cfe4abda and independently re-verified here (bare-python3 gates, prerequisite detection, CONTRACT_VERSION ownership, package-level __all__ ownership), but no independent multi-vendor round has confirmed the current plan state. | ROUND 7 (IMPL_REVIEW, 4 vendors: codex/grok/antigravity/pi, claude excluded as author): 25 findings, 2 critical converging on one root cause (see reviews/round-7/synthesis.md). This is the first independent multi-vendor round to see any of the implementation.",
-  "previous_phase": "IMPLEMENT",
-  "resume_note": "AUTOPILOT RESUME (written 2026-07-27, orchestrator context pre-compaction).\n\nPOSITION: loop-state `current_phase` still reads IMPLEMENT and is STALE. The true position is IMPL_REVIEW round 8, dispatched and IN FLIGHT. Do not re-dispatch it without first checking reviews/round-8/ \u2014 a duplicate round burns 4 vendors.\n\nWHY ROUND 8 EXISTS: round-7 (4 vendors: codex/grok/antigravity/pi; claude excluded as author) returned 25 findings, 2 critical on one root cause \u2014 __main__.py loaded every descriptor via base InterfaceDescriptor.from_yaml(), discarding ServiceDescriptor.operations and ToolDescriptor.commands/executable/contract. All 25 were remediated in tasks 4.8-4.19 + Phase 5. BUT every round-7 vendor read the tree BEFORE the fix commits, so 'all fixed' is the author's claim, not an independent one. Round 8 is the confirming round. See feedback_review_timing_vs_fix_commit.\n\nDISPATCH FACTS: archetype=reviewer, model=premium->opus (claude_code alias map in agent-coordinator/archetypes.yaml), isolation=worktree. Prompt passed VERBATIM from `runner.py build-dispatch --phase IMPL_REVIEW` \u2014 never fold or prepend; folding lives in build_phase_dispatch_kwargs.\n\nON RETURN, in this order:\n  1. `runner.py apply-outcome --change-id derive-descriptors-from-contracts --phase IMPL_REVIEW --outcome <converged|not_converged|max_iter> --handoff-id <id>`.      Non-zero exit => do NOT advance; retain the handoff file and go to ESCALATE (D9).\n  2. Orchestrator (NOT apply-outcome) sets current_phase: converged -> VALIDATE, not_converged -> IMPL_FIX.\n  3. VALIDATE, then SUBMIT_PR (no PR exists yet \u2014 `gh pr list --head openspec/derive-descriptors-from-contracts` returns []). val_review_enabled=false.\n  4. STOP AT MERGE for human approval. That gate is the autopilot contract.\n\nTREE STATE AT DISPATCH: 65/65 tasks checked; 1050 passed / 1 skipped / 8 deselected (uv run pytest in packages/gen-eval); ruff clean; branch 0 ahead / 0 behind origin. Untracked and NOT part of this change: findings.json (the issue #302 artifact), openspec/schemas/context-refresh-*.schema.json.\n\nSIBLING WORK (do not conflate): trace-requirements-to-contracts is a separate proposal in .git-worktrees/trace-requirements-to-contracts, pushed, awaiting approval, and blocked on THIS change's CODE landing (not merely its PR opening) \u2014 see feedback_plan_pr_is_not_the_prerequisite.",
+  "previous_phase": "IMPL_REVIEW",
+  "resume_note": "AUTOPILOT RESUME (2026-07-27). POSITION: VALIDATE, dispatched, IN FLIGHT.\n\nIMPL_REVIEW CONVERGED at round 9 (3-of-4 quorum: codex, grok, antigravity; pi returned invalid JSON). 23 findings, zero blocking/critical/high; all eleven round-8 findings confirmed fixed BY EXECUTION. Round-7's twelve defect classes were confirmed closed at round 8. Phase 6 commit 081663b2, pushed.\n\nON RETURN: (1) `runner.py apply-outcome --phase VALIDATE --outcome <passed|failed> --handoff-id <id>`, run from INSIDE the worktree; it refuses a phase != current_phase, and non-zero exit => do NOT advance, retain the handoff, ESCALATE (D9). (2) Orchestrator sets current_phase: passed -> SUBMIT_PR (val_review_enabled=false, so VAL_REVIEW is skipped), failed -> VAL_FIX. (3) SUBMIT_PR: no PR exists yet. (4) STOP AT MERGE for human approval \u2014 the autopilot contract.\n\nTREE: 1068 passed / 1 skipped; make test green; make dogfood 13/13; ruff clean; contracts at version 2; mypy at its 5 PRE-EXISTING errors; openspec validate --strict passes; 0 unchecked tasks.\n\nOPEN, NON-BLOCKING (do not re-litigate; recorded in reviews/round-9/synthesis.md): N1 coverage credits a flag for being PASSED not asserted, so the honest figure is 8 of 17 not 10 \u2014 changes no gate outcome. N2 work-packages.yaml still instructs the superseded CONTRACT_VERSION 2->3 bump (archives as plan history, not a durable requirement). N3 uncoerced int() in check_coverage_completeness.py:67. N4 bare `openspec validate --strict` selects no target.\n\nBEFORE MERGE: branch is ~23 commits behind main \u2014 REBASE. Green here is not green on the merge result.\n\nORCHESTRATOR TODO AFTER VALIDATE (do not start while it is in flight \u2014 running gen-eval in the worktree writes stray reports into packages/gen-eval/ and breaks 3 test_mcp_service tests via _find_latest_report's cwd fallback):\n  - VERIFY THEN FILE N1. Claim to check first: removing `--output-dir` or `--fail-threshold` from a flag-surface scenario leaves every assertion passing while the unit is still credited, because _extract_interfaces (evaluator.py:614-623) credits a flag for appearing in args rather than for being asserted. Reproduce by deleting each flag and running `make dogfood`; a GREEN run confirms it. Do not file on the reviewer's word alone (feedback_verify_inherited_known_issues).\n  - N2/N3/N4 are nits; fold into the same issue or skip.\n  - Dispatcher evidence for rounds 8+9 (antigravity then pi, both 'Invalid JSON output', neither re-dispatched) is ALREADY FILED as a comment on issue #286 \u2014 do not file again.",
   "schema_version": 4,
   "started_at": "2026-07-25T17:06:16.656806+00:00",
   "total_iterations": 5,
