@@ -213,9 +213,16 @@ computed from the operation model.
 ### Requirement: Descriptor Reclamation Is Announced
 
 A previously-aliased type name assigned to a different type SHALL resolve, at
-package level, to the new type; SHALL increment the descriptor contract version;
-and SHALL be recorded in a downstream notice naming both the previous and the
-new meaning.
+package level, to the new type, and SHALL be recorded in a downstream notice
+naming both the previous and the new meaning.
+
+Reclaiming a Python export name SHALL NOT, on that account alone, increment the
+descriptor contract version. The published JSON Schema contract is unchanged by
+which Python object a name binds to — the version tracks the schema, not the
+package's export table. Incrementing it for a reclamation would signal a schema
+change to every downstream consumer that validates against it, with nothing for
+them to react to; the downstream notice is what carries a rename that only
+affects importers.
 
 A reclaimed name SHALL NOT be left resolving to the superseded type at package
 level while resolving to the new type within its defining module.
@@ -224,8 +231,9 @@ level while resolving to the new type within its defining module.
 
 - **WHEN** a descriptor archetype takes a name that previously denoted an
   element or container type
-- **THEN** the descriptor contract version SHALL be incremented
-- **AND** a downstream notice SHALL name both the previous and the new meaning
+- **THEN** a downstream notice SHALL name both the previous and the new meaning
+- **AND** the descriptor contract version SHALL NOT be incremented on that
+  account alone
 
 #### Scenario: Package-level export resolves to the reclaimed type
 

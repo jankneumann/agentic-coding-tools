@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "handoff_id": "impl-review-8",
+  "written_at": "2026-07-27T11:15:00+00:00",
+  "phase": "IMPL_REVIEW",
+  "round": 8,
+  "outcome": "not_converged",
+  "coordinator_error": {
+    "error_type": "http_403",
+    "message": "API key is not permitted to act as requested agent_id",
+    "http_status": 403
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "IMPL_REVIEW round 8 for derive-descriptors-from-contracts. Outcome: NOT_CONVERGED. Multi-vendor review (codex gpt-5.5, grok grok-4.5, pi qwen3-coder; antigravity failed with invalid JSON - quorum 3/4) over the full branch c6d8eefb..5883748a. 49 raw findings, all re-verified here by direct execution. All 12 round-7 defect classes are genuinely fixed in code. Two BLOCKING findings remain, each confirmed by 2 of 3 vendors and reproduced independently, plus one HIGH. None re-opens a round-7 defect; the implementation itself is sound. Full detail in reviews/round-8/synthesis.md.",
+    "completed_work": [
+      "Dispatched round-8 multi-vendor implementation review (codex, grok, pi; claude excluded as author) against openspec/derive-descriptors-from-contracts at 5883748a",
+      "Independently re-verified all 12 round-7 defect classes by direct execution - all fixed",
+      "Proved the new Phase-5 gates fail on a broken tree rather than being decoration: check_coverage_completeness.py exits 1 on stale exclusions, blank reasons and unexplained units; generate_tool_descriptor.py --check exits 0 clean and 1 under mutation (grok mutated build_parser on disk and the 4.7 gate went RED)",
+      "Confirmed ruff clean, mypy 5 pre-existing errors behind a continue-on-error step, openspec validate --strict passes, CI-selected suite 1050 passed / 1 skipped, make dogfood green at 58.8% with 10 of 17 units exercised and 7 excluded",
+      "Verified reviewer mutations to __main__.py and openspec/contracts/gen-eval-framework/cli/gen-eval.yaml were restored - both match branch HEAD byte for byte",
+      "Wrote reviews/round-8/synthesis.md with per-finding verification commands and dispositions"
+    ],
+    "in_progress": [],
+    "blocking_findings": [
+      "B1 BLOCKING (codex-001, grok-001, reproduced): `make test` - a target this change introduces in packages/gen-eval/Makefile - exits 1 on a clean tree. `uv run pytest -q -m \"not slow\"` does not exclude the integration marker, so it collects 7 tests that resolve scenarios to <repo>/evaluation/gen_eval/scenarios/<category>, a coordinator-repo path absent from this tree (tests/test_integration_scenarios.py:45, tests/test_integration_orchestrator.py:34). CI is green only because the workflow uses -m \"not e2e and not integration\". The failures predate the change; the permanently-red target that surfaces them does not.",
+      "B2 BLOCKING (codex-002, grok-002, reproduced): specs/gen-eval-framework/spec.md:213-227 requires reclamation to `SHALL increment the descriptor contract version`, with a matching scenario. Observed CONTRACT_VERSION == \"2\", VERSION == 2, all three schemas at x-gen-eval-contract-version 2, and an empty diff of contracts/__init__.py against the merge base. The refusal is deliberate and correct per round-7 finding 9 and DOWNSTREAM.md:192-197; the spec was never amended. handoffs/plan-2.json decision 3 is the superseded source. Blocking because the delta spec archives into openspec/specs/ and would publish a durable requirement this change's own implementation violates. descriptor.py:413 repeats the stale claim."
+    ],
+    "decisions": [
+      {
+        "title": "Verdict not_converged on two blocking findings with two-vendor convergence",
+        "rationale": "Both were reproduced here by direct execution, not accepted on vendor assertion. Neither re-opens a round-7 defect, and both fixes are narrow - a Makefile selector and a spec paragraph plus a docstring.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "B2 is blocking, not a nit, and the fix is to the spec rather than the code",
+        "rationale": "Two vendors rated it nit. The delta spec is what archives into openspec/specs/, so merging as-is publishes a durable requirement the implementation violates and the next author either bumps CONTRACT_VERSION for no reason or concludes the code is wrong. Round-7 finding 9 established that reclaiming a Python export name is not a breaking JSON Schema change, so the code is right and the requirement is stale.",
+        "capability": "gen-eval-framework",
+        "supersedes": "handoffs/plan-2.json decision 3 (CONTRACT_VERSION 2->3 for the reclamation)"
+      },
+      {
+        "title": "B1 is attributed to this change even though the failing tests predate it",
+        "rationale": "packages/gen-eval/Makefile is new here. A default developer test target that can never pass gets ignored as fast as one that can never fail, and the next real failure inside it will be invisible.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "H1 raised on my own verification rather than vendor report",
+        "rationale": "Three of the five flag-surface.yaml scenarios assert an observable that the CLI emits identically when the flag under test is omitted (verified by running the fixture without --mode, --report-format json and --no-services). The file's own header forbids exactly this. Three of the ten units the D11 gate counts as exercised rest on it. Root cause is expressive: ExpectBlock has error_contains but no negative string or file-absence assertion, so the intended check is inexpressible.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Pi's findings discounted; antigravity's failure is a known dispatcher defect",
+        "rationale": "Pi returned 14 findings, all disposition:accept corroborations labelled severity:critical - a combination the review schema's own red-flag list calls incoherent - and its finding 10 credits this change with the prerequisite PR's CONTRACT_VERSION bump. Antigravity returned invalid JSON, which is the unfiled dispatcher fragility already noted in the round-7 resume note.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "B1: align the packages/gen-eval/Makefile `test` target with the CI selector (-m 'not e2e and not integration'), or repoint tests/test_integration_scenarios.py:45 and tests/test_integration_orchestrator.py:34 at fixtures that exist / skip with a clear message when absent",
+      "B2: amend the Descriptor Reclamation requirement and its scenario in openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md:213-227 to require the downstream notice and package-level export correction WITHOUT a JSON Schema contract-version bump; correct the matching claim in packages/gen-eval/src/gen_eval/descriptor.py:413",
+      "H1: for cli-mode-template-only-is-accepted, cli-report-format-json-writes-only-json and cli-no-services-skips-startup - either add a negative-assertion primitive to ExpectBlock (error_excludes, or a file-absence side-effect step) and write discriminating assertions, or move those three units into coverage-exclusions.yaml with the honest reason",
+      "M1: warn or fail closed in descriptor.py:377 when `contract:` is set but does not resolve to a readable file (a bogus path currently loads with zero warnings)",
+      "M2: dispatch archetypes on the declared kind rather than payload markers in load_descriptor (descriptor.py:389-397), and raise when a descriptor declares a contract but no recognisable archetype payload - pydantic extra:ignore silently discards contract/commands/operations today",
+      "M3: consider giving --fail-threshold the same percent semantics and validator as --min-coverage; make dogfood passes 1.0 (a rate) and 1 (a percent) three lines apart",
+      "LOW: fix the stale 5-of-17 counts in check_coverage_completeness.py:10-11; document flag-surface.yaml and coverage-exclusions.yaml in evaluation/README.md; catch yaml.parser.ParserError in check_coverage_completeness.main(); document or fix dropped $ref sibling keys in resolve_path_item; intersect the completeness checker's exercised set with the declared set instead of trusting per_interface keys",
+      "Rebase before merge - the branch is 23 commits behind main, so green CI here is not green CI on the merge result"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/round-8/synthesis.md",
+        "description": "round-8 synthesis - read this first; every claim carries its verification command"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/round-8/review-manifest.json",
+        "description": "dispatch record: codex/grok/pi succeeded, antigravity invalid JSON, quorum 3 of 4"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/round-8/findings-grok-implementation.json",
+        "description": "19 findings - the most substantive vendor; includes the on-disk build_parser mutation proof"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/round-8/findings-codex-implementation.json",
+        "description": "16 findings - 2 defects, 14 positive confirmations; converges with grok on B1 and B2"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/round-8/findings-pi-implementation.json",
+        "description": "14 findings - all accept-dispositioned corroborations, mislabelled severity:critical; discounted"
+      },
+      {
+        "path": "packages/gen-eval/Makefile",
+        "description": "B1 - the `test` target that is red on a clean tree"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md",
+        "description": "B2 - lines 213-227, the stale contract-version increment requirement"
+      },
+      {
+        "path": "packages/gen-eval/evaluation/scenarios/flag-surface.yaml",
+        "description": "H1 - three of five scenarios do not discriminate their flag"
+      },
+      {
+        "path": "packages/gen-eval/src/gen_eval/descriptor.py",
+        "description": "M1 (line 377 contract truthiness), M2 (lines 389-397 archetype dispatch), B2 (line 413 stale docstring)"
+      },
+      {
+        "path": "packages/gen-eval/scripts/check_coverage_completeness.py",
+        "description": "the D11 gate - verified fail-closed; LOW findings 1, 3 and 5 live here"
+      }
+    ]
+  }
+}

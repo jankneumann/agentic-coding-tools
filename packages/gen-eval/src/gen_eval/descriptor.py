@@ -358,8 +358,10 @@ def load_descriptor(path: Path) -> InterfaceDescriptor:
     the tool archetype, and only the service archetype carries ``operations``,
     so neither can appear on a hand-authored file by accident.
 
-    Rule 4: a descriptor carrying neither marker loads exactly as it did
-    before — same class, same fields, same behaviour.
+    Rule 4: a descriptor that declares no ``contract`` and carries neither
+    marker loads exactly as it did before — same class, same fields, same
+    behaviour. Every new refusal below is gated on ``contract:`` being present,
+    which no pre-existing hand-authored descriptor sets.
 
     A file that declares no ``contract`` warns (D6). It still loads, and the
     flat fields it produces stay populated — ACA and the coordinator read that
@@ -367,13 +369,28 @@ def load_descriptor(path: Path) -> InterfaceDescriptor:
     does not exist yet. What it stops doing is doing so silently: without a
     contract there is no source of truth behind the declared surface, so drift
     between it and the implementation is undetectable by construction.
+
+    A file that DOES declare one is held to it, because the declaration is what
+    silences that warning. Two ways to declare a contract and not have one:
+
+    - the path does not resolve to a readable file, or
+    - no archetype marker is present, so the base model would load and
+      pydantic's ``extra: ignore`` would discard ``contract:`` itself.
+
+    Both raise :class:`ValueError`. Neither can be reached by a descriptor that
+    omits ``contract:``, and both were previously silent — the first because
+    only truthiness was tested, the second because a discarded ``contract``
+    surfaced three layers downstream as "no scenarios were evaluated", which
+    points the reader at the scenario directory rather than the descriptor.
     """
     with open(path) as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError(f"Expected YAML mapping in {path}, got {type(data).__name__}")
 
-    if not data.get("contract"):
+    declared_contract = data.get("contract")
+
+    if not declared_contract:
         warnings.warn(
             f"{path} declares no `contract:`, so its interface list is whatever "
             f"was typed rather than what a contract declares — drift between it "
@@ -385,7 +402,31 @@ def load_descriptor(path: Path) -> InterfaceDescriptor:
             DeprecationWarning,
             stacklevel=2,
         )
+    else:
+        # A `contract:` that does not resolve is worse than none at all: the
+        # surface is still whatever someone typed, but the warning above is
+        # silenced by the mere presence of the key. Truthiness is not
+        # resolution. Fail closed — a declared source of truth that cannot be
+        # read is a broken claim, not a soft one (D1).
+        contract_path = Path(declared_contract)
+        if not contract_path.is_absolute():
+            contract_path = Path(path).parent / contract_path
+        if not contract_path.is_file():
+            raise ValueError(
+                f"{path} declares `contract: {declared_contract}`, which does not "
+                f"resolve to a readable file (looked at {contract_path}). The "
+                f"declared surface would be whatever was typed while the "
+                f"no-contract warning stayed silent, which is the exact state "
+                f"that warning exists to surface."
+            )
 
+    # Dispatch on the archetype's payload marker. When a contract IS declared
+    # the marker is mandatory: pydantic's default `extra: ignore` would
+    # otherwise drop `contract`, `commands` and `operations` on the base model
+    # and hand back a descriptor with an empty surface, no warning, and a
+    # downstream failure ("no scenarios were evaluated") that misattributes the
+    # cause. This is round-7's blocker in a narrower shape, so it fails here
+    # rather than three layers down.
     if data.get("operations"):
         # Imported here, not at module scope: service_descriptor imports this
         # module for InterfaceDescriptor, so a top-level import would cycle.
@@ -394,6 +435,16 @@ def load_descriptor(path: Path) -> InterfaceDescriptor:
         return ServiceDescriptor.from_yaml(path)
     if data.get("executable"):
         return ToolDescriptor.from_yaml(path)
+    if declared_contract:
+        raise ValueError(
+            f"{path} declares `contract: {declared_contract}` but carries no "
+            f"recognisable archetype payload — a service descriptor needs a "
+            f"non-empty `operations:`, a tool descriptor needs `executable:`. "
+            f"Loading it on the base model would silently discard `contract:` "
+            f"and every derived field with it. Regenerate the descriptor with "
+            f"scripts/generate_service_descriptor.py or "
+            f"scripts/generate_tool_descriptor.py."
+        )
     return InterfaceDescriptor.from_yaml(path)
 
 
@@ -410,8 +461,15 @@ class ToolDescriptor(InterfaceDescriptor):
     ``descriptor.ToolDescriptor`` was a deprecation alias for
     :class:`McpToolSpec`, a single MCP tool. It now denotes this document-level
     archetype. Both resolve successfully while meaning different things, which
-    is why the spec requires a contract-version increment and a downstream
-    notice rather than a deprecation warning.
+    is why the spec requires a downstream notice naming both meanings rather
+    than a deprecation warning — a warning fires for a caller who is about to
+    lose a name, and nobody is losing this one.
+
+    The published contract version is deliberately NOT incremented for this.
+    Reclaiming a Python export changes what an importer binds to; it does not
+    change the JSON Schema a downstream consumer validates against. Bumping it
+    would announce a schema change with nothing behind it. See ``DOWNSTREAM.md``
+    and the "Descriptor Reclamation Is Announced" requirement.
 
     **Lifecycle is structurally absent, not merely unset.** ``startup`` is
     typed ``None``, so a caller cannot hand one to a tool descriptor and have

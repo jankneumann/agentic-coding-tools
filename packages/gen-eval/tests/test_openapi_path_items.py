@@ -195,3 +195,54 @@ class TestVerifyFastapiSeesRefPathItems:
         path = write_contract(tmp_path, document_with_ref_path_item())
         descriptor = ServiceDescriptor.from_contract(path)
         assert verify_fastapi(document_with_ref_path_item(), descriptor) == []
+
+
+class TestSiblingKeysBesideARefAreRefused:
+    """Round-8 finding L4 — the same fail-open one level further in.
+
+    ``resolve_path_item`` returns the referenced target and nothing else, so
+    any key sitting beside the ``$ref`` is discarded. A dropped ``parameters``
+    list is the expensive case: every operation under that path loses required
+    path parameters, and the derived MCP tool is published without the argument
+    it cannot work without — silently, because the document plainly declared it.
+
+    OAS 3.1 leaves the merge semantics undefined, which is the argument for
+    refusing rather than guessing: whichever definition this picked would be an
+    invisible decision about what the surface is. ``summary`` and
+    ``description`` are permitted because neither changes it.
+    """
+
+    def _ref_item_with(self, **extra: Any) -> dict[str, Any]:
+        document = document_with_ref_path_item()
+        document["paths"]["/items/{id}"].update(extra)
+        return document
+
+    def test_sibling_parameters_raise(self, tmp_path: Path) -> None:
+        document = self._ref_item_with(
+            parameters=[{"name": "id", "in": "path", "required": True}]
+        )
+        with pytest.raises(ValueError, match=r"\['parameters'\]"):
+            ServiceDescriptor.from_contract(write_contract(tmp_path, document))
+
+    def test_the_message_says_where_to_move_them(self, tmp_path: Path) -> None:
+        document = self._ref_item_with(servers=[{"url": "https://example.test"}])
+        with pytest.raises(ValueError) as excinfo:
+            ServiceDescriptor.from_contract(write_contract(tmp_path, document))
+        assert "Move them into the referenced path item" in str(excinfo.value)
+
+    def test_summary_and_description_are_allowed(self, tmp_path: Path) -> None:
+        """OAS 3.1 permits both, and neither changes the declared surface."""
+        document = self._ref_item_with(summary="Items", description="An item route")
+        descriptor = ServiceDescriptor.from_contract(write_contract(tmp_path, document))
+        assert [f"{op.method} {op.path}" for op in descriptor.operations] == [
+            "GET /items/{id}"
+        ]
+
+    def test_a_bare_ref_is_unaffected(self, tmp_path: Path) -> None:
+        """Rule 4: the refusal only fires on keys that were being dropped."""
+        descriptor = ServiceDescriptor.from_contract(
+            write_contract(tmp_path, document_with_ref_path_item())
+        )
+        assert [f"{op.method} {op.path}" for op in descriptor.operations] == [
+            "GET /items/{id}"
+        ]

@@ -6,6 +6,11 @@
 # parsed contributes a number to the coverage percentage and no evidence, which
 # is the laundering D11 exists to stop.
 #
+# The operational test of that standard: remove the flag under test from a
+# scenario's args and the scenario must FAIL. Three of the five here once
+# passed either way, asserting output the default run produced too. They were
+# rewritten, and evaluation/README.md records how to re-run the check.
+#
 # Flags whose behaviour needs a live generator CLI, an SDK budget, a git
 # working tree or a multi-minute run are excluded instead, with their reasons
 # recorded in evaluation/coverage-exclusions.yaml.
@@ -83,6 +88,12 @@
     tell the formats apart. Asserting the *absence* of the markdown report is
     what makes this an exercise of the flag rather than of the report writer:
     under the default the same run emits both files.
+
+    The absence is what discriminates. Under --verbose the default run prints a
+    "report written to ..." line per artifact, including gen-eval-report.md;
+    with --report-format json that line is gone. Asserting only the presence of
+    gen-eval-report.json — as this scenario originally did — passes identically
+    with the flag omitted, crediting a coverage unit that was never exercised.
   category: flag-surface
   priority: 2
   interfaces: ["cli:--report-format"]
@@ -103,45 +114,67 @@
       expect:
         exit_code: 1
         error_contains: "gen-eval-report.json"
+        # The load-bearing assertion. Drop it and the scenario passes with
+        # --report-format removed entirely.
+        error_excludes: "gen-eval-report.md"
       timeout_seconds: 60
 
-- id: cli-mode-template-only-is-accepted
-  name: --mode template-only runs without a generator CLI
+- id: cli-mode-rejects-an-unknown-value
+  name: --mode rejects a value outside the declared enum
   description: >
-    The three modes differ in what they require to be present. `template-only`
-    is the only one that needs no generator CLI and no SDK credentials, which
-    is why it is the mode the dogfood suite can assert and the other two are
-    excluded. Passing it explicitly pins that the enum still accepts the value
-    the whole suite depends on.
+    `template-only` is the DEFAULT mode, so passing it explicitly and asserting
+    "mode=template-only" is not an exercise of the flag — the identical line is
+    printed when --mode is omitted. That was this scenario's original form and
+    it credited a coverage unit for nothing.
+
+    There is no positive assertion available: the other two modes need a
+    generator CLI or SDK credentials the dogfood run does not have, and they
+    are excluded for that reason. What the flag can be held to is that its enum
+    is closed. An unknown value must be refused rather than silently falling
+    back to the default, which is the failure that would make every
+    --mode-bearing invocation in this suite meaningless.
+
+    This mirrors cli-min-coverage-rejects-a-rate: the observable consequence is
+    a usage rejection, and it is unreachable with the flag omitted.
   category: flag-surface
   priority: 2
   interfaces: ["cli:--mode"]
-  tags: [flags, d11, modes]
+  tags: [flags, d11, modes, usage-errors]
   steps:
-    - id: template-only-run
+    - id: unknown-mode-run
       transport: cli
       args:
-        - "--verbose"
         - "--mode"
-        - "template-only"
+        - "not-a-mode"
         - "--descriptor"
         - "evaluation/fixtures/no-scenarios-descriptor.yaml"
-        - "--output-dir"
-        - "evaluation/.reports/flag-mode"
-        - "--fail-threshold"
-        - "0"
       expect:
-        exit_code: 1
-        error_contains: "mode=template-only"
+        # argparse's own usage exit, as in cli-min-coverage-rejects-a-rate.
+        exit_code: 2
+        error_contains: "argument --mode: invalid choice"
+        # Proves the run was refused at parse time rather than falling through
+        # to a default-mode run that happens to fail for its own reasons.
+        error_excludes: "descriptor loaded"
       timeout_seconds: 60
 
 - id: cli-no-services-skips-startup
-  name: --no-services runs a descriptor without starting its services
+  name: --no-services skips a startup command that would otherwise fail
   description: >
-    The flag's whole job is to skip the startup path. The fixture declares no
-    startup block at all, so this asserts the flag is still accepted and still
-    reaches the run — the negative control for a regression that made
-    --no-services incompatible with UP-4's optional startup.
+    The flag's whole job is to skip the startup command. Asserting that against
+    no-scenarios-descriptor.yaml — which has no startup block at all — cannot
+    work: a run that skips startup and a run with no startup to skip emit the
+    same output, so the assertion held with the flag omitted. That was this
+    scenario's original form.
+
+    failing-startup-descriptor.yaml supplies a startup command (`false`) that
+    always fails and a health check that always passes. Without the flag the run
+    dies in _run_startup; with it, startup is skipped and the run reaches the
+    zero-scenario guard. Both exit 1, so the exit code alone proves nothing —
+    the two assertions below are what separate them.
+
+    The health check is deliberately made to pass: --no-services skips the
+    startup command and the teardown but still runs the health check (see
+    orchestrator.run), so a failing one would sink both runs identically.
   category: flag-surface
   priority: 2
   interfaces: ["cli:--no-services"]
@@ -153,12 +186,16 @@
         - "--verbose"
         - "--no-services"
         - "--descriptor"
-        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "evaluation/fixtures/failing-startup-descriptor.yaml"
         - "--output-dir"
         - "evaluation/.reports/flag-no-services"
         - "--fail-threshold"
         - "0"
       expect:
         exit_code: 1
+        # Reached only if startup was skipped.
         error_contains: "no scenarios were evaluated"
+        # Raised only if it was not. Without the flag this is what the run
+        # dies on, so its absence is the positive evidence the flag worked.
+        error_excludes: "CalledProcessError"
       timeout_seconds: 60

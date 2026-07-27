@@ -1,0 +1,197 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: packages/gen-eval/tests/test_integration_scenarios.py:45 and packages/gen-eval/tests/test_integration_orchestrator.py:34 still resolve scenario roots to the missing repo-root path evaluation/gen_eval/scenarios. Ran `cd packages/gen-eval && uv run pytest tests/test_integration_scenarios.py tests/test_integration_orchestrator.py -q --tb=line` \u2192 7 failures with `Scenario directory not found: .../evaluation/gen_eval/scenarios/<category>` and `report.total_scenarios == 0`. CI excludes them (`not e2e and not integration`), but package `make test` is `pytest -m \"not slow\"` which includes them (`7 failed` under `not slow and integration`).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/gen-eval/tests/test_integration_scenarios.py"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: delta spec Descriptor Reclamation (spec.md:215-227) and ToolDescriptor docstring (descriptor.py:413) still require a CONTRACT_VERSION increment for export reclamation. Empirically CONTRACT_VERSION stays \"2\" (constant, VERSION file, all three schemas); tasks.md:532-539 correctly forbids the bump; schema changes are additive only.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Optional: load_descriptor deprecation only checks `if not data.get(\"contract\")`. A ToolDescriptor YAML with `contract: missing-contract.yaml` (file absent), hand-authored `--a`, loaded with 0 DeprecationWarnings; interfaces still `['cli:--a']`. Any non-empty contract string silences the D6 warning while the surface stays hand-typed.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py"
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Nit: check_coverage_completeness.py docstring still says dogfood exercises 5 of 17 flags. After `make dogfood`, report shows 10/17 (58.8%) with 7 exclusions \u2014 Makefile comment is correct, script docstring is stale.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "packages/gen-eval/scripts/check_coverage_completeness.py"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: evaluation/README.md layout/table omit Phase 5 flag-surface.yaml and coverage-exclusions.yaml that make dogfood actually uses.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "packages/gen-eval/evaluation/README.md"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Nit: check_coverage_completeness.py catches FileNotFoundError/ValueError but not YAML ParserError; invalid exclusions YAML exits 1 with a raw traceback instead of `_fail(...)`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "packages/gen-eval/scripts/check_coverage_completeness.py"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: resolve_path_item drops sibling parameters on a path item that uses $ref; only parameters on the resolved path item merge. OAS 3.1 leaves ref+sibling field conflicts undefined.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "packages/gen-eval/src/gen_eval/openapi.py"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Round-7 #1 FIXED: load_descriptor returns ToolDescriptor with 17 interfaces/commands/contract for evaluation/descriptor.yaml (InterfaceDescriptor.from_yaml still 0).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Round-7 #2 FIXED: coverage_pct is operation-denominated (50% for 1/2 ops vs 25% element); dogfood 58.8% = 10/17.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/src/gen_eval/orchestrator.py"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Round-7 #3 FIXED: operations_for_element('http','POST /things') returns ['create_thing'].",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/src/gen_eval/service_descriptor.py"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Round-7 #4 FIXED: $ref pathItems yield ops; path-level params merge; broken $ref raises (fail-closed).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/src/gen_eval/openapi.py"
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Round-7 #5 FIXED: real build_parser + --mutant-uncontracted turns verify_argparse/CI test RED; restored green.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/tests/test_subset_verifiers.py"
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Round-7 #6/#7 FIXED: `--` terminator does not credit post-terminator flags; -v aliases to cli:--verbose.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/src/gen_eval/evaluator.py"
+    },
+    {
+      "id": 14,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Round-7 #8 FIXED: undocumented subparser --force visible as cli:run --force.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/src/gen_eval/verify/surfaces.py"
+    },
+    {
+      "id": 15,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Round-7 #9 FIXED: make dogfood --min-coverage 1 + completeness gate; ran green 13/13, 58.8%, 10 exercised / 7 excluded.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/Makefile"
+    },
+    {
+      "id": 16,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Round-7 #10 FIXED: CONTRACT_VERSION not bumped for reclamation (stays 2); additive schema fields only.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/src/gen_eval/contracts/__init__.py"
+    },
+    {
+      "id": 17,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Round-7 #11 FIXED: incompatible fan-in property schemas raise ValueError.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/src/gen_eval/service_descriptor.py"
+    },
+    {
+      "id": 18,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Round-7 #12 FIXED: --min-coverage 0.8 rejected as unit footgun; 80 accepted.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/src/gen_eval/__main__.py"
+    },
+    {
+      "id": 19,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Phase 5 gates fail-closed: --check red on descriptor/contract drift; completeness red on unexplained/blank/stale/zero; empty surface fails; CI wires both.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "packages/gen-eval/scripts/generate_tool_descriptor.py"
+    }
+  ]
+}
