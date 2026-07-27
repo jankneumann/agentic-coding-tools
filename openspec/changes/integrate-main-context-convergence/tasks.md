@@ -136,7 +136,7 @@ Each task is sized to one commit. Group numbers map to work packages in
 - [x] 6.6 Run `openspec validate integrate-main-context-convergence --strict`,
       `bash skills/install.sh --check`, and the skills lint gate at the locked
       version.
-- [ ] 6.7 Sync skills to runtimes with
+- [x] 6.7 Sync skills to runtimes with
       `bash skills/install.sh --mode rsync --force --deps none --python-tools none`.
 - [x] 6.8 Confirm the contract is promoted to
       `openspec/contracts/project-context-refresh/schemas/` and byte-identical to the
