@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools/openspec/contracts/code-search/schemas/semantic-context-section.schema.json",
   "title": "SemanticContextResult",
-  "description": "The machine-readable form of one `Semantic code context` section produced for one coding job. Either the section was injected with bounded, deduplicated, in-scope hits, or it fell back to exact search with an explicit trigger. There is no third state and no partial state.",
+  "description": "The machine-readable form of one `Semantic code context` section produced for one coding job. Either the section was injected with bounded, deduplicated, in-scope hits, or it fell back to exact search with an explicit trigger. There is no third state and no partial state. A healthy, current index that legitimately yields nothing is a fallback with trigger `no_context` (design decision D14), never an injected section with an empty `hits` array.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -113,8 +113,8 @@
       "description": "Why no semantic context was injected and what to do instead. Present only when status is `fallback`.",
       "properties": {
         "trigger": {
-          "enum": ["stale", "unavailable", "mismatched", "out_of_scope"],
-          "description": "The four triggers of design decision D8."
+          "enum": ["stale", "unavailable", "mismatched", "out_of_scope", "no_context"],
+          "description": "The five triggers: the four of design decision D8 plus `no_context` from D14. `no_context` is the only one that reports a healthy, current index — the query succeeded and the section still has nothing to show."
         },
         "reason": {
           "enum": [
@@ -132,9 +132,11 @@
             "scope_rejected",
             "no_declared_scope",
             "scope_self_cancelling",
-            "all_hits_scope_filtered"
+            "all_hits_scope_filtered",
+            "index_returned_no_hits",
+            "all_hits_omitted"
           ],
-          "description": "The specific cause. Distinct per cause so the four fallback tests can assert exactly, rather than only on the trigger."
+          "description": "The specific cause. Distinct per cause so the fallback tests can assert exactly, rather than only on the trigger. `index_returned_no_hits` means the index held nothing similar enough inside the declared scope; `all_hits_omitted` means it returned hits and this client's own dedup/budget selection retained none of them. Those are different facts, and only the second one could have been changed by a larger budget."
         },
         "strategy": {
           "const": "exact_search",
@@ -151,7 +153,46 @@
           ],
           "description": "The coordinator's `CodeSearchState`, when a query was actually issued. Absent when a local precondition short-circuited before the call."
         }
-      }
+      },
+      "allOf": [
+        {
+          "title": "A relevance reason belongs to the relevance trigger",
+          "if": {
+            "required": ["reason"],
+            "properties": {
+              "reason": { "enum": ["index_returned_no_hits", "all_hits_omitted"] }
+            }
+          },
+          "then": {
+            "properties": { "trigger": { "const": "no_context" } }
+          },
+          "description": "Without this, `unavailable` / `index_returned_no_hits` would re-create the defect D14 removed, in the opposite direction: a working service filed under a broken one."
+        },
+        {
+          "title": "no_context admits only the two relevance reasons",
+          "if": {
+            "required": ["trigger"],
+            "properties": { "trigger": { "const": "no_context" } }
+          },
+          "then": {
+            "properties": {
+              "reason": { "enum": ["index_returned_no_hits", "all_hits_omitted"] }
+            }
+          }
+        },
+        {
+          "title": "no_context is only reachable from a ready service state",
+          "if": {
+            "required": ["trigger"],
+            "properties": { "trigger": { "const": "no_context" } }
+          },
+          "then": {
+            "required": ["service_state"],
+            "properties": { "service_state": { "const": "ready" } }
+          },
+          "description": "The trigger asserts the service answered and answered well, so the state it answered with is not optional here. A `no_context` emitted from a path that never queried would be an unfalsifiable claim."
+        }
+      ]
     }
   },
   "oneOf": [

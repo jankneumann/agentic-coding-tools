@@ -41,10 +41,30 @@ drift apart silently:
 (`hit_count_cap`, `file_count_cap`, `hit_line_cap`, `total_line_cap`), and
 `scope_filtered` for a hit dropped by the local deny re-check (D2).
 
-`fallback.trigger` — exactly four values, from D8: `stale`, `unavailable`,
-`mismatched`, `out_of_scope`. `fallback.strategy` is the constant
-`exact_search`, matching ri-03's `Fallback.strategy`
-(`agent-coordinator/src/code_search.py:211`).
+`fallback.trigger` — exactly five values. Four are the failure triggers of D8:
+`stale`, `unavailable`, `mismatched`, `out_of_scope`. The fifth, `no_context`
+(D14), is the only one that reports a **healthy, current** index: the query
+succeeded and the section still has nothing to show. Before D14 that case was
+filed under `unavailable` / `unknown_state`, which reported a correctly
+functioning service as broken — the same misreporting this change exists to
+remove, pointed the other way.
+
+`fallback.reason` — `no_context` admits exactly two, and they are different
+facts about the world:
+
+- `index_returned_no_hits` — the index held nothing similar enough inside the
+  declared scope.
+- `all_hits_omitted` — the index returned hits, and this client's own
+  dedup/budget selection retained none of them. Only this one could have been
+  changed by a larger budget.
+
+Three conditional constraints keep the pairing honest: those two reasons are
+reachable only from `no_context`, `no_context` admits only those two reasons,
+and `no_context` requires `service_state: "ready"` — a `no_context` emitted from
+a path that never queried would be an unfalsifiable claim.
+
+`fallback.strategy` is the constant `exact_search`, matching ri-03's
+`Fallback.strategy` (`agent-coordinator/src/code_search.py:211`).
 
 ## Structural invariants
 
