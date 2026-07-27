@@ -102,7 +102,16 @@ def valid_injected_section() -> dict[str, Any]:
     }
 
 
-def valid_fallback_section() -> dict[str, Any]:
+def fallback_section(
+    trigger: str, reason: str, service_state: str | None = None
+) -> dict[str, Any]:
+    fallback: dict[str, Any] = {
+        "trigger": trigger,
+        "reason": reason,
+        "strategy": "exact_search",
+    }
+    if service_state is not None:
+        fallback["service_state"] = service_state
     return {
         "schema_version": 1,
         "status": "fallback",
@@ -110,13 +119,34 @@ def valid_fallback_section() -> dict[str, Any]:
         "requested_revision": FULL_REVISION,
         "hits": [],
         "omissions": [],
-        "fallback": {
-            "trigger": "mismatched",
-            "reason": "index_revision_differs",
-            "strategy": "exact_search",
-            "service_state": "revision_mismatch",
-        },
+        "fallback": fallback,
     }
+
+
+def valid_fallback_section() -> dict[str, Any]:
+    return fallback_section(
+        "mismatched", "index_revision_differs", "revision_mismatch"
+    )
+
+
+# One contract-valid fallback per trigger. A literal table rather than a loop
+# over the enum, because *which* reason and *which* service state a trigger
+# admits is a design decision (D8, D14) and the schema now constrains it: a
+# generic fixture reused across triggers would be rejected for the wrong reason.
+TRIGGER_FIXTURES: dict[str, tuple[str, str | None]] = {
+    "stale": ("working_tree_dirty", None),
+    "unavailable": ("service_unavailable", "unavailable"),
+    "mismatched": ("index_revision_differs", "revision_mismatch"),
+    "out_of_scope": ("scope_rejected", "scope_rejected"),
+    "no_context": ("index_returned_no_hits", "ready"),
+}
+
+#: The two D14 reasons: the search worked, and the section still has nothing to
+#: show. They are reasons under one trigger rather than two triggers because the
+#: remedy is identical; they are two reasons rather than one because "the index
+#: held nothing similar" and "this client's own selection kept nothing" are
+#: different facts about the world.
+RELEVANCE_REASONS = ("index_returned_no_hits", "all_hits_omitted")
 
 
 def mutate(document: dict[str, Any], **changes: Any) -> dict[str, Any]:
@@ -246,19 +276,108 @@ def test_unknown_omission_reason_is_rejected() -> None:
     assert not section_validator.is_valid(document)
 
 
-@pytest.mark.parametrize(
-    "trigger", ["stale", "unavailable", "mismatched", "out_of_scope"]
-)
+def test_the_trigger_fixture_table_covers_the_schema_enum() -> None:
+    """Adding a trigger to the schema without a valid example fails here.
+
+    Totality at the contract level: every trigger the schema admits must have a
+    document that demonstrably validates, or the enum grows members no producer
+    can legally emit.
+    """
+    assert set(TRIGGER_FIXTURES) == set(fallback_trigger_enum())
+
+
+@pytest.mark.parametrize("trigger", sorted(TRIGGER_FIXTURES))
 def test_every_documented_fallback_trigger_is_accepted(trigger: str) -> None:
-    document = valid_fallback_section()
-    document["fallback"]["trigger"] = trigger
-    assert section_validator.is_valid(document)
+    reason, state = TRIGGER_FIXTURES[trigger]
+    assert section_validator.is_valid(fallback_section(trigger, reason, state))
 
 
 def test_unknown_fallback_trigger_is_rejected() -> None:
     document = valid_fallback_section()
     document["fallback"]["trigger"] = "degraded"
     assert not section_validator.is_valid(document)
+
+
+# --------------------------------------------------------------------------
+# D14 — a healthy, current index that yields nothing is representable
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("reason", RELEVANCE_REASONS)
+def test_a_successful_empty_search_has_an_honest_representation(reason: str) -> None:
+    """The defect D14 fixes: `state=ready` with nothing to show was unsayable.
+
+    Before D14 the only vocabulary for it was `unavailable` / `unknown_state`,
+    which reports a correctly functioning service as broken.
+    """
+    assert section_validator.is_valid(fallback_section("no_context", reason, "ready"))
+
+
+def test_the_two_relevance_reasons_are_distinct_schema_members() -> None:
+    """"The index returned nothing" and "selection kept nothing" are two facts.
+
+    Collapsing them would make the artifact unable to say whether raising the
+    budget could have produced context.
+    """
+    enum = fallback_reason_enum()
+    assert set(RELEVANCE_REASONS) <= set(enum)
+    assert len(set(RELEVANCE_REASONS)) == 2
+
+
+@pytest.mark.parametrize(
+    "service_state",
+    [None, "not_indexed", "unavailable", "revision_mismatch", "scope_rejected"],
+    ids=["absent", "not_indexed", "unavailable", "revision_mismatch", "scope_rejected"],
+)
+def test_no_context_without_a_ready_service_state_is_rejected(
+    service_state: str | None,
+) -> None:
+    """`no_context` asserts the service answered and answered well.
+
+    Without the `ready` requirement the trigger could be emitted from a path
+    that never queried, which would turn "we checked and there is nothing" into
+    an unfalsifiable claim.
+    """
+    document = fallback_section("no_context", "index_returned_no_hits", service_state)
+    assert not section_validator.is_valid(document)
+
+
+@pytest.mark.parametrize("trigger", ["stale", "unavailable", "mismatched", "out_of_scope"])
+@pytest.mark.parametrize("reason", RELEVANCE_REASONS)
+def test_a_relevance_reason_under_another_trigger_is_rejected(
+    trigger: str, reason: str
+) -> None:
+    """The pairing is closed both ways, so a producer cannot mix vocabularies.
+
+    `unavailable` / `index_returned_no_hits` would re-create the original defect
+    in the opposite direction: a working service filed under a broken one.
+    """
+    document = fallback_section(trigger, reason, TRIGGER_FIXTURES[trigger][1])
+    assert not section_validator.is_valid(document)
+
+
+@pytest.mark.parametrize(
+    "reason",
+    ["service_unavailable", "unknown_state", "all_hits_scope_filtered"],
+)
+def test_no_context_admits_only_the_relevance_reasons(reason: str) -> None:
+    """A trigger that means "nothing relevant" cannot carry an outage reason."""
+    document = fallback_section("no_context", reason, "ready")
+    assert not section_validator.is_valid(document)
+
+
+def test_all_hits_scope_filtered_stays_under_out_of_scope() -> None:
+    """A scope boundary event is not a relevance event, and keeps its own trigger.
+
+    Both can arise from a `ready` response, but only one is a statement about
+    the package's declared read scope.
+    """
+    assert section_validator.is_valid(
+        fallback_section("out_of_scope", "all_hits_scope_filtered", "ready")
+    )
+    assert not section_validator.is_valid(
+        fallback_section("no_context", "all_hits_scope_filtered", "ready")
+    )
 
 
 def test_non_exact_search_strategy_is_rejected() -> None:
@@ -429,6 +548,10 @@ def omission_reason_enum() -> list[str]:
 
 def fallback_trigger_enum() -> list[str]:
     return SECTION_SCHEMA["properties"]["fallback"]["properties"]["trigger"]["enum"]
+
+
+def fallback_reason_enum() -> list[str]:
+    return SECTION_SCHEMA["properties"]["fallback"]["properties"]["reason"]["enum"]
 
 
 @pytest.mark.parametrize(("coordinator_name", "rendered_name"), RENDER_MAPPING.items())
