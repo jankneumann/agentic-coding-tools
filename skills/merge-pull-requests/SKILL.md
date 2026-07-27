@@ -560,22 +560,170 @@ Ask the operator: Proceed with post-merge cleanup for these changes?
 Only run the listed cleanup commands after explicit approval.
 ```
 
-If the operator approves, run the listed cleanup commands sequentially:
+This step establishes **approval and order only**. It runs no cleanup command
+itself. If the operator approves, the approved list — in the approved order — is
+executed as phase 1 of Step 11.6, which appends `--defer-commit` so that one
+commit carries every change's cleanup output together with the refresh output.
 
 ```bash
-/cleanup-feature <change-id> --post-merge --pr <pr_number>
+# Executed in Step 11.6, phase 1 — not here:
+/cleanup-feature <change-id> --post-merge --pr <pr_number> --defer-commit
 ```
 
 The `--post-merge` cleanup mode must:
 - Confirm the PR is already merged.
 - Skip the PR merge and pre-merge validation stages.
-- Archive the OpenSpec change, sync specs, validate, commit, and push.
-- Remove local worktrees and local branches for that change.
+- Archive the OpenSpec change, sync specs, and validate.
+- Land that work on `main` — committed and pushed by the cleanup itself in the default mode, or staged for the single convergence commit under `--defer-commit` (see `cleanup-feature` §1.6).
+- Delete the local feature branch and release its locks for that change (`cleanup-feature` Step 8), in both modes.
 - Treat dirty worktrees or branch deletion failures as operator-attention items, not silent force deletions.
 
 If the operator declines, do not clean up local remnants. Record the declined cleanup commands in the summary and merge log.
 
 If a post-merge cleanup command fails, stop the cleanup pass, preserve the error output in the summary, and do not proceed to the next cleanup command until the operator decides how to continue.
+
+### 11.6. Main Context Convergence
+
+This skill is the authoritative synchronization point for `main`, so it is also
+where derived context is brought back into agreement with the tree that the merge
+pass produced.
+
+Convergence runs **once per invocation pass, not once per pull request**. A pass
+that merges k pull requests produces exactly one resulting main state, so it gets
+exactly one convergence: one commit, one record, one index request. This is
+deliberately *not* part of the per-PR post-merge pipeline
+(`scripts/post_merge_pipeline.py`), which runs k times — placing it there would
+produce k commits racing each other for the same tip and k index requests for
+revisions that are stale the moment the next PR lands.
+
+If the pass merged nothing (k = 0), Step 11.6 is a read of `main`, not a write:
+the driver reports `no-merges`, writes no commit and no record, and exits 0.
+
+#### Phases
+
+The three phases run in a fixed order, and the order is load-bearing.
+
+**Phase 1 — OpenSpec cleanup, for every merged change, before any refresh.** Run
+the list the operator approved in Step 11.5, in the approved order, with
+`--defer-commit` appended:
+
+```bash
+/cleanup-feature <change-id> --post-merge --pr <pr_number> --defer-commit
+```
+
+Cleanup archives, merges the spec delta, regenerates the decision index, and
+**stages** the result without committing (see `cleanup-feature` §1.6). The
+`openspec.projection` and `decisions.timeline` producers read the archive, so a
+refresh that ran first would be stale the instant the archive moved.
+
+**Phases 2 and 3 — refresh and land, through the driver:**
+
+```bash
+skills/.venv/bin/python skills/merge-pull-requests/scripts/main_convergence.py \
+  --merged-json <merged_prs_this_pass.json> \
+  --merged-revision <full SHA of main after every merge in the pass>
+```
+
+The merged-PR records are the ones collected during Step 11 and shared with Step
+11.5's approval helper. Without `--merged-json` the driver sees zero merges and
+reports `no-merges` for a pass that merged something.
+
+Architecture artifacts are refreshed with **`make architecture-refresh`**, the
+staged target. Only that target writes provenance, and ri-10's producer routes
+missing provenance to *drift* rather than to `not-configured` — so the bare
+target would regenerate artifacts and still leave the gate red.
+
+A pass with **no OpenSpec merge at all** — a dependabot or dependency-only pass —
+still runs phases 2 and 3, through the same single operation (phase 1 is simply
+empty). Skipping it would leave the context-drift gate red with no step anywhere
+in the workflow that would ever fix it.
+
+#### Guards, in enforcement order
+
+1. **Active-agent guard.** Re-checked here, not inherited from the start of the
+   pass: an agent may have set up a worktree during the merge loop.
+2. **Coordinator lock** `sync-point:main-convergence`, held for all of Step 11.6.
+   Coordinator **contention** — another writer holds the sync point — blocks.
+   Coordinator **absence** or unavailability degrades to layers 1 and 3 with a
+   warning; this repo runs solo often enough that a coordinator-only guard would
+   be missing exactly when it matters.
+3. **Pre-push compare-and-swap** against `origin/main`. This is the only layer a
+   process that never asked for a lock cannot bypass.
+
+**Never force a losing push.** Not `--force`, and not `--force-with-lease`
+either: a lease that succeeds still overwrites the other writer's commit. At a
+sync point, losing the race is information, not an obstacle. A lost race leaves
+the operation **resumable** with nothing staged discarded — re-running Step 11.6
+against the new tip picks up where it stopped.
+
+#### Identity and idempotence
+
+The operation is keyed on the **merged main SHA**. Keying on the set of merged PR
+numbers is not stable across a retry, and a per-invocation UUID would defeat
+resume entirely.
+
+Two independent checks detect a prior convergence:
+
+- the ri-06 **operation record**, which exists before the commit lands, and
+- the `Context-Refresh-Operation:` **commit trailer**, which survives a fresh
+  clone where local operation state does not.
+
+If either finds one, the driver reports **already-converged** with the existing
+identity and does nothing further.
+
+#### Outcomes
+
+No convergence outcome reverts a merge. Merges are terminal by the time this step
+runs: Step 11.6 **never un-merges**, never reverts, and never closes or re-opens a
+pull request. Step 12 and Step 13 run regardless of the outcome — suppressing the
+merge log because a derived artifact failed would lose the more valuable record.
+
+| `refresh_status` | Meaning | Commit | Exit |
+|---|---|---|---|
+| `succeeded` | Cleanup and refresh both landed | convergence commit | 0 |
+| `degraded` | Deterministic output landed; an optional producer degraded | convergence commit | 2 |
+| `failed` | The refresh failed after cleanup staged its output | **cleanup-only** commit | 1 |
+| `not-run` | Nothing to refresh, or the pass was blocked | cleanup-only, or none | 0 / 2 |
+
+`degraded` is the **normal** outcome whenever the semantic index is deferred, and
+`not-run` records a cleanup-only commit. Collapsing either into `failed` would
+make a successful partial convergence indistinguishable from a crash. A failed
+refresh still commits what cleanup staged, rather than discarding an archive that
+already succeeded.
+
+An **exit code from this step describes derived context only and never means a merge failed.**
+
+#### Semantic index
+
+The index is enqueued for the **final pushed revision** — the convergence commit,
+not the merged revision, because the convergence commit changes main's tip and an
+index for the merged revision would be stale on arrival. It is recorded as
+`pending`; `semantic_index=None` would report a clean `succeeded` while making no
+currency claim at all. It is **never awaited**: blocking a sync point on a
+30-minute index rebuild would make the index a hard dependency of merging.
+
+#### What lands, and what stays untracked
+
+The tracked record is appended to **`docs/merge-logs/context-convergence.jsonl`**.
+It pins the refresh manifest by path and `sha256` digest — that is what "the
+manifest is committed" means in git-native form. The manifest itself stays in
+`.git-context/` and stays **gitignored**; tracking it would reintroduce the
+repository diff that ri-07 D6 exists to prevent.
+
+#### Ownership boundary
+
+Step 11.6 sequences and commits. It **never archives**, never performs the
+spec-delta merge, and never migrates a task — those stay with `cleanup-feature`.
+Duplicating archive logic across two skills would make the first divergence
+silent spec corruption.
+
+**Step 8 (local branch deletion and lock release) stays with
+`cleanup-feature`, in both modes.** `cleanup-feature` §1.6 names only Step 8.5
+(worktree removal) and Step 9 (clean-tree verification) as skipped under
+`--defer-commit`; Step 8 is not skipped. The reason is lock release: it is
+owner-scoped, and only the cleanup invocation knows which agent/session holds the
+locks for that feature branch's files. The sync point mechanically cannot perform
+it. Branch deletion travels with lock release rather than being split from it.
 
 ### 12. Summary
 
