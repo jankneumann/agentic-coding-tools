@@ -121,20 +121,20 @@
 
 ## 6. Integration (wp-integration)
 
-- [ ] 6.1 Run the full ri-12 suite plus the pre-existing
+- [x] 6.1 Run the full ri-12 suite plus the pre-existing
       `skills/coordination-bridge/scripts/tests` suite and record the result.
-- [ ] 6.2 Verify the flag-off invariant end to end: with
+- [x] 6.2 Verify the flag-off invariant end to end: with
       `SEMANTIC_CONTEXT_INJECTION` unset, an assembled context block for one
       consumer is byte-identical to the pre-change output.
-- [ ] 6.3 Add `docs/guides/semantic-context-injection.md` documenting the flag,
+- [x] 6.3 Add `docs/guides/semantic-context-injection.md` documenting the flag,
       the four triggers, the budget defaults, and the HTTP-only constraint
       (D13); link it from the code-search guide.
-- [ ] 6.4 Sync skills to the runtime mirrors with
+- [x] 6.4 Sync skills to the runtime mirrors with
       `bash skills/install.sh --mode rsync --force --deps none --python-tools none`
       and confirm no source file under `skills/` was modified by the sync.
-- [ ] 6.5 Run `openspec validate inject-scoped-semantic-context-into-coding-jobs
+- [x] 6.5 Run `openspec validate inject-scoped-semantic-context-into-coding-jobs
       --strict` and
       `python3 skills/validate-packages/scripts/validate_work_packages.py
       openspec/changes/inject-scoped-semantic-context-into-coding-jobs/work-packages.yaml`.
-- [ ] 6.6 Reconcile every package's outputs, tick this file, and record the
+- [x] 6.6 Reconcile every package's outputs, tick this file, and record the
       session log.

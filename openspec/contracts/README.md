@@ -43,6 +43,7 @@ live code references.
 | `project-context-refresh` | `context-checkpoint.schema.json` | `add-branch-local-context-checkpoints` (ri-09) |
 | `project-context-refresh` | `context-drift-gate.schema.json` | `add-deterministic-context-drift-gates` (ri-10) |
 | `project-context-refresh` | `context-convergence-record.schema.json` | `integrate-main-context-convergence` (ri-11) |
+| `code-search` | `semantic-context-section.schema.json`, `semantic-context-hit.schema.json` | `inject-scoped-semantic-context-into-coding-jobs` (ri-12) |
 
 ## Contracts a skill also ships as install assets
 
