@@ -92,7 +92,7 @@
 - [x] 4.1 Extend `skills/context-engineering/SKILL.md` — semantic code as a
       Level-3 augmentation, the retrieval protocol, the budget table, the
       omission and fallback vocabularies, and the opt-in flag.
-- [ ] 4.2 Add the consumer protocol block to `skills/implement-feature/SKILL.md`
+- [x] 4.2 Add the consumer protocol block to `skills/implement-feature/SKILL.md`
       and `skills/iterate-on-implementation/SKILL.md`.
 - [ ] 4.3 Add the consumer protocol block to `skills/quick-task/SKILL.md` and
       `skills/debugging-and-error-recovery/SKILL.md`, including the
