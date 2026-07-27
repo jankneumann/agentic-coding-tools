@@ -648,3 +648,41 @@ low. Every item below was reproduced before being fixed.
   (13/13, 10 of 17 units, 7 excluded), ruff clean, contract artifacts up to date
   at version 2, mypy unchanged at its 5 pre-existing errors, `openspec validate
   --strict` passes
+
+## Phase 7 — Post-convergence honesty correction
+
+**Landed AFTER round-9 reported `converged`.** No multi-vendor round has seen
+it. Recorded here rather than folded silently into Phase 6, because a change
+that ships after the round that cleared it is exactly the thing this project's
+review discipline exists to make visible.
+
+- [x] 7.1 Earn `cli:--output-dir` with a scenario that asserts it `[S]`
+  **Design decisions**: D11
+  **Dependencies**: 6.4
+  **Note (round-9 N1)**: the round-9 reviewer found — and I reproduced by
+  deleting each flag from every scenario and re-running — that coverage credits
+  a flag for appearing in a step's `args`, not for being asserted.
+  `cli:--output-dir` and `cli:--fail-threshold` were both credited while no
+  assertion depended on either: remove them everywhere and the suite stayed
+  green. That is the same laundering H1 was about, one layer down, and fixing
+  H1's three instances left the mechanism that permitted them untouched.
+
+  Moving the two units into `coverage-exclusions.yaml` does NOT work: exclusions
+  are matched against `unevaluated_interfaces`, and a flag present in `args`
+  lands in `per_interface` instead, so it would be credited AND excluded at once
+  with no check catching the contradiction. The credit comes from the argv, so
+  the argv is what has to change.
+
+  `cli-output-dir-controls-the-report-location` asserts the non-default report
+  path under `--verbose`. Verified: removing `--output-dir` from every scenario
+  now turns the suite RED. It could not be folded into the existing `--verbose`
+  scenario — `ExpectBlock` carries a single `error_contains`, and that
+  scenario's interface-count assertion guards a different regression.
+
+  **`cli:--fail-threshold` is deliberately NOT addressed.** It is still credited
+  incidentally, so the honest count is 9 earned of 10 credited. Its use in
+  `self-run.yaml` encodes a real claim — that a zero-scenario run fails *even at
+  the most permissive threshold* — and stripping the flag would silently weaken
+  that guard while improving the metric. Expressing "this flag is load-bearing
+  for the claim even though the observable is unchanged" is the mechanism work
+  N1 actually calls for, and it is filed rather than improvised here.

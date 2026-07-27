@@ -34,35 +34,17 @@
 - Acceptance signal for wp-integration: `make dogfood` must stop reporting '0 interfaces[REDACTED:high-entropy]s descriptor yields 0 interfaces, so ACA ri-06's coverage gate passes for free.
 2. **Extract the rename into its own change** `architectural: gen-eval-framework` — Freeing two names and reusing them in one DAG creates a state where a name's meaning depends on which wave ran; verification cannot assert a stable fact about it. Four blocking findings across three rounds all had that shape.
 3. **Reclamation is a distinct break from deprecation, and needs its own version bump plus notice** `architectural: gen-eval-framework` — A removed name fails loudly; a deprecated name warns; a reclaimed name does neither — the import succeeds and the object is not what it was. Hence CONTRACT_VERSION 1->2 in the rename and 2->3 for the reclamation.
-4. **Tool-archetype coverage floor is completeness with declared exclusions, not a percentage** `architectural: gen-eval-framework` — 80% is arithmetically unreachable on gen-eval's own CLI (16 flags, 5 exercised = 31.2%). Asserting it would ship a gate that can never pass — the mirror of one that can never fail.
+4. **Tool-archetype coverage floor is completeness with declared exclusions, not a percentage** `architectural: gen-eval-framework` — 80% is arithmetically unreachable on gen-eval[REDACTED:high-entropy]s own dogfood run substitutes for smoke/e2e coverage of the CLI surface.
+2. **Independently re-verify round-9 IMPL_REVIEW claims rather than trust the synthesis** — Per prior incident learning, inherited review claims can be stale or self-reported; re-ran every headline gate (test, dogfood, lint, mypy, openspec validate, contract-version check, rename prerequisite) from a fresh detached checkout of the branch tip and confirmed each figure matches exactly.
 
-### Alternatives Considered
-- Runtime auto-discovery from tools/list and --help (what the base spec currently mandates): rejected because Fails open by construction and cannot detect excess; would encode as architecture the exact defect PR #277 removed three times.
-- Qualified names (ContractServiceDescriptor) instead of renaming: rejected because Operator chose one canonical name per concept; qualified names freeze the three-meaning ambiguity permanently.
-
-### Trade-offs
-- Accepted Two coupled changes with a hard ordering dependency over One self-contained change carrying the rename because The coupling is what made verification impossible. Ordering is cheap; unverifiable gates are not.
-- Accepted A breaking public-API change with two version bumps over Additive-only with qualified names because Downstream must adapt to the coverage-semantics change regardless, so one coherent break costs less than permanent name soup.
-
-### Open Questions
-- [ ] review_dispatcher.py discards stdout on JSON-parse failure — this hid three broken vendors for three rounds. Needs an issue.
-- [ ] autopilot/SKILL.md documents review_dispatcher.py --check-vendors, which does not exist.
-- [ ] Coordinator descriptor declares 38 HTTP endpoints; src/ carries 82 route decorators. Out of scope here, still unlogged.
-- [ ] fix-review-vendor-dispatch-config has had no plan review — 3 config lines, each verified by probing the vendor, but unreviewed by anyone else.
+### Completed Work
+- spec
+- evidence
+- gen-eval
 
 ### Next Steps
-- Rebase all three branches onto main (cdff1e1e); they are 18-24 commits behind.
-- Merge openspec/fix-review-vendor-dispatch-config first — independent, and it unblocks future multi-vendor review.
-- Land openspec/rename-descriptor-model-levels before starting implementation of the feature.
-- Run the Prerequisites check at the top of tasks.md before Phase 1; it exits non-zero until the rename lands.
-- Re-run the 27/27 gate audit after any edit to a work-package `command:`.
-
-### Relevant Files
-- `openspec/changes/derive-descriptors-from-contracts/HANDOFF.md` — full handoff — read this first
-- `openspec/changes/derive-descriptors-from-contracts/design.md` — D1-D8, D10, D11 (D9 moved to the rename change)
-- `openspec/changes/derive-descriptors-from-contracts/DOWNSTREAM.md` — DS-1..DS-5; DS-5 covers the name reclamation trap
-- `openspec/changes/derive-descriptors-from-contracts/reviews/` — 5 rounds of multi-vendor findings, checked in
+- SUBMIT_PR (rebase onto main first — branch is ~23 commits behind)
 
 ### Context
-Planning complete after 5 multi-vendor review rounds. The change was split in two: rename-descriptor-model-levels (prerequisite, frees two type names) and derive-descriptors-from-contracts (the feature). Nothing implemented yet. A third branch repairs three review vendors that were silently broken.
+VALIDATE ran spec/evidence/gen-eval phases against commit 081663b2. Deploy/smoke/e2e/security skipped as not-applicable (pure-Python gen-eval library change, no live service). Independently re-ran and confirmed exactly: make test (1068 passed, 1 skipped), make dogfood (13/13, 58.8% coverage), ruff clean, mypy 5 pre-existing errors, openspec validate --strict valid, tasks.md 0 unchecked. The round-7 BLOCKING finding (archetype-discarding descriptor load path) is confirmed fixed in code, not merely self-reported: load_descriptor() now dispatches on document shape. Generated change-context.md (did not previously exist) with an 8/8 requirement traceability matrix. No new blocking findings. PASS.
 

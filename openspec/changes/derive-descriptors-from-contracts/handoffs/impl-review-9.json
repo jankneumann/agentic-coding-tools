@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "handoff_id": "impl-review-9",
+  "written_at": "2026-07-27T12:10:00+00:00",
+  "phase": "IMPL_REVIEW",
+  "round": 9,
+  "outcome": "converged",
+  "coordinator_error": {
+    "error_type": "http_403",
+    "message": "API key is not permitted to act as requested agent_id",
+    "http_status": 403
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "IMPL_REVIEW round 9 for derive-descriptors-from-contracts. Outcome: CONVERGED. Confirming round for Phase 6 (commit 081663b2), which remediated round 8's 2 blocking + 1 high + 3 medium + 5 low findings. Multi-vendor review (codex gpt-5.5, grok grok-4.5, antigravity gemini-3.6-flash-medium; pi failed with invalid JSON - quorum 3/4; claude excluded as author). 23 raw findings: ZERO blocking, ZERO critical, ZERO high. Twenty are disposition:accept confirmations, three are nits. All eleven round-8 findings independently confirmed fixed by direct execution, both here and by at least two vendors each. Every gate this change adds was shown to go red on a broken tree and green when restored, with mutated files restored byte-for-byte. Four non-blocking items recorded (N1-N4). Full detail in reviews/round-9/synthesis.md.",
+    "completed_work": [
+      "Dispatched round-9 multi-vendor implementation review (codex, grok, antigravity, pi; claude excluded as author) against openspec/derive-descriptors-from-contracts at 081663b2; 3 of 4 returned valid findings",
+      "Independently re-verified all eleven round-8 findings (B1, B2, H1, M1, M2, M3, L1-L5) by direct execution - all fixed",
+      "B1: `make -C packages/gen-eval test` exits 0 with 1068 passed / 1 skipped / 12 deselected; confirmed the new selector `not slow and not e2e and not integration` is a strict subset of CI's `not e2e and not integration` (ci.yml:428), the 4-test gap being exactly the slow install/wheel suite",
+      "B2: verified CONTRACT_VERSION == \"2\", contracts/VERSION == 2, all three published schemas at x-gen-eval-contract-version 2, the amended requirement's BOTH scenarios hold (downstream notice in DOWNSTREAM.md DS-5; package export resolves to the archetype not McpToolSpec), descriptor.py:468 docstring corrected, openspec validate --strict passes",
+      "H1: verified ALL FIVE flag-surface scenarios now discriminate by removing each flag under test from the invocation and observing the asserted observable disappear; confirmed error_excludes searches the same two haystacks as error_contains (evaluator.py:401-426) and is additive/optional",
+      "M1/M2: confirmed both refusals raise ValueError (including the empty `operations: []` case) and verified the Rule 4 claim - a legacy descriptor with no `contract:` yields an IDENTICAL model_dump() to InterfaceDescriptor.from_yaml() with exactly one DeprecationWarning",
+      "L5/6.7: proved the declared_interface_count cross-check fails closed - exit 1 on a mutated count, exit 1 on a legacy report missing the field (no green bootstrap hole), exit 0 clean",
+      "L3/6.9: proved malformed exclusions YAML and malformed report JSON both produce operator messages at exit 1 with no traceback",
+      "Confirmed make dogfood green (13/13, 58.8%, 10 of 17 units, 7 excluded), make lint clean, generate_tool_descriptor.py --check clean, evaluation/.reports/ gitignored so dogfood leaves no residue",
+      "Wrote reviews/round-9/synthesis.md with per-finding verification commands and dispositions"
+    ],
+    "in_progress": [],
+    "blocking_findings": [],
+    "decisions": [
+      {
+        "title": "Verdict converged - no blocking findings from three independent vendors nor from this review",
+        "rationale": "Round 9 existed because Phase 6's fixes were only the author's claim. All eleven round-8 findings are now confirmed fixed by execution rather than assertion, by at least two independent parties each. The new Phase-6 code (error_excludes, the two new fixtures, the $ref sibling refusal, the declared_interface_count cross-check) was reviewed as new code and no vendor raised a critical or high finding against it.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "N1 raised on own verification: coverage attribution credits a flag for being passed, not asserted",
+        "rationale": "Evaluator._extract_interfaces (evaluator.py:614-623) credits a coverage unit for any declared flag token appearing in a step's args, with no link to whether an assertion depends on it. H1 was fixed at the scenario level but the laundering mechanism is unchanged. Verified two of the ten credited units still ride it: removing --output-dir from the report-format scenario leaves all three assertions intact (the report is simply written to cwd and error_contains still substring-matches), and removing --fail-threshold yields the identical zero-scenario observable. Honest figure is 8 of 17. Non-blocking because no gate outcome changes - 47% still clears the --min-coverage 1 floor - and each still pins that argparse accepts the flag.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "N2 (codex) kept as a nit rather than escalated to blocking like round-8 B2",
+        "rationale": "work-packages.yaml still instructs the superseded CONTRACT_VERSION 2->3 bump. B2 was blocking because the DELTA SPEC archives into openspec/specs/ as a durable requirement; work-packages.yaml archives as a historical record of the plan, not as a requirement anything is checked against. Same stale-plan family, materially lower blast radius.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Pi's invalid-JSON failure treated as known dispatcher fragility, not a review gap",
+        "rationale": "Round 8 lost antigravity the same way and round 9 lost pi. Quorum was still 3, and the three that returned converge on every conclusion. The underlying defect - a malformed vendor response is discarded rather than re-dispatched - has been unfiled since round 7 and is worth filing separately.",
+        "capability": "parallel-infrastructure",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Orchestrator: apply-outcome --phase IMPL_REVIEW --outcome converged --handoff-id impl-review-9, then advance to VALIDATE (val_review_enabled=false), then SUBMIT_PR - no PR exists yet",
+      "N1 (medium, optional before merge): give cli:--output-dir and cli:--fail-threshold a discriminating assertion, or move both into coverage-exclusions.yaml with an honest reason. --output-dir has an obvious one: assert the report path under a non-default directory",
+      "N2 (nit): update work-packages.yaml:446-559 to drop the CONTRACT_VERSION 2->3 language and fix the D11 verification command to use --report/--exclusions flags instead of a positional argument",
+      "N3 (nit): wrap the declared_interface_count coercion at check_coverage_completeness.py:67 in a _fail(...) message consistent with the L3 guards",
+      "N4 (fyi): use an explicit change target in reproducible openspec validate commands; bare `openspec validate --strict` selects nothing non-interactively",
+      "REBASE BEFORE MERGE - the branch is ~23 commits behind main, so green here is not green on the merge result",
+      "File the review-dispatcher fragility separately: a vendor returning malformed JSON is discarded rather than re-dispatched (cost two vendors across rounds 8 and 9)",
+      "STOP AT MERGE for human approval"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/round-9/synthesis.md",
+        "description": "round-9 synthesis - read this first; every claim carries its verification command"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/round-9/review-manifest.json",
+        "description": "dispatch record: codex/grok/antigravity succeeded, pi invalid JSON, quorum 3 of 4"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/round-9/findings-grok-implementation.json",
+        "description": "13 findings - the most thorough vendor; in-place flag removal for all five scenarios plus the build_parser mutation proof"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/round-9/findings-codex-implementation.json",
+        "description": "4 findings - the only vendor-raised defect (N2, stale work-packages.yaml) plus three execution-backed confirmations"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/reviews/round-9/findings-antigravity-implementation.json",
+        "description": "6 findings - all accept-dispositioned confirmations of B1, B2, H1, M1/M2, M3 and the gates"
+      },
+      {
+        "path": "packages/gen-eval/src/gen_eval/evaluator.py",
+        "description": "N1 - _extract_interfaces at lines 614-623 credits a unit for any declared flag token present in args"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml",
+        "description": "N2 - lines 446-559 still carry the superseded CONTRACT_VERSION 2->3 plan and a stale D11 command"
+      },
+      {
+        "path": "packages/gen-eval/scripts/check_coverage_completeness.py",
+        "description": "the D11 gate - verified fail-closed on six distinct broken inputs; N3 lives at line 67"
+      }
+    ]
+  }
+}

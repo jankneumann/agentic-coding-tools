@@ -199,3 +199,43 @@
         # dies on, so its absence is the positive evidence the flag worked.
         error_excludes: "CalledProcessError"
       timeout_seconds: 60
+
+- id: cli-output-dir-controls-the-report-location
+  name: --output-dir puts the reports where it was told
+  description: >
+    Round-8/9 finding N1. Every other scenario passes --output-dir to keep its
+    artifacts out of the package root, and that alone was enough for the
+    coverage model to credit `cli:--output-dir` as exercised — delete the flag
+    from all five and the suite stays green. A flag credited because it appeared
+    in an argv is exactly the laundering D11 exists to stop, and it does not
+    stop being that because the flag is incidental rather than under test.
+
+    So one scenario has to earn it. Under --verbose the run prints a "report
+    written to ..." line per artifact, carrying the resolved directory; asserting
+    the non-default path fails the moment the flag stops being honoured or stops
+    being passed.
+
+    Note this cannot be folded into cli-verbose-announces-the-declared-surface:
+    ExpectBlock carries a single error_contains, and that scenario's assertion
+    on the interface count is load-bearing for a different regression.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--output-dir"]
+  tags: [flags, d11, reports]
+  steps:
+    - id: output-dir-run
+      transport: cli
+      args:
+        - "--verbose"
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/flag-output-dir"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        exit_code: 1
+        # The non-default directory is the assertion. Remove --output-dir and
+        # the reports land in the default location, so this stops matching.
+        error_contains: "flag-output-dir/gen-eval-report.json"
+      timeout_seconds: 60
