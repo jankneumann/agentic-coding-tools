@@ -107,7 +107,7 @@
 
 - [x] 5.1 `test_fallback_stale.py` — dirty worktree and `not_indexed` both
       yield `trigger=stale` with the right reason, no exception, exit 0.
-- [ ] 5.2 `test_fallback_unavailable.py` — flag off, capability absent,
+- [x] 5.2 `test_fallback_unavailable.py` — flag off, capability absent,
       non-HTTP transport, bridge failure, `not_configured`, `unavailable`, and
       429 each yield `trigger=unavailable` with distinct reasons.
 - [ ] 5.3 `test_fallback_mismatched.py` — `revision_mismatch` yields
