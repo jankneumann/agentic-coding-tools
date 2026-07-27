@@ -55,6 +55,19 @@ def _heading_offset(pattern: str) -> int:
     )
 
 
+
+def _step_span(start_pattern: str, end_pattern: str) -> str:
+    """Text between two numbered step headings.
+
+    ``_section`` cannot be used for Steps 12 and 13: their templates are fenced
+    code blocks that contain ``## PR Triage Summary`` and friends, and the
+    heading regex has no way to tell a fenced pseudo-heading from a real one, so
+    it would truncate the section at the first line inside the fence.
+    """
+    text = _skill_text()
+    return text[_heading_offset(start_pattern) : _heading_offset(end_pattern)]
+
+
 def _convergence_section() -> str:
     return _section("Main Context Convergence")
 
@@ -419,4 +432,127 @@ def test_step_11_6_decides_who_owns_local_branch_deletion_and_lock_release():
     assert re.search(r"8\.5|worktree removal", section, re.I), (
         "Step 11.6 does not contrast Step 8 with the steps cleanup actually does "
         "skip (8.5 and 9), which is what makes the decision legible."
+    )
+
+
+# --- ri-11 acceptance outcome 5: the handoff reports the three revisions ----
+
+
+def test_summary_reports_merged_refresh_and_index_for_the_pushed_revision():
+    """Acceptance outcome 5, in the artifact an operator actually reads."""
+    section = _step_span(r"^12\b", r"^13\b")
+    for field in ("Merged SHA", "Convergence commit", "Context-refresh SHA"):
+        assert field in section, (
+            f"The Step 12 summary template has no {field!r} row. Outcome 5 "
+            "requires the handoff to report the merged SHA, the context-refresh "
+            "SHA, and the semantic-index status."
+        )
+    assert re.search(r"semantic index", section, re.I), (
+        "The Step 12 summary template does not report semantic-index status."
+    )
+    assert re.search(r"final pushed revision", section, re.I), (
+        "The Step 12 summary does not say the three values describe the FINAL "
+        "PUSHED revision. Reported against the merged revision they are wrong "
+        "whenever a convergence commit landed on top of it."
+    )
+
+
+def test_summary_survives_a_blocked_or_failed_convergence():
+    section = _step_span(r"^12\b", r"^13\b")
+    assert re.search(r"blocked|failed", section, re.I), (
+        "The Step 12 summary does not say what to report when convergence is "
+        "blocked or its refresh failed; an operator would see a missing block "
+        "and not know whether the step ran."
+    )
+    assert re.search(r"never means a merge failed|merge results.{0,40}unaffected", section, re.I), (
+        "The Step 12 summary does not state that a convergence failure leaves "
+        "the merge results unaffected (D6)."
+    )
+
+
+def test_merge_log_has_a_context_convergence_section():
+    section = _step_span(r"^13\b", r"^Dry-Run Mode")
+    assert "Context Convergence" in section, (
+        "The merge-log template has no Context Convergence section, so the "
+        "durable per-day record loses what the summary reported."
+    )
+    assert "context-convergence.jsonl" in section, (
+        "The merge-log template does not point at the tracked record."
+    )
+    assert re.search(r"never awaited|not awaited", section, re.I), (
+        "The merge-log template does not record that the index is enqueued but "
+        "never awaited, so a `pending` entry reads like an unfinished job."
+    )
+
+
+# --- ri-11 D12: dry-run converges nothing but reports the identity ---------
+
+
+def test_dry_run_section_converges_nothing_but_still_reports():
+    section = _section("Dry-Run Mode")
+    assert "main_convergence.py" in section and "--dry-run" in section, (
+        "Dry-Run Mode does not invoke the convergence driver with --dry-run, so "
+        "a dry run silently omits the step it is supposed to preview."
+    )
+    assert re.search(r"no commit|no push|converges nothing", section, re.I), (
+        "Dry-Run Mode does not state that Step 11.6 mutates nothing (D12)."
+    )
+    assert re.search(r"identity", section, re.I), (
+        "Dry-Run Mode does not state that the driver still reports the identity "
+        "it WOULD have used -- which is the whole value of the dry run."
+    )
+    assert re.search(r"drift", section, re.I), (
+        "Dry-Run Mode does not mention the read-only drift assessment."
+    )
+    assert re.search(r"exits? 0|always exits 0", section, re.I), (
+        "Dry-Run Mode does not state that a dry run exits 0; 'would have "
+        "converged' is not a failure, and a non-zero code here would break any "
+        "caller that gates on it."
+    )
+
+
+# --- ri-11: failure paths are documented where operators look for them -----
+
+
+def test_error_handling_covers_every_convergence_failure_path():
+    section = _section("Error Handling")
+    for needle, why in (
+        (r"contention", "lock contention must block"),
+        (r"unavailable", "coordinator absence must degrade, not block"),
+        (r"push race|compare-and-swap", "a lost push race must be resumable"),
+        (r"cleanup-only", "a failed refresh still commits what cleanup staged"),
+        (r"already-converged", "a prior convergence must be detected and skipped"),
+    ):
+        assert re.search(needle, section, re.I), (
+            f"Error Handling has no row for {needle!r} -- {why}. These live on "
+            "failure and retry paths, which green CI never exercises."
+        )
+
+
+def test_rationalizations_close_the_convergence_reasoning_gaps():
+    section = _section("Common Rationalizations")
+    for needle, why in (
+        (r"nothing OpenSpec merged|dependabot|dependency", "D11: non-OpenSpec passes converge too"),
+        (r"per PR|once per PR", "D1/D8: k merges produce one main state"),
+        (r"force-with-lease", "D5: a successful lease still overwrites another writer"),
+        (r"revert the merge|un-?merge", "D6: a derived artifact never un-merges code"),
+        (r"degraded", "degraded is the normal deferred-index outcome, not a failure"),
+    ):
+        assert re.search(needle, section, re.I), (
+            f"Common Rationalizations does not close the {needle!r} gap -- {why}."
+        )
+
+
+def test_red_flags_detect_a_silently_skipped_convergence():
+    section = _section("Red Flags")
+    assert re.search(r"no Context Convergence block|summary has no", section, re.I), (
+        "Red Flags cannot detect a pass that merged PRs and skipped convergence."
+    )
+    assert re.search(r"Context-Refresh-Operation", section), (
+        "Red Flags does not catch a convergence commit missing its trailer, "
+        "which breaks idempotence after a fresh clone."
+    )
+    assert re.search(r"\.git-context/", section), (
+        "Red Flags does not catch `.git-context/` becoming tracked, which "
+        "reintroduces the repository diff ri-07 D6 removed."
     )
