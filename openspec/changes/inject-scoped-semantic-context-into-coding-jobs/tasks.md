@@ -115,7 +115,7 @@
 - [x] 5.4 `test_fallback_out_of_scope.py` — `scope_rejected`, missing package
       scope, self-cancelling scope, and all-hits-filtered each yield
       `trigger=out_of_scope` with distinct reasons.
-- [ ] 5.5 `test_fallback_never_blocks.py` — for every trigger the helper
+- [x] 5.5 `test_fallback_never_blocks.py` — for every trigger the helper
       returns a `SemanticContextResult`, and an unknown/future state string maps
       to `unavailable` / `unknown_state` rather than injecting.
 
