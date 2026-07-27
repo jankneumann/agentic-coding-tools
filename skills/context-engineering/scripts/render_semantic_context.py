@@ -80,7 +80,18 @@ NOT_QUERIED_STATE = "not_queried"
 #: fifteen, it renders nothing at all (D9).
 INJECTION_DISABLED_REASON = "injection_disabled"
 
-FALLBACK_TRIGGERS = ("stale", "unavailable", "mismatched", "out_of_scope")
+#: The five triggers of the section contract. `no_context` (D14) is the only one
+#: that describes a healthy, current index — the query succeeded and there was
+#: still nothing to show. It must be listed here: an unrecognized trigger fails
+#: closed to an unexplained refusal, which would discard the very distinction
+#: D14 introduced.
+FALLBACK_TRIGGERS = (
+    "stale",
+    "unavailable",
+    "mismatched",
+    "out_of_scope",
+    "no_context",
+)
 
 _DUPLICATE_REASONS = ("duplicate_exact", "duplicate_contained")
 _BUDGET_REASONS = ("hit_count_cap", "file_count_cap", "hit_line_cap", "total_line_cap")

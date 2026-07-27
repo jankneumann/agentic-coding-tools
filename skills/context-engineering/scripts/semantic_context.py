@@ -472,10 +472,22 @@ def select_hits(
 # Fallback vocabulary (D8)
 # ---------------------------------------------------------------------------
 
-#: The four triggers. Each is a different remedy, which is why `stale` and
+#: The five triggers. Each is a different remedy, which is why `stale` and
 #: `mismatched` are not collapsed: `stale` means *this agent* must commit or
 #: re-index, `mismatched` means the *index* is behind.
-FALLBACK_TRIGGERS: tuple[str, ...] = ("stale", "unavailable", "mismatched", "out_of_scope")
+#:
+#: Four describe a failure. `no_context` (D14) is the only one that describes a
+#: *healthy, current* index: the query succeeded and the section still has
+#: nothing to show. It exists because the alternative was filing a working
+#: service under `unavailable`, which sends a reader looking for an outage that
+#: never happened.
+FALLBACK_TRIGGERS: tuple[str, ...] = (
+    "stale",
+    "unavailable",
+    "mismatched",
+    "out_of_scope",
+    "no_context",
+)
 
 #: Every reason in ``semantic-context-section.schema.json``. Distinct per cause,
 #: so a test can assert exactly why the fallback happened rather than only that
@@ -496,7 +508,16 @@ FALLBACK_REASONS: tuple[str, ...] = (
     "no_declared_scope",
     "scope_self_cancelling",
     "all_hits_scope_filtered",
+    # D14's two relevance reasons. They are different facts about the world:
+    # only `all_hits_omitted` could have been changed by a larger budget.
+    "index_returned_no_hits",
+    "all_hits_omitted",
 )
+
+#: D14's trigger for a ready index that yielded nothing renderable, paired with
+#: the reason for each of the two ways that happens.
+NO_CONTEXT_EMPTY_INDEX: tuple[str, str] = ("no_context", "index_returned_no_hits")
+NO_CONTEXT_ALL_OMITTED: tuple[str, str] = ("no_context", "all_hits_omitted")
 
 #: ri-03's ``CodeSearchState``. Anything outside this set is a coordinator this
 #: client does not understand.
@@ -1280,11 +1301,22 @@ def collect_semantic_context(
         hits = _parse_hits(response, revision)
         kept, omissions = select_hits(hits, budget, scopes)
         if not kept:
+            # Nothing renderable survived, and an empty `injected` section is
+            # unrepresentable by the contract. Which fallback that is depends on
+            # WHY nothing survived, and the three causes have different remedies.
             if hits and all(o.reason == "scope_filtered" for o in omissions):
+                # A scope decision, not a relevance one. Reporting it as
+                # `no_context` would hide a scope event behind a relevance one.
                 raise _FallbackSignal("out_of_scope", "all_hits_scope_filtered", "ready")
-            # Nothing renderable survived, so there is nothing to inject and an
-            # empty "injected" section is unrepresentable by the contract.
-            raise _FallbackSignal(*UNKNOWN_STATE_FALLBACK, "ready")
+            if hits:
+                # The index answered with hits and this client's own dedup and
+                # budget selection kept none. This is the only one of the three
+                # that a larger budget could have changed.
+                raise _FallbackSignal(*NO_CONTEXT_ALL_OMITTED, "ready")
+            # The index held nothing similar enough inside the declared scope.
+            # The service is healthy and current; saying `unavailable` here (as
+            # this did before D14) reports a working service as broken.
+            raise _FallbackSignal(*NO_CONTEXT_EMPTY_INDEX, "ready")
 
         provenance = _build_provenance(request, response, namespace, read_allow, deny)
         return SemanticContextResult(
