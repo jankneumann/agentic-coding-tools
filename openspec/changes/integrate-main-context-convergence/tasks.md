@@ -55,29 +55,29 @@ Each task is sized to one commit. Group numbers map to work packages in
 `skills/tests/merge-pull-requests/`
 **Dependencies**: wp-contracts, wp-sync-point
 
-- [ ] 3.1 Write failing tests for operation identity: the id derives from
+- [x] 3.1 Write failing tests for operation identity: the id derives from
       `(repository_id, merged_main_sha)`, is stable across retries, and differs when
       the SHA differs (D4).
-- [ ] 3.2 Implement identity resolution plus the two-source idempotence check —
+- [x] 3.2 Implement identity resolution plus the two-source idempotence check —
       terminal ri-06 record **or** `Context-Refresh-Operation:` commit trailer
       discoverable via `git log --grep` (D4). Either alone is sufficient to skip.
-- [ ] 3.3 Write failing tests for the three-layer guard: active-agent check,
+- [x] 3.3 Write failing tests for the three-layer guard: active-agent check,
       coordinator lock when available, and the pre-push compare-and-swap against
       `origin/main` (D5).
-- [ ] 3.4 Implement the guards. Coordinator unavailability degrades with a recorded
+- [x] 3.4 Implement the guards. Coordinator unavailability degrades with a recorded
       warning; a losing push race aborts and never force-pushes.
-- [ ] 3.5 Implement the phase sequence: staged cleanup output → `make
+- [x] 3.5 Implement the phase sequence: staged cleanup output → `make
       architecture-refresh` → `cli.py refresh --sync-point --defer-semantic-index` →
       one commit → one push (D2, D3, D10).
-- [ ] 3.6 Implement the outcome mapping from design D6 (succeeded / degraded /
+- [x] 3.6 Implement the outcome mapping from design D6 (succeeded / degraded /
       failed / apparatus-failure) and assert with tests that no branch can revert,
       close, or reopen a pull request.
-- [ ] 3.7 Emit the convergence record as one JSONL line to
+- [x] 3.7 Emit the convergence record as one JSONL line to
       `docs/merge-logs/context-convergence.jsonl` and validate it against the
       wp-contracts schema in a test (D9).
-- [ ] 3.8 Implement post-push semantic enqueue for the final pushed SHA, fire-and-
+- [x] 3.8 Implement post-push semantic enqueue for the final pushed SHA, fire-and-
       report, with a test that an unavailable service still lets the pass complete (D7).
-- [ ] 3.9 Add a `--dry-run` path that derives and reports the identity, checks for an
+- [x] 3.9 Add a `--dry-run` path that derives and reports the identity, checks for an
       existing convergence, and runs `make context-drift-gate` read-only (D12).
 
 ## 4. Merge-driven cleanup mode (wp-cleanup)
