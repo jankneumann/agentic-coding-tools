@@ -112,7 +112,7 @@
       429 each yield `trigger=unavailable` with distinct reasons.
 - [x] 5.3 `test_fallback_mismatched.py` — `revision_mismatch` yields
       `trigger=mismatched`, zero hits, and an exact-search instruction.
-- [ ] 5.4 `test_fallback_out_of_scope.py` — `scope_rejected`, missing package
+- [x] 5.4 `test_fallback_out_of_scope.py` — `scope_rejected`, missing package
       scope, self-cancelling scope, and all-hits-filtered each yield
       `trigger=out_of_scope` with distinct reasons.
 - [ ] 5.5 `test_fallback_never_blocks.py` — for every trigger the helper
