@@ -153,6 +153,17 @@ _REASON_PROSE: dict[str, str] = {
     "all_hits_scope_filtered": (
         "every returned hit fell outside the declared read scope"
     ),
+    # D14's two relevance reasons. Without prose here they rendered as the
+    # generic "the retrieval helper reported `<reason>`", which discards the one
+    # distinction D14 exists to draw: whether a larger budget would have helped.
+    "index_returned_no_hits": (
+        "the index is current and held nothing similar enough inside the "
+        "declared scope — a larger budget would not have changed this"
+    ),
+    "all_hits_omitted": (
+        "the index returned hits and this job's own dedup and budget kept none "
+        "of them — a larger budget may have produced context"
+    ),
 }
 
 #: What the renderer falls back to when the section itself cannot be read. It is
@@ -219,7 +230,17 @@ def render_semantic_context(
         # A renderer that raised would reintroduce, at the very last step, the
         # blocking failure D8 removed from the whole retrieval path.
         pass
-    return _render_fallback(section, _UNINTERPRETABLE_FALLBACK, globs, needle)
+    try:
+        return _render_fallback(section, _UNINTERPRETABLE_FALLBACK, globs, needle)
+    except Exception:
+        # The fail-closed path re-reads the SAME untrusted `section` (through
+        # `_requested_revision`), so a section object whose own `.get` raises
+        # escaped this function entirely and broke the never-raises guarantee
+        # the docstring makes and every consumer relies on. Reproduced with a
+        # `Mapping` subclass raising from `get`. Re-render with no section at
+        # all rather than trusting it a second time: by this point nothing in
+        # it has been interpretable, so there is nothing left to preserve.
+        return _render_fallback({}, _UNINTERPRETABLE_FALLBACK, globs, needle)
 
 
 # --------------------------------------------------------------------------
