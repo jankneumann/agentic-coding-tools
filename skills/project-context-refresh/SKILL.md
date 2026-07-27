@@ -106,7 +106,8 @@ deterministic producer output is byte-identical to a non-deferred run.
 
 ```bash
 # What the convergence driver runs, on main, after the merges have landed.
-python scripts/cli.py refresh --sync-point --defer-semantic-index
+python3 <agent-skills-dir>/project-context-refresh/scripts/cli.py \
+  refresh --sync-point --defer-semantic-index
 ```
 
 `--revision` must name the revision that is **actually checked out**: every
