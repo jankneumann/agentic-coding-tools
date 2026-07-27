@@ -104,10 +104,10 @@ Each task is sized to one commit. Group numbers map to work packages in
 `skills/tests/merge-pull-requests/`
 **Dependencies**: wp-convergence, wp-cleanup
 
-- [ ] 5.1 Write failing `test_skill_md.py` assertions that Step 11.6 exists, sits
+- [x] 5.1 Write failing `test_skill_md.py` assertions that Step 11.6 exists, sits
       between Steps 11.5 and 12, and names `cleanup-feature --post-merge` before the
       refresh.
-- [ ] 5.2 Author Step 11.6 with the three-phase sequence, the guard order, and the
+- [x] 5.2 Author Step 11.6 with the three-phase sequence, the guard order, and the
       exact commands.
 - [ ] 5.3 Extend the Step 12 summary template with merged SHA, context-refresh SHA,
       convergence commit SHA, and semantic-index status (acceptance outcome 5).
