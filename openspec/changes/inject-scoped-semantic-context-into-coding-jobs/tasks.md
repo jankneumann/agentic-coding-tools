@@ -110,7 +110,7 @@
 - [x] 5.2 `test_fallback_unavailable.py` — flag off, capability absent,
       non-HTTP transport, bridge failure, `not_configured`, `unavailable`, and
       429 each yield `trigger=unavailable` with distinct reasons.
-- [ ] 5.3 `test_fallback_mismatched.py` — `revision_mismatch` yields
+- [x] 5.3 `test_fallback_mismatched.py` — `revision_mismatch` yields
       `trigger=mismatched`, zero hits, and an exact-search instruction.
 - [ ] 5.4 `test_fallback_out_of_scope.py` — `scope_rejected`, missing package
       scope, self-cancelling scope, and all-hits-filtered each yield
