@@ -60,6 +60,27 @@ that way answers a question about a different copy.
   it shells out to npx. This is the only guard against the resolver and the
   CLI diverging on what a requirement is.
 
+- [ ] 1.4 Write tests for the effective requirement set `[S]`
+  **Spec scenarios**: The Active Change's Spec Delta Shadows The Archived Spec (a citation to the change's own new requirement resolves); (removing a requirement breaks operations that still cite it); (another change's unarchived requirement cannot be referenced)
+  **Design decisions**: D11
+  **Dependencies**: 1.2
+  **Note**: three shadowing cases and one exclusion case. The REMOVED case is
+  the one that earns its keep — it is what couples requirement-removal to
+  operation-removal, and nothing else in the repository does.
+  **Note**: the "other change is invisible" test must assert the failure
+  message says the requirement is not in the effective set, not merely "not
+  found". The two are different problems with different fixes.
+
+- [ ] 1.5 Implement effective-set resolution with delta shadowing `[M]`
+  **Design decisions**: D11
+  **Dependencies**: 1.4
+  **Note**: parses ADDED / MODIFIED / REMOVED sections of the active change's
+  delta. `openspec` renders these as `## ADDED Requirements` headings; read the
+  same markdown, do not shell out.
+  **Note**: other in-flight changes are not read at all. Do NOT scan
+  `openspec/changes/*/specs/` — a resolver that can see them will eventually be
+  asked to resolve against them.
+
 - [ ] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2 — The traceability model
@@ -160,6 +181,52 @@ that way answers a question about a different copy.
   **Design decisions**: D7
   **Dependencies**: 3.7
 
+- [ ] 3.9 Write tests for capability-scoped completeness `[S]`
+  **Spec scenarios**: Completeness Is Evaluated Per Capability (a requirement served from another contract is covered); (a capability's contracts are evaluated as one surface)
+  **Design decisions**: D9, D10
+  **Dependencies**: 3.5
+  **Note**: the discriminating fixture is a capability with TWO contracts where
+  a requirement is cited from only one. A single-contract fixture passes under
+  both the per-contract and per-capability rules and proves nothing.
+
+- [ ] 3.10 Evaluate completeness per capability, unioning its contracts `[M]`
+  **Design decisions**: D10
+  **Dependencies**: 3.9
+  **Note**: this is what makes splitting a capability's contract a staging
+  mechanism rather than a weakening (see 5.2). Opt-in status is recorded per
+  capability, not per file.
+
+- [ ] 3.11 Write tests for cross-capability citations `[S]`
+  **Spec scenarios**: Citations May Name Requirements In Another Capability (an operation cites another capability's requirement)
+  **Design decisions**: D9
+  **Dependencies**: 3.10
+  **Note**: assert it resolves, does NOT fail, and DOES appear in the
+  cross-capability report. The report is the whole value — a coupling that
+  passes silently is a coupling nobody reviews.
+
+- [ ] 3.12 Resolve and report cross-capability citations `[S]`
+  **Design decisions**: D9
+  **Dependencies**: 3.11
+
+- [ ] 3.13 Write tests for change-scoped evaluation `[S]`
+  **Spec scenarios**: Validation-Time Evaluation Is Scoped To The Change (a pre-existing gap does not fail a change that did not create it); (the output states which scope it evaluated)
+  **Design decisions**: D12
+  **Dependencies**: 3.10
+  **Note**: must prove BOTH halves — the touched violation fails, the untouched
+  pre-existing one is reported and does not. A test asserting only the first
+  passes against a gate with no scoping at all.
+  **Note**: the output-wording test is not cosmetic. A change-scoped run that
+  printed "traceability complete" would be asserting something about the
+  capability it did not check.
+
+- [ ] 3.14 Implement change-scoped evaluation and the full sweep `[M]`
+  **Design decisions**: D12
+  **Dependencies**: 3.13
+  **Note**: one gate, a `--scope change|capability` argument. Change scope
+  derives touched operations from the diff against the merge base; capability
+  scope reads everything. Do not build two scripts — they would drift, and the
+  drift would be invisible because each is only run in one context.
+
 - [ ] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 4 — Retrofit the flagship example
@@ -205,13 +272,20 @@ that way answers a question about a different copy.
   serves 82 operations, requirements name 35 of them.
   **Note**: lands `untraced` (D6). Scoping which subsystems opt in is 5.2.
 
-- [ ] 5.2 Opt one coordinator subsystem into strict traceability `[M]`
-  **Spec scenarios**: Traceability Enforcement Is Opt-In Per Contract (declaring traceability commits the whole contract)
-  **Design decisions**: D6
-  **Dependencies**: 5.1
-  **Note**: locks or work-queue — small, well-specified, and the operations
-  the spec names most concretely. Proves the model on real requirements before
-  anyone commits to all 82.
+- [ ] 5.2 Split the coordinator contract and opt one subsystem in `[M]`
+  **Spec scenarios**: Traceability Enforcement Is Opt-In Per Contract (declaring traceability commits the whole contract); Completeness Is Evaluated Per Capability (a capability's contracts are evaluated as one surface)
+  **Design decisions**: D6, D10
+  **Dependencies**: 5.1, 3.10
+  **Note (revised after D10)**: the plan-time version of this task assumed a
+  subsystem could opt in while the rest of one contract stayed out. D6 forbids
+  that — declaring traceability commits the whole contract, deliberately, so
+  that a half-traced contract cannot report green. Splitting the document is
+  the staging mechanism instead: `openspec/contracts/agent-coordinator/openapi/`
+  holds `locks.yaml`, `work-queue.yaml` and so on, and D10's capability-level
+  union means the split costs nothing in rigour.
+  **Note**: start with locks or work-queue — small, and the operations the spec
+  names most concretely. Proves the model on real requirements before anyone
+  commits to all 82.
 
 - [ ] 5.3 Record the unattributed operations as findings, not fixes `[S]`
   **Dependencies**: 5.1
@@ -232,24 +306,37 @@ that way answers a question about a different copy.
   currently instructs the implementer to fill the column by hand; leaving that
   text in place while generating the column is how the two disagree.
 
-- [ ] 5.6 Wire the gate into the `gen-eval-tests` CI job `[S]`
-  **Design decisions**: D3, D6
-  **Dependencies**: 4.2, 5.2
-  **Note**: bare invocation, as with `generate_tool_descriptor.py --check`. A
-  gate whose write step and check step disagree on argv reports failure on a
-  correct tree and gets disabled.
+- [ ] 5.6 Wire the change-scoped gate into `/validate-feature` `[M]`
+  **Spec scenarios**: Validation-Time Evaluation Is Scoped To The Change (a pre-existing gap does not fail a change that did not create it)
+  **Design decisions**: D12
+  **Dependencies**: 3.14, 4.2
+  **Note**: this is the blocking gate — work is not validated until the
+  operations it touched cite their requirements. Runs at `--scope change`.
+  **Note**: `skills/validate-feature/SKILL.md` is the wiring point, and its
+  spec-compliance step is the natural neighbour. Adding a gate to a skill means
+  adding it to the skill's own tests too, or the wiring is unverified.
   **Note**: run it BARE, never piped. A pipeline's `$?` is the last stage's
   status, so `check_traceability.py | tail` reports tail's 0 on a failing gate.
 
-- [ ] 5.7 Update `packages/gen-eval/README.md` with the four-edge chain `[S]`
-  **Dependencies**: 5.6
+- [ ] 5.7 Wire the full-capability sweep into CI on `main` `[S]`
+  **Design decisions**: D12
+  **Dependencies**: 3.14, 5.2
+  **Note**: reports, does not block, until a capability is clean — then that
+  capability flips to blocking. This is what makes the coordinator's existing
+  gaps visible without stopping unrelated work; diff-scoping alone would leave
+  them invisible forever, since no change touches them.
+  **Note**: bare invocation, as with `generate_tool_descriptor.py --check`. A
+  gate whose two call sites disagree on argv reports failure on a correct tree.
+
+- [ ] 5.8 Update `packages/gen-eval/README.md` with the four-edge chain `[S]`
+  **Dependencies**: 5.6, 5.7
   **Note**: the README documents contract → descriptor → verify. State the edge
   above it, and state plainly what the gate does NOT claim (D5) — a reader who
   takes "traceability gate: pass" for "requirements are implemented" has been
   misled by the documentation, not by the gate.
 
-- [ ] 5.8 Refresh `DOWNSTREAM.md` for consumers with their own contracts `[S]`
-  **Dependencies**: 5.6
+- [ ] 5.9 Refresh `DOWNSTREAM.md` for consumers with their own contracts `[S]`
+  **Dependencies**: 5.6, 5.7
   **Note**: ACA's tool contract is affected only if they opt in (D6). Say so
   explicitly — the previous notice's DS-2 had to be rewritten at implementation
   time because it promised a change that did not ship.

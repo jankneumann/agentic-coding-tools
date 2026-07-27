@@ -189,6 +189,127 @@ describes, where the person making the decision is already looking.
 
 ---
 
+### D9 — Citations may name a requirement in another capability
+
+**Decision.** A citation may name any capability's requirement. The identifier's
+capability prefix makes a cross-capability citation visible as one.
+
+**Why.** Cross-capability operations already exist — the coordinator serves
+`/gen-eval/scenarios`, which is gen-eval-framework's requirement being satisfied
+by an agent-coordinator operation. Forbidding the citation would not make the
+coupling go away; it would only make the one artifact that records it illegal,
+and force the operation to be excluded with a reason that says "serves a
+requirement I am not allowed to name."
+
+**Consequence for reverse completeness.** The denominator cannot be "this
+capability's requirements checked against this capability's contracts", because
+a requirement may legitimately be served from elsewhere. This is what forces
+D10.
+
+**Consequence for review.** A cross-capability citation is a coupling worth
+noticing, so the gate reports them as a distinct list rather than folding them
+into the pass. Reported, not failed — the coupling is often correct, and the
+value is that someone sees it.
+
+---
+
+### D10 — The gate's unit is the capability, not the contract
+
+**Decision.** A run gathers every contract that cites into a capability, unions
+their citations, and checks completeness against that capability's requirement
+set. Opt-in (D6) is likewise per capability.
+
+**Why.** D9 makes per-contract reverse completeness incorrect, not merely
+inconvenient: a requirement served by an operation in another capability's
+contract would be reported as uncited by a per-contract run, and the only fix
+would be an exclusion asserting something false.
+
+**The consequence that makes staging possible.** Because completeness no longer
+cares which *file* an operation lives in, a capability's contract can be split
+without weakening the gate.
+`openspec/contracts/agent-coordinator/openapi/` can hold `locks.yaml`,
+`work-queue.yaml` and so on, each opted in when its subsystem is ready, and the
+capability-level check still sees the union.
+
+That resolves a tension D6 would otherwise create. D6 makes opt-in commit a
+whole contract, deliberately — a half-traced contract reporting green is the
+failure it exists to prevent. But the coordinator is one contract with 82
+operations, so contract-level totality would mean tracing all 82 before any of
+it counts. Splitting the document is the staging mechanism; lowering D6's bar is
+not.
+
+---
+
+### D11 — The effective requirement set is the archive, shadowed by the active change
+
+**Decision.** Resolution reads `openspec/specs/<capability>/spec.md`, with the
+active change's `specs/` delta shadowing it: `ADDED` requirements appear,
+`MODIFIED` replace their archived version, `REMOVED` disappear. Requirements
+belonging to **other** in-flight changes are not in the universe — they can be
+neither cited nor excluded.
+
+**Why the active change must shadow.** Every requirement a change adds lives
+only in its own delta until archive. If resolution read the archive alone, every
+citation a change makes to its own new requirements would fail, and the gate
+would block correct work. That is disqualifying, not inconvenient.
+
+**Why other changes are invisible rather than excludable.** Allowing an
+exclusion to name another change's unarchived requirement fails three ways, and
+the first is the serious one:
+
+1. **The exclusion becomes wrong rather than stale.** When that change archives,
+   the requirement becomes real and the exclusion now suppresses a genuine
+   reverse-completeness finding. D4's stale-exclusion check cannot catch it,
+   because the target exists. An artifact that looks correct while hiding a true
+   signal is the worst outcome available in this design.
+2. **It couples changes that must merge independently.** Change A's contract
+   referencing change B's spec means B cannot be reworked or abandoned without
+   breaking A's gate.
+3. **Abandoned changes leave dangling references.** Change directories are
+   deleted; the reference then names nothing, discovered later and by accident.
+
+**The property this buys on the deletion path.** A change that removes a
+requirement removes it from the effective set, so any operation still citing it
+stops resolving and fails the gate. Requirement-removal and operation-removal
+become coupled — you cannot delete a requirement while its endpoint still serves
+traffic, or delete an endpoint while its requirement claims it exists. Nothing
+enforces that today, and deletion is where interface debt accumulates unseen.
+
+---
+
+### D12 — At validation the gate is diff-scoped; the full sweep runs on main
+
+**Decision.** Two run contexts, one gate, differing only in what they consider
+in scope:
+
+| Context | Scope | Blocking |
+|---|---|---|
+| `/validate-feature` | Operations and requirements the change touches | Yes |
+| CI on `main` | Every opted-in capability, in full | Reports; blocking per capability once clean |
+
+**Why the validation run must be diff-scoped.** A validation run checking the
+full archived set would block every change to `agent-coordinator` on 47
+pre-existing gaps it did not create. Adoption then requires fixing all 47 before
+any unrelated work can be validated, which is how a gate gets disabled in its
+first week.
+
+This is the lesson the work-packages schema debt already taught this repository:
+when adding a constraint to a codebase that does not yet satisfy it, assert **no
+new violations**, never "everything validates". A ratchet is adoptable; a cliff
+is not.
+
+**Why the full sweep still exists.** Diff-scoping alone would never surface the
+accumulated gaps — the 47 would stay invisible indefinitely, because no change
+touches them. The main-branch sweep is what makes existing debt visible without
+blocking anyone, and it is where a capability's transition from "reported" to
+"blocking" is decided, per capability, once it is clean.
+
+**Consequence.** The gate must accept a scope argument and must be honest in its
+output about which context it ran in. A diff-scoped pass that printed
+"traceability complete" would be a false claim about the capability.
+
+---
+
 ## Risks
 
 | Risk | Mitigation |
@@ -199,15 +320,37 @@ describes, where the person making the decision is already looking.
 | Retrofit of gen-eval's contract balloons into rewriting its spec | Bounded: 17 flags, each needs one requirement or one exclusion. A flag that justifies neither is a finding about the flag |
 | This change repeats `derive-descriptors-from-contracts`' own mistake of freezing a name and reusing it in one DAG | No names are reclaimed here. Every identifier introduced is new |
 
-## Open questions
+## Resolved questions
 
-- Should a citation be allowed to name a requirement in *another* capability's
-  spec? Cross-capability operations exist (the coordinator serves gen-eval's
-  scenarios). Leaning yes, with the id's capability prefix making it explicit.
-- Should the gate run per contract or per capability? Per contract is simpler;
-  per capability is what reverse completeness actually needs, since a
-  requirement may be served by an operation in a different contract.
-- What does the gate do about requirements in `openspec/changes/<id>/specs/`
-  that have not been archived into `openspec/specs/` yet? They describe a
-  surface that does not exist. Leaning: resolve against both, and treat an
-  unarchived requirement as automatically excluded until it lands.
+The three questions this design opened with were answered by the operator on
+2026-07-27 and are now D9, D10 and D11. Recorded here with what each answer
+cost, because two of them changed the shape of the change rather than just
+filling a blank.
+
+| Question | Answer | Where |
+|---|---|---|
+| May a citation name another capability's requirement? | Yes | D9 |
+| Per contract or per capability? | Per capability | D10 |
+| What about unarchived requirements? | Active change shadows the archive; other changes are invisible | D11 |
+
+**"Per capability" was not a free choice.** It is forced by D9 — once a
+requirement may be served from another capability, per-contract reverse
+completeness reports true gaps as violations and the only remedy is a false
+exclusion. It also unlocked the coordinator staging path in D10, which the
+plan-time task 5.2 had assumed without checking against D6.
+
+**D11's answer generated D12.** Deciding that the active change shadows the
+archive raised the question of what the *rest* of the archive does during a
+validation run, and answering that honestly required the diff-scoped/full-sweep
+split. Without it the gate blocks unrelated work on pre-existing debt.
+
+## Remaining open questions
+
+- Should the main-branch sweep's transition from reporting to blocking be
+  per capability (D12's assumption) or a single repository-wide switch? Per
+  capability is more adoptable and more bookkeeping.
+- Does a cross-capability citation (D9) need the *cited* capability's consent —
+  i.e. should `gen-eval-framework` be able to see that `agent-coordinator`
+  claims to serve one of its requirements? Reporting covers visibility; a
+  mechanism would cover agreement. Leaning: reporting is enough until it is
+  demonstrably not.

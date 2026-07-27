@@ -163,6 +163,118 @@ requirements instead of one.
 - **THEN** the gate SHALL name that requirement and the share in its output
 - **AND** the run SHALL NOT fail on that basis alone
 
+### Requirement: Citations may name requirements in another capability
+
+A citation SHALL be permitted to name a requirement belonging to any capability.
+The gate SHALL report cross-capability citations as a distinct list and SHALL
+NOT fail on them.
+
+Cross-capability operations already exist — one service may serve another
+capability's requirement. Forbidding the citation would not remove the coupling;
+it would make the only artifact that records it illegal, and force an exclusion
+whose reason says the operation serves a requirement it may not name.
+
+<!-- Scenario ID: gen-eval-framework.cross-capability-citation -->
+#### Scenario: An operation cites another capability's requirement
+
+- **WHEN** an operation in one capability's contract cites a requirement
+  identifier carrying a different capability's prefix
+- **THEN** the citation SHALL resolve against that capability's spec
+- **AND** the gate SHALL NOT fail on the basis of the capability differing
+- **AND** the gate SHALL name the citation in its cross-capability report
+
+### Requirement: Completeness is evaluated per capability
+
+The framework SHALL evaluate completeness across every contract citing into a
+capability, taken together, rather than one contract at a time. Opt-in status
+SHALL likewise be recorded per capability.
+
+Because a requirement may be served by an operation in another capability's
+contract, a per-contract evaluation reports genuinely-served requirements as
+uncited, and the only available remedy is an exclusion asserting something
+false.
+
+<!-- Scenario ID: gen-eval-framework.capability-scoped-completeness -->
+#### Scenario: A requirement served from another contract is covered
+
+- **WHEN** a requirement is cited by an operation in a different contract of the
+  same capability
+- **THEN** reverse completeness SHALL treat that requirement as cited
+- **AND** the gate SHALL NOT require a duplicate citation in every contract
+
+<!-- Scenario ID: gen-eval-framework.split-contracts-are-unioned -->
+#### Scenario: A capability's contracts are evaluated as one surface
+
+- **WHEN** a capability declares several contract documents
+- **THEN** the gate SHALL union their citations before evaluating completeness
+- **AND** a capability whose contracts are split SHALL be evaluated identically
+  to one whose contracts are combined
+
+### Requirement: The active change's spec delta shadows the archived spec
+
+The framework SHALL resolve requirement identifiers against the archived
+capability specs, with the active change's spec delta taking precedence: added
+requirements SHALL resolve, modified requirements SHALL resolve to the changed
+form, and removed requirements SHALL NOT resolve. Requirements belonging to
+other in-flight changes SHALL be neither citable nor excludable.
+
+Every requirement a change adds exists only in its own delta until archive, so
+resolving against the archive alone would fail every citation a change makes to
+its own new requirements. Permitting references to *other* changes' unarchived
+requirements is separately disallowed: when such a change archives, the
+exclusion written against it silently suppresses a real finding while its target
+exists, which no staleness check can detect.
+
+<!-- Scenario ID: gen-eval-framework.added-requirement-resolves -->
+#### Scenario: A citation to the change's own new requirement resolves
+
+- **WHEN** the active change adds a requirement and an operation cites it
+- **THEN** the identifier SHALL resolve
+- **AND** the gate SHALL NOT fail on the requirement being unarchived
+
+<!-- Scenario ID: gen-eval-framework.removed-requirement-stops-resolving -->
+#### Scenario: Removing a requirement breaks operations that still cite it
+
+- **WHEN** the active change removes a requirement and an operation still cites
+  it
+- **THEN** the identifier SHALL NOT resolve
+- **AND** the gate SHALL fail naming the operation
+
+<!-- Scenario ID: gen-eval-framework.other-changes-are-invisible -->
+#### Scenario: Another change's unarchived requirement cannot be referenced
+
+- **WHEN** a citation or exclusion names a requirement that exists only in a
+  different in-flight change's spec delta
+- **THEN** the gate SHALL fail
+- **AND** the failure SHALL state that the requirement is not in the effective
+  requirement set
+
+### Requirement: Validation-time evaluation is scoped to the change
+
+At validation the framework SHALL evaluate only the operations and requirements
+the active change touches, and SHALL report rather than fail on violations that
+already existed. A full-capability evaluation SHALL be available for scheduled
+runs against the integration branch.
+
+A validation run enforcing the full archived set blocks every change to a
+capability on gaps it did not create, so adoption would require clearing all
+pre-existing debt before any unrelated work could be validated.
+
+<!-- Scenario ID: gen-eval-framework.pre-existing-gap-does-not-block -->
+#### Scenario: A pre-existing gap does not fail a change that did not create it
+
+- **WHEN** a change touches one operation in a capability that already contains
+  uncited operations it does not touch
+- **THEN** the gate SHALL fail only on the touched operation if it is uncited
+- **AND** it SHALL report the untouched pre-existing gaps without failing
+
+<!-- Scenario ID: gen-eval-framework.scope-is-stated-in-the-output -->
+#### Scenario: The output states which scope it evaluated
+
+- **WHEN** the gate completes a change-scoped run
+- **THEN** its output SHALL state that the run was scoped to the change
+- **AND** it SHALL NOT report completeness for the capability as a whole
+
 ### Requirement: The gate makes no claim that a requirement is satisfied
 
 The gate SHALL establish only that each operation cites a requirement and each

@@ -54,6 +54,14 @@ up, at the level where being wrong costs the most.
   for coverage units. An operation citing no requirement fails. A requirement
   no operation cites fails. Either may be excluded, and an exclusion without a
   stated reason fails.
+- **Evaluated per capability, not per contract.** A requirement may legitimately
+  be served by an operation in another capability's contract, so a per-contract
+  run would report genuinely-served requirements as gaps. This also makes
+  splitting a capability's contract a staging mechanism rather than a weakening.
+- **Two run contexts, one gate.** At `/validate-feature` it is scoped to what
+  the change touches and blocks; on the integration branch it sweeps a whole
+  capability and reports. Enforcing the full set at validation would block every
+  change to a capability on gaps it did not create.
 - **Requirement ids become addressable.** OpenSpec requirements have headings,
   not ids. A stable id derived from `<capability>.<slug>` plus a resolver, so a
   citation can be checked rather than believed.
@@ -81,9 +89,14 @@ up, at the level where being wrong costs the most.
 - **Generating contracts from requirements.** See "Approaches Considered".
 - **Fixing the 47.** This change makes them visible and forces a decision per
   operation; deciding is separate work and mostly not gen-eval's to do.
-- **Retrofitting every capability.** The gate is opt-in per contract, in the
-  ri-08 pattern: declaring a `traceability` block opts a contract into strict
-  enforcement; omitting it records `untraced` and does not fail.
+- **Retrofitting every capability.** The gate is opt-in per capability, in the
+  ri-08 pattern: declaring a `traceability` block opts the capability into
+  strict enforcement; omitting it records `untraced` and does not fail.
+- **Other in-flight changes' requirements.** The effective requirement set is
+  the archived specs shadowed by the *active* change's delta. Another change's
+  unarchived requirements are neither citable nor excludable — an exclusion
+  written against one becomes wrong rather than stale the moment that change
+  archives, and no staleness check can catch it.
 - **Requirement-level test coverage.** Whether a requirement is *tested* is the
   coverage model's job and already exists. This change is about whether it is
   *contracted*.
@@ -174,8 +187,15 @@ show up anywhere today.
 - A citation naming a requirement that does not exist fails CI.
 - An exclusion with a blank reason fails CI.
 - An exclusion naming a requirement or operation that no longer exists fails CI.
-- A contract with no `traceability` block anywhere is recorded `untraced` and
-  does not fail — enforcement is opt-in per contract.
+- A capability with no `traceability` block anywhere is recorded `untraced` and
+  does not fail — enforcement is opt-in per capability.
+- A requirement served by an operation in another contract of the same
+  capability is treated as cited.
+- A cross-capability citation resolves, does not fail, and appears in the
+  gate's cross-capability report.
+- Removing a requirement makes every operation still citing it fail.
+- A change-scoped run fails on a touched violation, reports an untouched
+  pre-existing one, and says in its output that it was change-scoped.
 - `gen-eval.yaml`'s 17 flags each cite a requirement or carry an exclusion.
 - `openspec/contracts/agent-coordinator/openapi/v1.yaml` exists, is authored
   from the spec rather than generated from the app, and every one of its
@@ -192,5 +212,8 @@ show up anywhere today.
 | The coordinator's 47 stall this change | They are out of scope by construction. The gate ships opt-in; the coordinator contract can land `untraced` and be tightened per subsystem |
 | Derived requirement ids break when a heading is reworded | Ids derive from a slug, so rewording renames. The gate fails closed (a citation stops resolving) rather than silently rebinding. An explicit `id:` upstream (approach C) removes this |
 | Reverse completeness floods on aspirational requirements | Exclusions with reasons absorb them, and the reason is the useful artifact — "no interface, enforced by review" is a real answer that nothing records today |
+| The validation gate blocks unrelated work on pre-existing debt | D12 scopes the validation run to what the change touches and reports the rest. Same lesson as the work-packages schema debt: assert no NEW violations, never "everything validates" |
+| Diff-scoping hides the existing gaps forever, since no change touches them | The integration-branch sweep (D12) reports them in full without blocking, and is where a capability flips from reported to blocking once clean |
+| Cross-capability citations become a way to launder a gap into someone else's capability | Reported as a distinct list rather than folded into the pass (D9). The judgement stays with a reviewer, which is the same call D7 makes about concentration |
 | gen-eval's spec has to grow ~17 flag-level requirements to retrofit its own contract | That is the point, and it is small. If a flag cannot be justified by a requirement, the finding is about the flag |
 | Scope creep into "is the requirement satisfied" | Stated as explicitly out of scope above, and the gate has no mechanism that could express it |

@@ -34,9 +34,14 @@ than leaving the gate to guess.
 ## Not in this directory
 
 **No OpenAPI document.** This change adds no HTTP surface. The coordinator
-contract it authors (task 5.1) belongs at
-`openspec/contracts/agent-coordinator/openapi/v1.yaml` — the durable location —
-not here, because it describes a system that exists rather than a change to one.
+contract it authors (task 5.1) belongs under
+`openspec/contracts/agent-coordinator/openapi/` — the durable location — not
+here, because it describes a system that exists rather than a change to one.
+
+That directory holds one or several documents. Because completeness is
+evaluated per capability (D10) rather than per file, splitting the coordinator's
+surface into `locks.yaml`, `work-queue.yaml` and so on costs nothing in rigour
+and is how a capability opts in one subsystem at a time.
 
 **No report schema change.** The gate writes no report into
 `eval-report.schema.json`. It is a standalone check with an exit code, in the
