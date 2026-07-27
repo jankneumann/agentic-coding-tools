@@ -753,7 +753,26 @@ After processing all PRs, present a summary:
 | Rebases | 2 |
 | Success Rate | 100% |
 | Backends | direct: 2 |
+
+## Context Convergence
+| Field | Value |
+|-------|-------|
+| Merged SHA | `<full SHA of main after every merge in the pass>` |
+| Convergence commit | `<SHA of the single follow-up commit, or "none">` |
+| Context-refresh SHA | `<final pushed revision on main>` |
+| Refresh status | `succeeded` / `degraded` / `failed` / `not-run` |
+| Semantic index | `pending` for `<final pushed revision>` / `not-configured` / `none` |
+| Operation | `<identity>` (`converged` / `already-converged` / `no-merges` / `blocked` / `dry-run`) |
 ```
+
+The merged SHA, the context-refresh SHA, and the semantic-index status are all
+reported **for the final pushed revision** — that is the state a reader has to be
+able to reason about, and it is not the merged revision whenever a convergence
+commit landed on top of it.
+
+When Step 11.6 reports `blocked` or a `failed` refresh, report it here and
+continue: the merge results above are unaffected, and a non-zero convergence exit
+never means a merge failed.
 
 ### 13. Append Merge Log
 
@@ -787,6 +806,13 @@ touch docs/merge-logs/.gitkeep
 
 ### Post-Merge Cleanup
 - <OpenSpec cleanup approvals/declines/failures and commands run>
+
+### Context Convergence
+- Merged SHA: `<sha>` → convergence commit: `<sha or "none">` → pushed: `<sha>`
+- Refresh status: `<succeeded|degraded|failed|not-run>` (`degraded` is normal when the index is deferred)
+- Semantic index: `<pending for <sha> | not-configured | none>` — enqueued, never awaited
+- Record: appended to `docs/merge-logs/context-convergence.jsonl` (manifest pinned by `sha256`)
+- Guards: `<active-agent ok | coordinator lock held/degraded/contended | compare-and-swap ok/lost>`
 
 ### Observations
 - <Cross-PR patterns, recurring issues, notable observations>
@@ -822,7 +848,18 @@ python3 <agent-skills-dir>/merge-pull-requests/scripts/check_staleness.py <pr> -
 python3 <agent-skills-dir>/merge-pull-requests/scripts/analyze_comments.py <pr> --dry-run
 python3 <agent-skills-dir>/merge-pull-requests/scripts/vendor_review.py <pr> --origin <type> --dry-run
 python3 <agent-skills-dir>/merge-pull-requests/scripts/post_merge_cleanup.py --merged-json <merged_prs_this_pass.json>
+python3 <agent-skills-dir>/merge-pull-requests/scripts/main_convergence.py --merged-json <merged_prs_this_pass.json> --dry-run
 ```
+
+**Step 11.6 under `--dry-run` (D12)** converges nothing: no cleanup runs, no
+refresh runs, no commit, no push, no record, no index request. It still reports
+what a real pass would have done — the identity it *would* have used, whether a
+convergence already exists for that identity, and a read-only drift assessment
+from the check-mode gate. That combination is what makes the dry run useful: an
+operator can see both that the pass would converge and what it would fix, without
+a dry run ever being the thing that mutates `main`.
+
+A dry run always exits 0, because "would have converged" is not a failure.
 
 Output a full report:
 
@@ -874,6 +911,12 @@ Output a full report:
 - **Subprocess timeout**: All `gh`/`git` calls have timeouts (30-60s) to prevent hangs
 - **API rate limits**: Scripts use `gh` CLI which handles token refresh; if rate-limited, wait and retry
 - **Stacked PRs**: Warn about dependency chain before allowing close/merge
+- **Convergence lock contention**: Another writer holds `sync-point:main-convergence` — block and report. Do not proceed without the lock; two convergences racing for the same tip is the failure the lock exists to prevent
+- **Coordinator unavailable at convergence**: Degrade to the active-agent guard and the pre-push compare-and-swap, and warn. Absence is not contention, and a coordinator-only guard would be missing exactly when this repo runs solo
+- **Convergence push race lost**: The compare-and-swap saw `origin/main` move. Never force and never `--force-with-lease`; the operation stays resumable with nothing staged discarded, so re-run Step 11.6 against the new tip
+- **Deterministic producer failure during convergence**: Commit what cleanup already staged as a cleanup-only commit, report `refresh_status=failed` (exit 1), and continue to Steps 12 and 13. Never un-merge, never revert, never re-open a PR
+- **Semantic index unavailable**: Record the index as `pending` or `not-configured` and continue. The index is enqueued for the final pushed revision and never awaited
+- **Prior convergence found**: Either the ri-06 operation record or a `Context-Refresh-Operation:` trailer matched the merged main SHA — report `already-converged` with the existing identity and write nothing
 
 ## Common Rationalizations
 
@@ -884,6 +927,12 @@ Output a full report:
 | "All my CONCERNS are minor — I'll write `CONCERNS: none`" | Non-trivial changes always have at least one open question. `none` signals either the author hasn't thought hard enough, or is hiding doubts to get the PR through. |
 | "Auto-merge is on; I don't need to triage" | Auto-merge merges when checks pass — it doesn't catch obsolete fixes, conflicting PR pairs, or stale base-branch failures. Triage is the layer above auto-merge, not redundant with it. |
 | "CI is flaky, just rerun" | `rerun-checks` replays the SAME merge commit. If the failure is a stale-base issue, rerun is theatre — `refresh-branch` is the real fix. See Step 5b. |
+| "Nothing OpenSpec merged this pass, so there's nothing to converge" | Dependency and dependabot merges change the tree the deterministic producers read. Skipping convergence leaves the context-drift gate red with no step anywhere in the workflow that would ever fix it (D11). |
+| "I'll converge per PR — it's the same work, just spread out" | k merges produce ONE resulting main state. Per-PR convergence produces k commits racing for the same tip and k index requests for revisions that are stale the moment the next PR lands (D1, D8). |
+| "The push race is a transient — I'll just `--force-with-lease`" | A lease that succeeds still overwrites the other writer's commit. At a sync point, losing the race is information, not an obstacle: another writer converged, and re-running against the new tip is correct (D5). |
+| "The refresh failed, so I should revert the merge to keep main clean" | Merges are terminal by the time Step 11.6 runs. A derived artifact is not a reason to un-merge reviewed, CI-green code — commit what cleanup staged and report the failure (D6). |
+| "I'll wait for the semantic index so the summary can report it green" | Blocking a sync point on an index rebuild makes the index a hard dependency of merging. `pending` is the honest status; `succeeded` with no index is not (D7). |
+| "`degraded` looks like a failure — I'll report it as failed" | `degraded` is the NORMAL outcome whenever the index is deferred. Collapsing it into `failed` makes a successful partial convergence indistinguishable from a crash. |
 
 ## Red Flags
 
@@ -893,6 +942,12 @@ Output a full report:
 - An obsolete-classified PR was merged anyway because "the diff looked harmless".
 - The merge log for the day is empty even though PRs were merged (decision history lost).
 - A stacked PR's base PR was closed without warning the operator about the chain.
+- PRs were merged but the summary has no Context Convergence block (either the step was skipped, or its result was dropped).
+- `docs/merge-logs/context-convergence.jsonl` has no entry for a pass that merged something and did not report `already-converged`.
+- A convergence commit landed without a `Context-Refresh-Operation:` trailer — the next pass's idempotence check will not see it after a fresh clone.
+- The convergence commit contains an archive but no regenerated `docs/decisions/` (cleanup deferred the commit but the regen was deferred with it).
+- `.git-context/` appears in `git status` as tracked, or in a convergence commit's diff.
+- A pass reported `succeeded` while the semantic index was never enqueued.
 
 ## Verification
 

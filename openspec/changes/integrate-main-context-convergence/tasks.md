@@ -109,13 +109,13 @@ Each task is sized to one commit. Group numbers map to work packages in
       refresh.
 - [x] 5.2 Author Step 11.6 with the three-phase sequence, the guard order, and the
       exact commands.
-- [ ] 5.3 Extend the Step 12 summary template with merged SHA, context-refresh SHA,
+- [x] 5.3 Extend the Step 12 summary template with merged SHA, context-refresh SHA,
       convergence commit SHA, and semantic-index status (acceptance outcome 5).
-- [ ] 5.4 Extend the merge-log template (Step 13) with a Context Convergence section.
-- [ ] 5.5 Add Error Handling rows for lock contention, push race, producer failure,
+- [x] 5.4 Extend the merge-log template (Step 13) with a Context Convergence section.
+- [x] 5.5 Add Error Handling rows for lock contention, push race, producer failure,
       and unavailable index; add Common Rationalizations and Red Flags entries for
       skipping convergence or forcing a losing push.
-- [ ] 5.6 Update the Dry-Run Mode section per D12.
+- [x] 5.6 Update the Dry-Run Mode section per D12.
 
 ## 6. Integration and proof (wp-integration)
 
