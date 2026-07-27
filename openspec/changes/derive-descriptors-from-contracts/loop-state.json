@@ -4,7 +4,7 @@
   ],
   "change_id": "derive-descriptors-from-contracts",
   "cli_review_enabled": true,
-  "current_phase": "VALIDATE",
+  "current_phase": "DONE",
   "error": null,
   "escalation_reason": null,
   "findings_trend": [
@@ -39,7 +39,7 @@
   "memory_ids": [],
   "package_authors": {},
   "packages_status": {},
-  "phase_archetype": "validator",
+  "phase_archetype": "runner",
   "phase_history": [
     {
       "at": "2026-07-27T15:19:17.204289+00:00",
@@ -59,8 +59,8 @@
   ],
   "phase_started_at": "2026-07-25T17:06:16.656806+00:00",
   "plan_review_note": "PLAN_REVIEW exited by operator override, NOT by convergence. Round 6 was attempted twice and produced no vendor findings: attempt 1 crashed in checkpoint_findings._validate_finding (prompt specified severity/title/recommendation instead of the required id/type/criticality/description/disposition); attempt 2 was killed before any vendor returned. The last completed round is round-5, which reported 6 critical findings. Those were addressed in commit cfe4abda and independently re-verified here (bare-python3 gates, prerequisite detection, CONTRACT_VERSION ownership, package-level __all__ ownership), but no independent multi-vendor round has confirmed the current plan state. | ROUND 7 (IMPL_REVIEW, 4 vendors: codex/grok/antigravity/pi, claude excluded as author): 25 findings, 2 critical converging on one root cause (see reviews/round-7/synthesis.md). This is the first independent multi-vendor round to see any of the implementation.",
-  "previous_phase": "IMPL_REVIEW",
-  "resume_note": "AUTOPILOT RESUME (2026-07-27). POSITION: VALIDATE, dispatched, IN FLIGHT.\n\nIMPL_REVIEW CONVERGED at round 9 (3-of-4 quorum: codex, grok, antigravity; pi returned invalid JSON). 23 findings, zero blocking/critical/high; all eleven round-8 findings confirmed fixed BY EXECUTION. Round-7's twelve defect classes were confirmed closed at round 8. Phase 6 commit 081663b2, pushed.\n\nON RETURN: (1) `runner.py apply-outcome --phase VALIDATE --outcome <passed|failed> --handoff-id <id>`, run from INSIDE the worktree; it refuses a phase != current_phase, and non-zero exit => do NOT advance, retain the handoff, ESCALATE (D9). (2) Orchestrator sets current_phase: passed -> SUBMIT_PR (val_review_enabled=false, so VAL_REVIEW is skipped), failed -> VAL_FIX. (3) SUBMIT_PR: no PR exists yet. (4) STOP AT MERGE for human approval \u2014 the autopilot contract.\n\nTREE: 1068 passed / 1 skipped; make test green; make dogfood 13/13; ruff clean; contracts at version 2; mypy at its 5 PRE-EXISTING errors; openspec validate --strict passes; 0 unchecked tasks.\n\nOPEN, NON-BLOCKING (do not re-litigate; recorded in reviews/round-9/synthesis.md): N1 coverage credits a flag for being PASSED not asserted, so the honest figure is 8 of 17 not 10 \u2014 changes no gate outcome. N2 work-packages.yaml still instructs the superseded CONTRACT_VERSION 2->3 bump (archives as plan history, not a durable requirement). N3 uncoerced int() in check_coverage_completeness.py:67. N4 bare `openspec validate --strict` selects no target.\n\nBEFORE MERGE: branch is ~23 commits behind main \u2014 REBASE. Green here is not green on the merge result.\n\nORCHESTRATOR TODO AFTER VALIDATE (do not start while it is in flight \u2014 running gen-eval in the worktree writes stray reports into packages/gen-eval/ and breaks 3 test_mcp_service tests via _find_latest_report's cwd fallback):\n  - VERIFY THEN FILE N1. Claim to check first: removing `--output-dir` or `--fail-threshold` from a flag-surface scenario leaves every assertion passing while the unit is still credited, because _extract_interfaces (evaluator.py:614-623) credits a flag for appearing in args rather than for being asserted. Reproduce by deleting each flag and running `make dogfood`; a GREEN run confirms it. Do not file on the reviewer's word alone (feedback_verify_inherited_known_issues).\n  - N2/N3/N4 are nits; fold into the same issue or skip.\n  - Dispatcher evidence for rounds 8+9 (antigravity then pi, both 'Invalid JSON output', neither re-dispatched) is ALREADY FILED as a comment on issue #286 \u2014 do not file again.",
+  "previous_phase": "SUBMIT_PR",
+  "resume_note": "AUTOPILOT COMPLETE \u2014 STOPPED AT MERGE for human approval, per the autopilot contract. PR #315: https://github.com/jankneumann/agentic-coding-tools/pull/315\n\nOUTCOME: IMPL_REVIEW converged at round 9 (23 findings, zero blocking/critical/high). VALIDATE passed, having independently re-run every gate from a fresh detached checkout rather than trusting the handoff. 9 rounds total; claude excluded as author from every implementation round.\n\nDO NOT re-run any phase. The loop is finished. The remaining step is a human merge decision, then `/cleanup-feature derive-descriptors-from-contracts`.\n\nTWO THINGS THE MERGER MUST WEIGH (both stated in the PR body):\n  1. Branch is 68 commits BEHIND main / 76 ahead \u2014 larger than the ~23 the reviewers estimated. Every green result is from the branch tip, not the merge result; PR CI is the first check of the merged state. Rebase-76-over-68 vs merge-main-in was left OPEN deliberately, not overlooked: a speculative 76-commit replay would rewrite every review-artifact commit.\n  2. Phase 7 (commit 53c04696) landed AFTER round 9 converged and no multi-vendor round has seen it. It is scenario data, not mechanism, and every gate was re-run \u2014 but it is unreviewed by construction.\n\nFILED THIS RUN: #316 (coverage credits a flag for being PASSED not asserted \u2014 round-9 N1, reproduced; `--fail-threshold` still rides it, so 9 of 10 credited units are earned). #317 (_find_latest_report's cwd fallback overrides an explicit base_dir; bit the suite twice today). Comment on #286 with rounds 8+9 dispatcher evidence \u2014 antigravity then pi, both 'Invalid JSON output', neither re-dispatched, different vendor each time.\n\nSTILL OPEN, NON-BLOCKING (reviews/round-9/synthesis.md): N2 work-packages.yaml describes the superseded CONTRACT_VERSION 2->3 plan (archives as plan history, not a durable requirement \u2014 unlike B2, which was blocking because the delta spec archives into openspec/specs/). N3 uncoerced int() at check_coverage_completeness.py:67. N4 bare `openspec validate --strict` selects no target.\n\nDOWNSTREAM: trace-requirements-to-contracts (worktree .git-worktrees/trace-requirements-to-contracts, pushed, awaiting approval) is blocked on THIS change's CODE landing on main \u2014 not on PR #315 merely being open. See feedback_plan_pr_is_not_the_prerequisite.",
   "schema_version": 4,
   "started_at": "2026-07-25T17:06:16.656806+00:00",
   "total_iterations": 5,
@@ -71,5 +71,6 @@
     "codex": true,
     "grok": true,
     "pi": true
-  }
+  },
+  "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/315"
 }
