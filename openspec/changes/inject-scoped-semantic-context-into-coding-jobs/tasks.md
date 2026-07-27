@@ -105,7 +105,7 @@
 
 ## 5. Fallback proof matrix (wp-fallback-tests)
 
-- [ ] 5.1 `test_fallback_stale.py` — dirty worktree and `not_indexed` both
+- [x] 5.1 `test_fallback_stale.py` — dirty worktree and `not_indexed` both
       yield `trigger=stale` with the right reason, no exception, exit 0.
 - [ ] 5.2 `test_fallback_unavailable.py` — flag off, capability absent,
       non-HTTP transport, bridge failure, `not_configured`, `unavailable`, and
