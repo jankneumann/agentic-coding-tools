@@ -1,0 +1,222 @@
+schema_version: 1
+
+feature:
+  id: trace-requirements-to-contracts
+  title: "Requirement-to-contract traceability with bidirectional completeness"
+  plan_revision: 1
+  created_by: claude-autopilot
+  created_at: "2026-07-26T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/trace-requirements-to-contracts/contracts/README.md"
+    files:
+      - "openspec/changes/trace-requirements-to-contracts/contracts/README.md"
+      - "openspec/changes/trace-requirements-to-contracts/contracts/traceability.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # The three packages are sequential by construction, not by preference.
+  # wp-model cannot parse citations before wp-resolver can turn a heading into
+  # an id, and wp-gate cannot check completeness before both sides exist. The
+  # DAG is a chain because the dependency is real; splitting it for parallelism
+  # would mean two agents inventing the same identifier format independently.
+  - package_id: wp-resolver
+    title: "Requirement identifiers and the resolver"
+    task_type: implementation
+    description: |
+      Tasks 1.1-1.3. Derive stable identifiers from spec headings and resolve a
+      citation to a requirement. Fails closed on an unknown id.
+
+      Drive the repository's real specs, not a fixture. A fixture authored
+      alongside the resolver agrees with whatever the resolver does; only the
+      existing specs can disagree with it.
+    role: python-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "feature:gen-eval:traceability"
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/gen_eval/traceability.py"
+        - "packages/gen-eval/tests/test_requirement_resolver.py"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "openspec/specs/**"
+    worktree:
+      name: trace-resolver
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Resolver derives ids from the repository's own specs"
+          kind: command
+          command: "uv run pytest tests/test_requirement_resolver.py -q"
+          cwd: "packages/gen-eval"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["resolver_tests"]
+    metadata:
+      loc_estimate: 350
+      complexity: medium
+      package_kind: algorithm
+    inputs:
+      roadmap_dependencies:
+        - "derive-descriptors-from-contracts"
+      contracts:
+        - "openspec/specs/agent-coordinator/spec.md"
+        - "openspec/specs/gen-eval-framework/spec.md"
+    outputs:
+      result_keys: ["resolver_tests"]
+
+  - package_id: wp-model
+    title: "Traceability blocks on both contract archetypes"
+    task_type: implementation
+    description: |
+      Tasks 2.1-2.5. Parse `x-traceability` on OpenAPI operations and
+      `traceability` on CLI contract flags and commands into one model, then
+      resolve the citations.
+
+      Task 2.3 is the load-bearing negative: an operation whose name and path
+      almost exactly match a requirement heading must still cite nothing.
+      Without it a later fuzzy matcher lands with every other test green, and
+      that single change makes the whole gate worthless.
+    role: python-engineer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-resolver
+    locks:
+      files: []
+      keys:
+        - "feature:gen-eval:traceability"
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/gen_eval/traceability.py"
+        - "packages/gen-eval/src/gen_eval/descriptor.py"
+        - "packages/gen-eval/src/gen_eval/service_descriptor.py"
+        - "packages/gen-eval/tests/test_traceability_model.py"
+        - "packages/gen-eval/tests/test_no_inference.py"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "openspec/specs/**"
+    worktree:
+      name: trace-model
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Traceability parsing and the no-inference guard"
+          kind: command
+          command: "uv run pytest tests/test_traceability_model.py tests/test_no_inference.py -q"
+          cwd: "packages/gen-eval"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["model_tests"]
+        - name: "No regression in the existing suite"
+          kind: command
+          command: "uv run pytest -q -m 'not e2e and not integration'"
+          cwd: "packages/gen-eval"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["regression_suite"]
+    metadata:
+      loc_estimate: 450
+      complexity: medium
+      package_kind: algorithm
+    inputs:
+      roadmap_dependencies: []
+      contracts:
+        - "openspec/changes/trace-requirements-to-contracts/contracts/traceability.schema.json"
+    outputs:
+      result_keys: ["model_tests", "regression_suite"]
+
+  - package_id: wp-gate
+    title: "Bidirectional completeness gate"
+    task_type: implementation
+    description: |
+      Tasks 3.1-3.8. Forward and reverse completeness, exclusions with reasons,
+      opt-in enforcement, concentration reporting, and the wording constraint
+      that the output never claims satisfaction.
+
+      Every check must be demonstrated to FAIL on an unmodified tree before the
+      work that makes it pass. A gate observed only to pass is decoration.
+    role: python-engineer
+    archetype: implementer
+    priority: 3
+    depends_on:
+      - wp-model
+    locks:
+      files: []
+      keys:
+        - "feature:gen-eval:traceability"
+    scope:
+      write_allow:
+        - "packages/gen-eval/scripts/check_traceability.py"
+        - "packages/gen-eval/tests/test_traceability_gate.py"
+        - "packages/gen-eval/tests/test_traceability_wording.py"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "openspec/specs/**"
+        - "openspec/contracts/**"
+    worktree:
+      name: trace-gate
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Gate tests, including every failure path"
+          kind: command
+          command: "uv run pytest tests/test_traceability_gate.py tests/test_traceability_wording.py -q"
+          cwd: "packages/gen-eval"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["gate_tests"]
+    metadata:
+      loc_estimate: 500
+      complexity: medium
+      package_kind: algorithm
+    inputs:
+      roadmap_dependencies: []
+      contracts: []
+    outputs:
+      result_keys: ["gate_tests"]
+
+  # Phases 4 and 5 are NOT work packages. They are authoring tasks — deciding
+  # which requirement each operation serves — and dispatching them to an agent
+  # would produce exactly the plausible-looking mapping D1 forbids. The gate
+  # cannot tell a considered citation from a guessed one, so the citations must
+  # be written by someone who knows why the operation exists.
+  #
+  # wp-retrofit and wp-coordinator are therefore sequential human-led work
+  # against the landed gate, tracked in tasks.md, not scheduled here.

@@ -1,0 +1,196 @@
+# Change: Trace requirements to contracts
+
+## Why
+
+`derive-descriptors-from-contracts` made the contract the declared surface and
+built a gate that reports any interface the implementation exposes and the
+contract omits. That works. It is also the bottom half of a four-edge chain:
+
+```
+requirement  ──?──>  contract  ──✓──>  descriptor  ──✓──>  declared surface
+                                                                  ↑ ✓ verify
+                                                             implementation
+```
+
+Nothing establishes the first edge. A contract can be perfectly implemented,
+perfectly verified, and fully covered while describing something no requirement
+asks for — and every gate below stays green while it happens. Green gates on an
+unasked-for system is a worse outcome than red gates, because nobody looks.
+
+**Measured on this repository, 2026-07-26.** The coordinator's OpenAPI surface
+against `openspec/specs/agent-coordinator/spec.md`:
+
+| | |
+|---|---|
+| Operations the application serves | 82 |
+| Operations a requirement names | 35 |
+| **Operations no requirement names** | **47** |
+| Requirements naming an operation that does not exist | 10 |
+
+The match is by `METHOD /path` string, so some of the 47 are legitimate
+infrastructure (`/live`, `/ready`) and some requirements describe an operation
+without spelling its route. The exact figure is not the claim. The claim is that
+**nobody knows which**, because nothing has ever asked.
+
+`derive-descriptors-from-contracts` has the same gap in its own flagship
+example. `openspec/contracts/gen-eval-framework/cli/gen-eval.yaml` declares
+itself "ground truth", and its 17 flags were transcribed from `__main__.py`'s
+argparse. The gen-eval spec names three flags, none of them among the 17. So the
+subset verifier compares the real parser against a hand-transcription of the
+real parser — better than a mirror, because a human could have disagreed while
+transcribing, but not derived from any requirement.
+
+This is the same failure family that change spent 65 tasks eliminating one level
+down: a `--check` that could only fail, a verifier that mirrored its own
+reference, a coverage gate that passed on an empty set. Same shape, one level
+up, at the level where being wrong costs the most.
+
+## What Changes
+
+- **Contracted operations cite requirements.** A `traceability` block on each
+  operation (OpenAPI `x-traceability`, CLI contract `traceability`) naming the
+  requirement ids it serves.
+- **A bidirectional completeness gate**, in the shape D11 already established
+  for coverage units. An operation citing no requirement fails. A requirement
+  no operation cites fails. Either may be excluded, and an exclusion without a
+  stated reason fails.
+- **Requirement ids become addressable.** OpenSpec requirements have headings,
+  not ids. A stable id derived from `<capability>.<slug>` plus a resolver, so a
+  citation can be checked rather than believed.
+- **`change-context.md`'s Contract Ref column gets a gate.** The traceability
+  matrix already asks for exactly this mapping and nothing verifies it. The
+  matrix becomes generated from the citations rather than hand-filled.
+- **The coordinator contract is authored from its spec**, not generated from
+  its app, and the 47 unattributed operations become the first backlog.
+- **gen-eval's own CLI contract is retrofitted**, so the flagship example
+  demonstrates the whole chain rather than its lower half.
+
+## Scope
+
+**In scope**
+
+- `packages/gen-eval/` — the traceability model, the resolver, the gate
+- `openspec/contracts/gen-eval-framework/cli/gen-eval.yaml` — retrofit
+- `openspec/contracts/agent-coordinator/openapi/v1.yaml` — new, authored
+- `openspec/specs/gen-eval-framework/spec.md` — requirements for the above
+- `skills/implement-feature/` — the Contract Ref column becomes generated
+- `.github/workflows/ci.yml` — the gate
+
+**Out of scope**
+
+- **Generating contracts from requirements.** See "Approaches Considered".
+- **Fixing the 47.** This change makes them visible and forces a decision per
+  operation; deciding is separate work and mostly not gen-eval's to do.
+- **Retrofitting every capability.** The gate is opt-in per contract, in the
+  ri-08 pattern: declaring a `traceability` block opts a contract into strict
+  enforcement; omitting it records `untraced` and does not fail.
+- **Requirement-level test coverage.** Whether a requirement is *tested* is the
+  coverage model's job and already exists. This change is about whether it is
+  *contracted*.
+
+## Dependencies
+
+- **`derive-descriptors-from-contracts` must land first.** This change extends
+  `ToolDescriptor` / `ServiceDescriptor` and reuses `_ANNOTATION_KEYS`,
+  `check_coverage_completeness.py`'s exclusion shape, and the
+  `openspec/contracts/<capability>/` layout. All are that change's.
+- OpenSpec CLI ≥ 1.0 for `validate --strict`.
+- No coordinator runtime dependency. The gate is a static read of two files.
+
+## Approaches Considered
+
+### A. Generate contracts from requirements
+
+Parse SHALL clauses and emit OpenAPI.
+
+**Rejected.** "The system SHALL allow an agent to acquire a lock on a file path"
+does not contain `POST /locks/acquire`, its request schema, its status codes, or
+its idempotency semantics. Those are design decisions, and a generator would
+have to invent them. The output would be a contract nobody designed, carrying
+the authority of a generated artifact — and the implementation would then be
+verified against invented decisions. That is worse than the gap it closes.
+
+The asymmetry with `derive-descriptors-from-contracts` is real and worth stating
+plainly: contract → descriptor **is** a derivation, because a descriptor is a
+projection of a contract with no information added. Requirement → contract adds
+information. Derivation is the wrong verb for an edge that adds information.
+
+### B. Traceability with bidirectional completeness — **selected**
+
+Do not generate the contract. Require it to *cite*, and gate both directions.
+
+The citation is written by whoever designs the operation, at the moment they
+design it, when the requirement is in their head. The gate never asks whether
+the design is right — only whether someone said which requirement it serves, and
+whether any requirement was left without one.
+
+This is D11's rule one level up, and deliberately so. D11 rejected a coverage
+*percentage* because "84% covered" does not say whether the missing 16% is
+`--verbose` or `--fail-threshold`. The same argument applies here with more
+force: "82 operations, 35 traced" says nothing about whether the untraced 47 are
+health probes or an entire unasked-for subsystem.
+
+### C. Requirement ids as a first-class OpenSpec feature
+
+Add an `id:` field to requirement headings upstream in OpenSpec.
+
+**Deferred, not rejected.** It is the better long-term answer and this change
+would consume it. But it is a change to a shared external tool, on someone
+else's schedule, and the derived-id resolver here works without it. If OpenSpec
+adopts explicit ids the resolver becomes a thin adapter.
+
+## Selected Approach
+
+B, with C's resolver as a compatibility layer.
+
+## Traceability Semantics
+
+A citation is a claim by the contract author that an operation exists to serve
+one or more requirements. The gate checks four things, and deliberately not a
+fifth.
+
+| Check | Fails when |
+|---|---|
+| Citation resolves | A cited requirement id matches no requirement |
+| Forward completeness | A contracted operation cites nothing and is not excluded |
+| Reverse completeness | A requirement is cited by nothing and is not excluded |
+| Exclusions are explained | An exclusion carries no reason, or names something that no longer exists |
+
+**Not checked: whether the operation actually satisfies the requirement.** No
+static analysis can decide that, and a gate that pretended to would be the
+worst artifact in this document — an unfalsifiable green light over a
+correctness claim. Satisfaction is what scenarios and review are for. This gate
+establishes only that the question was asked and answered by a human.
+
+The reverse direction is the one that finds things nothing else can. A
+requirement with no contracted operation is either unimplemented, implemented
+without an interface, or obsolete. All three are worth knowing and none of them
+show up anywhere today.
+
+## Acceptance Outcomes
+
+- A contracted operation citing no requirement fails CI, naming the operation.
+- A requirement cited by no operation fails CI, naming the requirement.
+- A citation naming a requirement that does not exist fails CI.
+- An exclusion with a blank reason fails CI.
+- An exclusion naming a requirement or operation that no longer exists fails CI.
+- A contract with no `traceability` block anywhere is recorded `untraced` and
+  does not fail — enforcement is opt-in per contract.
+- `gen-eval.yaml`'s 17 flags each cite a requirement or carry an exclusion.
+- `openspec/contracts/agent-coordinator/openapi/v1.yaml` exists, is authored
+  from the spec rather than generated from the app, and every one of its
+  operations cites or is excluded.
+- The `change-context.md` Contract Ref column is generated from citations.
+- Every gate above is demonstrated to FAIL on an unmodified tree before the
+  work that makes it pass.
+
+## Risks
+
+| Risk | Mitigation |
+|---|---|
+| Citations become a box-ticking ritual — every operation cites the same catch-all requirement | The resolver reports citation concentration; a requirement cited by an implausible share of operations is surfaced in the gate's output, not failed. Judgement stays with the reviewer |
+| The coordinator's 47 stall this change | They are out of scope by construction. The gate ships opt-in; the coordinator contract can land `untraced` and be tightened per subsystem |
+| Derived requirement ids break when a heading is reworded | Ids derive from a slug, so rewording renames. The gate fails closed (a citation stops resolving) rather than silently rebinding. An explicit `id:` upstream (approach C) removes this |
+| Reverse completeness floods on aspirational requirements | Exclusions with reasons absorb them, and the reason is the useful artifact — "no interface, enforced by review" is a real answer that nothing records today |
+| gen-eval's spec has to grow ~17 flag-level requirements to retrofit its own contract | That is the point, and it is small. If a flag cannot be justified by a requirement, the finding is about the flag |
+| Scope creep into "is the requirement satisfied" | Stated as explicitly out of scope above, and the gate has no mechanism that could express it |
