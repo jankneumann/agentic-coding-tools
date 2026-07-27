@@ -285,7 +285,7 @@ in scope:
 | Context | Scope | Blocking |
 |---|---|---|
 | `/validate-feature` | Operations and requirements the change touches | Yes |
-| CI on `main` | Every opted-in capability, in full | Reports; blocking per capability once clean |
+| CI on `main` | Every capability, in full | Opted-in capabilities block; untraced ones report |
 
 **Why the validation run must be diff-scoped.** A validation run checking the
 full archived set would block every change to `agent-coordinator` on 47
@@ -301,8 +301,20 @@ is not.
 **Why the full sweep still exists.** Diff-scoping alone would never surface the
 accumulated gaps — the 47 would stay invisible indefinitely, because no change
 touches them. The main-branch sweep is what makes existing debt visible without
-blocking anyone, and it is where a capability's transition from "reported" to
-"blocking" is decided, per capability, once it is clean.
+blocking anyone.
+
+**The reporting-to-blocking transition needs no new mechanism, and must not get
+one.** An earlier draft of this decision described a capability "transitioning
+from reported to blocking once clean", which implied a second switch alongside
+D6's opt-in. There is no second switch: **opting a capability in *is* the
+transition.** An untraced capability is reported; an opted-in capability blocks.
+You opt in when the capability is clean, which is the only order in which
+opting in can succeed.
+
+Stated explicitly because the redundancy was nearly built. Two flags meaning
+almost the same thing is how a gate acquires a state where it is opted in but
+not blocking — which is precisely the half-traced-but-green outcome D6 exists to
+make impossible.
 
 **Consequence.** The gate must accept a scope argument and must be honest in its
 output about which context it ran in. A diff-scoped pass that printed
@@ -344,13 +356,25 @@ archive raised the question of what the *rest* of the archive does during a
 validation run, and answering that honestly required the diff-scoped/full-sweep
 split. Without it the gate blocks unrelated work on pre-existing debt.
 
-## Remaining open questions
+## Resolved: the two questions D9–D12 opened
 
-- Should the main-branch sweep's transition from reporting to blocking be
-  per capability (D12's assumption) or a single repository-wide switch? Per
-  capability is more adoptable and more bookkeeping.
-- Does a cross-capability citation (D9) need the *cited* capability's consent —
-  i.e. should `gen-eval-framework` be able to see that `agent-coordinator`
-  claims to serve one of its requirements? Reporting covers visibility; a
-  mechanism would cover agreement. Leaning: reporting is enough until it is
-  demonstrably not.
+Answered by the operator on 2026-07-27. Both confirmed the leaning, and the
+first removed a mechanism rather than adding one.
+
+**Reporting-to-blocking is per capability.** Recorded in D12 — and recording it
+showed that D6's opt-in already *is* that switch, so the second flag the earlier
+wording implied has been struck rather than specified. The change is smaller for
+having asked.
+
+**A cross-capability citation does not need the cited capability's consent.**
+Reporting is enough for now. The gate names cross-capability citations as a
+distinct list (D9); it does not ask `gen-eval-framework` to agree that
+`agent-coordinator` serves one of its requirements.
+
+Recorded with its revisit trigger, so "for now" has an end condition rather than
+being indefinite: **revisit if a cross-capability citation reaches archive that
+the cited capability's owner would have rejected.** That is the failure a
+consent mechanism would prevent, and until it happens the mechanism is
+speculative. If it does happen, the natural shape is an acknowledgement list on
+the cited capability's side, not a veto — a veto would let one capability block
+another's release over a bookkeeping disagreement.

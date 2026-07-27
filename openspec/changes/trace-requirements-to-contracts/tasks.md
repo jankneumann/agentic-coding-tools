@@ -321,10 +321,13 @@ that way answers a question about a different copy.
 - [ ] 5.7 Wire the full-capability sweep into CI on `main` `[S]`
   **Design decisions**: D12
   **Dependencies**: 3.14, 5.2
-  **Note**: reports, does not block, until a capability is clean — then that
-  capability flips to blocking. This is what makes the coordinator's existing
-  gaps visible without stopping unrelated work; diff-scoping alone would leave
-  them invisible forever, since no change touches them.
+  **Note**: an opted-in capability blocks; an untraced one reports. There is NO
+  separate blocking flag — D6's opt-in is the switch, and adding a second one
+  would create an opted-in-but-not-blocking state, which is the half-traced-yet-
+  green outcome D6 exists to make impossible.
+  **Note**: this is what makes the coordinator's existing gaps visible without
+  stopping unrelated work; diff-scoping alone would leave them invisible
+  forever, since no change touches them.
   **Note**: bare invocation, as with `generate_tool_descriptor.py --check`. A
   gate whose two call sites disagree on argv reports failure on a correct tree.
 
