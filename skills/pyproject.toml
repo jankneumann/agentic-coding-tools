@@ -69,6 +69,12 @@ testpaths = [
     "tests/test-driven-development",
     "tests/debugging-and-error-recovery",
     "tests/context-engineering",
+    # `coordination-bridge/scripts/tests` (the in-skill legacy dir) was already
+    # listed, but `tests/coordination-bridge` was not — so everything there,
+    # including the pre-existing test_archetype_resolve.py, was invisible to the
+    # default CI sweep. A test CI never runs fails the same way as one that
+    # always passes.
+    "tests/coordination-bridge",
     "tests/source-driven-development",
     "tests/performance-optimization",
     "tests/frontend-ui-engineering",

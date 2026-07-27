@@ -384,3 +384,13 @@ Enabling in production requires closing the spike gate: run
 reachable embedder and confirm `semantic hit@5 >= 7/10` (see that directory's
 `spike-report.md` for the procedure). Until then the flag stays off and nothing
 depends on unproven retrieval quality.
+
+## Consuming results in coding jobs (ri-12)
+
+The query service described above is the *producer*. How coding jobs request,
+bound, and read its results — the `SEMANTIC_CONTEXT_INJECTION` flag, the five
+fallback triggers, the four budget bounds, and the HTTP-only constraint — is
+documented in [semantic context injection](semantic-context-injection.md).
+
+Injection is off by default and stays off until the retrieval-quality gate above
+*and* the coding-context utility gate (roadmap item ri-13) both pass.

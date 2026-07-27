@@ -76,3 +76,21 @@ only and are never query-authoritative.
 
 Search and status are direct reads. They do not index, promote, repair, enqueue,
 or mutate registry or coordination state.
+
+## `schemas/`
+
+Alongside `v2.yaml`, this capability publishes two JSON Schemas promoted by
+`inject-scoped-semantic-context-into-coding-jobs` (ri-12):
+
+- `semantic-context-section.schema.json` — one `Semantic code context` section.
+  A section is either injected with non-empty hits **or** a fallback with an
+  explicit trigger; the two contradictory states are structurally rejected.
+- `semantic-context-hit.schema.json` — one injected hit, with the nine fields a
+  reader needs to check it (file, line range, score, indexed commit, index id,
+  language, content, scope decision).
+
+One invariant the schema language cannot express is recorded as a producer
+obligation instead: `end_line >= start_line` is a sibling-property comparison,
+enforced in `InjectedHit.__post_init__` and at the render boundary.
+
+See [semantic context injection](../../../docs/guides/semantic-context-injection.md).
