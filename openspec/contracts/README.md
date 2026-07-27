@@ -40,6 +40,9 @@ live code references.
 | `prototyping` | `variant-descriptor.schema.json`, `synthesis-plan.schema.json` | `add-prototyping-stage` (archived 2026-05-04) |
 | `phase-record` | `phase-record.schema.json`, `handoff-local-fallback.schema.json` | `phase-record-compaction` (archived 2026-04-25) |
 | `project-context-refresh` | `context-refresh-manifest.schema.json`, `context-refresh-operation.schema.json`, `context-refresh-types.schema.json` | `add-durable-context-refresh-records` (archived 2026-07-25) |
+| `project-context-refresh` | `context-checkpoint.schema.json` | `add-branch-local-context-checkpoints` (ri-09) |
+| `project-context-refresh` | `context-drift-gate.schema.json` | `add-deterministic-context-drift-gates` (ri-10) |
+| `project-context-refresh` | `context-convergence-record.schema.json` | `integrate-main-context-convergence` (ri-11) |
 
 ## Contracts a skill also ships as install assets
 
