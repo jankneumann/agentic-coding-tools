@@ -1,0 +1,49 @@
+[project]
+name = "context-eval"
+version = "0.1.0"
+description = "Semantic-context evaluation harness: does injected context beat exact search?"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+
+# Two runtime dependencies, and both are load-bearing rather than convenient.
+# `pyyaml` reads the corpus. `jsonschema` is NOT optional here, unlike in
+# gen-eval where validation is a dev-time concern: this harness refuses to load
+# a corpus that does not satisfy the promoted contracts, so a build without a
+# validator could not fail closed and would be worse than no build at all.
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.23",
+]
+
+# Deliberately no dependency on `gen-eval` (design D2). Nothing in gen-eval's
+# assertion vocabulary applies to retrieval scoring, and its runner drops
+# unscorable scenarios out of its own denominator — the exact behaviour this
+# package exists to make impossible.
+
+[build-system]
+requires = ["uv_build>=0.9,<1.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.16",
+    "mypy>=1.13",
+    # jsonschema ships no py.typed, so `mypy --strict` cannot check the one
+    # import this package cannot do without.
+    "types-jsonschema>=4.23",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# Explicit, never inherited. Ruff 0.16 changed its DEFAULT rule set, and a gate
+# that silently gains or loses rules on a dependency bump is not a gate.
+select = ["E", "F", "I", "N", "W", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
