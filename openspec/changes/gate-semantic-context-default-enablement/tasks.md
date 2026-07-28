@@ -139,7 +139,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Dependencies**: 3.1
       **Size**: M
 
-- [ ] 3.3 Write `test_exact_search_algorithm.py` — the ranker over a tiny
+- [x] 3.3 Write `test_exact_search_algorithm.py` — the ranker over a tiny
       checked-in fixture tree with hand-computed expected output
       **Spec scenarios**: `sce` — Reproducible exact-search baseline / The ranking algorithm is pinned independently of the tree
       **Contracts**: none
