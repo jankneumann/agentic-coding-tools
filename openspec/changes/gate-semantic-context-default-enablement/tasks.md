@@ -161,7 +161,7 @@ requires `report.verdict == "pass"`. See design D11.
       while `eval-set.yaml`'s header describes them as the `semantic-win`
       *label*. The measured definition wins; the label is metadata.
 
-- [ ] 3.5 Implement the scope-compliance scorer — outbound fidelity, rendered
+- [x] 3.5 Implement the scope-compliance scorer — outbound fidelity, rendered
       violations (zero tolerance), deny precedence, rejection honored; record
       `scope_adapter: resolved|degraded`
       **Spec scenarios**: `sce` — Scope compliance measurement / A single violation fails the gate; `sce` — Scope compliance measurement / A degraded scope adapter is an apparatus failure
