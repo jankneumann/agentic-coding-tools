@@ -66,12 +66,15 @@ live code references.
 | `project-context-refresh` | `context-convergence-record.schema.json` | `integrate-main-context-convergence` (ri-11) |
 | `code-search` | `semantic-context-section.schema.json`, `semantic-context-hit.schema.json` | `inject-scoped-semantic-context-into-coding-jobs` (ri-12) |
 | `gen-eval-framework` | `schemas/cli-contract.schema.json`, `cli/gen-eval.yaml` | `derive-descriptors-from-contracts` (**in flight**) |
+| `semantic-context-evaluation` | `context-eval-report.schema.json`, `context-eval-corpus.schema.json`, `context-eval-case.schema.json` | `gate-semantic-context-default-enablement` (ri-13) |
 
-`gen-eval-framework` is promoted while its change is still in flight rather than
-at archival. That is the workflow above applied literally: the schema's own
-`$id` resolves to the promoted path, so leaving it unpromoted would publish a
-`$id` that 404s, and `packages/gen-eval/tests/test_cli_contract_schema.py` reads
-the promoted copy precisely so the test cannot rot when the change archives.
+`gen-eval-framework` and `semantic-context-evaluation` are both promoted while
+their changes are still in flight rather than at archival. That is the workflow
+above applied literally: each schema's own `$id` resolves to the promoted path,
+so leaving it unpromoted would publish a `$id` that 404s, and the tests that
+enforce these contracts — `packages/gen-eval/tests/test_cli_contract_schema.py`
+and `packages/context-eval/tests/test_promoted_contracts.py` — read the promoted
+copies precisely so they cannot rot when the changes archive.
 
 ## Contracts a skill also ships as install assets
 

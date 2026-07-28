@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/contracts/semantic-context-evaluation/schemas/context-eval-corpus.schema.json",
+  "title": "ContextEvalCorpus",
+  "description": "The evaluation corpus manifest: every case file, every gate, every threshold, every named consumer, and the one context budget both arms are rendered under. This document exists so that none of those values live in Python. `run_eval.py:159-161` hardcoded its thresholds as literals, and a threshold that lives in code cannot be reviewed as a diff against the evidence it gates (design decision D6). Changing anything here moves the corpus digest, which invalidates every existing report against the new corpus — that is the mechanism replacing a waiver field: an operator who believes a threshold is wrong changes it here, in public. Every `$ref` is local, so a bare `Draft202012Validator` with no registry and no network can validate a manifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "corpus_id",
+    "k",
+    "budget",
+    "consumers",
+    "gates",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Pinned so a loader that has not been taught a later shape refuses the manifest rather than misreading it."
+    },
+    "corpus_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Stable identity of this corpus, copied into every report's `corpus.corpus_id`."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "What this corpus is for, in prose, for the human reviewing a threshold diff."
+    },
+    "k": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The k of `hit_at_k`: a labeled expected file counts as found if it appears in an arm's top-k file list. Declared here rather than in the scorer, so changing the definition of a hit is a reviewable diff that moves the corpus digest."
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_hits", "max_files", "max_total_lines", "max_hit_lines"],
+      "description": "The single context budget, applied to BOTH arms (design D5). One declared budget is what makes evidence density meaningful: comparing an unbounded exact-search dump against a section capped at five files and 240 lines would measure the cap rather than the retrieval. These are ri-12's runtime bounds, resolved from data so the two cannot silently diverge.",
+      "properties": {
+        "max_hits": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum rendered results per arm."
+        },
+        "max_files": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum distinct files per arm. Also the censoring constant: `steps_to_evidence` takes `max_files + 1` when no rendered result reaches labeled evidence, so this value is required to interpret that measure."
+        },
+        "max_total_lines": { "type": "integer", "minimum": 1 },
+        "max_hit_lines": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ConsumerSlice" },
+      "description": "Every coding job this corpus measures, each with its own declared case slice. There is no averaging across consumers: ri-12 kept the `consumer` field so this evaluation could say \"injection helps debugging and hurts review\", and a mean would discard exactly that (design D7)."
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/GateDeclaration" },
+      "description": "The gates a run must produce results for. Declared, not discovered: the composer takes `pass` only if every gate named here is present in the report and every present gate passed, so a gate that never ran is `missing_required_gate` rather than an absence nobody notices. `minItems: 1` because a corpus that declares no gate gates nothing."
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/CorpusRelativePath" },
+      "description": "An EXPLICIT list of every case file, relative to the corpus root — never a glob. A glob makes an unlisted or misnamed case file an invisible omission: the run silently measures fewer cases and nothing anywhere disagrees. With an explicit list, a case file that exists but is unlisted, or is listed but missing, is a validation error the loader raises. This is the declared-denominator rule (design D3) applied to the corpus itself, one level before `cases_declared` is even computed."
+    }
+  },
+  "$defs": {
+    "CorpusRelativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000*?\\[\\]{}]+\\.(ya?ml)$",
+      "description": "A normalized path relative to the corpus root, ending in `.yaml` or `.yml`. Absolute paths and `..` segments are rejected: a corpus that could reach outside its own directory would make the digest a claim about files the digest does not cover. Glob metacharacters — `*`, `?`, `[`, `]`, `{`, `}` — are rejected too, which is what makes \"an explicit list, never a glob\" a property of the contract rather than a convention. `cases/*.yaml` is a perfectly well-formed path string, so without this exclusion the one entry that reintroduces silent omission would validate."
+    },
+    "MetricMap": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
+      "additionalProperties": { "type": "number" },
+      "description": "A named set of numeric thresholds. Open as to which keys appear, because which measures a gate constrains is the gate's business; closed as to their type, so a threshold cannot be a string where a comparison is expected."
+    },
+    "ConsumerSlice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer", "utility_applicable", "cases"],
+      "description": "One consumer's declaration: which cases belong to it, and whether coding-context utility applies to it at all.",
+      "properties": {
+        "consumer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The consumer name ri-12 sends, e.g. `implement-feature`. Same pattern as ri-12's `consumer` field, so the corpus cannot declare a consumer the runtime could never identify itself as."
+        },
+        "utility_applicable": {
+          "type": "boolean",
+          "description": "REQUIRED, and required precisely because it must not default. `quick-task` declares `false`: its SKILL.md documents that it has no `change_id`/`package_id`, so every request returns `out_of_scope`/`no_declared_scope` and no section is ever rendered — its cases are fail-closed regression cases, not utility cases. A consumer with neither a slice nor an explicit statement fails corpus validation instead of being silently omitted from measurement, because declared absence is auditable and silent absence is indistinguishable from an oversight."
+        },
+        "utility_not_applicable_reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Required when `utility_applicable` is false, forbidden when it is true. Prose, because it is an argument about a consumer's design — but mandatory prose, so exemption from the utility gate is never an unexplained assertion."
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/CaseId" },
+          "description": "The case identifiers belonging to this consumer. `minItems: 1`: declaring a consumer and giving it no cases would mean the consumer appears in the report as measured while nothing was measured for it. The loader also checks that every identifier here resolves to a listed case file whose own `consumer` field agrees — a sibling comparison JSON Schema cannot express."
+        }
+      },
+      "allOf": [
+        {
+          "title": "Inapplicable utility must say why",
+          "if": {
+            "required": ["utility_applicable"],
+            "properties": { "utility_applicable": { "const": false } }
+          },
+          "then": { "required": ["utility_not_applicable_reason"] }
+        },
+        {
+          "title": "Applicable utility carries no inapplicability reason",
+          "if": {
+            "required": ["utility_applicable"],
+            "properties": { "utility_applicable": { "const": true } }
+          },
+          "then": { "not": { "required": ["utility_not_applicable_reason"] } }
+        }
+      ]
+    },
+    "GateDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "required", "min_index_tier", "thresholds"],
+      "description": "One gate, its minimum index tier, and the thresholds it judges against. A report copies these thresholds verbatim into its own `gates[].thresholds`, which is what makes a report self-describing: a reader never needs the harness source to interpret a gate result.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "description": "Paired to a report's `gates[].id`. A typo therefore surfaces as `missing_required_gate` rather than as a gate that quietly did not run."
+        },
+        "kind": {
+          "enum": [
+            "retrieval_quality",
+            "coding_context_utility",
+            "scope_compliance",
+            "fail_closed_regression"
+          ],
+          "description": "The four measurement families the harness implements. Closed, because a gate of an unknown kind is one no scorer can run — it would be declared required and be permanently unsatisfiable."
+        },
+        "required": {
+          "const": true,
+          "description": "Always true, and unwritable as anything else. A boolean here would let an author declare an optional gate and then not run it, making \"we didn't gate on that one\" a legal manifest (design D3). Removing a gate means deleting it from this list, which changes the corpus digest and invalidates every prior report."
+        },
+        "min_index_tier": {
+          "enum": ["none", "seeded", "live"],
+          "description": "The minimum index tier this gate's measurement requires (design D9). `retrieval_quality` and the semantic arm of `coding_context_utility` require `live` — hit@5 over a hand-written 3-dimensional vector is arithmetic about a fixture, not evidence about retrieval. `scope_compliance` and `fail_closed_regression` are client-side decisions over a response document and need no index at all. A report produced below a gate's declared tier fails that gate with `index_tier_insufficient`."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "What this gate asserts and why, for the reviewer of a threshold diff."
+        },
+        "thresholds": {
+          "$ref": "#/$defs/MetricMap",
+          "description": "The numbers this gate judges against, e.g. `min_hit_at_k`, `min_wins_over_baseline`, `coverage_margin`. `minProperties: 1` via `MetricMap`: a gate judged against nothing passes everything, which is the vacuous pass this whole change exists to make unwritable."
+        }
+      }
+    },
+    "CaseId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "description": "A case's own identifier, including the rescued `T1`..`T10` whose identity must survive the move from the archived evaluation to stay comparable with it (design D10)."
+    }
+  }
+}
