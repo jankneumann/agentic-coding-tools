@@ -72,7 +72,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Note**: fails on the empty corpus — zero of ri-12's six consumers are
       covered by anything today.
 
-- [ ] 2.2 Rescue T1-T10 into `packages/context-eval/corpus/cases/`, preserving
+- [x] 2.2 Rescue T1-T10 into `packages/context-eval/corpus/cases/`, preserving
       `case_id`, `query`, `expected_files`, `category`, `rationale`, and the
       original `ripgrep_baseline` string, with a `provenance` block naming the
       archived origin
@@ -83,7 +83,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Size**: M
       **Note**: all 13 expected files verified present at `748af34c`.
 
-- [ ] 2.3 Label the rescued cases with `must_touch`, `evidence_spans`, a
+- [x] 2.3 Label the rescued cases with `must_touch`, `evidence_spans`, a
       declared `read_allow`/`deny` scope, and an owning `consumer`
       **Spec scenarios**: `sce` — Coding-context utility measurement / Utility is measured against labeled evidence
       **Contracts**: `contracts/schemas/context-eval-case.schema.json`

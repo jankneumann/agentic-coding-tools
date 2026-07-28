@@ -1,0 +1,44 @@
+schema_version: 1
+case_id: T4
+consumer: validate-feature
+
+query: "how does it know whether it is running in the cloud or locally"
+
+category: semantic-win
+
+scope:
+  read_allow:
+    - "skills/shared/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - skills/shared/environment_profile.py
+  must_touch:
+    - skills/shared/environment_profile.py
+  evidence_spans:
+    # Layer 1 — the explicit AGENT_EXECUTION_ENV override, and the only place
+    # the words "cloud" and "local" are compared against anything.
+    - file_path: skills/shared/environment_profile.py
+      start_line: 67
+      end_line: 82
+    # detect() — the layer order IS the answer: env var, then coordinator, then
+    # heuristic, then a default that never raises.
+    - file_path: skills/shared/environment_profile.py
+      start_line: 208
+      end_line: 249
+
+exact_search_baseline:
+  ripgrep_baseline: "rg -il 'cloud or locally'"
+
+provenance:
+  rescued_from: openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/eval-set.yaml
+  notes: >
+    Preserved verbatim: case_id, query, expected_files, category, rationale, and
+    the ripgrep_baseline string. Added by ri-13: consumer, scope, must_touch, and
+    evidence_spans.
+
+rationale: >
+  environment_profile.detect() decides isolation/cloud-vs-local. The query phrasing does not
+  match the function/identifier tokens.

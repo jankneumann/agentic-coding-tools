@@ -1,0 +1,42 @@
+schema_version: 1
+case_id: T8
+consumer: iterate-on-implementation
+
+query: "how is memory relevance decayed as it gets older"
+
+category: semantic-win
+
+scope:
+  read_allow:
+    - "agent-coordinator/database/migrations/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - agent-coordinator/database/migrations/004_memory_tables.sql
+  must_touch:
+    - agent-coordinator/database/migrations/004_memory_tables.sql
+  evidence_spans:
+    # get_relevant_memories: relevance_score * EXP(-0.1 * age_seconds / 86400),
+    # and the ORDER BY that makes the decayed score the one that matters. The
+    # decay is a single SQL expression — there is no Python to find.
+    - file_path: agent-coordinator/database/migrations/004_memory_tables.sql
+      start_line: 118
+      end_line: 137
+
+exact_search_baseline:
+  ripgrep_baseline: "rg -il 'decayed as it gets older'"
+
+provenance:
+  rescued_from: openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/eval-set.yaml
+  notes: >
+    Preserved verbatim: case_id, query, expected_files, category, rationale, and
+    the ripgrep_baseline string. Added by ri-13: consumer, scope, must_touch, and
+    evidence_spans. The declared scope is the migrations directory rather than
+    agent-coordinator/src/** because the answer is not in Python at all — a case
+    whose scope excluded its own answer would be unwinnable by construction.
+
+rationale: >
+  Relevance decay is an EXP(-lambda * age) term in the 004 migration's get_relevant_memories
+  function. The query's words don't match the SQL; ripgrep top-5 misses.

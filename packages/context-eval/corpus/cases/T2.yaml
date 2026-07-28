@@ -1,0 +1,44 @@
+schema_version: 1
+case_id: T2
+consumer: implement-feature
+
+query: "where does the coordinator pick which model an agent uses"
+
+category: semantic-win
+
+scope:
+  read_allow:
+    - "agent-coordinator/src/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - agent-coordinator/src/agents_config.py
+  must_touch:
+    - agent-coordinator/src/agents_config.py
+  evidence_spans:
+    # resolve_provider_model_spec / resolve_provider_model — a logical tier
+    # becomes a concrete provider model id here.
+    - file_path: agent-coordinator/src/agents_config.py
+      start_line: 1166
+      end_line: 1238
+    # resolve_model — the entry point a caller actually uses, and the one that
+    # says plainly that every threshold comes from archetypes.yaml.
+    - file_path: agent-coordinator/src/agents_config.py
+      start_line: 1274
+      end_line: 1311
+
+exact_search_baseline:
+  ripgrep_baseline: "rg -il 'pick which model'"
+
+provenance:
+  rescued_from: openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/eval-set.yaml
+  notes: >
+    Preserved verbatim: case_id, query, expected_files, category, rationale, and
+    the ripgrep_baseline string. Added by ri-13: consumer, scope, must_touch, and
+    evidence_spans.
+
+rationale: >
+  Model resolution lives in agents_config.py (resolve_model / archetype tiers). The query's
+  words ('pick which model') do not appear as tokens near the implementation.
