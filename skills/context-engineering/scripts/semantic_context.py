@@ -555,6 +555,14 @@ UNRESOLVED_REVISION = "0" * 40
 INJECTION_FLAG = "SEMANTIC_CONTEXT_INJECTION"
 TRUTHY_VALUES: frozenset[str] = frozenset({"1", "true", "yes", "on"})
 
+#: The effective default when ``SEMANTIC_CONTEXT_INJECTION`` is unset -- one
+#: named declaration rather than a property inferred from the absence of an
+#: environment variable, so a future flip is one reviewable line and the
+#: enablement gate has a single thing to read (D11). Flipping this to ``True``
+#: is authorized only by a passing evaluation report; it is not this module's
+#: decision to make.
+INJECTION_DEFAULT_ENABLED: bool = False
+
 #: Default repository slug, matching ri-03's ``RepoSlug`` shape.
 DEFAULT_REPO_SLUG = "agentic_coding_tools"
 
@@ -577,9 +585,19 @@ def fallback_for_state(state: str) -> tuple[str, str]:
 
 
 def injection_enabled(env: Mapping[str, str] | None = None) -> bool:
-    """Whether ``SEMANTIC_CONTEXT_INJECTION`` is explicitly on. Default off (D9)."""
+    """Whether semantic injection is on for this job.
+
+    An explicitly set ``SEMANTIC_CONTEXT_INJECTION`` always wins, in both
+    directions: it is on for the values in :data:`TRUTHY_VALUES` and off for
+    anything else. Only when the variable is absent does the effective default
+    come from :data:`INJECTION_DEFAULT_ENABLED` (D11), which is ``False`` --
+    so this is byte-identical to the pre-ri-13 env lookup (D9).
+    """
     source = os.environ if env is None else env
-    return str(source.get(INJECTION_FLAG, "")).strip().lower() in TRUTHY_VALUES
+    raw = source.get(INJECTION_FLAG)
+    if raw is None:
+        return INJECTION_DEFAULT_ENABLED
+    return str(raw).strip().lower() in TRUTHY_VALUES
 
 
 # ---------------------------------------------------------------------------
@@ -1347,6 +1365,7 @@ __all__ = [
     "FALLBACK_TRIGGERS",
     "FULL_REVISION_RE",
     "GIT_TIMEOUT_SECONDS",
+    "INJECTION_DEFAULT_ENABLED",
     "INJECTION_FLAG",
     "InjectedHit",
     "MAX_QUERY_LIMIT",

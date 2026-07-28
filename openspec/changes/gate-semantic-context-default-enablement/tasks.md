@@ -283,7 +283,7 @@ requires `report.verdict == "pass"`. See design D11.
       catch a flip nobody has made. This mutation test is the substitute for
       "fails today", and without it the gate is decoration.
 
-- [ ] 5.3 Extract `INJECTION_DEFAULT_ENABLED: bool = False` in
+- [x] 5.3 Extract `INJECTION_DEFAULT_ENABLED: bool = False` in
       `semantic_context.py` and have `injection_enabled()` fall back to it;
       assert byte-identical behaviour while it is `False`
       **Spec scenarios**: `sw` — Evidence-gated injection default / The default is one declaration
