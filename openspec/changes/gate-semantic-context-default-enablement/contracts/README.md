@@ -83,15 +83,20 @@ what makes evidence expiry (design D12) decidable.
 `gates[].kind` — `retrieval_quality`, `coding_context_utility`,
 `scope_compliance`, `fail_closed_regression`. Four values.
 
-`index.tier` — `none`, `seeded`, `live`. A gate declaring `live` and receiving
-`seeded` or `none` fails with `index_tier_insufficient`. The three tiers are the
-three that exist in this repository: no index at all (recorded responses), a
-seeded registry row satisfying `_USABLE_INDEX_COUNT_SQL` with no embedder
-contacted, and a real index from `index_repo`.
+`index.tier` — `none`, `seeded`, `live`. Three values. A gate declaring `live`
+and receiving `seeded` or `none` fails with `index_tier_insufficient`. The three
+tiers are the three that exist in this repository: no index at all (recorded
+responses), a seeded registry row satisfying `_USABLE_INDEX_COUNT_SQL` with no
+embedder contacted, and a real index from `index_repo`.
 
 `cases[].unscored_reason` — `apparatus_failure`, `invalid_document`,
 `no_index_at_revision`, `producer_error`, `timeout`. Five values, every one a
 failure; none is a skip.
+
+`category` — `semantic-win`, `lexical-ok`, `control`. Three values, on the case
+schema, and descriptive metadata only. A win counts only where the baseline
+measurably missed the case in this run, so relabeling a case cannot manufacture
+one.
 
 `per_consumer[].utility_applicable` — a required boolean, not an optional one.
 `quick-task` declares `false` (its SKILL.md documents that it has no declared
@@ -119,12 +124,27 @@ before archival, per `openspec/contracts/README.md`. Tests, the Makefile target,
 and the CI gate load them from that stable path, never from
 `openspec/changes/<id>/contracts/`.
 
-Because `$id` names the promoted location, the report schema's relative `$ref` to
-the case schema resolves to its promoted sibling. A change-local `$id` would send
-that reference into the directory archival moves — which is precisely the class
-of defect that made the D9 evaluation unreproducible
-(`run_eval.py:31`: `REPO_ROOT = HERE.parents[3]`, correct only before archival
-added a path segment).
+Each `$id` names the promoted location. A change-local `$id` would make the
+document's own identity — and the base every reference resolves against — a path
+archival moves, which is precisely the class of defect that made the D9
+evaluation unreproducible (`run_eval.py:31`: `REPO_ROOT = HERE.parents[3]`,
+correct only before archival added a path segment).
+
+**All three schemas are self-contained: every `$ref` is a local `#/$defs/…`
+pointer and no schema references another file.** That is a constraint, not an
+oversight. The verification commands in `work-packages.yaml` — and the
+enablement gate — validate a report with a bare `Draft202012Validator`, with no
+`referencing.Registry` and no network. A cross-file `$ref`, even a correct one,
+would make those commands fail to resolve it, so shared shapes are repeated
+inside each document instead.
+
+Three vocabularies are consequently *mirrored* from ri-12's section schema rather
+than referenced: `status`, `fallback.trigger`, and `fallback.reason` (plus
+`fallback.service_state` on the case schema). Mirroring without a check is
+drift, so `test_promoted_contracts.py` reads ri-12's promoted schema and asserts
+each mirrored enum still equals its source. Widening ri-12's fallback vocabulary
+without widening these fails there, instead of producing reports that cannot
+name what happened.
 
 | Test | Fails when |
 |---|---|

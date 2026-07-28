@@ -85,6 +85,15 @@ WAIVER_NAME_PATTERN = re.compile(
 #: would read as a waiver-shaped field.
 VALUE_KEYWORDS = frozenset({"enum", "const", "examples", "default"})
 
+#: Keywords whose subschemas are *predicates over a document*, not declarations
+#: of what a property may hold. ``{"if": {"properties": {"verdict": {"const":
+#: "fail"}}}}`` asks "is this the failing branch?"; it does not declare the
+#: verdict vocabulary, and reading it as one would make every conditional look
+#: like an unclosed enum. The waiver walk deliberately does *not* skip these — a
+#: waiver-shaped name is disqualifying wherever it appears, including in a
+#: predicate.
+PREDICATE_KEYWORDS = frozenset({"if", "not"})
+
 #: JSON Schema keywords whose *keys* are property names.
 NAME_BEARING_KEYWORDS = (
     "properties",
@@ -114,7 +123,7 @@ NUMBER_WORDS = {
 #: data so a failure names the exact location rather than raising a KeyError from
 #: inside a lambda.
 ENUM_LOCATIONS: dict[str, tuple[str, tuple[str, ...]]] = {
-    "verdict": (REPORT, ("properties", "verdict", "enum")),
+    "verdict": (REPORT, ("$defs", "Verdict", "enum")),
     "fail_reasons[]": (REPORT, ("properties", "fail_reasons", "items", "enum")),
     "gates[].kind": (REPORT, ("$defs", "GateResult", "properties", "kind", "enum")),
     "index.tier": (REPORT, ("properties", "index", "properties", "tier", "enum")),
@@ -122,6 +131,7 @@ ENUM_LOCATIONS: dict[str, tuple[str, tuple[str, ...]]] = {
         REPORT,
         ("$defs", "CaseResult", "properties", "unscored_reason", "enum"),
     ),
+    "category": (CASE, ("properties", "category", "enum")),
 }
 
 #: ri-12 enum pointer -> the pointers in this change's schemas that mirror it.
@@ -137,6 +147,12 @@ MIRRORED_RI12_ENUMS: dict[tuple[str, ...], tuple[tuple[str, tuple[str, ...]], ..
     ("properties", "fallback", "properties", "reason", "enum"): (
         (REPORT, ("$defs", "ArmResult", "properties", "fallback_reason", "enum")),
         (CASE, ("properties", "expectation", "properties", "reason", "enum")),
+    ),
+    ("properties", "fallback", "properties", "service_state", "enum"): (
+        (
+            CASE,
+            ("properties", "recorded_response", "properties", "service_state", "enum"),
+        ),
     ),
 }
 
@@ -166,15 +182,22 @@ def change_local(name: str) -> dict[str, Any]:
 
 
 def dig(document: dict[str, Any], pointer: tuple[str, ...], origin: str) -> Any:
-    """Resolve ``pointer`` or fail naming the path, never raise ``KeyError``."""
-    node: Any = document
+    """Resolve ``pointer`` or fail naming the path, never raise ``KeyError``.
+
+    Same-document ``$ref``s are followed at every step, so a schema is free to
+    factor a repeated definition into ``$defs`` without every pointer here having
+    to know it did. That matters: a single shared definition is a stronger
+    guarantee than three identical literals, and the tests should not push the
+    contract toward the weaker shape.
+    """
+    node: Any = resolve_local_ref(document, document)
     for index, key in enumerate(pointer):
         if not isinstance(node, dict) or key not in node:
             pytest.fail(
                 f"{origin} has no {'/'.join(pointer)}; resolution stopped at "
                 f"{'/'.join(pointer[:index]) or '<root>'}."
             )
-        node = node[key]
+        node = resolve_local_ref(document, node[key])
     return node
 
 
@@ -266,19 +289,54 @@ def property_names(node: Any, pointer: str = "") -> Iterator[tuple[str, str]]:
             yield from property_names(item, f"{pointer}/{index}")
 
 
-def verdict_enums(node: Any, pointer: str = "") -> Iterator[tuple[str, Any]]:
-    """Yield every ``verdict`` property schema found anywhere in ``node``."""
+def resolve_local_ref(document: dict[str, Any], schema: Any) -> Any:
+    """Follow a same-document ``$ref`` so a factored definition is inspectable.
+
+    These schemas are self-contained by necessity — the verification commands
+    build a bare validator with no registry — so every ``$ref`` in them is a
+    local ``#/$defs/...`` pointer. Following it here is what lets the tests read
+    a shared definition instead of forcing the schemas to repeat themselves.
+    """
+    seen: set[str] = set()
+    while isinstance(schema, dict) and isinstance(schema.get("$ref"), str):
+        ref = schema["$ref"]
+        if not ref.startswith("#/") or ref in seen:
+            return schema
+        seen.add(ref)
+        node: Any = document
+        for part in ref[2:].split("/"):
+            if not isinstance(node, dict) or part not in node:
+                return schema
+            node = node[part]
+        schema = node
+    return schema
+
+
+def verdict_enums(
+    document: dict[str, Any], node: Any = None, pointer: str = ""
+) -> Iterator[tuple[str, Any]]:
+    """Yield every ``verdict`` property schema found anywhere in ``document``.
+
+    Local ``$ref``s are resolved, so factoring the verdict into one ``$defs``
+    entry — a stronger guarantee than three identical literals — is visible to
+    the assertion rather than invisible to it.
+    """
+    if node is None:
+        node = document
     if isinstance(node, dict):
         properties = node.get("properties")
         if isinstance(properties, dict) and "verdict" in properties:
-            yield f"{pointer}/properties/verdict", properties["verdict"]
+            yield (
+                f"{pointer}/properties/verdict",
+                resolve_local_ref(document, properties["verdict"]),
+            )
         for key, value in node.items():
-            if key in VALUE_KEYWORDS:
+            if key in VALUE_KEYWORDS or key in PREDICATE_KEYWORDS:
                 continue
-            yield from verdict_enums(value, f"{pointer}/{key}")
+            yield from verdict_enums(document, value, f"{pointer}/{key}")
     elif isinstance(node, list):
         for index, item in enumerate(node):
-            yield from verdict_enums(item, f"{pointer}/{index}")
+            yield from verdict_enums(document, item, f"{pointer}/{index}")
 
 
 # --------------------------------------------------------------------------
@@ -397,7 +455,10 @@ def test_verdict_enum_has_exactly_pass_and_fail() -> None:
     ``{"verdict": "fail", "fail_reasons": ["unmeasured"]}``.
     """
     schema = promoted(REPORT)
-    enum = dig(schema, ("properties", "verdict", "enum"), REPORT)
+    enum = resolve_local_ref(
+        schema, dig(schema, ("properties", "verdict"), REPORT)
+    ).get("enum")
+    assert enum is not None, f"{REPORT}'s top-level verdict is not a closed enum."
     assert set(enum) == {"pass", "fail"}, (
         f"the report verdict enum is {enum}; it must be exactly "
         "['pass', 'fail'] (design D3)."
@@ -412,7 +473,8 @@ def test_every_nested_verdict_is_the_same_closed_pair(name: str) -> None:
     A ``gates[].verdict`` enum admitting ``skip`` would let a run report a
     passing composed verdict over gates that never decided anything.
     """
-    for pointer, schema in verdict_enums(promoted(name)):
+    document = promoted(name)
+    for pointer, schema in verdict_enums(document):
         enum = schema.get("enum")
         assert enum is not None, (
             f"{name}{pointer} is not a closed enum; every verdict in these "
