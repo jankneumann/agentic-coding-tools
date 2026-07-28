@@ -305,7 +305,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Note**: the ONLY edit to ri-12's runtime module in this change. Existing
       `skills/tests/context-engineering/` must pass unchanged.
 
-- [ ] 5.4 Implement the Enablement Consistency Gate and its
+- [x] 5.4 Implement the Enablement Consistency Gate and its
       `make semantic-enablement-gate` target, with all six D12 expiry conditions
       **Spec scenarios**: `sw` — Evidence expiry / Stale evidence withdraws authorization
       **Contracts**: `contracts/schemas/context-eval-report.schema.json`
