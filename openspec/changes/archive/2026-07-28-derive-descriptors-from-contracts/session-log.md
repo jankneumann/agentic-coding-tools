@@ -48,3 +48,31 @@
 ### Context
 VALIDATE ran spec/evidence/gen-eval phases against commit 081663b2. Deploy/smoke/e2e/security skipped as not-applicable (pure-Python gen-eval library change, no live service). Independently re-ran and confirmed exactly: make test (1068 passed, 1 skipped), make dogfood (13/13, 58.8% coverage), ruff clean, mypy 5 pre-existing errors, openspec validate --strict valid, tasks.md 0 unchecked. The round-7 BLOCKING finding (archetype-discarding descriptor load path) is confirmed fixed in code, not merely self-reported: load_descriptor() now dispatches on document shape. Generated change-context.md (did not previously exist) with an 8/8 requirement traceability matrix. No new blocking findings. PASS.
 
+
+---
+
+## Phase: Cleanup (2026-07-28)
+
+**Agent**: claude_code (autopilot orchestrator) | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge, not squash** — Repo convention for agent-authored OpenSpec PRs. The 80 commits encode the intended order (contract → derivation → verification → review remediation) and three distinct remediation phases; squashing would collapse the record of what round 7, round 8 and round 9 each cost into one opaque blob, which is exactly the history a future `git blame` on this subsystem needs.
+2. **Rebased the branch onto main before merging rather than merging main in** — The PR opened `CONFLICTING` at 68 behind / 76 ahead. `git merge-tree` showed exactly ONE conflicting file (`openspec/contracts/README.md`, purely additive on both sides), so the replay was cheap and predictable rather than speculative. Rebase also keeps the branch linear, which is what rebase-merge needs.
+3. **Fixed two blocking drift-gate failures rather than overriding them** — CI's `context-drift-gate` reported `api.contracts` (`docs/architecture-analysis/contracts-inventory.md`, 12→13 schemas) and `decisions.timeline` (`docs/decisions/gen-eval-framework.md`) stale. Both were invalidated by this change and neither was in any work package's `write_allow`. Regenerated with `make context-refresh` and `make decisions`.
+4. **Staged rollout (5%→25%→50%→100%) recorded as NOT APPLICABLE, not as completed** — This change ships no runtime traffic surface: it is a library plus build-time gates, with no feature flag, no deployed endpoint and no traffic to split. Writing a rollout record for a rollout that cannot exist would be a fabricated artifact, and the skill's own Red Flags section is about exactly that class of false evidence. The equivalent guard here is the merge-commit CI run, which is green.
+
+### Alternatives Considered
+- **Squash merge**: rejected — collapses the three remediation phases and nine review rounds into one commit.
+- **Merging main into the branch instead of rebasing**: rejected — a merge commit makes GitHub's rebase-merge behave unpredictably, and the conflict was known to be a single additive hunk.
+- **Overriding the drift gate with a force flag**: rejected — the gate was green on main and on four other open PRs, which proved the drift was this change's rather than structural. An override would have shipped two stale derived artifacts to main.
+
+### Trade-offs
+- Accepted an 80-commit rebase over a 1-commit merge because linear history is worth more to future bisects than the one-time replay cost, and the conflict surface was measured beforehand rather than assumed.
+- Accepted shipping `cli:--fail-threshold` as an incidentally-credited coverage unit (9 of 10 credited units are earned) rather than stripping the flag, because its use in `self-run.yaml` encodes a claim the metric cannot see. Filed as #316 instead of improvised.
+
+### Open Questions
+- [ ] What should "exercised" mean operationally — see #316. The only ungameable test is behavioural (remove the flag, the suite must fail), which cannot live in `_extract_interfaces`.
+- [ ] Should `_find_latest_report`'s cwd fallback be removed or gated on an explicit `base_dir` — see #317.
+
+### Context
+PR #315 rebase-merged at `963caae2`; both CI and Security workflows green on the merge commit. Verified the CODE landed on main (`load_descriptor` present, `openspec/contracts/gen-eval-framework/` present) rather than trusting PR state, per the "plan PR is not the prerequisite" lesson — this is the condition that unblocks `trace-requirements-to-contracts`. All 65+ tasks checked across 7 phases, so no task migration was needed. Three issues filed during the run: #316 (coverage attribution), #317 (report discovery isolation), plus rounds 8/9 dispatcher evidence on #286. Phase 7 landed after round 9 converged and is flagged as unreviewed in both `tasks.md` and the PR body.
