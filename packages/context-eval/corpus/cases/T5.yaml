@@ -1,0 +1,47 @@
+schema_version: 1
+case_id: T5
+consumer: implement-feature
+
+query: "where is cross-session agent learning persisted"
+
+category: lexical-ok
+
+scope:
+  read_allow:
+    - "agent-coordinator/src/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - agent-coordinator/src/memory.py
+  must_touch:
+    - agent-coordinator/src/memory.py
+  evidence_spans:
+    # The module docstring is the whole reason this is a lexical control: it
+    # literally says "cross-session learning".
+    - file_path: agent-coordinator/src/memory.py
+      start_line: 1
+      end_line: 8
+    # remember() — the write path, i.e. where persistence actually happens.
+    - file_path: agent-coordinator/src/memory.py
+      start_line: 117
+      end_line: 130
+    # recall() — the read path, which is half of "persisted" being useful.
+    - file_path: agent-coordinator/src/memory.py
+      start_line: 197
+      end_line: 216
+
+exact_search_baseline:
+  ripgrep_baseline: "rg -il 'cross-session'"
+
+provenance:
+  rescued_from: openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/eval-set.yaml
+  notes: >
+    Preserved verbatim: case_id, query, expected_files, category, rationale, and
+    the ripgrep_baseline string. Added by ri-13: consumer, scope, must_touch, and
+    evidence_spans.
+
+rationale: >
+  memory.py's module docstring literally says 'cross-session learning', so ripgrep should
+  find it — a control case where lexical search is expected to succeed.

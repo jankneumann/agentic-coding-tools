@@ -1,0 +1,43 @@
+schema_version: 1
+case_id: T3
+consumer: parallel-review-implementation
+
+query: "what stops two agents from editing the same files at once"
+
+category: semantic-win
+
+scope:
+  read_allow:
+    - "skills/parallel-infrastructure/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - skills/parallel-infrastructure/scripts/scope_checker.py
+  must_touch:
+    - skills/parallel-infrastructure/scripts/scope_checker.py
+  evidence_spans:
+    # The contract: files_modified judged against write_allow and deny.
+    - file_path: skills/parallel-infrastructure/scripts/scope_checker.py
+      start_line: 24
+      end_line: 45
+    # Deny is evaluated first and overrides allow — the precedence rule is the
+    # answer to "what stops them", and it is only visible in the loop.
+    - file_path: skills/parallel-infrastructure/scripts/scope_checker.py
+      start_line: 46
+      end_line: 78
+
+exact_search_baseline:
+  ripgrep_baseline: "rg -il 'same files at once'"
+
+provenance:
+  rescued_from: openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/eval-set.yaml
+  notes: >
+    Preserved verbatim: case_id, query, expected_files, category, rationale, and
+    the ripgrep_baseline string. Added by ri-13: consumer, scope, must_touch, and
+    evidence_spans.
+
+rationale: >
+  scope_checker.py enforces per-package write_allow globs so parallel agents don't collide.
+  It contains no 'same file' / 'simultaneous' / 'at once' tokens — pure ripgrep miss.

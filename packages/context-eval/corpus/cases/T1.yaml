@@ -1,0 +1,56 @@
+schema_version: 1
+case_id: T1
+consumer: debugging-and-error-recovery
+
+query: "how are file locks released after a crash"
+
+category: semantic-win
+
+scope:
+  read_allow:
+    - "agent-coordinator/src/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - agent-coordinator/src/locks.py
+    - agent-coordinator/src/watchdog.py
+  must_touch:
+    - agent-coordinator/src/locks.py
+    - agent-coordinator/src/watchdog.py
+  evidence_spans:
+    # `expires_at` is the whole mechanism: a crashed holder never calls
+    # release(), so the lock has to expire on its own.
+    - file_path: agent-coordinator/src/locks.py
+      start_line: 92
+      end_line: 97
+    # Where the TTL is actually attached to the lock.
+    - file_path: agent-coordinator/src/locks.py
+      start_line: 206
+      end_line: 219
+    # `expires_at=gt.now()` — an expired lock simply stops being listed.
+    - file_path: agent-coordinator/src/locks.py
+      start_line: 353
+      end_line: 356
+    # The watchdog side: locks approaching expiry are surfaced to the holder.
+    - file_path: agent-coordinator/src/watchdog.py
+      start_line: 207
+      end_line: 233
+
+exact_search_baseline:
+  ripgrep_baseline: "rg -il 'released after a crash'"
+
+provenance:
+  rescued_from: openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/eval-set.yaml
+  notes: >
+    Preserved verbatim: case_id, query, expected_files, category, rationale, and
+    the ripgrep_baseline string. Added by ri-13: consumer, scope, must_touch, and
+    evidence_spans. The original revision the baseline command was run against
+    was not recorded in the archived artifact, so recorded_at_revision is
+    deliberately absent rather than guessed.
+
+rationale: >
+  Crash recovery for locks is TTL/expiry-based (expires_at in locks.py, reclaimed by
+  watchdog.py). The literal phrase 'after a crash' appears only in merge_train.py, so the
+  naive ripgrep misses the real target entirely.

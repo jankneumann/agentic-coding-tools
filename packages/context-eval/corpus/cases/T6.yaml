@@ -1,0 +1,39 @@
+schema_version: 1
+case_id: T6
+consumer: implement-feature
+
+query: "how are work packages ordered so dependencies run first"
+
+category: semantic-win
+
+scope:
+  read_allow:
+    - "skills/parallel-infrastructure/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - skills/parallel-infrastructure/scripts/dag_scheduler.py
+  must_touch:
+    - skills/parallel-infrastructure/scripts/dag_scheduler.py
+  evidence_spans:
+    # compute_topo_order — Kahn's algorithm over depends_on, including the
+    # sorted() calls that make peer order deterministic and the cycle raise.
+    - file_path: skills/parallel-infrastructure/scripts/dag_scheduler.py
+      start_line: 67
+      end_line: 101
+
+exact_search_baseline:
+  ripgrep_baseline: "rg -il 'ordered so dependencies'"
+
+provenance:
+  rescued_from: openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/eval-set.yaml
+  notes: >
+    Preserved verbatim: case_id, query, expected_files, category, rationale, and
+    the ripgrep_baseline string. Added by ri-13: consumer, scope, must_touch, and
+    evidence_spans.
+
+rationale: >
+  dag_scheduler.py topologically sorts packages by depends_on. The naive phrase-based grep
+  misses; the concept ('topological order') is not in the query words.
