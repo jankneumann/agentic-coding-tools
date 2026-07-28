@@ -47,6 +47,7 @@ for _path in (SRC, RI12_SCRIPTS, IMPACT_SCRIPTS):
         sys.path.insert(0, str(_path))
 
 import semantic_context as ri12  # noqa: E402
+
 from context_eval.loader import load_corpus  # noqa: E402
 from context_eval.models import Case, CaseLabels, Scope  # noqa: E402
 from context_eval.producers import scope_adapter as adapter_module  # noqa: E402
@@ -506,3 +507,22 @@ def test_a_missing_threshold_is_an_error_not_a_default() -> None:
 def test_scoring_zero_cases_is_an_error_not_a_vacuous_pass() -> None:
     with pytest.raises(scoring.ScopeScoringError):
         scoring.score_scope([], _scope_thresholds(), scope_adapter="resolved")
+
+
+def test_the_manifest_declares_the_tolerance_the_gate_actually_applies() -> None:
+    """The self-describing threshold must agree with the structural one.
+
+    ``test_a_positive_declared_tolerance_still_cannot_admit_a_violation`` proves
+    the gate cannot be *loosened* by the manifest. This proves the manifest is
+    not silently publishing a number the gate never applied: a report carries its
+    declared thresholds so a reader can interpret it without the harness source,
+    so a manifest edited to ``3`` would make the report claim it was judged at a
+    tolerance of three when it was judged at zero. Stricter-than-declared is
+    still a false statement about how the measurement was made.
+    """
+    declared = _scope_thresholds()[scoring.MAX_RENDERED_VIOLATIONS]
+    assert declared == 0, (
+        f"manifest declares max_rendered_scope_violations={declared}, but "
+        "score_scope fails on any violation at all. Either restore 0 or stop "
+        "publishing a threshold the gate does not honour."
+    )
