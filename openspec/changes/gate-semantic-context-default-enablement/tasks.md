@@ -14,7 +14,7 @@ requires `report.verdict == "pass"`. See design D11.
 
 ## Phase 1 — wp-contracts: the evaluation contracts
 
-- [ ] 1.1 Extend the promoted-contract byte-compare test to cover the three new
+- [x] 1.1 Extend the promoted-contract byte-compare test to cover the three new
       schemas, and assert the closed verdict enum has exactly two members
       **Spec scenarios**: `sce` — Fail-closed evaluation verdict / A verdict enum with no escape value
       **Contracts**: all three
@@ -23,7 +23,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Size**: S
       **Note**: Must fail before 1.2 lands — the schemas do not exist yet.
 
-- [ ] 1.2 Author `context-eval-report.schema.json`
+- [x] 1.2 Author `context-eval-report.schema.json`
       **Spec scenarios**: `sce` — Fail-closed evaluation verdict / A verdict enum with no escape value; `sce` — Evaluation report record / The report identifies its index and configuration
       **Contracts**: `contracts/schemas/context-eval-report.schema.json`
       **Design decisions**: D3, D6, D9, D15
@@ -33,7 +33,7 @@ requires `report.verdict == "pass"`. See design D11.
       `skip`, `unmeasured`, or `partial`. `gates[].required` is `const: true`.
       No waiver field anywhere.
 
-- [ ] 1.3 Author `context-eval-corpus.schema.json` and
+- [x] 1.3 Author `context-eval-corpus.schema.json` and
       `context-eval-case.schema.json`
       **Spec scenarios**: `sce` — Declared evaluation corpus / Thresholds are corpus data
       **Contracts**: both
@@ -43,7 +43,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Note**: thresholds live in the manifest, never in Python. Every consumer
       slice carries an explicit `utility_applicable` boolean.
 
-- [ ] 1.4 Promote all three to
+- [x] 1.4 Promote all three to
       `openspec/contracts/semantic-context-evaluation/schemas/`, byte-identical,
       and add the row to `openspec/contracts/README.md`
       **Spec scenarios**: none
@@ -55,7 +55,7 @@ requires `report.verdict == "pass"`. See design D11.
       (`openspec/contracts/README.md`), not bookkeeping. `$id` must name the
       promoted location so relative `$ref`s resolve after archival.
 
-- [ ] 1.5 Checkpoint: run tests, review diff, verify scope
+- [x] 1.5 Checkpoint: run tests, review diff, verify scope
 
 ---
 
