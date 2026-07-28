@@ -150,7 +150,7 @@ requires `report.verdict == "pass"`. See design D11.
       2026-07-19 and has NOT been re-verified at `748af34c`. Pin the algorithm,
       record the tree-dependent number.
 
-- [ ] 3.4 Implement the retrieval-relevance scorer (`hit_at_k`,
+- [x] 3.4 Implement the retrieval-relevance scorer (`hit_at_k`,
       `must_touch_coverage`, `wins_over_baseline`), thresholds from the manifest
       **Spec scenarios**: `sce` — Retrieval relevance measurement / Wins are measured, not labeled
       **Contracts**: `contracts/schemas/context-eval-report.schema.json`
