@@ -43,7 +43,9 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import shutil
+import subprocess
 import sys
 from fnmatch import fnmatch
 from pathlib import Path
@@ -187,6 +189,25 @@ def _validator(schema_path: Path) -> Draft202012Validator:
     if not schema_path.is_file():
         pytest.fail(f"promoted schema is missing: {schema_path}")
     return Draft202012Validator(json.loads(schema_path.read_text(encoding="utf-8")))
+
+
+def _digest_from_subprocess(hash_seed: str) -> str:
+    """Compute the corpus digest in a fresh interpreter with a given hash seed."""
+    program = (
+        "import sys; sys.path.insert(0, sys.argv[1]);"
+        "from context_eval.loader import corpus_digest;"
+        "print(corpus_digest(sys.argv[2], schema_dir=sys.argv[3]))"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", program, str(SRC), str(CORPUS_ROOT), str(SCHEMA_DIR)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PYTHONHASHSEED": hash_seed},
+        check=False,
+    )
+    if completed.returncode != 0:
+        pytest.fail(f"digest subprocess failed (seed {hash_seed}): {completed.stderr}")
+    return completed.stdout.strip()
 
 
 def _violates_scope(file_path: str, scope: Any) -> bool:
@@ -453,16 +474,27 @@ def test_adversarial_scope_cases_carry_an_out_of_scope_recorded_hit() -> None:
     )
 
     problems: list[str] = []
-    for case in adversarial:
+    for case in corpus.cases:
+        if case.recorded_response is None:
+            continue
         body = json.loads((CORPUS_ROOT / case.recorded_response.path).read_text(encoding="utf-8"))
         outside = [
             result["file_path"]
             for result in body.get("results", [])
             if _violates_scope(result["file_path"], case.scope)
         ]
-        if not outside:
+        if case.recorded_response.adversarial and not outside:
             problems.append(
                 f"{case.case_id}: marked adversarial but every recorded hit is in scope"
+            )
+        # The converse, and the one that actually protects the gate. Without it
+        # an author could drop `adversarial: true` from a case whose body still
+        # leaks, and the corpus would keep two other adversarial cases and stay
+        # green — the scope gate would quietly stop measuring this one.
+        if outside and not case.recorded_response.adversarial:
+            problems.append(
+                f"{case.case_id}: recorded response leaks {outside} outside the declared "
+                f"scope but is not marked adversarial"
             )
     assert not problems, "\n".join(problems)
 
@@ -505,7 +537,21 @@ def test_budget_matches_ri12_runtime_defaults() -> None:
 
 
 def test_corpus_digest_is_stable_across_two_independent_loads() -> None:
-    assert _load().digest == _load().digest
+    """Two loads agree — and "independent" has to mean separate processes.
+
+    Same-process repetition is a weak check: a digest built by iterating a
+    ``set`` of paths without sorting them repeats perfectly inside one process
+    and can still differ between two, because ``PYTHONHASHSEED`` randomizes
+    ``str`` hashing per interpreter. Enablement compares a digest recorded by
+    one process against a digest recomputed by another, so that is the property
+    that has to hold. The two subprocesses below are given DIFFERENT hash seeds
+    for exactly that reason.
+    """
+    in_process = _load().digest
+    seeded = [_digest_from_subprocess(seed) for seed in ("0", "1")]
+    assert seeded[0] == seeded[1] == in_process, (
+        f"digest is not process-independent: in-process={in_process}, seeded={seeded}"
+    )
 
 
 def test_corpus_digest_changes_when_a_corpus_byte_changes(tmp_path: Path) -> None:
