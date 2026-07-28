@@ -193,7 +193,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Note**: hand-derived expected order over a tie-heavy fixture, then
       seeded shuffle — not "run it twice".
 
-- [ ] 3.8 Checkpoint: run tests, review diff, verify scope
+- [x] 3.8 Checkpoint: run tests, review diff, verify scope
 
 ---
 

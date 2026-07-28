@@ -437,6 +437,31 @@ def test_quick_task_is_present_in_the_output_carrying_its_declaration() -> None:
     assert result.metrics is None
 
 
+def test_the_composed_gate_still_carries_the_exempt_consumer() -> None:
+    """Declared absence is auditable; silent absence is an oversight nobody sees.
+
+    Filtering the exempt consumer out of the composed result would change no
+    verdict and would remove ``quick-task`` from the report entirely, which is
+    exactly the outcome the corpus schema's required ``utility_applicable``
+    exists to prevent one level up.
+    """
+    thresholds = _utility_thresholds()
+    corpus = _corpus()
+    exempt = utility.score_consumer(corpus.slice_for("quick-task"), [], thresholds)
+    measured = utility.score_consumer(
+        _slice(), [_measured(coverage=(1.0, 0.0))], thresholds
+    )
+
+    gate = utility.score_utility([measured, exempt], thresholds)
+    named = {entry.consumer for entry in gate.per_consumer}
+    assert "quick-task" in named
+    assert gate.measured["consumers_declared"] == 2
+    assert gate.measured["consumers_measured"] == 1
+    exempt_result = next(e for e in gate.per_consumer if e.consumer == "quick-task")
+    assert exempt_result.utility_applicable is False
+    assert exempt_result.utility_not_applicable_reason
+
+
 def test_a_declared_exemption_that_is_also_measured_is_a_contradiction() -> None:
     corpus = _corpus()
     with pytest.raises(ScoringError):

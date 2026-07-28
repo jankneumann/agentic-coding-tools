@@ -353,6 +353,37 @@ def test_no_configured_adapter_location_degrades_rather_than_raising() -> None:
     assert adapter_module.resolve_scope_adapter(None).status == adapter_module.DEGRADED
 
 
+def test_a_present_but_unimportable_adapter_degrades() -> None:
+    """The shape ri-12 actually meets: the file exists and importing it fails.
+
+    A presence check alone would call this ``resolved``. It is run AFTER the
+    successful resolution above on purpose — the first load leaves
+    ``semantic_adapter`` in ``sys.modules``, and a resolver that trusted that
+    cache would answer this call with the good module and report a scope number
+    computed under rules the report cannot name.
+    """
+    good = adapter_module.resolve_scope_adapter(adapter_module.adapter_dir_for(REPO_ROOT))
+    assert good.status == adapter_module.RESOLVED
+    assert adapter_module.ADAPTER_MODULE in sys.modules
+
+    broken = Path(__file__).resolve().parent / "fixtures" / "broken_scope_adapter"
+    assert (broken / f"{adapter_module.ADAPTER_MODULE}.py").is_file()
+    try:
+        degraded = adapter_module.resolve_scope_adapter(broken)
+        assert degraded.status == adapter_module.DEGRADED, degraded.detail
+        assert "did not import" in (degraded.detail or "")
+    finally:
+        sys.modules.pop(adapter_module.ADAPTER_MODULE, None)
+        while str(broken) in sys.path:
+            sys.path.remove(str(broken))
+    assert (
+        adapter_module.resolve_scope_adapter(
+            adapter_module.adapter_dir_for(REPO_ROOT)
+        ).status
+        == adapter_module.RESOLVED
+    ), "the broken probe must not have poisoned the real adapter"
+
+
 # --------------------------------------------------------------------------
 # the runtime under measurement: ri-12 on the adversarial bodies
 # --------------------------------------------------------------------------

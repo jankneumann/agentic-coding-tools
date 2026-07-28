@@ -106,13 +106,46 @@ def resolve_scope_adapter(adapter_dir: Path | str | None) -> ScopeAdapter:
     # from its own directory, so a location-loaded module would fail on them.
     if str(directory) not in sys.path:
         sys.path.insert(0, str(directory))
+
+    # Drop a cached module loaded from somewhere else first. Without this a
+    # second call against a broken location would be answered by the first
+    # call's module and report `resolved` — the exact silent success this whole
+    # module exists to prevent, arriving through the import system instead of
+    # through ri-12.
+    cached = sys.modules.get(ADAPTER_MODULE)
+    if cached is not None and not _loaded_from(cached, directory):
+        del sys.modules[ADAPTER_MODULE]
+
     try:
         module = __import__(ADAPTER_MODULE)
         read_scope = getattr(module, ADAPTER_ATTRIBUTE)
-    except (ImportError, SystemExit, AttributeError) as error:
+    # Every way loading can fail is one fact — "the shared normalization rules
+    # are not available here" — and each must produce `degraded` rather than
+    # propagate. `SystemExit` is named explicitly because the sibling skills
+    # call `sys.exit` on a missing dependency and that is not an `Exception`.
+    except (Exception, SystemExit) as error:  # noqa: BLE001
         return ScopeAdapter(status=DEGRADED, detail=f"{ADAPTER_MODULE} did not import: {error!r}")
 
+    if not _loaded_from(module, directory):
+        return ScopeAdapter(
+            status=DEGRADED,
+            detail=f"{ADAPTER_MODULE} resolved to {getattr(module, '__file__', None)}",
+        )
     return ScopeAdapter(status=RESOLVED, read_scope=read_scope)
+
+
+def _loaded_from(module: Any, directory: Path) -> bool:
+    """Is *module* the one that lives in *directory*?
+
+    Identity by location, not by name. Two checkouts on one machine — a
+    worktree and its shared repository — hold two ``semantic_adapter`` modules
+    with the same name and possibly different normalization rules, and the one
+    the report claims to have used has to be the one it used.
+    """
+    origin = getattr(module, "__file__", None)
+    if origin is None:
+        return False
+    return Path(origin).resolve().parent == directory.resolve()
 
 
 def adapter_dir_for(repository_root: Path) -> Path:
