@@ -282,7 +282,7 @@ requires `report.verdict == "pass"`. See design D11.
       "in the change directory", which archival moved, and whose verdict is
       `WAIVED`/`UNMEASURED`.
 
-- [ ] 5.2 Write `test_enablement_gate_mutation.py` — the gate exits non-zero for
+- [x] 5.2 Write `test_enablement_gate_mutation.py` — the gate exits non-zero for
       constant-`True` with (a) no report, (b) a stale report by each expiry
       condition of D12, (c) a failing report, (d) a schema-invalid report
       **Spec scenarios**: `sw` — Evidence-gated injection default / Enablement without evidence is rejected; `sw` — Evidence expiry / Stale evidence withdraws authorization
