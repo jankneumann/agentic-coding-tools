@@ -183,7 +183,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Note**: no blended score. Three independent conditions, all of which
       must hold, plus an absolute do-no-harm clause per consumer.
 
-- [ ] 3.7 Write the determinism, no-wall-clock, no-random, and
+- [x] 3.7 Write the determinism, no-wall-clock, no-random, and
       no-model-literal tests
       **Spec scenarios**: `sce` — Deterministic scoring / Reordered input produces identical output
       **Contracts**: none
