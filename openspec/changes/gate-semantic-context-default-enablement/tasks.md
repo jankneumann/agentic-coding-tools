@@ -106,7 +106,7 @@ requires `report.verdict == "pass"`. See design D11.
       fail-closed cases only — its SKILL.md documents that it has no declared
       scope and therefore always returns `out_of_scope`/`no_declared_scope`.
 
-- [ ] 2.5 Implement the corpus loader and the deterministic corpus digest
+- [x] 2.5 Implement the corpus loader and the deterministic corpus digest
       **Spec scenarios**: `sce` — Declared evaluation corpus / Thresholds are corpus data
       **Contracts**: `contracts/schemas/context-eval-corpus.schema.json`
       **Design decisions**: D6, D12

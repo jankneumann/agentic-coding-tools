@@ -267,26 +267,33 @@ def test_every_case_validates_against_the_case_schema() -> None:
 
 
 def test_every_ri12_consumer_has_a_slice_with_explicit_utility_applicable() -> None:
-    """A consumer with no slice and no explicit statement is a corpus error."""
-    corpus = _load()
-    slices = {slice_.consumer: slice_ for slice_ in corpus.consumers}
+    """A consumer with no slice and no explicit statement is a corpus error.
+
+    Reads the RAW manifest rather than a loaded ``Corpus`` on purpose. The
+    loader refuses a schema-invalid manifest outright, so routing this through
+    it would turn "``quick-task`` has no ``utility_applicable``" into "the
+    corpus did not load" — an accurate failure that names an array index
+    instead of the consumer. This test's whole job is to name the consumer.
+    """
+    slices = {entry["consumer"]: entry for entry in _raw_manifest().get("consumers", [])}
     problems: list[str] = []
     for consumer in _ri12_consumers():
         slice_ = slices.get(consumer)
         if slice_ is None:
             problems.append(f"{consumer}: declared by no consumer slice")
             continue
-        if not isinstance(slice_.utility_applicable, bool):
-            problems.append(f"{consumer}: utility_applicable is not an explicit boolean")
-        if not slice_.cases:
+        if not isinstance(slice_.get("utility_applicable"), bool):
+            problems.append(
+                f"{consumer}: utility_applicable is missing or is not an explicit boolean"
+            )
+        if not slice_.get("cases"):
             problems.append(f"{consumer}: declares an empty case slice")
     assert not problems, "\n".join(problems)
 
 
 def test_no_slice_declares_an_unknown_consumer() -> None:
-    corpus = _load()
-    known = set(_ri12_consumers())
-    unknown = sorted({s.consumer for s in corpus.consumers} - known)
+    declared = {entry["consumer"] for entry in _raw_manifest().get("consumers", [])}
+    unknown = sorted(declared - set(_ri12_consumers()))
     assert not unknown, f"corpus declares consumers no skill identifies as: {unknown}"
 
 
@@ -441,7 +448,9 @@ def test_adversarial_scope_cases_carry_an_out_of_scope_recorded_hit() -> None:
         for case in corpus.cases
         if case.recorded_response is not None and case.recorded_response.adversarial
     ]
-    assert adversarial, "no adversarial case: the scope gate would prove only that the server behaved"
+    assert adversarial, (
+        "no adversarial case: the scope gate would prove only that the server behaved"
+    )
 
     problems: list[str] = []
     for case in adversarial:
