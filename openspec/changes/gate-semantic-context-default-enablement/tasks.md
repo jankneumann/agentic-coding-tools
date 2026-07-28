@@ -131,7 +131,7 @@ requires `report.verdict == "pass"`. See design D11.
       (`run_eval.py:31`, `index_and_query.py:31`), which resolves to
       `<repo>/openspec` from the archived path. Fails before 3.2.
 
-- [ ] 3.2 Implement `producers/exact_search.py` — the fair keyword ranker and
+- [x] 3.2 Implement `producers/exact_search.py` — the fair keyword ranker and
       the naive phrase baseline, budget-equalized per D5, root injected
       **Spec scenarios**: `sce` — Reproducible exact-search baseline / Both arms share one budget
       **Contracts**: none
