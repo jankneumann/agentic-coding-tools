@@ -1,0 +1,44 @@
+schema_version: 1
+case_id: FC-UNKNOWN-STATE
+consumer: parallel-review-implementation
+
+query: "how are per-package review findings deduplicated across vendors"
+
+category: control
+
+scope:
+  read_allow:
+    - "skills/parallel-infrastructure/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files: []
+  must_touch: []
+  evidence_spans: []
+
+expectation:
+  status: fallback
+  trigger: unavailable
+  reason: unknown_state
+  rendered_hits: 0
+
+recorded_response:
+  path: responses/unknown-state.json
+  # `service_state` is deliberately ABSENT. The case schema's enum mirrors
+  # ri-03's known CodeSearchState values, and this case's whole subject is a
+  # state that is not one of them — naming it here would require widening the
+  # enum to include the very thing that must stay unrecognized. The unknown
+  # state lives in the recorded body (`"state": "reindexing_in_background"`),
+  # which is where a future coordinator release would put it.
+
+rationale: >
+  ri-12's UNKNOWN_STATE_FALLBACK makes the state mapping total: a seventh state a
+  future coordinator adds degrades to `unavailable`, never to an injection. That
+  guarantee is only worth something if something exercises it, and by
+  construction no test written against today's enum can. Hence a recorded body
+  carrying a state nobody has implemented, WITH a non-empty `results` array — a
+  client that read the results before checking the state would render an excerpt
+  from a service it does not understand. That is the failure this case exists to
+  make visible, and it is the one that would be introduced by a well-meaning
+  "handle new states gracefully" change.

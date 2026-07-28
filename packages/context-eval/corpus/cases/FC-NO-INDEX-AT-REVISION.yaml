@@ -1,0 +1,41 @@
+schema_version: 1
+case_id: FC-NO-INDEX-AT-REVISION
+consumer: implement-feature
+
+query: "where is the merge queue ordering decided"
+
+category: control
+
+scope:
+  read_allow:
+    - "agent-coordinator/src/**"
+  deny:
+    - "**/.venv/**"
+
+# Deliberately empty. This case does not measure retrieval — it measures that a
+# missing index restores exact search. Labelling files here would imply the
+# semantic arm was supposed to find something.
+labels:
+  expected_files: []
+  must_touch: []
+  evidence_spans: []
+
+expectation:
+  status: fallback
+  trigger: stale
+  reason: revision_not_indexed
+  rendered_hits: 0
+
+recorded_response:
+  path: responses/not-indexed.json
+  service_state: not_indexed
+
+rationale: >
+  Acceptance outcome 4 says an unavailable exact-revision index must restore
+  explicit exact-search fallback. The most common way that happens in practice is
+  the ordinary one: an agent commits, the index has not caught up, and there is
+  simply no index for HEAD. `stale` rather than `unavailable` is the substantive
+  assertion — the two triggers send a reader to completely different remedies
+  (re-index vs. check the service), and a case asserting only "some fallback
+  happened" would pass on the wrong one. Scored, never skipped: "the coding job
+  proceeded by exact search" is a measurement with a pass and a fail.

@@ -94,7 +94,7 @@ requires `report.verdict == "pass"`. See design D11.
       a quality evaluation; decomposing it would split one judgement across two
       agents and produce two labeling conventions.
 
-- [ ] 2.4 Add per-consumer cases covering all six ri-12 consumers, plus
+- [x] 2.4 Add per-consumer cases covering all six ri-12 consumers, plus
       fail-closed regression cases (no index at revision, revision mismatch,
       scope rejected, unknown state) and adversarial out-of-scope responses
       **Spec scenarios**: `sce` — Scope compliance measurement / A leaked hit is caught client-side; `sce` — Fail-closed regression cases / An unavailable exact-revision index restores exact search

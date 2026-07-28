@@ -1,0 +1,177 @@
+# The evaluation corpus manifest — the ONLY place a threshold lives.
+#
+# `run_eval.py:159-161` hardcoded `>= 7` and `>= 2` as Python literals, so the
+# bar the archived evaluation was judged against could not be reviewed as a diff
+# against the evidence it gated. Every number below is data (design D6), and
+# `test_thresholds_are_not_readable_from_the_scoring_modules` fails if any of
+# them reappears as a literal under `src/`.
+#
+# Changing anything in this directory moves the corpus digest, which invalidates
+# every existing report against the new corpus. That is the mechanism replacing
+# a waiver field: an operator who believes a threshold is wrong changes it here,
+# in public, and the enablement gate stops accepting the old evidence (D12).
+
+schema_version: 1
+corpus_id: semantic-context-injection
+
+description: >
+  Nineteen cases measuring whether ri-12's injected `Semantic code context`
+  section is worth more to a coding job than the exact-search baseline it would
+  otherwise fall back to. Ten are rescued verbatim from the archived
+  add-semantic-code-search evaluation and re-labelled for utility and scope;
+  nine are new, covering the consumers the archived set never had, the four
+  fail-closed conditions ri-12 must honour, and three adversarial responses that
+  make the scope gate evidence rather than a tautology.
+
+# The k of hit@k, preserved from the archived evaluation so the ten rescued
+# cases stay comparable with the numbers they were originally measured under.
+k: 5
+
+# ONE budget, applied to BOTH arms (design D5). These are ri-12's own
+# `ContextBudget` field defaults; `test_budget_matches_ri12_runtime_defaults`
+# reads them straight out of `semantic_context.py` by AST, so the two cannot
+# silently diverge. Comparing an unbounded `rg -l` dump against a section capped
+# at five files and 240 lines would measure the cap, not the retrieval.
+budget:
+  max_hits: 8
+  max_files: 5
+  max_total_lines: 240
+  max_hit_lines: 40
+
+# Every consumer ri-12 ships, each with an explicit statement of whether
+# coding-context utility applies to it. There is no averaging across consumers:
+# ri-12 kept the `consumer` field so this evaluation could say "injection helps
+# debugging and hurts review", and a mean would discard exactly that (D7).
+consumers:
+  - consumer: implement-feature
+    utility_applicable: true
+    cases: [T2, T5, T6, FC-NO-INDEX-AT-REVISION, ADV-LEAKED-HIT]
+
+  - consumer: iterate-on-implementation
+    utility_applicable: true
+    cases: [T7, T8, FC-REVISION-MISMATCH]
+
+  - consumer: debugging-and-error-recovery
+    utility_applicable: true
+    cases: [T1, T10, FC-DEBUG-ADHOC-NO-SCOPE]
+
+  - consumer: validate-feature
+    utility_applicable: true
+    cases: [T4, T9, FC-SCOPE-REJECTED, ADV-ALL-HITS-FILTERED]
+
+  - consumer: parallel-review-implementation
+    utility_applicable: true
+    cases: [T3, FC-UNKNOWN-STATE, ADV-DENY-PRECEDENCE]
+
+  - consumer: quick-task
+    utility_applicable: false
+    utility_not_applicable_reason: >
+      quick-task's SKILL.md documents that it carries no change_id and no
+      package_id, so ri-08's index_scopes() has nothing to resolve and every
+      request returns out_of_scope / no_declared_scope with no section rendered.
+      There is no utility to measure, and inventing a scope for it would be the
+      exact failure ri-12 exists to prevent. Its one case asserts that documented
+      absence instead — a declared exemption, not a silent hole.
+    cases: [FC-QUICK-TASK-NO-DECLARED-SCOPE]
+
+# Declared, not discovered. The composer takes `pass` only if every gate named
+# here is present in the report and every present gate passed, so a gate that
+# never ran is `missing_required_gate` rather than an absence nobody notices.
+gates:
+  - id: retrieval_quality
+    kind: retrieval_quality
+    required: true
+    min_index_tier: live
+    description: >
+      The substantive bar the archived spec set, carried forward unchanged:
+      semantic hit@5 over the ten rescued cases, of which at least two must be
+      cases the exact-search baseline MEASURABLY missed in this same run. The
+      `category: semantic-win` label plays no part — see the note on
+      `min_measured_wins_over_baseline` below.
+    thresholds:
+      # `run_eval.py:159` — semantic hit@5 >= 7 of the 10 rescued cases.
+      min_hit_at_k_count: 7
+      # `run_eval.py:161`. The archived corpus header called this clause
+      # `category=semantic-win`, a hand-applied LABEL, while the code computed
+      # it from measured baseline misses. They disagree. The spec text ("tasks
+      # the ripgrep baseline misses") agrees with the code, so the MEASURED
+      # definition is pinned here and the label is demoted to metadata (D6).
+      # Otherwise a corpus author could manufacture wins by relabelling.
+      min_measured_wins_over_baseline: 2
+
+  - id: coding_context_utility
+    kind: coding_context_utility
+    required: true
+    min_index_tier: live
+    description: >
+      Per consumer, over that consumer's utility cases: required-file coverage
+      must beat the baseline by a margin, read-cost must not increase, evidence
+      density must not decrease, and the consumer must win outright somewhere.
+      Three independent conditions, never a blended score — a weighted sum lets
+      a coverage regression hide behind a density improvement (D7). Do-no-harm
+      is separate and absolute and needs no threshold: any consumer whose
+      semantic coverage falls below its own baseline fails.
+    thresholds:
+      # How much better than the baseline a consumer's mean required-file
+      # coverage must be. Not zero: "no worse than ripgrep" is not a reason to
+      # inject anything into a coding job.
+      coverage_margin: 0.05
+      # Cases per consumer where semantic covers a must_touch file the baseline
+      # misses. One is a low bar deliberately — several consumers hold only
+      # three cases, and a threshold a slice cannot arithmetically reach would
+      # be unsatisfiable rather than strict.
+      min_wins_per_consumer: 1
+
+  - id: scope_compliance
+    kind: scope_compliance
+    required: true
+    min_index_tier: none
+    description: >
+      Zero tolerance. Measured on recorded responses, three of which
+      deliberately carry a hit outside the declared scope, so the gate proves
+      ri-12's own client-side deny re-check fires rather than proving the server
+      happened to behave (D8).
+    thresholds:
+      # Not a tolerance — a count that must be exactly this. One rendered hit
+      # outside the declared scope fails the gate and the path is named.
+      max_rendered_scope_violations: 0
+      # The outbound request body must carry EXACTLY the case's declared
+      # read_allow/deny, every time.
+      min_outbound_scope_fidelity: 1.0
+
+  - id: fail_closed_regression
+    kind: fail_closed_regression
+    required: true
+    min_index_tier: none
+    description: >
+      Every fail-closed case must produce the exact (trigger, reason) pair it
+      declares and render zero hits. These cases are SCORED, not skipped: "the
+      coding job proceeded by exact search" is a measurement with a pass and a
+      fail (D12).
+    thresholds:
+      # Every one of them, or the gate fails. A fail-closed guarantee that holds
+      # 90% of the time is not a guarantee.
+      min_expectation_match_rate: 1.0
+
+# An EXPLICIT list, never a glob. A glob makes an unlisted or misnamed case file
+# an invisible omission — the run measures fewer cases and nothing disagrees.
+cases:
+  - cases/T1.yaml
+  - cases/T2.yaml
+  - cases/T3.yaml
+  - cases/T4.yaml
+  - cases/T5.yaml
+  - cases/T6.yaml
+  - cases/T7.yaml
+  - cases/T8.yaml
+  - cases/T9.yaml
+  - cases/T10.yaml
+  - cases/FC-NO-INDEX-AT-REVISION.yaml
+  - cases/FC-REVISION-MISMATCH.yaml
+  - cases/FC-SCOPE-REJECTED.yaml
+  - cases/FC-UNKNOWN-STATE.yaml
+  - cases/FC-QUICK-TASK-NO-DECLARED-SCOPE.yaml
+  - cases/FC-DEBUG-ADHOC-NO-SCOPE.yaml
+  - cases/ADV-LEAKED-HIT.yaml
+  - cases/ADV-DENY-PRECEDENCE.yaml
+  - cases/ADV-ALL-HITS-FILTERED.yaml

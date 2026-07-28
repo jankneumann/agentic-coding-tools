@@ -45,6 +45,7 @@ import ast
 import json
 import shutil
 import sys
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
@@ -186,6 +187,20 @@ def _validator(schema_path: Path) -> Draft202012Validator:
     if not schema_path.is_file():
         pytest.fail(f"promoted schema is missing: {schema_path}")
     return Draft202012Validator(json.loads(schema_path.read_text(encoding="utf-8")))
+
+
+def _violates_scope(file_path: str, scope: Any) -> bool:
+    """Deny-precedence scope test, using the repo's own glob semantics.
+
+    ``fnmatch`` is what ``scope_checker.py`` itself uses, and its ``*`` crosses
+    ``/``, so ``agent-coordinator/src/**`` matches nested paths. Deny is
+    evaluated first and wins outright — an adversarial body whose leaked hit sits
+    *inside* ``read_allow`` and is excluded only by a deny glob (see
+    ``ADV-DENY-PRECEDENCE``) is the shape a prefix comparison cannot express.
+    """
+    if any(fnmatch(file_path, glob) for glob in scope.deny):
+        return True
+    return not any(fnmatch(file_path, glob) for glob in scope.read_allow)
 
 
 def _numeric_literals(module: Path) -> set[float]:
@@ -431,11 +446,10 @@ def test_adversarial_scope_cases_carry_an_out_of_scope_recorded_hit() -> None:
     problems: list[str] = []
     for case in adversarial:
         body = json.loads((CORPUS_ROOT / case.recorded_response.path).read_text(encoding="utf-8"))
-        allowed_roots = {glob.split("*", 1)[0].rstrip("/") for glob in case.scope.read_allow}
         outside = [
             result["file_path"]
             for result in body.get("results", [])
-            if not any(result["file_path"].startswith(root) for root in allowed_roots)
+            if _violates_scope(result["file_path"], case.scope)
         ]
         if not outside:
             problems.append(

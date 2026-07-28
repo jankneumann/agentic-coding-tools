@@ -1,0 +1,19 @@
+{
+  "_comment": "Recorded CodeSearchResponse: the coordinator refused the declared scope. A scope refusal is an authorization decision, not a relevance one, so ri-12 maps `scope_rejected` to (out_of_scope, scope_rejected) and renders nothing. Note `results` is empty AND `scope.decision` is `rejected` — a server that rejected the scope and still returned hits would be caught by the scope scorer, which is what ADV-LEAKED-HIT exists to prove.",
+  "state": "scope_rejected",
+  "current": false,
+  "request": {
+    "repo_slug": "agentic_coding_tools",
+    "source_revision": "748af34c4268e768f0e3a7e7cdbe64c02835b7b6",
+    "namespace": {"kind": "main", "key": "main"},
+    "index_id": null
+  },
+  "index": null,
+  "scope": {
+    "decision": "rejected",
+    "source": "explicit",
+    "authority": "principal_grant"
+  },
+  "results": [],
+  "fallback": {"required": true, "strategy": "exact_search", "reason": "scope_rejected"}
+}
