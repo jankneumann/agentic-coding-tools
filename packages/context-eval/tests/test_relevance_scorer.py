@@ -252,7 +252,9 @@ def test_plenty_of_hits_with_too_few_measured_wins_still_fails() -> None:
 def test_the_gate_carries_the_thresholds_it_was_judged_against() -> None:
     """A reader must not need the harness source to interpret a gate result."""
     thresholds = _retrieval_thresholds()
-    result = relevance.score_relevance([_relevance(semantic_hit=True, baseline_hit=False)], thresholds)
+    result = relevance.score_relevance(
+        [_relevance(semantic_hit=True, baseline_hit=False)], thresholds
+    )
     assert dict(result.thresholds) == dict(thresholds)
 
 

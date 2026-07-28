@@ -200,6 +200,41 @@ def test_the_four_way_tie_is_broken_by_path_not_by_backend_order(producer) -> No
     )
 
 
+def test_the_sort_key_itself_orders_ties_by_path() -> None:
+    """The tie-break asserted directly, not through the ranking that precedes it.
+
+    ``rank`` happens to build its candidate list in path order already, so the
+    path component of the sort key is currently redundant there and a mutation
+    that removed it changes no observable output. That redundancy is defence in
+    depth and is worth keeping — but it means the ranking cannot prove the key,
+    so the key is proved here, against inputs deliberately supplied in the wrong
+    order.
+    """
+    from context_eval.producers.exact_search import RankedFile
+
+    tied = [
+        RankedFile("zulu.py", 4, 4, (1,)),
+        RankedFile("alpha.py", 4, 4, (1,)),
+        RankedFile("mike.py", 4, 4, (1,)),
+    ]
+    assert [entry.file_path for entry in sorted(tied, key=lambda e: e.sort_key)] == [
+        "alpha.py",
+        "mike.py",
+        "zulu.py",
+    ]
+
+    scored = [
+        RankedFile("zulu.py", 4, 9, (1,)),
+        RankedFile("alpha.py", 4, 4, (1,)),
+        RankedFile("mike.py", 9, 1, (1,)),
+    ]
+    assert [entry.file_path for entry in sorted(scored, key=lambda e: e.sort_key)] == [
+        "mike.py",
+        "zulu.py",
+        "alpha.py",
+    ]
+
+
 def test_distinct_term_coverage_outranks_raw_match_frequency(producer) -> None:
     """``epsilon.md`` has more matches than ``beta.py`` and still ranks below it."""
     ranked = {entry.file_path: entry for entry in producer.rank(QUERY)}
