@@ -1,0 +1,48 @@
+schema_version: 1
+case_id: ADV-DENY-PRECEDENCE
+consumer: parallel-review-implementation
+
+query: "where is the write_allow scope violation actually detected"
+
+category: control
+
+scope:
+  read_allow:
+    - "skills/parallel-infrastructure/**"
+  deny:
+    # Overlaps read_allow on purpose. A reviewer's scope routinely excludes the
+    # tests of the code under review, and that overlap is the only shape in
+    # which deny precedence is observable at all.
+    - "skills/parallel-infrastructure/scripts/tests/**"
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - skills/parallel-infrastructure/scripts/scope_checker.py
+  must_touch:
+    - skills/parallel-infrastructure/scripts/scope_checker.py
+  evidence_spans:
+    - file_path: skills/parallel-infrastructure/scripts/scope_checker.py
+      start_line: 46
+      end_line: 78
+
+expectation:
+  status: injected
+  rendered_hits: 1
+
+recorded_response:
+  path: responses/adv-deny-precedence.json
+  service_state: ready
+  adversarial: true
+
+rationale: >
+  A different adversarial shape from ADV-LEAKED-HIT, and the one a naive
+  implementation is far likelier to get wrong: every recorded result is INSIDE
+  read_allow, and the leaked one is excluded only by a deny glob. A client that
+  evaluated allow and deny as a union, or that returned early on the first allow
+  match, renders it — and the resulting section looks entirely normal. The
+  assertion is not merely that the hit is absent from `hits`: it must be present
+  in `omissions` with reason `scope_filtered`, because a section that silently
+  drops material claims a completeness it does not have. Note the leaked hit
+  carries the HIGHEST similarity in the body, so an implementation that filtered
+  after truncating to the budget would also fail here.

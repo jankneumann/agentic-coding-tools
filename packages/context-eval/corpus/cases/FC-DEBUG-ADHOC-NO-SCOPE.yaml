@@ -1,0 +1,37 @@
+schema_version: 1
+case_id: FC-DEBUG-ADHOC-NO-SCOPE
+consumer: debugging-and-error-recovery
+
+query: "why did the nightly merge train stall without an error"
+
+category: control
+
+# Empty for the same structural reason as the quick-task case, but arrived at
+# differently: this consumer HAS a packaged path (T1 and T10 use it) and also an
+# ad-hoc one. When it is invoked ad hoc there is no work package to resolve a
+# scope from, and the answer must be the same as quick-task's.
+scope:
+  read_allow: []
+  deny: []
+
+labels:
+  expected_files: []
+  must_touch: []
+  evidence_spans: []
+
+expectation:
+  status: fallback
+  trigger: out_of_scope
+  reason: no_declared_scope
+  rendered_hits: 0
+
+rationale: >
+  debugging-and-error-recovery is the one consumer whose SKILL.md documents both
+  paths, so it is the one consumer where the two must be measured side by side.
+  This matters more here than anywhere else: ad-hoc debugging is exactly the
+  situation where widening the scope "just this once" is most tempting and most
+  harmful, because the agent is already reasoning about a system it does not
+  understand. A consumer that behaves correctly on its packaged path and invents
+  a scope on its ad-hoc path would still pass a corpus that only measured T1 and
+  T10, which is why this case exists rather than being assumed from the
+  quick-task result.
