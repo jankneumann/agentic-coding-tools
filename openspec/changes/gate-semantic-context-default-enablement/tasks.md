@@ -270,7 +270,7 @@ requires `report.verdict == "pass"`. See design D11.
 
 ## Phase 5 — wp-gate: enablement consistency, spec reconciliation, docs
 
-- [ ] 5.1 Write `test_spec_gate_artifact.py` — resolve the artifact the
+- [x] 5.1 Write `test_spec_gate_artifact.py` — resolve the artifact the
       `code-search` Retrieval Quality Gate requirement names and assert it
       exists at a durable path and carries a verdict from the closed enum
       **Spec scenarios**: `cs` — Retrieval Quality Gate / A waived evaluation is not a pass
