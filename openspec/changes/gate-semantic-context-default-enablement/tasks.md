@@ -61,7 +61,7 @@ requires `report.verdict == "pass"`. See design D11.
 
 ## Phase 2 — wp-corpus: rescue the ten tasks, add the labels the gates need
 
-- [ ] 2.1 Write the corpus integrity test: every declared consumer has a slice
+- [x] 2.1 Write the corpus integrity test: every declared consumer has a slice
       with an explicit `utility_applicable`; every labeled path exists; every
       case validates; the digest is stable across two loads
       **Spec scenarios**: `sce` — Declared evaluation corpus / An unlabeled consumer is a corpus error
