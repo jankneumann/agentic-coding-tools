@@ -339,6 +339,36 @@ def test_a_case_the_corpus_never_declared_is_a_denominator_mismatch() -> None:
     assert DENOMINATOR_MISMATCH in composed.fail_reasons
 
 
+def test_an_extra_undeclared_result_alone_is_a_denominator_mismatch() -> None:
+    """Every declared case scored, plus one the corpus never declared.
+
+    The counted denominator is intact here — nineteen declared, nineteen scored
+    — so the count comparison cannot see this. Only the comparison of the
+    identifier SETS can, which is why both exist: a run that measured something
+    the corpus does not declare is describing a different corpus, and a report
+    that recorded it under this corpus's digest would be evidence about
+    something else.
+    """
+    corpus = _corpus()
+    outcomes = _complete_run(corpus)
+    template = outcomes[0]
+    outcomes.append(
+        _verdict_module().CaseOutcome(
+            case_id="T00-NOT-DECLARED",
+            consumer=template.consumer,
+            scored=True,
+            semantic=template.semantic,
+            baseline=template.baseline,
+            request_body=template.request_body,
+        )
+    )
+
+    composed = _compose(corpus, outcomes, _measurement())
+    assert composed.cases_declared == composed.cases_scored == len(corpus.cases)
+    assert composed.verdict == FAIL
+    assert DENOMINATOR_MISMATCH in composed.fail_reasons
+
+
 # --------------------------------------------------------------------------
 # clause 3 — a declared gate with no composed result
 # --------------------------------------------------------------------------

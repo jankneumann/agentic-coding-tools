@@ -264,7 +264,7 @@ requires `report.verdict == "pass"`. See design D11.
       installs `@fission-ai/openspec` unpinned (issue #318) and this job must
       not repeat that.
 
-- [ ] 4.6 Checkpoint: run tests, review diff, verify scope
+- [x] 4.6 Checkpoint: run tests, review diff, verify scope
 
 ---
 
