@@ -251,7 +251,7 @@ requires `report.verdict == "pass"`. See design D11.
       about `skills/`. It loads `semantic_context.py` via
       `importlib.util.spec_from_file_location` with the path from configuration.
 
-- [ ] 4.5 Add the `packages/context-eval` CI job (lint, mypy strict, pytest),
+- [x] 4.5 Add the `packages/context-eval` CI job (lint, mypy strict, pytest),
       pinning the version of every tool it installs
       **Spec scenarios**: none
       **Contracts**: none

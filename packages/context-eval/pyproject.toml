@@ -25,14 +25,24 @@ dependencies = [
 requires = ["uv_build>=0.9,<1.0"]
 build-backend = "uv_build"
 
+# Exact pins, not floors. The `context-eval` CI job installs this group and runs
+# lint, `mypy --strict` and the suite from it, so these four values ARE the
+# gate's semantics: a floor lets a registry decide, months later, what the gate
+# means. This repository has already paid for that twice — ruff 0.16 changed its
+# default rule set (which is why `select` below is explicit), and `ci.yml`'s
+# unpinned `@fission-ai/openspec` install let a local 1.1.1 and CI's 1.6.0
+# disagree about one tree (issue #318). Bumping one of these is a reviewable
+# diff, and the person who bumps it re-runs the gate.
 [dependency-groups]
 dev = [
-    "pytest>=8.3",
-    "ruff>=0.16",
-    "mypy>=1.13",
-    # jsonschema ships no py.typed, so `mypy --strict` cannot check the one
-    # import this package cannot do without.
-    "types-jsonschema>=4.23",
+    "pytest==9.1.1",
+    "ruff==0.16.0",
+    "mypy==2.3.0",
+    # Neither jsonschema nor pyyaml ships py.typed, and `mypy --strict` cannot
+    # check the two imports this package cannot do without. Without both stub
+    # packages the type gate reports `import-untyped` and stops being a gate.
+    "types-jsonschema==4.26.0.20260518",
+    "types-PyYAML==6.0.12.20250915",
 ]
 
 [tool.ruff]
