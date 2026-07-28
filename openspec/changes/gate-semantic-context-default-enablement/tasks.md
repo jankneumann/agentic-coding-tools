@@ -239,7 +239,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Note**: embedder identity is read from the configured `EmbeddingContract`
       and from `CodeSearchResponse.index`. No model-id literal anywhere.
 
-- [ ] 4.4 Implement the CLI and its exit codes (0 pass / 1 apparatus / 2 gate
+- [x] 4.4 Implement the CLI and its exit codes (0 pass / 1 apparatus / 2 gate
       fail / 3 report absent, stale, or schema-invalid) plus the live producer
       `producers/semantic_runtime.py` with an injected module path
       **Spec scenarios**: `sce` — Fail-closed evaluation verdict / Nothing exits zero without a passing report
