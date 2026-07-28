@@ -229,7 +229,7 @@ requires `report.verdict == "pass"`. See design D11.
       fails — which is precisely why it could have survived to phase 6 and been
       misread there as a measured failure.
 
-- [ ] 4.3 Implement the report emitter, schema-validated on write, with the
+- [x] 4.3 Implement the report emitter, schema-validated on write, with the
       optional judge block attached after composition
       **Spec scenarios**: `sce` — Evaluation report record / The report identifies its index and configuration
       **Contracts**: `contracts/schemas/context-eval-report.schema.json`
