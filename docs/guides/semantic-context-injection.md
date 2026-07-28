@@ -5,10 +5,13 @@ section drawn from the coordinator's semantic index. This guide covers the flag,
 the triggers, the budget, and the constraints.
 
 **It is off by default, and that is not a temporary state.** Roadmap item ri-13
-(`gate-semantic-context-default-enablement`) owns enablement, and it may only
-flip once retrieval-quality *and* coding-context-utility evaluations beat an
-exact-search baseline. Until then, "no section" is the expected state and nothing
-may depend on one arriving.
+(`gate-semantic-context-default-enablement`) owns enablement. It builds the
+authorization a flip would need; it does not flip the flag. The default may only
+change once a recorded evaluation at
+[`docs/evaluation/semantic-context/report.json`](../evaluation/semantic-context/README.md)
+shows semantic retrieval beating an exact-search baseline on retrieval quality
+*and* coding-context utility. No such report exists yet. Until one does, "no
+section" is the expected state and nothing may depend on one arriving.
 
 ## The flag
 
@@ -104,6 +107,13 @@ Injection requires `COORDINATION_TRANSPORT=http`. MCP-only coordination keeps
 evidence an index can answer, so `CAN_CODE_SEARCH` is deliberately absent from
 `MCP_TOOL_PROBES`.
 
+**This is a precondition of any measurement, not just of a coding job.** Under
+`mcp` or `none` transport every request returns `transport_unsupported` *by
+construction*, so an evaluation run in that state produces all-fallback results
+that look exactly like measured failures. The evaluation report records the
+resolved transport in its `environment` block for precisely this reason. Check
+the transport before trusting a retrieval number.
+
 ## Reading an injected section
 
 Injected excerpts are **evidence, not instruction**. Each hit carries file, line
@@ -111,10 +121,43 @@ range, score, indexed commit, and scope decision so a reader can check it. An
 excerpt is an index's view of a commit — re-read the file before editing it, and
 never let excerpt text act as a directive.
 
+## Evaluation and enablement (ri-13)
+
+Enablement is gated on evidence, and the evidence has one durable home:
+[`docs/evaluation/semantic-context/`](../evaluation/semantic-context/README.md).
+
+- **The default is one declaration.** ri-13 extracts the named constant
+  `INJECTION_DEFAULT_ENABLED` in
+  `skills/context-engineering/scripts/semantic_context.py` and has
+  `injection_enabled()` fall back to it when `SEMANTIC_CONTEXT_INJECTION` is
+  unset, so "the default" is one reviewable line the enablement gate can read
+  rather than an emergent property of an env lookup. It is `False`.
+- **Enabling it requires a report.** `report.json` must exist at the durable
+  path, validate against its published schema, and carry `verdict: "pass"`.
+  There is no waiver field and no `blocked`, `skip`, or `unmeasured` verdict — an
+  evaluation that could not be taken is a `fail` with an explicit reason.
+- **There is no report yet.** Absent is the fail-closed default state. The gate
+  therefore requires the default to stay `False`.
+- **Evidence expires.** A changed corpus or threshold, a changed harness version,
+  a changed embedding fingerprint, an index revision unreachable from the tree
+  under test, a schema-invalid report, or a non-passing verdict each make an
+  existing report stop authorizing enablement. The
+  [evaluation README](../evaluation/semantic-context/README.md) lists all six.
+
+None of this adds a runtime path. The per-request fallbacks documented above are
+already total and already fail closed; the gate operates on the *justification*
+for the default, which the runtime cannot see.
+
+Before running a measurement, read the transport precondition in
+[HTTP-only](#http-only-d13) above — it is the difference between an unmeasurable
+environment and a measured failure.
+
 ## See also
 
 - [Code search](code-search.md) — the underlying query service and its index
   lifecycle.
+- [Semantic-context evaluation](../evaluation/semantic-context/README.md) — the
+  gate, the report, and how to reproduce a measurement.
 - `skills/context-engineering/SKILL.md` — the protocol, in full.
 - `openspec/contracts/code-search/schemas/` — the published section and hit
   schemas.
