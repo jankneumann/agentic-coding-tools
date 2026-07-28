@@ -119,7 +119,7 @@ requires `report.verdict == "pass"`. See design D11.
 
 ## Phase 3 — wp-scoring: baseline producer and the three scorers
 
-- [ ] 3.1 Write `test_repo_root_resolution.py` — the baseline producer's
+- [x] 3.1 Write `test_repo_root_resolution.py` — the baseline producer's
       repository root is injected, contains `.git` and `openspec/`, and is never
       derived from `__file__`
       **Spec scenarios**: `sce` — Reproducible exact-search baseline / The baseline is reproducible from its published artifact
