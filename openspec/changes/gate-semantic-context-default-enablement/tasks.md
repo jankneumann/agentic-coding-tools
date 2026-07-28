@@ -211,12 +211,23 @@ requires `report.verdict == "pass"`. See design D11.
       **Size**: M
 
 - [ ] 4.2 Implement `compose_verdict()` — signature takes scored cases and
-      declared gates only, with **no judge parameter**
-      **Spec scenarios**: `sce` — Advisory qualitative review / The judge cannot reach the verdict
+      declared gates only, with **no judge parameter** — and compose **all four**
+      gates the manifest declares required: `retrieval_quality`,
+      `coding_context_utility`, `scope_compliance`, and `fail_closed_regression`
+      **Spec scenarios**: `sce` — Advisory qualitative review / The judge cannot reach the verdict; `sce` — Fail-closed evaluation verdict / An unmeasured gate is a failing gate
       **Contracts**: `contracts/schemas/context-eval-report.schema.json`
       **Design decisions**: D3, D15
       **Dependencies**: 4.1
       **Size**: M
+      **Note**: `fail_closed_regression` was declared required in
+      `corpus/manifest.yaml` by phase 2 but had **no task assigning its
+      composition** — found by the phase 3 agent, corrected here. Phase 3 already
+      implemented `expectation_honored()` in `scoring/scope.py` for task 3.5's
+      "rejection honored" clause; compose the gate from it rather than writing a
+      second predicate. The omission was fail-closed rather than fail-open — an
+      uncomposed declared gate yields `missing_required_gate` and the verdict
+      fails — which is precisely why it could have survived to phase 6 and been
+      misread there as a measured failure.
 
 - [ ] 4.3 Implement the report emitter, schema-validated on write, with the
       optional judge block attached after composition

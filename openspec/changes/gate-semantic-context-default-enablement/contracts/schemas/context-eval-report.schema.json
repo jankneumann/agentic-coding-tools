@@ -650,7 +650,7 @@
         "steps_to_evidence": {
           "type": "integer",
           "minimum": 1,
-          "description": "Walking this arm's own ordering, the 1-based position of the first rendered result intersecting a labeled evidence span; lower is better. When no rendered result ever does, the value is CENSORED to `budget.max_files + 1` — never null, never absent, never excluded from the mean. A null here would be a silent skip: the case would quietly stop contributing to the consumer's mean, which is exactly the shrinking-denominator behaviour design D3 forbids. Censoring keeps the failure in the arithmetic as the worst possible score."
+          "description": "Walking this arm's own ordering, the 1-based position of the first distinct rendered FILE holding a result that intersects a labeled evidence span; lower is better. Files, not hits, and the distinction is load-bearing: the censoring value is `budget.max_files + 1`, so with `max_hits > max_files` a hit position could exceed the value that is supposed to be the worst possible outcome. D7's own gloss -- how many files must be opened before the evidence appears -- agrees. When no rendered result ever intersects, the value is CENSORED to `budget.max_files + 1` — never null, never absent, never excluded from the mean. A null here would be a silent skip: the case would quietly stop contributing to the consumer's mean, which is exactly the shrinking-denominator behaviour design D3 forbids. Censoring keeps the failure in the arithmetic as the worst possible score."
         },
         "scope_violations": {
           "type": "array",
