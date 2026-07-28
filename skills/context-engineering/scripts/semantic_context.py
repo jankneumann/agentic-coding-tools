@@ -27,9 +27,16 @@ from ri-08's ``index_scopes()`` (D2), and every returned hit is re-checked
 against it locally. Widening a package's declared read scope is the exact
 failure this change exists to prevent.
 
-Opt-in: ``SEMANTIC_CONTEXT_INJECTION`` gates everything and defaults **off**
-(D9). With it off the helper short-circuits before touching git, the bridge, or
-the network, so behaviour is byte-identical to a tree without this module.
+Opt-in: ``SEMANTIC_CONTEXT_INJECTION`` gates everything. When it is unset the
+effective default comes from :data:`INJECTION_DEFAULT_ENABLED`, one named
+declaration rather than a property inferred from the absence of an environment
+variable (ri-13 D11), and it is ``False``. With injection off the helper
+short-circuits before touching git, the bridge, or the network, so behaviour is
+byte-identical to a tree without this module (D9). Flipping that constant is
+authorized only by a passing evaluation report at
+``docs/evaluation/semantic-context/report.json``; the Enablement Consistency
+Gate (``make semantic-enablement-gate``) refuses a flip the evidence does not
+support.
 """
 
 from __future__ import annotations
