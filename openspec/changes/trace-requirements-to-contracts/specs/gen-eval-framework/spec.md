@@ -122,6 +122,17 @@ written in the contract on the operation they exclude; requirement exclusions
 SHALL be written in the capability's
 `openspec/contracts/<capability>/traceability-exclusions.yaml`. An exclusion
 naming an operation or requirement that no longer exists SHALL fail the gate.
+An exclusions file SHALL only exclude requirements of its own capability; an
+entry naming a requirement whose capability prefix is not the owning capability
+SHALL fail the gate naming both capabilities.
+
+Cross-capability *citations* are permitted (a citation adds a claim, and D9
+reports them as a distinct list), but a cross-capability *exclusion* is
+refused, because the two are not symmetric. A citation says "this operation
+serves that requirement" — information the cited capability can audit. An
+exclusion says "that requirement needs no operation at all", which discharges
+an obligation the other capability owns and can neither see nor contest. That
+is the laundering path D4 exists to close, arriving from outside.
 
 An unexplained exclusion is how a gap gets laundered into "intentional". A
 requirement with no operation has no operation to carry its exclusion, so the
@@ -160,6 +171,15 @@ it.
   exclusions file excludes it with a non-blank reason
 - **THEN** reverse completeness SHALL NOT fail on that requirement
 - **AND** the exclusion and its reason SHALL appear in the gate's output
+
+<!-- Scenario ID: gen-eval-framework.cross-capability-exclusion-fails -->
+#### Scenario: One capability cannot excuse another's requirement
+
+- **WHEN** `openspec/contracts/<A>/traceability-exclusions.yaml` contains an
+  exclusion whose requirement identifier resolves to capability `B`
+- **THEN** the gate SHALL exit non-zero naming both `A` and `B`
+- **AND** the excluded requirement SHALL still count against `B`'s reverse
+  completeness
 
 ### Requirement: Forward enforcement is opt-in per contract document
 
@@ -402,12 +422,29 @@ active change SHALL be named explicitly to the gate, the merge base SHALL be
 computed against a named integration branch, and a merge base that cannot be
 resolved SHALL be an error rather than an empty scope.
 
+A change that flips an opt-in switch SHALL additionally touch everything that
+switch newly governs. Where the diff adds a traceability block to a contract
+document that had none, every operation in that document SHALL be touched.
+Where the diff adds a `traceability-exclusions.yaml` for a capability that had
+none, every requirement of that capability SHALL be touched.
+
 A validation run enforcing the full archived set blocks every change to a
 capability on gaps it did not create. But a scope that silently resolves to
 empty is worse than a broad one — a blocking gate that evaluates nothing while
 reporting success is the unfalsifiable-green failure this whole change exists
 to eliminate. Change scope restricts what the full evaluation would enforce; it
 never enforces anything the full evaluation would not.
+
+The opt-in clause exists because the transition is otherwise invisible to a
+node-level diff. Adding one traceability block changes one node, but D6 makes
+the whole document strictly enforced from that moment; creating an exclusions
+file changes no requirement at all, yet D13 turns the capability's entire
+reverse direction blocking. Under a touched set keyed only on changed nodes,
+`/validate-feature` would pass on the very change that flips the switch and
+`main` would red immediately afterward — the gate reporting green on the one
+diff that could still cheaply fix it. The switch-flipping change is precisely
+the change that must prove the surface is clean, because it is the change
+asserting that it is.
 
 <!-- Scenario ID: gen-eval-framework.pre-existing-gap-does-not-block -->
 #### Scenario: A pre-existing gap does not fail a change that did not create it
@@ -423,6 +460,25 @@ never enforces anything the full evaluation would not.
 - **WHEN** the active change adds a requirement to a capability with reverse
   enforcement, and no operation cites it and no exclusion covers it
 - **THEN** the change-scoped run SHALL fail naming that requirement
+
+<!-- Scenario ID: gen-eval-framework.forward-opt-in-touches-document -->
+#### Scenario: Opting a document in touches every operation in it
+
+- **WHEN** the active change adds a traceability block to a contract document
+  that previously declared none, and another operation in that same document
+  cites no requirement and carries no exclusion
+- **THEN** the change-scoped run SHALL fail naming that other operation
+- **AND** it SHALL NOT pass on the grounds that the operation's node is
+  unchanged in the diff
+
+<!-- Scenario ID: gen-eval-framework.reverse-opt-in-touches-capability -->
+#### Scenario: Opting a capability in touches every requirement of it
+
+- **WHEN** the active change adds `traceability-exclusions.yaml` to a
+  capability that previously had none, and a pre-existing requirement of that
+  capability is cited by no operation and excluded by no entry
+- **THEN** the change-scoped run SHALL fail naming that requirement
+- **AND** the failure SHALL NOT be deferred to the full sweep on `main`
 
 <!-- Scenario ID: gen-eval-framework.unresolvable-scope-errors -->
 #### Scenario: An unresolvable merge base is an error, not an empty scope
@@ -473,13 +529,23 @@ cannot block a merge.
 
 ### Requirement: The gate fails closed on malformed input
 
-A contract document that cannot be parsed SHALL fail the gate naming the file,
-and SHALL NOT be recorded as untraced. A traceability block that violates the
+A contract document SHALL be a contract instance under
+`openspec/contracts/<capability>/openapi/` or
+`openspec/contracts/<capability>/cli/`; files under `schemas/` SHALL NOT be
+contract documents. An instance-format document at the capability root SHALL
+fail the gate naming the file and the expected location, rather than being
+skipped. A contract document that cannot be parsed SHALL fail the gate naming
+the file, and SHALL NOT be recorded as untraced. A traceability block that violates the
 traceability schema SHALL fail the gate naming the file and the offending
-block. A capability directory containing contracts but no capability spec SHALL
-fail with a message distinguishing the missing spec from an unresolved
-identifier. A capability with a spec and no contracts SHALL be recorded as
-untraced.
+block. An existing `traceability-exclusions.yaml` that cannot be read, cannot
+be parsed, is empty, or violates the exclusions schema SHALL fail the gate
+naming the file, and SHALL NOT be treated as absent. A capability directory
+containing contract documents that declare traceability, but no capability
+spec, SHALL fail with a message distinguishing the missing spec from an
+unresolved identifier; where no document declares traceability, the missing
+spec SHALL be reported and SHALL NOT fail. A capability with a spec and no
+contracts SHALL be recorded as forward-untraced, which SHALL NOT affect
+whether its reverse direction is enforced.
 
 Enforcement is keyed on the presence of traceability blocks, so a parse error
 that reads as "no blocks found" would silently downgrade a traced contract to
@@ -488,6 +554,27 @@ untraced and turn a syntax error into a green run. The schema-invalid shapes —
 excluded from the schema deliberately, and a gate that let them through would
 have to pick a winner, which is the silent decision the schema exists to
 refuse.
+
+The exclusions file needs the same protection for a stronger reason: D13 makes
+its *existence* the reverse switch, so "cannot read it" and "it isn't there"
+are one byte apart in consequence and opposite in meaning. A capability that
+had opted in would silently opt back out on a YAML typo, and the direction D3
+calls the valuable one would fail open — inverting
+`check_coverage_completeness.py`, the precedent D4 claims to lift wholesale.
+Absence is a decision; unreadability is an accident, and the gate SHALL NOT
+read one as the other.
+
+The missing-spec case is bounded twice, because measured on this repository on
+2026-07-28 an unbounded reading would red `main` the moment this change merged.
+Three capability directories under `openspec/contracts/` have no matching spec
+directory — `phase-record`, `project-context-refresh` (the spec tree carries
+`project-context-refresh-orchestration` and `project-context-refresh-records`,
+neither named `project-context-refresh`), and `prototyping`. All three hold
+only `schemas/`, so under D6's definition they contain no contract *documents*
+at all and the rule never reaches them. The opt-in gate is the second bound,
+covering the future case where such a directory gains an instance: the rule
+keeps its teeth exactly where a document has claimed to be traced, which is the
+only place a missing spec can hide an unresolved citation.
 
 <!-- Scenario ID: gen-eval-framework.malformed-contract-fails -->
 #### Scenario: An unparseable contract fails the gate
@@ -505,20 +592,57 @@ refuse.
   carrying the block
 - **AND** it SHALL NOT choose between the conflicting keys
 
+<!-- Scenario ID: gen-eval-framework.misplaced-instance-fails -->
+#### Scenario: A contract instance outside openapi/ or cli/ fails discovery
+
+- **WHEN** a capability directory contains an instance-format document at its
+  root rather than under `openapi/` or `cli/`
+- **THEN** the gate SHALL exit non-zero naming the file and the expected
+  location
+- **AND** it SHALL NOT silently exclude the document from evaluation
+
+<!-- Scenario ID: gen-eval-framework.schemas-are-not-documents -->
+#### Scenario: A schemas-only capability holds no contract documents
+
+- **WHEN** a capability directory contains only `schemas/*.schema.json` files
+- **THEN** the gate SHALL NOT treat it as containing contract documents
+- **AND** the missing-capability-spec rule SHALL NOT fail on it
+
+<!-- Scenario ID: gen-eval-framework.malformed-exclusions-file-fails -->
+#### Scenario: An unreadable exclusions file fails rather than opting out
+
+- **WHEN** `openspec/contracts/<capability>/traceability-exclusions.yaml`
+  exists but cannot be read, cannot be parsed, is empty, or violates the
+  exclusions schema
+- **THEN** the gate SHALL exit non-zero naming the file
+- **AND** it SHALL NOT record the capability's reverse direction as not opted in
+
 <!-- Scenario ID: gen-eval-framework.missing-capability-spec-fails -->
 #### Scenario: Contracts without a capability spec fail distinctly
 
 - **WHEN** a capability directory under `openspec/contracts/` contains contract
-  documents but no `openspec/specs/<capability>/spec.md` exists
+  documents that declare traceability, and no `openspec/specs/<capability>/spec.md`
+  exists
 - **THEN** the gate SHALL fail stating that the capability has no spec
 - **AND** the message SHALL be distinguishable from an unresolved identifier
 
+<!-- Scenario ID: gen-eval-framework.missing-spec-untraced-reports -->
+#### Scenario: A specless capability that has not opted in is reported
+
+- **WHEN** a capability directory under `openspec/contracts/` contains contract
+  documents, none of which declares traceability, and no
+  `openspec/specs/<capability>/spec.md` exists
+- **THEN** the gate SHALL report the missing spec
+- **AND** the run SHALL NOT fail on it
+
 <!-- Scenario ID: gen-eval-framework.spec-without-contracts-untraced -->
-#### Scenario: A capability with a spec and no contracts is untraced
+#### Scenario: A capability with a spec and no contracts is forward-untraced
 
 - **WHEN** a capability has a spec and no contract documents
-- **THEN** the gate SHALL record it as untraced
-- **AND** the run SHALL NOT fail on it
+- **THEN** the gate SHALL record its forward direction as untraced
+- **AND** the run SHALL NOT fail forward completeness on it
+- **AND** if the capability has an exclusions file, its reverse completeness
+  SHALL still be enforced, failing on any requirement neither cited nor excluded
 
 ### Requirement: The gate makes no claim that a requirement is satisfied
 

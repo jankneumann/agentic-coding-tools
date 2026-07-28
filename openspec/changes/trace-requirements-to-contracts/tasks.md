@@ -139,6 +139,15 @@ that way answers a question about a different copy.
   `test_id_matches_promoted_location`), and add a test that loads each
   promoted copy — the predecessor's promotion has exactly this guard, and
   without it the promotion silently does not happen.
+  **Note**: the promotion adds two files under `openspec/contracts/**`, which
+  is the input the `api.contracts` producer renders into
+  `docs/architecture-analysis/contracts-inventory.md` — a count in the header
+  (`_13 contract schema(s)._` today, becoming 15) plus one row per schema.
+  Run `make context-refresh` and commit the regenerated inventory IN THIS
+  TASK'S COMMIT. Skipping it leaves CI's `context-drift-gate` red as
+  `blocking_drift`, and because a staled derived artifact is absent from the
+  diff by definition, no reviewer will see it — the predecessor change hit
+  exactly this and nine review rounds missed it.
 
 - [ ] 2.1 Write tests for parsing traceability blocks off contracts `[S]`
   **Spec scenarios**: Contracted Operations Cite The Requirements They Serve (an operation declares its citations)
@@ -234,6 +243,30 @@ that way answers a question about a different copy.
   requirement → fail; file present + excluded requirement → pass with reason
   in output; file absent + uncited requirement → reported, exit zero; file
   present with empty list → every requirement must be cited.
+  **Note**: add the ownership case — an exclusions file under capability `A`
+  naming a requirement of capability `B` must FAIL naming both, and `B`'s
+  requirement must still count against `B`'s reverse completeness. Four
+  reviewers independently flagged the unspecified version of this as a
+  laundering path: cross-capability citations are permitted (D9) because they
+  are additive and auditable by the cited capability, but an exclusion is
+  subtractive and would discharge `B`'s obligation from a file `B` neither
+  controls nor reads.
+
+- [ ] 3.4b Write tests that an unreadable exclusions file fails closed `[S]`
+  **Spec scenarios**: The Gate Fails Closed On Malformed Input (an unreadable exclusions file fails rather than opting out)
+  **Design decisions**: D13, D4
+  **Dependencies**: 2.5
+  **Note**: this is the highest-consensus finding of the plan review — all
+  four reviewers reached it independently. D13 makes the file's EXISTENCE the
+  reverse switch, so "cannot parse it" and "it isn't there" are one byte apart
+  in consequence and opposite in meaning. Cover: unparseable YAML, schema-
+  invalid content, a zero-byte file (YAML `None`, which the schema rejects
+  since `exclusions` is required), and an unreadable file (chmod 000). Each
+  must exit non-zero naming the file, and none may report the capability's
+  reverse direction as not opted in.
+  **Note**: assert the NEGATIVE explicitly — that the output does not contain
+  the not-opted-in status. Asserting only the non-zero exit would still pass
+  if the gate failed for an unrelated reason while silently opting out.
 
 - [ ] 3.5 Write tests for forward opt-in enforcement `[S]`
   **Spec scenarios**: Forward Enforcement Is Opt-In Per Contract Document (declaring traceability commits the whole contract document); (a contract with no traceability is recorded, not failed); (a traced and an untraced document coexist in one capability)
@@ -248,14 +281,28 @@ that way answers a question about a different copy.
   untraced status for the other, and the traced document's citations counting
   toward reverse completeness.
 
-- [ ] 3.6 Write tests for malformed input `[S]`
-  **Spec scenarios**: The Gate Fails Closed On Malformed Input (an unparseable contract fails the gate); (a schema-invalid traceability block fails the gate); (contracts without a capability spec fail distinctly); (a capability with a spec and no contracts is untraced)
+- [ ] 3.6 Write tests for malformed input and document discovery `[S]`
+  **Spec scenarios**: The Gate Fails Closed On Malformed Input (an unparseable contract fails the gate); (a schema-invalid traceability block fails the gate); (contracts without a capability spec fail distinctly); (a specless capability that has not opted in is reported); (a capability with a spec and no contracts is forward-untraced); (a contract instance outside openapi/ or cli/ fails discovery); (a schemas-only capability holds no contract documents)
   **Design decisions**: D6, and the schema's `oneOf`/`minItems` rationale
   **Dependencies**: 2.5
   **Note**: the unparseable case is the dangerous one — enforcement is keyed
   on block presence, so a parse error that reads as "no blocks" downgrades a
   traced contract to untraced and a syntax error goes green. Assert non-zero
   exit naming the file, and assert the document is NOT listed as untraced.
+  **Note**: a contract DOCUMENT is an instance under `openapi/` or `cli/`
+  (D6). Files under `schemas/` are contract schemas and carry no operations.
+  Measured 2026-07-28, three real capabilities — `phase-record`,
+  `project-context-refresh`, `prototyping` — hold only `schemas/` and have no
+  spec directory; under the loose reading they would each trip the
+  missing-spec rule and red `main` the moment this change merged. Fixture
+  both: a schemas-only capability (no failure) and a traced instance with no
+  spec (failure).
+  **Note**: cover the misplaced instance too. `code-search/v2.yaml` is a full
+  OpenAPI 3.1 document at the capability root rather than under `openapi/`,
+  contrary to `contracts/README.md`'s own layout table. A discovery walk keyed
+  on the two directories would silently skip it — and silently skipping an
+  OpenAPI document is the invisible-surface failure this change exists to
+  prevent. Assert it fails naming the file and the expected location.
 
 - [ ] 3.7 Implement `scripts/check_traceability.py` `[M]`
   **Design decisions**: D3, D4, D5, D6, D13
@@ -335,7 +382,7 @@ that way answers a question about a different copy.
   **Dependencies**: 3.13
 
 - [ ] 3.15 Write tests for change-scoped evaluation `[S]`
-  **Spec scenarios**: Validation-Time Evaluation Is Scoped To The Change (a pre-existing gap does not fail a change that did not create it); (a requirement the change adds and nobody cites fails the change-scoped run); (an unresolvable merge base is an error, not an empty scope); (the output states which scope it evaluated)
+  **Spec scenarios**: Validation-Time Evaluation Is Scoped To The Change (a pre-existing gap does not fail a change that did not create it); (a requirement the change adds and nobody cites fails the change-scoped run); (opting a document in touches every operation in it); (opting a capability in touches every requirement of it); (an unresolvable merge base is an error, not an empty scope); (the output states which scope it evaluated)
   **Design decisions**: D12
   **Dependencies**: 3.12
   **Note**: must prove BOTH halves of the forward case — the touched
@@ -354,6 +401,17 @@ that way answers a question about a different copy.
   **Note**: the output-wording test asserts the pinned scope line. A
   change-scoped run that printed "traceability complete" would be asserting
   something about the capability it did not check.
+  **Note**: the opt-in TRANSITION cases are the subtle ones and were missed by
+  every phase before plan review. Fixture 1: a document with no traceability
+  block gains one on a single operation; a DIFFERENT, unmodified operation in
+  that same document cites nothing — the change-scoped run must fail on it,
+  because D6 makes the whole document strictly enforced the moment the block
+  appears. Fixture 2: a capability gains `traceability-exclusions.yaml`; a
+  pre-existing requirement nobody cites must fail the change-scoped run, even
+  though no requirement node changed. Without these, `/validate-feature`
+  greens on the exact change that flips the switch and `main` reds right
+  after — the gate reporting success on the one diff that could still fix it
+  cheaply.
 
 - [ ] 3.16 Implement change-scoped evaluation and the full sweep `[M]`
   **Design decisions**: D12
@@ -490,14 +548,21 @@ wp-wiring); 5.6 and 5.7 additionally require the human-authored artifacts from
   **Note**: run it BARE, never piped. A pipeline's `$?` is the last stage's
   status, so `check_traceability.py | tail` reports tail's 0 on a failing gate.
 
-- [ ] 5.7 Wire the full-capability sweep into CI on `main` `[S]`
+- [ ] 5.7 Wire the full-capability sweep into CI `[S]`
   **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed)
   **Design decisions**: D12
   **Dependencies**: 3.16, 5.2
-  **Note**: push-triggered on `main`, not cron-scheduled — a scheduled run
-  cannot block a merge. Opted-in surfaces block; the rest report. There is NO
-  separate blocking flag — opting in is the switch (D6 forward, D13 reverse),
-  and adding one would create an opted-in-but-not-blocking state, the
+  **Note**: the BLOCKING sweep is `pull_request`-triggered. An earlier draft
+  put it on `push` to `main` reasoning that cron cannot block a merge — true,
+  but a push event on `main` fires *after* the merge lands and shares the
+  defect. It can red `main`; it cannot stop `main` going red. Only a check on
+  the merge candidate blocks the merge.
+  **Note**: keep a second, explicitly NON-blocking `push`-on-`main` job for
+  debt visibility on the integration branch. Two jobs, two honest purposes;
+  nothing depends on the push job to stop anything.
+  **Note**: opted-in surfaces block; the rest report. There is NO separate
+  blocking flag — opting in is the switch (D6 forward, D13 reverse), and
+  adding one would create an opted-in-but-not-blocking state, the
   half-traced-yet-green outcome D6 exists to make impossible.
   **Note**: the job needs `fetch-depth: 0` if it ever computes a merge base —
   and even for capability scope, keep the invocation bare, as with
@@ -506,6 +571,40 @@ wp-wiring); 5.6 and 5.7 additionally require the human-authored artifacts from
   **Note**: this is what makes the coordinator's existing gaps visible without
   stopping unrelated work; diff-scoping alone would leave them invisible
   forever, since no change touches them.
+
+- [ ] 5.7b Register `tests/validate-feature` in `skills/pyproject.toml` `[XS]`
+  **Spec scenarios**: skill-workflow delta: Validation-Time Requirement Traceability Gate (skill wiring is covered by skill tests)
+  **Dependencies**: 5.6
+  **Note**: `testpaths` in `skills/pyproject.toml` currently lists
+  `tests/implement-feature` and `tests/plan-feature` but NOT
+  `tests/validate-feature`, and CI's `test-infra-skills` job runs a bare
+  `uv run pytest` from `skills/`, which honours `testpaths`. The existing
+  `skills/tests/validate-feature/test_gen_eval_mode_selection.py` is already
+  invisible for this reason. Without this line the skill-workflow scenario
+  would be satisfied by a suite CI never executes — a test that never runs
+  fails exactly the way a gate that cannot fail does.
+  **Note**: verify by deleting the entry and confirming the new tests vanish
+  from the collected set, not merely that they pass with it present.
+
+- [ ] 5.7c The unmutated tree passes at capability scope `[M]` `[human]`
+  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (both scenarios)
+  **Design decisions**: D12, D13
+  **Dependencies**: 4.2b, 5.2, 5.7
+  **Note**: this is the GREEN half of 4.3's RED demonstration, and it is the
+  acceptance criterion the change otherwise lacks. Task 4.3 proves the gate
+  goes red on two documented mutations; nothing yet requires it to go GREEN on
+  the merge candidate. Run `check_traceability.py --scope capability` across
+  every capability on the merge commit and record the exit code. It MUST be
+  zero — this change flips gen-eval-framework into blocking reverse
+  enforcement (4.2b) and installs the blocking sweep (5.7) in the same PR, so
+  a non-zero result here means merging reds `main` immediately.
+  **Note**: `[human]` because passing it may require triage decisions (which
+  requirements are cited, which are excused and why), which D1 forbids
+  delegating. Scale: gen-eval-framework carries 20 archived requirements plus
+  this change's 14, and every one needs a citation or a written exclusion.
+  If that triage proves larger than 4.2b's budget, the correct response is to
+  defer the reverse opt-in to a follow-up change — NOT to weaken the gate or
+  to write exclusions whose reason is a placeholder.
 
 - [ ] 5.8 Update `packages/gen-eval/README.md` with the four-edge chain `[S]`
   **Dependencies**: 5.6, 5.7

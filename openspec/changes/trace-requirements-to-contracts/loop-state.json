@@ -1,0 +1,74 @@
+{
+  "schema_version": 4,
+  "change_id": "trace-requirements-to-contracts",
+  "current_phase": "PLAN_FIX",
+  "iteration": 1,
+  "total_iterations": 1,
+  "max_phase_iterations": 3,
+  "findings_trend": [
+    10
+  ],
+  "blocking_findings": [],
+  "vendor_availability": {
+    "antigravity": true,
+    "claude_code": true,
+    "codex": true,
+    "grok": true,
+    "pi": true
+  },
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-20260728T142525Z",
+    "plan-iterate-20260728T145934Z",
+    "plan-review-20260728T151918Z"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-07-28T14:26:58.593896+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-07-28T14:27:24.905121+00:00",
+      "note": "existing change-id \u2014 proposal/design/specs/tasks/work-packages verified present; no planning dispatch",
+      "outcome": "skipped",
+      "phase": "PLAN"
+    },
+    {
+      "at": "2026-07-28T15:02:20.473763+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-07-28T15:22:04.171819+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    }
+  ],
+  "last_handoff_id": "plan-review-20260728T151918Z",
+  "started_at": "2026-07-28T14:22:58.793360+00:00",
+  "phase_started_at": "2026-07-28T15:23:01.708792+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "escalation_reason": null,
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "reviewer",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": true,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 3,
+    "total_loc_estimate": 1850
+  },
+  "gate_verdict": null
+}

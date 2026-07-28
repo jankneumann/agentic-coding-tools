@@ -1,0 +1,57 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: D13 assigns reverse enforcement ownership to the capability at openspec/changes/trace-requirements-to-contracts/design.md D13 lines 429-468 and spec lines 202-217, but openspec/changes/trace-requirements-to-contracts/contracts/traceability-exclusions.schema.json lines 18-22 explicitly permits cross-capability requirement exclusions. That lets a file under capability A excuse capability B's requirement, creating a state B cannot own: B may be reverse-enforced while A suppresses its gap, or B may be not opted in while A's file changes B's reported completeness.",
+      "resolution": "Constrain requirement exclusions to the capability named by the containing traceability-exclusions.yaml file, or add an explicit cited-capability acknowledgement artifact and scenarios defining who owns cross-capability exclusions and which capability's reverse opt-in they affect.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: D12 claims the full sweep can block merges while specifying CI on main as push-triggered at openspec/changes/trace-requirements-to-contracts/design.md lines 363-366, and task 5.7 repeats that at tasks.md lines 493-498. A push event on main runs after a merge has already landed, so it can red main but cannot block the merge it is meant to guard.",
+      "resolution": "Specify the full sweep as a required pull_request/merge_group check for merge blocking, optionally also running on push to main as a post-merge sweep; update task 5.7 and the acceptance wording so 'blocking' maps to an actually pre-merge CI context.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: wp-wiring's dispatch precondition is only prose at openspec/changes/trace-requirements-to-contracts/work-packages.yaml lines 384-390, while the machine-readable depends_on list at lines 394-396 includes only wp-gate and wp-matrix. The scheduler can dispatch wp-wiring before human tasks 4.1, 4.2, 4.2b, and 5.2 land, making the real-artifact RED demonstrations impossible or fixture-only despite the plan saying that is invalid.",
+      "resolution": "Represent the human artifacts as machine-readable dependencies or checkpoints, or split wp-wiring into an early wiring package and a later demonstration package that depends on explicit human-completed artifacts.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Critical: The malformed-input requirement at openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md lines 474-520 covers malformed contracts and traceability blocks, but not malformed, empty, schema-invalid, or unreadable traceability-exclusions.yaml files. D13 makes that file's existence the reverse opt-in switch, so an unreadable or unparsable switch artifact must fail closed rather than being treated as absent, empty, or reporting-only; task 3.4 at tasks.md lines 225-236 also lacks that RED case.",
+      "resolution": "Add a scenario and task coverage requiring a present-but-empty YAML file, malformed YAML, schema-invalid exclusions shape, and unreadable exclusions file to exit non-zero naming the file; only a valid empty list should mean 'opted in with no exclusions'.",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The wp-model refutation is supported by the repository evidence: generate_contract_schemas.py renders InterfaceDescriptor only at packages/gen-eval/scripts/generate_contract_schemas.py lines 80-90; InterfaceDescriptor reaches ServiceSpec/EndpointSpec/McpToolSpec/CommandSpec at descriptor.py lines 191-271, not FlagSpec/PositionalSpec/ToolCommandSpec or service_descriptor.OperationSpec. generate_tool_descriptor.py uses exclude_defaults=True on command, flag, and positional payloads at lines 118-137, so an optional traceability field with default None should not drift evaluation/descriptor.yaml until real traceability blocks are added and the human retrofit regenerates it.",
+      "resolution": "Keep wp-model's generated-artifact write scope narrow, but preserve the existing descriptor_identity verification step so this assumption is continuously checked.",
+      "disposition": "accept"
+    }
+  ]
+}

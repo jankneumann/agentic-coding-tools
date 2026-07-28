@@ -151,6 +151,37 @@ are implemented".
 
 ### D6 — Forward enforcement is opt-in per contract document, keyed on the block's presence
 
+**"Contract document" means a contract *instance*, and only that.** The term is
+load-bearing twice — forward opt-in is keyed on the document, and the
+missing-spec rule is keyed on a directory "containing contract documents" — so
+it is defined here rather than left to the reader. A contract document is a
+file under `openspec/contracts/<capability>/openapi/` or
+`openspec/contracts/<capability>/cli/`: the two locations `contracts/README.md`
+calls contract *instances*. Files under `schemas/` are contract **schemas**, not
+documents. The distinction is not bookkeeping — a schema describes what a valid
+instance looks like and has no operations, so there is nothing on it for a
+citation to attach to.
+
+This settles what would otherwise be an ambiguity with immediate consequences.
+Measured on 2026-07-28, `openspec/contracts/` holds 13 `*.schema.json` files
+against exactly two instances (`gen-eval-framework/cli/gen-eval.yaml`,
+`code-search/v2.yaml`). Under a reading where any file is a "contract
+document", `phase-record`, `project-context-refresh`, and `prototyping` — all
+schemas-only — would be capability directories "containing contract documents",
+and the missing-spec rule would fail all three. Under this definition they
+contain no contract documents at all and are simply out of scope, which is the
+correct answer for a directory of schemas.
+
+**A misplaced instance fails discovery rather than being skipped.** An
+instance-format document directly at the capability root, not under `openapi/`
+or `cli/`, SHALL fail naming the file and the expected location. This is not
+hypothetical: `code-search/v2.yaml` is a full OpenAPI 3.1 document at the
+capability root today, contrary to README's own layout table. A discovery walk
+keyed on the two directories would silently skip it, and silently skipping an
+OpenAPI document is precisely the invisible-surface failure this change
+exists to prevent — so the walk fails loudly instead, and fixing the layout
+becomes a task rather than a discovery gap.
+
 **Decision.** A contract document declaring a `traceability` block anywhere
 opts into strict **forward** enforcement across all of its operations. A
 document with no such block anywhere is recorded `untraced` and does not fail
@@ -360,10 +391,21 @@ enforces that today, and deletion is where interface debt accumulates unseen.
 **Decision.** Two run contexts, one gate, differing only in what they consider
 in scope:
 
-| Context | Scope | Blocking |
-|---|---|---|
-| `/validate-feature` | Operations and requirements the change touches | Yes |
-| CI on `main` (push-triggered, not scheduled — a scheduled run cannot block a merge) | Every capability, in full | Opted-in surfaces block (traced documents forward, exclusions-file capabilities reverse); the rest report |
+| Context | Trigger | Scope | Blocking |
+|---|---|---|---|
+| `/validate-feature` | local / pre-PR | Operations and requirements the change touches | Yes |
+| CI full sweep | `pull_request` | Every capability, in full | Opted-in surfaces block (traced documents forward, exclusions-file capabilities reverse); the rest report |
+| CI debt visibility | `push` on `main` | Every capability, in full | No — reports only |
+
+**Why the blocking sweep is `pull_request`-triggered.** An earlier draft ran the
+full sweep push-triggered on `main`, reasoning that a *scheduled* run cannot
+block a merge. That reasoning was right and the conclusion did not follow: a
+push event on `main` fires **after** the merge has landed, so it shares the
+defect it was chosen to avoid. It can red `main`; it cannot stop `main` going
+red. Only a check that runs on the merge candidate can block the merge, so the
+blocking sweep runs on `pull_request`. The push-on-`main` run is kept, with its
+honest purpose — making accumulated debt visible on the integration branch —
+and is explicitly non-blocking, so nothing depends on it to stop anything.
 
 **"Touches" is defined, not implied.** The touched set is: operations whose
 contract nodes changed in `git diff <merge-base>...HEAD` (node-level, not
@@ -373,6 +415,17 @@ requirements named by citations or exclusions the diff adds or changes. The
 REMOVED case is what couples requirement-removal to operation-removal. Change
 scope only ever *restricts* what the full evaluation enforces — it never
 enforces anything the sweep would not.
+
+**Flipping an opt-in switch widens the touched set to what it governs.** Adding
+a traceability block to a previously untraced document touches every operation
+in that document; adding a capability's exclusions file touches every
+requirement of that capability. Without this, the transition is invisible to a
+node-level diff — creating an exclusions file changes no requirement node at
+all, yet turns the whole capability's reverse direction blocking — and
+`/validate-feature` would pass on the exact change that flips the switch, with
+`main` reddening right after. This does not violate the restriction property
+above: the sweep already enforces these surfaces the moment the switch lands, so
+the change-scoped run is being made to agree with the sweep, not exceed it.
 
 **The scope inputs fail closed.** The merge base is
 `git merge-base <integration-branch> HEAD`, integration branch a parameter
@@ -460,6 +513,17 @@ two.
    reason, so the switch cannot be flipped without doing the work it
    certifies. The file is also the artifact D4 already needs a home for, so
    the design adds one artifact, not two.
+
+**An exclusions file may only excuse its own capability's requirements.** The
+schema permits any `<capability>.<slug>` shape, so the constraint is the gate's
+to enforce: an entry whose prefix is not the owning capability fails, naming
+both. Cross-capability *citations* stay permitted (D9) and the asymmetry is the
+point. A citation is additive — capability B can audit an operation in A that
+claims to serve B's requirement, and D9 reports those as a distinct list. An
+exclusion is subtractive: it discharges B's obligation from inside A's file,
+where B's owner will never look. That is D4's laundering path arriving from
+outside the capability, and it creates a state B cannot own — B's reverse
+completeness would depend on a file B does not control and cannot audit.
 
 **Why the requirement exclusions cannot live in a contract.** A requirement
 with no operation has, by construction, no operation to hang an exclusion on.

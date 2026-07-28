@@ -18,7 +18,7 @@
           "requirement": {
             "type": "string",
             "pattern": "^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*$",
-            "description": "The excluded requirement's identifier, `<capability>.<slug-of-heading>`. Usually this capability's own prefix; a cross-capability exclusion is permitted and appears in the cross-capability report."
+            "description": "The excluded requirement's identifier, `<capability>.<slug-of-heading>`. The capability prefix MUST be the owning capability — the one whose directory holds this file. A cross-capability exclusion fails the gate naming both capabilities. Cross-capability *citations* are permitted (D9), but exclusions are not, and the asymmetry is deliberate: a citation adds a claim the cited capability can audit, whereas an exclusion discharges an obligation that capability owns and cannot see. JSON Schema cannot express the constraint (the schema has no access to the file's own path), so it is enforced by the gate and stated here."
           },
           "reason": {
             "type": "string",

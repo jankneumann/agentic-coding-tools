@@ -168,6 +168,14 @@ packages:
         - "openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json"
         - "openspec/contracts/gen-eval-framework/schemas/traceability.schema.json"
         - "openspec/contracts/gen-eval-framework/schemas/traceability-exclusions.schema.json"
+        # Task 2.0's promotion adds two schemas under openspec/contracts/**,
+        # which is the input the `api.contracts` producer renders into this
+        # inventory — a count in the header ("_13 contract schema(s)._" today)
+        # plus one table row per schema. Promoting without regenerating leaves
+        # CI's context-drift-gate red as `blocking_drift`, and the staled file
+        # is absent from the diff by definition, so no reviewer sees it. Run
+        # `make context-refresh` in the same commit as the promotion.
+        - "docs/architecture-analysis/contracts-inventory.md"
       read_allow:
         - "**"
       deny:
@@ -205,6 +213,14 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["descriptor_identity"]
+        - name: "The contracts inventory was regenerated after the promotion"
+          kind: command
+          command: "make context-drift-gate"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["no_blocking_drift"]
     metadata:
       loc_estimate: 550
       complexity: medium
@@ -376,10 +392,14 @@ packages:
       Tasks 5.6-5.9. Wire the change-scoped gate into
       skills/validate-feature/SKILL.md (bare invocation, --scope change
       --change <id>, non-zero exit fails validation) with skill tests per the
-      skill-workflow delta; wire the full-capability sweep into ci.yml on
-      main (push-triggered, bare invocation, fetch-depth: 0 if a merge base
-      is computed); update packages/gen-eval/README.md with the four-edge
-      chain and the D5 non-claim; refresh DOWNSTREAM.md.
+      skill-workflow delta; wire the full-capability sweep into ci.yml as a
+      `pull_request` job (blocking, bare invocation, fetch-depth: 0 since a
+      merge base is computed) plus a non-blocking `push`-on-main job for debt
+      visibility — a push job alone runs after the merge and cannot block it
+      (D12); register `tests/validate-feature` in skills/pyproject.toml
+      `testpaths`, without which the new skill tests never run in CI; update
+      packages/gen-eval/README.md with the four-edge chain and the D5
+      non-claim; refresh DOWNSTREAM.md.
 
       DISPATCH PRECONDITION: do not dispatch before the human-led tasks 4.1,
       4.2, and 4.2b have landed — the RED demonstrations for 5.6 and 5.7
@@ -388,6 +408,16 @@ packages:
       document). Wiring dispatched earlier can only be demonstrated against
       fixtures, which is exactly the mirror-verification this change exists
       to end.
+
+      This precondition is ENFORCED, not merely stated: the first verification
+      step below fails when the human-authored artifacts are absent. The
+      schema has no "do not dispatch" field and `depends_on` accepts only
+      package ids, so a precondition on non-package work cannot be expressed
+      in the DAG — an orchestrator executing strictly by `depends_on` would
+      dispatch this package the moment wp-gate and wp-matrix finish. Run
+      `preflight: human citations have landed` FIRST, before any edit; if it
+      fails, stop and report the precondition rather than proceeding against
+      fixtures.
     role: python-engineer
     archetype: implementer
     priority: 5
@@ -402,6 +432,11 @@ packages:
       write_allow:
         - "skills/validate-feature/SKILL.md"
         - "skills/tests/validate-feature/**"
+        # Registers tests/validate-feature in `testpaths`. Without this the
+        # suite the skill-workflow delta demands is invisible to CI's bare
+        # `uv run pytest`, and the requirement would be satisfied by tests
+        # that never run — the same failure shape as a gate that cannot fail.
+        - "skills/pyproject.toml"
         - ".github/workflows/ci.yml"
         - "packages/gen-eval/README.md"
         - "packages/gen-eval/DOWNSTREAM.md"
@@ -419,6 +454,16 @@ packages:
     verification:
       tier_required: B
       steps:
+        - name: "preflight: human citations have landed"
+          kind: command
+          command: >-
+            test -f openspec/contracts/gen-eval-framework/traceability-exclusions.yaml
+            && grep -q 'traceability:' openspec/contracts/gen-eval-framework/cli/gen-eval.yaml
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["human_precondition"]
         - name: "validate-feature skill tests cover the gate wiring"
           kind: command
           command: "skills/.venv/bin/python -m pytest skills/tests/validate-feature -q"
@@ -427,6 +472,14 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["wiring_tests"]
+        - name: "the wiring tests are visible to CI's default sweep"
+          kind: command
+          command: "grep -q '\"tests/validate-feature\"' skills/pyproject.toml"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["testpaths_registered"]
     metadata:
       loc_estimate: 250
       complexity: medium
