@@ -173,7 +173,7 @@ requires `report.verdict == "pass"`. See design D11.
       injectable and falls back to unnormalized globs at `:934-938`. A degraded
       adapter must be an `apparatus_failure`, never a silent pass.
 
-- [ ] 3.6 Implement the utility scorer — `answer_coverage`, `evidence_density`,
+- [x] 3.6 Implement the utility scorer — `answer_coverage`, `evidence_density`,
       `steps_to_evidence` (censored, never null), per consumer
       **Spec scenarios**: `sce` — Coding-context utility measurement / Missing evidence is censored, not null; `sce` — Coding-context utility measurement / No consumer may regress
       **Contracts**: `contracts/schemas/context-eval-report.schema.json`
