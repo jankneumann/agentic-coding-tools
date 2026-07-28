@@ -309,7 +309,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Dependencies**: 5.4
       **Size**: S
 
-- [ ] 5.6 Reconcile `openspec/specs/code-search/spec.md` via the MODIFIED delta,
+- [x] 5.6 Reconcile `openspec/specs/code-search/spec.md` via the MODIFIED delta,
       and update `docs/guides/code-search.md:380-386`,
       `docs/guides/semantic-context-injection.md`, and
       `docs/decisions/code-search.md:232` to the durable procedure
@@ -319,7 +319,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Dependencies**: 5.1
       **Size**: M
 
-- [ ] 5.7 Create `docs/evaluation/semantic-context/README.md` — the durable
+- [x] 5.7 Create `docs/evaluation/semantic-context/README.md` — the durable
       report location, how to reproduce, and what each exit code means
       **Spec scenarios**: `sce` — Evaluation report record / The report has a durable home
       **Contracts**: none
