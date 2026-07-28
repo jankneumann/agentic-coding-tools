@@ -113,7 +113,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Dependencies**: 2.4
       **Size**: M
 
-- [ ] 2.6 Checkpoint: run tests, review diff, verify scope
+- [x] 2.6 Checkpoint: run tests, review diff, verify scope
 
 ---
 
