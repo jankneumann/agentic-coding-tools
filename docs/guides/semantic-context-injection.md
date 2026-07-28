@@ -138,6 +138,9 @@ Enablement is gated on evidence, and the evidence has one durable home:
   evaluation that could not be taken is a `fail` with an explicit reason.
 - **There is no report yet.** Absent is the fail-closed default state. The gate
   therefore requires the default to stay `False`.
+- **The check is `make semantic-enablement-gate`**, blocking in CI. It compares
+  the declared default against the report and names every condition it finds
+  unmet. A disabled default passes because it claims nothing.
 - **Evidence expires.** A changed corpus or threshold, a changed harness version,
   a changed embedding fingerprint, an index revision unreachable from the tree
   under test, a schema-invalid report, or a non-passing verdict each make an

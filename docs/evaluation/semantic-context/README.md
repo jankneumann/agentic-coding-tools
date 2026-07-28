@@ -128,6 +128,41 @@ per-request fallbacks cannot see: ri-12 already fails closed for every non-ready
 service state, but it cannot notice that the *justification* for enablement has
 gone stale.
 
+### Running the check
+
+```bash
+make semantic-enablement-gate
+# optionally, the JSON EmbeddingContract the tree is configured with:
+make semantic-enablement-gate EMBEDDING_CONTRACT=/path/to/contract.json
+```
+
+It compares the single `INJECTION_DEFAULT_ENABLED` declaration in
+`skills/context-engineering/scripts/semantic_context.py` against the report
+above, and names every condition it finds unmet. Its exit codes are the
+harness's, read against this question:
+
+| Code | Meaning |
+|---|---|
+| `0` | Authorized — or nothing is claimed, because the default is disabled. |
+| `1` | The gate could not read what it needed to decide. |
+| `2` | The evidence is current and schema-valid, and its verdict is not a `pass`. |
+| `3` | The evidence is absent or has expired. |
+
+**A disabled default passes, and that is the mechanism, not a loophole.** A
+default that claims nothing needs no evidence, so disabling it always restores
+the check to passing — which is exactly what "stale evidence withdraws
+authorization" has to mean if it is to have a remedy. The corollary is that this
+gate is correctly green on a tree where nobody enabled anything and cannot be
+watched failing there; `packages/context-eval/tests/test_enablement_gate_mutation.py`
+is the substitute, constructing an enabled default against a report that is
+absent, stale by each condition above, failing, and schema-invalid, and asserting
+a non-zero exit for each.
+
+Without `EMBEDDING_CONTRACT` the embedding fingerprint has nothing to be compared
+against, and that is an unmet condition rather than a skipped one: an unchecked
+fingerprint is not a matching one. It is optional only because the default is
+off.
+
 ## What this supersedes
 
 [`openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/spike-report.md:9-19`](../../../openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/spike-report.md)
