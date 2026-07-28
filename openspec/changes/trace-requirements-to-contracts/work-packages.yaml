@@ -3,17 +3,18 @@ schema_version: 1
 feature:
   id: trace-requirements-to-contracts
   title: "Requirement-to-contract traceability with bidirectional completeness"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude-autopilot
   created_at: "2026-07-26T00:00:00Z"
 
 contracts:
-  revision: 1
+  revision: 2
   openapi:
-    primary: "openspec/changes/trace-requirements-to-contracts/contracts/README.md"
+    primary: "openspec/changes/trace-requirements-to-contracts/contracts/traceability.schema.json"
     files:
-      - "openspec/changes/trace-requirements-to-contracts/contracts/README.md"
       - "openspec/changes/trace-requirements-to-contracts/contracts/traceability.schema.json"
+      - "openspec/changes/trace-requirements-to-contracts/contracts/traceability-exclusions.schema.json"
+      - "openspec/changes/trace-requirements-to-contracts/contracts/README.md"
 
 defaults:
   priority: 5
@@ -24,21 +25,35 @@ defaults:
   min_trust_level: 2
 
 packages:
-  # The three packages are sequential by construction, not by preference.
-  # wp-model cannot parse citations before wp-resolver can turn a heading into
-  # an id, and wp-gate cannot check completeness before both sides exist. The
-  # DAG is a chain because the dependency is real; splitting it for parallelism
-  # would mean two agents inventing the same identifier format independently.
+  # wp-resolver -> wp-model -> wp-gate is sequential by construction, not by
+  # preference: wp-model cannot parse citations before wp-resolver can turn a
+  # heading into an id, and wp-gate cannot check completeness before both
+  # sides exist. The chain shares one file (traceability.py) and one lock key;
+  # splitting it for parallelism would mean two agents inventing the same
+  # identifier format independently. wp-matrix and wp-wiring hang off wp-gate.
+  #
+  # Worktree mode is `shared` on the chain deliberately: three isolated
+  # worktrees on a zero-parallelism chain are two extra merges on the same
+  # file for zero concurrency. Scope discipline is enforced by write_allow
+  # regardless of worktree mode.
   - package_id: wp-resolver
     title: "Requirement identifiers and the resolver"
     task_type: implementation
     description: |
-      Tasks 1.1-1.5. Derive stable identifiers from spec headings, resolve a
-      citation to a requirement, and build the effective requirement set —
-      archived specs shadowed by the active change's delta. Fails closed on an
-      unknown id.
+      Tasks 1.1-1.5. Derive stable identifiers from spec headings under D2's
+      normative slug algorithm (collisions fail closed), resolve a citation to
+      a requirement, and build the effective requirement set — archived specs
+      shadowed by the active change's delta, including RENAMED sections
+      (ignoring them fails open). Fails closed on an unknown id.
 
-      Drive the repository's real specs, not a fixture. A fixture authored
+      Specs and changes roots are constructor/CLI parameters, not hardcoded
+      repo-relative hops — tests inject tmp_path roots (the REMOVED and
+      RENAMED cases have no real instance in the repository), and downstream
+      consumers install gen_eval where openspec/ does not exist.
+
+      Drive the repository's real specs wherever real data exists: the
+      derivation test covers EVERY openspec/specs/*/spec.md and asserts each
+      derived id matches the schema's citation pattern. A fixture authored
       alongside the resolver agrees with whatever the resolver does; only the
       existing specs can disagree with it.
 
@@ -59,15 +74,15 @@ packages:
         - "packages/gen-eval/src/gen_eval/traceability.py"
         - "packages/gen-eval/tests/test_requirement_resolver.py"
         - "packages/gen-eval/tests/test_effective_spec_set.py"
+        - "packages/gen-eval/tests/fixtures/traceability/**"
       read_allow:
         - "**"
       deny:
         - "agent-coordinator/**"
-        - "openspec/specs/**"
     worktree:
       name: trace-resolver
-      mode: isolated
-    timeout_minutes: 120
+      mode: shared
+    timeout_minutes: 180
     retry_budget: 2
     min_trust_level: 2
     verification:
@@ -75,12 +90,20 @@ packages:
       steps:
         - name: "Resolver derives ids from the repository's own specs"
           kind: command
-          command: "uv run pytest tests/test_requirement_resolver.py tests/test_effective_spec_set.py -q"
+          command: "uv run pytest tests/test_requirement_resolver.py tests/test_effective_spec_set.py -q -m 'not e2e and not integration'"
           cwd: "packages/gen-eval"
           expect_exit_code: 0
           evidence:
             artifacts: []
             result_keys: ["resolver_tests"]
+        - name: "No regression in the existing suite"
+          kind: command
+          command: "uv run pytest -q -m 'not e2e and not integration'"
+          cwd: "packages/gen-eval"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["resolver_regression"]
     metadata:
       loc_estimate: 550
       complexity: medium
@@ -92,15 +115,33 @@ packages:
         - "openspec/specs/agent-coordinator/spec.md"
         - "openspec/specs/gen-eval-framework/spec.md"
     outputs:
-      result_keys: ["resolver_tests"]
+      result_keys: ["resolver_tests", "resolver_regression"]
 
   - package_id: wp-model
     title: "Traceability blocks on both contract archetypes"
     task_type: implementation
     description: |
-      Tasks 2.1-2.5. Parse `x-traceability` on OpenAPI operations and
-      `traceability` on CLI contract flags and commands into one model, then
-      resolve the citations.
+      Tasks 2.0-2.5. First extend and promote the schemas (2.0):
+      cli-contract.schema.json sets additionalProperties: false at command,
+      flag, and positional levels, so `traceability:` is rejected today and
+      ToolCommandSpec(**c) silently drops it — without 2.0, task 4.2's
+      citations have no legal home. Promote traceability.schema.json and
+      traceability-exclusions.schema.json to
+      openspec/contracts/gen-eval-framework/schemas/ with rewritten $id and
+      a loads-the-promoted-copy test, per the contracts/README.md Promotion
+      section.
+
+      Then parse `x-traceability` on OpenAPI operations and `traceability` on
+      CLI contract flags and commands into one model, and resolve the
+      citations. The traceability field goes on the ARCHETYPE-ONLY models
+      (FlagSpec, PositionalSpec, ToolCommandSpec, OperationSpec) with an
+      absent default. It MUST NOT go on ServiceSpec, EndpointSpec,
+      CommandSpec, or McpToolSpec — those are reachable from
+      InterfaceDescriptor and would drift interface-descriptor.schema.json,
+      which generate_contract_schemas.py --check (ci.yml:411) fails on and
+      this package cannot regenerate. The absent default is what keeps
+      evaluation/descriptor.yaml byte-identical under exclude_defaults=True
+      (ci.yml:431).
 
       Task 2.3 is the load-bearing negative: an operation whose name and path
       almost exactly match a requirement heading must still cite nothing.
@@ -122,23 +163,27 @@ packages:
         - "packages/gen-eval/src/gen_eval/service_descriptor.py"
         - "packages/gen-eval/tests/test_traceability_model.py"
         - "packages/gen-eval/tests/test_no_inference.py"
+        - "packages/gen-eval/tests/test_cli_contract_schema.py"
+        - "packages/gen-eval/tests/fixtures/traceability/**"
+        - "openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json"
+        - "openspec/contracts/gen-eval-framework/schemas/traceability.schema.json"
+        - "openspec/contracts/gen-eval-framework/schemas/traceability-exclusions.schema.json"
       read_allow:
         - "**"
       deny:
         - "agent-coordinator/**"
-        - "openspec/specs/**"
     worktree:
       name: trace-model
-      mode: isolated
-    timeout_minutes: 120
+      mode: shared
+    timeout_minutes: 180
     retry_budget: 2
     min_trust_level: 2
     verification:
       tier_required: B
       steps:
-        - name: "Traceability parsing and the no-inference guard"
+        - name: "Traceability parsing, the no-inference guard, and the schema extension"
           kind: command
-          command: "uv run pytest tests/test_traceability_model.py tests/test_no_inference.py -q"
+          command: "uv run pytest tests/test_traceability_model.py tests/test_no_inference.py tests/test_cli_contract_schema.py -q -m 'not e2e and not integration'"
           cwd: "packages/gen-eval"
           expect_exit_code: 0
           evidence:
@@ -152,30 +197,54 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["regression_suite"]
+        - name: "Descriptor byte-identity gates stay green"
+          kind: command
+          command: "uv run python scripts/generate_contract_schemas.py --check && uv run python scripts/generate_tool_descriptor.py --check"
+          cwd: "packages/gen-eval"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["descriptor_identity"]
     metadata:
-      loc_estimate: 450
+      loc_estimate: 550
       complexity: medium
       package_kind: algorithm
     inputs:
       roadmap_dependencies: []
       contracts:
         - "openspec/changes/trace-requirements-to-contracts/contracts/traceability.schema.json"
+        - "openspec/changes/trace-requirements-to-contracts/contracts/traceability-exclusions.schema.json"
     outputs:
-      result_keys: ["model_tests", "regression_suite"]
+      result_keys: ["model_tests", "regression_suite", "descriptor_identity"]
 
   - package_id: wp-gate
     title: "Bidirectional completeness gate"
     task_type: implementation
     description: |
-      Tasks 3.1-3.14. Forward and reverse completeness, exclusions with
-      reasons, opt-in enforcement, concentration reporting, capability-scoped
-      evaluation, cross-capability citations, change-scoped vs full-sweep runs,
-      and the wording constraint that the output never claims satisfaction.
+      Tasks 3.1-3.16. Forward and reverse completeness, exclusions with
+      reasons on both sides (operation exclusions in-contract, requirement
+      exclusions in the capability's traceability-exclusions.yaml), the two
+      opt-in switches (D6 forward per document, D13 reverse per capability),
+      malformed-input fail-closed behavior, deterministic concentration
+      reporting, capability-scoped evaluation, cross-capability citations
+      (including reverse-direction credit), change-scoped vs full-sweep runs
+      with fail-closed scope inputs, and the pinned output wording.
 
-      Every check must be demonstrated to FAIL on an unmodified tree before the
-      work that makes it pass. A gate observed only to pass is decoration.
+      Every check must be demonstrated to FAIL per the tasks.md RED protocol
+      before the work that makes it pass. A gate observed only to pass is
+      decoration.
 
-      One script with a `--scope` argument, not two. Two would drift, and the
+      check_traceability.py takes --contracts-root, --specs-root,
+      --changes-root, --repo-root, and --base-ref with repo-relative defaults
+      (the shape of check_coverage_completeness.py's --report/--exclusions).
+      All fixtures are built under tmp_path via those roots — this package
+      cannot and must not write under openspec/contracts/**.
+
+      Test file mapping: test_traceability_gate.py <- 3.1-3.6;
+      test_traceability_wording.py <- 3.8; test_capability_scope.py <- 3.9,
+      3.11, 3.13; test_change_scope.py <- 3.15. No fifth file.
+
+      One script with a --scope argument, not two. Two would drift, and the
       drift would be invisible because each is only ever run in one context.
     role: python-engineer
     archetype: implementer
@@ -192,16 +261,17 @@ packages:
         - "packages/gen-eval/tests/test_traceability_gate.py"
         - "packages/gen-eval/tests/test_traceability_wording.py"
         - "packages/gen-eval/tests/test_capability_scope.py"
+        - "packages/gen-eval/tests/test_change_scope.py"
+        - "packages/gen-eval/tests/fixtures/traceability/**"
       read_allow:
         - "**"
       deny:
         - "agent-coordinator/**"
-        - "openspec/specs/**"
         - "openspec/contracts/**"
     worktree:
       name: trace-gate
-      mode: isolated
-    timeout_minutes: 120
+      mode: shared
+    timeout_minutes: 240
     retry_budget: 2
     min_trust_level: 2
     verification:
@@ -209,27 +279,172 @@ packages:
       steps:
         - name: "Gate tests, including every failure path"
           kind: command
-          command: "uv run pytest tests/test_traceability_gate.py tests/test_traceability_wording.py tests/test_capability_scope.py -q"
+          command: "uv run pytest tests/test_traceability_gate.py tests/test_traceability_wording.py tests/test_capability_scope.py tests/test_change_scope.py -q -m 'not e2e and not integration'"
           cwd: "packages/gen-eval"
           expect_exit_code: 0
           evidence:
             artifacts: []
             result_keys: ["gate_tests"]
+        - name: "No regression in the existing suite"
+          kind: command
+          command: "uv run pytest -q -m 'not e2e and not integration'"
+          cwd: "packages/gen-eval"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["gate_regression"]
+        - name: "Lint the new script and tests"
+          kind: command
+          command: "uv run ruff check src/ tests/ scripts/"
+          cwd: "packages/gen-eval"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["gate_lint"]
     metadata:
-      loc_estimate: 850
+      loc_estimate: 1000
       complexity: medium
       package_kind: algorithm
     inputs:
       roadmap_dependencies: []
       contracts: []
     outputs:
-      result_keys: ["gate_tests"]
+      result_keys: ["gate_tests", "gate_regression", "gate_lint"]
 
-  # Phases 4 and 5 are NOT work packages. They are authoring tasks — deciding
-  # which requirement each operation serves — and dispatching them to an agent
-  # would produce exactly the plausible-looking mapping D1 forbids. The gate
-  # cannot tell a considered citation from a guessed one, so the citations must
-  # be written by someone who knows why the operation exists.
+  - package_id: wp-matrix
+    title: "Generated Contract Ref column"
+    task_type: implementation
+    description: |
+      Tasks 5.4-5.5. Tests first, against the current hand-filled matrix —
+      they must FAIL there, which is the point: the Contract Ref column has
+      never been checked against anything. Then generate the column from
+      citations, joining matrix rows to citations by parse position of the
+      same spec parse (D8) — never by name similarity, and never changing the
+      ordinal Req ID format. Update skills/implement-feature/SKILL.md in the
+      same commit so the hand-fill instruction does not survive alongside the
+      generator.
+    role: python-engineer
+    archetype: implementer
+    priority: 4
+    depends_on:
+      - wp-gate
+    locks:
+      files: []
+      keys:
+        - "feature:gen-eval:traceability"
+    scope:
+      write_allow:
+        - "packages/gen-eval/scripts/generate_contract_refs.py"
+        - "packages/gen-eval/tests/test_contract_ref_generation.py"
+        - "skills/implement-feature/SKILL.md"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "openspec/contracts/**"
+    worktree:
+      name: trace-matrix
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Contract Ref generation tests"
+          kind: command
+          command: "uv run pytest tests/test_contract_ref_generation.py -q -m 'not e2e and not integration'"
+          cwd: "packages/gen-eval"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["matrix_tests"]
+    metadata:
+      loc_estimate: 350
+      complexity: medium
+      package_kind: algorithm
+    inputs:
+      roadmap_dependencies: []
+      contracts: []
+    outputs:
+      result_keys: ["matrix_tests"]
+
+  - package_id: wp-wiring
+    title: "Skill and CI wiring for both run contexts"
+    task_type: implementation
+    description: |
+      Tasks 5.6-5.9. Wire the change-scoped gate into
+      skills/validate-feature/SKILL.md (bare invocation, --scope change
+      --change <id>, non-zero exit fails validation) with skill tests per the
+      skill-workflow delta; wire the full-capability sweep into ci.yml on
+      main (push-triggered, bare invocation, fetch-depth: 0 if a merge base
+      is computed); update packages/gen-eval/README.md with the four-edge
+      chain and the D5 non-claim; refresh DOWNSTREAM.md.
+
+      DISPATCH PRECONDITION: do not dispatch before the human-led tasks 4.1,
+      4.2, and 4.2b have landed — the RED demonstrations for 5.6 and 5.7
+      mutate the real gen-eval artifacts those tasks author (and the 5.7
+      sweep demonstration additionally wants 5.2's opted-in coordinator
+      document). Wiring dispatched earlier can only be demonstrated against
+      fixtures, which is exactly the mirror-verification this change exists
+      to end.
+    role: python-engineer
+    archetype: implementer
+    priority: 5
+    depends_on:
+      - wp-gate
+      - wp-matrix
+    locks:
+      files: []
+      keys:
+        - "feature:gen-eval:traceability"
+    scope:
+      write_allow:
+        - "skills/validate-feature/SKILL.md"
+        - "skills/tests/validate-feature/**"
+        - ".github/workflows/ci.yml"
+        - "packages/gen-eval/README.md"
+        - "packages/gen-eval/DOWNSTREAM.md"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "openspec/contracts/**"
+    worktree:
+      name: trace-wiring
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "validate-feature skill tests cover the gate wiring"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/validate-feature -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["wiring_tests"]
+    metadata:
+      loc_estimate: 250
+      complexity: medium
+      package_kind: integration
+    inputs:
+      roadmap_dependencies: []
+      contracts: []
+    outputs:
+      result_keys: ["wiring_tests"]
+
+  # Tasks 4.1, 4.2, 4.2b, 5.1, 5.2, and 5.3 are NOT work packages. They are
+  # authoring tasks — deciding which requirement each operation serves — and
+  # dispatching them to an agent would produce exactly the plausible-looking
+  # mapping D1 forbids. The gate cannot tell a considered citation from a
+  # guessed one, so the citations must be written by someone who knows why
+  # the operation exists. They are tagged [human] in tasks.md.
   #
-  # wp-retrofit and wp-coordinator are therefore sequential human-led work
-  # against the landed gate, tracked in tasks.md, not scheduled here.
+  # Task 4.3 (the scripted RED demonstration against the real artifacts) runs
+  # with the phase-4 human work, immediately after 4.2b, and is deliberately
+  # kept out of the packages too: its whole value is that a person watches
+  # the real gate fail on the real contract.

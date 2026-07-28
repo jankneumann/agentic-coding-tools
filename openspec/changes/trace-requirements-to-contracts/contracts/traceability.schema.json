@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools/schemas/traceability.schema.json",
   "title": "Requirement traceability block",
-  "description": "Citations from a contracted operation to the requirements it exists to serve, and exclusions for operations and requirements that legitimately have no counterpart. Written by the contract author; never inferred (design D1). Carried as `x-traceability` on an OpenAPI operation and as `traceability` on a CLI contract flag, positional, or command.",
+  "description": "Citations from a contracted operation to the requirements it exists to serve, and exclusions for operations that legitimately serve none. Operation-side only: requirement-side exclusions live in the capability's traceability-exclusions.yaml (see traceability-exclusions.schema.json), whose existence is also the reverse-enforcement opt-in (design D13). Written by the contract author; never inferred (design D1). Carried as `x-traceability` on an OpenAPI operation and as `traceability` on a CLI contract flag, positional, or command.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

@@ -45,6 +45,22 @@ is one human decision per operation, and the decision is the artifact.
 requirements by reading `openspec/specs/<capability>/spec.md`. A citation naming
 an id that resolves to nothing **fails**.
 
+**The slug algorithm is normative, not an implementation detail:** NFKD
+normalize and drop non-ASCII marks, lowercase, replace each run of characters
+outside `[a-z0-9]` with a single `-`, collapse, strip leading and trailing
+`-`. It has to be written down because real headings in this repository start
+with backticks and contain em-dashes — under a naive rule they derive ids the
+contract schema's pattern rejects, making those requirements permanently
+uncitable, and the only remedy would be a false exclusion.
+
+**Collisions fail closed.** Two headings in one capability deriving the same
+slug fail the resolver naming both. An undetected collision is worse than a
+broken citation: a citation to the shared id marks *both* requirements cited,
+and one of them becomes invisible to reverse completeness — the direction
+nothing else detects — with no signal. Zero collisions exist across the 29
+capability specs today (632 headings checked), which is exactly why the check
+is cheap to add now and expensive to discover later.
+
 **Why derived rather than declared.** OpenSpec requirements have headings, not
 ids, and adding an `id:` field is a change to a shared external tool on someone
 else's schedule (proposal approach C). Deriving works today and becomes a thin
@@ -58,7 +74,12 @@ through the back door. A broken citation is a two-minute fix and an accurate
 signal that the requirement changed.
 
 **Consequence.** The gate's error message must name both the unresolved id and
-the candidate headings, or the two-minute fix becomes a twenty-minute hunt.
+the nearest candidate headings — bounded to five, ranked by edit distance —
+or the two-minute fix becomes a twenty-minute hunt. Bounding matters at this
+repository's scale (`skill-workflow` has 208 requirement headings; a
+capability-wide rename would otherwise print failures × headings). Ranking is
+for display only and is not rebinding: stated here so a later reader does not
+mistake the candidate list for the inference D1 forbids and remove it.
 
 ---
 
@@ -128,20 +149,32 @@ are implemented".
 
 ---
 
-### D6 — Enforcement is opt-in per contract, keyed on the block's presence
+### D6 — Forward enforcement is opt-in per contract document, keyed on the block's presence
 
-**Decision.** A contract declaring a `traceability` block anywhere opts into
-strict enforcement across all its operations. A contract with no such block
-anywhere is recorded `untraced` and does not fail.
+**Decision.** A contract document declaring a `traceability` block anywhere
+opts into strict **forward** enforcement across all of its operations. A
+document with no such block anywhere is recorded `untraced` and does not fail
+forward completeness. The reverse direction has its own, separate switch —
+D13 — because it is a different claim with a different owner.
 
 **Why.** The ri-08 context-impact gate pattern, chosen for the same reason:
 enforcement keyed on whether the block exists is one-way. Declaring it commits
-the whole contract, so nobody gets a half-traced contract that reports green
+the whole document, so nobody gets a half-traced document that reports green
 while most of it is unattributed. Omitting it is visible in the report rather
 than silent.
 
+**Why the unit is the document, not the capability.** An earlier draft said
+"opts the capability in", and that reading collides head-on with D10's staging
+path: if opting `locks.yaml` in opted in `agent-coordinator`, every other
+coordinator document would immediately be enforced, which is the trace-all-82
+cliff splitting exists to avoid. The document is the unit an author can
+honestly commit; the capability is the unit completeness is *evaluated* over
+(D10). In the mixed capability — one traced document, one untraced — the
+traced document is enforced, the untraced one is recorded, and the traced
+document's citations still count toward the capability's reverse completeness.
+
 It also makes the coordinator tractable. Its contract can land `untraced` and
-tighten per subsystem, instead of blocking on 82 decisions before anything ships.
+tighten per document, instead of blocking on 82 decisions before anything ships.
 
 **Rejected: a percentage threshold.** "70% of operations traced" is the metric
 D11 already rejected one level down, for the reason that applies here with more
@@ -163,6 +196,18 @@ and "someone is box-ticking" is a judgement, and encoding it as a number would
 fail honest contracts while a determined box-ticker just spreads citations over
 two requirements instead of one. Surfacing it puts the judgement where it
 belongs — with the reviewer — and costs nothing when it is a false alarm.
+
+**The output is deterministic even though the judgement is not.** The gate
+emits, per cited requirement, the count and share of the capability's traced
+operations citing it, descending, and marks entries at or above a named module
+constant (`CONCENTRATION_REPORT_SHARE`) as concentrated. The constant is a
+display trigger, documented as such: changing it can never change an exit code.
+Without a defined trigger, the test for concentration (task 3.9) would have to
+assert whatever the implementation happens to flag — the implementation
+verifying a mirror of itself, which is the exact defect class this change
+exists to eliminate. The denominator is the capability's traced operations,
+not one document's, or splitting a contract (D10's staging mechanism) would
+dilute the share and defeat the report.
 
 This is the one place the change deliberately reports rather than gates, and the
 reason is that the failure it detects is a social one, not a structural one.
@@ -186,6 +231,16 @@ indistinguishable from a correct one at a glance.
 **Consequence.** The matrix stops being a place to record a mapping and becomes
 a view of one. The mapping lives in the contract, next to the operation it
 describes, where the person making the decision is already looking.
+
+**The join is by parse position, never by name.** The matrix keys rows by the
+ordinal Req ID (`<capability>.<N>`, per skill-workflow's existing spec) while
+citations key by the derived slug id. The generator derives both from the same
+parse of the spec delta, so a row and its citations are joined by position in
+that one parse. Re-matching by name similarity is forbidden — it would be D1's
+inference at the matrix layer. The ordinal format itself is left alone in this
+change: it is the matrix's row key, its rebinding-on-insertion weakness is
+pre-existing, and replacing it belongs to a skill-workflow change, not this
+one.
 
 ---
 
@@ -217,7 +272,9 @@ value is that someone sees it.
 
 **Decision.** A run gathers every contract that cites into a capability, unions
 their citations, and checks completeness against that capability's requirement
-set. Opt-in (D6) is likewise per capability.
+set. The capability is the unit of **evaluation** only — forward opt-in stays
+per contract document (D6), and reverse opt-in is per capability via the
+exclusions file (D13).
 
 **Why.** D9 makes per-contract reverse completeness incorrect, not merely
 inconvenient: a requirement served by an operation in another capability's
@@ -232,11 +289,22 @@ without weakening the gate.
 capability-level check still sees the union.
 
 That resolves a tension D6 would otherwise create. D6 makes opt-in commit a
-whole contract, deliberately — a half-traced contract reporting green is the
-failure it exists to prevent. But the coordinator is one contract with 82
-operations, so contract-level totality would mean tracing all 82 before any of
-it counts. Splitting the document is the staging mechanism; lowering D6's bar is
-not.
+whole contract document, deliberately — a half-traced document reporting green
+is the failure it exists to prevent. But the coordinator is one document with
+82 operations, so document-level totality on a single file would mean tracing
+all 82 before any of it counts. Splitting the document is the staging
+mechanism; lowering D6's bar is not.
+
+**What splitting stages — and what it does not.** Splitting stages the
+*forward* direction only: each document's operations are enforced as that
+document opts in. It does nothing for the reverse direction, because "every
+requirement of this capability is served or excused" is a claim about the
+whole capability that no single document can make. The reverse direction's
+staging is D13's separate switch — a capability enforces reverse completeness
+only once its requirement set has actually been triaged. An earlier draft
+claimed the split "costs nothing in rigour" without noticing this asymmetry;
+the split costs nothing in *forward* rigour, and the reverse direction was
+never split-stageable in the first place.
 
 ---
 
@@ -244,9 +312,19 @@ not.
 
 **Decision.** Resolution reads `openspec/specs/<capability>/spec.md`, with the
 active change's `specs/` delta shadowing it: `ADDED` requirements appear,
-`MODIFIED` replace their archived version, `REMOVED` disappear. Requirements
-belonging to **other** in-flight changes are not in the universe — they can be
-neither cited nor excluded.
+`MODIFIED` replace their archived version, `REMOVED` disappear, and `RENAMED`
+requirements resolve under the new identifier only. Requirements belonging to
+**other** in-flight changes are not in the universe — they can be neither
+cited nor excluded.
+
+**RENAMED is not optional.** OpenSpec emits `## RENAMED Requirements` sections
+and this repository's own delta parser handles them (`openspec_merge.py`). A
+resolver that ignored them would fail *open* in both directions at once: the
+old identifier keeps resolving out of the archive, so a stale citation passes
+— the exact silent rebinding D2 forbids — while the new identifier resolves to
+nothing, so a correctly updated citation fails. A `MODIFIED` block that
+rewords its heading is the same case and gets the same treatment: the old id
+stops resolving, the new one starts.
 
 **Why the active change must shadow.** Every requirement a change adds lives
 only in its own delta until archive. If resolution read the archive alone, every
@@ -285,7 +363,28 @@ in scope:
 | Context | Scope | Blocking |
 |---|---|---|
 | `/validate-feature` | Operations and requirements the change touches | Yes |
-| CI on `main` | Every capability, in full | Opted-in capabilities block; untraced ones report |
+| CI on `main` (push-triggered, not scheduled — a scheduled run cannot block a merge) | Every capability, in full | Opted-in surfaces block (traced documents forward, exclusions-file capabilities reverse); the rest report |
+
+**"Touches" is defined, not implied.** The touched set is: operations whose
+contract nodes changed in `git diff <merge-base>...HEAD` (node-level, not
+file-level — two operations in one file are distinguishable); requirements
+ADDED, MODIFIED, REMOVED, or RENAMED in the active change's spec delta; and
+requirements named by citations or exclusions the diff adds or changes. The
+REMOVED case is what couples requirement-removal to operation-removal. Change
+scope only ever *restricts* what the full evaluation enforces — it never
+enforces anything the sweep would not.
+
+**The scope inputs fail closed.** The merge base is
+`git merge-base <integration-branch> HEAD`, integration branch a parameter
+defaulting to `main`; the active change is an explicit `--change <id>`
+argument (there are ~34 change directories on disk — inference would guess).
+An unresolvable merge base or missing change id is an **error**, never an
+empty scope: a blocking gate that evaluates nothing while exiting zero is the
+unfalsifiable-green artifact this change exists to eliminate. This repository
+has already been bitten by the shallow-clone variant of exactly this
+(`ci.yml`'s `fetch-depth: 0` comment), so the CI wiring task inherits that
+requirement, and the resolver should reuse the existing
+`resolve_merge_base` shape rather than growing a third implementation.
 
 **Why the validation run must be diff-scoped.** A validation run checking the
 full archived set would block every change to `agent-coordinator` on 47
@@ -303,22 +402,76 @@ accumulated gaps — the 47 would stay invisible indefinitely, because no change
 touches them. The main-branch sweep is what makes existing debt visible without
 blocking anyone.
 
-**The reporting-to-blocking transition needs no new mechanism, and must not get
-one.** An earlier draft of this decision described a capability "transitioning
-from reported to blocking once clean", which implied a second switch alongside
-D6's opt-in. There is no second switch: **opting a capability in *is* the
-transition.** An untraced capability is reported; an opted-in capability blocks.
-You opt in when the capability is clean, which is the only order in which
-opting in can succeed.
+**The reporting-to-blocking transition needs no mechanism beyond opt-in, and
+must not get one.** An earlier draft of this decision described a capability
+"transitioning from reported to blocking once clean", which implied a
+reported-to-blocking flag alongside the opt-in switches. There is no such
+flag: **opting in *is* the transition**, per direction. A traced document
+blocks forward; a capability with an exclusions file blocks reverse; everything
+else reports. You opt in when the surface is clean, which is the only order in
+which opting in can succeed.
 
-Stated explicitly because the redundancy was nearly built. Two flags meaning
-almost the same thing is how a gate acquires a state where it is opted in but
-not blocking — which is precisely the half-traced-but-green outcome D6 exists to
-make impossible.
+Stated explicitly because the redundancy was nearly built. A flag meaning
+almost the same thing as an opt-in switch is how a gate acquires a state where
+it is opted in but not blocking — which is precisely the half-traced-but-green
+outcome D6 exists to make impossible. D13's second *switch* is not that
+redundancy: it switches a different claim (the reverse direction), not the
+same claim's blocking behavior.
 
 **Consequence.** The gate must accept a scope argument and must be honest in its
 output about which context it ran in. A diff-scoped pass that printed
 "traceability complete" would be a false claim about the capability.
+
+---
+
+### D13 — The two directions opt in separately; the exclusions file is the reverse switch
+
+**Decision.** Forward enforcement opts in per contract document (D6). Reverse
+enforcement opts in per capability, keyed on the existence of
+`openspec/contracts/<capability>/traceability-exclusions.yaml` — which is also
+where requirement-side exclusions live, in the shape
+`check_coverage_completeness.py` established (`exclusions: [{requirement,
+reason}]`). An empty exclusion list is valid and means every requirement must
+be cited. A capability without the file has its uncited requirements reported,
+never failed.
+
+**Why a second switch is not the redundancy D12 struck.** D12 forbade a
+reported-to-blocking flag *for the same claim* as an opt-in. Forward and
+reverse are different claims with different owners: "every operation in this
+document is justified" is a claim one document's author can make; "every
+requirement of this capability is served or excused" is a claim about the
+whole capability that no document can make. One switch per claim; no claim has
+two.
+
+**Why the exclusions file is the switch.** Three candidates were considered:
+
+1. *Reverse enforcement implied by any document opting in (rejected).* Opting
+   `locks.yaml` in would instantly demand a citation or exclusion for all 122
+   coordinator requirements, and for gen-eval the 17-flag retrofit would drag
+   ~31 requirements behind it. Measured, that is exactly how a gate gets
+   disabled in its first week — and it silently makes task 5.2's staging
+   impossible, which is what surfaced this decision.
+2. *A standalone boolean marker (rejected).* A `reverse: true` flag can be
+   flipped without doing any work, which invites flipping it aspirationally
+   and then drowning in red — or worse, never flipping it because the first
+   flip hurts.
+3. *The exclusions file itself (selected).* Creating the file **is** the
+   triage: every requirement must be either cited somewhere or given a written
+   reason, so the switch cannot be flipped without doing the work it
+   certifies. The file is also the artifact D4 already needs a home for, so
+   the design adds one artifact, not two.
+
+**Why the requirement exclusions cannot live in a contract.** A requirement
+with no operation has, by construction, no operation to hang an exclusion on.
+The operation-side `excluded` shape in `traceability.schema.json` cannot
+express it. Capability-scoped placement matches D10's evaluation unit: the
+exclusion excuses the requirement from the *capability's* completeness, not
+from one document's.
+
+**Consequence for the flagship.** gen-eval-framework opts in both directions
+(tasks 4.2, 4.2b) so the example demonstrates the full chain. The coordinator
+opts in forward per document (5.2) and defers its reverse opt-in — triaging
+122 requirements is the backlog this change creates, not work it performs.
 
 ---
 
@@ -361,10 +514,14 @@ split. Without it the gate blocks unrelated work on pre-existing debt.
 Answered by the operator on 2026-07-27. Both confirmed the leaning, and the
 first removed a mechanism rather than adding one.
 
-**Reporting-to-blocking is per capability.** Recorded in D12 — and recording it
-showed that D6's opt-in already *is* that switch, so the second flag the earlier
-wording implied has been struck rather than specified. The change is smaller for
-having asked.
+**Reporting-to-blocking is per opt-in switch.** Recorded in D12 — and recording
+it showed that opting in already *is* that transition, so the reported-to-
+blocking flag the earlier wording implied has been struck rather than
+specified. Plan iteration 1 subsequently found that "opt-in" itself named two
+different claims (forward per document, reverse per capability) that four
+documents assigned to three different units; D13 now separates them. The
+mixed-capability case that exposed the contradiction — one traced document,
+one untraced, same capability — has a scenario of its own.
 
 **A cross-capability citation does not need the cited capability's consent.**
 Reporting is enough for now. The gate names cross-capability citations as a

@@ -3,7 +3,9 @@
 ## `traceability.schema.json`
 
 The shape of a traceability block: citations from a contracted operation to the
-requirements it serves, or an exclusion with a stated reason.
+requirements it serves, or an exclusion with a stated reason. This block covers
+the **operation side** only — see `traceability-exclusions.schema.json` for the
+requirement side.
 
 Carried two ways, because the two contract archetypes already spell their
 extensions differently:
@@ -31,6 +33,21 @@ reason, spelled differently. The gate cannot distinguish `requirements: []` from
 an author who meant to fill it in later, so the schema refuses the shape rather
 than leaving the gate to guess.
 
+## `traceability-exclusions.schema.json`
+
+The requirement side of D4's "both directions accept exclusions". A
+requirement with no operation has, by construction, no operation to hang an
+exclusion on, so requirement exclusions live in their own per-capability file:
+`openspec/contracts/<capability>/traceability-exclusions.yaml`, shape lifted
+from `check_coverage_completeness.py`'s exclusion list.
+
+That file's **existence is the capability's reverse-enforcement opt-in**
+(design D13). Forward enforcement opts in per contract document (D6, keyed on
+a traceability block's presence in the document); reverse enforcement opts in
+per capability, keyed on this file. The two directions are different claims
+with different owners, so each has exactly one switch. An empty `exclusions`
+list is valid and means every requirement must be cited.
+
 ## Not in this directory
 
 **No OpenAPI document.** This change adds no HTTP surface. The coordinator
@@ -50,7 +67,15 @@ wanted later it is additive and gets its own version consideration.
 
 ## Promotion
 
-Per `openspec/contracts/README.md`, `traceability.schema.json` is promoted to
+Per `openspec/contracts/README.md`, `traceability.schema.json` and
+`traceability-exclusions.schema.json` are promoted to
 `openspec/contracts/gen-eval-framework/schemas/` **while this change is in
 flight**, not on archival, so no window of drift opens between the schema
 consumers validate against and the one this change defines.
+
+The promotion is owned by task 2.0 (wp-model), which also rewrites each
+promoted copy's `$id` to its promoted location, extends
+`cli-contract.schema.json` to admit `traceability` on flags, positionals, and
+commands (it is rejected today by `additionalProperties: false`), and adds a
+test that loads each promoted copy — the guard the predecessor's promotion
+has, without which a promotion silently does not happen.

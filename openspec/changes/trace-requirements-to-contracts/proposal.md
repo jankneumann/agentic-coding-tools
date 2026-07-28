@@ -53,15 +53,19 @@ up, at the level where being wrong costs the most.
 - **A bidirectional completeness gate**, in the shape D11 already established
   for coverage units. An operation citing no requirement fails. A requirement
   no operation cites fails. Either may be excluded, and an exclusion without a
-  stated reason fails.
+  stated reason fails. Operation exclusions live on the operation in the
+  contract; requirement exclusions live in a per-capability
+  `traceability-exclusions.yaml`, whose existence is also the reverse
+  direction's opt-in switch (D13).
 - **Evaluated per capability, not per contract.** A requirement may legitimately
   be served by an operation in another capability's contract, so a per-contract
   run would report genuinely-served requirements as gaps. This also makes
   splitting a capability's contract a staging mechanism rather than a weakening.
 - **Two run contexts, one gate.** At `/validate-feature` it is scoped to what
-  the change touches and blocks; on the integration branch it sweeps a whole
-  capability and reports. Enforcing the full set at validation would block every
-  change to a capability on gaps it did not create.
+  the change touches and blocks. On the integration branch it sweeps every
+  capability: opted-in surfaces block, the rest report. Enforcing the full set
+  at validation would block every change to a capability on gaps it did not
+  create.
 - **Requirement ids become addressable.** OpenSpec requirements have headings,
   not ids. A stable id derived from `<capability>.<slug>` plus a resolver, so a
   citation can be checked rather than believed.
@@ -79,9 +83,16 @@ up, at the level where being wrong costs the most.
 
 - `packages/gen-eval/` — the traceability model, the resolver, the gate
 - `openspec/contracts/gen-eval-framework/cli/gen-eval.yaml` — retrofit
+- `openspec/contracts/gen-eval-framework/schemas/` — `cli-contract.schema.json`
+  extended to admit `traceability`; both new schemas promoted in flight
+- `openspec/contracts/gen-eval-framework/traceability-exclusions.yaml` — the
+  flagship's reverse opt-in
 - `openspec/contracts/agent-coordinator/openapi/v1.yaml` — new, authored
 - `openspec/specs/gen-eval-framework/spec.md` — requirements for the above
+- `openspec/specs/skill-workflow/spec.md` — Contract Ref generation and the
+  validation-time gate, since that capability specs both behaviors today
 - `skills/implement-feature/` — the Contract Ref column becomes generated
+- `skills/validate-feature/` — the change-scoped gate wiring
 - `.github/workflows/ci.yml` — the gate
 
 **Out of scope**
@@ -89,9 +100,14 @@ up, at the level where being wrong costs the most.
 - **Generating contracts from requirements.** See "Approaches Considered".
 - **Fixing the 47.** This change makes them visible and forces a decision per
   operation; deciding is separate work and mostly not gen-eval's to do.
-- **Retrofitting every capability.** The gate is opt-in per capability, in the
-  ri-08 pattern: declaring a `traceability` block opts the capability into
-  strict enforcement; omitting it records `untraced` and does not fail.
+- **Retrofitting every capability.** The gate is opt-in, in the ri-08 pattern,
+  with one switch per direction (D13): declaring a `traceability` block opts a
+  contract document into forward enforcement; creating a capability's
+  `traceability-exclusions.yaml` opts it into reverse enforcement. Surfaces
+  that have opted into neither are recorded and reported, never failed.
+- **The coordinator's reverse opt-in.** Triaging its 122 requirements into
+  citations and exclusions is the backlog this change creates. Task 5.2 opts
+  one contract *document* in — forward only.
 - **Other in-flight changes' requirements.** The effective requirement set is
   the archived specs shadowed by the *active* change's delta. Another change's
   unarchived requirements are neither citable nor excludable — an exclusion
@@ -183,26 +199,45 @@ show up anywhere today.
 ## Acceptance Outcomes
 
 - A contracted operation citing no requirement fails CI, naming the operation.
-- A requirement cited by no operation fails CI, naming the requirement.
+- A requirement cited by no operation, in a capability that has opted into
+  reverse enforcement, fails CI naming the requirement.
 - A citation naming a requirement that does not exist fails CI.
 - An exclusion with a blank reason fails CI.
 - An exclusion naming a requirement or operation that no longer exists fails CI.
-- A capability with no `traceability` block anywhere is recorded `untraced` and
-  does not fail — enforcement is opt-in per capability.
+- A well-formed exclusion suppresses the corresponding completeness failure,
+  in both directions, and its reason appears in the output.
+- A contract document with no `traceability` block anywhere is recorded
+  `untraced` and does not fail; a capability without a
+  `traceability-exclusions.yaml` has uncited requirements reported, not
+  failed — one opt-in switch per direction (D13).
+- Two requirement headings deriving the same identifier fail the resolver,
+  naming both.
+- A contract document that cannot be parsed fails the gate naming the file —
+  it is never recorded `untraced`.
 - A requirement served by an operation in another contract of the same
   capability is treated as cited.
-- A cross-capability citation resolves, does not fail, and appears in the
-  gate's cross-capability report.
+- A cross-capability citation resolves, does not fail, appears in the gate's
+  cross-capability report, and counts toward the cited capability's reverse
+  completeness.
 - Removing a requirement makes every operation still citing it fail.
 - A change-scoped run fails on a touched violation, reports an untouched
   pre-existing one, and says in its output that it was change-scoped.
-- `gen-eval.yaml`'s 17 flags each cite a requirement or carry an exclusion.
+- A change-scoped run fails when the change adds a requirement (to a
+  reverse-enforced capability) that nothing cites or excludes.
+- A change-scoped run whose merge base or change id cannot be resolved errors;
+  it never passes on an empty touched set.
+- The full sweep on the integration branch fails on violations in opted-in
+  surfaces and reports the rest.
+- `gen-eval.yaml`'s 17 flags each cite a requirement or carry an exclusion,
+  and `openspec/contracts/gen-eval-framework/traceability-exclusions.yaml`
+  covers every gen-eval-framework requirement with no CLI surface — the
+  flagship demonstrates both directions.
 - `openspec/contracts/agent-coordinator/openapi/v1.yaml` exists, is authored
   from the spec rather than generated from the app, and every one of its
   operations cites or is excluded.
 - The `change-context.md` Contract Ref column is generated from citations.
-- Every gate above is demonstrated to FAIL on an unmodified tree before the
-  work that makes it pass.
+- Every gate above is demonstrated to fail on its documented mutation — and to
+  pass again after restore — before the work that makes it pass is accepted.
 
 ## Risks
 
@@ -213,7 +248,8 @@ show up anywhere today.
 | Derived requirement ids break when a heading is reworded | Ids derive from a slug, so rewording renames. The gate fails closed (a citation stops resolving) rather than silently rebinding. An explicit `id:` upstream (approach C) removes this |
 | Reverse completeness floods on aspirational requirements | Exclusions with reasons absorb them, and the reason is the useful artifact — "no interface, enforced by review" is a real answer that nothing records today |
 | The validation gate blocks unrelated work on pre-existing debt | D12 scopes the validation run to what the change touches and reports the rest. Same lesson as the work-packages schema debt: assert no NEW violations, never "everything validates" |
-| Diff-scoping hides the existing gaps forever, since no change touches them | The integration-branch sweep (D12) reports them in full without blocking, and is where a capability flips from reported to blocking once clean |
+| Diff-scoping hides the existing gaps forever, since no change touches them | The integration-branch sweep (D12) reports them in full without blocking. A surface starts blocking by opting in (D6 forward, D13 reverse) — opting in is the only switch, and there is no separate reported-to-blocking flag |
 | Cross-capability citations become a way to launder a gap into someone else's capability | Reported as a distinct list rather than folded into the pass (D9). The judgement stays with a reviewer, which is the same call D7 makes about concentration |
 | gen-eval's spec has to grow ~17 flag-level requirements to retrofit its own contract | That is the point, and it is small. If a flag cannot be justified by a requirement, the finding is about the flag |
+| The flagship's reverse opt-in demands a decision for every gen-eval-framework requirement (~31 plus this change's own), not just the 17 flags | Task 4.2b authors the exclusions file as its own sized task; the reasons ("no CLI surface; served by the framework API" and kin) are the artifact, and writing them is the triage D13 makes the switch certify |
 | Scope creep into "is the requirement satisfied" | Stated as explicitly out of scope above, and the gate has no mechanism that could express it |
