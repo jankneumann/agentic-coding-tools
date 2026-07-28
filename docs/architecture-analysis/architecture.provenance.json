@@ -3,25 +3,25 @@
     {
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "00fc4aa9f613e86ae681f3a639bc85284f37417c9b83a0b0a4c0ccd7881a0970",
+      "sha256": "c60b1b9892f69c0c77ed7d9e38f7ecb0620fa2ef3a2c1764106adf508fff6799",
       "size_bytes": 1076714
     },
     {
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "54551a522efb9016494dfe14a9a380fb61c6da6f3aa564d78e3e096654d41ae6",
+      "sha256": "8343aedb4de6142b022663ac7e956ed80d539ebaf773d8a911ec27d211f0f670",
       "size_bytes": 877663
     },
     {
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "0534175962a9e9f34268ef50767227962eedb43704bea4af42101018e3cc5a76",
-      "size_bytes": 55080
+      "sha256": "9e43eeaa1a9a317872d5b5e62b12d03506c62769fb9d7abcffe3267aee4cad0b",
+      "size_bytes": 55110
     },
     {
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "69097d76000d17bb6d2d3ac39ec2ca73eb4e22f3c29a056ba2809fde937de5ce",
+      "sha256": "2b09cab45442f6b815a76929375ece66ba121b47f752fe4ea05ad305a24b82b9",
       "size_bytes": 22444
     },
     {
@@ -33,7 +33,7 @@
     {
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "7287b35ea801d1b55f6ec675fa3675d5f2beaaf4b4202f73887cf63d7b7600e8",
+      "sha256": "9a408f138cb86936ff3498bcc9aca28ba75fbf72d400f1886e08d1846e47f8f5",
       "size_bytes": 512392
     },
     {
@@ -97,7 +97,7 @@
       "size_bytes": 144
     }
   ],
-  "generated_at": "2026-07-26T16:40:54+00:00",
+  "generated_at": "2026-07-27T20:32:11+00:00",
   "input_fingerprint": "4f9bb69122b73e9a2f125708e3bbf866b07501bcd784a784ecb2dd455b03173c",
   "input_roots": [
     "agent-coordinator/database/migrations",
@@ -116,9 +116,9 @@
     "producer_id": "architecture",
     "producer_version": "1.0.0"
   },
-  "repository_id": "add-deterministic-context-drift-gates",
+  "repository_id": "cleanup",
   "schema_version": 1,
-  "source_revision": "fa2ce9508c97a94abbb4b2b22b4fae98769a9482",
+  "source_revision": "0d4f9bd688c777cf07faeb768e8ae316c9ed86a5",
   "validation": {
     "error_count": 0,
     "status": "passed",

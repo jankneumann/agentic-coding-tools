@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-07-26T16:40:54+00:00  
-Git SHA: `fa2ce9508c97a94abbb4b2b22b4fae98769a9482`
+Generated: 2026-07-27T20:32:11+00:00  
+Git SHA: `0d4f9bd688c777cf07faeb768e8ae316c9ed86a5`
 
 ## System Overview
 
@@ -138,24 +138,24 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 - `config` — imported by 23 modules
 - `db` — imported by 21 modules
 - `audit` — imported by 14 modules
-- `telemetry` — imported by 6 modules
 - `policy_engine` — imported by 6 modules
+- `telemetry` — imported by 6 modules
 - `feature_registry` — imported by 5 modules
 - `profiles` — imported by 4 modules
 - `guardrails` — imported by 4 modules
-- `event_bus` — imported by 4 modules
 - `code_search` — imported by 4 modules
-- `work_queue` — imported by 3 modules
-- `agents_config` — imported by 3 modules
-- `help_service` — imported by 3 modules
-- `handoffs` — imported by 3 modules
-- `code_search_runtime` — imported by 3 modules
-- `merge_queue` — imported by 3 modules
-- `refresh_rpc_client` — imported by 3 modules
-- `issue_service` — imported by 3 modules
+- `event_bus` — imported by 4 modules
 - `merge_train` — imported by 3 modules
 - `locks` — imported by 3 modules
+- `help_service` — imported by 3 modules
+- `merge_queue` — imported by 3 modules
+- `work_queue` — imported by 3 modules
+- `agents_config` — imported by 3 modules
+- `refresh_rpc_client` — imported by 3 modules
+- `handoffs` — imported by 3 modules
 - `memory` — imported by 3 modules
+- `code_search_runtime` — imported by 3 modules
+- `issue_service` — imported by 3 modules
 
 ## Entry Points
 
@@ -328,11 +328,11 @@ Breakdown: 88 info, 8 warning.
 
 96 MCP routes have no frontend callers — expected (clients are AI agents).
 
-- Backend route 'decide_approval' has no frontend callers
-- Backend route 'help_overview' has no frontend callers
-- Backend route 'acquire_lock' has no frontend callers
-- Backend route 'check_approval_endpoint' has no frontend callers
-- Backend route 'query_audit' has no frontend callers
+- Backend route 'remove_from_merge_queue_endpoint' has no frontend callers
+- Backend route 'help_topic' has no frontend callers
+- Backend route 'get_current_locks' has no frontend callers
+- Backend route 'get_task_endpoint' has no frontend callers
+- Backend route 'get_active_features_resource' has no frontend callers
 - ... and 91 more
 
 ## High-Impact Nodes
