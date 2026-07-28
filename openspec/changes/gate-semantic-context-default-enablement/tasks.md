@@ -1,0 +1,441 @@
+# Tasks — gate-semantic-context-default-enablement (ri-13)
+
+Seven phases, one per work package. Test tasks precede the implementation they
+verify (TDD RED → GREEN). `depends_on` in `work-packages.yaml` is the
+authoritative execution order, not file position.
+
+Capability short names used in scenario references: `sce` =
+`semantic-context-evaluation`, `cs` = `code-search`, `sw` = `skill-workflow`.
+
+**Phase 6 may legitimately end in a FAIL verdict.** No task in this file
+requires `report.verdict == "pass"`. See design D11.
+
+---
+
+## Phase 1 — wp-contracts: the evaluation contracts
+
+- [ ] 1.1 Extend the promoted-contract byte-compare test to cover the three new
+      schemas, and assert the closed verdict enum has exactly two members
+      **Spec scenarios**: `sce` — Fail-closed evaluation verdict / A verdict enum with no escape value
+      **Contracts**: all three
+      **Design decisions**: D3
+      **Dependencies**: None
+      **Size**: S
+      **Note**: Must fail before 1.2 lands — the schemas do not exist yet.
+
+- [ ] 1.2 Author `context-eval-report.schema.json`
+      **Spec scenarios**: `sce` — Fail-closed evaluation verdict / A verdict enum with no escape value; `sce` — Evaluation report record / The report identifies its index and configuration
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D3, D6, D9, D15
+      **Dependencies**: 1.1
+      **Size**: M
+      **Note**: `verdict` is `enum: ["pass","fail"]`. No `waived`, `blocked`,
+      `skip`, `unmeasured`, or `partial`. `gates[].required` is `const: true`.
+      No waiver field anywhere.
+
+- [ ] 1.3 Author `context-eval-corpus.schema.json` and
+      `context-eval-case.schema.json`
+      **Spec scenarios**: `sce` — Declared evaluation corpus / Thresholds are corpus data
+      **Contracts**: both
+      **Design decisions**: D6, D7, D8
+      **Dependencies**: 1.1
+      **Size**: M
+      **Note**: thresholds live in the manifest, never in Python. Every consumer
+      slice carries an explicit `utility_applicable` boolean.
+
+- [ ] 1.4 Promote all three to
+      `openspec/contracts/semantic-context-evaluation/schemas/`, byte-identical,
+      and add the row to `openspec/contracts/README.md`
+      **Spec scenarios**: none
+      **Contracts**: all three
+      **Design decisions**: none
+      **Dependencies**: 1.2, 1.3
+      **Size**: XS
+      **Note**: promote-before-archive is a hard repo rule
+      (`openspec/contracts/README.md`), not bookkeeping. `$id` must name the
+      promoted location so relative `$ref`s resolve after archival.
+
+- [ ] 1.5 Checkpoint: run tests, review diff, verify scope
+
+---
+
+## Phase 2 — wp-corpus: rescue the ten tasks, add the labels the gates need
+
+- [ ] 2.1 Write the corpus integrity test: every declared consumer has a slice
+      with an explicit `utility_applicable`; every labeled path exists; every
+      case validates; the digest is stable across two loads
+      **Spec scenarios**: `sce` — Declared evaluation corpus / An unlabeled consumer is a corpus error
+      **Contracts**: `contracts/schemas/context-eval-case.schema.json`
+      **Design decisions**: D3, D7
+      **Dependencies**: 1.3
+      **Size**: M
+      **Note**: fails on the empty corpus — zero of ri-12's six consumers are
+      covered by anything today.
+
+- [ ] 2.2 Rescue T1-T10 into `packages/context-eval/corpus/cases/`, preserving
+      `case_id`, `query`, `expected_files`, `category`, `rationale`, and the
+      original `ripgrep_baseline` string, with a `provenance` block naming the
+      archived origin
+      **Spec scenarios**: `sce` — Declared evaluation corpus / Rescued cases keep their identity
+      **Contracts**: `contracts/schemas/context-eval-case.schema.json`
+      **Design decisions**: D10
+      **Dependencies**: 2.1
+      **Size**: M
+      **Note**: all 13 expected files verified present at `748af34c`.
+
+- [ ] 2.3 Label the rescued cases with `must_touch`, `evidence_spans`, a
+      declared `read_allow`/`deny` scope, and an owning `consumer`
+      **Spec scenarios**: `sce` — Coding-context utility measurement / Utility is measured against labeled evidence
+      **Contracts**: `contracts/schemas/context-eval-case.schema.json`
+      **Design decisions**: D7
+      **Dependencies**: 2.2
+      **Size**: L
+      **Note**: the only L in the plan. Hand labeling is the irreducible cost of
+      a quality evaluation; decomposing it would split one judgement across two
+      agents and produce two labeling conventions.
+
+- [ ] 2.4 Add per-consumer cases covering all six ri-12 consumers, plus
+      fail-closed regression cases (no index at revision, revision mismatch,
+      scope rejected, unknown state) and adversarial out-of-scope responses
+      **Spec scenarios**: `sce` — Scope compliance measurement / A leaked hit is caught client-side; `sce` — Fail-closed regression cases / An unavailable exact-revision index restores exact search
+      **Contracts**: `contracts/schemas/context-eval-case.schema.json`
+      **Design decisions**: D7, D8, D12
+      **Dependencies**: 2.3
+      **Size**: L
+      **Note**: `quick-task` declares `utility_applicable: false` with
+      fail-closed cases only — its SKILL.md documents that it has no declared
+      scope and therefore always returns `out_of_scope`/`no_declared_scope`.
+
+- [ ] 2.5 Implement the corpus loader and the deterministic corpus digest
+      **Spec scenarios**: `sce` — Declared evaluation corpus / Thresholds are corpus data
+      **Contracts**: `contracts/schemas/context-eval-corpus.schema.json`
+      **Design decisions**: D6, D12
+      **Dependencies**: 2.4
+      **Size**: M
+
+- [ ] 2.6 Checkpoint: run tests, review diff, verify scope
+
+---
+
+## Phase 3 — wp-scoring: baseline producer and the three scorers
+
+- [ ] 3.1 Write `test_repo_root_resolution.py` — the baseline producer's
+      repository root is injected, contains `.git` and `openspec/`, and is never
+      derived from `__file__`
+      **Spec scenarios**: `sce` — Reproducible exact-search baseline / The baseline is reproducible from its published artifact
+      **Contracts**: none
+      **Design decisions**: D1, D10
+      **Dependencies**: 2.5
+      **Size**: S
+      **Note**: this is the executable form of the `parents[3]` defect
+      (`run_eval.py:31`, `index_and_query.py:31`), which resolves to
+      `<repo>/openspec` from the archived path. Fails before 3.2.
+
+- [ ] 3.2 Implement `producers/exact_search.py` — the fair keyword ranker and
+      the naive phrase baseline, budget-equalized per D5, root injected
+      **Spec scenarios**: `sce` — Reproducible exact-search baseline / Both arms share one budget
+      **Contracts**: none
+      **Design decisions**: D5, D10
+      **Dependencies**: 3.1
+      **Size**: M
+
+- [ ] 3.3 Write `test_exact_search_algorithm.py` — the ranker over a tiny
+      checked-in fixture tree with hand-computed expected output
+      **Spec scenarios**: `sce` — Reproducible exact-search baseline / The ranking algorithm is pinned independently of the tree
+      **Contracts**: none
+      **Design decisions**: D10
+      **Dependencies**: 3.2
+      **Size**: M
+      **Note**: the recorded `keyword hit@5 = 3/10` was measured on the tree of
+      2026-07-19 and has NOT been re-verified at `748af34c`. Pin the algorithm,
+      record the tree-dependent number.
+
+- [ ] 3.4 Implement the retrieval-relevance scorer (`hit_at_k`,
+      `must_touch_coverage`, `wins_over_baseline`), thresholds from the manifest
+      **Spec scenarios**: `sce` — Retrieval relevance measurement / Wins are measured, not labeled
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D6
+      **Dependencies**: 3.2
+      **Size**: M
+      **Note**: `run_eval.py:161` computes wins as *measured* keyword misses
+      while `eval-set.yaml`'s header describes them as the `semantic-win`
+      *label*. The measured definition wins; the label is metadata.
+
+- [ ] 3.5 Implement the scope-compliance scorer — outbound fidelity, rendered
+      violations (zero tolerance), deny precedence, rejection honored; record
+      `scope_adapter: resolved|degraded`
+      **Spec scenarios**: `sce` — Scope compliance measurement / A single violation fails the gate; `sce` — Scope compliance measurement / A degraded scope adapter is an apparatus failure
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D8
+      **Dependencies**: 3.2
+      **Size**: M
+      **Note**: `_normalize_read_scope` (`semantic_context.py:919`) is NOT
+      injectable and falls back to unnormalized globs at `:934-938`. A degraded
+      adapter must be an `apparatus_failure`, never a silent pass.
+
+- [ ] 3.6 Implement the utility scorer — `answer_coverage`, `evidence_density`,
+      `steps_to_evidence` (censored, never null), per consumer
+      **Spec scenarios**: `sce` — Coding-context utility measurement / Missing evidence is censored, not null; `sce` — Coding-context utility measurement / No consumer may regress
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D7
+      **Dependencies**: 3.2
+      **Size**: L
+      **Note**: no blended score. Three independent conditions, all of which
+      must hold, plus an absolute do-no-harm clause per consumer.
+
+- [ ] 3.7 Write the determinism, no-wall-clock, no-random, and
+      no-model-literal tests
+      **Spec scenarios**: `sce` — Deterministic scoring / Reordered input produces identical output
+      **Contracts**: none
+      **Design decisions**: D16
+      **Dependencies**: 3.4, 3.5, 3.6
+      **Size**: M
+      **Note**: hand-derived expected order over a tie-heavy fixture, then
+      seeded shuffle — not "run it twice".
+
+- [ ] 3.8 Checkpoint: run tests, review diff, verify scope
+
+---
+
+## Phase 4 — wp-verdict: fail-closed composition, report, CLI
+
+- [ ] 4.1 Write the fail-closed composition tests: unscored case ⇒ fail;
+      declared-vs-scored mismatch ⇒ `denominator_mismatch`; missing declared
+      gate ⇒ `missing_required_gate`; `code_search_enabled: false` during a
+      retrieval measurement ⇒ `service_disabled_during_measurement`; tier below
+      declared ⇒ `index_tier_insufficient`
+      **Spec scenarios**: `sce` — Fail-closed evaluation verdict / An unmeasured gate is a failing gate; `sce` — Fail-closed evaluation verdict / The denominator is declared
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D3, D9, D17
+      **Dependencies**: 3.7
+      **Size**: M
+
+- [ ] 4.2 Implement `compose_verdict()` — signature takes scored cases and
+      declared gates only, with **no judge parameter**
+      **Spec scenarios**: `sce` — Advisory qualitative review / The judge cannot reach the verdict
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D3, D15
+      **Dependencies**: 4.1
+      **Size**: M
+
+- [ ] 4.3 Implement the report emitter, schema-validated on write, with the
+      optional judge block attached after composition
+      **Spec scenarios**: `sce` — Evaluation report record / The report identifies its index and configuration
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D3, D6, D15
+      **Dependencies**: 4.2
+      **Size**: M
+      **Note**: embedder identity is read from the configured `EmbeddingContract`
+      and from `CodeSearchResponse.index`. No model-id literal anywhere.
+
+- [ ] 4.4 Implement the CLI and its exit codes (0 pass / 1 apparatus / 2 gate
+      fail / 3 report absent, stale, or schema-invalid) plus the live producer
+      `producers/semantic_runtime.py` with an injected module path
+      **Spec scenarios**: `sce` — Fail-closed evaluation verdict / Nothing exits zero without a passing report
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D3, D4
+      **Dependencies**: 4.3
+      **Size**: M
+      **Note**: `producers/semantic_runtime.py` is the ONLY module that knows
+      about `skills/`. It loads `semantic_context.py` via
+      `importlib.util.spec_from_file_location` with the path from configuration.
+
+- [ ] 4.5 Add the `packages/context-eval` CI job (lint, mypy strict, pytest),
+      pinning the version of every tool it installs
+      **Spec scenarios**: none
+      **Contracts**: none
+      **Design decisions**: D2, D14
+      **Dependencies**: 4.4
+      **Size**: S
+      **Note**: `packages/agent-scenarios` has NO CI job — verified by grep over
+      `.github/workflows/*.yml` and `Makefile`. Omitting this is the default
+      failure mode, not a hypothetical one. Pin tool versions: `ci.yml:92`
+      installs `@fission-ai/openspec` unpinned (issue #318) and this job must
+      not repeat that.
+
+- [ ] 4.6 Checkpoint: run tests, review diff, verify scope
+
+---
+
+## Phase 5 — wp-gate: enablement consistency, spec reconciliation, docs
+
+- [ ] 5.1 Write `test_spec_gate_artifact.py` — resolve the artifact the
+      `code-search` Retrieval Quality Gate requirement names and assert it
+      exists at a durable path and carries a verdict from the closed enum
+      **Spec scenarios**: `cs` — Retrieval Quality Gate / A waived evaluation is not a pass
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D13
+      **Dependencies**: 4.5
+      **Size**: S
+      **Note**: fails today — the requirement points at `eval/spike-report.md`
+      "in the change directory", which archival moved, and whose verdict is
+      `WAIVED`/`UNMEASURED`.
+
+- [ ] 5.2 Write `test_enablement_gate_mutation.py` — the gate exits non-zero for
+      constant-`True` with (a) no report, (b) a stale report by each expiry
+      condition of D12, (c) a failing report, (d) a schema-invalid report
+      **Spec scenarios**: `sw` — Evidence-gated injection default / Enablement without evidence is rejected; `sw` — Evidence expiry / Stale evidence withdraws authorization
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D3, D12, D14
+      **Dependencies**: 4.5
+      **Size**: M
+      **Note**: the gate is correctly green on an unmodified tree — its job is to
+      catch a flip nobody has made. This mutation test is the substitute for
+      "fails today", and without it the gate is decoration.
+
+- [ ] 5.3 Extract `INJECTION_DEFAULT_ENABLED: bool = False` in
+      `semantic_context.py` and have `injection_enabled()` fall back to it;
+      assert byte-identical behaviour while it is `False`
+      **Spec scenarios**: `sw` — Evidence-gated injection default / The default is one declaration
+      **Contracts**: none
+      **Design decisions**: D11
+      **Dependencies**: 5.2
+      **Size**: S
+      **Note**: the ONLY edit to ri-12's runtime module in this change. Existing
+      `skills/tests/context-engineering/` must pass unchanged.
+
+- [ ] 5.4 Implement the Enablement Consistency Gate and its
+      `make semantic-enablement-gate` target, with all six D12 expiry conditions
+      **Spec scenarios**: `sw` — Evidence expiry / Stale evidence withdraws authorization
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D3, D12
+      **Dependencies**: 5.3
+      **Size**: M
+
+- [ ] 5.5 Add the blocking CI job for the enablement gate
+      **Spec scenarios**: none
+      **Contracts**: none
+      **Design decisions**: D14
+      **Dependencies**: 5.4
+      **Size**: S
+
+- [ ] 5.6 Reconcile `openspec/specs/code-search/spec.md` via the MODIFIED delta,
+      and update `docs/guides/code-search.md:380-386`,
+      `docs/guides/semantic-context-injection.md`, and
+      `docs/decisions/code-search.md:232` to the durable procedure
+      **Spec scenarios**: `cs` — Retrieval Quality Gate / A waived evaluation is not a pass
+      **Contracts**: none
+      **Design decisions**: D13
+      **Dependencies**: 5.1
+      **Size**: M
+
+- [ ] 5.7 Create `docs/evaluation/semantic-context/README.md` — the durable
+      report location, how to reproduce, and what each exit code means
+      **Spec scenarios**: `sce` — Evaluation report record / The report has a durable home
+      **Contracts**: none
+      **Design decisions**: D1
+      **Dependencies**: 5.4
+      **Size**: S
+      **Note**: `report.json` is deliberately ABSENT at this point. Absent is the
+      fail-closed default state.
+
+- [ ] 5.8 Checkpoint: run tests, review diff, verify scope
+
+---
+
+## Phase 6 — wp-measure: attempt the measurement, record whatever it says
+
+**A FAIL verdict is a successful completion of this phase.** Nothing here
+requires a favourable number.
+
+- [ ] 6.1 Provision the measurement environment: install
+      `packages/code-search[index]`, provision a **scratch** database applying
+      migrations 028/029/030, and record the resolved embedding contract
+      **Spec scenarios**: `sce` — Index tier declaration / A live retrieval measurement needs a real index
+      **Contracts**: none
+      **Design decisions**: D9
+      **Dependencies**: 5.8
+      **Size**: M
+      **Note**: `sentence_transformers` and `cocoindex` are ABSENT from every
+      active venv. The running `paradedb` container belongs to another project's
+      test tiers and MUST NOT be mutated; `localhost:54322` is closed. Follow
+      `packages/code-search/tests/conftest.py:132` (`index_e2e_case`), which
+      provisions and migrates its own database. `huggingface.co` now returns 200
+      (403 in July); `api.openai.com` returns 421, so prefer the `local`
+      provider. `download.pytorch.org` is 403 but torch is on PyPI.
+
+- [ ] 6.2 Build a real index at the exact evaluated revision with `index_repo`
+      and record its exit code and JSON result
+      **Spec scenarios**: `sce` — Index tier declaration / A live retrieval measurement needs a real index
+      **Contracts**: none
+      **Design decisions**: D9
+      **Dependencies**: 6.1
+      **Size**: M
+      **Note**: exit codes are `{ready:0, not_configured:2, conflict:3,
+      failed:1}`. A non-zero exit is recorded as `unmeasured`, not retried into
+      silence.
+
+- [ ] 6.3 Run the harness across all declared gates and consumers and commit the
+      report to `docs/evaluation/semantic-context/`
+      **Spec scenarios**: `sce` — Evaluation report record / The report has a durable home
+      **Contracts**: `contracts/schemas/context-eval-report.schema.json`
+      **Design decisions**: D3, D11
+      **Dependencies**: 6.2
+      **Size**: M
+      **Note**: if any step of 6.1-6.2 failed, commit the report with
+      `verdict: "fail"` and `fail_reasons: ["unmeasured", ...]`. That is the
+      correct outcome, not a blocked task.
+
+- [ ] 6.4 Record the outcome in the design's decision log and, if the verdict is
+      FAIL, write the specific follow-up (what was measured, what threshold was
+      missed, what would have to change)
+      **Spec scenarios**: none
+      **Contracts**: none
+      **Design decisions**: D11
+      **Dependencies**: 6.3
+      **Size**: S
+      **Note**: do NOT open a follow-up that says "re-run until it passes".
+
+- [ ] 6.5 Checkpoint: run tests, review diff, verify scope
+
+---
+
+## Phase 7 — wp-integration: integrate, promote, prove
+
+- [ ] 7.1 Merge every package; run the full `packages/context-eval` suite, the
+      full `skills/tests/context-engineering/` suite, and
+      `bash skills/install.sh --check`
+      **Dependencies**: 6.5
+      **Size**: M
+
+- [ ] 7.2 Prove the enablement gate by mutation on the integrated tree: flip
+      `INJECTION_DEFAULT_ENABLED` to `True` in a scratch commit, run
+      `make semantic-enablement-gate`, capture non-zero exit and the named
+      reason, then revert
+      **Spec scenarios**: `sw` — Evidence-gated injection default / Enablement without evidence is rejected
+      **Design decisions**: D14
+      **Dependencies**: 7.1
+      **Size**: S
+      **Note**: a gate that was never shown to fail is not evidence that it
+      works. Capture the output as an artifact.
+
+- [ ] 7.3 Confirm all three contracts are promoted and byte-identical, and that
+      `openspec/contracts/README.md` lists them
+      **Dependencies**: 7.1
+      **Size**: XS
+
+- [ ] 7.4 Run `make context-drift-gate` and regenerate any artifact the new
+      package or docs directory made stale
+      **Dependencies**: 7.1
+      **Size**: S
+
+- [ ] 7.5 Run `openspec validate gate-semantic-context-default-enablement
+      --strict` and fix everything it reports
+      **Dependencies**: 7.1
+      **Size**: S
+      **Note**: **Record the openspec version used.** CI installs
+      `@fission-ai/openspec` unpinned (`ci.yml:92`), so local and CI can run
+      different software and disagree. Measured 2026-07-27 at `748af34c`:
+      version 1.1.1 reports `61 passed, 1 failed` (exit 1) while version 1.6.0
+      reports `62 passed, 0 failed` (exit 0). Main is green; the discrepancy is
+      tooling drift, tracked as issue #318. Validate with the version CI
+      installs — `npx -y @fission-ai/openspec@<ci-version>` — and validate **by
+      change id**, so neither a tooling difference nor another change's state
+      can mask a real failure in this change's own deltas.
+
+- [ ] 7.6 MANUAL: record the exact `gh api` call to add the two new jobs to
+      branch protection's required contexts, and state that until it is applied
+      they are "blocking jobs, not required contexts"
+      **Design decisions**: D14
+      **Dependencies**: 7.2
+      **Size**: XS

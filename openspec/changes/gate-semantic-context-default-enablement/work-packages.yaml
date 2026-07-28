@@ -1,0 +1,806 @@
+schema_version: 1
+
+feature:
+  id: gate-semantic-context-default-enablement
+  title: "Gate semantic context default enablement"
+  plan_revision: 1
+  created_by: autopilot-roadmap
+
+# This change introduces no HTTP surface. Its canonical contract is the
+# evaluation report schema, so the contract file slot carries that schema rather
+# than an OpenAPI document -- the convention ri-08, ri-09, and ri-10 used.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/gate-semantic-context-default-enablement/contracts/schemas/context-eval-report.schema.json"
+    files:
+      - "openspec/changes/gate-semantic-context-default-enablement/contracts/schemas/context-eval-report.schema.json"
+      - "openspec/changes/gate-semantic-context-default-enablement/contracts/schemas/context-eval-corpus.schema.json"
+      - "openspec/changes/gate-semantic-context-default-enablement/contracts/schemas/context-eval-case.schema.json"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Evaluation report, corpus, and case contracts"
+    task_type: implementation
+    description: |
+      Tasks 1.1-1.5. Publish and promote the three schemas that make fail-closed
+      evaluation structural rather than conventional (D3).
+
+      The load-bearing constraint is negative: `verdict` is
+      `enum: ["pass","fail"]` and there is no `skip`, `blocked`, `waived`,
+      `partial`, or `unmeasured` value, and no waiver field anywhere in the
+      document. The report that exists today --
+      `openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/spike-report.md:9-19`,
+      "BLOCKED (environment) -> WAIVED (operator decision)" -- must be
+      unwritable under this contract. "Could not measure" is representable only
+      as `verdict: "fail"` with `fail_reasons: ["unmeasured"]`.
+
+      Two further schema-level constraints: `gates[].required` is `const: true`,
+      so an optional gate cannot be authored; and `corpus.cases_declared` /
+      `corpus.cases_scored` are both required, so the composer has something to
+      compare (the direct fix for the silent-denominator failure mode that
+      disqualified gen-eval as a host, D2).
+
+      Task 1.1 must fail before 1.2 lands. Promotion to
+      `openspec/contracts/semantic-context-evaluation/schemas/` happens inside
+      this change; `$id` must name the promoted location so relative `$ref`s
+      resolve after archival.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/contracts/semantic-context-evaluation/schemas/context-eval-report.schema.json"
+        - "openspec/contracts/semantic-context-evaluation/schemas/context-eval-corpus.schema.json"
+        - "openspec/contracts/semantic-context-evaluation/schemas/context-eval-case.schema.json"
+      keys:
+        - "contract:context-eval-schemas"
+      ttl_minutes: 60
+      reason: "Publish and promote the evaluation contracts"
+    scope:
+      write_allow:
+        - "openspec/changes/gate-semantic-context-default-enablement/contracts/**"
+        - "openspec/contracts/semantic-context-evaluation/**"
+        - "openspec/contracts/README.md"
+        - "packages/context-eval/tests/test_promoted_contracts.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Published JSON Schemas are interface contracts; the new test module is
+      # source the semantic index embeds.
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: ri13-contracts
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "All three schemas are valid JSON Schema"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import json,glob;from jsonschema import Draft202012Validator as V;[V.check_schema(json.load(open(p))) for p in sorted(glob.glob('openspec/contracts/semantic-context-evaluation/schemas/*.schema.json'))]\""
+          evidence:
+            artifacts: []
+            result_keys: ["eval_schemas_valid"]
+        - name: "Verdict enum has exactly two members and no waiver field exists"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_promoted_contracts.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["failclosed_contract_enforced"]
+    metadata:
+      loc_estimate: 420
+      complexity: medium
+      package_kind: data_model
+    outputs:
+      result_keys:
+        - "eval_schemas_valid"
+        - "failclosed_contract_enforced"
+
+  - package_id: wp-corpus
+    title: "Rescue the D9 corpus and label it for the new gates"
+    task_type: implementation
+    description: |
+      Tasks 2.1-2.6. Move the ten hand-labeled tasks into a maintained location
+      and extend them with the labels utility and scope compliance need (D7, D8,
+      D10).
+
+      The corpus is genuinely valuable: T1-T10 are realistic agent queries with
+      hand-labeled answers, and all 13 expected files still exist at 748af34c
+      (verified individually). What must NOT come with them is
+      `run_eval.py` -- `REPO_ROOT = HERE.parents[3]` resolves to
+      `<repo>/openspec` from the archived path, and the thresholds are Python
+      literals at `run_eval.py:159-161` -- or `index_and_query.py`, which drives
+      stock `ccc` over sqlite-vec rather than the Postgres/pgvector v2 path that
+      serves today.
+
+      Resolve one inherited ambiguity explicitly. `run_eval.py:161` computes
+      `semantic_wins_over_keyword` from *measured* baseline misses;
+      `eval-set.yaml`'s header describes the same clause as
+      `category=semantic-win`, a hand-applied label. They disagree. The spec text
+      ("tasks the ripgrep baseline misses") agrees with the code, so the manifest
+      pins the measured definition and demotes the label to metadata.
+
+      Task 2.3 is the plan's only L and decomposition was rejected: hand labeling
+      required files and evidence spans is one judgement, and splitting it across
+      agents produces two incompatible labeling conventions.
+
+      `quick-task` gets `utility_applicable: false` plus fail-closed cases only.
+      Its SKILL.md states it has no `change_id`/`package_id` and therefore always
+      returns `out_of_scope`/`no_declared_scope`. Declared absence, not silent
+      absence -- 2.1 fails if a consumer has neither a slice nor an explicit
+      statement.
+    role: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "packages/context-eval/corpus/manifest.yaml"
+      keys:
+        - "env:context-eval-corpus"
+      ttl_minutes: 120
+      reason: "Author the evaluation corpus"
+    scope:
+      write_allow:
+        - "packages/context-eval/corpus/**"
+        - "packages/context-eval/src/context_eval/loader.py"
+        - "packages/context-eval/src/context_eval/models.py"
+        - "packages/context-eval/tests/test_corpus_integrity.py"
+        - "packages/context-eval/pyproject.toml"
+        - "packages/context-eval/README.md"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # New package source and README. The corpus is evaluation data, not an
+      # interface contract; the schemas it validates against are wp-contracts'.
+      surfaces:
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: ri13-corpus
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Corpus integrity: every consumer declared, every labeled path exists"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_corpus_integrity.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["corpus_integrity_passed"]
+        - name: "Corpus digest is stable across two loads"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_corpus_integrity.py -q -k digest"
+          evidence:
+            artifacts: []
+            result_keys: ["corpus_digest_stable"]
+        - name: "All ten rescued cases retain their original identifiers"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_corpus_integrity.py -q -k rescued"
+          evidence:
+            artifacts: []
+            result_keys: ["corpus_rescue_faithful"]
+    metadata:
+      loc_estimate: 900
+      complexity: high
+      package_kind: data_model
+    outputs:
+      result_keys:
+        - "corpus_integrity_passed"
+        - "corpus_digest_stable"
+        - "corpus_rescue_faithful"
+
+  - package_id: wp-scoring
+    title: "Exact-search baseline and the three deterministic scorers"
+    task_type: implementation
+    description: |
+      Tasks 3.1-3.8. The measurement itself.
+
+      Task 3.1 must fail before 3.2 lands. It is the executable form of the
+      archived defect: assert the baseline producer's repository root is injected
+      and contains `.git` and `openspec/`. Run against the layout the
+      `parents[3]` arithmetic produced, it fails.
+
+      Both arms are rendered under ri-12's identical `ContextBudget` --
+      `max_hits=8`, `max_files=5`, `max_total_lines=240`, `max_hit_lines=40`,
+      read from the manifest (D5). Comparing an unbounded `rg -l` dump against a
+      capped section measures the cap.
+
+      Utility is three independent conditions, never a blended score (D7): a
+      weighted sum lets a coverage regression hide behind a density improvement.
+      `steps_to_evidence` is censored to `max_files + 1` when no rendered hit
+      intersects labeled evidence -- a null there would be a silent skip, which
+      D3 forbids.
+
+      Scope compliance is zero-tolerance and is measured on adversarial recorded
+      responses that contain an out-of-scope hit, so the gate proves ri-12's own
+      local deny re-check fires rather than proving the server behaved. Record
+      `scope_adapter: resolved|degraded`: `_normalize_read_scope`
+      (`semantic_context.py:919`) is NOT injectable and silently falls back to
+      unnormalized globs at `:934-938`, which would make the measurement mean
+      something other than what it claims.
+
+      Determinism tests use hand-derived expected order over a tie-heavy fixture,
+      then the same fixture through a seeded shuffle asserting identical output
+      -- not the weak "run it twice" form.
+    role: implementer
+    priority: 3
+    depends_on:
+      - wp-corpus
+    locks:
+      files:
+        - "packages/context-eval/src/context_eval/producers/exact_search.py"
+      keys:
+        - "env:context-eval-scoring"
+      ttl_minutes: 120
+      reason: "Implement the baseline producer and the three scorers"
+    scope:
+      write_allow:
+        - "packages/context-eval/src/context_eval/producers/**"
+        - "packages/context-eval/src/context_eval/scoring/**"
+        - "packages/context-eval/tests/fixtures/**"
+        - "packages/context-eval/tests/test_repo_root_resolution.py"
+        - "packages/context-eval/tests/test_exact_search_algorithm.py"
+        - "packages/context-eval/tests/test_relevance_scorer.py"
+        - "packages/context-eval/tests/test_scope_scorer.py"
+        - "packages/context-eval/tests/test_utility_scorer.py"
+        - "packages/context-eval/tests/test_determinism.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # New scoring modules the semantic index embeds. No published interface
+      # changes -- the schemas are wp-contracts'.
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: ri13-scoring
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Repository root is injected, never derived from __file__"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_repo_root_resolution.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["repo_root_injected"]
+        - name: "Baseline ranking is pinned against a fixture tree"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_exact_search_algorithm.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["baseline_algorithm_pinned"]
+        - name: "All three scorers pass, including zero-tolerance scope"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_relevance_scorer.py packages/context-eval/tests/test_scope_scorer.py packages/context-eval/tests/test_utility_scorer.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["scorers_passed"]
+        - name: "Scoring is deterministic under reordering and seeded shuffle"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_determinism.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["scoring_deterministic"]
+    metadata:
+      loc_estimate: 950
+      complexity: high
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "repo_root_injected"
+        - "baseline_algorithm_pinned"
+        - "scorers_passed"
+        - "scoring_deterministic"
+
+  - package_id: wp-verdict
+    title: "Fail-closed verdict composition, report emitter, CLI, package CI"
+    task_type: implementation
+    description: |
+      Tasks 4.1-4.6. Turn measurements into a verdict that cannot be talked out
+      of failing.
+
+      `compose_verdict()` takes scored cases and declared gates. Its signature
+      has **no judge parameter** (D15). That is stronger than agent-scenarios'
+      "the judge never overrides the deterministic verdict": here it is
+      impossible to let the judge matter without changing a signature, which is a
+      reviewable diff. The emitter attaches the advisory block after composition.
+
+      Five fail-closed clauses, each with its own test in 4.1: an unscored
+      declared case, a declared-vs-scored denominator mismatch, a missing
+      declared gate, `code_search_enabled: false` during a retrieval measurement
+      (production status is `{"available":false,"state":"disabled"}` purely
+      because the variable is unset -- `coordination_api.py:3418` short-circuits
+      before touching the database), and an index tier below what a gate
+      declares.
+
+      Exit codes are 0 pass / 1 apparatus / 2 gate fail / 3 report absent, stale,
+      or schema-invalid. Nothing exits 0 without a schema-valid passing report on
+      disk.
+
+      `producers/semantic_runtime.py` is the ONLY module that knows `skills/`
+      exists. It loads `semantic_context.py` through
+      `importlib.util.spec_from_file_location` with the path supplied by
+      configuration, so `packages/` never imports `skills/` and the module also
+      resolves under an installed skill base.
+
+      Task 4.5 is easy to skip and must not be. `grep -n agent-scenarios
+      .github/workflows/*.yml Makefile` returns nothing: the precedent package
+      this plan follows has no CI job. A harness nothing runs is how the D9 gate
+      decayed, one level up. Pin every tool version the job installs -- `ci.yml`
+      already has one unpinned installer (issue #318) and this job must not add
+      a second.
+    role: implementer
+    priority: 4
+    depends_on:
+      - wp-scoring
+    locks:
+      files:
+        - "packages/context-eval/src/context_eval/verdict.py"
+        - ".github/workflows/ci.yml"
+      keys:
+        - "env:github-workflows-ci"
+        - "env:context-eval-verdict"
+      ttl_minutes: 120
+      reason: "Implement verdict composition, report emission, and package CI"
+    scope:
+      write_allow:
+        - "packages/context-eval/src/context_eval/verdict.py"
+        - "packages/context-eval/src/context_eval/report.py"
+        - "packages/context-eval/src/context_eval/judge.py"
+        - "packages/context-eval/src/context_eval/__main__.py"
+        - "packages/context-eval/src/context_eval/producers/semantic_runtime.py"
+        - "packages/context-eval/tests/test_verdict_failclosed.py"
+        - "packages/context-eval/tests/test_report_emitter.py"
+        - "packages/context-eval/tests/test_cli_exit_codes.py"
+        - "packages/context-eval/tests/test_judge_isolation.py"
+        - ".github/workflows/ci.yml"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # A new console script and a new CI job are interface and documentation
+      # surface; the new modules are source the semantic index embeds.
+      surfaces:
+        - "apis"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: ri13-verdict
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Every fail-closed clause fails closed"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_verdict_failclosed.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["verdict_failcloses"]
+        - name: "The judge is structurally excluded from composition"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_judge_isolation.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["judge_isolated"]
+        - name: "Exit codes distinguish pass, apparatus, gate fail, and absent report"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_cli_exit_codes.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["exit_codes_distinct"]
+        - name: "The context-eval CI job exists"
+          kind: command
+          command: "test \"$(grep -c 'context-eval' .github/workflows/ci.yml)\" -ge 1"
+          evidence:
+            artifacts:
+              - ".github/workflows/ci.yml"
+            result_keys: ["context_eval_ci_wired"]
+    metadata:
+      loc_estimate: 700
+      complexity: high
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "verdict_failcloses"
+        - "judge_isolated"
+        - "exit_codes_distinct"
+        - "context_eval_ci_wired"
+
+  - package_id: wp-gate
+    title: "Enablement consistency gate, default declaration, spec reconciliation"
+    task_type: implementation
+    description: |
+      Tasks 5.1-5.8. The gate that makes a future flip safe, and the spec
+      reconciliation that makes the existing requirement satisfiable.
+
+      Task 5.1 fails today. `openspec/specs/code-search/spec.md:129` demands
+      `eval/spike-report.md` exist "in the change directory" with "an explicit
+      pass verdict"; archival moved that directory, and the report's verdict is
+      `BLOCKED -> WAIVED`. The archived automated check
+      (`work-packages.yaml:61`) was a substring test --
+      `'Verdict' in t and 'hit@5' in t` -- which the waived report passes. 5.1
+      replaces it with a check that reads a closed enum.
+
+      Task 5.3 is the ONLY edit to ri-12's runtime module. Extract
+      `INJECTION_DEFAULT_ENABLED: bool = False` and have `injection_enabled()`
+      (`semantic_context.py:579`) fall back to it when the variable is unset.
+      Behaviour must be byte-identical while it is `False`; the entire existing
+      `skills/tests/context-engineering/` suite must pass unchanged.
+
+      Task 5.2 is what stops the gate being decoration. The gate is correctly
+      green on an unmodified tree -- its job is to catch a flip nobody has made,
+      and making it red today would mean making main red for a condition nobody
+      caused. The substitute is a mutation test, not an observation: construct
+      constant-`True` with no report, with a report stale by each of D12's six
+      expiry conditions, with a failing report, and with a schema-invalid report,
+      and assert non-zero for each.
+
+      The gate adds NOTHING at runtime. ri-12 already fails closed per request:
+      `STATE_FALLBACKS` (`semantic_context.py:534-545`) maps `not_indexed` to
+      `stale`/`revision_not_indexed`, `UNKNOWN_STATE_FALLBACK` (`:545`) makes the
+      mapping total, and `collect_semantic_context` catches everything at
+      `:1334-1336`. A second runtime re-disable path would create two
+      authorities for one decision.
+
+      Task 5.7 deliberately does NOT create `report.json`. Absent is the
+      fail-closed default state, and wp-measure may legitimately produce a
+      failing one.
+    role: implementer
+    priority: 5
+    depends_on:
+      - wp-verdict
+    locks:
+      files:
+        - "skills/context-engineering/scripts/semantic_context.py"
+        - "Makefile"
+        - ".github/workflows/ci.yml"
+        - "openspec/specs/code-search/spec.md"
+      keys:
+        - "env:root-makefile"
+        - "env:github-workflows-ci"
+        - "contract:semantic-context-injection-default"
+      ttl_minutes: 120
+      reason: "Implement the enablement gate and reconcile the spec"
+    scope:
+      write_allow:
+        - "packages/context-eval/src/context_eval/enablement_gate.py"
+        - "packages/context-eval/tests/test_spec_gate_artifact.py"
+        - "packages/context-eval/tests/test_enablement_gate_mutation.py"
+        - "skills/context-engineering/scripts/semantic_context.py"
+        - "Makefile"
+        - ".github/workflows/ci.yml"
+        - "docs/evaluation/semantic-context/README.md"
+        - "docs/guides/code-search.md"
+        - "docs/guides/semantic-context-injection.md"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # A new Makefile target and CI job plus edited guides are interface and
+      # documentation surface; the edited helper and new module are source the
+      # semantic index embeds. The spec delta is capability surface.
+      surfaces:
+        - "capabilities"
+        - "apis"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: ri13-gate
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "The spec's gate artifact resolves to a durable machine-checkable verdict"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_spec_gate_artifact.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["spec_gate_reconciled"]
+        - name: "The enablement gate rejects every unauthorized enablement state"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_enablement_gate_mutation.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["enablement_gate_proven"]
+        - name: "The gate passes on the unmodified tree with the default disabled"
+          kind: command
+          command: "make semantic-enablement-gate"
+          evidence:
+            artifacts: []
+            result_keys: ["enablement_gate_green_default_off"]
+        - name: "ri-12's existing behaviour is unchanged by the extracted constant"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/context-engineering/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["ri12_unchanged"]
+    metadata:
+      loc_estimate: 620
+      complexity: high
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "spec_gate_reconciled"
+        - "enablement_gate_proven"
+        - "enablement_gate_green_default_off"
+        - "ri12_unchanged"
+
+  - package_id: wp-measure
+    title: "Attempt the measurement and record whatever it says"
+    task_type: implementation
+    description: |
+      Tasks 6.1-6.5. Take the measurement nobody has ever taken.
+
+      A FAIL verdict is a successful completion of this package. No verification
+      step here requires `verdict == "pass"`. The success condition is that a
+      schema-valid report exists at `docs/evaluation/semantic-context/`
+      recording what was actually measured. A change whose acceptance depends on
+      a favourable measurement is a change that pressures the measurement, and
+      this repository already ran that experiment in July 2026.
+
+      The environment is newly plausible and must be proven, not assumed. The
+      2026-07-19 waiver rested on every embedding backend returning 403.
+      Re-probed 2026-07-27: `huggingface.co` **200** (was 403), `pypi.org` 200,
+      `download.pytorch.org` still 403 (torch wheels are on PyPI),
+      `api.openai.com` 421 -- so prefer the `local` / sentence-transformers
+      provider and treat `openai_compatible` as unavailable.
+
+      Provisioning is this package's own responsibility. `sentence_transformers`
+      and `cocoindex` are absent from every active venv and
+      `packages/code-search[index]` is installed nowhere. A pgvector-capable
+      Postgres runs locally but **belongs to another project's test tiers and
+      must not be mutated**; `localhost:54322`, the DSN in this repo's docs, is
+      closed. Follow `packages/code-search/tests/conftest.py:132`
+      (`index_e2e_case`), which provisions its own database and applies
+      migrations 028/029/030 itself.
+
+      `index_repo` exit codes are `{ready:0, not_configured:2, conflict:3,
+      failed:1}`. A non-zero exit is recorded as `unmeasured` in the report, not
+      retried into silence and not waived.
+
+      If the verdict is FAIL, task 6.4 writes what was measured, which threshold
+      was missed, and what would have to change. It must NOT open a follow-up
+      that says "re-run until it passes".
+    role: implementer
+    priority: 6
+    depends_on:
+      - wp-gate
+    locks:
+      files:
+        - "docs/evaluation/semantic-context/report.json"
+      keys:
+        - "env:semantic-context-evaluation-report"
+      ttl_minutes: 180
+      reason: "Provision, index, measure, and record the evaluation report"
+    scope:
+      write_allow:
+        - "docs/evaluation/semantic-context/**"
+        - "openspec/changes/gate-semantic-context-default-enablement/design.md"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # A committed evaluation report and an updated design decision log.
+      surfaces:
+        - "documentation"
+        - "decisions"
+    worktree:
+      name: ri13-measure
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "A schema-valid report exists at the durable path"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import json;from jsonschema import Draft202012Validator as V;s=json.load(open('openspec/contracts/semantic-context-evaluation/schemas/context-eval-report.schema.json'));V(s).validate(json.load(open('docs/evaluation/semantic-context/report.json')))\""
+          evidence:
+            artifacts:
+              - "docs/evaluation/semantic-context/report.json"
+            result_keys: ["report_recorded"]
+        - name: "The report records index revision, embedding config, and service state"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/test_report_emitter.py -q -k provenance"
+          evidence:
+            artifacts: []
+            result_keys: ["report_provenance_complete"]
+        - name: "The enablement gate agrees with the recorded verdict"
+          kind: command
+          command: "make semantic-enablement-gate"
+          evidence:
+            artifacts: []
+            result_keys: ["gate_agrees_with_report"]
+        - name: "A failing verdict was recorded honestly, not waived"
+          kind: manual
+          manual_instructions: |
+            Confirm the report's verdict is `pass` or `fail` and nothing else,
+            that a `fail` names its reasons, and that no task, commit message, or
+            document in this change describes the outcome as waived, blocked, or
+            accepted by judgement. A recorded FAIL is a correct outcome of this
+            package.
+          evidence:
+            artifacts:
+              - "docs/evaluation/semantic-context/report.json"
+            result_keys: ["verdict_recorded_honestly"]
+    metadata:
+      loc_estimate: 260
+      complexity: high
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "report_recorded"
+        - "report_provenance_complete"
+        - "gate_agrees_with_report"
+        - "verdict_recorded_honestly"
+
+  - package_id: wp-integration
+    title: "Integration, promotion, and gate proof"
+    task_type: implementation
+    description: |
+      Tasks 7.1-7.6. Merge every package, then show the gate fail and then pass.
+
+      Task 7.2 is the only point in the plan where the enablement gate can be
+      demonstrated end to end on the integrated tree: flip
+      `INJECTION_DEFAULT_ENABLED` to `True` in a scratch commit, run
+      `make semantic-enablement-gate`, capture the non-zero exit and the named
+      reason, revert. A gate that was never shown to fail is not evidence that it
+      works.
+
+      Task 7.5 has a tooling trap. CI installs `@fission-ai/openspec` UNPINNED
+      (`ci.yml:92`), so a local binary and CI can be different software and
+      disagree about the same tree. Measured 2026-07-27 at 748af34c: version
+      1.1.1 reports `61 passed, 1 failed` (exit 1) while version 1.6.0 -- what CI
+      installs -- reports `62 passed, 0 failed` (exit 0). Main is green; the
+      discrepancy is tooling drift, tracked as issue #318. Validate with the
+      version CI installs (`npx -y @fission-ai/openspec@<ci-version>`) and
+      validate BY CHANGE ID, so neither tooling drift nor another change's state
+      can mask a real failure in this change's own deltas.
+
+      Promotion of the three contracts is not optional bookkeeping:
+      `openspec/contracts/` is the durable system representation alongside
+      `openspec/specs/`, and a change archived without promoting its contracts
+      loses them.
+    role: integrator
+    priority: 7
+    depends_on:
+      - wp-contracts
+      - wp-corpus
+      - wp-scoring
+      - wp-verdict
+      - wp-gate
+      - wp-measure
+    locks:
+      files: []
+      keys:
+        - "feature:gate-semantic-context-default-enablement:integrate"
+      ttl_minutes: 120
+      reason: "Integrate all packages and prove the gate"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Integration sees the union of every package's diff plus any regenerated
+      # context artifacts.
+      surfaces:
+        - "capabilities"
+        - "apis"
+        - "architecture"
+        - "decisions"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: ri13-integration
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full context-eval suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest packages/context-eval/tests/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["context_eval_suite_passed"]
+        - name: "Skills install check and context-engineering suite pass"
+          kind: command
+          command: "bash -c 'skills/.venv/bin/python -m pytest skills/tests/context-engineering -q && bash skills/install.sh --check'"
+          evidence:
+            artifacts: []
+            result_keys: ["skills_unaffected"]
+        - name: "This change validates strictly by id at the CI openspec version"
+          kind: command
+          command: "npx -y @fission-ai/openspec@1.6.0 validate gate-semantic-context-default-enablement --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict_valid"]
+        - name: "Context drift gate is green after any regeneration"
+          kind: command
+          command: "make context-drift-gate"
+          evidence:
+            artifacts: []
+            result_keys: ["context_drift_green"]
+        - name: "The enablement gate was demonstrably shown to fail"
+          kind: manual
+          manual_instructions: |
+            Confirm the captured output from task 7.2 shows a non-zero exit with
+            a named reason after flipping INJECTION_DEFAULT_ENABLED to True on
+            the integrated tree, and that the flip was reverted.
+          evidence:
+            artifacts: []
+            result_keys: ["gate_shown_to_fail"]
+        - name: "All three contracts promoted and listed"
+          kind: manual
+          manual_instructions: |
+            Confirm the three schemas exist under
+            openspec/contracts/semantic-context-evaluation/schemas/, are
+            byte-identical to the change-local copies, declare promoted $ids, and
+            appear in openspec/contracts/README.md's contents table.
+          evidence:
+            artifacts:
+              - "openspec/contracts/semantic-context-evaluation/schemas/context-eval-report.schema.json"
+            result_keys: ["contracts_promoted"]
+        - name: "Branch protection follow-up recorded"
+          kind: manual
+          manual_instructions: |
+            Confirm the exact `gh api` call to add the two new jobs to branch
+            protection's required contexts is recorded, and that the plan states
+            they are "blocking jobs, not required contexts" until it is applied.
+          evidence:
+            artifacts: []
+            result_keys: ["required_contexts_recorded"]
+    metadata:
+      loc_estimate: 120
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "context_eval_suite_passed"
+        - "skills_unaffected"
+        - "openspec_strict_valid"
+        - "context_drift_green"
+        - "gate_shown_to_fail"
+        - "contracts_promoted"
+        - "required_contexts_recorded"
