@@ -199,7 +199,7 @@ requires `report.verdict == "pass"`. See design D11.
 
 ## Phase 4 — wp-verdict: fail-closed composition, report, CLI
 
-- [ ] 4.1 Write the fail-closed composition tests: unscored case ⇒ fail;
+- [x] 4.1 Write the fail-closed composition tests: unscored case ⇒ fail;
       declared-vs-scored mismatch ⇒ `denominator_mismatch`; missing declared
       gate ⇒ `missing_required_gate`; `code_search_enabled: false` during a
       retrieval measurement ⇒ `service_disabled_during_measurement`; tier below
@@ -210,7 +210,7 @@ requires `report.verdict == "pass"`. See design D11.
       **Dependencies**: 3.7
       **Size**: M
 
-- [ ] 4.2 Implement `compose_verdict()` — signature takes scored cases and
+- [x] 4.2 Implement `compose_verdict()` — signature takes scored cases and
       declared gates only, with **no judge parameter** — and compose **all four**
       gates the manifest declares required: `retrieval_quality`,
       `coding_context_utility`, `scope_compliance`, and `fail_closed_regression`
