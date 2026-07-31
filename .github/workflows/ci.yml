@@ -517,3 +517,62 @@ jobs:
         # future case needing a real index does not start failing CI silently on
         # the day it is added.
         run: uv run pytest tests -q -m "not e2e and not integration"
+
+  semantic-enablement-gate:
+    # The Enablement Consistency Gate (ri-13, design D14 check D): is the
+    # semantic-context injection default this tree declares authorized by the
+    # evidence this tree carries?
+    #
+    # Unlike every other check in this file, this one is GREEN on an unmodified
+    # tree, and deliberately: it exists to catch a flip nobody has made, and
+    # making it red today would mean making `main` red for a condition nobody
+    # caused. Its proof is a mutation test, not an observation — the
+    # `context-eval` job above runs
+    # `packages/context-eval/tests/test_enablement_gate_mutation.py`, which
+    # constructs an enabled default against evidence that is absent, stale by
+    # each of D12's six expiry conditions, failing, and schema-invalid, and
+    # asserts a non-zero exit for each. That test is what stops this job being
+    # decoration; this job is what stops the gate being unrun.
+    #
+    # It adds nothing at runtime and reaches no service: no database, no
+    # embedder, no coordinator. It reads one committed source constant and one
+    # committed report.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history, because one of the six expiry conditions asks git
+          # whether the report's indexed revision is reachable from the tree
+          # under test. Under the default shallow clone that question has no
+          # honest answer, and a gate that answered it anyway would either pass
+          # stale evidence or reject current evidence.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          # Pinned, like the `context-eval` job above and for the same reason:
+          # `ci.yml` already carries one unpinned installer (issue #318) whose
+          # drift let a local and a CI version disagree about the same tree.
+          version: "0.9.18"
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install the harness
+        # ruff 0.16.0, mypy 2.3.0, pytest 9.1.1 and both stub packages are
+        # pinned with `==` in packages/context-eval/pyproject.toml; jsonschema
+        # and pyyaml are the two runtime dependencies the gate needs to load the
+        # corpus and validate the report.
+        working-directory: packages/context-eval
+        run: uv sync --all-extras
+
+      - name: Enablement consistency gate
+        # Through `make`, so a failed build is reproduced verbatim by the same
+        # one command locally rather than approximated. PYTHON points at the
+        # venv `uv sync` just built; `make` collapses the gate's own exit code
+        # (2 = present evidence that does not authorize, 3 = absent or expired
+        # evidence) to its own 2, printing the real one as `Error <n>`.
+        run: make semantic-enablement-gate PYTHON=packages/context-eval/.venv/bin/python

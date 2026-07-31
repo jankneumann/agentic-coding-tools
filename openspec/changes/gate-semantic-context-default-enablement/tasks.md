@@ -313,12 +313,19 @@ requires `report.verdict == "pass"`. See design D11.
       **Dependencies**: 5.3
       **Size**: M
 
-- [ ] 5.5 Add the blocking CI job for the enablement gate
+- [x] 5.5 Add the blocking CI job for the enablement gate
       **Spec scenarios**: none
       **Contracts**: none
       **Design decisions**: D14
       **Dependencies**: 5.4
       **Size**: S
+      **Note**: this is the one job in `ci.yml` that is GREEN on an unmodified
+      tree by design, so "run it and watch it fail" is not available as proof.
+      Two things were verified instead. Task 5.2's mutation suite proves the
+      gate's *logic* discriminates; and the `make` wiring was proven separately
+      by flipping `INJECTION_DEFAULT_ENABLED` to `True` on a scratch tree, where
+      the gate exited 3, `make` reported `Error 3` and exited 2, and the step
+      would therefore fail. Task 7.2 repeats that flip as a recorded artifact.
 
 - [x] 5.6 Reconcile `openspec/specs/code-search/spec.md` via the MODIFIED delta,
       and update `docs/guides/code-search.md`'s `## Retrieval-quality gate`
