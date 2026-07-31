@@ -143,8 +143,15 @@ that way answers a question about a different copy.
   is the input the `api.contracts` producer renders into
   `docs/architecture-analysis/contracts-inventory.md` — a count in the header
   (`_13 contract schema(s)._` today, becoming 15) plus one row per schema.
-  Run `make context-refresh` and commit the regenerated inventory IN THIS
-  TASK'S COMMIT. Skipping it leaves CI's `context-drift-gate` red as
+  Run `python3 skills/project-context-refresh/scripts/cli.py refresh --producer
+  api.contracts` and commit the regenerated inventory IN THIS TASK'S COMMIT.
+  Use the single-producer form, NOT `make context-refresh` — that target is
+  `generate-all`, which also runs the `documentation.inventory` and
+  `decisions.timeline` producers, whose outputs (`skills-inventory.md`,
+  `docs/decisions/`) are outside wp-model's `write_allow`. Any unrelated drift
+  in those two would be regenerated into paths the package may not write,
+  tripping its own scope check. Skipping the refresh entirely leaves CI's
+  `context-drift-gate` red as
   `blocking_drift`, and because a staled derived artifact is absent from the
   diff by definition, no reviewer will see it — the predecessor change hit
   exactly this and nine review rounds missed it.
@@ -282,7 +289,7 @@ that way answers a question about a different copy.
   toward reverse completeness.
 
 - [ ] 3.6 Write tests for malformed input and document discovery `[S]`
-  **Spec scenarios**: The Gate Fails Closed On Malformed Input (an unparseable contract fails the gate); (a schema-invalid traceability block fails the gate); (contracts without a capability spec fail distinctly); (a specless capability that has not opted in is reported); (a capability with a spec and no contracts is forward-untraced); (a contract instance outside openapi/ or cli/ fails discovery); (a schemas-only capability holds no contract documents)
+  **Spec scenarios**: The Gate Fails Closed On Malformed Input (an unparseable contract fails the gate); (a schema-invalid traceability block fails the gate); (contracts without a capability spec fail distinctly); (a specless capability that has not opted in is reported); (a capability with a spec and no contracts is forward-untraced); (a contract instance outside openapi/ or cli/ is reported); (a newly misplaced instance fails change scope); (README and the exclusions file are never instances); (a schemas-only capability holds no contract documents)
   **Design decisions**: D6, and the schema's `oneOf`/`minItems` rationale
   **Dependencies**: 2.5
   **Note**: the unparseable case is the dangerous one — enforcement is keyed
@@ -297,12 +304,21 @@ that way answers a question about a different copy.
   missing-spec rule and red `main` the moment this change merged. Fixture
   both: a schemas-only capability (no failure) and a traced instance with no
   spec (failure).
-  **Note**: cover the misplaced instance too. `code-search/v2.yaml` is a full
-  OpenAPI 3.1 document at the capability root rather than under `openapi/`,
-  contrary to `contracts/README.md`'s own layout table. A discovery walk keyed
-  on the two directories would silently skip it — and silently skipping an
-  OpenAPI document is the invisible-surface failure this change exists to
-  prevent. Assert it fails naming the file and the expected location.
+  **Note**: cover the misplaced instance, and cover it as a RATCHET, not a
+  cliff. `code-search/v2.yaml` is a full OpenAPI 3.1 document at the capability
+  root rather than under `openapi/`, contrary to `contracts/README.md`'s own
+  layout table. A discovery walk keyed on the two directories would silently
+  skip it — the invisible-surface failure this change exists to prevent — but
+  failing on it would red the tree the day the sweep lands and contradict
+  5.7c. Three assertions: (a) the sweep REPORTS a pre-existing root instance
+  naming the file and the expected location and exits zero on that account;
+  (b) change scope FAILS when the diff adds or modifies a root instance;
+  (c) `README.md` and `traceability-exclusions.yaml` at a capability root are
+  not instances — the second matters most, since D13 puts the reverse opt-in
+  switch at exactly that path, and a location-based rule would make flipping
+  the switch fail the gate. Identification is structural: top-level `openapi`
+  key or top-level `tool` key (verified against `gen-eval.yaml`, whose top
+  level is `contract_version`, `tool`, `commands`, `exit_codes`).
 
 - [ ] 3.7 Implement `scripts/check_traceability.py` `[M]`
   **Design decisions**: D3, D4, D5, D6, D13
@@ -479,10 +495,13 @@ scripted verification of the human-authored artifacts.
 
 ## Phase 5 — The coordinator contract, matrix generation, and CI
 
-Tasks 5.1, 5.2, and 5.3 are `[human]` — authoring the coordinator contract is
-one decision per operation. Tasks 5.4-5.9 are engineering (wp-matrix and
-wp-wiring); 5.6 and 5.7 additionally require the human-authored artifacts from
-4.2/4.2b (and 5.2 for the sweep demonstration) to be meaningful.
+Tasks 5.1, 5.2, 5.3, and 5.7c are `[human]` — authoring the coordinator
+contract is one decision per operation, and 5.7c's acceptance run may demand
+triage of the same kind. Tasks 5.4-5.9 are engineering (wp-matrix and
+wp-wiring) **with the single exception of 5.7c**, which sits inside that
+numeric range but is owned by no package; 5.6 and 5.7 additionally require the
+human-authored artifacts from 4.2/4.2b (and 5.2 for the sweep demonstration) to
+be meaningful.
 
 - [ ] 5.1 `[human]` Author `openspec/contracts/agent-coordinator/openapi/v1.yaml` from the spec `[M]`
   **Design decisions**: D1, D6
@@ -535,7 +554,7 @@ wp-wiring); 5.6 and 5.7 additionally require the human-authored artifacts from
   text in place while generating the column is how the two disagree.
 
 - [ ] 5.6 Wire the change-scoped gate into `/validate-feature` `[M]`
-  **Spec scenarios**: Validation-Time Evaluation Is Scoped To The Change (a pre-existing gap does not fail a change that did not create it); skill-workflow delta: Validation-Time Requirement Traceability Gate (all three scenarios)
+  **Spec scenarios**: Validation-Time Evaluation Is Scoped To The Change (a pre-existing gap does not fail a change that did not create it); skill-workflow delta: Validation-Time Requirement Traceability Gate (all four scenarios)
   **Design decisions**: D12
   **Dependencies**: 3.16, 4.2
   **Note**: this is the blocking gate — work is not validated until the
@@ -547,11 +566,26 @@ wp-wiring); 5.6 and 5.7 additionally require the human-authored artifacts from
   this), or the wiring is unverified.
   **Note**: run it BARE, never piped. A pipeline's `$?` is the last stage's
   status, so `check_traceability.py | tail` reports tail's 0 on a failing gate.
+  **Note**: gate the invocation on detection and print an explicit SKIP when
+  `packages/gen-eval/scripts/check_traceability.py` or `openspec/contracts/` is
+  absent. `skills/validate-feature/` ships via `install.sh` into consumer repos
+  that have neither, where an unconditional invocation fails every validation
+  downstream. The skill's existing gen-eval phase already does detect-then-
+  print-SKIP — copy that shape. Test the SKIP path, not just the run path: an
+  unprinted skip and a passing gate are indistinguishable in a log.
 
 - [ ] 5.7 Wire the full-capability sweep into CI `[S]`
-  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed)
+  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (the blocking sweep resolves against the candidate's own delta)
   **Design decisions**: D12
   **Dependencies**: 3.16, 5.2
+  **Note**: the two jobs differ in more than blocking-ness — they differ in
+  what requirement identifiers resolve to, and the `pull_request` job MUST
+  pass `--change <id>` derived from the branch (`openspec/<change-id>`). A
+  candidate's citations name requirements its own delta adds and the archive
+  does not have; resolving archive-only would report every one as unresolved.
+  The `push`-on-`main` job has no candidate and resolves against the archive
+  shadowed by every delta under `openspec/changes/` — looser, which is exactly
+  why it reports and never blocks (D12).
   **Note**: the BLOCKING sweep is `pull_request`-triggered. An earlier draft
   put it on `push` to `main` reasoning that cron cannot block a merge — true,
   but a push event on `main` fires *after* the merge lands and shares the
@@ -586,18 +620,27 @@ wp-wiring); 5.6 and 5.7 additionally require the human-authored artifacts from
   **Note**: verify by deleting the entry and confirming the new tests vanish
   from the collected set, not merely that they pass with it present.
 
-- [ ] 5.7c The unmutated tree passes at capability scope `[M]` `[human]`
+- [ ] 5.7c `[human]` The unmutated tree passes at capability scope `[M]`
   **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (both scenarios)
   **Design decisions**: D12, D13
   **Dependencies**: 4.2b, 5.2, 5.7
   **Note**: this is the GREEN half of 4.3's RED demonstration, and it is the
   acceptance criterion the change otherwise lacks. Task 4.3 proves the gate
   goes red on two documented mutations; nothing yet requires it to go GREEN on
-  the merge candidate. Run `check_traceability.py --scope capability` across
-  every capability on the merge commit and record the exit code. It MUST be
-  zero — this change flips gen-eval-framework into blocking reverse
-  enforcement (4.2b) and installs the blocking sweep (5.7) in the same PR, so
-  a non-zero result here means merging reds `main` immediately.
+  the merge candidate. Run `check_traceability.py --scope capability --change
+  trace-requirements-to-contracts` across every capability on the merge commit
+  and record the exit code. It MUST be zero — this change flips
+  gen-eval-framework into blocking reverse enforcement (4.2b) and installs the
+  blocking sweep (5.7) in the same PR, so a non-zero result here means merging
+  reds `main` immediately.
+  **Note**: pass `--change` explicitly. The requirements 4.1 adds exist only in
+  this change's spec delta, and 4.2's citations name them; an archive-only run
+  reports every one as unresolved. That is the blocking run's resolution rule
+  (D12), and this task is where it is first exercised on real artifacts.
+  **Note**: expect `code-search/v2.yaml` in the REPORT, not the failures — it
+  is a pre-existing root-misplaced instance, and the rule reports the existing
+  while failing only newly added ones. If it appears as a failure, discovery
+  was implemented as a cliff and 3.6's assertion (a) does not hold.
   **Note**: `[human]` because passing it may require triage decisions (which
   requirements are cited, which are excused and why), which D1 forbids
   delegating. Scale: gen-eval-framework carries 20 archived requirements plus

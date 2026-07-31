@@ -1,174 +1,201 @@
-# Plan Review — `trace-requirements-to-contracts`
+# Plan Review — `trace-requirements-to-contracts` — ROUND 2 (verification round)
 
-You are an independent plan reviewer. Review the OpenSpec change plan named
-`trace-requirements-to-contracts`. You are running inside the repository's
-managed worktree; **all paths below are relative to your current working
-directory**. Use your tools to read files and to run read-only shell commands.
-Verify claims against the real repository rather than trusting the plan's prose.
+You are an independent plan reviewer. You are running inside the repository's
+managed worktree on branch `openspec/trace-requirements-to-contracts`; **all
+paths below are relative to your current working directory**.
 
-## Artifacts to read (all under `openspec/changes/trace-requirements-to-contracts/`)
+**Run commands.** You have shell access. Prefer findings you can *demonstrate*
+by executing something (`ls`, `grep`, `git show`, `git diff`, `python3 -c ...`,
+`openspec validate`) over findings you infer from prose. A finding backed by a
+command and its output is worth ten backed by a reading.
 
-- `proposal.md` — why, what changes, scope, acceptance outcomes, risks
-- `design.md` — 13 numbered design decisions (D1–D13)
-- `specs/gen-eval-framework/spec.md` — 14 ADDED requirements, 35 scenarios
-- `specs/skill-workflow/spec.md` — 1 MODIFIED + 1 ADDED requirement
-- `tasks.md` — 5 phases, ~44 tasks, RED-demonstration protocol
-- `work-packages.yaml` — 5 work packages (wp-resolver, wp-model, wp-gate,
-  wp-matrix, wp-wiring) plus 6 tasks deliberately excluded as `[human]`
-- `contracts/traceability.schema.json`, `contracts/traceability-exclusions.schema.json`,
-  `contracts/README.md`
+## Why this round exists — read this first
 
-## What the change does, in one paragraph
+Round 1 of this review returned **not_converged** with 10 blocking findings. The
+plan author then fixed all 10 **inline, in a single commit `3891089b`**, and now
+claims they are closed. Round 1's reviewers read the tree *before* that commit
+and cannot corroborate the claim.
 
-It adds the "requirement → contract" edge above an already-shipped
-contract → descriptor → implementation chain. Contracted operations gain a
-`traceability` block citing requirement identifiers (`<capability>.<slug>`
-derived from spec headings). A new `packages/gen-eval/scripts/check_traceability.py`
-gate checks four things: citations resolve, forward completeness (every
-operation cites or is excluded), reverse completeness (every requirement is
-cited or excluded), and exclusions carry reasons. Enforcement is opt-in with
-**one switch per direction**: forward opts in per contract *document* (keyed on
-a traceability block existing anywhere in it — D6); reverse opts in per
-*capability*, keyed on the existence of
-`openspec/contracts/<capability>/traceability-exclusions.yaml` — D13. The gate
-runs change-scoped and blocking at `/validate-feature`, and as a full sweep on
-`main` where opted-in surfaces block and the rest report.
+**Your primary job is to test that claim, not to re-derive it.** "All findings
+fixed" is currently the author's own assertion about their own work.
 
-## Priority focus — review these hardest
-
-1. **Design decision D13 (directional opt-in).** This is the one genuinely new
-   mechanism, introduced in the most recent plan iteration, and it has had **no
-   prior review**. Attack it:
-   - Is "the exclusions file's existence IS the reverse opt-in switch" sound, or
-     does overloading one artifact with two meanings create a state nobody can
-     express? Consider: what does a capability do if it wants to record a
-     requirement exclusion *without* turning on blocking reverse enforcement?
-     Is that a real need? What happens if the file is deleted, empty,
-     malformed, or present-but-unreadable?
-   - D12 struck a "reported-to-blocking" flag as redundant. D13 adds a second
-     switch and argues it is not the same redundancy because it switches a
-     *different claim*. Is that distinction real or a rationalization? Can you
-     construct a state that is "opted in but not blocking" under D13 — the
-     outcome D6/D12 exist to make impossible?
-   - Interaction of the two switches: a capability whose only traced document
-     is in *another* capability; a capability with an exclusions file but zero
-     contract documents; an exclusions file naming cross-capability
-     requirements (the schema permits it — see the `requirement` pattern
-     description); a requirement cited only by an *untraced* document's block
-     (can that even exist?).
-   - Does any requirement, task, or acceptance outcome still assume the old,
-     single, per-capability opt-in? Grep the whole change directory for
-     leftovers.
-
-2. **The wp-model write scope dispute.** An earlier gate review recommended
-   widening `wp-model`'s `write_allow` to include
-   `packages/gen-eval/src/gen_eval/contracts/**` and
-   `packages/gen-eval/evaluation/descriptor.yaml`, because two CI steps assert
-   byte identity of artifacts derived from `descriptor.py` /
-   `service_descriptor.py` (`generate_contract_schemas.py --check` and
-   `generate_tool_descriptor.py --check`, around `.github/workflows/ci.yml`
-   lines 411 and 431). The plan iteration **refused** that fix, arguing instead
-   that the new `traceability` field goes only on archetype-only models
-   (`FlagSpec`, `PositionalSpec`, `ToolCommandSpec`, `OperationSpec`), which are
-   *not reachable from* `InterfaceDescriptor`, and that an absent default keeps
-   `evaluation/descriptor.yaml` byte-identical under `exclude_defaults=True`.
-   **Judge this refutation on its merits — do not assume either party is
-   right.** Verify empirically:
-   - Read `packages/gen-eval/src/gen_eval/descriptor.py` and
-     `service_descriptor.py`. Is `OperationSpec` genuinely unreachable from
-     `InterfaceDescriptor`? What about `FlagSpec` / `PositionalSpec` /
-     `ToolCommandSpec`?
-   - Read `packages/gen-eval/scripts/generate_contract_schemas.py`. Which models
-     does it actually walk, and would adding an optional field to those four
-     models change any generated schema byte?
-   - Read `packages/gen-eval/scripts/generate_tool_descriptor.py`. Does
-     `exclude_defaults=True` actually apply on the path that emits
-     `evaluation/descriptor.yaml`, and is `None` the model default?
-   - If the refutation is wrong, that is a **critical** finding: the
-     implementer will red CI with no in-scope way to fix it. If it is right,
-     say so explicitly with the evidence.
-
-## Standard review dimensions
-
-Also evaluate:
-
-- **Spec quality.** Every requirement's FIRST line must contain SHALL/MUST
-  (`openspec validate --strict` only checks the first line). Scenarios testable,
-  no vague judgement words that a test would have to invent a threshold for.
-- **Internal consistency.** proposal ↔ design ↔ spec ↔ tasks ↔ work-packages
-  must not contradict each other. Check task numbering references, scenario
-  names referenced by tasks actually existing in the spec, design decision ids
-  referenced by tasks actually existing in design.md.
-- **The gate's own falsifiability.** This change's stated thesis is that a gate
-  observed only to pass is decoration. Does every check have a documented
-  mutation that makes it fail? Are there checks in the spec with no
-  corresponding RED demonstration? Is the final checkpoint satisfiable as
-  worded?
-- **Fail-open holes.** Enumerate ways the gate could exit zero while the
-  property it claims does not hold: parse errors read as "no blocks", empty
-  touched set, missing capability spec, unreadable exclusions file, a capability
-  directory that does not exist, symlinks, non-UTF8, duplicate operation ids,
-  citations naming a capability whose spec exists but is empty.
-- **Work package validity.** DAG acyclic; write scopes non-overlapping between
-  packages that could run concurrently; `write_allow` covers every file each
-  package's tasks must touch (including files the edit *invalidates*, not just
-  files it edits); verification commands runnable and meaningful; the
-  `[human]` task carve-out coherent with `depends_on`.
-- **Feasibility.** Are the LOC estimates and task sizes plausible? Is any task
-  secretly an L/XL? Is the `wp-wiring` DISPATCH PRECONDITION (do not dispatch
-  before human tasks 4.1/4.2/4.2b land) expressible in the scheduler, or only
-  in prose?
-- **Adoption risk.** Does the change red the tree for unrelated work? Does the
-  full sweep on `main` start failing on day one? Is the flagship retrofit
-  (tasks 4.1/4.2/4.2b) actually bounded, or does it drag in an unbounded
-  requirement triage?
-
-## Useful commands (read-only)
+Start here:
 
 ```bash
-ls openspec/contracts/
-ls openspec/specs/ | head -40
-grep -rn "traceability" openspec/changes/trace-requirements-to-contracts/ | head -50
-sed -n '400,440p' .github/workflows/ci.yml
-grep -n "class .*Spec\|class InterfaceDescriptor" packages/gen-eval/src/gen_eval/descriptor.py packages/gen-eval/src/gen_eval/service_descriptor.py
-grep -rn "exclude_defaults" packages/gen-eval/scripts/
+git log --oneline -3
+git show --stat 3891089b
+git show 3891089b -- openspec/changes/trace-requirements-to-contracts/specs/
+git show 3891089b -- openspec/changes/trace-requirements-to-contracts/tasks.md
+git show 3891089b -- openspec/changes/trace-requirements-to-contracts/work-packages.yaml
+git show 3891089b -- openspec/changes/trace-requirements-to-contracts/design.md
 ```
 
-## Output format — MANDATORY
+## Part A — Verify each of the 10 claimed fixes against the CURRENT tree
 
-Output **only** a single JSON object, no prose before or after, no markdown
-fences. It must conform to `openspec/schemas/review-findings.schema.json`:
+The standard: **a fix stated in prose but with no scenario, no task, and no
+verification step is not a fix.** For each item below, decide one of: genuinely
+closed / partially closed (name what is missing) / not closed. Where a fix is
+only rhetorical — a paragraph of rationale added to `design.md` with nothing
+executable behind it — say so.
+
+| # | Round-1 finding | Author's claimed fix |
+|---|---|---|
+| B1 | An unreadable/empty/schema-invalid `traceability-exclusions.yaml` read as "not opted in", silently disabling reverse enforcement | Now fails closed; negative asserted explicitly |
+| B2 | Cross-capability exclusions permitted by the schema, unspecified by the spec | Now refused: citations permitted, exclusions refused |
+| B3 | wp-wiring's dispatch precondition was prose the DAG could not read | Converted to an "executable preflight verification step" |
+| B4 | The opt-in transition was invisible to change scope | Touched set now includes every operation in a newly-traced document and every requirement of a newly-excluded capability |
+| B5 | Blocking full sweep was `push`-triggered on `main`, i.e. after the merge | Blocking sweep moved to `pull_request`; push-on-main kept as non-blocking |
+| B6 | `phase-record`, `project-context-refresh`, `prototyping` have contract dirs and no capability spec → sweep reds `main` on merge | Resolved by the new "contract document" definition (they are schemas-only) |
+| B7 | "contract document" used 20+ times, never defined | Defined as an instance under `openapi/` or `cli/`; `schemas/` files are not documents |
+| B8 | Task 2.0's schema promotion drifts `docs/architecture-analysis/contracts-inventory.md`; no package could write it | Added to wp-model `write_allow` + a context-drift-gate verification step |
+| B9 | `skills/tests/validate-feature` absent from `skills/pyproject.toml` testpaths → new skill tests never run in CI | New task 5.7b + write_allow + verification step |
+| B10 | Task 4.3 proves RED on mutations; nothing requires GREEN on the merge candidate | New task 5.7c, marked `[human]` |
+
+Checks worth actually running for Part A:
+
+- B6/B7: `ls openspec/contracts/`, then for each capability dir compare against
+  `ls openspec/specs/`. Does the new "contract document" definition actually
+  spare all three specless capabilities? Is `code-search/v2.yaml` (an OpenAPI
+  3.1 instance at the capability *root*) now a hard failure — and if so, does
+  the plan contain a task that fixes it before the blocking sweep turns on? A
+  definition that converts three silent skips into one loud failure with no
+  remediation task has moved the breakage, not removed it.
+- B8/B9: grep the current `work-packages.yaml` for the claimed `write_allow`
+  entries and verification steps. Do they exist? Do they name the right paths?
+  Does `skills/pyproject.toml` actually lack a `validate-feature` testpath
+  today (`grep -n testpaths -A 20 skills/pyproject.toml`)?
+- B10: find task 5.7c. Does it state a pass condition an implementer could
+  fail, or is it a placeholder?
+- B4: find the two new scenarios. Do the tasks that implement them exist, with
+  fixtures?
+
+## Part B — The FIXES introduced four new mechanisms. These have had NO review.
+
+Treat them as new surface, not as settled. This is where the real defects most
+likely are, because they were written under time pressure to close findings and
+nobody has looked at them once.
+
+1. **A contract-document definition keyed on directory location** (D6, and the
+   "gate fails closed" requirement). A contract document is now a file under
+   `openspec/contracts/<capability>/openapi/` or `.../cli/`; `schemas/` files
+   are not documents; an instance at the capability root SHALL fail discovery.
+   - How does the gate decide a root-level file is "instance-format" in order
+     to fail on it? Is that rule specified anywhere, or does it require the
+     very parse the definition says it will not perform? What about a README,
+     a `.gitignore`, `traceability-exclusions.yaml` itself, or any other
+     non-instance file sitting at a capability root — does the rule fail on
+     those too?
+   - `traceability-exclusions.yaml` lives at the capability root by design
+     (D13). The misplaced-instance rule also fires at the capability root.
+     Do these two collide? Is the exception written down?
+   - Does the definition survive a capability that has a spec, an exclusions
+     file, and zero documents?
+2. **Opt-in widens the touched set** (D12 + the change-scope requirement).
+   "Adding a traceability block to a previously untraced document touches
+   every operation in that document; adding a capability's exclusions file
+   touches every requirement of that capability."
+   - Is "previously untraced" computable from the diff the gate is given? What
+     is the baseline — merge base, or the working tree? What happens when a
+     document is *created* already-traced in the same change? When a
+     traceability block is *removed*, opting a document back out?
+   - The design asserts this "does not violate the restriction property"
+     (change scope only ever restricts what the full sweep enforces). Verify
+     that claim rather than accepting it. Is there a case where change scope
+     now fails something the full sweep would pass?
+3. **Cross-capability exclusion refusal** (D13 + a new scenario). An exclusions
+   entry whose requirement prefix is not the owning capability fails.
+   - The requirement id is `<capability>.<slug>` where capability is a
+     *directory name*. Is the prefix parse unambiguous when a capability name
+     itself contains a dot, or when a slug contains one? Check real capability
+     names: `ls openspec/specs/`.
+   - Is the schema (`contracts/traceability-exclusions.schema.json`) now
+     consistent with the spec, or does its field description still advertise
+     the behaviour the spec refuses? `git show 3891089b -- openspec/changes/trace-requirements-to-contracts/contracts/`
+   - What excuses a requirement legitimately served from another capability
+     (D9's own example: the coordinator serves `/gen-eval/scenarios`)? If A's
+     operation cites B's requirement, B's reverse completeness passes. But if
+     nobody serves it and B's owner knows A will never build it — where does
+     that exclusion live now?
+4. **An executable preflight step standing in for a DAG precondition the schema
+   cannot express** (wp-wiring). The claim is that
+   `work-packages.schema.json` has `additionalProperties: false` and
+   `depends_on` accepts only package ids, so the precondition cannot live in
+   the DAG — therefore it becomes a verification step inside the package.
+   - **Verify the premise by reading the schema**, don't take it on trust.
+   - A verification step runs *inside* the package, i.e. **after** the
+     scheduler has already dispatched it. Does that actually prevent premature
+     dispatch, or does it merely make premature dispatch fail loudly after the
+     agent has spun up? Is failing-after-dispatch adequate here, and does the
+     plan say what the scheduler does with that failure?
+   - Is the preflight actually executable — a command with a pass/fail
+     condition — or is it prose wearing a checkbox?
+
+## Part C — Standing checks
+
+- Does anything in the change still assume the pre-fix semantics? Grep for
+  residue of the old rules (push-triggered blocking sweep, "capability
+  directory containing contracts", the old single opt-in).
+- Do the new scenarios have corresponding tasks, and do the new tasks have
+  corresponding scenarios? Cross-check both directions.
+- Run the mechanical gates yourself:
+  `openspec validate trace-requirements-to-contracts --strict`, and the work
+  package validator if you can locate it.
+- Are the new `[human]` carve-outs (5.7c and others) consistent with
+  `work-packages.yaml`'s exclusions list?
+
+## Artifacts
+
+All under `openspec/changes/trace-requirements-to-contracts/`:
+`proposal.md`, `design.md` (D1–D13), `specs/gen-eval-framework/spec.md`,
+`specs/skill-workflow/spec.md`, `tasks.md`, `work-packages.yaml`,
+`contracts/traceability.schema.json`,
+`contracts/traceability-exclusions.schema.json`, `contracts/README.md`.
+Round 1 evidence: `reviews/` and `handoffs/plan-review-20260728T151918Z.json`.
+
+## Do NOT re-raise this (settled, empirically, by four independent reviewers)
+
+The GATEKEEPER proposed widening `wp-model`'s `write_allow` to cover
+`packages/gen-eval/evaluation/descriptor.yaml` and the generated
+`interface-descriptor.schema.json`. That proposal is **wrong** and was refuted
+unanimously against the source: the traceability field lands on archetype-only
+models unreachable from `InterfaceDescriptor` (check the generated `$defs`),
+and `exclude_defaults=True` on the flag/positional/command dumps keeps
+`descriptor.yaml` byte-identical. Do not re-raise it. (The *separate*
+`contracts-inventory.md` drift, B8, is real and different — that one you should
+verify.)
+
+## Output
+
+Emit **only** a single JSON object, no prose before or after, conforming to
+`openspec/schemas/review-findings.schema.json`:
 
 ```json
 {
   "review_type": "plan",
   "target": "trace-requirements-to-contracts",
-  "reviewer_vendor": "<your model or CLI name>",
+  "reviewer_vendor": "<your model name>",
   "findings": [
     {
       "id": 1,
-      "axis": "architecture",
+      "axis": "correctness",
       "severity": "critical",
-      "type": "architecture",
+      "type": "spec_gap",
       "criticality": "high",
-      "description": "Critical: <what is wrong, naming the exact file and section>",
-      "resolution": "<the specific change that fixes it — describe, do not write code>",
+      "description": "Critical: <what, where, and the command output that proves it>",
+      "resolution": "<the specific edit that closes it>",
       "disposition": "fix"
     }
   ]
 }
 ```
 
-Rules:
-- `axis` ∈ `correctness | readability | architecture | security | performance` — exactly one per finding.
-- `severity` ∈ `critical | nit | optional | fyi | none`, and the `description`
-  MUST begin with the matching prefix (`Critical:` / `Nit:` / `Optional:` /
-  `FYI:` / no prefix for `none`).
-- `criticality` ∈ `high | medium | low`. `disposition` ∈ `fix | regenerate | accept | escalate`.
-- Every finding must name a concrete file and section/line. Findings that
-  reference paths or sections that do not exist will be discarded.
-- Do NOT emit zero findings. If the plan is strong, emit `severity: none`
-  positive observations naming precisely what it got right — and at minimum
-  state your verdict on D13 and on the wp-model dispute as findings
-  (`fyi`/`none` if you agree with the plan, `critical`/`nit` if you do not).
-- Do not modify any file in the repository. This is a read-only review.
+Rules: every finding needs both `axis` (one of correctness, readability,
+architecture, security, performance) and `severity` (critical, nit, optional,
+fyi, none), and the `description` MUST begin with the matching prefix
+(`Critical:` / `Nit:` / `Optional:` / `FYI:` / nothing for `none`). Use
+`severity: none` for positive observations — in particular, say explicitly
+which of the 10 fixes you verified as genuinely closed, and how. A round that
+finds nothing wrong must still record what it checked.
+
+Wrap the object in `{"findings": [...]}` exactly as shown — a bare array is
+discarded by the dispatcher.

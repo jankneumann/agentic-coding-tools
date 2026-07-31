@@ -34,13 +34,24 @@ citations rather than mapped by hand.
 
 The `/validate-feature` skill SHALL run the requirement-traceability gate
 (`check_traceability.py`) in change scope during its spec-compliance phase, and
-SHALL fail validation when the gate exits non-zero.
+SHALL fail validation when the gate exits non-zero. Where the gate or
+`openspec/contracts/` is absent, the skill SHALL print an explicit SKIP naming
+what is missing and SHALL NOT fail validation.
 
 The gate is the enforcement point for the requirement-to-contract edge: an
 operation the change touches must cite the requirements it serves, and a
 requirement the change adds must be cited or excluded, before the change
 validates. Pre-existing violations the change did not create are reported by
 the gate without failing it, so this wiring blocks only new debt.
+
+The detection path is not optional politeness. `skills/validate-feature/` ships
+via `install.sh` into consumer repositories that have no `packages/gen-eval/`
+and no `openspec/contracts/`, where the gate cannot run at all; wiring it
+unconditionally would fail every validation in every downstream repo. The
+skill's existing gen-eval phase already does detection-plus-printed-SKIP, so
+the pattern is in the file being edited. The SKIP is printed rather than silent
+for the usual reason — an unprinted skip and a passing gate are the same
+observation.
 
 #### Scenario: Gate runs during validation
 
@@ -57,8 +68,18 @@ the gate without failing it, so this wiring blocks only new debt.
 - **AND** the validation report SHALL include the gate's output naming the
   violations
 
+#### Scenario: Gate absent in a consumer repository
+
+- **WHEN** `/validate-feature` runs in a repository where
+  `packages/gen-eval/scripts/check_traceability.py` or `openspec/contracts/` is
+  absent
+- **THEN** it SHALL print a SKIP naming the missing path
+- **AND** it SHALL NOT record the validation as failed on that account
+
 #### Scenario: Skill wiring is covered by skill tests
 
 - **WHEN** the traceability gate wiring is added to `/validate-feature`
 - **THEN** the skill's own tests SHALL assert the gate is invoked in change
   scope and that a non-zero gate exit fails validation
+- **AND** they SHALL assert that an absent gate produces a printed SKIP and a
+  passing validation

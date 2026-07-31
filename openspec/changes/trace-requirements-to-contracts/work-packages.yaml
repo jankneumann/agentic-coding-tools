@@ -389,7 +389,8 @@ packages:
     title: "Skill and CI wiring for both run contexts"
     task_type: implementation
     description: |
-      Tasks 5.6-5.9. Wire the change-scoped gate into
+      Tasks 5.6-5.9, EXCEPT 5.7c which is `[human]` and owned by no package.
+      Wire the change-scoped gate into
       skills/validate-feature/SKILL.md (bare invocation, --scope change
       --change <id>, non-zero exit fails validation) with skill tests per the
       skill-workflow delta; wire the full-capability sweep into ci.yml as a
@@ -409,15 +410,30 @@ packages:
       fixtures, which is exactly the mirror-verification this change exists
       to end.
 
-      This precondition is ENFORCED, not merely stated: the first verification
-      step below fails when the human-authored artifacts are absent. The
-      schema has no "do not dispatch" field and `depends_on` accepts only
-      package ids, so a precondition on non-package work cannot be expressed
-      in the DAG — an orchestrator executing strictly by `depends_on` would
-      dispatch this package the moment wp-gate and wp-matrix finish. Run
-      `preflight: human citations have landed` FIRST, before any edit; if it
-      fails, stop and report the precondition rather than proceeding against
-      fixtures.
+      This precondition is NOT enforceable by the DAG, and the honest
+      accounting matters more than a reassuring sentence. The schema has no
+      "do not dispatch" field and `depends_on` accepts only package ids, so a
+      dependency on non-package work cannot be expressed — an orchestrator
+      executing strictly by `depends_on` would dispatch this package the
+      moment wp-gate and wp-matrix finish. Nor do `verification.steps` help:
+      implement-feature injects them into the worker prompt under the literal
+      heading "After implementation, run:", and orders Phase B as code
+      generation, then scope check, then verification. A step listed there
+      runs LAST, not first.
+
+      So the check is placed twice, once where it can stop the work and once
+      where it can catch it: the FIRST instruction to the agent implementing
+      this package is to run the `preflight` command below and stop, reporting
+      the unmet precondition, if it fails — before reading anything else or
+      editing any file. The same command is also kept as a verification step,
+      where it catches an agent that skipped the instruction, after the fact.
+      Detection-after-the-fact is worth having and is not the same thing as
+      prevention; treating the verification step as a gate would be exactly
+      the fail-open mistake this change exists to eliminate.
+
+      PREFLIGHT (run before any edit):
+        test -f openspec/contracts/gen-eval-framework/traceability-exclusions.yaml
+        && grep -q 'traceability:' openspec/contracts/gen-eval-framework/cli/gen-eval.yaml
     role: python-engineer
     archetype: implementer
     priority: 5
@@ -454,7 +470,11 @@ packages:
     verification:
       tier_required: B
       steps:
-        - name: "preflight: human citations have landed"
+        # Detection, not prevention. Verification steps run AFTER the work
+        # (implement-feature injects them under "After implementation, run:"),
+        # so this catches a package that ignored the PREFLIGHT instruction in
+        # the description — it cannot stop it. Both placements are deliberate.
+        - name: "post-hoc check: human citations had landed"
           kind: command
           command: >-
             test -f openspec/contracts/gen-eval-framework/traceability-exclusions.yaml
@@ -490,7 +510,7 @@ packages:
     outputs:
       result_keys: ["wiring_tests"]
 
-  # Tasks 4.1, 4.2, 4.2b, 5.1, 5.2, and 5.3 are NOT work packages. They are
+  # Tasks 4.1, 4.2, 4.2b, 5.1, 5.2, 5.3, and 5.7c are NOT work packages. They are
   # authoring tasks — deciding which requirement each operation serves — and
   # dispatching them to an agent would produce exactly the plausible-looking
   # mapping D1 forbids. The gate cannot tell a considered citation from a
@@ -501,3 +521,12 @@ packages:
   # with the phase-4 human work, immediately after 4.2b, and is deliberately
   # kept out of the packages too: its whole value is that a person watches
   # the real gate fail on the real contract.
+  #
+  # Task 5.7c is the GREEN counterpart to 4.3 and is likewise excluded, even
+  # though it falls inside wp-wiring's 5.6-5.9 numeric range. It runs the sweep
+  # across every capability on the merge candidate and requires exit zero;
+  # reaching zero may require deciding which requirements are cited and which
+  # are excused, which is the same D1 judgement 4.2/4.2b carve out. An agent
+  # given "make this exit zero" as an objective can satisfy it by writing
+  # placeholder exclusions, which is the failure mode the whole change targets.
+  # wp-wiring's description states the range as 5.6-5.9 EXCEPT 5.7c.

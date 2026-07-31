@@ -1,30 +1,42 @@
 {
-  "schema_version": 4,
-  "change_id": "trace-requirements-to-contracts",
-  "current_phase": "PLAN_FIX",
-  "iteration": 1,
-  "total_iterations": 1,
-  "max_phase_iterations": 3,
-  "findings_trend": [
-    10
-  ],
   "blocking_findings": [],
-  "vendor_availability": {
-    "antigravity": true,
-    "claude_code": true,
-    "codex": true,
-    "grok": true,
-    "pi": true
+  "change_id": "trace-requirements-to-contracts",
+  "cli_review_enabled": true,
+  "current_phase": "PLAN_FIX",
+  "error": null,
+  "escalation_reason": null,
+  "findings_trend": [
+    10,
+    6
+  ],
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": true,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 3,
+    "total_loc_estimate": 1850
   },
-  "packages_status": {},
-  "package_authors": {},
-  "implementation_strategy": {},
-  "memory_ids": [],
+  "gate_verdict": null,
   "handoff_ids": [
     "gatekeeper-20260728T142525Z",
     "plan-iterate-20260728T145934Z",
-    "plan-review-20260728T151918Z"
+    "plan-review-20260728T151918Z",
+    "plan-review-20260731T134500Z"
   ],
+  "implementation_strategy": {},
+  "iteration": 2,
+  "last_handoff_id": "plan-review-20260731T134500Z",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "phase_archetype": "reviewer",
   "phase_history": [
     {
       "at": "2026-07-28T14:26:58.593896+00:00",
@@ -46,29 +58,30 @@
       "at": "2026-07-28T15:22:04.171819+00:00",
       "outcome": "not_converged",
       "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-07-28T15:32:38.534277+00:00",
+      "note": "10 blocking findings fixed inline at 3891089b; archetype inherited from PLAN_REVIEW",
+      "outcome": "complete",
+      "phase": "PLAN_FIX"
+    },
+    {
+      "at": "2026-07-31T19:40:34.017330+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
     }
   ],
-  "last_handoff_id": "plan-review-20260728T151918Z",
-  "started_at": "2026-07-28T14:22:58.793360+00:00",
-  "phase_started_at": "2026-07-28T15:23:01.708792+00:00",
+  "phase_started_at": "2026-07-31T19:40:50.124079+00:00",
   "previous_phase": "PLAN_REVIEW",
-  "escalation_reason": null,
+  "schema_version": 4,
+  "started_at": "2026-07-28T14:22:58.793360+00:00",
+  "total_iterations": 1,
   "val_review_enabled": true,
-  "cli_review_enabled": true,
-  "error": null,
-  "phase_archetype": "reviewer",
-  "force": false,
-  "gate_signals": {
-    "external_dep_count": 0,
-    "has_broad_write_scope": false,
-    "has_db_migration": false,
-    "has_proposal": true,
-    "has_security_signal": true,
-    "has_specs": true,
-    "has_tasks": true,
-    "has_work_packages": true,
-    "package_count": 3,
-    "total_loc_estimate": 1850
-  },
-  "gate_verdict": null
+  "vendor_availability": {
+    "antigravity": true,
+    "claude_code": true,
+    "codex": true,
+    "grok": true,
+    "pi": true
+  }
 }

@@ -498,19 +498,32 @@ asserting that it is.
 
 ### Requirement: The full sweep blocks opted-in surfaces and reports the rest
 
-A full-capability evaluation SHALL run against the integration branch on every
-push. It SHALL fail on violations in contract documents that have opted into
-forward enforcement and in capabilities that have opted into reverse
-enforcement, and SHALL report untraced documents and not-opted-in capabilities
-without failing.
+A full-capability evaluation SHALL run as a blocking check on the merge
+candidate, and SHALL run again, explicitly non-blocking, on the integration
+branch after merge. The blocking run SHALL fail on violations in contract
+documents that have opted into forward enforcement and in capabilities that
+have opted into reverse enforcement, and SHALL report untraced documents and
+not-opted-in capabilities without failing.
+
+The blocking run SHALL resolve requirement identifiers exactly as change scope
+does — archived capability specs shadowed by the active change's spec delta,
+with other in-flight changes' requirements neither citable nor excludable — and
+SHALL therefore require an active change id, failing rather than inferring one.
+The post-merge run has no active change; it SHALL resolve against the archived
+specs shadowed by every spec delta present under `openspec/changes/` on the
+integration branch, and this permissiveness is the reason it is non-blocking:
+that union admits requirements from changes whose implementation has not landed,
+which is accurate enough to report accumulated debt and too loose to gate on.
 
 Diff-scoping alone would never surface accumulated gaps — nothing touches them,
 so nothing reports them. The sweep is what makes existing debt visible without
 blocking anyone, and opting in is the only switch that turns its report into a
 block: a second reported-to-blocking flag would create an opted-in-but-not-
 blocking state, which is the half-traced-yet-green outcome opt-in exists to
-make impossible. The sweep runs on push, not on a schedule — a scheduled run
-cannot block a merge.
+make impossible. The blocking run is on the merge candidate, not on a push to
+the integration branch: a scheduled run cannot block a merge, but neither can a
+push event that fires *after* the merge has landed. Both can red the branch;
+only a check on the candidate can stop it going red.
 
 <!-- Scenario ID: gen-eval-framework.sweep-blocks-opted-in -->
 #### Scenario: An opted-in surface fails the sweep
@@ -527,14 +540,30 @@ cannot block a merge.
 - **THEN** it SHALL report each with its status
 - **AND** it SHALL NOT fail on them
 
+<!-- Scenario ID: gen-eval-framework.blocking-sweep-requires-a-change-id -->
+#### Scenario: The blocking sweep resolves against the candidate's own delta
+
+- **WHEN** the blocking merge-candidate sweep runs on a change that adds new
+  requirements and cites them from a contract document in the same change
+- **THEN** those citations SHALL resolve against the change's spec delta
+- **AND** the sweep SHALL fail rather than run when no active change id is
+  supplied, instead of resolving against the archive alone and reporting every
+  such citation as unresolved
+
 ### Requirement: The gate fails closed on malformed input
 
 A contract document SHALL be a contract instance under
 `openspec/contracts/<capability>/openapi/` or
 `openspec/contracts/<capability>/cli/`; files under `schemas/` SHALL NOT be
-contract documents. An instance-format document at the capability root SHALL
-fail the gate naming the file and the expected location, rather than being
-skipped. A contract document that cannot be parsed SHALL fail the gate naming
+contract documents. An instance SHALL be identified structurally, not by
+location: a `.yaml`, `.yml`, or `.json` file whose top level is a mapping
+carrying an `openapi` key (OpenAPI instance) or a `tool` key (CLI contract
+instance). `README.md` and `traceability-exclusions.yaml` carry neither and
+SHALL NOT be treated as instances under any rule. An instance found at the
+capability root SHALL be reported as misplaced, naming the file and the
+expected location, and SHALL NOT be silently skipped; the sweep SHALL NOT fail
+on it, and change scope SHALL fail on it only when the diff adds or modifies
+it. A contract document that cannot be parsed SHALL fail the gate naming
 the file, and SHALL NOT be recorded as untraced. A traceability block that violates the
 traceability schema SHALL fail the gate naming the file and the offending
 block. An existing `traceability-exclusions.yaml` that cannot be read, cannot
@@ -554,6 +583,18 @@ untraced and turn a syntax error into a green run. The schema-invalid shapes —
 excluded from the schema deliberately, and a gate that let them through would
 have to pick a winner, which is the silent decision the schema exists to
 refuse.
+
+The misplaced instance is the one rule here that reports rather than fails, and
+deliberately: `openspec/contracts/code-search/v2.yaml` is an OpenAPI instance at
+a capability root **today**. A rule that failed on it would red the tree the
+moment the blocking sweep was installed, and would contradict the acceptance
+criterion that the merge candidate exit zero at capability scope. Reporting the
+existing one while failing any newly added one is the ratchet: the debt is
+visible and cannot grow, without the change reddening the branch it lands on.
+Structural identification matters for the same reason — "any file at the root"
+fails `README.md`, and "any YAML at the root" fails
+`traceability-exclusions.yaml`, which would turn D13's reverse opt-in switch
+into a permanent gate failure the first time anyone flipped it.
 
 The exclusions file needs the same protection for a stronger reason: D13 makes
 its *existence* the reverse switch, so "cannot read it" and "it isn't there"
@@ -592,14 +633,33 @@ only place a missing spec can hide an unresolved citation.
   carrying the block
 - **AND** it SHALL NOT choose between the conflicting keys
 
-<!-- Scenario ID: gen-eval-framework.misplaced-instance-fails -->
-#### Scenario: A contract instance outside openapi/ or cli/ fails discovery
+<!-- Scenario ID: gen-eval-framework.misplaced-instance-is-reported -->
+#### Scenario: A contract instance outside openapi/ or cli/ is reported
 
-- **WHEN** a capability directory contains an instance-format document at its
-  root rather than under `openapi/` or `cli/`
-- **THEN** the gate SHALL exit non-zero naming the file and the expected
-  location
-- **AND** it SHALL NOT silently exclude the document from evaluation
+- **WHEN** the full sweep encounters a file at a capability root whose top
+  level carries an `openapi` or `tool` key, rather than under `openapi/` or
+  `cli/`
+- **THEN** the sweep SHALL report it as misplaced, naming the file and the
+  expected location
+- **AND** it SHALL NOT silently exclude the document from the report
+- **AND** it SHALL NOT fail on it, so a pre-existing misplaced instance does
+  not red the branch on the day the sweep is installed
+
+<!-- Scenario ID: gen-eval-framework.newly-misplaced-instance-fails -->
+#### Scenario: A newly misplaced instance fails change scope
+
+- **WHEN** the diff adds or modifies an instance at a capability root
+- **THEN** the change-scoped gate SHALL exit non-zero naming the file and the
+  expected location
+
+<!-- Scenario ID: gen-eval-framework.root-non-instances-are-not-documents -->
+#### Scenario: README and the exclusions file are never instances
+
+- **WHEN** a capability root holds `README.md` and
+  `traceability-exclusions.yaml`
+- **THEN** neither SHALL be treated as a contract instance
+- **AND** the misplaced-instance rule SHALL NOT fire on the exclusions file,
+  whose presence at that exact path is the reverse opt-in switch
 
 <!-- Scenario ID: gen-eval-framework.schemas-are-not-documents -->
 #### Scenario: A schemas-only capability holds no contract documents

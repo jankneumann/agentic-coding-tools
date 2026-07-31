@@ -172,15 +172,30 @@ and the missing-spec rule would fail all three. Under this definition they
 contain no contract documents at all and are simply out of scope, which is the
 correct answer for a directory of schemas.
 
-**A misplaced instance fails discovery rather than being skipped.** An
-instance-format document directly at the capability root, not under `openapi/`
-or `cli/`, SHALL fail naming the file and the expected location. This is not
-hypothetical: `code-search/v2.yaml` is a full OpenAPI 3.1 document at the
-capability root today, contrary to README's own layout table. A discovery walk
+**A misplaced instance is reported, and fails only if newly added.** An
+instance directly at the capability root, not under `openapi/` or `cli/`, is
+reported by the sweep naming the file and the expected location, and fails the
+change-scoped gate only when the diff adds or modifies it. A discovery walk
 keyed on the two directories would silently skip it, and silently skipping an
-OpenAPI document is precisely the invisible-surface failure this change
-exists to prevent — so the walk fails loudly instead, and fixing the layout
-becomes a task rather than a discovery gap.
+OpenAPI document is precisely the invisible-surface failure this change exists
+to prevent — but failing on it outright is not the remedy, because
+`code-search/v2.yaml` is a full OpenAPI 3.1 document at that exact location
+**today**, contrary to README's own layout table. An unconditional failure
+would red the branch the moment the blocking sweep landed, and would directly
+contradict the acceptance criterion that the merge candidate exit zero at
+capability scope. Report-the-existing, fail-the-new is the ratchet: the debt is
+named on every run and cannot grow, and fixing the layout is a task rather than
+a merge blocker.
+
+**"Instance" is identified structurally, not by location.** A `.yaml`, `.yml`,
+or `.json` file whose top level is a mapping carrying an `openapi` key (OpenAPI)
+or a `tool` key (the CLI contract shape, per `gen-eval.yaml`). The definition
+has to be structural precisely because the misplaced-instance rule looks at the
+capability root, and the root is not empty: a rule of "any file at the root"
+fires on `README.md`, and "any YAML at the root" fires on
+`traceability-exclusions.yaml` — which would make D13's reverse opt-in switch
+fail the gate the first time anyone flipped it, since the switch *is* a YAML
+file at that exact path.
 
 **Decision.** A contract document declaring a `traceability` block anywhere
 opts into strict **forward** enforcement across all of its operations. A
@@ -406,6 +421,25 @@ red. Only a check that runs on the merge candidate can block the merge, so the
 blocking sweep runs on `pull_request`. The push-on-`main` run is kept, with its
 honest purpose — making accumulated debt visible on the integration branch —
 and is explicitly non-blocking, so nothing depends on it to stop anything.
+
+**What the sweep resolves against is defined per run context.** Every
+resolution rule in this change is written in terms of *the active change's*
+spec delta, which is well-defined at `/validate-feature` and on a merge
+candidate and undefined on the integration branch. The `pull_request` run has
+an active change — the branch is `openspec/<change-id>` — so it takes the same
+`--change <id>` argument and resolves identically to change scope: archive
+shadowed by that delta, other in-flight changes neither citable nor excludable.
+The `push`-on-`main` run has no candidate, and resolving archive-only there
+would report every citation a merged-but-unarchived change makes to its own new
+requirements as unresolved; a change's delta lives under
+`openspec/changes/<id>/` until cleanup archives it. So the post-merge run
+resolves against the archive shadowed by *every* delta present on the branch.
+That union is deliberately looser than the blocking run's — it admits
+requirements from changes whose implementation has not landed — and it is
+exactly why that run reports and never fails. Left unstated, this gap was
+load-bearing: the blocking sweep installed by task 5.7 runs on the merge
+candidate for this very change, whose contract citations (task 4.2) name
+requirements that task 4.1 adds in the delta and nowhere else.
 
 **"Touches" is defined, not implied.** The touched set is: operations whose
 contract nodes changed in `git diff <merge-base>...HEAD` (node-level, not
