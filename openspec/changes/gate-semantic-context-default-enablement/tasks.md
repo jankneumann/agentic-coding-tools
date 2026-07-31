@@ -357,7 +357,30 @@ requires `report.verdict == "pass"`. See design D11.
       **Note**: `report.json` is deliberately ABSENT at this point. Absent is the
       fail-closed default state.
 
-- [ ] 5.8 Checkpoint: run tests, review diff, verify scope
+- [x] 5.8 Checkpoint: run tests, review diff, verify scope
+      **Result**: `packages/context-eval` 306 passed, 0 skipped. The one
+      previously-skipped test — ripgrep parity — executed for the first time on
+      this machine (`rg` resolved at `/opt/homebrew/bin/rg`, absent earlier in
+      the session) and passes: the ranking in `producers/exact_search.py` agrees
+      with real ripgrep rather than only with our model of it. Both CI gates
+      reproduce green (`ruff check src/ tests/`; `mypy src/context_eval/
+      --strict`, 17 files). `openspec validate --strict` passes. The existing
+      `skills/tests/context-engineering/` suite — 735 tests over the one runtime
+      file this phase edited — passes unchanged, so the 5.3 refactor to a named
+      constant altered no behavior.
+      **Scope**: 11 files across the eight phase 5 commits; 9 fall inside
+      `wp-gate`'s `write_allow`. The two that do not are both plan gaps rather
+      than phase 5 overreach, and are filed at integration:
+      (a) `tasks.md` appears in **no** package's `write_allow`, while
+      `implement-feature` mandates flipping its checkbox in the same commit as
+      the implementation — the plan and the skill contradict each other, and
+      every package has to violate one of them;
+      (b) `packages/context-eval/uv.lock` is unowned, though `wp-corpus` owns
+      the `pyproject.toml` it is derived from.
+      **Not checked by CI**: `ruff format --check` reports 20 files would be
+      reformatted. No format gate exists in `ci.yml` for any package, so this is
+      not a regression this change introduced; noted rather than fixed, since
+      adding a repo-wide format gate is not in this change's scope.
 
 ---
 
