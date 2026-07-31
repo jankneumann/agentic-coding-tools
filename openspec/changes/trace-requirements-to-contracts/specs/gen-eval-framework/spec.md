@@ -505,15 +505,35 @@ documents that have opted into forward enforcement and in capabilities that
 have opted into reverse enforcement, and SHALL report untraced documents and
 not-opted-in capabilities without failing.
 
-The blocking run SHALL resolve requirement identifiers exactly as change scope
-does — archived capability specs shadowed by the active change's spec delta,
-with other in-flight changes' requirements neither citable nor excludable — and
-SHALL therefore require an active change id, failing rather than inferring one.
-The post-merge run has no active change; it SHALL resolve against the archived
-specs shadowed by every spec delta present under `openspec/changes/` on the
-integration branch, and this permissiveness is the reason it is non-blocking:
-that union admits requirements from changes whose implementation has not landed,
-which is accurate enough to report accumulated debt and too loose to gate on.
+The gate SHALL have exactly one resolution rule, keyed on whether a change id
+is supplied. Given `--change <id>`, it SHALL resolve against the archived
+capability specs shadowed by that change's spec delta, with other in-flight
+changes' requirements neither citable nor excludable. With `--change` omitted,
+it SHALL resolve against the archived specs shadowed by every spec delta present
+under `openspec/changes/` on the branch. Which run blocks SHALL be a property of
+the CI job and not of the gate: the blocking job SHALL supply `--change`, and
+the post-merge job SHALL omit it.
+
+The blocking job SHALL derive its change id from the change directory under
+`openspec/changes/` that the diff touches. Where the diff touches no change
+directory, the blocking job SHALL print an explicit SKIP naming the branch and
+SHALL NOT fail. Where the diff touches more than one, it SHALL fail as ambiguous
+rather than choosing.
+
+Keying resolution on the flag rather than on the run context is what keeps the
+two runs from needing a discriminator the gate cannot see. The union mode is
+deliberately the looser of the two — it admits requirements from changes whose
+implementation has not landed — and that is exactly why the job using it
+reports and never blocks; encoding "blocking" in the gate itself would put the
+gate in the business of knowing which CI job invoked it.
+
+The SKIP exists because OpenSpec is not the only way work reaches this
+repository. Dependency bumps, chores, and cloud-session branches carry no spec
+delta, no contract citation, and no exclusions file, because nothing in the
+planning process was expected to produce them; failing them for the absence of
+an artifact they were never asked to author would red every such pull request
+on the day this gate lands. The debt those pull requests could still introduce
+is not lost — the post-merge run sees every capability in full and reports it.
 
 Diff-scoping alone would never surface accumulated gaps — nothing touches them,
 so nothing reports them. The sweep is what makes existing debt visible without
@@ -540,15 +560,39 @@ only a check on the candidate can stop it going red.
 - **THEN** it SHALL report each with its status
 - **AND** it SHALL NOT fail on them
 
-<!-- Scenario ID: gen-eval-framework.blocking-sweep-requires-a-change-id -->
-#### Scenario: The blocking sweep resolves against the candidate's own delta
+<!-- Scenario ID: gen-eval-framework.change-flag-selects-resolution -->
+#### Scenario: The change flag selects which delta shadows the archive
 
-- **WHEN** the blocking merge-candidate sweep runs on a change that adds new
-  requirements and cites them from a contract document in the same change
-- **THEN** those citations SHALL resolve against the change's spec delta
-- **AND** the sweep SHALL fail rather than run when no active change id is
-  supplied, instead of resolving against the archive alone and reporting every
-  such citation as unresolved
+- **WHEN** the sweep runs at capability scope with `--change <id>` on a change
+  that adds new requirements and cites them from a contract document in the
+  same change
+- **THEN** those citations SHALL resolve against that change's spec delta
+- **AND** requirements belonging to other in-flight changes SHALL NOT resolve
+
+<!-- Scenario ID: gen-eval-framework.omitted-change-flag-unions-deltas -->
+#### Scenario: Omitting the change flag unions every on-branch delta
+
+- **WHEN** the sweep runs at capability scope with no `--change` argument
+- **THEN** it SHALL resolve against the archived specs shadowed by every spec
+  delta present under `openspec/changes/`
+- **AND** it SHALL NOT fail for the absence of a change id
+
+<!-- Scenario ID: gen-eval-framework.non-openspec-pr-skips -->
+#### Scenario: A pull request that was not planned through OpenSpec skips
+
+- **WHEN** the blocking job runs on a pull request whose diff touches no
+  directory under `openspec/changes/`
+- **THEN** it SHALL print a SKIP naming the branch
+- **AND** it SHALL NOT fail the pull request
+- **AND** the post-merge run SHALL still evaluate every capability in full
+
+<!-- Scenario ID: gen-eval-framework.ambiguous-change-fails -->
+#### Scenario: A diff touching two change directories fails as ambiguous
+
+- **WHEN** the blocking job's diff touches more than one directory under
+  `openspec/changes/`
+- **THEN** it SHALL fail naming each candidate change id
+- **AND** it SHALL NOT choose one
 
 ### Requirement: The gate fails closed on malformed input
 

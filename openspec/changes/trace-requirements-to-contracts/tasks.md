@@ -430,6 +430,7 @@ that way answers a question about a different copy.
   cheaply.
 
 - [ ] 3.16 Implement change-scoped evaluation and the full sweep `[M]`
+  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (the change flag selects which delta shadows the archive); (omitting the change flag unions every on-branch delta)
   **Design decisions**: D12
   **Dependencies**: 3.15
   **Note**: one gate, a `--scope change|capability` argument. Change scope
@@ -441,6 +442,21 @@ that way answers a question about a different copy.
   `project-context-refresh/scripts/checkpoint.py` rather than writing a third
   one. Do not build two scripts — they would drift, and the drift would be
   invisible because each is only run in one context.
+  **Note**: `--change` is what selects RESOLUTION, and it is orthogonal to
+  `--scope`. Supplied: the archive is shadowed by that one change's delta,
+  other in-flight changes neither citable nor excludable. Omitted: the archive
+  is shadowed by the union of every delta under `openspec/changes/`. Capability
+  scope accepts BOTH forms — `--scope capability --change <id>` is exactly what
+  task 5.7c runs on the merge candidate, and `--scope capability` bare is the
+  post-merge job. Do NOT make the gate error on a missing `--change` at
+  capability scope: absence is the post-merge job's signature, and an earlier
+  draft of D12 failed the run it meant to permit for exactly this reason.
+  Blocking-ness is a CI-job property; the gate never knows which job called it.
+  **Note**: this adds a fifth test file, `test_resolution_modes.py`, covering
+  the two modes and the `--scope capability --change <id>` combination. It is
+  in this package's `write_allow`; add it there and to the pytest verification
+  command rather than folding these cases into `test_capability_scope.py`,
+  where the flag-orthogonality is the thing being asserted.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
@@ -575,17 +591,31 @@ be meaningful.
   unprinted skip and a passing gate are indistinguishable in a log.
 
 - [ ] 5.7 Wire the full-capability sweep into CI `[S]`
-  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (the blocking sweep resolves against the candidate's own delta)
+  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (a pull request that was not planned through OpenSpec skips); (a diff touching two change directories fails as ambiguous)
   **Design decisions**: D12
   **Dependencies**: 3.16, 5.2
   **Note**: the two jobs differ in more than blocking-ness — they differ in
-  what requirement identifiers resolve to, and the `pull_request` job MUST
-  pass `--change <id>` derived from the branch (`openspec/<change-id>`). A
-  candidate's citations name requirements its own delta adds and the archive
-  does not have; resolving archive-only would report every one as unresolved.
-  The `push`-on-`main` job has no candidate and resolves against the archive
-  shadowed by every delta under `openspec/changes/` — looser, which is exactly
-  why it reports and never blocks (D12).
+  what requirement identifiers resolve to. The `pull_request` job passes
+  `--change <id>`; the `push`-on-`main` job passes no `--change` and gets the
+  union of every on-branch delta, which is looser and is exactly why it reports
+  and never blocks (D12). Both modes are 3.16's work, already built by the time
+  this task wires them.
+  **Note**: derive the change id from the DIFF, not the branch name. `ci.yml`
+  triggers on unfiltered `pull_request:` and `merge_group:` (lines 3-7), and
+  live branch prefixes include `dependabot/`, `chore/`, `claude/`, and
+  `codex/`; `OPENSPEC_BRANCH_OVERRIDE` produces `claude/op-XXXX` for real
+  OpenSpec work, and parallel agents produce `openspec/<id>--<agent-id>`. No
+  branch-name rule survives all four. The directory under `openspec/changes/`
+  that the diff touches is the robust signal.
+  **Note**: zero touched change directories is a SKIP, not a failure — print
+  it naming the branch and exit zero. Work that did not go through OpenSpec
+  planning was never expected to produce a spec delta, a citation, or an
+  exclusions file, and failing a dependency bump for not authoring an artifact
+  nobody asked it for would red every such PR the day this lands. Two touched
+  directories is a real ambiguity: fail naming both, do not choose.
+  **Note**: assert the SKIP path in the wiring tests. A job that skips silently
+  and a job that passes are the same green check, which is the unfalsifiable
+  -green artifact this change exists to eliminate.
   **Note**: the BLOCKING sweep is `pull_request`-triggered. An earlier draft
   put it on `push` to `main` reasoning that cron cannot block a merge — true,
   but a push event on `main` fires *after* the merge lands and shares the

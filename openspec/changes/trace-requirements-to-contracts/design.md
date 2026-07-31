@@ -422,24 +422,45 @@ blocking sweep runs on `pull_request`. The push-on-`main` run is kept, with its
 honest purpose — making accumulated debt visible on the integration branch —
 and is explicitly non-blocking, so nothing depends on it to stop anything.
 
-**What the sweep resolves against is defined per run context.** Every
+**Resolution is keyed on the `--change` flag, not on the run context.** Every
 resolution rule in this change is written in terms of *the active change's*
 spec delta, which is well-defined at `/validate-feature` and on a merge
-candidate and undefined on the integration branch. The `pull_request` run has
-an active change — the branch is `openspec/<change-id>` — so it takes the same
-`--change <id>` argument and resolves identically to change scope: archive
-shadowed by that delta, other in-flight changes neither citable nor excludable.
-The `push`-on-`main` run has no candidate, and resolving archive-only there
-would report every citation a merged-but-unarchived change makes to its own new
-requirements as unresolved; a change's delta lives under
-`openspec/changes/<id>/` until cleanup archives it. So the post-merge run
-resolves against the archive shadowed by *every* delta present on the branch.
-That union is deliberately looser than the blocking run's — it admits
-requirements from changes whose implementation has not landed — and it is
-exactly why that run reports and never fails. Left unstated, this gap was
-load-bearing: the blocking sweep installed by task 5.7 runs on the merge
-candidate for this very change, whose contract citations (task 4.2) name
-requirements that task 4.1 adds in the delta and nowhere else.
+candidate and undefined on the integration branch. An earlier draft closed that
+by making the blocking run *require* a change id and fail without one — which
+does not work, because "no change id" is also the post-merge run's signature,
+so the rule failed the run it was supposed to permit. The gate cannot see which
+CI job invoked it and should not try.
+
+So the gate has one rule with two modes, selected by the flag: `--change <id>`
+shadows the archive with that delta (other in-flight changes neither citable nor
+excludable); omitting it shadows the archive with *every* delta present under
+`openspec/changes/` on the branch. Blocking-ness lives in the CI job — the
+`pull_request` job passes `--change`, the `push` job does not. The union mode is
+deliberately the looser one, admitting requirements from changes whose
+implementation has not landed, and that is precisely why the job using it
+reports and never fails. Resolving archive-only there would instead report every
+citation a merged-but-unarchived change makes to its own new requirements, since
+a delta lives under `openspec/changes/<id>/` until cleanup archives it.
+
+**The blocking job derives its change id from the diff, and skips when there is
+none.** Not from the branch name: `OPENSPEC_BRANCH_OVERRIDE` produces
+`claude/op-XXXX`, parallel agents produce `openspec/<id>--<agent-id>`, and CI
+triggers on unfiltered `pull_request` and `merge_group`, so `dependabot/*`,
+`chore/*`, and `codex/*` all reach the job. The change directory the diff
+touches is the robust signal, and its absence is meaningful rather than
+exceptional: it says the work was not planned through OpenSpec, so no spec
+delta, citation, or exclusions file was ever expected of it. Failing a
+dependency bump for not authoring an artifact nobody asked it for would red
+every such pull request the day this lands. Two touched directories is a
+genuine ambiguity and fails rather than guessing. The debt a skipped pull
+request could still introduce is not lost — the post-merge run sees every
+capability in full and reports it, which is the same report-don't-block posture
+the rest of this design takes.
+
+Left unstated, this whole area was load-bearing: the blocking sweep installed by
+task 5.7 runs on the merge candidate for this very change, whose contract
+citations (task 4.2) name requirements that task 4.1 adds in the delta and
+nowhere else.
 
 **"Touches" is defined, not implied.** The touched set is: operations whose
 contract nodes changed in `git diff <merge-base>...HEAD` (node-level, not

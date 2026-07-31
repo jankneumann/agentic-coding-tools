@@ -2,9 +2,9 @@
   "blocking_findings": [],
   "change_id": "trace-requirements-to-contracts",
   "cli_review_enabled": true,
-  "current_phase": "ESCALATE",
+  "current_phase": "PLAN_REVIEW",
   "error": null,
-  "escalation_reason": "max_rounds: PLAN_REVIEW exhausted max_phase_iterations (3) with 3 blocking findings surviving round 3. findings_trend [10, 6, 3] is converging but not converged. Two of the three require an operator decision, not text propagation: (F1) which PRs the blocking sweep runs on \u2014 ci.yml triggers on unfiltered pull_request/merge_group and live branch prefixes include dependabot/, claude/, chore/, codex/, none of which resolve to a change id; (F3) what discriminates the blocking capability-scope run from the post-merge one \u2014 the round-2 fix made 'no --change supplied' mean 'fail', which is also the post-merge run's signature. (F2) is mechanical: the two new resolution modes are unowned \u2014 task 3.16 (wp-gate, which owns check_traceability.py) does not mention them, and the only task citing the new scenario is 5.7 in wp-wiring, whose write_allow excludes that file.",
+  "escalation_reason": null,
   "findings_trend": [
     10,
     6,
@@ -32,9 +32,9 @@
     "plan-review-20260731T195510Z"
   ],
   "implementation_strategy": {},
-  "iteration": 3,
+  "iteration": 4,
   "last_handoff_id": "plan-review-20260731T195510Z",
-  "max_phase_iterations": 3,
+  "max_phase_iterations": 4,
   "memory_ids": [],
   "package_authors": {},
   "packages_status": {},
@@ -89,10 +89,22 @@
       "round": 3,
       "at": "2026-07-31T20:01:00.048300+00:00",
       "note": "iteration 3 of max_phase_iterations 3 \u2014 loop exhausted; orchestrator transitions to ESCALATE (max_rounds). All 3 findings independently re-verified at the source before escalating."
+    },
+    {
+      "phase": "ESCALATE",
+      "outcome": "resolved",
+      "at": "2026-07-31T20:21:03.084855+00:00",
+      "note": "Operator resolved both blocking decisions: F1 \u2014 require an explicit change id only when OpenSpec was part of the planning process, otherwise no artifacts are expected; F3 \u2014 accepted the proposed resolution (one gate rule keyed on --change, blocking-ness moves to the CI job). max_phase_iterations raised 3 -> 4 to permit one confirming review round, per the skill's ESCALATE resume path."
+    },
+    {
+      "phase": "PLAN_FIX",
+      "outcome": "complete",
+      "at": "2026-07-31T20:21:03.084855+00:00",
+      "note": "3 blocking findings fixed inline under operator decisions; archetype inherited from PLAN_REVIEW"
     }
   ],
-  "phase_started_at": "2026-07-31T20:01:00.048144+00:00",
-  "previous_phase": "PLAN_REVIEW",
+  "phase_started_at": "2026-07-31T20:21:03.084855+00:00",
+  "previous_phase": "PLAN_FIX",
   "schema_version": 4,
   "started_at": "2026-07-28T14:22:58.793360+00:00",
   "total_iterations": 1,

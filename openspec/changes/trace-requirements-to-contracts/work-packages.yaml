@@ -258,7 +258,15 @@ packages:
 
       Test file mapping: test_traceability_gate.py <- 3.1-3.6;
       test_traceability_wording.py <- 3.8; test_capability_scope.py <- 3.9,
-      3.11, 3.13; test_change_scope.py <- 3.15. No fifth file.
+      3.11, 3.13; test_change_scope.py <- 3.15;
+      test_resolution_modes.py <- 3.16. No sixth file.
+
+      3.16 owns BOTH capability-scope resolution modes (D12): `--change <id>`
+      shadows the archive with that delta, omitting it unions every delta
+      under openspec/changes/. `--change` is orthogonal to `--scope`, so
+      `--scope capability --change <id>` must parse — it is what task 5.7c
+      runs on the merge candidate. The gate must NOT error on a missing
+      `--change` at capability scope; that is the post-merge job's signature.
 
       One script with a --scope argument, not two. Two would drift, and the
       drift would be invisible because each is only ever run in one context.
@@ -278,6 +286,7 @@ packages:
         - "packages/gen-eval/tests/test_traceability_wording.py"
         - "packages/gen-eval/tests/test_capability_scope.py"
         - "packages/gen-eval/tests/test_change_scope.py"
+        - "packages/gen-eval/tests/test_resolution_modes.py"
         - "packages/gen-eval/tests/fixtures/traceability/**"
       read_allow:
         - "**"
@@ -295,7 +304,7 @@ packages:
       steps:
         - name: "Gate tests, including every failure path"
           kind: command
-          command: "uv run pytest tests/test_traceability_gate.py tests/test_traceability_wording.py tests/test_capability_scope.py tests/test_change_scope.py -q -m 'not e2e and not integration'"
+          command: "uv run pytest tests/test_traceability_gate.py tests/test_traceability_wording.py tests/test_capability_scope.py tests/test_change_scope.py tests/test_resolution_modes.py -q -m 'not e2e and not integration'"
           cwd: "packages/gen-eval"
           expect_exit_code: 0
           evidence:
@@ -397,7 +406,12 @@ packages:
       `pull_request` job (blocking, bare invocation, fetch-depth: 0 since a
       merge base is computed) plus a non-blocking `push`-on-main job for debt
       visibility — a push job alone runs after the merge and cannot block it
-      (D12); register `tests/validate-feature` in skills/pyproject.toml
+      (D12). The blocking job derives `--change <id>` from the change directory
+      the DIFF touches, not from the branch name (ci.yml has no branch filter,
+      and OPENSPEC_BRANCH_OVERRIDE / agent-id suffixes defeat name parsing);
+      zero touched change directories prints a SKIP and exits zero, two fails
+      as ambiguous. The push job passes no `--change` at all. Both resolution
+      modes are wp-gate's work (task 3.16) and exist before this package runs; register `tests/validate-feature` in skills/pyproject.toml
       `testpaths`, without which the new skill tests never run in CI; update
       packages/gen-eval/README.md with the four-edge chain and the D5
       non-claim; refresh DOWNSTREAM.md.
