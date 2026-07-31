@@ -389,7 +389,7 @@ requires `report.verdict == "pass"`. See design D11.
 **A FAIL verdict is a successful completion of this phase.** Nothing here
 requires a favourable number.
 
-- [ ] 6.1 Provision the measurement environment: install
+- [x] 6.1 Provision the measurement environment: install
       `packages/code-search[index]`, provision a **scratch** database applying
       migrations 028/029/030, and record the resolved embedding contract
       **Spec scenarios**: `sce` — Index tier declaration / A live retrieval measurement needs a real index
@@ -404,6 +404,34 @@ requires a favourable number.
       provisions and migrates its own database. `huggingface.co` now returns 200
       (403 in July); `api.openai.com` returns 421, so prefer the `local`
       provider. `download.pytorch.org` is 403 but torch is on PyPI.
+      **Result**: provisioned, and the provisioning itself is the first thing
+      this phase measured.
+      - **Install**: `packages/code-search[index]` installed into a venv OUTSIDE
+        the repository (`**/.venv/**` is denied to `wp-measure`), resolving
+        `cocoindex-code==0.2.37`, `sentence-transformers==5.6.1`,
+        `torch==2.13.0`, `transformers==5.14.1`. `huggingface.co` served the
+        model weights, so the July blocker (403 from every embedding backend)
+        is genuinely gone. `api.openai.com` was never contacted; the `local`
+        provider was used throughout.
+      - **Database**: a NEW `paradedb/paradedb:0.22.2-pg17` container
+        `ri13-measure-pg` on host port 55432, its own storage, migrations
+        `028`/`029`/`030` applied to it and to nothing else. The other project's
+        `real-ingestion-test-tiers-in-ci-postgres-1` on 5432 was never
+        connected to, and was verified `Up (healthy)` before and after. Torn
+        down at the end of the phase. `localhost:54322` is still closed.
+      - **Clean tree**: `index_repo` requires a clean worktree and the shared
+        checkout carries five untracked `openspec/schemas/context-*.json` files
+        that belong to no change (issue #311). Rather than commit or delete
+        them, a throwaway detached `git worktree` at the evaluated revision was
+        used as the index source. First `index_repo` attempt, against the
+        working tree, returned exit 1 / `source_dirty` and is recorded rather
+        than discarded.
+      - **Resolved embedding contract**: `provider_kind: local`,
+        `model_id: sentence-transformers/all-MiniLM-L6-v2`, `dimension: 384`,
+        `fingerprint:`
+        `f5ae15d31080994823bfea9a455808c39f60e592977d74c034081db3506e388d`,
+        read from `EmbeddingContract.fingerprint` / `provider.fingerprint` as
+        the CLI constructs them — not asserted as a literal.
 
 - [ ] 6.2 Build a real index at the exact evaluated revision with `index_repo`
       and record its exit code and JSON result
