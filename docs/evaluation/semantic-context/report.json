@@ -1,0 +1,604 @@
+{
+  "schema_version": 1,
+  "verdict": "fail",
+  "harness": {
+    "name": "context-eval",
+    "version": "0.1.0",
+    "corpus_digest": "6417066963927e0f1009a1b10fa49e6be6e11da3f7991290657b2adbbb7a0f56"
+  },
+  "repository": {
+    "repo_slug": "agentic_coding_tools",
+    "evaluated_revision": "748af34c4268e768f0e3a7e7cdbe64c02835b7b6"
+  },
+  "index": {
+    "tier": "none",
+    "indexed_revision": null,
+    "namespace_kind": "main",
+    "namespace_key": "main",
+    "embedder": {
+      "provider_kind": "local",
+      "model_id": "sentence-transformers/all-MiniLM-L6-v2",
+      "dimension": 384,
+      "fingerprint": "f5ae15d31080994823bfea9a455808c39f60e592977d74c034081db3506e388d"
+    }
+  },
+  "environment": {
+    "code_search_enabled": true,
+    "semantic_context_injection": true,
+    "coordination_transport": "http",
+    "scope_adapter": "resolved"
+  },
+  "budget": {
+    "max_hits": 8,
+    "max_files": 5,
+    "max_total_lines": 240,
+    "max_hit_lines": 40
+  },
+  "corpus": {
+    "corpus_id": "semantic-context-injection",
+    "k": 5,
+    "cases_declared": 19,
+    "cases_scored": 7,
+    "gates_declared": 4,
+    "consumers_declared": 6
+  },
+  "gates": [
+    {
+      "id": "retrieval_quality",
+      "kind": "retrieval_quality",
+      "required": true,
+      "min_index_tier": "live",
+      "verdict": "fail",
+      "thresholds": {
+        "min_hit_at_k_count": 7,
+        "min_measured_wins_over_baseline": 2
+      },
+      "measured": {},
+      "fail_reasons": [
+        "unmeasured",
+        "index_tier_insufficient"
+      ]
+    },
+    {
+      "id": "coding_context_utility",
+      "kind": "coding_context_utility",
+      "required": true,
+      "min_index_tier": "live",
+      "verdict": "fail",
+      "thresholds": {
+        "coverage_margin": 0.05,
+        "min_wins_per_consumer": 1
+      },
+      "measured": {
+        "consumers_declared": 6,
+        "consumers_measured": 5,
+        "consumers_failing": 5,
+        "cases_scored": 0
+      },
+      "fail_reasons": [
+        "unmeasured",
+        "index_tier_insufficient"
+      ]
+    },
+    {
+      "id": "scope_compliance",
+      "kind": "scope_compliance",
+      "required": true,
+      "min_index_tier": "none",
+      "verdict": "pass",
+      "thresholds": {
+        "max_rendered_scope_violations": 0,
+        "min_outbound_scope_fidelity": 1.0
+      },
+      "measured": {
+        "rendered_scope_violations": 0,
+        "outbound_scope_fidelity": 1.0,
+        "deny_precedence_failures": 0,
+        "cases_scored": 7,
+        "outbound_requests_checked": 7
+      }
+    },
+    {
+      "id": "fail_closed_regression",
+      "kind": "fail_closed_regression",
+      "required": true,
+      "min_index_tier": "none",
+      "verdict": "fail",
+      "thresholds": {
+        "min_expectation_match_rate": 1.0
+      },
+      "measured": {
+        "expectation_match_rate": 0.5714285714285714,
+        "expectations_honored": 4,
+        "cases_scored": 7
+      },
+      "fail_reasons": [
+        "unmeasured"
+      ]
+    }
+  ],
+  "per_consumer": [
+    {
+      "consumer": "implement-feature",
+      "utility_applicable": true,
+      "cases_declared": 5,
+      "cases_scored": 0,
+      "verdict": "fail",
+      "fail_reasons": [
+        "unmeasured"
+      ]
+    },
+    {
+      "consumer": "iterate-on-implementation",
+      "utility_applicable": true,
+      "cases_declared": 3,
+      "cases_scored": 0,
+      "verdict": "fail",
+      "fail_reasons": [
+        "unmeasured"
+      ]
+    },
+    {
+      "consumer": "debugging-and-error-recovery",
+      "utility_applicable": true,
+      "cases_declared": 3,
+      "cases_scored": 0,
+      "verdict": "fail",
+      "fail_reasons": [
+        "unmeasured"
+      ]
+    },
+    {
+      "consumer": "validate-feature",
+      "utility_applicable": true,
+      "cases_declared": 4,
+      "cases_scored": 0,
+      "verdict": "fail",
+      "fail_reasons": [
+        "unmeasured"
+      ]
+    },
+    {
+      "consumer": "parallel-review-implementation",
+      "utility_applicable": true,
+      "cases_declared": 3,
+      "cases_scored": 0,
+      "verdict": "fail",
+      "fail_reasons": [
+        "unmeasured"
+      ]
+    },
+    {
+      "consumer": "quick-task",
+      "utility_applicable": false,
+      "cases_declared": 1,
+      "cases_scored": 0,
+      "verdict": "pass",
+      "utility_not_applicable_reason": "quick-task's SKILL.md documents that it carries no change_id and no package_id, so ri-08's index_scopes() has nothing to resolve and every request returns out_of_scope / no_declared_scope with no section rendered. There is no utility to measure, and inventing a scope for it would be the exact failure ri-12 exists to prevent. Its one case asserts that documented absence instead \u2014 a declared exemption, not a silent hole."
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "T1",
+      "consumer": "debugging-and-error-recovery",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "T2",
+      "consumer": "implement-feature",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "T3",
+      "consumer": "parallel-review-implementation",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "T4",
+      "consumer": "validate-feature",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "T5",
+      "consumer": "implement-feature",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "T6",
+      "consumer": "implement-feature",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "T7",
+      "consumer": "iterate-on-implementation",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "T8",
+      "consumer": "iterate-on-implementation",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "T9",
+      "consumer": "validate-feature",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "T10",
+      "consumer": "debugging-and-error-recovery",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "FC-NO-INDEX-AT-REVISION",
+      "consumer": "implement-feature",
+      "scored": true,
+      "arms": {
+        "semantic": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [],
+          "status": "fallback",
+          "fallback_trigger": "stale",
+          "fallback_reason": "revision_not_indexed"
+        },
+        "baseline": {
+          "rendered_files": [
+            "openspec/specs/agent-coordinator/spec.md",
+            "skills/plan-feature/SKILL.md",
+            "skills/merge-pull-requests/SKILL.md",
+            "agent-coordinator/tests/test_merge_train.py",
+            "agent-coordinator/src/merge_queue.py"
+          ],
+          "rendered_lines": 223,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [
+            "openspec/specs/agent-coordinator/spec.md",
+            "skills/plan-feature/SKILL.md",
+            "skills/merge-pull-requests/SKILL.md",
+            "agent-coordinator/tests/test_merge_train.py"
+          ]
+        },
+        "naive_phrase": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": []
+        }
+      }
+    },
+    {
+      "case_id": "FC-REVISION-MISMATCH",
+      "consumer": "iterate-on-implementation",
+      "scored": true,
+      "arms": {
+        "semantic": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [],
+          "status": "fallback",
+          "fallback_trigger": "mismatched",
+          "fallback_reason": "index_revision_differs"
+        },
+        "baseline": {
+          "rendered_files": [
+            "openspec/changes/archive/2026-07-24-add-agy-grok-pi-harnesses/design.md",
+            "openspec/changes/extract-gen-eval-package/plan-findings.md",
+            "openspec/specs/skill-workflow/spec.md",
+            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-2/_prompt.md",
+            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-1/_prompt.md"
+          ],
+          "rendered_lines": 234,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [
+            "openspec/changes/archive/2026-07-24-add-agy-grok-pi-harnesses/design.md",
+            "openspec/changes/extract-gen-eval-package/plan-findings.md",
+            "openspec/specs/skill-workflow/spec.md",
+            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-2/_prompt.md",
+            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-1/_prompt.md"
+          ]
+        },
+        "naive_phrase": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": []
+        }
+      }
+    },
+    {
+      "case_id": "FC-SCOPE-REJECTED",
+      "consumer": "validate-feature",
+      "scored": true,
+      "arms": {
+        "semantic": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [],
+          "status": "fallback",
+          "fallback_trigger": "out_of_scope",
+          "fallback_reason": "scope_rejected"
+        },
+        "baseline": {
+          "rendered_files": [
+            "openspec/specs/skill-workflow/spec.md",
+            "skills/validate-feature/SKILL.md",
+            "skills/implement-feature/SKILL.md",
+            "openspec/changes/archive/2026-07-24-add-agy-grok-pi-harnesses/tasks.md",
+            "docs/skills-workflow.md"
+          ],
+          "rendered_lines": 97,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [
+            "openspec/specs/skill-workflow/spec.md",
+            "skills/validate-feature/SKILL.md",
+            "skills/implement-feature/SKILL.md",
+            "openspec/changes/archive/2026-07-24-add-agy-grok-pi-harnesses/tasks.md",
+            "docs/skills-workflow.md"
+          ]
+        },
+        "naive_phrase": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": []
+        }
+      }
+    },
+    {
+      "case_id": "FC-UNKNOWN-STATE",
+      "consumer": "parallel-review-implementation",
+      "scored": true,
+      "arms": {
+        "semantic": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [],
+          "status": "fallback",
+          "fallback_trigger": "unavailable",
+          "fallback_reason": "unknown_state"
+        },
+        "baseline": {
+          "rendered_files": [
+            "openspec/specs/skill-workflow/spec.md",
+            "docs/archive/two-level-parallel-agentic-development.md",
+            "openspec/specs/coordinator-kanban-viz/spec.md",
+            "skills/parallel-infrastructure/scripts/consensus_synthesizer.py",
+            "skills/autopilot/SKILL.md"
+          ],
+          "rendered_lines": 236,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [
+            "openspec/specs/skill-workflow/spec.md",
+            "docs/archive/two-level-parallel-agentic-development.md",
+            "openspec/specs/coordinator-kanban-viz/spec.md",
+            "skills/autopilot/SKILL.md"
+          ]
+        },
+        "naive_phrase": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": []
+        }
+      }
+    },
+    {
+      "case_id": "FC-QUICK-TASK-NO-DECLARED-SCOPE",
+      "consumer": "quick-task",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "FC-DEBUG-ADHOC-NO-SCOPE",
+      "consumer": "debugging-and-error-recovery",
+      "scored": false,
+      "unscored_reason": "producer_error"
+    },
+    {
+      "case_id": "ADV-LEAKED-HIT",
+      "consumer": "implement-feature",
+      "scored": true,
+      "arms": {
+        "semantic": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [],
+          "status": "fallback",
+          "fallback_trigger": "unavailable",
+          "fallback_reason": "unknown_state"
+        },
+        "baseline": {
+          "rendered_files": [
+            "openspec/specs/skill-workflow/spec.md",
+            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-1/_prompt.md",
+            "openspec/specs/coordinator-kanban-viz/spec.md",
+            "openspec/changes/archive/2026-05-22-add-coordinator-kanban-viz/design.md",
+            "openspec/specs/code-search/spec.md"
+          ],
+          "rendered_lines": 194,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [
+            "openspec/specs/skill-workflow/spec.md",
+            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-1/_prompt.md",
+            "openspec/specs/coordinator-kanban-viz/spec.md",
+            "openspec/changes/archive/2026-05-22-add-coordinator-kanban-viz/design.md",
+            "openspec/specs/code-search/spec.md"
+          ]
+        },
+        "naive_phrase": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": []
+        }
+      }
+    },
+    {
+      "case_id": "ADV-DENY-PRECEDENCE",
+      "consumer": "parallel-review-implementation",
+      "scored": true,
+      "arms": {
+        "semantic": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [],
+          "status": "fallback",
+          "fallback_trigger": "unavailable",
+          "fallback_reason": "unknown_state"
+        },
+        "baseline": {
+          "rendered_files": [
+            "docs/archive/two-level-parallel-agentic-development.md",
+            "openspec/specs/skill-workflow/spec.md",
+            "agent-coordinator/src/guardrails.py",
+            "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/design.md",
+            "docs/parallel-agentic-development.md"
+          ],
+          "rendered_lines": 162,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [
+            "docs/archive/two-level-parallel-agentic-development.md",
+            "openspec/specs/skill-workflow/spec.md",
+            "agent-coordinator/src/guardrails.py",
+            "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/design.md",
+            "docs/parallel-agentic-development.md"
+          ]
+        },
+        "naive_phrase": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": []
+        }
+      }
+    },
+    {
+      "case_id": "ADV-ALL-HITS-FILTERED",
+      "consumer": "validate-feature",
+      "scored": true,
+      "arms": {
+        "semantic": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [],
+          "status": "fallback",
+          "fallback_trigger": "unavailable",
+          "fallback_reason": "unknown_state"
+        },
+        "baseline": {
+          "rendered_files": [
+            "openspec/specs/skill-workflow/spec.md",
+            "openspec/changes/factory-missions-architecture-alignment/specs/gen-eval-framework/spec.md",
+            "skills/playwright-validator/SKILL.md",
+            "openspec/changes/extract-gen-eval-package/tasks.md",
+            "docs/proposals/always-on-agent-automation.md"
+          ],
+          "rendered_lines": 186,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": [
+            "openspec/specs/skill-workflow/spec.md",
+            "openspec/changes/factory-missions-architecture-alignment/specs/gen-eval-framework/spec.md",
+            "skills/playwright-validator/SKILL.md",
+            "openspec/changes/extract-gen-eval-package/tasks.md",
+            "docs/proposals/always-on-agent-automation.md"
+          ]
+        },
+        "naive_phrase": {
+          "rendered_files": [],
+          "rendered_lines": 0,
+          "hit_at_k": false,
+          "answer_coverage": 0.0,
+          "evidence_density": 0.0,
+          "steps_to_evidence": 6,
+          "scope_violations": []
+        }
+      }
+    }
+  ],
+  "fail_reasons": [
+    "unmeasured",
+    "denominator_mismatch",
+    "index_tier_insufficient"
+  ],
+  "as_of": "2026-07-31T00:00:00Z",
+  "judge": {
+    "available": false
+  }
+}
