@@ -433,7 +433,7 @@ requires a favourable number.
         read from `EmbeddingContract.fingerprint` / `provider.fingerprint` as
         the CLI constructs them — not asserted as a literal.
 
-- [ ] 6.2 Build a real index at the exact evaluated revision with `index_repo`
+- [x] 6.2 Build a real index at the exact evaluated revision with `index_repo`
       and record its exit code and JSON result
       **Spec scenarios**: `sce` — Index tier declaration / A live retrieval measurement needs a real index
       **Contracts**: none
@@ -443,6 +443,63 @@ requires a favourable number.
       **Note**: exit codes are `{ready:0, not_configured:2, conflict:3,
       failed:1}`. A non-zero exit is recorded as `unmeasured`, not retried into
       silence.
+      **Result**: **no index was built. Every attempt exited 1 (`failed`).** The
+      index tier for this measurement is therefore `none`, and the two gates
+      that declare `min_index_tier: live` are `index_tier_insufficient`. Five
+      attempts were made, each after a *documented change to the index scope or
+      to the source tree* and never a bare repetition; all five are recorded
+      here, including the ones that changed the error.
+      Evaluated revision throughout: `184d132925215f03a84dd2867f15f9d5111a9902`.
+
+      | # | Change from the previous attempt | Exit | `error.code` |
+      |---|---|---|---|
+      | 1 | working tree, `agent-coordinator/**` + `skills/**` | 1 | `source_dirty` |
+      | 2 | clean detached worktree at the same revision | 1 | `secret_detected` |
+      | 3 | + `--exclude` for the 7 secret-scan hits | 1 | `secret_scan_failed` |
+      | 4 | scope narrowed to the corpus's own `read_allow` union (308 files) | 1 | `secret_scan_failed` |
+      | 5 | scope narrowed to `skills/shared/**` (14 files) | 1 | `indexing_failed` |
+
+      Attempt 1 verbatim:
+      ```json
+      {"counts":{"changed_files":0,"chunks":0,"copied_files":0,"eligible_files":0,"embedded_chunks":0,"removed_files":0,"skipped_files":0},"durable":false,"error":{"code":"source_dirty","message":"worktree has tracked or untracked changes"},"index_id":null,"namespace_key":"main","namespace_kind":"main","parent_index_id":null,"parent_revision":null,"promoted":false,"repo_slug":"ri13_measure","reused":false,"source_revision":"184d132925215f03a84dd2867f15f9d5111a9902","status":"failed","storage_key":null}
+      ```
+      Attempt 5 verbatim (the furthest any attempt reached):
+      ```json
+      {"counts":{"changed_files":0,"chunks":0,"copied_files":0,"eligible_files":0,"embedded_chunks":0,"removed_files":0,"skipped_files":0},"durable":true,"error":{"code":"indexing_failed","message":"semantic indexing failed; inspect sanitized operation logs"},"index_id":"7e6ee770-21da-412c-807c-7ee8be805c60","namespace_key":"main","namespace_kind":"main","parent_index_id":null,"parent_revision":null,"promoted":false,"repo_slug":"agentic_coding_tools","reused":false,"source_revision":"184d132925215f03a84dd2867f15f9d5111a9902","status":"failed","storage_key":"i_7e6ee77021da412c807c7ee8be805c60"}
+      ```
+
+      **Three independent defects in `packages/code-search` were found, none of
+      them in `wp-measure`'s `write_allow` and none of them fixed here.** They
+      are the substance of the follow-up in 6.4.
+      1. **`.cocoindex_code/settings.yml` does not exist and is never created.**
+         `indexer_pg.py:211` calls
+         `cocoindex_code.settings.load_project_settings(project_root)`, which
+         raises `FileNotFoundError: Project settings not found:
+         <repo-root>/.cocoindex_code/settings.yml`. No such file is tracked
+         anywhere in this repository, `index_repo` does not write one, and
+         `docs/guides/code-search.md`'s indexing procedure — which attempt 5
+         followed exactly — never mentions it. **This alone makes the documented
+         indexing path unrunnable in this repository at any scale.**
+      2. **The secret scanner's operation deadline is spent on work it does not
+         do.** `cli_runtime.py:108` constructs `LocalSecretScanner()` with the
+         default `operation_timeout_seconds=30.0`. `_operation_deadline` is set
+         at the *first* `scan_bytes` and never reset, and the same instance is
+         reused for both source-manifest planning *and* the per-chunk scan at
+         `indexer_pg.py:205` — i.e. across model loading and embedding. The
+         regex work itself is not the cost: scanning all 1367 eligible files
+         directly takes **0.44 s**, while the real run raised `scanner_timeout`
+         after 456 files and 46.1 s. The timeout is not reachable from the CLI,
+         so there is no operator remedy.
+      3. **`credential_assignment` false-positives on ordinary source.** The
+         rule `(?i)\b(?:password|secret|api[_-]?key|token)\s*[:=]\s*["']?[A-Za-z0-9_./+=-]{20,}`
+         matches `token = authorization.partition(" ")`
+         (`agent-coordinator/src/coordination_api.py`) and
+         `api_key = api_key_resolver.resolve(`
+         (`skills/parallel-infrastructure/scripts/review_dispatcher.py`) —
+         identifier text, not credentials. Seven tracked files trip it and are
+         unindexable without an explicit `--exclude`. None of the seven is an
+         `expected_files` or `must_touch` target of any corpus case, so
+         excluding them changed no case's answer.
 
 - [ ] 6.3 Run the harness across all declared gates and consumers and commit the
       report to `docs/evaluation/semantic-context/`
