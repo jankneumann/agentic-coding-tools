@@ -613,9 +613,24 @@ be meaningful.
   exclusions file, and failing a dependency bump for not authoring an artifact
   nobody asked it for would red every such PR the day this lands. Two touched
   directories is a real ambiguity: fail naming both, do not choose.
-  **Note**: assert the SKIP path in the wiring tests. A job that skips silently
-  and a job that passes are the same green check, which is the unfalsifiable
-  -green artifact this change exists to eliminate.
+  **Note**: NAME the base the diff is taken against, and make an unresolvable
+  base an ERROR, never the SKIP. `pull_request` carries
+  `github.event.pull_request.base.sha`; `merge_group` does not — it carries
+  `github.event.merge_group.base_sha`, and `ci.yml:7` triggers on it
+  unfiltered. A derivation written only against the PR payload reads empty in
+  the merge queue, the diff comes back empty, zero change directories are
+  touched, and the blocking sweep skips silently at the one moment it is the
+  last check standing. Two opposite conditions must not share an exit path.
+  **Note**: assert BOTH paths in the wiring tests — the SKIP on a genuinely
+  non-OpenSpec diff, and the FAILURE on an unresolvable base. A job that skips
+  silently and a job that passes are the same green check, which is the
+  unfalsifiable-green artifact this change exists to eliminate.
+  **Note**: the tests go in `skills/tests/validate-feature/test_ci_sweep_wiring.py`,
+  extracting the job's bash fragment from `ci.yml` and driving it — the pattern
+  `skills/tests/validate-feature/test_gen_eval_mode_selection.py` already uses.
+  Without a named file and a verification step that fails when it is missing,
+  these two scenarios are the only ones in the change with no mechanism that
+  notices they were never written.
   **Note**: the BLOCKING sweep is `pull_request`-triggered. An earlier draft
   put it on `push` to `main` reasoning that cron cannot block a merge — true,
   but a push event on `main` fires *after* the merge lands and shares the

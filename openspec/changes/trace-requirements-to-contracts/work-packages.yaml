@@ -410,7 +410,18 @@ packages:
       the DIFF touches, not from the branch name (ci.yml has no branch filter,
       and OPENSPEC_BRANCH_OVERRIDE / agent-id suffixes defeat name parsing);
       zero touched change directories prints a SKIP and exits zero, two fails
-      as ambiguous. The push job passes no `--change` at all. Both resolution
+      as ambiguous. NAME the base: `pull_request` carries
+      github.event.pull_request.base.sha, `merge_group` carries
+      github.event.merge_group.base_sha, ci.yml:7 triggers on both unfiltered,
+      and an unresolvable base is an ERROR — never the SKIP, or the merge queue
+      passes silently. The push job passes no `--change` at all.
+
+      Test file mapping: test_gen_eval_mode_selection.py is pre-existing;
+      test_validate_feature_gate.py <- 5.6; test_ci_sweep_wiring.py <- 5.7
+      (the SKIP path and the unresolvable-base failure, driving the job's bash
+      fragment extracted from ci.yml). Both new files are in write_allow via
+      skills/tests/validate-feature/** and each has a verification step below
+      that fails when the file is absent. Both resolution
       modes are wp-gate's work (task 3.16) and exist before this package runs; register `tests/validate-feature` in skills/pyproject.toml
       `testpaths`, without which the new skill tests never run in CI; update
       packages/gen-eval/README.md with the four-edge chain and the D5
@@ -506,6 +517,14 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["wiring_tests"]
+        - name: "the CI-sweep wiring scenarios have a test that exists"
+          kind: command
+          command: "test -f skills/tests/validate-feature/test_ci_sweep_wiring.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["ci_sweep_wiring_tests"]
         - name: "the wiring tests are visible to CI's default sweep"
           kind: command
           command: "grep -q '\"tests/validate-feature\"' skills/pyproject.toml"

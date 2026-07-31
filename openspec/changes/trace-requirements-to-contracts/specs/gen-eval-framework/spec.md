@@ -515,10 +515,24 @@ the CI job and not of the gate: the blocking job SHALL supply `--change`, and
 the post-merge job SHALL omit it.
 
 The blocking job SHALL derive its change id from the change directory under
-`openspec/changes/` that the diff touches. Where the diff touches no change
-directory, the blocking job SHALL print an explicit SKIP naming the branch and
-SHALL NOT fail. Where the diff touches more than one, it SHALL fail as ambiguous
-rather than choosing.
+`openspec/changes/` touched by the diff against a named base: the pull request's
+base commit on a `pull_request` event, and the merge group's base commit on a
+`merge_group` event. Where that base cannot be resolved, the job SHALL fail
+naming the event and the base it could not resolve, and SHALL NOT skip. Where
+the base resolves and the diff touches no change directory, the job SHALL print
+an explicit SKIP naming the branch and SHALL NOT fail. Where it touches more
+than one, the job SHALL fail as ambiguous rather than choosing.
+
+An unresolvable base and an absent change directory SHALL NOT share an exit
+path. They are opposite conditions: the second says the work was not planned
+through OpenSpec and is legitimately out of the gate's remit, while the first
+says the gate does not know what it is looking at. A rule that skipped on both
+would turn every event whose base the derivation did not anticipate into a
+silent pass — and `merge_group` is exactly such an event, triggered unfiltered
+by this repository's CI, carrying no `pull_request` payload for a base
+expression to read. That is the unfalsifiable-green outcome this capability's
+change-scope requirement already forbids in terms; the blocking sweep does not
+get an exemption from it.
 
 Keying resolution on the flag rather than on the run context is what keeps the
 two runs from needing a discriminator the gate cannot see. The union mode is
@@ -580,11 +594,22 @@ only a check on the candidate can stop it going red.
 <!-- Scenario ID: gen-eval-framework.non-openspec-pr-skips -->
 #### Scenario: A pull request that was not planned through OpenSpec skips
 
-- **WHEN** the blocking job runs on a pull request whose diff touches no
-  directory under `openspec/changes/`
+- **WHEN** the blocking job runs on a pull request whose base resolves and
+  whose diff touches no directory under `openspec/changes/`
 - **THEN** it SHALL print a SKIP naming the branch
 - **AND** it SHALL NOT fail the pull request
 - **AND** the post-merge run SHALL still evaluate every capability in full
+
+<!-- Scenario ID: gen-eval-framework.unresolvable-base-fails-not-skips -->
+#### Scenario: An unresolvable base fails rather than skipping
+
+- **WHEN** the blocking job runs on an event whose base commit it cannot
+  resolve, including a `merge_group` event where no `pull_request` payload
+  exists
+- **THEN** it SHALL fail naming the event and the base it could not resolve
+- **AND** it SHALL NOT take the no-change-directory SKIP path, which would make
+  an unanticipated event indistinguishable from work not planned through
+  OpenSpec
 
 <!-- Scenario ID: gen-eval-framework.ambiguous-change-fails -->
 #### Scenario: A diff touching two change directories fails as ambiguous

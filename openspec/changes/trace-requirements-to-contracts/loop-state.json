@@ -2,13 +2,14 @@
   "blocking_findings": [],
   "change_id": "trace-requirements-to-contracts",
   "cli_review_enabled": true,
-  "current_phase": "PLAN_REVIEW",
+  "current_phase": "PLAN_FIX",
   "error": null,
   "escalation_reason": null,
   "findings_trend": [
     10,
     6,
-    3
+    3,
+    1
   ],
   "force": false,
   "gate_signals": {
@@ -101,10 +102,23 @@
       "outcome": "complete",
       "at": "2026-07-31T20:21:03.084855+00:00",
       "note": "3 blocking findings fixed inline under operator decisions; archetype inherited from PLAN_REVIEW"
+    },
+    {
+      "phase": "PLAN_REVIEW",
+      "outcome": "not_converged",
+      "round": 4,
+      "at": "2026-07-31T20:33:27.549085+00:00",
+      "note": "1 blocking finding (fail-open introduced by the round-3 fix), independently re-verified. iteration 4 of max_phase_iterations 4."
+    },
+    {
+      "phase": "PLAN_FIX",
+      "outcome": "complete",
+      "at": "2026-07-31T20:33:27.549085+00:00",
+      "note": "1 blocking + 1 paired nit fixed inline; NO confirming review round has run against this fix \u2014 awaiting operator decision on round 5 vs proceed to IMPLEMENT"
     }
   ],
-  "phase_started_at": "2026-07-31T20:21:03.084855+00:00",
-  "previous_phase": "PLAN_FIX",
+  "phase_started_at": "2026-07-31T20:33:27.549085+00:00",
+  "previous_phase": "PLAN_REVIEW",
   "schema_version": 4,
   "started_at": "2026-07-28T14:22:58.793360+00:00",
   "total_iterations": 1,

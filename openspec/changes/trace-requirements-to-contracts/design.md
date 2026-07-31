@@ -452,7 +452,22 @@ exceptional: it says the work was not planned through OpenSpec, so no spec
 delta, citation, or exclusions file was ever expected of it. Failing a
 dependency bump for not authoring an artifact nobody asked it for would red
 every such pull request the day this lands. Two touched directories is a
-genuine ambiguity and fails rather than guessing. The debt a skipped pull
+genuine ambiguity and fails rather than guessing.
+
+**The base is named, and an unresolvable base is an error — not the SKIP.**
+"The diff" is against the pull request's base commit on `pull_request` and the
+merge group's base commit on `merge_group`; the two events carry different
+payloads, and CI triggers on both unfiltered. If the derivation cannot resolve
+a base it must fail naming the event, because sharing an exit path with the
+no-change-directory SKIP would collapse two opposite conditions into one green
+check: "this work was legitimately not planned through OpenSpec" and "the gate
+does not know what it is looking at". `merge_group` is the reachable instance —
+a derivation written against `github.event.pull_request.base.sha` reads empty
+there, the diff comes back empty, and the blocking sweep would skip silently
+inside the merge queue, which is the last place anything should. This is the
+same rule the change-scope decision already states for the merge base
+("unresolvable inputs are errors, never empty scopes"); the sweep does not get
+an exemption from it. The debt a skipped pull
 request could still introduce is not lost — the post-merge run sees every
 capability in full and reports it, which is the same report-don't-block posture
 the rest of this design takes.
