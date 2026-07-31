@@ -563,7 +563,7 @@ requires a favourable number.
       wire as well. With no index and no `ready` path, it would have measured
       nothing while looking like a measured 0/10.
 
-- [ ] 6.4 Record the outcome in the design's decision log and, if the verdict is
+- [x] 6.4 Record the outcome in the design's decision log and, if the verdict is
       FAIL, write the specific follow-up (what was measured, what threshold was
       missed, what would have to change)
       **Spec scenarios**: none
@@ -572,6 +572,29 @@ requires a favourable number.
       **Dependencies**: 6.3
       **Size**: S
       **Note**: do NOT open a follow-up that says "re-run until it passes".
+      **Result**: `design.md` gains a `## Recorded outcome — phase 6,
+      2026-07-31 (D11)` section. It answers D11's three questions with the
+      measurement rather than with an expectation: question 1 ("can the gate be
+      run at all?") is **no**, and for reasons that are five citable defects
+      rather than an environment; question 2 ("does it pass?") is **fail**, with
+      semantic hit@5 still never measured on this repository; question 3 ("does
+      ri-13 flip the flag?") is unchanged at **no**.
+      The follow-up is written per-defect — what was measured, what it would
+      take — for all five: `.cocoindex_code/settings.yml` absent
+      (`indexer_pg.py:211`); the secret scanner's 30 s operation deadline spent
+      on model loading and embedding (`cli_runtime.py:108`); the
+      `credential_assignment` rule matching identifier text; `_ResolvedScope`
+      missing `allows()` (`producers/semantic_runtime.py:117-123` vs
+      `semantic_context.py:454`), which is what makes the `scope_compliance`
+      pass vacuous; and `render` refusing empty-scope cases that need no
+      recorded response. Plus two ownerless observations: `--live` is
+      per-producer rather than per-case, and every recorded response hard-codes
+      `source_revision: 748af34c`.
+      No follow-up says "re-run until it passes", and the section closes by
+      stating what the outcome does **not** license: no repetition, no threshold
+      relaxation (nothing was approached, let alone narrowly missed), and no
+      enablement — D12 reads `verdict != "pass"` as an expiry condition, so this
+      report withdraws authorization rather than granting it.
 
 - [ ] 6.5 Checkpoint: run tests, review diff, verify scope
 

@@ -599,3 +599,125 @@ that state measured nothing at all. So the report carries
 `environment.code_search_enabled`, and the composer fails the retrieval gate with
 `service_disabled_during_measurement` when it is false. This is a fail-closed
 clause, not a flag ri-13 owns.
+
+---
+
+## Recorded outcome — phase 6, 2026-07-31 (D11)
+
+D11 said the answer to *"does it pass?"* was **completely unknown** and that the
+plan was designed to be equally correct at 4/10. The answer is now recorded, and
+it is not a number.
+
+**Verdict: `fail`.** `fail_reasons: ["unmeasured", "denominator_mismatch",
+"index_tier_insufficient"]`, at `docs/evaluation/semantic-context/report.json`,
+against `748af34c`, corpus digest `64170669…`, harness `context-eval 0.1.0`,
+CLI exit `2`. `INJECTION_DEFAULT_ENABLED` stays `False`, which is where ri-13
+always intended to leave it.
+
+**D11's first question — "can the gate be run at all?" — is answered NO, and the
+reasons are specific.** The July 2026 blocker is genuinely gone: `huggingface.co`
+served `sentence-transformers/all-MiniLM-L6-v2`, `torch` resolved from PyPI, the
+`local` provider was constructed and produced a real contract fingerprint
+(`f5ae15d3…`), and a scratch ParadeDB took migrations 028/029/030 without
+complaint. Every one of D11's environmental doubts cleared. What blocks the
+measurement is five defects in this repository's own code, four of which no
+amount of environment would have fixed.
+
+**Semantic hit@5 remains unmeasured, and the honest statement is that it has
+never been measured on this repository.** Not "measured and found wanting", and
+not "waived" — the retrieval and utility gates never had an index to query.
+`retrieval_quality` and `coding_context_utility` both declare `min_index_tier:
+live` and both received `none`.
+
+### What was measured
+
+One thing, and it held. The four corpus cases carrying a genuinely non-`ready`
+recorded response — `not_indexed`, `revision_mismatch`, `scope_rejected`,
+`reindexing_in_background` — each produced exactly the `(trigger, reason)` pair
+they declare and rendered zero hits. That is D12's claim about ri-12's runtime
+("already guaranteed by ri-12, and ri-13 adds nothing") verified from the corpus
+rather than cited from source, including the total-mapping property: an
+unrecognized seventh state degraded to `unavailable`/`unknown_state`.
+
+`fail_closed_regression` still fails at 0.571 against a threshold of 1.0. Its
+denominator is all seven scored cases; the three that failed are the `ready`
+adversarial cases, which failed for the apparatus reason below rather than
+because any fail-closed guarantee broke.
+
+### The five defects, and what each would take
+
+None is a threshold anyone could argue about, and none is in `wp-measure`'s
+`write_allow`. Listed in the order they block a measurement.
+
+1. **`.cocoindex_code/settings.yml` is required and does not exist.**
+   `indexer_pg.py:211` calls `load_project_settings(project_root)`, which raises
+   `FileNotFoundError` for `<repo-root>/.cocoindex_code/settings.yml`. Nothing in
+   this repository tracks that file, `index_repo` does not create one, and
+   `docs/guides/code-search.md`'s indexing procedure does not mention it. *Would
+   take*: either a checked-in project settings file with a documented schema, or
+   `index_repo` synthesizing settings from the CLI flags it already takes. Until
+   then the documented write path cannot complete here at any scale, and every
+   `packages/code-search` test that exercises it is either mocked or marked
+   `requires_embedder`.
+2. **The secret scanner's operation deadline is spent on work it does not do.**
+   `cli_runtime.py:108` builds `LocalSecretScanner()` with the default
+   `operation_timeout_seconds=30.0`; `_operation_deadline` is set at the first
+   `scan_bytes` and never reset, and one instance serves both source-manifest
+   planning and the per-chunk scan at `indexer_pg.py:205`, i.e. it spans model
+   loading and embedding. Measured: 0.44 s to scan all 1367 eligible files
+   directly, versus `scanner_timeout` after 456 files and 46.1 s in the real
+   run. *Would take*: a deadline per scanning *phase* rather than per scanner
+   instance, or a scanner whose clock only advances while it is scanning. Not
+   reachable from the CLI, so there is no operator workaround.
+3. **`credential_assignment` matches identifier text.** The rule fires on
+   `token = authorization.partition(" ")` and `api_key = api_key_resolver.resolve(`
+   — seven tracked files, none of them a corpus target. *Would take*: an
+   entropy or charset condition on the matched value, or an allowlist. Low
+   severity relative to 1 and 2, but it is a fail-closed rule that a repository
+   cannot satisfy without enumerating exclusions by hand.
+4. **The harness's scope stand-in does not implement ri-12's scope protocol.**
+   `producers/semantic_runtime.py:117-123` defines `_ResolvedScope` with
+   `read_allow` and `deny`; `semantic_context.py:454` calls
+   `scopes.allows(hit.file_path)`. Every case reaching the `ready` path raises
+   `AttributeError`, is swallowed by ri-12's never-raises guarantee
+   (`semantic_context.py:1355-1356`), and is recorded as
+   `unavailable`/`unknown_state`. **This is why `scope_compliance` reports a
+   pass that is not evidence**: the three adversarial responses render nothing,
+   and a gate counting rendered violations counts zero — the exact tautology D8
+   introduced those cases to prevent. *Would take*: `_ResolvedScope`
+   implementing `allows()` by delegating to ri-09's `ReadScope`, plus a test
+   that asserts a rendered arm is non-empty for `ADV-LEAKED-HIT` before the
+   violation count is read. A gate that can only be satisfied by an empty arm
+   should not be satisfiable at all.
+5. **Two structurally scorable cases are unscorable.**
+   `FC-QUICK-TASK-NO-DECLARED-SCOPE` and `FC-DEBUG-ADHOC-NO-SCOPE` declare an
+   empty read scope precisely so ri-12 short-circuits at
+   `out_of_scope`/`no_declared_scope` before the search seam, so they need no
+   recorded response — but `SemanticRuntimeProducer.render` rejects any case
+   with `response is None` outside `--live` before running ri-12. *Would take*:
+   deciding on the case's declared scope rather than on the presence of a
+   recorded response.
+
+Two adjacent observations, neither a defect with an owner yet. `--live` is a
+per-*producer* switch rather than per-case, so a live run puts the six cases
+whose entire content is a recorded response onto the wire too; there is no
+configuration of the current CLI that measures T1-T10 live while keeping the
+fail-closed and adversarial cases on their fixtures. And every recorded response
+hard-codes `source_revision: 748af34c`, so a run declaring any other evaluated
+revision turns all three adversarial cases into `mismatched` fallbacks — which
+silently produces the same vacuous `scope_compliance` pass by a second,
+independent route.
+
+### What this outcome does not license
+
+It does not license re-running until the numbers improve. Every gate above
+failed for a named structural reason, and no repetition of the same command
+changes any of them. It does not license relaxing a threshold: no threshold was
+approached, let alone missed by a margin. And it does not license enabling the
+default — the Enablement Consistency Gate reads `verdict != "pass"` as an
+expiry condition (D12), so this report withdraws authorization rather than
+granting it, exactly as designed.
+
+The plan said the change is mergeable with a `fail`, and it is. What ri-13
+shipped is the apparatus that makes the next attempt legible: the failure above
+is a list of five citable defects instead of one sentence in a markdown file.
