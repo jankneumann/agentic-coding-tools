@@ -501,7 +501,7 @@ requires a favourable number.
          `expected_files` or `must_touch` target of any corpus case, so
          excluding them changed no case's answer.
 
-- [ ] 6.3 Run the harness across all declared gates and consumers and commit the
+- [x] 6.3 Run the harness across all declared gates and consumers and commit the
       report to `docs/evaluation/semantic-context/`
       **Spec scenarios**: `sce` — Evaluation report record / The report has a durable home
       **Contracts**: `contracts/schemas/context-eval-report.schema.json`
@@ -511,6 +511,57 @@ requires a favourable number.
       **Note**: if any step of 6.1-6.2 failed, commit the report with
       `verdict: "fail"` and `fail_reasons: ["unmeasured", ...]`. That is the
       correct outcome, not a blocked task.
+      **Result**: `docs/evaluation/semantic-context/report.json` committed.
+      **`verdict: "fail"`**, `fail_reasons: ["unmeasured",
+      "denominator_mismatch", "index_tier_insufficient"]`. CLI exit `2`.
+      `cases_declared: 19`, `cases_scored: 7`, `index.tier: "none"`,
+      `index.indexed_revision: null`, `environment.scope_adapter: "resolved"`,
+      `judge.available: false`.
+
+      | Gate | Min tier | Verdict | Measured vs threshold |
+      |---|---|---|---|
+      | `retrieval_quality` | `live` | fail | nothing measured — `unmeasured`, `index_tier_insufficient` |
+      | `coding_context_utility` | `live` | fail | 0 cases scored over 5 utility-applicable consumers — `unmeasured`, `index_tier_insufficient` |
+      | `scope_compliance` | `none` | pass | 0 rendered violations vs max 0; outbound fidelity 1.0 vs min 1.0 — **vacuous, see below** |
+      | `fail_closed_regression` | `none` | fail | expectation match rate **0.571 (4/7)** vs min 1.0 |
+
+      Two runs were made and both are reported. The first declared
+      `--evaluated-revision 184d1329…` (the branch tip); every recorded response
+      in the corpus is pinned to `748af34c`, so all three adversarial `ready`
+      responses short-circuited at `mismatched`/`index_revision_differs` before
+      the scope check. The committed run declares `748af34c` and reads a
+      worktree at that revision, which is the only configuration under which the
+      corpus's recorded responses describe the tree being searched. Both runs
+      produce the same four gate verdicts and the same `fail_reasons`.
+
+      **The `scope_compliance` pass is vacuous and must not be read as
+      evidence.** Every case that reaches ri-12's `ready` path raises
+      `AttributeError: '_ResolvedScope' object has no attribute 'allows'` at
+      `semantic_context.py:454`: the harness's scope stand-in
+      (`producers/semantic_runtime.py:117-123`) implements `read_allow` and
+      `deny` but not `allows()`, and ri-12's never-raises guarantee
+      (`semantic_context.py:1355-1356`) converts it to
+      `unavailable`/`unknown_state`. The three adversarial responses therefore
+      render nothing, and a gate counting rendered violations counts zero. This
+      is a fourth defect, in `packages/context-eval` itself — phase 3's producer
+      — and it is outside `wp-measure`'s `write_allow`. It is also what drags
+      `fail_closed_regression` to 4/7: the four genuinely non-`ready` responses
+      each produced exactly their declared trigger/reason pair, so ri-12's own
+      fail-closed mapping is intact and measured; the three that failed are the
+      `ready` adversarial cases that never got far enough to honour anything.
+
+      A fifth defect, unrelated: `FC-QUICK-TASK-NO-DECLARED-SCOPE` and
+      `FC-DEBUG-ADHOC-NO-SCOPE` declare an empty read scope and are designed to
+      short-circuit inside ri-12 *before* the search seam, so they need no
+      recorded response — but `SemanticRuntimeProducer.render` rejects any case
+      with `response is None` outside `--live` before running ri-12 at all. Two
+      cases that are structurally scorable at tier `none` are unscorable.
+
+      `--live` was not used and could not have helped: it is a per-*producer*
+      switch, not per-case, so it would have put the six fail-closed and
+      adversarial cases — whose whole content is a recorded response — onto the
+      wire as well. With no index and no `ready` path, it would have measured
+      nothing while looking like a measured 0/10.
 
 - [ ] 6.4 Record the outcome in the design's decision log and, if the verdict is
       FAIL, write the specific follow-up (what was measured, what threshold was

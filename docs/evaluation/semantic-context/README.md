@@ -9,9 +9,10 @@ to
 It is the only artifact that may authorize enabling the injection default, and
 the only artifact the enablement gate reads.
 
-**There is no `report.json` here right now.** That is not a missing file. Absent
-is the fail-closed default state: with no report, enablement is unauthorized, and
-that is the correct answer until a measurement has actually been taken.
+`report.json` records a `fail` verdict. Enablement is therefore unauthorized and
+`INJECTION_DEFAULT_ENABLED` stays `False`. See
+[The recorded measurement](#the-recorded-measurement) for what was and was not
+measured.
 
 ## Why the report lives here
 
@@ -52,6 +53,80 @@ authorized enablement that does not pass through a new measurement.
 measurement phase succeeds by recording what was measured, whatever it says.
 Semantic hit@5 has never been measured on this repository, and this apparatus is
 designed to be equally correct at 4/10.
+
+## The recorded measurement
+
+Taken 2026-07-31 (`as_of: 2026-07-31T00:00:00Z`) against
+`748af34c4268e768f0e3a7e7cdbe64c02835b7b6`, corpus digest
+`6417066963927e0f1009a1b10fa49e6be6e11da3f7991290657b2adbbb7a0f56`,
+harness `context-eval 0.1.0`. The CLI exited `2`.
+
+**Verdict: `fail`** — `["unmeasured", "denominator_mismatch",
+"index_tier_insufficient"]`.
+
+| Gate | Min tier | Verdict | Measured against threshold |
+|---|---|---|---|
+| `retrieval_quality` | `live` | **fail** | nothing measured; `unmeasured`, `index_tier_insufficient` |
+| `coding_context_utility` | `live` | **fail** | 0 cases scored across 5 utility-applicable consumers; `unmeasured`, `index_tier_insufficient` |
+| `scope_compliance` | `none` | **pass** | 0 rendered violations vs `max 0`; outbound fidelity `1.0` vs `min 1.0` — see the caveat below |
+| `fail_closed_regression` | `none` | **fail** | expectation match rate **0.571 (4/7)** vs `min 1.0` |
+
+`cases_declared: 19`, `cases_scored: 7` — hence `denominator_mismatch`. The
+twelve unscored cases are recorded individually with `unscored_reason:
+producer_error`, not dropped.
+
+**The index tier was `none`, and that is the headline.** `index_repo` never
+produced a `ready` index: five attempts, each after a documented change to the
+scope or the source tree, all exited `1`. Three independent defects in
+`packages/code-search` are responsible and none of them is a threshold anyone
+could argue about:
+
+1. `indexer_pg.py:211` requires `<repo-root>/.cocoindex_code/settings.yml`. No
+   such file exists in this repository, `index_repo` does not create one, and
+   the indexing procedure in [`code-search.md`](../../guides/code-search.md)
+   does not mention it. The documented write path cannot complete here at any
+   scale.
+2. `cli_runtime.py:108` builds `LocalSecretScanner()` with the default 30-second
+   *operation* deadline. That deadline is set at the first scanned file and
+   never reset, and the same scanner instance is reused for source-manifest
+   planning and for the per-chunk scan at `indexer_pg.py:205` — so it is spent
+   on model loading and embedding, work the scanner does not do. Scanning all
+   1367 eligible files takes 0.44 s; the real run raised `scanner_timeout` after
+   456 files and 46.1 s. The bound is not reachable from the CLI.
+3. The `credential_assignment` rule matches identifier text such as
+   `token = authorization.partition(" ")` and `api_key = api_key_resolver.resolve(`.
+   Seven tracked files are unindexable without an explicit `--exclude`; none is
+   a target of any corpus case.
+
+**`scope_compliance` passed, and its pass is not evidence.** Every case that
+reaches ri-12's `ready` path raises
+`AttributeError: '_ResolvedScope' object has no attribute 'allows'` at
+`semantic_context.py:454`, because the harness's own scope stand-in
+(`packages/context-eval/src/context_eval/producers/semantic_runtime.py:117-123`)
+supplies `read_allow` and `deny` but not `allows()`. ri-12's never-raises
+guarantee swallows it and returns `unavailable` / `unknown_state`. The three
+adversarial responses therefore render nothing, and a gate that counts rendered
+violations counts zero — which is precisely the tautology design D8 says those
+cases exist to prevent. Read this gate as **unmeasured** regardless of what the
+report's `verdict` field says for it; the report is accurate about what it
+counted, and what it counted was empty arms.
+
+That same `AttributeError` is what drags `fail_closed_regression` to 4/7: the
+four genuinely non-`ready` responses (`not_indexed`, `revision_mismatch`,
+`scope_rejected`, `reindexing_in_background`) each produced exactly the
+trigger/reason pair they declare, so ri-12's own fail-closed mapping is intact
+and measured. The three that failed are the `ready` adversarial cases, which
+never got far enough to honour or violate anything.
+
+Two further cases — `FC-QUICK-TASK-NO-DECLARED-SCOPE` and
+`FC-DEBUG-ADHOC-NO-SCOPE` — are unscorable for an unrelated reason: they declare
+an empty read scope, so ri-12 short-circuits before the search seam and they
+need no recorded response, but `SemanticRuntimeProducer.render` refuses any case
+with `response is None` outside `--live` before running ri-12 at all.
+
+No operator decision was applied to this outcome and none was available to
+apply. The measurement was attempted, most of it did not run, and the report
+says so in the only vocabulary the schema offers.
 
 ## Reproducing a measurement
 
