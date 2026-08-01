@@ -60,7 +60,7 @@ designed to be equally correct at 4/10.
 Taken 2026-08-01 (`as_of: 2026-08-01T00:00:00Z`) against
 `748af34c4268e768f0e3a7e7cdbe64c02835b7b6`, corpus digest
 `6417066963927e0f1009a1b10fa49e6be6e11da3f7991290657b2adbbb7a0f56`,
-harness `context-eval 0.1.0`, harness source digest `6fd7ba4b…`. The CLI
+harness `context-eval 0.1.0`, harness source digest `a1c52e21…`. The CLI
 exited `2`.
 
 **Verdict: `fail`** — `["unmeasured", "denominator_mismatch",
@@ -320,6 +320,33 @@ Without `EMBEDDING_CONTRACT` the embedding fingerprint has nothing to be compare
 against, and that is an unmet condition rather than a skipped one: an unchecked
 fingerprint is not a matching one. It is optional only because the default is
 off.
+
+### What this check does not detect
+
+A report whose numbers were **invented rather than measured** — every declared
+case `scored` with fabricated arms, every gate passing with fabricated `measured`
+values, every consumer passing with fabricated metrics, at tier `live` with a
+reachable revision — is schema-valid, self-consistent, and **authorizes**. That
+document was built by hand and watched exiting `0`; it is recorded here rather
+than left for a reader to discover.
+
+Every condition above compares the artifact against something else that is also
+in this repository: the corpus, the harness's source, git, a supplied contract.
+Anyone who can edit the report can compute all of them, so no condition of that
+shape can distinguish a measurement from a claim about one.
+
+What the conditions do buy is worth stating precisely, because it is not nothing.
+They raise the cost from *editing three fields of a committed failure* to
+*forging an entire coherent measurement*, and they make honest drift impossible
+to mistake for evidence — a corpus that moved, a scorer that changed, an index
+built from a revision this tree does not descend from. That drift is the failure
+that actually happens here, and it is the one that went undetected in July 2026.
+Deliberate forgery is not something a build gate can close. The construction that
+would is the gate re-running the harness over the report's own recorded inputs
+and comparing the composed document against the committed one; that is a separate
+change, and it needs the exact-search baseline pinned to
+`repository.evaluated_revision` first, because the baseline arm currently reads
+the working tree.
 
 ## What this supersedes
 

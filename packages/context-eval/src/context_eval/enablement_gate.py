@@ -83,6 +83,29 @@ passing verdict over a failing gate. The same helper is the one
 this document agree with itself" would eventually answer differently from this
 one and no reader would know which answer governed.
 
+**What none of this detects, stated plainly so nobody has to discover it.** A
+report whose numbers were invented rather than measured — every declared case
+``scored`` with fabricated arms, every gate passing with fabricated ``measured``
+values, every consumer passing with fabricated metrics, at tier ``live`` and a
+reachable revision — is schema-valid, self-consistent, and **authorizes**. It was
+built by hand and watched exiting ``0`` here. Every condition in this module
+compares the artifact against something else that is also in the repository: the
+corpus, the harness source, git, a supplied contract. Someone who can edit the
+report can compute all of those, so no condition of that shape can ever
+distinguish a measurement from a claim about one.
+
+The conditions still buy something real, and it is worth being precise about
+what. They raise the cost from *editing three fields of a committed failure* to
+*forging an entire coherent measurement*, and — more usefully — they make honest
+drift impossible to mistake for evidence, which is the failure that actually
+happens: a corpus that moved, a scorer that changed, an index built from a
+revision this tree does not descend from. Deliberate forgery is not what a build
+gate can close. The only construction that would is the gate re-running the
+harness over the report's own recorded inputs and comparing the composed document
+to the committed one; that is a different change, and it needs the exact-search
+baseline pinned to ``repository.evaluated_revision`` first, because today the
+baseline arm reads the working tree.
+
 The declared default is read by parsing the source, not by importing it. Two
 reasons, and the second is the load-bearing one: importing would run ri-12's
 module in the gate's process for a single boolean, and parsing lets the gate
