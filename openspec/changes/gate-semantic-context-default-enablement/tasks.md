@@ -714,9 +714,39 @@ requires a favourable number.
       'gate-semantic-context-default-enablement' is valid" (exit 0). Nothing
       to fix.
 
-- [ ] 7.6 MANUAL: record the exact `gh api` call to add the two new jobs to
+- [x] 7.6 MANUAL: record the exact `gh api` call to add the two new jobs to
       branch protection's required contexts, and state that until it is applied
       they are "blocking jobs, not required contexts"
       **Design decisions**: D14
       **Dependencies**: 7.2
       **Size**: XS
+      **Result**: NOT EXECUTED, per the task — this is a record for a human
+      with admin rights on the repository. The two job ids this change adds to
+      `.github/workflows/ci.yml` are `context-eval` (line 458) and
+      `semantic-enablement-gate` (line 521). Current required contexts on
+      `main` (queried read-only via `gh api
+      repos/jankneumann/agentic-coding-tools/branches/main/protection/required_status_checks`):
+      `test`, `test-infra-skills`, `test-skills`, `validate-specs`,
+      `check-docker-imports`, `secret-scan` — neither new job is in that set.
+      The call a repository admin must run to add them:
+
+      ```bash
+      gh api -X PATCH repos/jankneumann/agentic-coding-tools/branches/main/protection/required_status_checks \
+        -f strict=false \
+        -f 'contexts[]=test' \
+        -f 'contexts[]=test-infra-skills' \
+        -f 'contexts[]=test-skills' \
+        -f 'contexts[]=validate-specs' \
+        -f 'contexts[]=check-docker-imports' \
+        -f 'contexts[]=secret-scan' \
+        -f 'contexts[]=context-eval' \
+        -f 'contexts[]=semantic-enablement-gate'
+      ```
+
+      **Until this is applied, `context-eval` and `semantic-enablement-gate`
+      are blocking jobs, not required contexts**: they run on every PR and a
+      failure shows red in the checks list (task 4.5, task 5.5), but GitHub
+      does not refuse to merge on their failure the way it does for the six
+      contexts already in the required set. A PR could be merged past a red
+      `semantic-enablement-gate` — the one gate this whole change exists to
+      make load-bearing — until a human runs the command above.
