@@ -41,6 +41,17 @@ longer reproduces kept counting as current evidence. A content digest makes a
 behavioural change to the measuring code invalidate its own evidence, which is
 what D12 says it wants and what the corpus digest has always done for the corpus.
 
+**Neither half is nameable from the command line, and that is deliberate.** The
+first version of the digest fix shipped ``--harness-version`` and
+``--harness-source`` beside each other, which handed back exactly the property it
+had just taken away: a report naming a mutated source tree and a version nobody
+has expires under CI's invocation and authorizes under an invocation carrying
+both flags. Two overrides that together reconstitute an identity are one
+override. ``harness_source`` survives as a keyword-only argument of
+:func:`evaluate` and :func:`main` — reachable from a test, which is what lets the
+condition be watched rejecting a modified copy, and not reachable from an
+operator, which is the whole of the guarantee.
+
 **Provenance is not evidence.** D12's six conditions all ask whether the report
 is *current*; none of them asked whether it is *about anything*. A hand-written
 document carrying the right digest, the right harness identity, a matching
@@ -437,9 +448,17 @@ def _describes_corpus_condition(document: dict[str, Any], corpus: Corpus) -> Con
     )
 
 
-def _harness_version_condition(document: dict[str, Any], expected: str | None) -> Condition:
+def _harness_version_condition(document: dict[str, Any]) -> Condition:
+    """The installed version, read from the package. Never supplied by a caller.
+
+    There is no override parameter here at all, and the asymmetry with
+    :func:`_harness_fingerprint_condition` is the point: a source tree can be
+    copied and mutated, so pointing the digest at one is how the condition gets
+    tested, while a version string can only be asserted, which is how the
+    condition got defeated.
+    """
     try:
-        current = report.installed_version() if expected is None else expected
+        current = report.installed_version()
     except report.ReportError as error:
         raise EnablementGateError(str(error)) from error
     recorded = document.get("harness", {}).get("version")
@@ -553,7 +572,6 @@ def evaluate(
     report_path: Path,
     corpus_root: Path,
     embedding_contract: Path | None = None,
-    harness_version: str | None = None,
     harness_source: Path | None = None,
 ) -> Outcome:
     """Decide whether the declared default is authorized by the recorded evidence."""
@@ -583,7 +601,7 @@ def evaluate(
             present,
             valid,
             _corpus_digest_condition(document, corpus),
-            _harness_version_condition(document, harness_version),
+            _harness_version_condition(document),
             _harness_fingerprint_condition(document, harness_source),
             _embedder_fingerprint_condition(document, embedding_contract),
             _indexed_revision_condition(document, repository_root),
@@ -594,8 +612,15 @@ def evaluate(
     )
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    """Run the gate. Returns the process exit code."""
+def main(argv: Sequence[str] | None = None, *, harness_source: Path | None = None) -> int:
+    """Run the gate. Returns the process exit code.
+
+    ``harness_source`` is keyword-only and has no command-line spelling. It is
+    the seam that lets the fingerprint condition be pointed at a mutated copy of
+    the harness and watched rejecting it; an operator reaching this function has
+    a shell, not a Python call, and must not be able to name the tree their own
+    evidence is compared against.
+    """
     args = _parser().parse_args(list(argv) if argv is not None else None)
     root: Path = args.repository_root
     semantic_context: Path = args.semantic_context or root / SEMANTIC_CONTEXT_RELATIVE
@@ -609,8 +634,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             report_path=report_path,
             corpus_root=corpus_root,
             embedding_contract=args.embedding_contract,
-            harness_version=args.harness_version,
-            harness_source=args.harness_source,
+            harness_source=harness_source,
         )
     except EnablementGateError as error:
         print(f"apparatus failure: {error}", file=sys.stderr)
@@ -668,19 +692,11 @@ def _parser() -> argparse.ArgumentParser:
         help="JSON holding the configured EmbeddingContract. Without it the "
         "embedding fingerprint cannot be compared, which is an unmet condition.",
     )
-    parser.add_argument(
-        "--harness-version",
-        default=None,
-        help="Override the installed harness version the report is compared against.",
-    )
-    parser.add_argument(
-        "--harness-source",
-        type=Path,
-        default=None,
-        help="The harness source tree whose digest the report is compared against. "
-        "Defaults to the running package's own source. Injected rather than "
-        "discovered so this condition can be watched rejecting a modified copy.",
-    )
+    # Deliberately no --harness-version and no --harness-source. Both halves of
+    # harness identity are derived here; a flag naming either one is an
+    # assertion, and two of them together are an operator writing their own
+    # provenance. The fingerprint's injection seam is `main(harness_source=...)`,
+    # which a command line cannot reach.
     return parser
 
 

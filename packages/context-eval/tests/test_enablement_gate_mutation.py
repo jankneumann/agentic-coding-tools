@@ -58,6 +58,7 @@ therefore a change to what the gate means, not a change to a test.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import shutil
 import subprocess
@@ -263,6 +264,25 @@ def _contract(tmp_path: Path, fingerprint: str) -> Path:
     return path
 
 
+@dataclass(frozen=True)
+class Invocation:
+    """One call of the gate: its command line, and the one thing that is not one.
+
+    `harness_source` is a keyword-only argument of `enablement_gate.main` and has
+    no flag, because a caller who can name the tree the digest is taken over can
+    assert the harness's identity — which is the property the digest exists to
+    take away. It is reachable from here so the fingerprint condition can be
+    watched rejecting a modified copy, and reachable from nowhere an operator
+    stands.
+    """
+
+    argv: list[str]
+    harness_source: Path | None = None
+
+    def run(self) -> int:
+        return enablement_gate.main(self.argv, harness_source=self.harness_source)
+
+
 def _argv(
     *,
     helper: Path,
@@ -270,7 +290,7 @@ def _argv(
     corpus: Path = CORPUS_ROOT,
     contract: Path | None = None,
     harness_source: Path | None = None,
-) -> list[str]:
+) -> Invocation:
     argv = [
         "--repository-root",
         str(REPO_ROOT),
@@ -283,16 +303,14 @@ def _argv(
     ]
     if contract is not None:
         argv += ["--embedding-contract", str(contract)]
-    if harness_source is not None:
-        argv += ["--harness-source", str(harness_source)]
-    return argv
+    return Invocation(argv=argv, harness_source=harness_source)
 
 
 def _recorded_fingerprint(document: dict[str, Any]) -> str:
     return str(document["index"]["embedder"]["fingerprint"])
 
 
-def _authorizing(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _authorizing(tmp_path: Path, evidence: Evidence) -> Invocation:
     """Every condition satisfied. Each mutant below is this, minus one thing."""
     document = deepcopy(evidence.passing)
     report_path = report_module.write_report(tmp_path / "report.json", document)
@@ -307,10 +325,10 @@ def _authorizing(tmp_path: Path, evidence: Evidence) -> list[str]:
 # the mutations, one per condition
 # --------------------------------------------------------------------------
 
-Mutation = Callable[[Path, Evidence], list[str]]
+Mutation = Callable[[Path, Evidence], Invocation]
 
 
-def _no_report(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _no_report(tmp_path: Path, evidence: Evidence) -> Invocation:
     """(a) Nothing was ever measured. The state of this tree today."""
     document = deepcopy(evidence.passing)
     return _argv(
@@ -320,7 +338,7 @@ def _no_report(tmp_path: Path, evidence: Evidence) -> list[str]:
     )
 
 
-def _schema_invalid_report(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _schema_invalid_report(tmp_path: Path, evidence: Evidence) -> Invocation:
     """(d) It claims to pass, and it is not a report.
 
     Written raw, because `write_report` validates before it opens the file — an
@@ -338,7 +356,7 @@ def _schema_invalid_report(tmp_path: Path, evidence: Evidence) -> list[str]:
     )
 
 
-def _failing_report(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _failing_report(tmp_path: Path, evidence: Evidence) -> Invocation:
     """(c) It was measured, it is current, and it says no."""
     document = deepcopy(evidence.failing)
     report_path = report_module.write_report(tmp_path / "report.json", document)
@@ -349,7 +367,7 @@ def _failing_report(tmp_path: Path, evidence: Evidence) -> list[str]:
     )
 
 
-def _moved_corpus(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _moved_corpus(tmp_path: Path, evidence: Evidence) -> Invocation:
     """(b.1) A case or a threshold changed, so the digest moved."""
     document = deepcopy(evidence.passing)
     report_path = report_module.write_report(tmp_path / "report.json", document)
@@ -368,7 +386,7 @@ def _moved_corpus(tmp_path: Path, evidence: Evidence) -> list[str]:
     )
 
 
-def _other_harness_version(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _other_harness_version(tmp_path: Path, evidence: Evidence) -> Invocation:
     """(b.2) The software that measured this is not the software here."""
     document = deepcopy(evidence.passing)
     document["harness"]["version"] = f"{document['harness']['version']}+not-this-one"
@@ -380,7 +398,7 @@ def _other_harness_version(tmp_path: Path, evidence: Evidence) -> list[str]:
     )
 
 
-def _changed_fingerprint(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _changed_fingerprint(tmp_path: Path, evidence: Evidence) -> Invocation:
     """(b.3) The embedder was reconfigured after the measurement."""
     document = deepcopy(evidence.passing)
     report_path = report_module.write_report(tmp_path / "report.json", document)
@@ -391,7 +409,7 @@ def _changed_fingerprint(tmp_path: Path, evidence: Evidence) -> list[str]:
     )
 
 
-def _unreachable_revision(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _unreachable_revision(tmp_path: Path, evidence: Evidence) -> Invocation:
     """(b.4) The measurement describes a tree this one does not descend from."""
     document = deepcopy(evidence.passing)
     document["index"]["indexed_revision"] = UNREACHABLE_REVISION
@@ -428,7 +446,7 @@ def _harness_source_copy(tmp_path: Path, *, modified: bool) -> Path:
     return destination
 
 
-def _changed_harness_source(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _changed_harness_source(tmp_path: Path, evidence: Evidence) -> Invocation:
     """(b.2b) The code that measured this is not the code here, whatever it is called.
 
     The mutation is a real edit to a real scorer, not a rewritten field in the
@@ -446,7 +464,7 @@ def _changed_harness_source(tmp_path: Path, evidence: Evidence) -> list[str]:
     )
 
 
-def _report_omitting_a_declared_gate(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _report_omitting_a_declared_gate(tmp_path: Path, evidence: Evidence) -> Invocation:
     """(b.5) Current, schema-valid, passing — and silent about a declared gate.
 
     The smallest mutation that reaches `report_describes_corpus` without also
@@ -464,7 +482,7 @@ def _report_omitting_a_declared_gate(tmp_path: Path, evidence: Evidence) -> list
     )
 
 
-def _gate_passing_below_its_declared_tier(tmp_path: Path, evidence: Evidence) -> list[str]:
+def _gate_passing_below_its_declared_tier(tmp_path: Path, evidence: Evidence) -> Invocation:
     """(b.6) A gate recorded as passing over an index that could not have run it.
 
     One field, and the schema cannot fault it: `index.tier` is a legal enum value
@@ -531,15 +549,14 @@ def test_a_current_passing_report_authorizes_an_enabled_default(
     the embedder, the revision, the schema and the verdict all in agreement, an
     enabled default is authorized.
     """
-    assert enablement_gate.main(_authorizing(tmp_path, evidence)) == EXIT_PASS
+    assert _authorizing(tmp_path, evidence).run() == EXIT_PASS
     assert not capsys.readouterr().err
 
 
 def test_a_disabled_default_needs_no_evidence(tmp_path: Path) -> None:
     """The state of this tree, and the reason the gate is green on it."""
     helper = _helper_with_default(tmp_path, enabled=False)
-    argv = _argv(helper=helper, report_path=tmp_path / "absent.json")
-    assert enablement_gate.main(argv) == EXIT_PASS
+    assert _argv(helper=helper, report_path=tmp_path / "absent.json").run() == EXIT_PASS
 
 
 def test_disabling_the_default_restores_a_rejected_tree_to_passing(
@@ -547,13 +564,13 @@ def test_disabling_the_default_restores_a_rejected_tree_to_passing(
 ) -> None:
     """Expiry withdraws authorization; it does not create a state with no remedy."""
     rejected = _no_report(tmp_path, evidence)
-    assert enablement_gate.main(rejected) != EXIT_PASS
+    assert rejected.run() != EXIT_PASS
 
-    restored = list(rejected)
+    restored = list(rejected.argv)
     restored[restored.index("--semantic-context") + 1] = str(
         _helper_with_default(tmp_path / "off", enabled=False)
     )
-    assert enablement_gate.main(restored) == EXIT_PASS
+    assert Invocation(argv=restored).run() == EXIT_PASS
 
 
 # --------------------------------------------------------------------------
@@ -574,7 +591,7 @@ def test_an_enabled_default_is_rejected_and_the_condition_is_named(
     evidence: Evidence,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    exit_code = enablement_gate.main(mutation(tmp_path, evidence))
+    exit_code = mutation(tmp_path, evidence).run()
     stderr = capsys.readouterr().err
 
     assert exit_code != EXIT_PASS, f"{condition} did not stop enablement"
@@ -596,10 +613,10 @@ def test_an_unverifiable_embedding_fingerprint_is_unmet_not_skipped(
     against — would make the one expiry condition that needs an external input
     the one an operator can switch off by omission.
     """
-    argv = _authorizing(tmp_path, evidence)
+    argv = list(_authorizing(tmp_path, evidence).argv)
     del argv[argv.index("--embedding-contract") : argv.index("--embedding-contract") + 2]
 
-    assert enablement_gate.main(argv) == EXIT_REPORT_UNUSABLE
+    assert Invocation(argv=argv).run() == EXIT_REPORT_UNUSABLE
     assert enablement_gate.EMBEDDER_FINGERPRINT_CURRENT in capsys.readouterr().err
 
 
@@ -614,7 +631,7 @@ def test_a_recorded_apparatus_failure_does_not_authorize_enablement(
         report_path=report_path,
         contract=_contract(tmp_path, _recorded_fingerprint(document)),
     )
-    assert enablement_gate.main(argv) == EXIT_GATE_FAILURE
+    assert argv.run() == EXIT_GATE_FAILURE
     assert enablement_gate.VERDICT_PASS in capsys.readouterr().err
 
 
@@ -784,7 +801,7 @@ def test_an_unwritable_body_written_by_hand_is_still_rejected(
         contract=_contract(tmp_path, _recorded_fingerprint(document)),
     )
 
-    assert enablement_gate.main(argv) == EXIT_REPORT_UNUSABLE, f"{label} authorized enablement"
+    assert argv.run() == EXIT_REPORT_UNUSABLE, f"{label} authorized enablement"
     assert enablement_gate.SCHEMA_VALID in capsys.readouterr().err
 
 
@@ -818,7 +835,7 @@ def test_a_schema_valid_report_that_misdescribes_the_corpus_is_rejected(
         contract=_contract(tmp_path, _recorded_fingerprint(document)),
     )
 
-    assert enablement_gate.main(argv) == EXIT_REPORT_UNUSABLE, f"{label} authorized enablement"
+    assert argv.run() == EXIT_REPORT_UNUSABLE, f"{label} authorized enablement"
     stderr = capsys.readouterr().err
     assert enablement_gate.REPORT_DESCRIBES_CORPUS in stderr, (
         f"the gate rejected {label} without naming the condition:\n{stderr}"
@@ -851,7 +868,7 @@ def test_the_hollow_report_the_gate_used_to_authorize(
         report_path=_raw_report(tmp_path, document),
         contract=_contract(tmp_path, _recorded_fingerprint(document)),
     )
-    assert enablement_gate.main(argv) != EXIT_PASS
+    assert argv.run() != EXIT_PASS
     assert "unmet condition" in capsys.readouterr().err
 
 
@@ -876,7 +893,7 @@ def test_an_unmodified_copy_of_the_harness_source_still_authorizes(
         contract=_contract(tmp_path, _recorded_fingerprint(document)),
         harness_source=pristine,
     )
-    assert enablement_gate.main(argv) == EXIT_PASS
+    assert argv.run() == EXIT_PASS
     assert not capsys.readouterr().err
 
 
@@ -892,6 +909,48 @@ def test_a_changed_scorer_moves_the_harness_fingerprint(tmp_path: Path) -> None:
     assert report_module.harness_fingerprint(pristine) == report_module.harness_fingerprint(
         HARNESS_SOURCE
     ), "the digest varies with location, so it identifies a path rather than a harness"
+
+
+#: Every way a caller could once name a half of the harness's own identity. Both
+#: were command-line flags on this gate at the same time, which is one override.
+IDENTITY_OVERRIDE_FLAGS = ("--harness-source", "--harness-version")
+
+
+def test_no_command_line_can_assert_either_half_of_the_harness_identity(
+    tmp_path: Path, evidence: Evidence
+) -> None:
+    """#337, on the very condition that was written to close it.
+
+    The digest fix arrived with `--harness-source` beside the pre-existing
+    `--harness-version`, and the two together rebuild exactly the assertion the
+    digest took away: a report naming a mutated source tree and a version nobody
+    has installed expires under CI's invocation and authorizes under an
+    invocation carrying both flags. Non-blocking only because `make` and CI pass
+    neither — which is luck, not design.
+
+    Three assertions, because the flags could come back three ways: the parser
+    must not accept them, `evaluate` must not take a version at all, and the
+    surviving source seam must be keyword-only so no argv can reach it.
+    """
+    rejected = _changed_harness_source(tmp_path, evidence)
+    assert rejected.run() == EXIT_REPORT_UNUSABLE, (
+        "the fingerprint condition is not rejecting the mutated tree, so this "
+        "test would be asserting the absence of a rescue nobody needed"
+    )
+
+    help_text = enablement_gate._parser().format_help()
+    for flag in IDENTITY_OVERRIDE_FLAGS:
+        assert flag not in help_text, f"{flag} is back on the production parser"
+        with pytest.raises(SystemExit):
+            enablement_gate.main([*rejected.argv, flag, str(tmp_path / "mutated-src")])
+
+    parameters = inspect.signature(enablement_gate.evaluate).parameters
+    assert "harness_version" not in parameters, (
+        "the installed version is read from the package; a caller who can supply "
+        "it can assert the half of identity nobody has to change"
+    )
+    seam = inspect.signature(enablement_gate.main).parameters["harness_source"]
+    assert seam.kind is inspect.Parameter.KEYWORD_ONLY
 
 
 def test_the_authorizing_report_accounts_for_the_whole_corpus(evidence: Evidence) -> None:
@@ -929,7 +988,7 @@ def test_no_rejection_is_silent(
     for index, (condition, mutation, _) in enumerate(MUTATIONS):
         stream = tmp_path / str(index)
         stream.mkdir()
-        assert enablement_gate.main(mutation(stream, evidence)) != EXIT_PASS
+        assert mutation(stream, evidence).run() != EXIT_PASS
         stderr = capsys.readouterr().err
         if not any(declared in stderr for declared in enablement_gate.CONDITIONS):
             unexplained.append(f"{condition}: {stderr!r}")
@@ -1069,7 +1128,7 @@ def test_no_self_contradicting_report_authorizes_an_enabled_default(
         contract=_contract(tmp_path, _recorded_fingerprint(document)),
     )
 
-    assert enablement_gate.main(argv) != EXIT_PASS, f"{label} authorized enablement"
+    assert argv.run() != EXIT_PASS, f"{label} authorized enablement"
     assert "unmet condition" in capsys.readouterr().err
 
 
@@ -1192,5 +1251,5 @@ def test_the_three_field_edit_of_the_committed_report_is_refused(
         report_path=_raw_report(tmp_path, document),
         contract=_contract(tmp_path, str(document["index"]["embedder"]["fingerprint"])),
     )
-    assert enablement_gate.main(argv) != EXIT_PASS
+    assert argv.run() != EXIT_PASS
     assert "unmet condition" in capsys.readouterr().err
