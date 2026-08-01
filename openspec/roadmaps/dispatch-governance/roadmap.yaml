@@ -76,6 +76,7 @@ items:
   - Cloud sessions no longer leak locks
 - item_id: dg-03
   title: Widen execution-environment detection to an isolation posture
+  change_id: add-isolation-posture-detection
   status: candidate
   priority: 1
   effort: S
@@ -128,6 +129,7 @@ items:
     unreachable
 - item_id: dg-05
   title: Pin the isolation contract between router and dispatch
+  change_id: pin-isolation-contract
   status: candidate
   priority: 1
   effort: S
