@@ -333,6 +333,11 @@ AGENTS_SCHEMA: dict[str, Any] = {
                                 "type": "array",
                                 "items": {"type": "string"},
                             },
+                            "thinking_parameter": {"type": "string", "minLength": 1},
+                            "thinking_values": {
+                                "type": "object",
+                                "additionalProperties": {"type": "string", "minLength": 1},
+                            },
                             "api_key_env": {"type": "string", "minLength": 1},
                             "max_tokens": {"type": "integer", "minimum": 1},
                         },
@@ -385,6 +390,11 @@ AGENTS_SCHEMA: dict[str, Any] = {
                             "model_fallbacks": {
                                 "type": "array",
                                 "items": {"type": "string"},
+                            },
+                            "thinking_flag": {"type": "string", "minLength": 1},
+                            "thinking_values": {
+                                "type": "object",
+                                "additionalProperties": {"type": "string", "minLength": 1},
                             },
                             "prompt_via_stdin": {"type": "boolean"},
                             # Attach the prompt as the value of this flag, e.g.
@@ -448,6 +458,8 @@ class CliConfig:
     model_flag: str
     model: str | None = None
     model_fallbacks: list[str] = field(default_factory=list)
+    thinking_flag: str = ""
+    thinking_values: dict[str, str] = field(default_factory=dict)
     prompt_via_stdin: bool = False
     # When set, the dispatching adapter attaches the prompt as this flag's
     # value (``[prompt_via_flag, prompt]``) instead of via stdin or a trailing
@@ -469,6 +481,8 @@ class SdkConfig:
     model: str
     method: str = "messages.create"
     model_fallbacks: list[str] = field(default_factory=list)
+    thinking_parameter: str = ""
+    thinking_values: dict[str, str] = field(default_factory=dict)
     api_key_env: str = ""
     max_tokens: int = 16384
 
@@ -688,6 +702,8 @@ def load_agents_config(
                 model_flag=raw_cli["model_flag"],
                 model=raw_cli.get("model"),
                 model_fallbacks=raw_cli.get("model_fallbacks", []),
+                thinking_flag=raw_cli.get("thinking_flag", ""),
+                thinking_values=raw_cli.get("thinking_values", {}),
                 prompt_via_stdin=raw_cli.get("prompt_via_stdin", False),
                 prompt_via_flag=raw_cli.get("prompt_via_flag", ""),
             )
@@ -700,6 +716,8 @@ def load_agents_config(
                 model=raw_sdk["model"],
                 method=raw_sdk.get("method", "messages.create"),
                 model_fallbacks=raw_sdk.get("model_fallbacks", []),
+                thinking_parameter=raw_sdk.get("thinking_parameter", ""),
+                thinking_values=raw_sdk.get("thinking_values", {}),
                 api_key_env=raw_sdk.get("api_key_env", ""),
                 max_tokens=raw_sdk.get("max_tokens", 16384),
             )
@@ -932,6 +950,8 @@ def get_dispatch_configs(
                 "model": entry.sdk.model,
                 "method": entry.sdk.method,
                 "model_fallbacks": entry.sdk.model_fallbacks,
+                "thinking_parameter": entry.sdk.thinking_parameter,
+                "thinking_values": entry.sdk.thinking_values,
                 "api_key_env": entry.sdk.api_key_env,
                 "max_tokens": entry.sdk.max_tokens,
             }
@@ -957,6 +977,8 @@ def get_dispatch_configs(
                 "model_flag": entry.cli.model_flag,
                 "model": entry.cli.model,
                 "model_fallbacks": entry.cli.model_fallbacks,
+                "thinking_flag": entry.cli.thinking_flag,
+                "thinking_values": entry.cli.thinking_values,
                 "prompt_via_stdin": entry.cli.prompt_via_stdin,
                 "prompt_via_flag": entry.cli.prompt_via_flag,
             }

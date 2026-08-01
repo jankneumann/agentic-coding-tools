@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from review_routing import RoutingContext, resolve_review_routing
+from review_routing import RoutingContext, resolve_review_routing, translate_thinking
 
 
 def _resolved(phase: str | None, vendor: str) -> RoutingContext:
@@ -61,3 +61,10 @@ def test_resolution_failure_records_static_fallback() -> None:
     assert result.model is None
     assert result.archetype is None
     assert result.fallback_reason == "reviewer_resolution_unavailable"
+
+
+def test_thinking_translation_is_configured_or_explicitly_unsupported() -> None:
+    assert translate_thinking("high", "--reasoning-effort", {"high": "high"}) == (
+        "--reasoning-effort", "high", "applied",
+    )
+    assert translate_thinking("high", "", {}) == (None, None, "unsupported")
