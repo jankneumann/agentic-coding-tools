@@ -236,32 +236,43 @@
         },
         "cases_declared": {
           "type": "integer",
-          "minimum": 0,
-          "description": "From the corpus manifest. Declared, so it cannot shrink to match what happened to work."
+          "minimum": 1,
+          "description": "From the corpus manifest. Declared, so it cannot shrink to match what happened to work — and bounded below by 1, so it cannot shrink to nothing either. A report declaring zero cases has an empty denominator, and every rate computed over an empty denominator is vacuously satisfied."
         },
         "cases_scored": {
           "type": "integer",
           "minimum": 0,
           "description": "From the run. `cases_scored <= cases_declared` is a sibling comparison JSON Schema cannot express and is a producer obligation checked by the harness's own tests."
         },
-        "gates_declared": { "type": "integer", "minimum": 0 },
-        "consumers_declared": { "type": "integer", "minimum": 0 }
+        "gates_declared": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "From the corpus manifest. Bounded below by 1 for the same reason as `cases_declared`: a run judged against no gate passed no gate."
+        },
+        "consumers_declared": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "From the corpus manifest. Bounded below by 1: a report covering no consumer measured no coding job."
+        }
       }
     },
     "gates": {
       "type": "array",
+      "minItems": 1,
       "items": { "$ref": "#/$defs/GateResult" },
-      "description": "One entry per gate that produced a result. Deliberately allowed to be empty: a run that measured nothing must still be writable, as a `fail`. A gate the corpus declared and this array omits is `missing_required_gate`, which the composer detects by comparing against `corpus.gates_declared` — absence here is the signal, so it must be representable."
+      "description": "One entry per gate that produced a result. `minItems: 1`, and that bound is the fix for a document that satisfied every provenance check while measuring nothing: a hand-written report carrying the current corpus digest, the current harness identity, a matching embedder fingerprint, a reachable indexed revision and `verdict: \"pass\"` with `gates: []` authorized enablement outright. This is the vacuous pass `GateResult` already forbids per gate, forbidden one level up. A gate that could NOT be measured is still emitted rather than omitted — the composer converts every scorer's refusal into a failing gate with no numbers and `fail_reasons: [\"unmeasured\"]` — so a run that measured nothing remains fully writable as a `fail`. A gate the corpus declared and this array omits is still `missing_required_gate`: omitting ONE of several gates stays representable, because it is a different document from one that omits them all."
     },
     "per_consumer": {
       "type": "array",
+      "minItems": 1,
       "items": { "$ref": "#/$defs/ConsumerResult" },
-      "description": "One entry per declared consumer. There is no averaging across consumers: ri-12 kept the `consumer` field precisely so this evaluation could say \"injection helps debugging and hurts review\", and a mean would throw that away on the one metric where it matters most (design D7)."
+      "description": "One entry per declared consumer. `minItems: 1`: a consumer that could not be measured is recorded as a failing consumer, never as an absent one, so an empty array describes a corpus with no consumers rather than a run that measured none of them. There is no averaging across consumers: ri-12 kept the `consumer` field precisely so this evaluation could say \"injection helps debugging and hurts review\", and a mean would throw that away on the one metric where it matters most (design D7)."
     },
     "cases": {
       "type": "array",
+      "minItems": 1,
       "items": { "$ref": "#/$defs/CaseResult" },
-      "description": "Every declared case, scored or not. A case that raised, timed out, or found no index appears here with `scored: false` and an `unscored_reason` — it does not disappear."
+      "description": "Every declared case, scored or not. A case that raised, timed out, or found no index appears here with `scored: false` and an `unscored_reason` — it does not disappear. `minItems: 1` completes that guarantee structurally: if no case may disappear, then a report over a non-empty corpus cannot have an empty `cases` array, and an empty one is a report about nothing. The number of entries here is checked against `corpus.cases_declared` by the enablement gate, which is the only place the declared denominator can be re-derived from the artifact a gate actually reads."
     },
     "judge": {
       "$ref": "#/$defs/AdvisoryReview",

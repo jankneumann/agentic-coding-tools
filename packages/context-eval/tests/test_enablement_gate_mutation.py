@@ -24,6 +24,21 @@ The mutants are driven off one prepared, fully-authorizing report so that each
 one differs from an accepted tree in exactly one respect. A mutant that failed
 for two reasons would not tell you the condition under test is live.
 
+**Two families of mutant, and the second exists because the first was not
+enough.** The provenance mutants perturb where the report came FROM — its
+corpus digest, its harness identity, its embedder, its indexed revision. Every
+one of them was watched failing, and the gate still authorized an enabled
+default from a report that measured nothing: a hand-written document carrying
+the current digest, the current harness version, a matching fingerprint, a
+reachable revision and `verdict: "pass"`, with `gates: []`, `per_consumer: []`,
+`cases: []` and `cases_declared: 0`, was accepted as schema-valid and printed
+seven met conditions on its way to exit `0`. Nothing here perturbed what the
+report SAID, so nothing here was ever going to catch it. The content mutants at
+the foot of this file close that, against both layers: the report contract's
+`minItems`, which makes the empty body unwritable, and
+`report_describes_corpus`, which re-derives the declared denominator from the
+file on disk rather than trusting the emitter to have been its last author.
+
 Without this file the gate is decoration. Weakening any assertion here is
 therefore a change to what the gate means, not a change to a test.
 """
@@ -371,6 +386,24 @@ def _unreachable_revision(tmp_path: Path, evidence: Evidence) -> list[str]:
     )
 
 
+def _report_omitting_a_declared_gate(tmp_path: Path, evidence: Evidence) -> list[str]:
+    """(b.5) Current, schema-valid, passing — and silent about a declared gate.
+
+    The smallest mutation that reaches `report_describes_corpus` without also
+    tripping the schema: three of four gates is a perfectly legal array, and the
+    corpus is what says a fourth was owed. Written through `write_report`, which
+    is the point — this document is one the emitter would accept.
+    """
+    document = deepcopy(evidence.passing)
+    document["gates"] = document["gates"][1:]
+    report_path = report_module.write_report(tmp_path / "report.json", document)
+    return _argv(
+        helper=_helper_with_default(tmp_path, enabled=True),
+        report_path=report_path,
+        contract=_contract(tmp_path, _recorded_fingerprint(document)),
+    )
+
+
 #: Condition, mutation, and the exit code the gate owes it. The code matters:
 #: "we have no usable evidence" (3) and "we measured and it failed" (2) are
 #: different facts with different remedies, and the July 2026 waiver is what
@@ -382,6 +415,11 @@ MUTATIONS: tuple[tuple[str, Mutation, int], ...] = (
     (enablement_gate.HARNESS_VERSION_CURRENT, _other_harness_version, EXIT_REPORT_UNUSABLE),
     (enablement_gate.EMBEDDER_FINGERPRINT_CURRENT, _changed_fingerprint, EXIT_REPORT_UNUSABLE),
     (enablement_gate.INDEXED_REVISION_REACHABLE, _unreachable_revision, EXIT_REPORT_UNUSABLE),
+    (
+        enablement_gate.REPORT_DESCRIBES_CORPUS,
+        _report_omitting_a_declared_gate,
+        EXIT_REPORT_UNUSABLE,
+    ),
     (enablement_gate.VERDICT_PASS, _failing_report, EXIT_GATE_FAILURE),
 )
 
@@ -509,6 +547,231 @@ def test_every_condition_the_gate_declares_is_mutated() -> None:
     assert mutated == set(enablement_gate.CONDITIONS)
     assert len(enablement_gate.EXPIRY_CONDITIONS) == len(set(enablement_gate.EXPIRY_CONDITIONS))
     assert set(enablement_gate.EXPIRY_CONDITIONS) < mutated
+
+
+# --------------------------------------------------------------------------
+# content mutations — what the report SAYS, not where it came from
+#
+# Reproduced against the pre-fix gate before any of this was written: all six
+# documents below were accepted by `write_report` as schema-valid AND authorized
+# an enabled default, `enablement_gate.main() -> 0`, with seven conditions
+# printed as met. They are separated into two groups because the two layers fail
+# independently and each needs its own witness: the schema does not run on a file
+# somebody edited by hand, and the gate does not run on a file nobody committed.
+# --------------------------------------------------------------------------
+
+BodyMutation = Callable[[dict[str, Any]], None]
+
+
+def _empty_body(document: dict[str, Any]) -> None:
+    """The review's exact reproduction: current provenance, nothing measured."""
+    document["gates"] = []
+    document["per_consumer"] = []
+    document["cases"] = []
+    document["corpus"]["cases_declared"] = 0
+    document["corpus"]["cases_scored"] = 0
+    document["corpus"]["gates_declared"] = 0
+    document["corpus"]["consumers_declared"] = 0
+
+
+def _no_gates(document: dict[str, Any]) -> None:
+    document["gates"] = []
+
+
+def _no_cases(document: dict[str, Any]) -> None:
+    document["cases"] = []
+
+
+def _no_consumers(document: dict[str, Any]) -> None:
+    document["per_consumer"] = []
+
+
+def _no_cases_declared(document: dict[str, Any]) -> None:
+    document["corpus"]["cases_declared"] = 0
+
+
+#: Bodies the report contract itself refuses, so they never reach a durable path.
+UNWRITABLE_BODIES: tuple[tuple[str, BodyMutation], ...] = (
+    ("an empty body", _empty_body),
+    ("no gates", _no_gates),
+    ("no cases", _no_cases),
+    ("no consumers", _no_consumers),
+    ("nothing declared", _no_cases_declared),
+)
+
+
+def _omit_a_gate(document: dict[str, Any]) -> None:
+    document["gates"] = document["gates"][1:]
+
+
+def _omit_a_consumer(document: dict[str, Any]) -> None:
+    document["per_consumer"] = document["per_consumer"][1:]
+
+
+def _omit_a_case(document: dict[str, Any]) -> None:
+    document["cases"] = document["cases"][1:]
+
+
+def _overstate_cases_scored(document: dict[str, Any]) -> None:
+    """A denominator claim nothing in the body backs."""
+    document["corpus"]["cases_scored"] = 0
+
+
+#: Bodies the schema cannot fault — every array is non-empty and every count is
+#: positive — and which describe a corpus other than the declared one.
+MISDESCRIBING_BODIES: tuple[tuple[str, BodyMutation], ...] = (
+    ("a declared gate omitted", _omit_a_gate),
+    ("a declared consumer omitted", _omit_a_consumer),
+    ("a declared case omitted", _omit_a_case),
+    ("a cases_scored count nothing backs", _overstate_cases_scored),
+)
+
+
+def _raw_report(tmp_path: Path, document: dict[str, Any]) -> Path:
+    """Write past the emitter, because a hand-edited file takes no other route."""
+    path = tmp_path / "report.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize(
+    ("label", "mutation"),
+    UNWRITABLE_BODIES,
+    ids=[label for label, _ in UNWRITABLE_BODIES],
+)
+def test_a_report_that_measured_nothing_is_unwritable(
+    label: str, mutation: BodyMutation, tmp_path: Path, evidence: Evidence
+) -> None:
+    """Layer one: the empty body cannot reach the durable path at all.
+
+    `write_report` validates before it opens the file, so the assertion is that
+    the document never becomes a file — not that it is written and then
+    complained about. `GateResult` already forbids a gate that passed while
+    measuring nothing; this is the same prohibition one level up, where the
+    report itself is what measured nothing.
+    """
+    document = deepcopy(evidence.passing)
+    mutation(document)
+
+    destination = tmp_path / "report.json"
+    with pytest.raises(report_module.ReportError):
+        report_module.write_report(destination, document)
+    assert not destination.exists(), f"{label} reached the durable path"
+
+
+@pytest.mark.parametrize(
+    ("label", "mutation"),
+    UNWRITABLE_BODIES,
+    ids=[label for label, _ in UNWRITABLE_BODIES],
+)
+def test_an_unwritable_body_written_by_hand_is_still_rejected(
+    label: str,
+    mutation: BodyMutation,
+    tmp_path: Path,
+    evidence: Evidence,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Layer one, from the side that matters: the schema is also read at gate time.
+
+    The emitter refusing to write it is not enough on its own. The gate reads a
+    file, and a file can be edited by something that is not the emitter.
+    """
+    document = deepcopy(evidence.passing)
+    mutation(document)
+    argv = _argv(
+        helper=_helper_with_default(tmp_path, enabled=True),
+        report_path=_raw_report(tmp_path, document),
+        contract=_contract(tmp_path, _recorded_fingerprint(document)),
+    )
+
+    assert enablement_gate.main(argv) == EXIT_REPORT_UNUSABLE, f"{label} authorized enablement"
+    assert enablement_gate.SCHEMA_VALID in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("label", "mutation"),
+    MISDESCRIBING_BODIES,
+    ids=[label for label, _ in MISDESCRIBING_BODIES],
+)
+def test_a_schema_valid_report_that_misdescribes_the_corpus_is_rejected(
+    label: str,
+    mutation: BodyMutation,
+    tmp_path: Path,
+    evidence: Evidence,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Layer two: every count is positive, every array non-empty, and it still lies.
+
+    `minItems` cannot express "as many gates as the corpus declares" — that is a
+    comparison between two documents, and a schema sees one at a time. These
+    mutants are written through `write_report`, so each is a document the emitter
+    itself would accept; only the corpus says what is missing.
+    """
+    document = deepcopy(evidence.passing)
+    mutation(document)
+    report_module.validate_report(document)  # the schema has no complaint
+
+    report_path = report_module.write_report(tmp_path / "report.json", document)
+    argv = _argv(
+        helper=_helper_with_default(tmp_path, enabled=True),
+        report_path=report_path,
+        contract=_contract(tmp_path, _recorded_fingerprint(document)),
+    )
+
+    assert enablement_gate.main(argv) == EXIT_REPORT_UNUSABLE, f"{label} authorized enablement"
+    stderr = capsys.readouterr().err
+    assert enablement_gate.REPORT_DESCRIBES_CORPUS in stderr, (
+        f"the gate rejected {label} without naming the condition:\n{stderr}"
+    )
+
+
+def test_the_hollow_report_the_gate_used_to_authorize(
+    tmp_path: Path, evidence: Evidence, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The finding itself, as one test, end to end.
+
+    A report carrying the CURRENT corpus digest, the CURRENT harness version, a
+    matching embedder fingerprint, a reachable indexed revision and
+    `verdict: "pass"` — with `gates: []`, `per_consumer: []`, `cases: []` and
+    `cases_declared: 0`. Before this change the emitter accepted it and the gate
+    printed seven met conditions and returned `0` against an enabled default:
+    green because the evidence was empty, not because it was good. It is the same
+    category of error as the July 2026 spike report's automated check
+    (`'Verdict' in t and 'hit@5' in t`), which passed the very document it
+    existed to block.
+    """
+    document = deepcopy(evidence.passing)
+    _empty_body(document)
+
+    with pytest.raises(report_module.ReportError):
+        report_module.write_report(tmp_path / "emitted.json", document)
+
+    argv = _argv(
+        helper=_helper_with_default(tmp_path, enabled=True),
+        report_path=_raw_report(tmp_path, document),
+        contract=_contract(tmp_path, _recorded_fingerprint(document)),
+    )
+    assert enablement_gate.main(argv) != EXIT_PASS
+    assert "unmet condition" in capsys.readouterr().err
+
+
+def test_the_authorizing_report_accounts_for_the_whole_corpus(evidence: Evidence) -> None:
+    """The control for the two tests above, and the reason they mean anything.
+
+    A condition that rejected every report would satisfy every content mutant
+    here and would also reject the one report that should be accepted. The
+    prepared evidence carries a result for every declared case, gate and
+    consumer, and `test_a_current_passing_report_authorizes_an_enabled_default`
+    is what proves the gate takes it.
+    """
+    corpus = load_corpus(CORPUS_ROOT)
+    document = evidence.passing
+    assert len(document["cases"]) == len(corpus.cases)
+    assert document["corpus"]["cases_declared"] == len(corpus.cases)
+    assert {gate["id"] for gate in document["gates"]} == {gate.id for gate in corpus.gates}
+    assert {entry["consumer"] for entry in document["per_consumer"]} == {
+        slice_.consumer for slice_ in corpus.consumers
+    }
 
 
 def test_no_rejection_is_silent(
