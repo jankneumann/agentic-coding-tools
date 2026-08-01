@@ -51,6 +51,7 @@ from typing import Any
 
 from ..models import Budget, Case
 from ..scoring.arms import Arm, arm_from_section
+from ..scoring.scope import allows as _scope_allows
 
 #: ``skills/context-engineering/scripts/semantic_context.py`` relative to a
 #: repository root. A default *location within a supplied root*, not a derived
@@ -116,10 +117,26 @@ def module_path_for(repository_root: Path | str) -> Path:
 
 @dataclass(frozen=True)
 class _ResolvedScope:
-    """What ri-12's ``index_scopes`` seam returns: two glob tuples, duck-typed."""
+    """What ri-12's ``index_scopes`` seam returns: two glob tuples, duck-typed.
+
+    ``semantic_context.py``'s local re-check (D2) calls ``scopes.allows(path)``,
+    so this stub must implement it -- not just carry the two tuples ri-12 also
+    reads directly. Without ``allows`` the re-check raises ``AttributeError``,
+    which ``collect_semantic_context``'s outer guard (D8's never-raises
+    guarantee) swallows into ``unavailable``/``unknown_state``: every case that
+    would have reached the scope re-check instead renders an empty, fallback
+    arm, and ``scope_compliance`` scores that empty arm as compliant. Delegating
+    to :func:`context_eval.scoring.scope.allows` -- the same deny-precedence
+    implementation the gate scores against -- rather than reimplementing it
+    keeps the two in lockstep by construction.
+    """
 
     read_allow: tuple[str, ...]
     deny: tuple[str, ...]
+
+    def allows(self, path: str) -> bool:
+        """Whether *path* is readable under this scope. Deny wins outright."""
+        return _scope_allows(path, self.read_allow, self.deny)
 
 
 @dataclass
