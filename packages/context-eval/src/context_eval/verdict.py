@@ -398,7 +398,11 @@ def _compose_gate(
         )
     except ScoringError:
         # A gate that could not be measured is a failing gate with no numbers,
-        # never an absent one and never a pass.
+        # never an absent one and never a pass. One class, not a tuple: every
+        # scorer's refusal derives from `ScoringError`, so a scorer added later
+        # cannot be the one nobody remembered to list here. `scope` raising a
+        # sibling of this class rather than a subclass is exactly how a run that
+        # scored no case escaped composition and wrote no report at all.
         verdict, thresholds, measured, reasons = (
             FAIL,
             dict(declaration.thresholds),
