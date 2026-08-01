@@ -491,8 +491,22 @@ touches is the robust signal, and its absence is meaningful rather than
 exceptional: it says the work was not planned through OpenSpec, so no spec
 delta, citation, or exclusions file was ever expected of it. Failing a
 dependency bump for not authoring an artifact nobody asked it for would red
-every such pull request the day this lands. Two touched directories is a
-genuine ambiguity and fails rather than guessing.
+every such pull request the day this lands. On `pull_request` — and only there
+— two touched directories is a genuine ambiguity and fails rather than
+guessing; on `merge_group` a batch of several is the ordinary case and the job
+iterates.
+
+Derivation excludes `openspec/changes/archive/` and disables rename detection.
+`archive` is itself a directory directly under `openspec/changes/`, so an
+unqualified "the change directory touched by the diff" admits it, and every
+`chore(openspec): archive <id>` pull request would derive the literal id
+`archive` and invoke a blocking run against a directory with no `specs/`. Worse,
+which failure you get would depend on an unstated flag: verified on three real
+archive commits, rename detection collapses the move to `{archive}` (count 1 —
+silently degrades), while `--no-renames` yields `{archive, <the archived id>}`
+or more (count 2+ — hard-reds every archive pull request). Naming the flag and
+excluding `archive` makes an archive pull request take the SKIP, which is
+right: archiving is bookkeeping, not a change the gate can scope to.
 
 **The base is named, and an unresolvable base is an error — not the SKIP.**
 "The diff" is against the pull request's base commit on `pull_request` and the

@@ -1,25 +1,11 @@
 {
   "blocking_findings": [
     {
-      "id": "R6-F1",
+      "id": "R7-F1",
       "severity": "critical",
-      "status": "FIXED under operator decision (merge_group iterates change-scoped over the batch)",
-      "title": "merge_group union-and-block is unsatisfiable",
-      "summary": "git ls-tree origin/main openspec/changes/ returns 34 entries (33 in-flight + archive/). extract-gen-eval-package (6), factory-missions-architecture-alignment (3) and rename-descriptor-model-levels (2) carry gen-eval-framework deltas = 11 requirements with no landed implementation. Union mode on merge_group therefore unions all in-flight deltas exactly as push-on-main does; there is no 'exactness' distinction. With 4.2b flipping reverse enforcement on, the BLOCKING merge_group run fails on those 11, failing this PR and everything queued behind it. Not excludable: spec.md:404 other-changes-are-invisible makes naming them a failure. The orchestrator's justification at spec.md:567 asserted the opposite premise without verifying it."
-    },
-    {
-      "id": "R6-F2",
-      "severity": "critical",
-      "status": "FIXED under operator decision (merge_group iterates change-scoped over the batch)",
-      "title": "The only acceptance criterion never runs the gating invocation",
-      "summary": "Task 5.7c runs --scope capability --change trace-requirements-to-contracts (the pull_request mode) and concludes the merge will not red main. It never runs the bare union invocation that actually gates merge_group, which is precisely why nothing in the plan detected R6-F1. Its resolution depends on what R6-F1's invocation turns out to be."
-    },
-    {
-      "id": "R6-N1",
-      "severity": "nit",
       "status": "FIXED inline",
-      "title": "Union mode did not exclude openspec/changes/archive/",
-      "summary": "'every spec delta present under openspec/changes/' literally includes archive/, which holds 128 archived deltas already merged into openspec/specs/. Re-applying them shadows the archive with itself, and a REMOVED/RENAMED delta would resurrect or re-move a requirement. Now excluded explicitly."
+      "title": "Change-id derivation admitted openspec/changes/archive/",
+      "summary": "R6-N1 excluded archive/ from UNION mode but the exclusion was never propagated to the DERIVATION rule one paragraph below, which round 6 had just rewritten. Verified on three real archive commits: with rename detection a chore(openspec): archive PR derives the literal id 'archive' (count 1, blocking run against a dir with no specs/); with --no-renames it derives 2-3 ids and hard-reds every archive PR. Fixed by excluding archive/ from derivation, mandating --no-renames so the result cannot depend on a similarity heuristic, and adding scenario archive-pull-requests-skip."
     }
   ],
   "change_id": "trace-requirements-to-contracts",
@@ -33,7 +19,8 @@
     3,
     1,
     4,
-    2
+    2,
+    1
   ],
   "force": false,
   "gate_signals": {
@@ -56,12 +43,13 @@
     "plan-review-20260731T134500Z",
     "plan-review-20260731T195510Z",
     "plan-review-20260801T152600Z",
-    "plan-review-20260801T160500Z"
+    "plan-review-20260801T160500Z",
+    "plan-review-20260801T180000Z"
   ],
   "implementation_strategy": {},
-  "iteration": 6,
-  "last_handoff_id": "plan-review-20260801T160500Z",
-  "max_phase_iterations": 6,
+  "iteration": 7,
+  "last_handoff_id": "plan-review-20260801T180000Z",
+  "max_phase_iterations": 7,
   "memory_ids": [],
   "package_authors": {},
   "packages_status": {},
@@ -209,10 +197,31 @@
       "round": 6,
       "at": "2026-08-01T17:00:00+00:00",
       "note": "R6-F1/F2 fixed across spec delta, D12, tasks 5.7 and 5.7c, and wp-wiring. Invariant now stated explicitly: every blocking invocation supplies --change; union mode is used by exactly one run, the non-blocking one. Scenario merge-group-unions-and-blocks REPLACED by merge-group-iterates-over-the-batch, plus a new merge-group-ignores-unbatched-changes that fails if the tree is ever used as the batch. 5.7c now records why it is the gating invocation and additionally runs the union invocation ungated, so the two modes are distinguished on real artifacts. 58 scenarios. NOT YET CONFIRMED by any reviewer."
+    },
+    {
+      "phase": "PLAN_REVIEW",
+      "outcome": "started",
+      "round": 7,
+      "at": "2026-08-01T17:05:00+00:00",
+      "note": "max_phase_iterations raised 6->7 per the skill's ESCALATE resume path, the same route rounds 4 and 6 took. Confirming round against 737c1161."
+    },
+    {
+      "phase": "PLAN_REVIEW",
+      "outcome": "not_converged",
+      "round": 7,
+      "at": "2026-08-01T18:00:00+00:00",
+      "note": "1 blocking + 3 nits. C1 (is the new merge_group rule satisfiable) PASSED on independent enumeration; C2 (the stated invariant) PASSED across all seven described invocations; C4 and C5 clean. The single critical is the seventh consecutive instance of the same shape: fix lands in the artifact the finding named, artifact owning the consequence goes stale."
+    },
+    {
+      "phase": "PLAN_FIX",
+      "outcome": "complete",
+      "round": 7,
+      "at": "2026-08-01T18:00:00+00:00",
+      "note": "R7-F1 plus all 3 nits fixed inline. No operator decision was needed: the fix follows directly from R6-N1's own stated reasoning. 59 scenarios. NOT YET CONFIRMED by any reviewer."
     }
   ],
   "phase_started_at": "2026-07-31T20:33:27.549085+00:00",
-  "previous_phase": "ESCALATE",
+  "previous_phase": "PLAN_REVIEW",
   "schema_version": 4,
   "started_at": "2026-07-28T14:22:58.793360+00:00",
   "total_iterations": 1,

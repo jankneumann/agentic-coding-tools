@@ -530,12 +530,25 @@ an event with no rule is the unfalsifiable green this requirement exists to
 prevent; the event set is therefore normative here, not a CI implementation
 detail.
 
+Change-id derivation SHALL consider only directories matching
+`openspec/changes/<id>/` where `<id>` is not `archive`, and SHALL be computed
+with rename detection disabled so that the derived set does not depend on a
+similarity heuristic. `openspec/changes/archive/` SHALL NOT yield a change id.
+It is a directory directly under `openspec/changes/`, so every rule phrased as
+"the change directory touched by the diff" admits it unless it says otherwise;
+an archive pull request would then derive the literal id `archive` and invoke a
+blocking run against a directory that has no `specs/`. Excluding it makes an
+archive pull request touch no change directory, which is the SKIP — correct,
+because archiving is OpenSpec bookkeeping rather than a change the gate can
+scope to, and any traceability debt the merge introduces is reported by the
+post-merge run.
+
 On `pull_request`, the job SHALL derive a change id from the change directory
-under `openspec/changes/` touched by the diff against the pull request's base
-commit, SHALL invoke the gate with `--change <id>`, and SHALL block. Where the
-diff touches no change directory, it SHALL print an explicit SKIP naming the
-branch and SHALL NOT fail. Where it touches more than one, it SHALL fail as
-ambiguous rather than choosing.
+touched by the diff against the pull request's base commit, SHALL invoke the
+gate with `--change <id>`, and SHALL block. Where the diff touches no change
+directory, it SHALL print an explicit SKIP naming the branch and SHALL NOT
+fail. Where it touches more than one, it SHALL fail as ambiguous rather than
+choosing.
 
 On `merge_group`, the job SHALL derive the set of change directories touched by
 the diff against the merge group's base commit, SHALL invoke the gate once per
@@ -678,6 +691,16 @@ only a check on the candidate can stop it going red.
 - **AND** it SHALL NOT fail as ambiguous
 - **AND** a violation in an opted-in surface of either change SHALL fail the
   merge group
+
+<!-- Scenario ID: gen-eval-framework.archive-pull-requests-skip -->
+#### Scenario: An archive pull request derives no change id
+
+- **WHEN** the job runs on a pull request whose only touched paths under
+  `openspec/changes/` are beneath `openspec/changes/archive/`
+- **THEN** it SHALL derive no change id
+- **AND** it SHALL print a SKIP rather than deriving the id `archive`
+- **AND** it SHALL NOT fail as ambiguous, whether or not the diff is computed
+  with rename detection
 
 <!-- Scenario ID: gen-eval-framework.merge-group-ignores-unbatched-changes -->
 #### Scenario: A merge group is not evaluated against changes outside the batch

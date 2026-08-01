@@ -430,25 +430,28 @@ packages:
       --change <id>, non-zero exit fails validation) with skill tests per the
       skill-workflow delta; wire the full-capability sweep into ci.yml as ONE
       job on all three declared events, branching on github.event_name (bare
-      invocation, fetch-depth: 0). Task 5.7 carries the full per-event table —
-      follow it exactly. In summary: `pull_request` derives `--change <id>`
-      from the DIFF (not the branch name) and BLOCKS; `merge_group` derives the
-      SET of change dirs from the diff and runs the gate once per id with
-      `--change <id>`, no ambiguity rule, BLOCKS; `push` on main omits
-      `--change` (union) and is NON-blocking. Every blocking invocation
-      supplies `--change`; union mode is used ONLY by the non-blocking run.
-      Do NOT use union mode on merge_group: the diff is the batch, the TREE is
-      not — a merge-queue branch carries every unarchived change dir main had,
-      and blocking on those fails the queue unfixably. Do NOT add an `if:`
-      excluding a declared trigger — `grep -n 'if:' ci.yml` returns one hit
-      today (`if: failure()`), so nothing there is event-guarded. An
-      unresolvable base where one is required is an ERROR, never the SKIP.
+      invocation, fetch-depth: 0). **Task 5.7 carries the authoritative
+      per-event table and the derivation rule — read it and follow it exactly;
+      do not reconstruct either from this summary.** The four constraints that
+      have each already been got wrong once, so verify them against 5.7 before
+      writing any YAML: (1) every BLOCKING invocation supplies `--change`, and
+      union mode is used ONLY by the non-blocking push run; (2) `merge_group`
+      iterates once per batched change id — never union, because the diff is
+      the batch and the TREE is not; (3) derivation excludes
+      `openspec/changes/archive/` and passes `--no-renames`, or every archive
+      PR breaks; (4) no `if:` excluding a declared trigger, and an unresolvable
+      base where one is required is an ERROR, never the SKIP.
 
       Test file mapping: test_gen_eval_mode_selection.py is pre-existing;
       test_validate_feature_gate.py <- 5.6; test_ci_sweep_wiring.py <- 5.7,
-      driving the job's bash fragment extracted from ci.yml and covering every
-      scenario named on task 5.7's `Spec scenarios` line. Both new
-      files are in write_allow via
+      driving the job's bash fragment extracted from ci.yml and covering the
+      WIRING scenarios on task 5.7's `Spec scenarios` line: both SKIPs
+      (non-OpenSpec and archive), ambiguity, unresolvable base, merge_group
+      per-change iteration, the push run's exit code, and the absence of an
+      `if:` guard. The two opted-in/not-opted-in verdict scenarios on that line
+      are wp-gate's tests, and the unbatched-exclusion scenario is a resolution
+      property owned by task 3.16 — a wiring test asserts argv, not
+      resolution. Both new files are in write_allow via
       skills/tests/validate-feature/** and each has a verification step below
       that fails when the file is absent OR empty. Both resolution
       modes are wp-gate's work (task 3.16) and exist before this package runs; register `tests/validate-feature` in skills/pyproject.toml
@@ -465,25 +468,21 @@ packages:
       to end.
 
       This precondition is NOT enforceable by the DAG, and the honest
-      accounting matters more than a reassuring sentence. The schema has no
-      "do not dispatch" field and `depends_on` accepts only package ids, so a
-      dependency on non-package work cannot be expressed — an orchestrator
-      executing strictly by `depends_on` would dispatch this package the
-      moment wp-gate and wp-matrix finish. Nor do `verification.steps` help:
-      implement-feature injects them into the worker prompt under the literal
-      heading "After implementation, run:", and orders Phase B as code
-      generation, then scope check, then verification. A step listed there
-      runs LAST, not first.
+      accounting matters more than a reassuring sentence. `depends_on` accepts
+      only package ids, so a dependency on non-package work cannot be
+      expressed; an orchestrator executing strictly by `depends_on` dispatches
+      this package the moment wp-gate and wp-matrix finish. Nor do
+      `verification.steps` help — implement-feature injects them under the
+      literal heading "After implementation, run:", so a step listed there runs
+      LAST, not first.
 
-      So the check is placed twice, once where it can stop the work and once
-      where it can catch it: the FIRST instruction to the agent implementing
-      this package is to run the `preflight` command below and stop, reporting
-      the unmet precondition, if it fails — before reading anything else or
-      editing any file. The same command is also kept as a verification step,
-      where it catches an agent that skipped the instruction, after the fact.
-      Detection-after-the-fact is worth having and is not the same thing as
-      prevention; treating the verification step as a gate would be exactly
-      the fail-open mistake this change exists to eliminate.
+      So the check is placed twice: the FIRST instruction to the implementing
+      agent is to run the `preflight` command below and STOP if it fails,
+      before reading anything else or editing any file. The same command is
+      also a verification step, catching an agent that skipped the instruction
+      after the fact. Detection-after-the-fact is not prevention; treating the
+      verification step as the gate would be the fail-open mistake this change
+      exists to eliminate.
 
       PREFLIGHT (run before any edit):
         test -f openspec/contracts/gen-eval-framework/traceability-exclusions.yaml

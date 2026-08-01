@@ -430,9 +430,15 @@ that way answers a question about a different copy.
   cheaply.
 
 - [ ] 3.16 Implement change-scoped evaluation and the full sweep `[M]`
-  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (the change flag selects which delta shadows the archive); (omitting the change flag unions every on-branch delta)
+  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (the change flag selects which delta shadows the archive); (omitting the change flag unions every on-branch delta); (a merge group is not evaluated against changes outside the batch)
   **Design decisions**: D12
   **Dependencies**: 3.15
+  **Note**: the unbatched-exclusion scenario is a RESOLUTION property, not a CI
+  property, and belongs here as well as on 5.7. It holds because `--change <id>`
+  resolves against `openspec/specs/` and `openspec/changes/<id>/specs/` and
+  nothing else on the branch — assert that directly in `test_resolution_modes.py`
+  with several other change dirs present in the tree. Wiring tests can only
+  assert the argv the job builds; they cannot prove the tree does not leak.
   **Note**: one gate, a `--scope change|capability` argument. Change scope
   requires `--change <id>` (no inference across the ~34 live change dirs) and
   derives touched operations node-level from
@@ -601,7 +607,7 @@ be meaningful.
   unprinted skip and a passing gate are indistinguishable in a log.
 
 - [ ] 5.7 Wire the full-capability sweep into CI `[S]`
-  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (a pull request that was not planned through OpenSpec skips); (a pull request touching two change directories fails as ambiguous); (an unresolvable base fails rather than skipping); (a merge group batching two changes is evaluated once per change); (a merge group is not evaluated against changes outside the batch); (the run on the integration branch cannot fail); (the job is not guarded off any declared event)
+  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (a pull request that was not planned through OpenSpec skips); (a pull request touching two change directories fails as ambiguous); (an unresolvable base fails rather than skipping); (a merge group batching two changes is evaluated once per change); (a merge group is not evaluated against changes outside the batch); (an archive pull request derives no change id); (the run on the integration branch cannot fail); (the job is not guarded off any declared event)
   **Design decisions**: D12
   **Dependencies**: 3.16, 5.2
   **Note**: the three event paths differ in more than blocking-ness — they
@@ -655,6 +661,19 @@ be meaningful.
   currently returns exactly one hit (`if: failure()`) — no job in this workflow
   is event-guarded, so an unguarded job runs on all three whether or not the
   plan anticipated it. The three behaviours:
+    - DERIVATION, shared by both blocking events: consider only
+      `openspec/changes/<id>/` where `<id>` is NOT `archive`, and pass
+      `--no-renames` so the derived set does not depend on git's similarity
+      heuristic. Verified on three real archive commits (`247bc201`,
+      `600744a5`, `a17e33f7`): without the `archive` exclusion, a
+      `chore(openspec): archive <id>` PR derives the literal id `archive` and
+      runs the BLOCKING gate against a directory with no `specs/`. With rename
+      detection on, the move collapses to `{archive}` (count 1, silently
+      degrades); with `--no-renames` it yields `{archive, <archived id>}` or
+      more (count 2+, hard-reds every archive PR). Excluding `archive` makes
+      those PRs touch zero change dirs → SKIP, which is correct: archiving is
+      bookkeeping, not a change to scope to, and any debt the merge introduces
+      is reported by the post-merge run.
     - `pull_request` → base `github.event.pull_request.base.sha`, derive the
       change id from the diff, invoke `--change <id>`, BLOCKING. Zero touched
       change directories → SKIP; two → fail as ambiguous.

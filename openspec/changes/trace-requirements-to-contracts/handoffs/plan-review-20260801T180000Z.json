@@ -1,0 +1,67 @@
+{
+  "handoff_id": "plan-review-20260801T180000Z",
+  "change_id": "trace-requirements-to-contracts",
+  "phase": "PLAN_REVIEW",
+  "round": 7,
+  "iteration": 7,
+  "reviewer_vendor": "claude_code/opus-5",
+  "commit_under_review": "737c1161",
+  "branch": "openspec/trace-requirements-to-contracts",
+  "outcome": "not_converged",
+  "blocking_count": 1,
+  "findings_summary": {
+    "critical": 1,
+    "nit": 3,
+    "fyi": 1,
+    "none": 1
+  },
+  "findings": [
+    {
+      "id": "R7-F1",
+      "severity": "critical",
+      "title": "`openspec/changes/archive/` is excluded from union mode but not from change-id derivation - every archive PR derives `--change archive`, or fails as ambiguous",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "533-546",
+      "also_stale_in": [
+        "tasks.md:656-678 (per-event table)",
+        "design.md:485-496",
+        "work-packages.yaml:434-441 (wp-wiring dispatch summary)"
+      ],
+      "one_line": "Archive PRs are the most routine OpenSpec PR class in this repo; the plan's derivation rule returns the literal string `archive` for them (or two ids, hard-failing as ambiguous), and which of the two happens depends on an unstated `git diff` rename-detection flag."
+    },
+    {
+      "id": "R7-N1",
+      "severity": "nit",
+      "title": "D12 self-contradiction: design.md:494-495 states the ambiguity rule unqualified, now false for merge_group"
+    },
+    {
+      "id": "R7-N2",
+      "severity": "nit",
+      "title": "wp-wiring's test-file mapping now points at a nine-scenario line, two of which are gate-verdict not wiring"
+    },
+    {
+      "id": "R7-N3",
+      "severity": "nit",
+      "title": "merge-group-ignores-unbatched-changes asserts a resolution property but is owned only by the wiring task"
+    },
+    {
+      "id": "R7-I1",
+      "severity": "fyi",
+      "title": "5.7c's 'record but do not gate' half names no destination artifact"
+    }
+  ],
+  "briefs_cleared": {
+    "C1_merge_group_satisfiable": "PASS - `--change <id>` resolution is a function of openspec/specs/ and openspec/changes/<id>/specs/ only; other in-flight changes are actively unreachable via other-changes-are-invisible. Tree presence cannot leak. The fix removes R6-F1 rather than moving it.",
+    "C2_invariant": "PASS - all seven described invocations enumerated; six blocking all supply --change, one union run is non-blocking, 5.7c's union probe is explicitly ungated.",
+    "C3_stale_consequence": "FAIL - R7-F1. Seven for seven: union mode learned to exclude archive/, the derivation rule one paragraph below did not. R7-N1 and R7-N2 are lesser instances of the same pattern.",
+    "C4_new_scenarios_and_5_7c": "PASS for both new scenarios (red-before / green-after testable in the harness 5.7 already mandates). 5.7c's 'record but do not gate' is not mechanically verifiable but is no weaker than the [human] task containing it - fyi only.",
+    "C5_dispatch_readiness": "PASS apart from R7-F1. openspec validate --strict valid; 58 scenarios; work-packages parses; all seven [human] tasks correctly carved out of every package."
+  },
+  "recommended_action": "PLAN_FIX. R7-F1 is a one-paragraph fix in the spec delta plus three mirrors, and R7-N1/N2/N3/I1 are cheap to fold into the same commit. Do not dispatch to IMPLEMENT until the derivation rule states that `archive/` is not a derivable change directory on either blocking event and that an archive-only diff is the SKIP.",
+  "notes": "reviews/consensus-plan.json was ignored as instructed. Round 6's findings preserved at reviews/review-findings-plan-r6.json. This agent made no state transitions and did not touch loop-state.json.",
+  "artifacts": [
+    "openspec/changes/trace-requirements-to-contracts/review-findings-plan.json",
+    "openspec/changes/trace-requirements-to-contracts/reviews/review-findings-plan-r6.json"
+  ],
+  "created_at": "2026-08-01T18:00:00Z"
+}
