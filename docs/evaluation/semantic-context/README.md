@@ -60,7 +60,7 @@ designed to be equally correct at 4/10.
 Taken 2026-08-01 (`as_of: 2026-08-01T00:00:00Z`) against
 `748af34c4268e768f0e3a7e7cdbe64c02835b7b6`, corpus digest
 `6417066963927e0f1009a1b10fa49e6be6e11da3f7991290657b2adbbb7a0f56`,
-harness `context-eval 0.1.0`, harness source digest `0e24a910…`. The CLI
+harness `context-eval 0.1.0`, harness source digest `6fd7ba4b…`. The CLI
 exited `2`.
 
 **Verdict: `fail`** — `["unmeasured", "denominator_mismatch",
@@ -89,6 +89,24 @@ untouched, and the top-level verdict is still `fail` for the same three reasons.
 That drift was invisible to the expiry conditions of the day — the corpus digest
 and the declared harness version were both unchanged — which is why
 `harness.fingerprint` now exists.
+
+**`harness.fingerprint` was re-derived again on 2026-08-01, and nothing else
+was.** The enablement gate's own source changed after this report was recorded —
+the verdict is now re-derived from the body rather than read, and the digest now
+covers `*.py` rather than everything in the directory — and a change to the
+measuring code invalidates its own evidence by construction, whether or not it
+touched a scorer. What the field should say was established rather than assumed:
+the harness at the previous commit and the harness at this one were both run over
+this same tree with this report's own recorded inputs, and the two documents
+differ in **exactly one field**, `harness.fingerprint`. Every gate row, every
+consumer row, every case result and both arms of all nineteen cases are
+byte-identical, which is what "the measurement path is untouched" has to mean if
+it is to be checkable. Re-running the harness *here* instead would have changed
+three further fields — `cases[17]`'s baseline arm picks up whichever
+`openspec/changes/*/design.md` the working tree currently holds, because the
+exact-search baseline reads the working tree rather than
+`repository.evaluated_revision` — and importing that drift while claiming to
+refresh a fingerprint is the artifact-drift this directory exists to end.
 
 **The index tier was `none`, and that is the headline.** `index_repo` never
 produced a `ready` index: five attempts, each after a documented change to the
