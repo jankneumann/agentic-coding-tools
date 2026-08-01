@@ -138,6 +138,10 @@ agents:
       model_flag: "-m"
       model: "gpt-5.5"
       model_fallbacks: ["gpt-5.4", "gpt-5.4-mini"]
+      thinking_flag: "-c"
+      thinking_values:
+        medium: "model_reasoning_effort=medium"
+        xhigh: "model_reasoning_effort=xhigh"
 
   codex-remote:
     type: codex
@@ -178,11 +182,19 @@ agents:
       model_flag: "-m"
       model: "gpt-5.4"
       model_fallbacks: ["gpt-5.3-codex"]
+      thinking_flag: "-c"
+      thinking_values:
+        medium: "model_reasoning_effort=medium"
+        xhigh: "model_reasoning_effort=xhigh"
     sdk:
       package: openai
       method: chat.completions.create
       model: gpt-5.4
       model_fallbacks: [gpt-5.4-mini]
+      thinking_parameter: "reasoning_effort"
+      thinking_values:
+        medium: medium
+        xhigh: xhigh
       api_key_env: OPENAI_API_KEY
       max_tokens: 16384
 
@@ -297,6 +309,11 @@ agents:
       model_flag: "-m"
       model: "grok-4.5"
       model_fallbacks: []
+      thinking_flag: "--reasoning-effort"
+      thinking_values:
+        low: low
+        medium: medium
+        high: high
       prompt_via_stdin: true
 
   # ---------------------------------------------------------------------------
