@@ -8,6 +8,7 @@ archetype or retain the legacy static vendor configuration.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib.util
 from pathlib import Path
 import sys
 from typing import Callable
@@ -30,34 +31,30 @@ Resolver = Callable[[str | None, str], RoutingContext]
 
 
 def default_reviewer_resolver(phase: str | None, vendor: str) -> RoutingContext:
-    """Resolve local coordinator routing for ordinary review-mode callers."""
-    coordinator_root = Path(__file__).resolve().parents[3] / "agent-coordinator"
-    if str(coordinator_root) not in sys.path:
-        sys.path.insert(0, str(coordinator_root))
-    from src import agents_config
+    """Resolve routing through the coordinator's portable public bridge.
 
-    agents_config.load_archetypes_config()
-    if phase is not None:
-        resolved = agents_config.resolve_archetype_for_phase(phase, {}, provider=vendor)
-        return RoutingContext(
-            archetype=resolved.archetype,
-            tier=None,
-            phase=phase,
-            model=resolved.model,
-            thinking=resolved.thinking,
-            source="local_coordinator",
-        )
-    archetype = agents_config.get_archetype("reviewer")
-    if archetype is None:
-        raise RuntimeError("reviewer archetype is unavailable")
-    model_spec = agents_config.resolve_provider_model_spec(archetype.model, provider=vendor)
+    Skills are installed without the coordinator source tree, so importing
+    ``src.agents_config`` here created a source-checkout-only dependency.
+    The bridge is copied with skills and degrades to the static adapter model
+    when the coordinator is not reachable.
+    """
+    bridge_path = Path(__file__).resolve().parents[2] / "coordination-bridge" / "scripts" / "coordination_bridge.py"
+    spec = importlib.util.spec_from_file_location("coordination_bridge", bridge_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("coordinator bridge is unavailable")
+    bridge = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = bridge
+    spec.loader.exec_module(bridge)
+    resolved = bridge.try_resolve_archetype_for_phase(phase or "IMPL_REVIEW", {}, provider=vendor)
+    if not isinstance(resolved, dict):
+        raise RuntimeError("reviewer resolution is unavailable")
     return RoutingContext(
-        archetype=archetype.name,
-        tier=archetype.model,
-        phase=None,
-        model=model_spec.model,
-        thinking=model_spec.thinking,
-        source="local_coordinator",
+        archetype=resolved.get("archetype") if isinstance(resolved.get("archetype"), str) else None,
+        tier=None,
+        phase=phase,
+        model=resolved.get("model") if isinstance(resolved.get("model"), str) else None,
+        thinking=resolved.get("thinking") if isinstance(resolved.get("thinking"), str) else None,
+        source="coordinator_http",
     )
 
 

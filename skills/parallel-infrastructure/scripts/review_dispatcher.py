@@ -32,7 +32,7 @@ import time
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -443,7 +443,7 @@ class CliVendorAdapter:
         try:
             if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > 2 * 1024 * 1024:
                 return False
-            schema_path = Path(__file__).resolve().parents[3] / "openspec" / "schemas" / "review-findings.schema.json"
+            schema_path = CliVendorAdapter._find_review_findings_schema()
             schema = json.loads(schema_path.read_text(encoding="utf-8"))
             Draft202012Validator(schema).validate(data)
         except (OSError, TypeError, ValueError, json.JSONDecodeError):
@@ -451,6 +451,16 @@ class CliVendorAdapter:
         except Exception:  # jsonschema ValidationError; fail closed without exposing payloads
             return False
         return True
+
+    @staticmethod
+    def _find_review_findings_schema() -> Path:
+        """Locate a repository schema in both source and copied-skill installs."""
+        roots = [Path.cwd(), *Path(__file__).resolve().parents]
+        for root in roots:
+            candidate = root / "openspec" / "schemas" / "review-findings.schema.json"
+            if candidate.is_file():
+                return candidate
+        raise FileNotFoundError("review-findings.schema.json is unavailable")
 
     @staticmethod
     def _parse_json_blob(text: str) -> dict[str, Any] | None:
@@ -1949,6 +1959,7 @@ class ReviewOrchestrator:
         routing_context: RoutingContext | None = None,
         phase: str | None = None,
         routing_resolver: Resolver | None = None,
+        on_terminal_result: Callable[[ReviewResult, list[ReviewResult]], None] | None = None,
     ) -> list[ReviewResult]:
         """Dispatch reviews to available vendors and collect results.
 
@@ -1986,6 +1997,12 @@ class ReviewOrchestrator:
         dispatched_vendors: set[str] = set()
         consumed_replacement_vendors: set[str] = set()
 
+        def record(result: ReviewResult) -> None:
+            """Expose every terminal slot before the next vendor starts."""
+            results.append(result)
+            if on_terminal_result is not None:
+                on_terminal_result(result, list(results))
+
         for reviewer in available:
             if reviewer.vendor in consumed_replacement_vendors:
                 continue
@@ -2015,7 +2032,7 @@ class ReviewOrchestrator:
                         dispatch_mode=dispatch_mode, prompt=prompt, cwd=cwd,
                         timeout_seconds=timeout_seconds, routing=routing,
                     )
-                    results.append(self._replace_exhausted_review(
+                    record(self._replace_exhausted_review(
                         primary, available=available, dispatched_vendors=dispatched_vendors,
                         consumed_replacement_vendors=consumed_replacement_vendors,
                         review_type=review_type, dispatch_mode=dispatch_mode, prompt=prompt,
@@ -2038,9 +2055,9 @@ class ReviewOrchestrator:
                         poll_result = adapter.poll_for_result(
                             submit_result.task_id, mode_config.poll, cwd=cwd,
                         )
-                        results.append(poll_result)
+                        record(poll_result)
                     else:
-                        results.append(submit_result)
+                        record(submit_result)
                 else:
                     logger.info(
                         "Sync CLI dispatching %s review to %s",
@@ -2052,7 +2069,7 @@ class ReviewOrchestrator:
                         cwd=cwd,
                         timeout_seconds=timeout_seconds,
                     )
-                    results.append(result)
+                    record(result)
 
             elif reviewer.dispatch_tier == "sdk":
                 # SDK dispatch
@@ -2067,7 +2084,7 @@ class ReviewOrchestrator:
                     "resolved" if api_key else "missing",
                 )
                 if not api_key:
-                    results.append(ReviewResult(
+                    record(ReviewResult(
                         vendor=reviewer.vendor,
                         success=False,
                         error="No API key available for SDK dispatch",
@@ -2088,7 +2105,7 @@ class ReviewOrchestrator:
                         timeout_seconds=timeout_seconds, api_key=api_key,
                         routing=routing,
                     )
-                    results.append(self._replace_exhausted_review(
+                    record(self._replace_exhausted_review(
                         primary, available=available, dispatched_vendors=dispatched_vendors,
                         consumed_replacement_vendors=consumed_replacement_vendors,
                         review_type=review_type, dispatch_mode=dispatch_mode, prompt=prompt,
@@ -2106,7 +2123,7 @@ class ReviewOrchestrator:
                     timeout_seconds=timeout_seconds,
                     api_key=api_key,
                 )
-                results.append(result)
+                record(result)
 
         return results
 
@@ -2393,6 +2410,35 @@ def main() -> int:
         print("No vendors available (no CLI or SDK dispatch)", file=sys.stderr)
         return 1
 
+    # Persist every terminal slot as it completes. This is deliberately set up
+    # before dispatch: a later timeout/crash cannot erase earlier evidence.
+    from checkpoint_findings import write_vendor_findings as _cf_write_vendor_findings
+
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    def checkpoint_terminal(_result: ReviewResult, partial: list[ReviewResult]) -> None:
+        vendors_index: list[dict[str, Any]] = []
+        for item in partial:
+            eligible = item.quorum_eligible if item.attempts else item.success
+            if eligible and item.findings is not None:
+                findings_array = item.findings.get("findings", [])
+                _cf_write_vendor_findings(
+                    output_dir, vendor=item.vendor, review_type=args.review_type,
+                    target="cli-dispatch", findings=findings_array,
+                    reviewer_vendor=item.vendor,
+                )
+                vendors_index.append({
+                    "name": item.vendor,
+                    "findings_path": f"findings-{item.vendor}-{args.review_type}.json",
+                    "finding_count": len(findings_array),
+                    "quorum_eligible": True,
+                })
+        orch.write_manifest(
+            partial, output_dir / "review-manifest.json", args.review_type,
+            "cli-dispatch", vendors=vendors_index,
+        )
+
     # Dispatch
     cwd = Path(args.cwd)
     results = orch.dispatch_and_wait(
@@ -2402,20 +2448,17 @@ def main() -> int:
         cwd=cwd,
         timeout_seconds=args.timeout,
         exclude_vendor=args.exclude_vendor,
+        on_terminal_result=checkpoint_terminal,
     )
 
     # Write results via the shared checkpoint_findings helper. Per-vendor
     # files preserve the existing wrapper-object shape and path layout; the
     # manifest gains the superset fields needed by the in-process converge()
     # caller while preserving everything legacy callers parse.
-    from checkpoint_findings import write_vendor_findings as _cf_write_vendor_findings
-
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
     vendors_index: list[dict[str, Any]] = []
     for result in results:
-        if result.success and result.findings:
+        quorum_eligible = result.quorum_eligible if result.attempts else result.success
+        if quorum_eligible and result.findings:
             findings_array = result.findings.get("findings", [])
             _cf_write_vendor_findings(
                 output_dir,
@@ -2428,6 +2471,7 @@ def main() -> int:
                 "name": result.vendor,
                 "findings_path": f"findings-{result.vendor}-{args.review_type}.json",
                 "finding_count": len(findings_array),
+                "quorum_eligible": True,
             })
             print(f"[OK] {result.vendor}: {len(findings_array)} findings"
                   f" (model: {result.model_used}, {result.elapsed_seconds:.1f}s)")
@@ -2443,7 +2487,7 @@ def main() -> int:
     )
     print(f"\nManifest: {manifest_path}")
 
-    succeeded = sum(1 for r in results if r.success)
+    succeeded = sum(1 for r in results if (r.quorum_eligible if r.attempts else r.success))
     print(f"Results: {succeeded}/{len(results)} vendors succeeded")
     return 0 if succeeded > 0 else 1
 

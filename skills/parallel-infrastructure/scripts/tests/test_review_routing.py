@@ -41,13 +41,18 @@ def test_review_mode_without_phase_uses_reviewer_default() -> None:
     assert result.phase is None
 
 
-def test_default_resolver_is_used_when_no_custom_resolver_is_supplied() -> None:
+def test_default_resolver_falls_back_without_a_public_coordinator(monkeypatch) -> None:
+    def unavailable(_phase: str | None, _vendor: str) -> RoutingContext:
+        raise RuntimeError("coordinator unavailable")
+
+    monkeypatch.setattr("review_routing.default_reviewer_resolver", unavailable)
     result = resolve_review_routing(vendor="codex", dispatch_mode="review")
 
     assert result is not None
-    assert result.archetype == "reviewer"
-    assert result.model
-    assert result.source == "local_coordinator"
+    assert result.archetype is None
+    assert result.model is None
+    assert result.source == "static"
+    assert result.fallback_reason == "reviewer_resolution_unavailable"
 
 
 def test_quick_mode_keeps_static_routing() -> None:

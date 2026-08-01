@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -123,8 +124,19 @@ def test_validator_fails_closed_for_bad_indexes_and_after_success() -> None:
 
     success = _attempt(1, terminal=False, success=True, error_class=None)
     trailing = _attempt(2, terminal=True)
-    with pytest.raises(ValueError, match="success"):
+    with pytest.raises(ValueError, match="schema"):
         validate_review_attempt_chain(_chain([success, trailing]))
+
+
+def test_validator_applies_schema_and_rejects_illegal_transitions() -> None:
+    second_initial = _attempt(2, reason="initial", terminal=True)
+    with pytest.raises(ValueError, match="schema"):
+        validate_review_attempt_chain(_chain([_attempt(1), second_initial]))
+
+    fallback = _attempt(2, reason="model_fallback", model="fallback")
+    late_corrective = _attempt(3, reason="corrective_redispatch", terminal=True)
+    with pytest.raises(ValueError, match="corrective"):
+        validate_review_attempt_chain(_chain([_attempt(1), fallback, late_corrective]))
 
 
 def test_quorum_requires_valid_terminal_routing_but_accepts_empty_findings() -> None:
@@ -168,3 +180,32 @@ def test_diagnostics_redact_and_bound_sensitive_output() -> None:
     assert "super-secret" not in text
     assert "abcdefghijklmnop" not in text
     assert truncated
+
+
+def test_error_detail_is_redacted_and_contributes_to_diagnostic_truncation() -> None:
+    result = run_vendor_recovery(
+        logical_request_id="redacted-error", vendor="alpha", primary_model="primary",
+        fallback_models=[], timeout_seconds=60,
+        invoke=lambda *_args: {
+            "error_class": "auth",
+            "error_detail": "token=sk-super-secret " + ("x" * 5000),
+        },
+    )
+
+    attempt = result["attempts"][0]
+    assert "super-secret" not in attempt["error_detail"]
+    assert len(attempt["error_detail"]) <= 4096
+    assert attempt["diagnostics_truncated"] is True
+
+
+def test_blocking_invoke_cannot_hold_recovery_past_remaining_deadline() -> None:
+    started = time.monotonic()
+    result = run_vendor_recovery(
+        logical_request_id="blocking", vendor="alpha", primary_model="primary",
+        fallback_models=[], timeout_seconds=0.05,
+        invoke=lambda *_args: (time.sleep(0.25) or {"validation_status": "schema_valid"}),
+    )
+
+    assert time.monotonic() - started < 0.15
+    assert result["terminal_outcome"] == "timeout"
+    assert result["quorum_eligible"] is False

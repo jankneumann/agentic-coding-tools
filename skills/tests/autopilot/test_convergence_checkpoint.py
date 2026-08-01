@@ -44,7 +44,7 @@ def _vendor_finding(idx: int, criticality: str = "low") -> dict[str, Any]:
 
 
 def _review_result(vendor: str, findings: list[dict[str, Any]]) -> ReviewResult:
-    return ReviewResult(
+    result = ReviewResult(
         vendor=vendor,
         success=True,
         model_used="test-model",
@@ -56,6 +56,64 @@ def _review_result(vendor: str, findings: list[dict[str, Any]]) -> ReviewResult:
             "findings": findings,
         },
     )
+    result.logical_request_id = f"plan:{vendor}"
+    result.requested_vendor = vendor
+    result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None}
+    result.deadline_at = "2026-08-01T00:00:00+00:00"
+    result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
+    result.attempts = [{
+        "attempt_index": 1, "vendor": vendor, "transport": "cli", "reason": "initial",
+        "terminal": True, "success": True, "elapsed_seconds": 0.0,
+        "parser_stage": "schema", "validation_status": "schema_valid",
+        "error_class": None, "error_detail": None, "stdout_excerpt": None,
+        "stderr_excerpt": None, "diagnostics_truncated": False,
+        "resolved_execution": {"model": "test-model", "requested_thinking": None,
+                               "applied_thinking": None, "thinking_translation": "not_requested",
+                               "fallback_reason": None},
+    }]
+    result.terminal_outcome = "success"
+    result.terminal_vendor = vendor
+    result.quorum_eligible = True
+    return result
+
+
+def _empty_consensus_report() -> dict[str, Any]:
+    return {
+        "schema_version": 2, "review_type": "plan", "target": "test-feature", "reviewers": [],
+        "quorum_requested": 1, "quorum_received": 1, "quorum_met": True,
+        "quorum": {"requested": 1, "received": 1, "minimum_required": 1,
+                   "eligible_vendors": ["codex"], "met": True},
+        "consensus_findings": [],
+        "summary": {"total_unique_findings": 0, "confirmed_count": 0, "provisional_count": 0,
+                    "unconfirmed_count": 0, "disagreement_count": 0,
+                    "integration_blocking_count": 0, "convergence_blocking_count": 0,
+                    "effective_blocking_count": 0, "blocking_count": 0},
+        "applied_adjudications": [],
+    }
+
+
+def _blocking_consensus_report() -> dict[str, Any]:
+    report = _empty_consensus_report()
+    report["consensus_findings"] = [{
+        "id": 1, "group_id": "cg-0000000000000001", "algorithm_version": "structured-v1",
+        "status": "confirmed", "policy_status": "confirmed", "primary_vendor": "codex",
+        "primary_finding_id": 1, "matched_findings": [], "match_score": 1.0,
+        "agreed_type": "correctness", "agreed_criticality": "high", "criticality": "high",
+        "recommended_disposition": "fix", "description": "Finding 1",
+        "vendor_dispositions": {"codex": "fix"},
+        "source_findings": [{"vendor": "codex", "finding_id": 1,
+                             "concern_fingerprint": "0" * 16, "disposition": "fix"}],
+        "match": {"method": "single", "score": 1.0, "evidence": ["fixture"]},
+        "adjudication": {"status": "unreviewed"},
+        "policy": {"integration_blocking": True, "convergence_blocking": True,
+                   "effective_blocking": True},
+    }]
+    report["summary"] = {"total_unique_findings": 1, "confirmed_count": 1,
+                         "provisional_count": 0, "unconfirmed_count": 0,
+                         "disagreement_count": 0, "integration_blocking_count": 1,
+                         "convergence_blocking_count": 1, "effective_blocking_count": 1,
+                         "blocking_count": 1}
+    return report
 
 
 def _failed_review_result(vendor: str, error: str = "vendor unreachable") -> ReviewResult:
@@ -89,10 +147,7 @@ class _FakeSynthesizer:
         return _FakeReport()
 
     def to_dict(self, _report: Any) -> dict[str, Any]:
-        return {
-            "consensus_findings": [],
-            "summary": {"confirmed_count": 0, "unconfirmed_count": 0},
-        }
+        return _empty_consensus_report()
 
 
 class _FakeReport:
@@ -392,18 +447,8 @@ class _BlockingThenClearSynthesizer:
     def to_dict(self, _report: Any) -> dict[str, Any]:
         type(self)._call += 1
         if type(self)._call == 1:
-            return {
-                "consensus_findings": [{
-                    "id": 1,
-                    "status": "confirmed",
-                    "agreed_criticality": "high",
-                }],
-                "summary": {"confirmed_count": 1, "unconfirmed_count": 0},
-            }
-        return {
-            "consensus_findings": [],
-            "summary": {"confirmed_count": 0, "unconfirmed_count": 0},
-        }
+            return _blocking_consensus_report()
+        return _empty_consensus_report()
 
 
 def test_multi_round_writes_separate_checkpoints(

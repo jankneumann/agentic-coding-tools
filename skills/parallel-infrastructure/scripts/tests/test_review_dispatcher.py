@@ -7,6 +7,8 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from review_dispatcher import (
     CliConfig,
     CliVendorAdapter,
@@ -202,6 +204,14 @@ class TestCanDispatch:
 # ---------------------------------------------------------------------------
 
 class TestDispatch:
+    def test_schema_lookup_supports_copied_skill_runtime(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        schema = tmp_path / "openspec" / "schemas" / "review-findings.schema.json"
+        schema.parent.mkdir(parents=True)
+        source_schema = Path(__file__).resolve().parents[4] / "openspec" / "schemas" / "review-findings.schema.json"
+        schema.write_text(source_schema.read_text())
+        monkeypatch.chdir(tmp_path)
+        assert CliVendorAdapter._find_review_findings_schema() == schema
+
     def test_schema_invalid_findings_are_rejected(self) -> None:
         invalid = json.loads(VALID_FINDINGS_JSON)
         invalid["findings"][0]["axis"] = "unsupported-axis"

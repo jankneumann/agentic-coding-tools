@@ -23,11 +23,14 @@ from __future__ import annotations
 import json
 import hashlib
 import logging
+import os
 import re
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
+
+from jsonschema import Draft202012Validator
 
 from consensus_policy import TrustedApprovalResolver, evaluate_blocking, is_valid_non_blocking_adjudication
 
@@ -36,6 +39,71 @@ logger = logging.getLogger(__name__)
 
 class ConsensusInputError(ValueError):
     """Raised when a per-vendor findings file fails schema validation."""
+
+
+def _consensus_schema_path() -> Path:
+    """Find the portable consensus schema installed with this skill."""
+    for root in (Path.cwd(), *Path(__file__).resolve().parents):
+        for relative in (
+            Path("openspec/schemas/consensus-report.schema.json"),
+            Path("skills/parallel-infrastructure/install_assets/openspec/schemas/consensus-report.schema.json"),
+            Path("install_assets/openspec/schemas/consensus-report.schema.json"),
+        ):
+            candidate = root / relative
+            if candidate.is_file():
+                return candidate
+    raise ConsensusInputError("consensus-report schema is unavailable")
+
+
+def validate_consensus_payload(payload: dict[str, Any]) -> None:
+    """Validate schema plus all producer/consumer trust aliases."""
+    try:
+        schema = json.loads(_consensus_schema_path().read_text(encoding="utf-8"))
+        Draft202012Validator(schema).validate(payload)
+    except Exception as exc:  # jsonschema exposes a broad hierarchy
+        raise ConsensusInputError(f"invalid consensus report: {exc}") from exc
+
+    quorum = payload.get("quorum")
+    findings = payload.get("consensus_findings")
+    summary = payload.get("summary")
+    if not isinstance(quorum, dict) or not isinstance(findings, list) or not isinstance(summary, dict):
+        raise ConsensusInputError("consensus report is missing canonical sections")
+    if payload.get("quorum_requested") != quorum.get("requested") or payload.get("quorum_received") != quorum.get("received") or payload.get("quorum_met") != quorum.get("met"):
+        raise ConsensusInputError("consensus quorum aliases disagree")
+    vendors = quorum.get("eligible_vendors")
+    if not isinstance(vendors, list) or len(vendors) != len(set(vendors)) or quorum.get("received") != len(vendors) or quorum.get("met") != (quorum.get("received") >= quorum.get("minimum_required")):
+        raise ConsensusInputError("consensus quorum is inconsistent")
+    if summary.get("total_unique_findings") != len(findings) or summary.get("provisional_count") != summary.get("unconfirmed_count") or summary.get("blocking_count") != summary.get("effective_blocking_count"):
+        raise ConsensusInputError("consensus summary aliases disagree")
+    expected = {"confirmed_count": 0, "unconfirmed_count": 0, "disagreement_count": 0,
+                "integration_blocking_count": 0, "convergence_blocking_count": 0,
+                "effective_blocking_count": 0}
+    for finding in findings:
+        if not isinstance(finding, dict):
+            raise ConsensusInputError("consensus finding is invalid")
+        status = finding.get("status")
+        policy_status = finding.get("policy_status")
+        if {"confirmed": "confirmed", "unconfirmed": "provisional", "disagreement": "disagreement"}.get(status) != policy_status:
+            raise ConsensusInputError("consensus finding status aliases disagree")
+        if finding.get("criticality") != finding.get("agreed_criticality"):
+            raise ConsensusInputError("consensus finding criticality aliases disagree")
+        match = finding.get("match")
+        if not isinstance(match, dict) or match.get("score") != finding.get("match_score"):
+            raise ConsensusInputError("consensus finding match aliases disagree")
+        source = finding.get("source_findings")
+        dispositions = finding.get("vendor_dispositions")
+        if not isinstance(source, list) or not isinstance(dispositions, dict) or any(
+            item.get("disposition") != dispositions.get(item.get("vendor")) for item in source if isinstance(item, dict)
+        ):
+            raise ConsensusInputError("consensus source dispositions disagree")
+        policy = finding.get("policy")
+        if not isinstance(policy, dict) or policy.get("effective_blocking") != bool(policy.get("integration_blocking") or policy.get("convergence_blocking")):
+            raise ConsensusInputError("consensus effective-blocking policy is inconsistent")
+        expected[f"{status}_count"] += 1
+        for key in ("integration_blocking_count", "convergence_blocking_count", "effective_blocking_count"):
+            expected[key] += int(bool(policy[key.removesuffix("_count")]))
+    if any(summary.get(key) != value for key, value in expected.items()):
+        raise ConsensusInputError("consensus summary counts are inconsistent")
 
 
 def _coerce_line_number(value: Any) -> int | None:
@@ -233,6 +301,22 @@ def _paths_match(a: str | None, b: str | None) -> bool:
     return longer.endswith("/" + shorter)
 
 
+# Classifications vary by reviewer. Families retain useful taxonomy evidence
+# without letting it veto an otherwise exact source-location match.
+_TYPE_FAMILIES = {
+    "correctness": "correctness", "contract_mismatch": "correctness",
+    "compatibility": "correctness", "resilience": "correctness",
+    "security": "security", "performance": "performance",
+    "architecture": "architecture", "spec_gap": "architecture",
+    "style": "style", "observability": "observability",
+}
+
+
+def _type_family(value: str) -> str:
+    canonical = _canonical_type(value)
+    return _TYPE_FAMILIES.get(canonical, canonical)
+
+
 def _tokenize(text: str) -> set[str]:
     """Tokenize text for Jaccard similarity."""
     return {w.lower().strip(".,;:!?()[]{}\"'") for w in text.split() if len(w) > 2}
@@ -259,7 +343,7 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
         (score, basis) where score is 0.0-1.0 and basis describes
         the matching criteria used.
     """
-    same_type = _types_compatible(a.type, b.type)
+    same_family = _type_family(a.type) == _type_family(b.type)
     same_file = _paths_match(a.file_path, b.file_path)
 
     # Location match: same file + overlapping lines. Two vendors pointing
@@ -269,20 +353,22 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
         a_end = a.line_end or a.line_start
         b_end = b.line_end or b.line_start
         if a.line_start <= b_end and b.line_start <= a_end:
-            if same_type:
+            if same_family:
                 return 0.95, "location+type"
-            return 0.8, "location"
+            return 0.88, "location+cross-family"
+
+    # Different type families need deterministic structural evidence; text
+    # similarity alone is too weak to merge unrelated categories.
+    if not same_family:
+        return 0.0, ""
 
     desc_sim = _jaccard(_tokenize(a.description), _tokenize(b.description))
 
-    if same_file and same_type and desc_sim >= 0.25:
+    if same_file and desc_sim >= 0.25:
         return min(0.5 + desc_sim * 0.4, 0.85), "file+type+description"
 
-    if same_file and desc_sim >= 0.35:
-        return min(0.5 + desc_sim * 0.3, 0.8), "file+description"
-
-    if same_type and desc_sim >= 0.3:
-        return min(0.3 + desc_sim * 0.6, 0.75), "type+description"
+    if desc_sim >= 0.4:
+        return min(0.2 + desc_sim * 0.8, 0.75), "type+description"
 
     return 0.0, ""
 
@@ -451,7 +537,7 @@ class ConsensusSynthesizer:
                 f"{finding.vendor}:{finding.id}": self._concern_fingerprint(finding)
                 for finding in members
             }
-            fingerprints = sorted(source_fingerprints.values())
+            fingerprints = sorted(set(source_fingerprints.values()))
             group_id = "cg-" + hashlib.sha256("\n".join(fingerprints).encode()).hexdigest()[:16]
             decision = evaluate_blocking(
                 policy_status=policy_status,
@@ -487,11 +573,12 @@ class ConsensusSynthesizer:
     @staticmethod
     def _concern_fingerprint(finding: Finding) -> str:
         """Return a stable fingerprint for one source concern, not its group."""
-        normalized_description = " ".join(finding.description.lower().split())
+        normalized_description = re.sub(
+            r"^(critical|nit|optional|fyi|none):\s*", "",
+            " ".join(finding.description.lower().split()),
+        )
         value = "\0".join((
-            finding.vendor,
-            str(finding.id),
-            finding.type,
+            _type_family(finding.type),
             finding.file_path or "",
             str(finding.line_start or ""),
             str(finding.line_end or ""),
@@ -661,10 +748,20 @@ class ConsensusSynthesizer:
         }
 
     def write_report(self, report: ConsensusReport, output_path: Path) -> None:
-        """Write consensus report to JSON file."""
+        """Validate then atomically persist a consensus report."""
+        payload = self.to_dict(report)
+        validate_consensus_payload(payload)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
-            json.dump(self.to_dict(report), f, indent=2)
+        temporary = output_path.with_suffix(output_path.suffix + ".tmp")
+        try:
+            with temporary.open("w", encoding="utf-8") as stream:
+                json.dump(payload, stream, indent=2)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, output_path)
+        except (OSError, TypeError, ValueError):
+            temporary.unlink(missing_ok=True)
+            raise
 
 
 # ---------------------------------------------------------------------------

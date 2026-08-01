@@ -123,13 +123,56 @@ def validate_consensus_report(report: dict[str, Any]) -> None:
     if "blocking_count" in summary and summary["blocking_count"] != summary.get("effective_blocking_count", expected["effective_blocking_count"]):
         raise ValueError("consensus blocking_count is inconsistent")
 
+    # Revision-2 compatibility fields are mandatory at this trust boundary;
+    # accepting a partial report lets a producer hide an alias disagreement.
+    required_summary = {
+        "total_unique_findings", "confirmed_count", "provisional_count",
+        "unconfirmed_count", "disagreement_count", "integration_blocking_count",
+        "convergence_blocking_count", "effective_blocking_count", "blocking_count",
+    }
+    if not required_summary.issubset(summary):
+        raise ValueError("consensus summary omits required revision-2 aliases")
+    if summary["provisional_count"] != summary["unconfirmed_count"]:
+        raise ValueError("consensus provisional aliases disagree")
+    if summary["blocking_count"] != summary["effective_blocking_count"]:
+        raise ValueError("consensus blocking aliases disagree")
+    status_aliases = {
+        "confirmed": "confirmed", "unconfirmed": "provisional", "disagreement": "disagreement",
+    }
+    for finding in findings:
+        if not isinstance(finding, dict):
+            raise ValueError("consensus finding is invalid")
+        required_finding = {
+            "group_id", "algorithm_version", "status", "policy_status",
+            "criticality", "agreed_criticality", "match_score", "match",
+            "source_findings", "vendor_dispositions", "adjudication", "policy",
+        }
+        if not required_finding.issubset(finding):
+            raise ValueError("consensus finding omits required revision-2 fields")
+        if status_aliases.get(finding["status"]) != finding["policy_status"]:
+            raise ValueError("consensus finding status aliases disagree")
+        if finding["criticality"] != finding["agreed_criticality"]:
+            raise ValueError("consensus finding criticality aliases disagree")
+        match = finding["match"]
+        if not isinstance(match, dict) or match.get("score") != finding["match_score"]:
+            raise ValueError("consensus finding match aliases disagree")
+        sources, dispositions = finding["source_findings"], finding["vendor_dispositions"]
+        if not isinstance(sources, list) or not sources or not isinstance(dispositions, dict):
+            raise ValueError("consensus source evidence is invalid")
+        if any(not isinstance(source, dict) or source.get("disposition") != dispositions.get(source.get("vendor")) for source in sources):
+            raise ValueError("consensus source dispositions disagree")
+        policy = finding["policy"]
+        if not isinstance(policy, dict) or policy.get("effective_blocking") != bool(
+            policy.get("integration_blocking") or policy.get("convergence_blocking")
+        ):
+            raise ValueError("consensus effective-blocking policy is inconsistent")
+
 
 def _logical_result_payload(result: ReviewResult) -> dict[str, Any] | None:
     """Return a shared-policy payload for recovery-aware dispatches.
 
-    Older direct callers construct ``ReviewResult`` without an attempt chain.
-    Preserve their success flag as a compatibility fallback while requiring the
-    shared predicate whenever recovery provenance is available.
+    A raw ``success`` flag is not evidence. Only a complete, validated logical
+    attempt chain can contribute to a quorum or reach synthesis.
     """
     if not result.attempts or result.terminal_outcome is None:
         return None
@@ -148,7 +191,7 @@ def _logical_result_payload(result: ReviewResult) -> dict[str, Any] | None:
 
 def _is_quorum_eligible_result(result: ReviewResult) -> bool:
     payload = _logical_result_payload(result)
-    return result.success if payload is None else is_quorum_eligible(payload)
+    return payload is not None and is_quorum_eligible(payload)
 
 
 def _checkpoint_dispatch(result: ReviewResult) -> dict[str, Any]:

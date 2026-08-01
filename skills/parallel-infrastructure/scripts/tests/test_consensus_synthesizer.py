@@ -72,11 +72,18 @@ class TestTokenization:
 # ---------------------------------------------------------------------------
 
 class TestMatchScore:
-    def test_different_types_no_match(self) -> None:
+    def test_different_types_without_structural_evidence_do_not_match(self) -> None:
         a = _finding(type="security")
         b = _finding(type="performance")
         score, _ = match_score(a, b)
         assert score == 0.0
+
+    def test_exact_location_can_match_different_type_families(self) -> None:
+        a = _finding(type="security", file_path="src/api.py", line_start=42)
+        b = _finding(type="correctness", file_path="src/api.py", line_start=42, vendor="grok")
+        score, basis = match_score(a, b)
+        assert score >= 0.8
+        assert basis == "location+cross-family"
 
     def test_exact_location_match(self) -> None:
         a = _finding(file_path="src/api.py", line_start=42, line_end=45)
@@ -215,7 +222,7 @@ class TestCrossVendorFormatSkew:
                      file_path="src/auth.py", line_start=10)
         score, basis = match_score(a, b)
         assert score >= 0.6
-        assert basis == "location"
+        assert basis == "location+cross-family"
 
     def test_paraphrased_description_without_file_reaches_threshold(self) -> None:
         # Previously score = min(0.3 + sim*0.3, 0.7) needed sim == 1.0 to
@@ -269,6 +276,11 @@ class TestCrossVendorFormatSkew:
 # ---------------------------------------------------------------------------
 
 class TestConsensusSynthesizer:
+    def test_fingerprint_is_stable_across_vendor_and_local_id(self) -> None:
+        a = _finding(id=1, vendor="codex", file_path="src/api.py", line_start=7)
+        b = _finding(id=99, vendor="grok", file_path="src/api.py", line_start=7)
+        assert ConsensusSynthesizer._concern_fingerprint(a) == ConsensusSynthesizer._concern_fingerprint(b)
+
     def test_ledger_applies_evidence_backed_false_positive(self) -> None:
         synth = ConsensusSynthesizer()
         initial = synth.synthesize("plan", "test", [

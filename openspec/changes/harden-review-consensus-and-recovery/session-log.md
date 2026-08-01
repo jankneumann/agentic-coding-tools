@@ -488,3 +488,30 @@ Completed the remaining review-recovery remediation: bounded replacement-vendor 
 
 ### Context
 Implementation review did not converge. All five configured premium reviewer routes produced ineligible terminal results (four 299-second timeouts and Pi invalid-output exhaustion), so true external quorum was 0/5. Independent source-and-contract audits confirmed 11 merge-blocking defects despite 131 focused tests passing, including installed-runtime path/routing failures, non-preemptive deadlines, delayed persistence, incomplete chain and consensus validation, unsanitized diagnostics, eligibility drift, and unstable consensus identity.
+
+---
+
+## Phase: Implementation Fix 2 (2026-08-01)
+
+**Agent**: implementer | **Session**: N/A
+
+### Decisions
+1. **Fail closed on logical review evidence** — A raw success flag cannot contribute to quorum without a validated terminal attempt chain.
+
+### Alternatives Considered
+- Keep source-tree coordinator import and success compatibility fallback: rejected because copied skill installs and quorum decisions must not depend on undeclared local state
+
+### Trade-offs
+- Accepted bounded daemon-thread invocation boundary over unbounded synchronous adapter calls because later reviewers must continue when an adapter hangs
+
+### Completed Work
+- Fixed all 11 IMPL_REVIEW round-2 findings
+- Added focused regressions for routing portability, attempt contracts, matching identity, and consensus aliases
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/review_attempts.py` — validated bounded recovery
+- `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — validated atomic consensus writes
+- `skills/autopilot/scripts/convergence_loop.py` — fail-closed consensus/quorum consumer
+
+### Context
+Resolved all 11 source-audited IMPL_REVIEW blockers across portable routing, bounded attempt recovery, progressive terminal checkpoints, and consensus validation. Focused review hardening tests pass.

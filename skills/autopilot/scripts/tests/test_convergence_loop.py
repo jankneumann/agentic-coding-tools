@@ -44,7 +44,7 @@ def _make_review_result(
     findings_dict = None
     if findings is not None:
         findings_dict = {"findings": findings}
-    return ReviewResult(
+    result = ReviewResult(
         vendor=vendor,
         success=success,
         findings=findings_dict,
@@ -52,6 +52,26 @@ def _make_review_result(
         models_attempted=["test-model"],
         elapsed_seconds=1.0,
     )
+    if success:
+        result.logical_request_id = f"implementation:{vendor}"
+        result.requested_vendor = vendor
+        result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None}
+        result.deadline_at = "2026-08-01T00:00:00+00:00"
+        result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
+        result.attempts = [{
+            "attempt_index": 1, "vendor": vendor, "transport": "cli", "reason": "initial",
+            "terminal": True, "success": True, "elapsed_seconds": 0.0,
+            "parser_stage": "schema", "validation_status": "schema_valid",
+            "error_class": None, "error_detail": None, "stdout_excerpt": None,
+            "stderr_excerpt": None, "diagnostics_truncated": False,
+            "resolved_execution": {"model": "test-model", "requested_thinking": None,
+                                   "applied_thinking": None, "thinking_translation": "not_requested",
+                                   "fallback_reason": None},
+        }]
+        result.terminal_outcome = "success"
+        result.terminal_vendor = vendor
+        result.quorum_eligible = True
+    return result
 
 
 def _make_consensus_report(
@@ -63,6 +83,9 @@ def _make_consensus_report(
     confirmed = sum(1 for f in findings if f.status == "confirmed")
     unconfirmed = sum(1 for f in findings if f.status == "unconfirmed")
     disagreement = sum(1 for f in findings if f.status == "disagreement")
+    integration_blocking = sum(f.integration_blocking for f in findings)
+    convergence_blocking = sum(f.convergence_blocking for f in findings)
+    effective_blocking = sum(f.effective_blocking for f in findings)
     return ConsensusReport(
         review_type="implementation",
         target="test-change",
@@ -78,7 +101,9 @@ def _make_consensus_report(
         confirmed_count=confirmed,
         unconfirmed_count=unconfirmed,
         disagreement_count=disagreement,
-        blocking_count=0,
+        blocking_count=effective_blocking,
+        integration_blocking_count=integration_blocking,
+        convergence_blocking_count=convergence_blocking,
     )
 
 
@@ -92,6 +117,7 @@ def _make_consensus_finding(
     return ConsensusFinding(
         id=id,
         status=status,
+        policy_status={"confirmed": "confirmed", "unconfirmed": "provisional", "disagreement": "disagreement"}[status],
         primary_vendor="vendor_a",
         primary_finding_id=id,
         matched_findings=[],
@@ -100,6 +126,11 @@ def _make_consensus_finding(
         agreed_criticality=criticality,
         recommended_disposition=disposition,
         description=f"Test finding {id}",
+        group_id=f"cg-{id:016x}",
+        vendor_dispositions={"vendor_a": disposition},
+        integration_blocking=True,
+        convergence_blocking=True,
+        effective_blocking=True,
     )
 
 
@@ -152,6 +183,17 @@ def test_consensus_validation_rejects_false_quorum() -> None:
     }
 
     with pytest.raises(ValueError, match="met flag"):
+        validate_consensus_report(report)
+
+
+def test_consensus_validation_rejects_required_finding_alias_mismatch() -> None:
+    finding = _make_consensus_finding(1)
+    report = __import__("consensus_synthesizer", fromlist=["ConsensusSynthesizer"]).ConsensusSynthesizer().to_dict(
+        _make_consensus_report([finding])
+    )
+    report["consensus_findings"][0]["criticality"] = "low"
+
+    with pytest.raises(ValueError, match="criticality aliases"):
         validate_consensus_report(report)
 
 
