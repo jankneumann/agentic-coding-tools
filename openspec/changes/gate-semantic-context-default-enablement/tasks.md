@@ -659,10 +659,18 @@ requires a favourable number.
       The gate is green again post-revert with the unmodified baseline
       message.
 
-- [ ] 7.3 Confirm all three contracts are promoted and byte-identical, and that
+- [x] 7.3 Confirm all three contracts are promoted and byte-identical, and that
       `openspec/contracts/README.md` lists them
       **Dependencies**: 7.1
       **Size**: XS
+      **Result**: `diff` confirms all three schemas
+      (`context-eval-case.schema.json`, `context-eval-corpus.schema.json`,
+      `context-eval-report.schema.json`) are byte-identical between
+      `openspec/changes/gate-semantic-context-default-enablement/contracts/schemas/`
+      and `openspec/contracts/semantic-context-evaluation/schemas/`.
+      `openspec/contracts/README.md:69` lists the `semantic-context-evaluation`
+      row naming this change. `packages/context-eval/tests/test_promoted_contracts.py`
+      (57 passed) reproduces the same check automatically.
 
 - [ ] 7.4 Run `make context-drift-gate` and regenerate any artifact the new
       package or docs directory made stale
