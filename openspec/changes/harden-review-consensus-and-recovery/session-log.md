@@ -348,4 +348,3 @@ Completed and pushed the attempt core, routing, consensus policy, fail-closed co
 
 ### Context
 Completed bounded SDK recovery and the remaining compatibility, integration, documentation, and validation work. Existing completed package tasks were reconciled in tasks.md with final evidence recorded.
-
