@@ -413,7 +413,7 @@ class TraceabilityBlock(BaseModel):
     excluded: TraceabilityExclusion | None = None
 
     @model_validator(mode="after")
-    def _exactly_one_of_requirements_or_excluded(self) -> "TraceabilityBlock":
+    def _exactly_one_of_requirements_or_excluded(self) -> TraceabilityBlock:
         has_requirements = self.requirements is not None
         has_excluded = self.excluded is not None
         if has_requirements == has_excluded:

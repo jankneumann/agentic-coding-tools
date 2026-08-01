@@ -54,7 +54,9 @@ def _real_spec_files() -> list[Path]:
 def test_every_derived_id_matches_the_citation_pattern(spec_path: Path) -> None:
     capability = spec_path.parent.name
     headings = parse_requirement_headings(spec_path.read_text(encoding="utf-8"))
-    assert headings, f"{spec_path} has no ### Requirement: headings — a broken fixture, not a real spec"
+    assert headings, (
+        f"{spec_path} has no ### Requirement: headings — a broken fixture, not a real spec"
+    )
     for heading in headings:
         derived = requirement_id(capability, heading)
         assert _CITATION_PATTERN.match(derived), (
