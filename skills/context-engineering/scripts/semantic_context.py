@@ -568,7 +568,7 @@ TRUTHY_VALUES: frozenset[str] = frozenset({"1", "true", "yes", "on"})
 #: enablement gate has a single thing to read (D11). Flipping this to ``True``
 #: is authorized only by a passing evaluation report; it is not this module's
 #: decision to make.
-INJECTION_DEFAULT_ENABLED: bool = True
+INJECTION_DEFAULT_ENABLED: bool = False
 
 #: Default repository slug, matching ri-03's ``RepoSlug`` shape.
 DEFAULT_REPO_SLUG = "agentic_coding_tools"
