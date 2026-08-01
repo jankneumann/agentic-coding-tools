@@ -506,25 +506,27 @@ class ConsensusSynthesizer:
                             "vendor": cf.primary_vendor,
                             "finding_id": cf.primary_finding_id,
                             "concern_fingerprint": cf.group_id,
-                            "disposition": cf.vendor_dispositions[cf.primary_vendor],
+                            "disposition": cf.vendor_dispositions.get(cf.primary_vendor, cf.recommended_disposition),
                         },
                         *[
                             {
                                 "vendor": item["vendor"],
                                 "finding_id": item["finding_id"],
                                 "concern_fingerprint": cf.group_id,
-                                "disposition": cf.vendor_dispositions[item["vendor"]],
+                                "disposition": cf.vendor_dispositions.get(item["vendor"], cf.recommended_disposition),
                             }
                             for item in cf.matched_findings
                         ],
                     ],
                     "match": {"method": cf.match_method, "score": cf.match_score, "evidence": cf.match_evidence},
                     "adjudication": {"status": "unreviewed"},
-                    "policy": {
-                        "integration_blocking": cf.integration_blocking,
-                        "convergence_blocking": cf.convergence_blocking,
-                        "effective_blocking": cf.effective_blocking,
-                    },
+                    **({
+                        "policy": {
+                            "integration_blocking": cf.integration_blocking,
+                            "convergence_blocking": cf.convergence_blocking,
+                            "effective_blocking": cf.effective_blocking,
+                        },
+                    } if cf.group_id else {}),
                 }
                 for cf in report.consensus_findings
             ],
