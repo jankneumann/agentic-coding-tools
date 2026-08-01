@@ -713,8 +713,34 @@ packages:
       ttl_minutes: 120
       reason: "Integrate all packages and prove the gate"
     scope:
+      # Narrowed from `**` on 2026-08-01. The broad scope was declared so 7.1
+      # could merge every package's branch, but all seven packages executed
+      # sequentially on the single branch `openspec/gate-semantic-context-default-enablement`
+      # — `git branch --list` shows no `--wp-*` siblings — so 7.1 has nothing to
+      # merge and phase 7's writes are enumerable. A package that can write the
+      # whole repository defeats worktree isolation, which is the one condition
+      # autopilot's entry gate still hard-blocks on (`complexity_gate.py`
+      # `_has_broad_write_scope`); every downstream safeguard it has — review
+      # convergence, VALIDATE, the human merge gate — assumes the worktree
+      # bounds the blast radius.
+      #
+      # Each entry below is the artifact of a specific task, not a guess:
       write_allow:
-        - "**"
+        # 7.2 flips INJECTION_DEFAULT_ENABLED in a scratch commit and reverts it
+        - "skills/context-engineering/scripts/semantic_context.py"
+        # 7.2 captures the gate's failing output as a durable artifact
+        - "docs/evaluation/semantic-context/**"
+        # 7.3 confirms promotion and the contracts README row
+        - "openspec/contracts/semantic-context-evaluation/**"
+        - "openspec/contracts/README.md"
+        # 7.4: `make context-drift-gate` reports exactly two blocking drifts we
+        # own — api.contracts regenerates this inventory, and context.impact
+        # points back at this file. (The third, openspec.projection, is owned by
+        # cleanup-feature / `openspec archive` and is NOT ours to remediate.)
+        - "docs/architecture-analysis/contracts-inventory.md"
+        # 7.4 context_impact, 7.5 validate fixes, 7.6 the recorded gh api call,
+        # and every task's checkbox flip
+        - "openspec/changes/gate-semantic-context-default-enablement/**"
       read_allow:
         - "**"
       deny:
