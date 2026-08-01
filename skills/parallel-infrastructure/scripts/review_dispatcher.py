@@ -1678,6 +1678,55 @@ class ReviewOrchestrator:
         validate_review_attempt_chain(chain)
         return self._logical_result(vendor=reviewer.vendor, chain=chain, attempt_results=attempt_results)
 
+    def _dispatch_sdk_review(
+        self,
+        *, adapter: SdkVendorAdapter, reviewer: ReviewerInfo, review_type: str,
+        prompt: str, cwd: Path, timeout_seconds: int, api_key: str,
+        routing: RoutingContext | None,
+    ) -> ReviewResult:
+        """Run SDK reviews through the same bounded recovery chain as CLIs."""
+        primary_model = (routing.model if routing else None) or adapter.sdk_config.model
+        requested_routing = self._routing_payload(routing)
+        attempt_results: list[ReviewResult] = []
+
+        def invoke(_vendor: str, model: str, remaining: float, _reason: str) -> dict[str, Any]:
+            # Recovery owns model fallback order.  Each SDK invocation gets a
+            # single concrete model so an adapter cannot reset the deadline.
+            one_model = SdkVendorAdapter(
+                agent_id=adapter.agent_id,
+                vendor=adapter.vendor,
+                sdk_config=replace(adapter.sdk_config, model=model, model_fallbacks=[]),
+                openbao_role_id=adapter.openbao_role_id,
+            )
+            result = one_model.dispatch(
+                mode="review", prompt=prompt, cwd=cwd,
+                timeout_seconds=max(1, int(remaining)), api_key=api_key,
+            )
+            attempt_results.append(result)
+            return self._result_response(result, "sdk")
+
+        chain = run_vendor_recovery(
+            logical_request_id=f"{review_type}:{reviewer.agent_id}",
+            vendor=reviewer.vendor,
+            primary_model=primary_model,
+            fallback_models=adapter.sdk_config.model_fallbacks,
+            invoke=invoke,
+            timeout_seconds=timeout_seconds,
+            requested_routing=requested_routing,
+        )
+        # SDK transport configuration currently has no portable thinking API.
+        # Make that explicit in provenance rather than claiming a setting was
+        # applied by a provider-specific client call.
+        for attempt in chain["attempts"]:
+            execution = attempt["resolved_execution"]
+            execution["requested_thinking"] = routing.thinking if routing else None
+            execution["applied_thinking"] = None
+            execution["thinking_translation"] = (
+                "not_requested" if not routing or routing.thinking is None else "unsupported"
+            )
+        validate_review_attempt_chain(chain)
+        return self._logical_result(vendor=reviewer.vendor, chain=chain, attempt_results=attempt_results)
+
     def dispatch_and_wait(
         self,
         review_type: str,
@@ -1797,6 +1846,22 @@ class ReviewOrchestrator:
                         vendor=reviewer.vendor,
                         success=False,
                         error="No API key available for SDK dispatch",
+                    ))
+                    continue
+
+                if dispatch_mode == "review":
+                    routing = resolve_review_routing(
+                        vendor=reviewer.vendor,
+                        dispatch_mode=dispatch_mode,
+                        explicit=routing_context,
+                        phase=phase,
+                        resolver=routing_resolver,
+                    )
+                    results.append(self._dispatch_sdk_review(
+                        adapter=sdk_adapter, reviewer=reviewer,
+                        review_type=review_type, prompt=prompt, cwd=cwd,
+                        timeout_seconds=timeout_seconds, api_key=api_key,
+                        routing=routing,
                     ))
                     continue
 

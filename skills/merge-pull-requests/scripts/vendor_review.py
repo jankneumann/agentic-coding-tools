@@ -279,10 +279,10 @@ def dispatch_vendor_reviews(
 
     # Build orchestrator — try coordinator first, fall back to agents.yaml
     orch = ReviewOrchestrator.from_coordinator()
-    if not orch.adapters:
+    if not orch.adapters and not orch.sdk_adapters:
         orch = ReviewOrchestrator.from_agents_yaml()
 
-    if not orch.adapters:
+    if not orch.adapters and not orch.sdk_adapters:
         return {
             "dispatched": False,
             "vendors": [],

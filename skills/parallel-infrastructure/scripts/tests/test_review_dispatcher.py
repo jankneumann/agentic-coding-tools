@@ -460,6 +460,33 @@ class TestOrchestrator:
         assert results[0].attempts[0]["resolved_execution"]["thinking_translation"] == "unsupported"
         mock_run.assert_not_called()
 
+    @patch("api_key_resolver.ApiKeyResolver")
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_sdk_review_recovers_invalid_output_once(
+        self,
+        mock_call: MagicMock,
+        mock_resolver: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """SDK reviews use the shared corrective-retry chain and provenance."""
+        mock_resolver.return_value.resolve.return_value = "sk-test"
+        mock_call.side_effect = [None, json.loads(VALID_FINDINGS_JSON)]
+        adapter = _sdk_adapter("claude-remote", "claude_code")
+        orch = ReviewOrchestrator({}, {"claude-remote": adapter})
+
+        with patch.object(adapter, "can_dispatch", return_value=True):
+            results = orch.dispatch_and_wait(
+                review_type="plan", dispatch_mode="review", prompt="review",
+                cwd=tmp_path,
+            )
+
+        assert results[0].success is True
+        assert results[0].quorum_eligible is True
+        assert [attempt["reason"] for attempt in results[0].attempts] == [
+            "initial", "corrective_redispatch",
+        ]
+        assert results[0].attempts[-1]["transport"] == "sdk"
+
     def test_from_config_dict_propagates_prompt_via_flag(self) -> None:
         """prompt_via_flag must survive from_config_dict into the CliConfig so
         antigravity's prompt is dispatched as ``--prompt <value>`` (E7), not a

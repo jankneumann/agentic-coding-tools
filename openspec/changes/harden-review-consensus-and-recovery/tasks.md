@@ -78,7 +78,7 @@
   **Dependencies**: 2.2
   **Files**: `agent-coordinator/agents.yaml`, `agent-coordinator/src/agents_config.py`, `skills/parallel-infrastructure/scripts/review_routing.py`, `skills/parallel-infrastructure/scripts/tests/test_review_routing.py`, `agent-coordinator/tests/test_archetype_routing.py`, `agent-coordinator/tests/test_agents_config.py`
 
-- [ ] 2.6 Wire recovery and reviewer routing into every transport and compatibility caller [M]
+- [x] 2.6 Wire recovery and reviewer routing into every transport and compatibility caller [M]
   **Spec scenarios**: skill-workflow.10 through skill-workflow.16, whole-chain vendor timeout with later-vendor continuation and progressive terminal persistence, agent-archetypes.1 through agent-archetypes.7
   **Contracts**: `contracts/review-attempt.schema.json`
   **Design decisions**: D6
