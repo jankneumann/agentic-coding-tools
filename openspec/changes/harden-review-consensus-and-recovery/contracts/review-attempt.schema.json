@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/contracts/harden-review-consensus-and-recovery/review-attempt.schema.json",
+  "title": "Review Dispatch Attempt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attempt_index",
+    "vendor",
+    "transport",
+    "reason",
+    "success",
+    "elapsed_seconds",
+    "requested_routing",
+    "resolved_execution"
+  ],
+  "properties": {
+    "attempt_index": {"type": "integer", "minimum": 1},
+    "vendor": {"type": "string", "minLength": 1},
+    "transport": {"type": "string", "enum": ["cli", "sdk", "async"]},
+    "reason": {
+      "type": "string",
+      "enum": ["initial", "corrective_redispatch", "model_fallback", "replacement_vendor"]
+    },
+    "success": {"type": "boolean"},
+    "elapsed_seconds": {"type": "number", "minimum": 0},
+    "parser_stage": {
+      "type": ["string", "null"],
+      "enum": ["extract", "json", "schema", null]
+    },
+    "error_class": {
+      "type": ["string", "null"],
+      "enum": ["invalid_output", "capacity_exhausted", "auth", "transient", "timeout", "unknown", null]
+    },
+    "error_detail": {"type": ["string", "null"], "maxLength": 4096},
+    "stdout_excerpt": {"type": ["string", "null"], "maxLength": 4096},
+    "stderr_excerpt": {"type": ["string", "null"], "maxLength": 4096},
+    "artifact_ref": {"type": ["string", "null"]},
+    "requested_routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archetype", "tier"],
+      "properties": {
+        "archetype": {"type": ["string", "null"]},
+        "tier": {"type": ["string", "null"]}
+      }
+    },
+    "resolved_execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "thinking"],
+      "properties": {
+        "model": {"type": ["string", "null"]},
+        "thinking": {"type": ["string", "null"]},
+        "fallback_reason": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"success": {"const": false}}},
+      "then": {"required": ["error_class", "error_detail"]}
+    }
+  ]
+}

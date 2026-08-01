@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/contracts/harden-review-consensus-and-recovery/consensus-policy.schema.json",
+  "title": "Consensus Policy Evaluation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["criticality", "status", "vendor_dispositions", "adjudication", "policy"],
+  "properties": {
+    "criticality": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["confirmed", "unconfirmed", "disagreement"]
+    },
+    "vendor_dispositions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["fix", "regenerate", "accept", "escalate"]
+      }
+    },
+    "adjudication": {
+      "$ref": "#/$defs/Adjudication"
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["integration_blocking", "convergence_blocking", "effective_blocking"],
+      "properties": {
+        "integration_blocking": {"type": "boolean"},
+        "convergence_blocking": {"type": "boolean"},
+        "effective_blocking": {"type": "boolean"}
+      }
+    }
+  },
+  "$defs": {
+    "Adjudication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["unreviewed", "fixed", "false_positive", "accepted_risk", "deferred"]
+        },
+        "rationale": {"type": "string", "minLength": 1},
+        "evidence": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "authorized_by": {"type": "string", "minLength": 1},
+        "tracking_reference": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"enum": ["fixed", "false_positive"]}}},
+          "then": {"required": ["rationale", "evidence"]}
+        },
+        {
+          "if": {"properties": {"status": {"const": "accepted_risk"}}},
+          "then": {"required": ["rationale", "authorized_by"]}
+        },
+        {
+          "if": {"properties": {"status": {"const": "deferred"}}},
+          "then": {"required": ["rationale", "tracking_reference"]}
+        }
+      ]
+    }
+  }
+}
