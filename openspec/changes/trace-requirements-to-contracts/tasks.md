@@ -207,7 +207,7 @@ that way answers a question about a different copy.
 
 ## Phase 3 — The completeness gate
 
-- [ ] 3.1 Write tests for forward completeness `[S]`
+- [x] 3.1 Write tests for forward completeness `[S]`
   **Spec scenarios**: Traceability Completeness Is Enforced In Both Directions (an uncited operation fails the gate)
   **Design decisions**: D3
   **Dependencies**: 2.5
@@ -216,7 +216,7 @@ that way answers a question about a different copy.
   naming the one — a gate satisfied by the 90% proportion is the threshold
   D6 rejects leaking back in.
 
-- [ ] 3.2 Write tests for reverse completeness `[S]`
+- [x] 3.2 Write tests for reverse completeness `[S]`
   **Spec scenarios**: Traceability Completeness Is Enforced In Both Directions (an uncited requirement fails the gate); (every failure is reported in one run)
   **Design decisions**: D3, D13
   **Dependencies**: 2.5
@@ -229,7 +229,7 @@ that way answers a question about a different copy.
   the violation count — a fail-fast regression reports 1 of 4 and this is
   the only test that catches it.
 
-- [ ] 3.3 Write tests for operation exclusions — blank reason, stale target, valid suppression `[S]`
+- [x] 3.3 Write tests for operation exclusions — blank reason, stale target, valid suppression `[S]`
   **Spec scenarios**: Traceability Exclusions State A Reason (a blank reason fails the gate); (a stale exclusion fails the gate); (an excluded operation does not fail forward completeness)
   **Design decisions**: D4
   **Dependencies**: 2.5
@@ -238,7 +238,7 @@ that way answers a question about a different copy.
   excluded operation does NOT fail AND that the exclusion's reason appears in
   the output.
 
-- [ ] 3.4 Write tests for requirement exclusions and the reverse opt-in switch `[S]`
+- [x] 3.4 Write tests for requirement exclusions and the reverse opt-in switch `[S]`
   **Spec scenarios**: Traceability Exclusions State A Reason (an excluded requirement does not fail reverse completeness); Reverse Enforcement Is Opt-In Per Capability Via The Exclusions File (the exclusions file's presence enforces reverse completeness); (without the exclusions file, uncited requirements are reported)
   **Design decisions**: D4, D13
   **Dependencies**: 2.5
@@ -259,7 +259,7 @@ that way answers a question about a different copy.
   subtractive and would discharge `B`'s obligation from a file `B` neither
   controls nor reads.
 
-- [ ] 3.4b Write tests that an unreadable exclusions file fails closed `[S]`
+- [x] 3.4b Write tests that an unreadable exclusions file fails closed `[S]`
   **Spec scenarios**: The Gate Fails Closed On Malformed Input (an unreadable exclusions file fails rather than opting out)
   **Design decisions**: D13, D4
   **Dependencies**: 2.5
@@ -275,7 +275,7 @@ that way answers a question about a different copy.
   the not-opted-in status. Asserting only the non-zero exit would still pass
   if the gate failed for an unrelated reason while silently opting out.
 
-- [ ] 3.5 Write tests for forward opt-in enforcement `[S]`
+- [x] 3.5 Write tests for forward opt-in enforcement `[S]`
   **Spec scenarios**: Forward Enforcement Is Opt-In Per Contract Document (declaring traceability commits the whole contract document); (a contract with no traceability is recorded, not failed); (a traced and an untraced document coexist in one capability)
   **Design decisions**: D6
   **Dependencies**: 2.5
@@ -288,7 +288,7 @@ that way answers a question about a different copy.
   untraced status for the other, and the traced document's citations counting
   toward reverse completeness.
 
-- [ ] 3.6 Write tests for malformed input and document discovery `[S]`
+- [x] 3.6 Write tests for malformed input and document discovery `[S]`
   **Spec scenarios**: The Gate Fails Closed On Malformed Input (an unparseable contract fails the gate); (a schema-invalid traceability block fails the gate); (contracts without a capability spec fail distinctly); (a specless capability that has not opted in is reported); (a capability with a spec and no contracts is forward-untraced); (a contract instance outside openapi/ or cli/ is reported); (a newly misplaced instance fails change scope); (README and the exclusions file are never instances); (a schemas-only capability holds no contract documents)
   **Design decisions**: D6, and the schema's `oneOf`/`minItems` rationale
   **Dependencies**: 2.5
@@ -320,7 +320,7 @@ that way answers a question about a different copy.
   key or top-level `tool` key (verified against `gen-eval.yaml`, whose top
   level is `contract_version`, `tool`, `commands`, `exit_codes`).
 
-- [ ] 3.7 Implement `scripts/check_traceability.py` `[M]`
+- [x] 3.7 Implement `scripts/check_traceability.py` `[M]`
   **Design decisions**: D3, D4, D5, D6, D13
   **Dependencies**: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
   **Note**: reports every failure in one run, not the first. Mirror
@@ -334,7 +334,7 @@ that way answers a question about a different copy.
   or permitted. Use `yaml.safe_load` exclusively, like every existing
   contract path.
 
-- [ ] 3.8 Write tests that the output makes no satisfaction claim `[S]`
+- [x] 3.8 Write tests that the output makes no satisfaction claim `[S]`
   **Spec scenarios**: The Gate Makes No Claim That A Requirement Is Satisfied (output does not claim satisfaction)
   **Design decisions**: D5
   **Dependencies**: 3.7
@@ -344,7 +344,7 @@ that way answers a question about a different copy.
   requirement as subject. The line is pinned in the spec precisely so this
   test asserts the spec's phrase rather than freezing an invented literal.
 
-- [ ] 3.9 Write tests for concentration reporting `[S]`
+- [x] 3.9 Write tests for concentration reporting `[S]`
   **Spec scenarios**: The Gate Reports Citation Concentration Deterministically (concentration appears in the output); (a run whose only finding is concentration exits zero)
   **Design decisions**: D7
   **Dependencies**: 3.7
@@ -355,7 +355,7 @@ that way answers a question about a different copy.
   code is zero when concentration is the only finding. Without the defined
   trigger this test would assert the implementation against itself.
 
-- [ ] 3.10 Implement concentration reporting `[S]`
+- [x] 3.10 Implement concentration reporting `[S]`
   **Design decisions**: D7
   **Dependencies**: 3.9
   **Note**: denominator is the capability's traced operations, never one
@@ -363,7 +363,7 @@ that way answers a question about a different copy.
   (D10). The constant is documented as display-only: changing it can never
   change an exit code.
 
-- [ ] 3.11 Write tests for capability-scoped completeness `[S]`
+- [x] 3.11 Write tests for capability-scoped completeness `[S]`
   **Spec scenarios**: Completeness Is Evaluated Per Capability (a requirement served from another contract is covered); (a capability's contracts are evaluated as one surface); (a requirement cited by no document still fails)
   **Design decisions**: D9, D10
   **Dependencies**: 3.7
@@ -375,7 +375,7 @@ that way answers a question about a different copy.
   per document. Without it, a gate that never fails reverse completeness
   passes every scenario here.
 
-- [ ] 3.12 Evaluate completeness per capability, unioning its contracts `[M]`
+- [x] 3.12 Evaluate completeness per capability, unioning its contracts `[M]`
   **Design decisions**: D10
   **Dependencies**: 3.11
   **Note**: this is what makes splitting a capability's contract a staging
@@ -383,7 +383,7 @@ that way answers a question about a different copy.
   document (D6); reverse stays per capability (D13); the union is the
   evaluation, not the switch.
 
-- [ ] 3.13 Write tests for cross-capability citations `[S]`
+- [x] 3.13 Write tests for cross-capability citations `[S]`
   **Spec scenarios**: Citations May Name Requirements In Another Capability (an operation cites another capability's requirement); (a cross-capability citation satisfies the cited capability's reverse completeness); (an unresolvable cross-capability citation fails)
   **Design decisions**: D9
   **Dependencies**: 3.12
@@ -393,11 +393,11 @@ that way answers a question about a different copy.
   `/gen-eval/scenarios`) depends on the credit. The unresolvable case must
   distinguish unknown-capability from unknown-requirement-in-known-capability.
 
-- [ ] 3.14 Resolve and report cross-capability citations `[S]`
+- [x] 3.14 Resolve and report cross-capability citations `[S]`
   **Design decisions**: D9
   **Dependencies**: 3.13
 
-- [ ] 3.15 Write tests for change-scoped evaluation `[S]`
+- [x] 3.15 Write tests for change-scoped evaluation `[S]`
   **Spec scenarios**: Validation-Time Evaluation Is Scoped To The Change (a pre-existing gap does not fail a change that did not create it); (a requirement the change adds and nobody cites fails the change-scoped run); (opting a document in touches every operation in it); (opting a capability in touches every requirement of it); (an unresolvable merge base is an error, not an empty scope); (the output states which scope it evaluated)
   **Design decisions**: D12
   **Dependencies**: 3.12
@@ -429,7 +429,7 @@ that way answers a question about a different copy.
   after — the gate reporting success on the one diff that could still fix it
   cheaply.
 
-- [ ] 3.16 Implement change-scoped evaluation and the full sweep `[M]`
+- [x] 3.16 Implement change-scoped evaluation and the full sweep `[M]`
   **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (the change flag selects which delta shadows the archive); (omitting the change flag unions every on-branch delta); (a merge group is not evaluated against changes outside the batch)
   **Design decisions**: D12
   **Dependencies**: 3.15
@@ -471,7 +471,7 @@ that way answers a question about a different copy.
   command rather than folding these cases into `test_capability_scope.py`,
   where the flag-orthogonality is the thing being asserted.
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 4 — Retrofit the flagship example
 
