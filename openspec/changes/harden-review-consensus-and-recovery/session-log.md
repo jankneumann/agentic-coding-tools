@@ -317,3 +317,35 @@ The operator explicitly waived only PLAN_REVIEW quorum for this bootstrap change
 
 ### Context
 Completed and pushed the attempt core, routing, consensus policy, fail-closed convergence, recovery guidance, and CLI dispatcher recovery. The implementation dispatch ended before SDK/compatibility caller wiring and integration evidence, so IMPLEMENT will be retried from the preserved feature tip.
+
+---
+
+## Phase: Implementation (2026-08-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Reuse the shared recovery core for SDK reviews** `architectural: review-recovery` — Keeps SDK retries, deadlines, provenance, and quorum eligibility aligned with CLI and async dispatch.
+
+### Alternatives Considered
+- Maintain a separate SDK fallback loop: rejected because Would duplicate policy and permit divergent retry or timeout behavior.
+
+### Trade-offs
+- Accepted Explicit unsupported SDK thinking provenance over Pretending provider-neutral SDK thinking translation was applied because The SDK adapter has no portable thinking parameter path.
+
+### Completed Work
+- SDK review recovery and PR SDK-only compatibility
+- Golden false-zero and valid-empty quorum regression coverage
+- Typed result compatibility documentation and final quality evidence
+
+### Next Steps
+- Run implementation review and validation phases against the pushed feature branch.
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — shared CLI and SDK recovery dispatch
+- `skills/tests/autopilot/test_review_hardening_integration.py` — golden regression coverage
+- `openspec/changes/harden-review-consensus-and-recovery/validation-report.md` — final validation evidence
+
+### Context
+Completed bounded SDK recovery and the remaining compatibility, integration, documentation, and validation work. Existing completed package tasks were reconciled in tasks.md with final evidence recorded.
+
