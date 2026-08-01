@@ -123,7 +123,7 @@ that way answers a question about a different copy.
 
 ## Phase 2 — The traceability model
 
-- [ ] 2.0 Extend the CLI contract schema and promote the traceability schemas `[S]`
+- [x] 2.0 Extend the CLI contract schema and promote the traceability schemas `[S]`
   **Design decisions**: D13, and the contracts/README.md Promotion section
   **Dependencies**: None (runs first in this phase — 2.1's fixtures must be
   schema-valid)
