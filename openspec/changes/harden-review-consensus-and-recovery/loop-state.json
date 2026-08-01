@@ -1,23 +1,40 @@
 {
-  "schema_version": 4,
-  "change_id": "harden-review-consensus-and-recovery",
-  "current_phase": "IMPLEMENT",
-  "iteration": 0,
-  "total_iterations": 10,
-  "max_phase_iterations": 3,
-  "findings_trend": [],
   "blocking_findings": [],
-  "vendor_availability": {},
-  "packages_status": {},
-  "package_authors": {},
-  "implementation_strategy": {},
-  "memory_ids": [],
+  "change_id": "harden-review-consensus-and-recovery",
+  "cli_review_enabled": true,
+  "current_phase": "IMPLEMENT",
+  "error": null,
+  "escalation_reason": null,
+  "findings_trend": [],
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 3,
+    "total_loc_estimate": 1840
+  },
+  "gate_verdict": "proceed_with_review",
   "handoff_ids": [
     "gatekeeper-harden-review-consensus-recovery-1",
     "plan-iteration-1-1",
     "plan-review-1",
-    "plan_review-1"
+    "plan_review-1",
+    "implementation-partial-1"
   ],
+  "implementation_strategy": {},
+  "iteration": 0,
+  "last_handoff_id": "implementation-partial-1",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "phase_archetype": "implementer",
   "phase_history": [
     {
       "at": "2026-08-01T19:50:48.787501+00:00",
@@ -40,33 +57,22 @@
       "phase": "PLAN_REVIEW"
     },
     {
-      "phase": "PLAN_REVIEW",
-      "outcome": "operator_waiver",
       "at": "2026-08-01T21:25:57.680009+00:00",
-      "note": "Bootstrap-only quorum waiver; IMPL_REVIEW and VAL_REVIEW remain enabled"
+      "note": "Bootstrap-only quorum waiver; IMPL_REVIEW and VAL_REVIEW remain enabled",
+      "outcome": "operator_waiver",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-08-01T21:44:51.419119+00:00",
+      "outcome": "failed",
+      "phase": "IMPLEMENT"
     }
   ],
-  "last_handoff_id": "plan_review-1",
-  "started_at": "2026-08-01T19:49:19.418681+00:00",
   "phase_started_at": "2026-08-01T21:25:57.680166+00:00",
   "previous_phase": null,
-  "escalation_reason": null,
+  "schema_version": 4,
+  "started_at": "2026-08-01T19:49:19.418681+00:00",
+  "total_iterations": 10,
   "val_review_enabled": true,
-  "cli_review_enabled": true,
-  "error": null,
-  "phase_archetype": "reviewer",
-  "force": false,
-  "gate_signals": {
-    "external_dep_count": 0,
-    "has_broad_write_scope": false,
-    "has_db_migration": false,
-    "has_proposal": true,
-    "has_security_signal": false,
-    "has_specs": true,
-    "has_tasks": true,
-    "has_work_packages": true,
-    "package_count": 3,
-    "total_loc_estimate": 1840
-  },
-  "gate_verdict": "proceed_with_review"
+  "vendor_availability": {}
 }

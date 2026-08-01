@@ -282,3 +282,38 @@ Used four independently bounded external adapters after the sequential dispatche
 
 ### Context
 The operator explicitly waived only PLAN_REVIEW quorum for this bootstrap change after two bounded external attempts produced zero eligible results. Implementation and validation review remain enabled so the repaired dispatcher must still prove itself before PR submission.
+
+---
+
+## Phase: Implementation Partial (2026-08-01)
+
+**Agent**: codex-implementer | **Session**: N/A
+
+### Decisions
+1. **Preserve partial implementation** `architectural: skill-workflow` — All completed packages are committed, tested, merged, and pushed; remaining work is bounded and retryable.
+
+### Trade-offs
+- Accepted a second IMPLEMENT dispatch over discarding or escalating completed package work because the returned failure is partial completion rather than an unrecoverable implementation error
+
+### Completed Work
+- Added bounded attempt recovery, diagnostic redaction, chain validation, and shared quorum policy.
+- Added reviewer routing and thinking translation.
+- Added deterministic fail-closed consensus grouping and revision-2 report fields.
+- Removed final-round convergence relaxation and documented recovery behavior.
+- Wired CLI sync/async review dispatch through bounded recovery.
+
+### In Progress
+- Task 2.6 SDK and compatibility caller wiring
+
+### Next Steps
+- Finish SDK and compatibility caller wiring.
+- Add the integration golden regression and compatibility documentation.
+- Run final implementation quality gates.
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/review_attempts.py` — bounded attempt core
+- `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — deterministic consensus policy
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — partially completed dispatcher integration
+
+### Context
+Completed and pushed the attempt core, routing, consensus policy, fail-closed convergence, recovery guidance, and CLI dispatcher recovery. The implementation dispatch ended before SDK/compatibility caller wiring and integration evidence, so IMPLEMENT will be retried from the preserved feature tip.
