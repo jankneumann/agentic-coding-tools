@@ -490,9 +490,13 @@ def compute_touched_set(
         doc = documents_by_rel.get(rel_path)
         if doc is None:
             continue
-        unit = next((u for u in doc.units if u.unit_id == unit_id), None)
-        if unit is not None and unit.block is not None and unit.block.requirements:
-            for req_id in unit.block.requirements:
+        matching_unit = next((u for u in doc.units if u.unit_id == unit_id), None)
+        if (
+            matching_unit is not None
+            and matching_unit.block is not None
+            and matching_unit.block.requirements
+        ):
+            for req_id in matching_unit.block.requirements:
                 touched.requirements.add(req_id)
 
     return touched
