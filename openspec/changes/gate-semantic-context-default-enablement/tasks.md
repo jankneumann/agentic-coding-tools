@@ -694,7 +694,7 @@ requires a favourable number.
       reports all seven packages `declared`; `validate_work_packages.py`
       confirms the edited file is still schema-valid.
 
-- [ ] 7.5 Run `openspec validate gate-semantic-context-default-enablement
+- [x] 7.5 Run `openspec validate gate-semantic-context-default-enablement
       --strict` and fix everything it reports
       **Dependencies**: 7.1
       **Size**: S
@@ -707,6 +707,12 @@ requires a favourable number.
       installs — `npx -y @fission-ai/openspec@<ci-version>` — and validate **by
       change id**, so neither a tooling difference nor another change's state
       can mask a real failure in this change's own deltas.
+      **Result**: `npm view @fission-ai/openspec version` resolved to
+      **1.7.0** on 2026-08-01 (CI's unpinned install would fetch the same,
+      issue #318 still open). `npx -y @fission-ai/openspec@1.7.0 validate
+      gate-semantic-context-default-enablement --strict` reports "Change
+      'gate-semantic-context-default-enablement' is valid" (exit 0). Nothing
+      to fix.
 
 - [ ] 7.6 MANUAL: record the exact `gh api` call to add the two new jobs to
       branch protection's required contexts, and state that until it is applied
