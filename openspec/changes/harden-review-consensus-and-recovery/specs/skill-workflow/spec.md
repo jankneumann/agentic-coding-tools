@@ -4,7 +4,9 @@
 
 Consensus synthesis SHALL preserve source dispositions and SHALL derive blocking state independently from cross-vendor match status.
 
-The report SHALL expose `confirmed_count`, `provisional_count`, compatibility `unconfirmed_count`, `disagreement_count`, `integration_blocking_count`, `convergence_blocking_count`, `effective_blocking_count`, and compatibility `blocking_count`. `provisional_count` SHALL equal `unconfirmed_count`; `effective_blocking_count` SHALL count the unique union of integration and convergence blockers; and `blocking_count` SHALL equal `effective_blocking_count`.
+The report SHALL expose `confirmed_count`, `provisional_count`, compatibility `unconfirmed_count`, `disagreement_count`, `integration_blocking_count`, `convergence_blocking_count`, `effective_blocking_count`, and compatibility `blocking_count`. `provisional_count` SHALL equal `unconfirmed_count`; `effective_blocking_count` SHALL count the unique union of integration and convergence blockers; and `blocking_count` SHALL equal `effective_blocking_count`. Canonical item `policy_status=provisional` SHALL serialize with deprecated `status=unconfirmed`; confirmed and disagreement values SHALL be identical in both fields.
+
+Revision-2 reports SHALL preserve the legacy `reviewers`, flat quorum fields, per-finding identifiers/match fields, `agreed_type`, `agreed_criticality`, and `recommended_disposition` as derived compatibility aliases. `validate_consensus_report()` SHALL reject any report whose compatibility aliases disagree with canonical revision-2 fields or whose quorum fields violate their relational invariants.
 
 For medium-or-higher source dispositions `fix`, `regenerate`, or `escalate`, the policy SHALL apply this matrix:
 
@@ -36,6 +38,17 @@ For medium-or-higher source dispositions `fix`, `regenerate`, or `escalate`, the
 - **THEN** `summary.unconfirmed_count` SHALL equal `summary.provisional_count`
 - **AND** `summary.blocking_count` SHALL equal `summary.effective_blocking_count`
 - **AND** `summary.effective_blocking_count` SHALL count each group at most once even when both policies block it
+
+#### Scenario: Legacy and revision-2 consensus readers agree
+- **WHEN** a revision-2 report is serialized
+- **THEN** legacy `reviewers`, flat quorum, `status`, type, criticality, match, and disposition fields SHALL remain present
+- **AND** canonical `policy_status`, nested quorum, source findings, adjudication, and blocker counts SHALL remain present
+- **AND** `validate_consensus_report()` SHALL reject any disagreement between the legacy aliases and canonical fields
+
+#### Scenario: False quorum aliases are rejected
+- **WHEN** `received` exceeds `requested`, differs from the distinct eligible-vendor count, or `met` differs from `received >= minimum_required`
+- **THEN** `validate_consensus_report()` SHALL reject the report
+- **AND** nested and deprecated flat quorum fields SHALL not be persisted
 
 ### Requirement: Evidence-Backed Finding Adjudication
 
@@ -103,7 +116,9 @@ The matcher SHALL reject over-limit input before quadratic work. Defaults SHALL 
 
 CLI, SDK, and async review dispatch SHALL classify malformed, empty, or schema-invalid completion output as `invalid_output` and SHALL execute a bounded recovery chain before final failure.
 
-For each vendor, the invalid-output chain SHALL contain one initial attempt, at most one corrective redispatch on the initial model, and at most one attempt for each deduplicated configured fallback model. All attempts SHALL share a monotonic logical-request deadline. After vendor-local exhaustion, the orchestrator MAY try at most one available vendor that was not already dispatched, selected in stable configured order; that replacement receives the same vendor-local bound. The logical request SHALL contribute at most one quorum unit.
+For each vendor, the invalid-output chain SHALL contain one initial attempt, at most one corrective redispatch on the initial model, and at most one attempt for each deduplicated configured fallback model. All attempts SHALL share one monotonic per-vendor deadline. The public per-vendor timeout SHALL bound the entire primary/corrective/fallback chain rather than reset for each model subprocess. The outer dispatcher SHALL enforce the deadline, persist the terminal vendor result immediately, and continue to the next scheduled vendor. After vendor-local exhaustion, the orchestrator MAY try at most one available vendor that was not already dispatched, selected in stable configured order; that replacement receives the same vendor-local bound. The logical request SHALL contribute at most one quorum unit.
+
+Every attempt chain SHALL pass JSON Schema validation and `validate_review_attempt_chain()` before persistence or quorum evaluation. The schema SHALL enforce exactly one initial attempt, at most one corrective attempt, at most one replacement-vendor attempt, one terminal attempt, and no successful non-terminal attempt. The application validator SHALL enforce unique monotonically increasing indexes, configured fallback membership and deduplication, remaining-deadline use, legal vendor transitions, terminal attribution, and no attempts after success.
 
 The round scheduler SHALL assign a vendor to at most one logical review slot. If an undispatched primary vendor is consumed as a replacement, its original slot SHALL be transferred or cancelled before dispatch, the manifest SHALL record the allocation change, and the vendor SHALL NOT be dispatched again in that round. Quorum SHALL count at most one eligible result per distinct vendor.
 
@@ -159,6 +174,17 @@ The round scheduler SHALL assign a vendor to at most one logical review slot. If
 - **THEN** the attempt SHALL fail before vendor invocation with `error_class=configuration`
 - **AND** replacement policy MAY continue without counting the failed logical result toward quorum
 
+#### Scenario: Model fallback does not multiply the vendor timeout
+- **GIVEN** a vendor has a primary model and one or more fallbacks
+- **WHEN** the primary consumes the per-vendor deadline
+- **THEN** no fallback SHALL receive a fresh timeout budget
+- **AND** the outer dispatcher SHALL persist a terminal timeout result and continue to the next scheduled vendor
+
+#### Scenario: Structurally invalid attempt chain fails closed
+- **WHEN** a chain contains duplicate or non-monotonic indexes, repeated corrective/replacement attempts, an unconfigured or duplicate fallback, an illegal vendor transition, or any attempt after success
+- **THEN** schema or `validate_review_attempt_chain()` validation SHALL reject it
+- **AND** the result SHALL not be persisted as successful or count toward quorum
+
 ### Requirement: Review Attempt Diagnostics
 
 Every logical vendor review SHALL persist bounded attempt provenance without persisting unredacted or unbounded process output.
@@ -202,7 +228,7 @@ The dispatcher, checkpoint writer, synthesizer, and convergence loop SHALL use o
 
 ### Requirement: Review Convergence Loop
 
-The convergence loop SHALL dispatch reviews through `ReviewOrchestrator.dispatch_and_wait()`, persist every logical result before synthesis, synthesize findings through `ConsensusSynthesizer.synthesize()`, and declare convergence only when the shared predicate reports quorum met and `summary.convergence_blocking_count == 0`. It SHALL enforce a maximum iteration cap (default 3 rounds per phase). Exhaustion with a convergence blocker SHALL return an explicit inconclusive/escalated result and SHALL NOT relax provisional findings in the final round.
+The convergence loop SHALL dispatch reviews through `ReviewOrchestrator.dispatch_and_wait()`, persist every logical result before synthesis, synthesize findings through `ConsensusSynthesizer.synthesize()`, validate the report through `validate_consensus_report()`, and declare convergence only when the shared predicate reports quorum met and `summary.convergence_blocking_count == 0`. It SHALL enforce a maximum iteration cap (default 3 rounds per phase). Exhaustion with a convergence blocker SHALL return an explicit inconclusive/escalated result and SHALL NOT relax provisional findings in the final round.
 
 #### Scenario: Convergence achieved after adjudication
 - **GIVEN** quorum is met and all medium-or-higher actionable findings have valid non-blocking adjudications
@@ -224,7 +250,7 @@ The convergence loop SHALL dispatch reviews through `ReviewOrchestrator.dispatch
 
 ### Requirement: Quorum Reporting
 
-Quorum reporting SHALL derive `quorum_received` exclusively by applying the shared quorum-eligibility predicate to logical review results. A schema-valid zero-finding result SHALL count; malformed, unattributable, non-terminal, and configuration-failed attempts SHALL not. `quorum_requested` SHALL count logical review slots rather than physical attempts, so corrective, fallback, and replacement attempts never inflate quorum.
+Quorum reporting SHALL derive `quorum_received` exclusively by applying the shared quorum-eligibility predicate to distinct-vendor logical review results. A schema-valid zero-finding result SHALL count; malformed, unattributable, non-terminal, and configuration-failed attempts SHALL not. `quorum_requested` SHALL count logical review slots rather than physical attempts, so corrective, fallback, and replacement attempts never inflate quorum. The report SHALL record `minimum_required`; `quorum_received` SHALL be no greater than `quorum_requested`; and quorum SHALL be met exactly when `quorum_received >= minimum_required`. Nested and flat compatibility quorum fields SHALL be identical.
 
 #### Scenario: Corrective attempts do not inflate quorum
 - **GIVEN** two logical vendor requests produce five physical attempts and both end in schema-valid terminal results

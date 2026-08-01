@@ -3,7 +3,7 @@
 ## 1. Consensus policy contract
 
 - [ ] 1.1 Write blocker-policy characterization tests [S]
-  **Spec scenarios**: skill-workflow.1 (unmatched actionable blocker), skill-workflow.2 (matching failure false zero), skill-workflow.3 (explicit integration policy), skill-workflow.4 (source refutation), skill-workflow.5 (unsupported dismissal), skill-workflow.6 (deferred visibility)
+  **Spec scenarios**: skill-workflow.1 (unmatched actionable blocker), skill-workflow.2 (matching failure false zero), skill-workflow.3 (explicit integration policy), compatibility aliases, false quorum rejection, skill-workflow.4 (source refutation), skill-workflow.5 (unsupported dismissal), skill-workflow.6 (deferred visibility)
   **Contracts**: `contracts/consensus-policy.schema.json`
   **Design decisions**: D1, D2
   **Dependencies**: None
@@ -17,14 +17,14 @@
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py`, `skills/parallel-infrastructure/scripts/tests/fixtures/review-hardening/consensus/**`
 
 - [ ] 1.3 Extend consensus report schemas for review hardening [S]
-  **Spec scenarios**: skill-workflow.1 through skill-workflow.9
+  **Spec scenarios**: skill-workflow.1 through skill-workflow.9, old/new reader compatibility, nested/flat quorum invariants
   **Contracts**: `contracts/consensus-policy.schema.json`
   **Design decisions**: D1, D2, D3
   **Dependencies**: 1.1
   **Files**: `openspec/schemas/consensus-report.schema.json`, `skills/parallel-infrastructure/install_assets/openspec/schemas/consensus-report.schema.json`
 
 - [ ] 1.4 Implement pure blocker evaluation plus adjudication validation [M]
-  **Spec scenarios**: skill-workflow.1 through skill-workflow.6
+  **Spec scenarios**: skill-workflow.1 through skill-workflow.6, compatibility alias and relational quorum validation
   **Contracts**: `contracts/consensus-policy.schema.json`
   **Design decisions**: D1, D2
   **Dependencies**: 1.1, 1.3, 2.3
@@ -44,7 +44,7 @@
 ## 2. Vendor recovery path
 
 - [ ] 2.1 Write transport recovery characterization tests [M]
-  **Spec scenarios**: skill-workflow.10 (corrective success), skill-workflow.11 (model fallback), skill-workflow.12 (exhaustion), replacement success/unavailable/no-double-vote, capacity fallback, auth terminal, transient exhaustion, configuration failure, skill-workflow.13 (attempt provenance), skill-workflow.14 (secret redaction), skill-workflow.16 (malformed/unattributable quorum exclusion)
+  **Spec scenarios**: skill-workflow.10 (corrective success), skill-workflow.11 (model fallback), skill-workflow.12 (exhaustion), replacement success/unavailable/no-double-vote, capacity fallback, auth terminal, transient exhaustion, configuration failure, whole-chain vendor timeout, invalid chain rejection, skill-workflow.13 (attempt provenance), skill-workflow.14 (secret redaction), skill-workflow.16 (malformed/unattributable quorum exclusion)
   **Contracts**: `contracts/review-attempt.schema.json`
   **Design decisions**: D4, D5, D7
   **Dependencies**: None
@@ -58,14 +58,14 @@
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_review_routing.py`, `agent-coordinator/tests/test_archetype_routing.py`, `agent-coordinator/tests/test_agents_config.py`
 
 - [ ] 2.3 Add shared attempt, diagnostics, and quorum-policy infrastructure [M]
-  **Spec scenarios**: skill-workflow.13 through skill-workflow.16, valid empty checkpoint eligibility
+  **Spec scenarios**: skill-workflow.13 through skill-workflow.16, valid empty checkpoint eligibility, attempt-chain application validation
   **Contracts**: `contracts/review-attempt.schema.json`
   **Design decisions**: D5, D7
   **Dependencies**: 2.1
   **Files**: `skills/parallel-infrastructure/scripts/review_attempts.py`, `skills/parallel-infrastructure/scripts/review_result_policy.py`, `skills/parallel-infrastructure/scripts/checkpoint_findings.py`, `skills/parallel-infrastructure/scripts/tests/test_review_attempts.py`, `skills/parallel-infrastructure/scripts/tests/test_checkpoint_findings.py`
 
 - [ ] 2.4 Implement the transport-neutral bounded recovery engine [M]
-  **Spec scenarios**: skill-workflow.10 through skill-workflow.12, replacement success/unavailable/no-double-vote, capacity fallback, auth terminal, transient exhaustion, configuration failure, deadline and budget exhaustion
+  **Spec scenarios**: skill-workflow.10 through skill-workflow.12, replacement success/unavailable/no-double-vote, capacity fallback, auth terminal, transient exhaustion, configuration failure, whole-chain vendor timeout, attempt-chain validation, deadline and budget exhaustion
   **Contracts**: `contracts/review-attempt.schema.json`
   **Design decisions**: D4
   **Dependencies**: 2.3
@@ -79,7 +79,7 @@
   **Files**: `agent-coordinator/agents.yaml`, `agent-coordinator/src/agents_config.py`, `skills/parallel-infrastructure/scripts/review_routing.py`, `skills/parallel-infrastructure/scripts/tests/test_review_routing.py`, `agent-coordinator/tests/test_archetype_routing.py`, `agent-coordinator/tests/test_agents_config.py`
 
 - [ ] 2.6 Wire recovery and reviewer routing into every transport and compatibility caller [M]
-  **Spec scenarios**: skill-workflow.10 through skill-workflow.16, agent-archetypes.1 through agent-archetypes.7
+  **Spec scenarios**: skill-workflow.10 through skill-workflow.16, whole-chain vendor timeout with later-vendor continuation and progressive terminal persistence, agent-archetypes.1 through agent-archetypes.7
   **Contracts**: `contracts/review-attempt.schema.json`
   **Design decisions**: D6
   **Dependencies**: 2.3, 2.4, 2.5
@@ -119,7 +119,7 @@
 ## 4. Integration evidence
 
 - [ ] 4.1 Add the end-to-end review-hardening golden regression [M]
-  **Spec scenarios**: skill-workflow.2, skill-workflow.4, skill-workflow.12, agent-archetypes.1
+  **Spec scenarios**: skill-workflow.2, skill-workflow.4, skill-workflow.12, old-producer/new-consumer and new-producer/old-consumer consensus fixtures, false quorum aliases, invalid attempt chains, agent-archetypes.1
   **Contracts**: `contracts/consensus-policy.schema.json`, `contracts/review-attempt.schema.json`
   **Design decisions**: D1 through D7
   **Dependencies**: 1.5, 2.6, 3.2
@@ -134,7 +134,7 @@
 
 - [ ] 4.3 Run final quality gates [S]
   **Spec scenarios**: all
-  **Contracts**: all revision-1 contracts
+  **Contracts**: all revision-2 contracts
   **Design decisions**: D1 through D7
   **Dependencies**: 4.2
   **Files**: `openspec/changes/harden-review-consensus-and-recovery/validation-report.md`, `openspec/changes/harden-review-consensus-and-recovery/tasks.md`

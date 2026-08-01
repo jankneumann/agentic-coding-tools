@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools.dev/contracts/harden-review-consensus-and-recovery/review-attempt.schema.json",
   "title": "Logical Review Request and Attempt Chain",
+  "description": "validate_review_attempt_chain() enforces ordering, unique indexes, fallback membership, deadlines, vendor transitions, terminal attribution, and no attempts after success in addition to this schema.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -29,7 +30,32 @@
       "items": {"$ref": "#/$defs/Attempt"},
       "contains": {"properties": {"terminal": {"const": true}}, "required": ["terminal"]},
       "minContains": 1,
-      "maxContains": 1
+      "maxContains": 1,
+      "allOf": [
+        {
+          "contains": {"properties": {"reason": {"const": "initial"}}, "required": ["reason"]},
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {"properties": {"reason": {"const": "corrective_redispatch"}}, "required": ["reason"]},
+          "minContains": 0,
+          "maxContains": 1
+        },
+        {
+          "contains": {"properties": {"reason": {"const": "replacement_vendor"}}, "required": ["reason"]},
+          "minContains": 0,
+          "maxContains": 1
+        },
+        {
+          "not": {
+            "contains": {
+              "properties": {"success": {"const": true}, "terminal": {"const": false}},
+              "required": ["success", "terminal"]
+            }
+          }
+        }
+      ]
     },
     "terminal_outcome": {
       "type": "string",
