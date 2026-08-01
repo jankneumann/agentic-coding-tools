@@ -36,6 +36,8 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
+from pydantic import BaseModel, Field, model_validator
+
 # ---------------------------------------------------------------------------
 # D2 — the normative slug algorithm
 # ---------------------------------------------------------------------------
@@ -375,16 +377,92 @@ class RequirementResolver:
         return True
 
 
+# ---------------------------------------------------------------------------
+# The traceability block model (D1) — parsed only, never inferred
+# ---------------------------------------------------------------------------
+
+
+class TraceabilityExclusion(BaseModel):
+    """``excluded`` on an operation-side traceability block (D4).
+
+    Mirrors ``traceability.schema.json``'s ``excluded`` object: a non-blank
+    reason is the only requirement pydantic enforces here. Whether the
+    reason is a *good* reason is a review question, not a parse question.
+    """
+
+    reason: str = Field(min_length=1)
+
+
+class TraceabilityBlock(BaseModel):
+    """One contracted operation's traceability (D1): citations, or an exclusion.
+
+    Carried as ``x-traceability`` on an OpenAPI operation and as
+    ``traceability`` on a CLI contract flag, positional, or command — one
+    model, two surface spellings, matching ``contracts/traceability.schema.json``
+    exactly (including its ``oneOf``: an operation that both cites and
+    excludes is stating that it has a purpose and that it has none).
+
+    Parsing only. Nothing on this class or its callers infers a citation
+    from a name, a path, or prose similarity — every ``requirements`` entry
+    is copied verbatim from the contract as written (D1). Resolving those
+    entries against the effective requirement set is a separate step
+    (:func:`resolve_citations`), and evaluating completeness is Phase 3's.
+    """
+
+    requirements: list[str] | None = None
+    excluded: TraceabilityExclusion | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_of_requirements_or_excluded(self) -> "TraceabilityBlock":
+        has_requirements = self.requirements is not None
+        has_excluded = self.excluded is not None
+        if has_requirements == has_excluded:
+            raise ValueError(
+                "a traceability block must set exactly one of `requirements` or "
+                "`excluded` — citing a requirement and excluding the operation "
+                "at once states both that it has a purpose and that it has none"
+            )
+        if has_requirements and not self.requirements:
+            raise ValueError(
+                "`requirements` must not be empty — an empty list is an "
+                "exclusion written without a reason, spelled differently"
+            )
+        return self
+
+
+def resolve_citations(
+    block: TraceabilityBlock,
+    resolver: RequirementResolver,
+    *,
+    change_id: str | None = None,
+) -> list[str]:
+    """Resolve every id in ``block.requirements`` to its heading, fail closed.
+
+    Returns ``[]`` for an excluded block (nothing to resolve) and the
+    resolved headings, in citation order, otherwise. The first unresolved id
+    raises :class:`UnresolvedRequirementError` immediately, naming the id and
+    its nearest candidates (D2) — resolution is a precondition for
+    completeness evaluation; reporting every failure across a whole run is
+    Phase 3's job, not this function's.
+    """
+    if block.requirements is None:
+        return []
+    return [resolver.resolve(req_id, change_id=change_id) for req_id in block.requirements]
+
+
 __all__ = [
     "MalformedDeltaError",
     "ParsedDelta",
     "RequirementCollisionError",
     "RequirementResolver",
+    "TraceabilityBlock",
     "TraceabilityError",
+    "TraceabilityExclusion",
     "UnresolvedRequirementError",
     "parse_delta",
     "parse_requirement_headings",
     "requirement_body_text",
     "requirement_id",
+    "resolve_citations",
     "slugify",
 ]

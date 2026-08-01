@@ -156,7 +156,7 @@ that way answers a question about a different copy.
   diff by definition, no reviewer will see it — the predecessor change hit
   exactly this and nine review rounds missed it.
 
-- [ ] 2.1 Write tests for parsing traceability blocks off contracts `[S]`
+- [x] 2.1 Write tests for parsing traceability blocks off contracts `[S]`
   **Spec scenarios**: Contracted Operations Cite The Requirements They Serve (an operation declares its citations)
   **Design decisions**: D1
   **Dependencies**: 2.0, 1.2
@@ -164,7 +164,7 @@ that way answers a question about a different copy.
   operation, CLI contract `traceability` on a flag/command. One model, two
   surface spellings, as with `x-gen-eval-surface`.
 
-- [ ] 2.2 Implement traceability parsing on both archetypes `[M]`
+- [x] 2.2 Implement traceability parsing on both archetypes `[M]`
   **Design decisions**: D1
   **Dependencies**: 2.1
   **Note**: parse only. Resolution is 2.5, completeness is Phase 3. Keeping
@@ -179,7 +179,7 @@ that way answers a question about a different copy.
   so `generate_tool_descriptor.py`'s `exclude_defaults=True` keeps
   `evaluation/descriptor.yaml` byte-identical (ci.yml:431).
 
-- [ ] 2.3 Write a test that no citation is ever inferred `[S]`
+- [x] 2.3 Write a test that no citation is ever inferred `[S]`
   **Spec scenarios**: Contracted Operations Cite The Requirements They Serve (an operation declares its citations)
   **Design decisions**: D1
   **Dependencies**: 2.2
@@ -189,7 +189,7 @@ that way answers a question about a different copy.
   other test still green — and it is the one change that would silently make
   the whole gate worthless.
 
-- [ ] 2.4 Write tests for unresolved-citation failure `[S]`
+- [x] 2.4 Write tests for unresolved-citation failure `[S]`
   **Spec scenarios**: Contracted Operations Cite The Requirements They Serve (a citation names a requirement that exists); Requirement Identifiers Are Stable And Fail Closed (a reworded heading breaks its citations)
   **Design decisions**: D2
   **Dependencies**: 2.2
@@ -199,11 +199,11 @@ that way answers a question about a different copy.
   twenty-minute hunt, and the rule gets removed. Ranking is display-only —
   assert it never rebinds.
 
-- [ ] 2.5 Resolve citations and fail closed on unknown ids `[S]`
+- [x] 2.5 Resolve citations and fail closed on unknown ids `[S]`
   **Design decisions**: D2
   **Dependencies**: 2.4, 1.2
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 3 — The completeness gate
 
