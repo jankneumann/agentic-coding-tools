@@ -568,6 +568,16 @@ be meaningful.
   **Note**: update `skills/implement-feature/SKILL.md` in the same commit. It
   currently instructs the implementer to fill the column by hand; leaving that
   text in place while generating the column is how the two disagree.
+  **Note**: SKILL.md is not the only copy. The `change-context.md` TEMPLATE
+  carries the same instruction in its comment block ("Phase 1: Fill Req ID,
+  Spec Source, Description, Contract Ref, ...") — and the template is what an
+  author actually reads while filling the matrix in. Edit BOTH source copies:
+  `openspec/schemas/feature-workflow/templates/change-context.md` and
+  `skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/change-context.md`.
+  Do NOT edit the `.agents/` or `.claude/` copies — `install.sh` regenerates
+  them from `skills/`. The skill-workflow delta's "Contract Ref SHALL NOT be
+  populated by hand" has no owner other than this task; wp-matrix carries a
+  verification step that fails while either template still says to hand-fill it.
 
 - [ ] 5.6 Wire the change-scoped gate into `/validate-feature` `[M]`
   **Spec scenarios**: Validation-Time Evaluation Is Scoped To The Change (a pre-existing gap does not fail a change that did not create it); skill-workflow delta: Validation-Time Requirement Traceability Gate (all four scenarios)

@@ -62,10 +62,13 @@ up, at the level where being wrong costs the most.
   run would report genuinely-served requirements as gaps. This also makes
   splitting a capability's contract a staging mechanism rather than a weakening.
 - **Two run contexts, one gate.** At `/validate-feature` it is scoped to what
-  the change touches and blocks. On the integration branch it sweeps every
+  the change touches and blocks. On the **merge candidate** it sweeps every
   capability: opted-in surfaces block, the rest report. Enforcing the full set
   at validation would block every change to a capability on gaps it did not
-  create.
+  create. The same full sweep runs again on the integration branch after the
+  merge has landed, and that run is **non-blocking by construction** — a job
+  that fires after the merge can red `main`, it cannot stop `main` going red,
+  so its only honest role is debt visibility (D12).
 - **Requirement ids become addressable.** OpenSpec requirements have headings,
   not ids. A stable id derived from `<capability>.<slug>` plus a resolver, so a
   citation can be checked rather than believed.
@@ -226,8 +229,12 @@ show up anywhere today.
   reverse-enforced capability) that nothing cites or excludes.
 - A change-scoped run whose merge base or change id cannot be resolved errors;
   it never passes on an empty touched set.
-- The full sweep on the integration branch fails on violations in opted-in
+- The full sweep on the merge candidate fails on violations in opted-in
   surfaces and reports the rest.
+- The full sweep on the integration branch, after merge, reports violations in
+  every capability and fails on none — its exit status does not depend on what
+  it found. A post-merge run that could fail would be claiming to gate a merge
+  that has already happened.
 - `gen-eval.yaml`'s 17 flags each cite a requirement or carry an exclusion,
   and `openspec/contracts/gen-eval-framework/traceability-exclusions.yaml`
   covers every gen-eval-framework requirement with no CLI surface — the

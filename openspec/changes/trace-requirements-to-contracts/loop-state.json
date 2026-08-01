@@ -1,15 +1,45 @@
 {
-  "blocking_findings": [],
+  "blocking_findings": [
+    {
+      "id": "F1",
+      "severity": "critical",
+      "status": "OPEN \u2014 needs operator decision",
+      "title": "Blocking CI job's event set and base discriminator are unspecified",
+      "summary": "ci.yml has three triggers (push:[main], pull_request, merge_group) and zero event guards ('grep -n \"if:\"' returns only 'if: failure()'). 'grep -rn event_name' across all five plan artifacts returns zero. D12's table, tasks.md:634 and work-packages.yaml:408 all say the blocking sweep is pull_request-triggered, which either makes the round-4 merge_group fix unreachable, or \u2014 with no guard, the repo convention \u2014 runs the job on push where no base exists and spec.md:520 makes that a hard failure, redding main on every push."
+    },
+    {
+      "id": "F3",
+      "severity": "critical",
+      "status": "OPEN \u2014 needs operator decision",
+      "title": "merge_group diff spans every batched PR, so the ambiguity rule fails the queue",
+      "summary": "spec.md:524 says a diff touching more than one change directory SHALL fail as ambiguous. On merge_group the diff covers the whole group, so any two OpenSpec changes batched together fail the merge queue. Coupled to F1: whether this matters at all depends on whether the blocking job runs on merge_group."
+    },
+    {
+      "id": "F2",
+      "severity": "critical",
+      "status": "FIXED inline",
+      "title": "proposal.md contradicted D12, the spec delta, and its own risks table",
+      "summary": "proposal.md:229 stated as an acceptance criterion that the integration-branch sweep FAILS on violations, while the risks table in the same file says it 'reports them in full without blocking'. Both lines 65 and 229 attributed blocking to the integration branch rather than the merge candidate. Corrected."
+    },
+    {
+      "id": "F4",
+      "severity": "critical",
+      "status": "FIXED inline",
+      "title": "skill-workflow's no-hand-fill requirement had no owner",
+      "summary": "The hand-fill instruction lives in two source copies of the change-context.md template, neither covered by any package's write_allow. wp-matrix believed SKILL.md was the only copy. Added both paths to wp-matrix write_allow, named them in task 5.5, and added a verification step confirmed to FAIL on the unmodified tree (exit 1, naming both files)."
+    }
+  ],
   "change_id": "trace-requirements-to-contracts",
   "cli_review_enabled": true,
-  "current_phase": "PLAN_FIX",
+  "current_phase": "ESCALATE",
   "error": null,
-  "escalation_reason": null,
+  "escalation_reason": "Round 5 returned not_converged with 4 blocking findings, all independently re-verified at the source. Two were fixed inline (F2 proposal.md self-contradiction, F4 unowned change-context.md templates). Two are COUPLED and require an operator decision because they concern the same behaviour and a fix to either alone can be wrong: F1 (the blocking CI job's event set and base discriminator are unspecified) and F3 (on merge_group the diff spans every batched PR, so the ambiguity rule fails the merge queue whenever two OpenSpec changes batch). iteration 5 of max_phase_iterations 5. Orchestrator declined to raise the cap a third time.",
   "findings_trend": [
     10,
     6,
     3,
-    1
+    1,
+    4
   ],
   "force": false,
   "gate_signals": {
@@ -30,12 +60,13 @@
     "plan-iterate-20260728T145934Z",
     "plan-review-20260728T151918Z",
     "plan-review-20260731T134500Z",
-    "plan-review-20260731T195510Z"
+    "plan-review-20260731T195510Z",
+    "plan-review-20260801T152600Z"
   ],
   "implementation_strategy": {},
-  "iteration": 4,
-  "last_handoff_id": "plan-review-20260731T195510Z",
-  "max_phase_iterations": 4,
+  "iteration": 5,
+  "last_handoff_id": "plan-review-20260801T152600Z",
+  "max_phase_iterations": 5,
   "memory_ids": [],
   "package_authors": {},
   "packages_status": {},
@@ -115,6 +146,27 @@
       "outcome": "complete",
       "at": "2026-07-31T20:33:27.549085+00:00",
       "note": "1 blocking + 1 paired nit fixed inline; NO confirming review round has run against this fix \u2014 awaiting operator decision on round 5 vs proceed to IMPLEMENT"
+    },
+    {
+      "phase": "PLAN_REVIEW",
+      "outcome": "started",
+      "round": 5,
+      "at": "2026-08-01T00:00:00+00:00",
+      "note": "max_phase_iterations raised 4->5 by orchestrator to run ONE confirming round against 14a6c839, which no reviewer has read. Rationale reported to operator: each of the last two rounds found a defect introduced by the immediately preceding fix, so an unconfirmed fix is the specific risk this round tests."
+    },
+    {
+      "phase": "PLAN_REVIEW",
+      "outcome": "not_converged",
+      "round": 5,
+      "at": "2026-08-01T15:26:00+00:00",
+      "note": "4 blocking findings, all independently re-verified at the source. Round 5's brief was deliberately BROADER than rounds 2-4 (whole-plan coherence sweep, first since round 1), so the count is not comparable to the [10,6,3,1] trend: F2 and F4 are pre-existing defects the narrow rounds never looked for, not regressions. Reviewer also corrected the orchestrator's brief: 7 tasks carry [human], not 8 \u2014 4.3 is untagged deliberately."
+    },
+    {
+      "phase": "PLAN_FIX",
+      "outcome": "partial",
+      "round": 5,
+      "at": "2026-08-01T15:26:00+00:00",
+      "note": "F2 and F4 fixed inline; both validators green. F1 and F3 NOT fixed \u2014 they are coupled (both concern whether and how the blocking job runs on merge_group) and fixing either alone can be wrong. Escalated rather than guessed, because the last two rounds' findings were both defects introduced by the orchestrator's own fix to the preceding round."
     }
   ],
   "phase_started_at": "2026-07-31T20:33:27.549085+00:00",
