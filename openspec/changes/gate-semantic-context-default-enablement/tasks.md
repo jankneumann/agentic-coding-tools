@@ -596,7 +596,29 @@ requires a favourable number.
       enablement — D12 reads `verdict != "pass"` as an expiry condition, so this
       report withdraws authorization rather than granting it.
 
-- [ ] 6.5 Checkpoint: run tests, review diff, verify scope
+- [x] 6.5 Checkpoint: run tests, review diff, verify scope
+      **Result**: `packages/context-eval` **306 passed, 0 skipped** — identical
+      to the phase 5 baseline, so recording a report at the durable path changed
+      no test outcome (notably `test_spec_gate_artifact.py`, which now resolves a
+      real artifact instead of asserting the absent-is-fail-closed state).
+      `ruff check src/ tests/` clean; `mypy src/context_eval/ --strict` clean
+      over 17 files. All three `wp-measure` tier-B checks pass: the report
+      validates against the promoted
+      `context-eval-report.schema.json`; `-k provenance` in
+      `test_report_emitter.py` is 5 passed; `make semantic-enablement-gate`
+      exits `0` — correctly, because `INJECTION_DEFAULT_ENABLED` is still
+      `False` and a default that claims nothing needs no evidence. The report's
+      `verdict` is `"fail"`, a member of the two-member closed enum, and its
+      three `fail_reasons` are all members of the closed 12-item vocabulary.
+      **Scope**: four files, all inside `wp-measure`'s `write_allow` except
+      `tasks.md`, which is in no package's `write_allow` — the same plan gap
+      phase 5 recorded at 5.8(a).
+      **Environment left as found**: the scratch `ri13-measure-pg` container and
+      both throwaway git worktrees are torn down. The other project's
+      `real-ingestion-test-tiers-in-ci-postgres-1` on port 5432 was never
+      connected to and is `Up (healthy)`. The five untracked
+      `openspec/schemas/context-*.schema.json` files (issue #311) are still
+      untracked, verified before and after every commit in this phase.
 
 ---
 

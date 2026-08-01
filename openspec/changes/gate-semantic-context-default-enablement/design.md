@@ -624,8 +624,9 @@ measurement is five defects in this repository's own code, four of which no
 amount of environment would have fixed.
 
 **Semantic hit@5 remains unmeasured, and the honest statement is that it has
-never been measured on this repository.** Not "measured and found wanting", and
-not "waived" — the retrieval and utility gates never had an index to query.
+never been measured on this repository.** It was not measured and found wanting,
+and no operator judgement was substituted for the missing number — the retrieval
+and utility gates never had an index to query.
 `retrieval_quality` and `coding_context_utility` both declare `min_index_tier:
 live` and both received `none`.
 
