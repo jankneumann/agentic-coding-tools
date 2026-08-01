@@ -18,10 +18,26 @@ mutually unintelligible vendor dialects, enforced by whatever each vendor chose 
 and verifiable by us in no way at all. The file's own header comment asserts that "the dispatch
 mode controls sandbox permissions," which is aspiration rather than description.
 
-The in-flight task router (`POST /route/task`) is about to make this sharper rather than better.
-It returns "vendor, location, model, **isolation**, dispatch mode, and rationale" — a fifth
-consumer of a field that still means nothing at the point of execution. Building a careful
-deterministic router that emits an inert value is the failure mode this epic exists to prevent.
+The planned task router is about to make this sharper rather than better. It returns "vendor,
+location, model, **isolation**, dispatch mode, and rationale" — a fifth consumer of a field that
+still means nothing at the point of execution. Building a careful deterministic router that emits
+an inert value is the failure mode this epic exists to prevent.
+
+That router does not start from nothing. `add-adaptive-model-router` merged on 2026-07-14
+(PR #237, 3,794 lines) and landed the routing *intelligence*: `model_routing/resolver.py` scoring
+candidates on a success-adjusted cost-per-completed-task utility, feedback posteriors,
+epsilon-greedy exploration under a spend ceiling, OpenAPI contracts for five `/routing/*` paths,
+DB contracts for four tables, and an `OpenAICompatAdapter` for OpenRouter and local endpoints. It
+also replaced the hardcoded `_estimate_cost_delta` stub in `skills/autopilot-roadmap/scripts/policy.py`
+with catalog-aware pricing.
+
+Every wiring task was deliberately deferred to an environment with Postgres and a Node toolchain.
+The consequence is that the intelligence is **inert**: there is no `/routing/*` endpoint, no
+`ROUTING_ADAPTIVE` flag, and no applied migration anywhere in `agent-coordinator/src`. The change
+sits at 21 of 71 task checkboxes with a documented backlog. This epic therefore begins by wiring
+what already merged, and extends that single resolver rather than standing up a second one beside
+it — two resolvers scoring overlapping decisions would be a worse outcome than the inert field
+this epic set out to fix.
 
 Meanwhile the pressure toward unattended operation is increasing. `TRUST_POSTURE.md` exists
 specifically so operators can flip human gates from `block` to `auto`, and symphony's
@@ -38,20 +54,40 @@ never silently, where the platform cannot support it.
 
 ## Capabilities
 
-### Capability: Vendor capability and cost registry
+### Capability: Wired model-routing core
 
-A coordinator `vendor_registry` service holding static capabilities from `agents.yaml` plus
-dynamic availability, rate-limit windows with known reset times, and a versioned real cost
-table replacing the `policy.py` stub tiers. Exposed as `GET /vendors` and
-`GET /vendors/{id}/availability`.
+The deferred half of `add-adaptive-model-router`: the `model_routing` DB migration and catalog
+service, the `/routing/*` HTTP endpoints plus MCP tool matching the already-merged OpenAPI
+contract, `ROUTING_ADAPTIVE` delegation in `agents_config.resolve_archetype_for_phase` with
+static-tier fallback, `endpoint_kind` / `base_url` fields in the `agents.yaml` schema, local
+endpoint registration and health probe, refresher and ledger scheduling in `WatchdogService`,
+and `OpenAICompatAdapter` threaded into `review_dispatcher`'s discovery order.
 
-This is the factual substrate the router reasons over. Without it, routing decisions are
-guesses about which vendors are reachable and what they cost.
+This is the substrate the rest of the epic assumes. The scoring logic already exists and is
+unit-tested; what is missing is every path by which anything can reach it.
+
+**Acceptance Outcomes:**
+- The `/routing/*` paths in the merged OpenAPI contract are served by real endpoints and a matching MCP tool
+- The `model_routing` migration is applied and `catalog.py` reads from it with no external call on the read path
+- `ROUTING_ADAPTIVE` off reproduces today's static-tier behavior exactly, and on delegates to the resolver
+- `OpenAICompatAdapter` is reachable through `review_dispatcher`'s discovery order
+
+### Capability: Vendor capability and availability registry
+
+A coordinator `vendor_registry` surface holding static capabilities from `agents.yaml` plus
+dynamic availability and rate-limit windows with known reset times, exposed as `GET /vendors`
+and `GET /vendors/{id}/availability`.
+
+Cost is deliberately **not** part of this capability. The versioned cost table this item
+originally carried was delivered by PR #237, which replaced the `policy.py` stub tiers with
+catalog-aware pricing; vendor cost is read from that catalog rather than stored a second time.
+What remains unbuilt is the availability half — nothing in the coordinator answers "is this
+vendor reachable right now, and when does its rate limit reset?"
 
 **Acceptance Outcomes:**
 - `GET /vendors` returns capabilities, availability, and rate-limit reset times for every configured vendor
-- The stubbed cost tiers in `policy.py` are replaced by a versioned cost table
-- Availability reflects real vendor state, not just static configuration
+- Availability reflects probed vendor state rather than static configuration alone
+- Cost figures are read from the routing catalog, with no second cost table introduced
 
 ### Capability: Structured vendor result channel
 
@@ -69,18 +105,24 @@ This lands before any change that wraps or rewrites dispatch, because it rewrite
 - Dispatch state is readable from the coordinator ledger alone
 - Cloud sessions no longer leak locks
 
-### Capability: Task router (vendor × location × model × isolation)
+### Capability: Routing extended to location, isolation, and dispatch mode
 
-`POST /route/task` plus a bridge function, as a superset of `/archetypes/resolve_for_phase`.
-Takes a task routing profile (phase and archetype signals, duration, scope, interactivity,
-secret needs, parallelism, repo shape, roadmap policy) and returns vendor, location, model,
-isolation, dispatch mode, and a rationale. Driven by deterministic unit-testable rules
-versioned in `routing.yaml`, with every decision recorded under a routing audit event type
-and a local static fallback table for when the coordinator is unreachable.
+The merged resolver scores *model* choice on cost and quality utility. It does not carry
+location, isolation, or dispatch mode. This capability adds those dimensions to the existing
+resolver and the existing `/routing/*` contract namespace, driven by a task routing profile
+(phase and archetype signals, duration, scope, interactivity, secret needs, parallelism, repo
+shape, roadmap policy). Rules stay deterministic and unit-testable, versioned in `routing.yaml`,
+with every decision recorded as a routing audit event and a static fallback table for when the
+coordinator is unreachable.
+
+Extending rather than adding is the point. The original framing introduced a parallel
+`POST /route/task`, but `/routing/*` is already claimed by a merged contract, and two resolvers
+scoring overlapping decisions is precisely the kind of split-brain this epic exists to remove.
 
 **Acceptance Outcomes:**
-- Routing rules are deterministic and unit-testable, with no model call in the decision path
-- Every routing decision is recorded as an audit event carrying its rationale
+- Routing returns location, isolation, and dispatch mode alongside the vendor and model the merged resolver already selects
+- Exactly one resolver scores routing decisions, reachable through the existing `/routing/*` namespace
+- Rules are deterministic and unit-testable, with no model call in the decision path
 - A documented static fallback table produces a decision when the coordinator is down
 
 ### Capability: A pinned isolation contract between router and dispatch
@@ -103,10 +145,10 @@ is written.
 
 ### Capability: Orchestrator obedience to the router
 
-Call `route/task` before each `dispatch_fn` and pass the decision into the dispatch context as
-a contract. Execute switch decisions with ledger-verified re-dispatch to the alternate vendor.
-Add a global iteration cap and a no-progress detector to the roadmap loop, and un-stub the
-cost-delta and wall-clock estimators.
+Call the routing resolver before each `dispatch_fn` and pass the decision into the dispatch
+context as a contract. Execute switch decisions with ledger-verified re-dispatch to the alternate
+vendor. Add a global iteration cap and a no-progress detector to the roadmap loop, and un-stub the
+wall-clock estimator — the cost-delta estimator is already un-stubbed by PR #237.
 
 This is where the routing decision — including its isolation field — actually arrives at the
 point of execution. Until it lands, enforcement has nothing to enforce.
@@ -157,6 +199,9 @@ speculative generality, given that both candidate runtimes are explicitly pre-1.
 - **Enforcement must not re-author policy.** Network policy is authored once, in the
   coordinator. Runtime policy documents are *renderings* of it. A second source of truth for
   allowed domains is a failure of this epic.
+- **One resolver, one cost table.** The merged `model_routing` resolver and catalog are extended,
+  never paralleled. A second scoring path or a second vendor cost store is a failure of this epic
+  on the same grounds as a second policy source.
 - **Degradation must be loud, never silent.** `srt` requires macOS or Linux with bubblewrap,
   socat, and ripgrep. Where unavailable, dispatch proceeds unsandboxed with a warning and an
   audit event, following the pattern already established in `vendor_health.py`. Failing closed
@@ -176,12 +221,14 @@ speculative generality, given that both candidate runtimes are explicitly pre-1.
 
 ## Phases
 
-**Phase 1 — Substrate.** Vendor registry, structured result channel, and the environment
-posture fix. Three independent roots with no dependencies between them; they can run in
-parallel.
+**Phase 1 — Substrate.** Wiring the merged model-routing core, the structured result channel,
+and the environment posture fix. Three independent roots with no dependencies between them;
+they can run in parallel. The routing-core wiring is the long pole.
 
-**Phase 2 — Decision.** The task router, then the pinned isolation contract. The router needs
-the registry; the contract needs the router's shape to exist before it can be pinned.
+**Phase 2 — Decision.** The vendor availability registry, then the routing extension, then the
+pinned isolation contract. Each needs the previous: the registry needs somewhere to read cost
+from, the extension needs live vendor facts, and the contract needs the extension's isolation
+output to exist before it can be pinned.
 
 **Phase 3 — Delivery.** The orchestrator obeys the router, carrying the decision into dispatch
 context.
