@@ -32,6 +32,20 @@ nobody enabled anything, and cannot be watched failing there — which is why
 reason is a gate people learn to route around; every unmet condition is printed
 with its id and the values that disagreed.
 
+**Provenance is not evidence.** D12's six conditions all ask whether the report
+is *current*; none of them asked whether it is *about anything*. A hand-written
+document carrying the right digest, the right harness identity, a matching
+embedder fingerprint, a reachable indexed revision and ``verdict: "pass"``, with
+``gates: []``, ``per_consumer: []``, ``cases: []`` and ``cases_declared: 0``, was
+accepted as schema-valid and printed seven met conditions on its way to exit 0 —
+the same category of error as the waived spike report whose automated check was
+``'Verdict' in t and 'hit@5' in t``. :data:`REPORT_DESCRIBES_CORPUS` re-derives
+the declared denominator from the artifact rather than trusting that the emitter
+was the last thing to touch it, and the report contract now sets ``minItems`` on
+``gates``, ``per_consumer`` and ``cases`` so the empty body is unwritable at all.
+Two layers, because they fail independently: the schema does not run on a file
+somebody edited by hand, and the gate does not run on a file nobody committed.
+
 The declared default is read by parsing the source, not by importing it. Two
 reasons, and the second is the load-bearing one: importing would run ri-12's
 module in the gate's process for a single boolean, and parsing lets the gate
@@ -55,7 +69,8 @@ from typing import Any
 
 from . import report
 from .__main__ import EXIT_APPARATUS, EXIT_GATE_FAILURE, EXIT_PASS, EXIT_REPORT_UNUSABLE
-from .loader import CorpusError, corpus_digest
+from .loader import CorpusError, load_corpus
+from .models import Corpus
 
 #: The one declaration the whole gate reads (design D11).
 DEFAULT_CONSTANT = "INJECTION_DEFAULT_ENABLED"
@@ -71,8 +86,8 @@ PASS_VERDICT = "pass"
 #: A git probe must not be able to hang a build.
 GIT_TIMEOUT_SECONDS = 15
 
-#: Design D12's six expiry conditions, in the order D12 states them. Any one of
-#: them renders the evidence absent, and absent evidence authorizes nothing.
+#: Design D12's expiry conditions, in the order D12 states them. Any one of them
+#: renders the evidence absent, and absent evidence authorizes nothing.
 CORPUS_DIGEST_CURRENT = "corpus_digest_current"
 HARNESS_VERSION_CURRENT = "harness_version_current"
 EMBEDDER_FINGERPRINT_CURRENT = "embedder_fingerprint_current"
@@ -80,12 +95,23 @@ INDEXED_REVISION_REACHABLE = "indexed_revision_reachable"
 SCHEMA_VALID = "schema_valid"
 VERDICT_PASS = "verdict_pass"
 
+#: Not one of D12's original six, and added because those six were all
+#: **provenance**. A hand-written document carrying the current corpus digest,
+#: the current harness identity, a matching embedder fingerprint, a reachable
+#: indexed revision and ``verdict: "pass"`` satisfied every one of them while
+#: carrying ``gates: []``, ``per_consumer: []``, ``cases: []`` and
+#: ``cases_declared: 0`` — and this gate printed seven met conditions and
+#: returned 0. Provenance says the evidence is *current*; nothing in it says the
+#: evidence is *about anything*.
+REPORT_DESCRIBES_CORPUS = "report_describes_corpus"
+
 EXPIRY_CONDITIONS: tuple[str, ...] = (
     CORPUS_DIGEST_CURRENT,
     HARNESS_VERSION_CURRENT,
     EMBEDDER_FINGERPRINT_CURRENT,
     INDEXED_REVISION_REACHABLE,
     SCHEMA_VALID,
+    REPORT_DESCRIBES_CORPUS,
     VERDICT_PASS,
 )
 
@@ -211,7 +237,7 @@ def _assigns_the_constant(node: ast.Assign | ast.AnnAssign | ast.AugAssign) -> b
 
 
 # ---------------------------------------------------------------------------
-# the six expiry conditions
+# the expiry conditions
 # ---------------------------------------------------------------------------
 
 
@@ -227,19 +253,106 @@ def _verdict_condition(document: dict[str, Any]) -> Condition:
     )
 
 
-def _corpus_digest_condition(document: dict[str, Any], corpus_root: Path) -> Condition:
+def _load_corpus(corpus_root: Path) -> Corpus:
+    """The declaration the report claims to describe. Loaded once, used twice.
+
+    The digest condition needs it and so does
+    :func:`_describes_corpus_condition`, and loading it twice would let the two
+    conditions disagree about which corpus they were comparing against.
+    """
     try:
-        current = corpus_digest(corpus_root)
+        return load_corpus(corpus_root)
     except CorpusError as error:
         raise EnablementGateError(f"the corpus at {corpus_root} does not load: {error}") from error
+
+
+def _corpus_digest_condition(document: dict[str, Any], corpus: Corpus) -> Condition:
+    current = corpus.digest
     recorded = document.get("harness", {}).get("corpus_digest")
     if recorded == current:
         return Condition(CORPUS_DIGEST_CURRENT, True, f"the corpus digest is still {current}")
     return Condition(
         CORPUS_DIGEST_CURRENT,
         False,
-        f"the report was judged against corpus {recorded}, and {corpus_root} now "
+        f"the report was judged against corpus {recorded}, and {corpus.root} now "
         f"digests to {current}: a case or a threshold changed",
+    )
+
+
+def _describes_corpus_condition(document: dict[str, Any], corpus: Corpus) -> Condition:
+    """The report's BODY accounts for the corpus its provenance claims.
+
+    Every other condition interrogates provenance or one verdict field, and all
+    of them hold of a document that measured nothing: a digest and a version are
+    copied in a text editor, and ``gates: []`` / ``per_consumer: []`` /
+    ``cases: []`` is what an empty body looks like. ``compose_verdict()`` does
+    guarantee the declared denominator — but it guarantees it about a value in
+    memory, and this gate re-reads an editable file from disk. A guarantee that
+    does not travel with the artifact is not a guarantee about the artifact, so
+    it is re-derived here, against the only document a gate ever actually reads.
+
+    Deliberately a comparison against the corpus rather than an internal
+    consistency check. A report can be perfectly self-consistent about a corpus
+    nobody declared.
+    """
+    declared_cases = tuple(case.case_id for case in corpus.cases)
+    declared_gates = tuple(gate.id for gate in corpus.gates)
+    declared_consumers = tuple(slice_.consumer for slice_ in corpus.consumers)
+
+    counts = document.get("corpus", {})
+    cases = document.get("cases", [])
+    gates = document.get("gates", [])
+    per_consumer = document.get("per_consumer", [])
+
+    reported_cases = [str(entry.get("case_id")) for entry in cases]
+    scored = sum(1 for entry in cases if entry.get("scored") is True)
+
+    complaints: list[str] = []
+    for label, recorded, expected in (
+        ("cases_declared", counts.get("cases_declared"), len(declared_cases)),
+        ("gates_declared", counts.get("gates_declared"), len(declared_gates)),
+        ("consumers_declared", counts.get("consumers_declared"), len(declared_consumers)),
+    ):
+        if recorded != expected:
+            complaints.append(f"it records {label}={recorded!r} and the corpus declares {expected}")
+
+    absent_cases = [case_id for case_id in declared_cases if case_id not in set(reported_cases)]
+    if absent_cases:
+        complaints.append(f"it carries no result for declared cases {absent_cases}")
+    if len(reported_cases) != len(declared_cases):
+        complaints.append(
+            f"it carries {len(reported_cases)} case results for "
+            f"{len(declared_cases)} declared cases"
+        )
+    if scored != counts.get("cases_scored"):
+        complaints.append(
+            f"it claims cases_scored={counts.get('cases_scored')!r} while "
+            f"{scored} of its case results are marked scored"
+        )
+
+    reported_gates = {str(entry.get("id")) for entry in gates}
+    absent_gates = [gate_id for gate_id in declared_gates if gate_id not in reported_gates]
+    if absent_gates:
+        complaints.append(f"the corpus declares gates {absent_gates} that it does not report")
+
+    reported_consumers = {str(entry.get("consumer")) for entry in per_consumer}
+    absent_consumers = [name for name in declared_consumers if name not in reported_consumers]
+    if absent_consumers:
+        complaints.append(
+            f"the corpus declares consumers {absent_consumers} that it does not report"
+        )
+
+    if complaints:
+        return Condition(
+            REPORT_DESCRIBES_CORPUS,
+            False,
+            "the report does not describe the corpus it names: " + "; ".join(complaints),
+        )
+    return Condition(
+        REPORT_DESCRIBES_CORPUS,
+        True,
+        f"the report accounts for all {len(declared_cases)} declared cases, "
+        f"{len(declared_gates)} gates and {len(declared_consumers)} consumers",
     )
 
 
@@ -362,15 +475,17 @@ def evaluate(
         return Outcome(True, (present, Condition(SCHEMA_VALID, False, str(error))))
     valid = Condition(SCHEMA_VALID, True, "the report satisfies its published contract")
 
+    corpus = _load_corpus(corpus_root)
     return Outcome(
         True,
         (
             present,
             valid,
-            _corpus_digest_condition(document, corpus_root),
+            _corpus_digest_condition(document, corpus),
             _harness_version_condition(document, harness_version),
             _embedder_fingerprint_condition(document, embedding_contract),
             _indexed_revision_condition(document, repository_root),
+            _describes_corpus_condition(document, corpus),
             _verdict_condition(document),
         ),
     )

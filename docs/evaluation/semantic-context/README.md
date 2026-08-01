@@ -195,6 +195,7 @@ enablement as unauthorized — when any of these hold (design decision D12):
 | `index.embedder.fingerprint` differs from the configured embedding contract's fingerprint | A model, dimension, or indexing-parameter change invalidates the measurement. A matching model name alone does not restore it. |
 | `index.indexed_revision` is not reachable from the evaluated tree | The measurement describes a tree this one does not descend from. |
 | The report fails schema validation | It is not a report. |
+| The report's body does not account for every declared case, gate, and consumer | Provenance says the evidence is *current*; only the body says it is *about anything*. A document carrying the right digest, the right harness identity, a matching fingerprint, a reachable revision and a `pass` verdict, with `gates: []` and `cases: []`, is green because it is empty. |
 | `verdict` is not `pass` | It never authorized anything. |
 
 Any one of these requires the injection default to stay disabled. This is what
@@ -232,6 +233,20 @@ watched failing there; `packages/context-eval/tests/test_enablement_gate_mutatio
 is the substitute, constructing an enabled default against a report that is
 absent, stale by each condition above, failing, and schema-invalid, and asserting
 a non-zero exit for each.
+
+It mutates the report's **body** as well as its provenance, and the second family
+exists because the first was not enough. Perturbing where a report came from
+never catches a report that came from the right place and says nothing: a
+hand-written document carrying the current digest, the current harness version, a
+matching fingerprint, a reachable revision and `verdict: "pass"`, with
+`gates: []`, `per_consumer: []`, `cases: []` and `cases_declared: 0`, was accepted
+as schema-valid and authorized an enabled default with seven conditions printed
+as met. Two layers close it. The report contract sets `minItems` on `gates`,
+`per_consumer` and `cases` and a lower bound of 1 on the declared counts, so the
+empty body is unwritable; `report_describes_corpus` re-derives the declared
+denominator from the file on disk, so a schema-valid report that omits a declared
+gate, consumer, or case — which no schema can detect, because it is a comparison
+between two documents — is treated as absent evidence.
 
 Without `EMBEDDING_CONTRACT` the embedding fingerprint has nothing to be compared
 against, and that is an unmet condition rather than a skipped one: an unchecked

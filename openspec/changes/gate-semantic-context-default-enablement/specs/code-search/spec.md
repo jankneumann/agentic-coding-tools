@@ -53,7 +53,7 @@ Any evaluation used to authorize semantic context enablement SHALL record the ex
 
 ### Requirement: Enablement Evidence Expiry
 
-Authorization to enable semantic context SHALL lapse when the evidence supporting it no longer describes the current system. A changed evaluation corpus, a changed threshold, a changed harness version, a changed embedding fingerprint, an index revision unreachable from the tree under test, or a report that fails schema validation SHALL each render the evidence absent.
+Authorization to enable semantic context SHALL lapse when the evidence supporting it no longer describes the current system. A changed evaluation corpus, a changed threshold, a changed harness version, a changed embedding fingerprint, an index revision unreachable from the tree under test, a report that fails schema validation, or a report whose body does not account for every case, gate, and consumer the corpus declares SHALL each render the evidence absent.
 
 #### Scenario: A changed threshold invalidates the existing evidence
 
@@ -68,3 +68,18 @@ Authorization to enable semantic context SHALL lapse when the evidence supportin
   recorded
 - **THEN** the evidence SHALL be treated as absent
 - **AND** a matching model name alone SHALL NOT restore it
+
+#### Scenario: Current provenance over an empty body authorizes nothing
+
+- **WHEN** a report carries current provenance and a passing verdict but records
+  no gate result, no consumer result, or no case result
+- **THEN** the report SHALL fail schema validation and SHALL NOT be writable at
+  the durable path
+- **AND** the evidence SHALL be treated as absent
+
+#### Scenario: A report that omits a declared gate or consumer is not evidence
+
+- **WHEN** a schema-valid report omits a gate, a consumer, or a case the corpus
+  declares, or records a scored-case count its own results do not support
+- **THEN** the evidence SHALL be treated as absent
+- **AND** the unmet condition SHALL be named
