@@ -41,6 +41,15 @@ def test_review_mode_without_phase_uses_reviewer_default() -> None:
     assert result.phase is None
 
 
+def test_default_resolver_is_used_when_no_custom_resolver_is_supplied() -> None:
+    result = resolve_review_routing(vendor="codex", dispatch_mode="review")
+
+    assert result is not None
+    assert result.archetype == "reviewer"
+    assert result.model
+    assert result.source == "local_coordinator"
+
+
 def test_quick_mode_keeps_static_routing() -> None:
     result = resolve_review_routing(
         vendor="pi", dispatch_mode="quick", resolver=_resolved,

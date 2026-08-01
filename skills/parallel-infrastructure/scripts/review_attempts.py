@@ -170,6 +170,11 @@ def run_vendor_recovery(
             started = now()
             response = invoke(vendor, model, remaining, reason)
             elapsed = now() - started
+            if now() >= deadline:
+                response = {
+                    "error_class": "timeout",
+                    "error_detail": "logical vendor deadline exhausted during invocation",
+                }
             record = _attempt_record(index=len(attempts) + 1, vendor=vendor, model=model, reason=reason, response=response, elapsed=elapsed, fallback_reason=fallback_reason)
             attempts.append(record)
             return record

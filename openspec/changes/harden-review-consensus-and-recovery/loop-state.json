@@ -1,85 +1,93 @@
 {
-  "schema_version": 4,
+  "blocking_findings": [
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 1
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 2
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 3
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 4
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 5
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 6
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 7
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 8
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 9
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 10
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 11
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 12
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 13
+    }
+  ],
   "change_id": "harden-review-consensus-and-recovery",
+  "cli_review_enabled": true,
   "current_phase": "IMPL_FIX",
-  "iteration": 1,
-  "total_iterations": 13,
-  "max_phase_iterations": 3,
+  "error": null,
+  "escalation_reason": null,
   "findings_trend": [
     13
   ],
-  "blocking_findings": [
-    {
-      "id": 1,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 2,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 3,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 4,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 5,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 6,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 7,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 8,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 9,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 10,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 11,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 12,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 13,
-      "criticality": "critical",
-      "disposition": "fix"
-    }
-  ],
-  "vendor_availability": {},
-  "packages_status": {},
-  "package_authors": {},
-  "implementation_strategy": {},
-  "memory_ids": [],
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 3,
+    "total_loc_estimate": 1840
+  },
+  "gate_verdict": "proceed_with_review",
   "handoff_ids": [
     "gatekeeper-harden-review-consensus-recovery-1",
     "plan-iteration-1-1",
@@ -88,8 +96,17 @@
     "implementation-partial-1",
     "implementation-2",
     "implementation-iteration-1-1",
-    "implementation-review-1"
+    "implementation-review-1",
+    "implementation-fix-1-1.json"
   ],
+  "implementation_strategy": {},
+  "iteration": 1,
+  "last_handoff_id": "implementation-fix-1-1.json",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "phase_archetype": "implementer",
   "phase_history": [
     {
       "at": "2026-08-01T19:50:48.787501+00:00",
@@ -136,29 +153,18 @@
       "at": "2026-08-01T22:41:14.397482+00:00",
       "outcome": "not_converged",
       "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-08-01T22:52:07.812995+00:00",
+      "outcome": "stuck",
+      "phase": "IMPL_FIX"
     }
   ],
-  "last_handoff_id": "implementation-review-1",
-  "started_at": "2026-08-01T19:49:19.418681+00:00",
   "phase_started_at": "2026-08-01T22:41:14.578930+00:00",
   "previous_phase": null,
-  "escalation_reason": null,
+  "schema_version": 4,
+  "started_at": "2026-08-01T19:49:19.418681+00:00",
+  "total_iterations": 13,
   "val_review_enabled": true,
-  "cli_review_enabled": true,
-  "error": null,
-  "phase_archetype": "reviewer",
-  "force": false,
-  "gate_signals": {
-    "external_dep_count": 0,
-    "has_broad_write_scope": false,
-    "has_db_migration": false,
-    "has_proposal": true,
-    "has_security_signal": false,
-    "has_specs": true,
-    "has_tasks": true,
-    "has_work_packages": true,
-    "package_count": 3,
-    "total_loc_estimate": 1840
-  },
-  "gate_verdict": "proceed_with_review"
+  "vendor_availability": {}
 }

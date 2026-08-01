@@ -269,6 +269,24 @@ class TestCrossVendorFormatSkew:
 # ---------------------------------------------------------------------------
 
 class TestConsensusSynthesizer:
+    def test_description_bridge_does_not_merge_non_clique(self) -> None:
+        synth = ConsensusSynthesizer(match_threshold=0.45)
+        first = _finding(id=1, vendor="alpha", description="alpha beta gamma delta")
+        bridge = _finding(id=2, vendor="beta", description="alpha beta gamma epsilon")
+        third = _finding(id=3, vendor="gamma", description="beta gamma epsilon zeta")
+
+        matches = synth._match_all([first, bridge, third])
+
+        assert sorted(len(match.matched) + 1 for match in matches) == [1, 2]
+
+    def test_rejects_vendor_result_over_finding_limit(self) -> None:
+        synth = ConsensusSynthesizer()
+        finding = _finding()
+        with pytest.raises(ValueError, match="finding limit"):
+            synth.synthesize("plan", "test", [
+                VendorResult(vendor="codex", findings=[finding] * 501),
+            ])
+
     def test_confirmed_finding(self) -> None:
         """Two vendors agree on same finding with same disposition."""
         synth = ConsensusSynthesizer()

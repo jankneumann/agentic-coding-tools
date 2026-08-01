@@ -71,6 +71,59 @@ _BLOCKING_CRITICALITIES = {"medium", "high", "critical"}
 _DEFAULT_STALL_WINDOW = 3
 
 
+def validate_consensus_report(report: dict[str, Any]) -> None:
+    """Reject internally inconsistent consensus before making a decision.
+
+    JSON Schema validates each field's shape; this guard covers the
+    cross-field trust invariants which otherwise permit false quorum and
+    false-zero convergence signals.
+    """
+    quorum = report.get("quorum")
+    if not isinstance(quorum, dict):
+        raise ValueError("consensus report is missing canonical quorum")
+    requested = quorum.get("requested")
+    received = quorum.get("received")
+    minimum_required = quorum.get("minimum_required")
+    eligible_vendors = quorum.get("eligible_vendors")
+    met = quorum.get("met")
+    if (
+        not isinstance(requested, int) or not isinstance(received, int)
+        or not isinstance(minimum_required, int) or isinstance(requested, bool)
+        or isinstance(received, bool) or isinstance(minimum_required, bool)
+        or requested < 0 or received < 0 or minimum_required < 1
+    ):
+        raise ValueError("consensus quorum counts are invalid")
+    if not isinstance(eligible_vendors, list) or not all(isinstance(vendor, str) and vendor for vendor in eligible_vendors):
+        raise ValueError("consensus eligible_vendors is invalid")
+    if len(set(eligible_vendors)) != len(eligible_vendors) or received != len(eligible_vendors) or received > requested:
+        raise ValueError("consensus eligible-vendor count is inconsistent")
+    if not isinstance(met, bool) or met != (received >= minimum_required):
+        raise ValueError("consensus quorum met flag is inconsistent")
+    for flat, canonical in (("quorum_requested", requested), ("quorum_received", received), ("quorum_met", met)):
+        if report.get(flat) != canonical:
+            raise ValueError(f"consensus {flat} disagrees with canonical quorum")
+
+    findings = report.get("consensus_findings")
+    summary = report.get("summary")
+    if not isinstance(findings, list) or not isinstance(summary, dict):
+        raise ValueError("consensus findings or summary is invalid")
+    if summary.get("total_unique_findings") != len(findings):
+        raise ValueError("consensus total_unique_findings is inconsistent")
+    expected = {
+        "confirmed_count": sum(f.get("status") == "confirmed" for f in findings if isinstance(f, dict)),
+        "unconfirmed_count": sum(f.get("status") == "unconfirmed" for f in findings if isinstance(f, dict)),
+        "disagreement_count": sum(f.get("status") == "disagreement" for f in findings if isinstance(f, dict)),
+        "integration_blocking_count": sum(bool((f.get("policy") or {}).get("integration_blocking")) for f in findings if isinstance(f, dict)),
+        "convergence_blocking_count": sum(bool((f.get("policy") or {}).get("convergence_blocking")) for f in findings if isinstance(f, dict)),
+        "effective_blocking_count": sum(bool((f.get("policy") or {}).get("effective_blocking")) for f in findings if isinstance(f, dict)),
+    }
+    for key, value in expected.items():
+        if key in summary and summary[key] != value:
+            raise ValueError(f"consensus {key} is inconsistent")
+    if "blocking_count" in summary and summary["blocking_count"] != summary.get("effective_blocking_count", expected["effective_blocking_count"]):
+        raise ValueError("consensus blocking_count is inconsistent")
+
+
 def _logical_result_payload(result: ReviewResult) -> dict[str, Any] | None:
     """Return a shared-policy payload for recovery-aware dispatches.
 
@@ -517,6 +570,7 @@ def converge(
                 vendor_results=vendor_results,
             )
             consensus_dict = synthesizer.to_dict(report)
+            validate_consensus_report(consensus_dict)
         except Exception as exc:
             cf_safe_log_error(
                 "convergence.synthesis_failed_with_checkpoint",
@@ -533,6 +587,10 @@ def converge(
         disagreement_findings = [
             cf for cf in consensus_dict.get("consensus_findings", [])
             if cf.get("status") == "disagreement"
+            and (
+                not isinstance(cf.get("policy"), dict)
+                or bool(cf["policy"].get("convergence_blocking"))
+            )
         ]
         if disagreement_findings:
             logger.info(

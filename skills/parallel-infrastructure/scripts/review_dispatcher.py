@@ -36,6 +36,8 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from jsonschema import Draft202012Validator
+
 from review_attempts import run_vendor_recovery, validate_review_attempt_chain
 from review_routing import RoutingContext, Resolver, resolve_review_routing, translate_thinking
 
@@ -411,20 +413,43 @@ class CliVendorAdapter:
         top level is not already a findings object.
         """
         if "findings" in data:
-            return data
+            return data if CliVendorAdapter._validate_findings(data) else None
         # Unwrap grok's structured-output envelope (E6). structuredOutput is
         # normally the parsed object, but tolerate a JSON-string form too.
         structured = data.get("structuredOutput")
         if isinstance(structured, dict) and "findings" in structured:
-            return structured
+            return structured if CliVendorAdapter._validate_findings(structured) else None
         if isinstance(structured, str):
             try:
                 inner = json.loads(structured)
                 if isinstance(inner, dict) and "findings" in inner:
-                    return inner
+                    return inner if CliVendorAdapter._validate_findings(inner) else None
             except json.JSONDecodeError:
                 pass
         return None
+
+    @staticmethod
+    def _validate_findings(data: dict[str, Any]) -> bool:
+        """Validate the complete vendor payload before it becomes eligible.
+
+        A parseable object is not enough: enum violations and excessive
+        payloads must enter invalid-output recovery rather than count toward
+        quorum or reach consensus matching.
+        """
+        findings = data.get("findings")
+        if not isinstance(findings, list) or len(findings) > 500:
+            return False
+        try:
+            if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > 2 * 1024 * 1024:
+                return False
+            schema_path = Path(__file__).resolve().parents[3] / "openspec" / "schemas" / "review-findings.schema.json"
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            Draft202012Validator(schema).validate(data)
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return False
+        except Exception:  # jsonschema ValidationError; fail closed without exposing payloads
+            return False
+        return True
 
     @staticmethod
     def _parse_json_blob(text: str) -> dict[str, Any] | None:
@@ -805,6 +830,8 @@ class SdkVendorAdapter:
         cwd: Path,
         timeout_seconds: int = 300,
         api_key: str | None = None,
+        thinking_parameter: str | None = None,
+        thinking_value: str | None = None,
     ) -> ReviewResult:
         """Dispatch a review via vendor SDK with model fallback."""
         if not api_key:
@@ -827,6 +854,8 @@ class SdkVendorAdapter:
                     model=model,
                     api_key=api_key,
                     timeout=timeout_seconds,
+                    thinking_parameter=thinking_parameter,
+                    thinking_value=thinking_value,
                 )
                 return ReviewResult(
                     vendor=self.vendor,
@@ -874,31 +903,36 @@ class SdkVendorAdapter:
         model: str,
         api_key: str,
         timeout: int,
+        thinking_parameter: str | None = None,
+        thinking_value: str | None = None,
     ) -> dict[str, Any] | None:
         """Call the vendor SDK and parse JSON findings from response."""
         pkg = self.sdk_config.package
         if pkg == "anthropic":
-            return self._call_anthropic(prompt, model, api_key, timeout)
+            return self._call_anthropic(prompt, model, api_key, timeout, thinking_parameter, thinking_value)
         elif pkg == "openai":
-            return self._call_openai(prompt, model, api_key, timeout)
+            return self._call_openai(prompt, model, api_key, timeout, thinking_parameter, thinking_value)
         elif pkg == "google-generativeai":
-            return self._call_google(prompt, model, api_key, timeout)
+            return self._call_google(prompt, model, api_key, timeout, thinking_parameter, thinking_value)
         else:
             raise ValueError(f"Unknown SDK package: {pkg}")
 
     def _call_anthropic(
         self, prompt: str, model: str, api_key: str, timeout: int,
+        thinking_parameter: str | None = None, thinking_value: str | None = None,
     ) -> dict[str, Any] | None:
         """Dispatch via Anthropic SDK."""
         import anthropic
 
         client = anthropic.Anthropic(api_key=api_key, timeout=timeout)
         try:
+            thinking_kwargs = {thinking_parameter: thinking_value} if thinking_parameter and thinking_value else {}
             response = client.messages.create(
                 model=model,
                 max_tokens=self.sdk_config.max_tokens,
                 system=_SDK_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
+                **thinking_kwargs,
             )
             text = response.content[0].text if response.content else ""
             return CliVendorAdapter._parse_findings(text)
@@ -911,12 +945,14 @@ class SdkVendorAdapter:
 
     def _call_openai(
         self, prompt: str, model: str, api_key: str, timeout: int,
+        thinking_parameter: str | None = None, thinking_value: str | None = None,
     ) -> dict[str, Any] | None:
         """Dispatch via OpenAI SDK."""
         import openai
 
         client = openai.OpenAI(api_key=api_key, timeout=timeout)
         try:
+            thinking_kwargs = {thinking_parameter: thinking_value} if thinking_parameter and thinking_value else {}
             response = client.chat.completions.create(
                 model=model,
                 max_tokens=self.sdk_config.max_tokens,
@@ -925,6 +961,7 @@ class SdkVendorAdapter:
                     {"role": "system", "content": _SDK_SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
                 ],
+                **thinking_kwargs,
             )
             text = response.choices[0].message.content or ""
             return CliVendorAdapter._parse_findings(text)
@@ -937,6 +974,7 @@ class SdkVendorAdapter:
 
     def _call_google(
         self, prompt: str, model: str, api_key: str, timeout: int,
+        thinking_parameter: str | None = None, thinking_value: str | None = None,
     ) -> dict[str, Any] | None:
         """Dispatch via Google Generative AI SDK."""
         import google.generativeai as genai
@@ -944,12 +982,14 @@ class SdkVendorAdapter:
         genai.configure(api_key=api_key)
         gen_model = genai.GenerativeModel(model)
         try:
+            thinking_kwargs = {thinking_parameter: thinking_value} if thinking_parameter and thinking_value else {}
             response = gen_model.generate_content(
                 f"{_SDK_SYSTEM_PROMPT}\n\n{prompt}",
                 generation_config=genai.GenerationConfig(
                     response_mime_type="application/json",
                     max_output_tokens=self.sdk_config.max_tokens,
                 ),
+                **thinking_kwargs,
             )
             text = response.text if response.text else ""
             return CliVendorAdapter._parse_findings(text)
@@ -1544,6 +1584,8 @@ class ReviewOrchestrator:
                 "stderr": result.raw_stderr,
             }
         error_class = result.error_class.value if result.error_class else "invalid_output"
+        if error_class == ErrorClass.AUTH.value:
+            error_class = "auth"
         if error_class not in {
             "invalid_output", "capacity_exhausted", "auth", "transient",
             "timeout", "configuration", "unknown",
@@ -1568,7 +1610,7 @@ class ReviewOrchestrator:
         source = attempt_results[-1] if attempt_results else None
         error_value = terminal.get("error_class")
         try:
-            error_class = ErrorClass(error_value) if error_value else None
+            error_class = ErrorClass.AUTH if error_value == "auth" else (ErrorClass(error_value) if error_value else None)
         except ValueError:
             error_class = ErrorClass.UNKNOWN
         return ReviewResult(
@@ -1642,12 +1684,19 @@ class ReviewOrchestrator:
                     )
                     transport = "async"
                 else:
-                    result = one_model.dispatch(
+                    if remaining < 1:
+                        result = ReviewResult(
+                            vendor=adapter.vendor, success=False,
+                            error="logical vendor deadline exhausted",
+                            error_class=ErrorClass.TIMEOUT,
+                        )
+                    else:
+                        result = one_model.dispatch(
                         dispatch_mode, prompt, cwd,
-                        timeout_seconds=max(1, int(remaining)),
+                        timeout_seconds=int(remaining),
                         archetype_model=model,
                         archetype_thinking=routing.thinking if routing else None,
-                    )
+                        )
                     transport = "cli"
                 attempt_results.append(result)
                 return self._result_response(result, transport)
@@ -1688,11 +1737,10 @@ class ReviewOrchestrator:
         primary_model = (routing.model if routing else None) or adapter.sdk_config.model
         requested_routing = self._routing_payload(routing)
         attempt_results: list[ReviewResult] = []
-        # SDK dispatch has no configured, portable thinking control.  A
-        # requested setting must therefore fail closed before an SDK call; a
-        # later provenance annotation alone would incorrectly report success
-        # after silently dropping the request.
-        configuration_failure = bool(routing and routing.thinking is not None)
+        requested_thinking = routing.thinking if routing else None
+        sdk_parameter = adapter.sdk_config.thinking_parameter
+        sdk_value = adapter.sdk_config.thinking_values.get(requested_thinking) if requested_thinking else None
+        configuration_failure = bool(requested_thinking and (not sdk_parameter or not sdk_value))
 
         def invoke(_vendor: str, model: str, remaining: float, _reason: str) -> dict[str, Any]:
             # Recovery owns model fallback order.  Each SDK invocation gets a
@@ -1711,10 +1759,17 @@ class ReviewOrchestrator:
                     sdk_config=replace(adapter.sdk_config, model=model, model_fallbacks=[]),
                     openbao_role_id=adapter.openbao_role_id,
                 )
-                result = one_model.dispatch(
-                    mode="review", prompt=prompt, cwd=cwd,
-                    timeout_seconds=max(1, int(remaining)), api_key=api_key,
-                )
+                if remaining < 1:
+                    result = ReviewResult(vendor=adapter.vendor, success=False,
+                                          error="logical vendor deadline exhausted",
+                                          error_class=ErrorClass.TIMEOUT)
+                else:
+                    result = one_model.dispatch(
+                        mode="review", prompt=prompt, cwd=cwd,
+                        timeout_seconds=int(remaining), api_key=api_key,
+                        thinking_parameter=sdk_parameter if requested_thinking else None,
+                        thinking_value=sdk_value,
+                    )
             attempt_results.append(result)
             return self._result_response(result, "sdk")
 
@@ -1727,15 +1782,13 @@ class ReviewOrchestrator:
             timeout_seconds=timeout_seconds,
             requested_routing=requested_routing,
         )
-        # SDK transport configuration currently has no portable thinking API.
-        # Make that explicit in provenance rather than claiming a setting was
-        # applied by a provider-specific client call.
         for attempt in chain["attempts"]:
             execution = attempt["resolved_execution"]
-            execution["requested_thinking"] = routing.thinking if routing else None
-            execution["applied_thinking"] = None
+            execution["requested_thinking"] = requested_thinking
+            execution["applied_thinking"] = sdk_value
             execution["thinking_translation"] = (
-                "not_requested" if not routing or routing.thinking is None else "unsupported"
+                "not_requested" if requested_thinking is None else
+                ("applied" if not configuration_failure else "unsupported")
             )
         validate_review_attempt_chain(chain)
         return self._logical_result(vendor=reviewer.vendor, chain=chain, attempt_results=attempt_results)
@@ -1923,18 +1976,27 @@ class ReviewOrchestrator:
 
         from checkpoint_findings import write_manifest as _cf_write_manifest
 
-        dispatches = [
-            {
-                "vendor": r.vendor,
-                "success": r.success,
-                "model_used": r.model_used,
-                "models_attempted": r.models_attempted,
-                "elapsed_seconds": r.elapsed_seconds,
-                "error": r.error,
-                "error_class": r.error_class.value if r.error_class else None,
-            }
-            for r in results
-        ]
+        dispatches = []
+        for r in results:
+            if r.attempts:
+                dispatches.append({
+                    "logical_request_id": r.logical_request_id,
+                    "requested_vendor": r.requested_vendor,
+                    "requested_routing": r.requested_routing,
+                    "deadline_at": r.deadline_at,
+                    "budget": r.budget,
+                    "attempts": r.attempts,
+                    "terminal_outcome": r.terminal_outcome,
+                    "terminal_vendor": r.terminal_vendor,
+                    "quorum_eligible": r.quorum_eligible,
+                })
+            else:
+                dispatches.append({
+                    "vendor": r.vendor, "success": r.success, "model_used": r.model_used,
+                    "models_attempted": r.models_attempted, "elapsed_seconds": r.elapsed_seconds,
+                    "error": r.error,
+                    "error_class": "auth" if r.error_class == ErrorClass.AUTH else (r.error_class.value if r.error_class else None),
+                })
         _cf_write_manifest(
             output_path.parent,
             review_type=review_type,
@@ -1943,7 +2005,7 @@ class ReviewOrchestrator:
             change_id=None,
             dispatches=dispatches,
             quorum_requested=len(results),
-            quorum_received=sum(1 for r in results if r.success),
+            quorum_received=None,
         )
 
 

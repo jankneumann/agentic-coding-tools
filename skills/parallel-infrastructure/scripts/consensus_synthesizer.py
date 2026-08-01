@@ -25,7 +25,7 @@ import hashlib
 import logging
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -293,6 +293,8 @@ def _higher_criticality(a: str, b: str) -> str:
 # ---------------------------------------------------------------------------
 
 MATCH_THRESHOLD = 0.6
+MAX_FINDINGS_PER_VENDOR = 500
+MAX_VENDOR_PAYLOAD_BYTES = 2 * 1024 * 1024
 
 
 class ConsensusSynthesizer:
@@ -309,6 +311,19 @@ class ConsensusSynthesizer:
         vendor_results: list[VendorResult],
     ) -> ConsensusReport:
         """Produce a consensus report from multiple vendor results."""
+        for vendor_result in vendor_results:
+            if len(vendor_result.findings) > MAX_FINDINGS_PER_VENDOR:
+                raise ConsensusInputError(
+                    f"{vendor_result.vendor}: exceeds {MAX_FINDINGS_PER_VENDOR} finding limit"
+                )
+            encoded = json.dumps(
+                [asdict(finding) for finding in vendor_result.findings],
+                ensure_ascii=False,
+            ).encode("utf-8")
+            if len(encoded) > MAX_VENDOR_PAYLOAD_BYTES:
+                raise ConsensusInputError(
+                    f"{vendor_result.vendor}: exceeds {MAX_VENDOR_PAYLOAD_BYTES} byte limit"
+                )
         successful = [vr for vr in vendor_results if vr.success]
         quorum_met = len(successful) >= self.quorum
 
@@ -362,49 +377,36 @@ class ConsensusSynthesizer:
         )
 
     def _match_all(self, findings: list[Finding]) -> list[FindingMatch]:
-        """Build order-invariant connected groups from stable scored edges."""
+        """Build deterministic clique groups without transitive bridges."""
         ordered = sorted(findings, key=lambda f: (f.vendor, f.id, f.description))
-        parent = list(range(len(ordered)))
-
-        def find(index: int) -> int:
-            while parent[index] != index:
-                parent[index] = parent[parent[index]]
-                index = parent[index]
-            return index
-
-        def union(left: int, right: int) -> None:
-            left_root, right_root = find(left), find(right)
-            if left_root != right_root:
-                parent[max(left_root, right_root)] = min(left_root, right_root)
-
-        edges: list[tuple[float, str, int, int]] = []
-        for left, finding in enumerate(ordered):
-            for right in range(left + 1, len(ordered)):
-                candidate = ordered[right]
-                if finding.vendor == candidate.vendor:
+        grouped: list[list[int]] = []
+        for index, candidate in enumerate(ordered):
+            for members in grouped:
+                # Admission requires an edge to the stable anchor AND every
+                # existing member. This prevents a weak A-B/B-C bridge from
+                # merging A and C when A-C itself is below threshold.
+                if any(ordered[member].vendor == candidate.vendor for member in members):
                     continue
-                score, basis = match_score(finding, candidate)
-                if score >= self.match_threshold:
-                    edges.append((score, basis, left, right))
-        for _score, _basis, left, right in sorted(
-            edges, key=lambda edge: (-edge[0], edge[1], ordered[edge[2]].vendor,
-                                      ordered[edge[2]].id, ordered[edge[3]].vendor,
-                                      ordered[edge[3]].id),
-        ):
-            union(left, right)
-
-        grouped: dict[int, list[int]] = {}
-        for index in range(len(ordered)):
-            grouped.setdefault(find(index), []).append(index)
+                if all(
+                    match_score(ordered[member], candidate)[0] >= self.match_threshold
+                    for member in members
+                ):
+                    members.append(index)
+                    break
+            else:
+                grouped.append([index])
         matches: list[FindingMatch] = []
-        for indexes in sorted(grouped.values(), key=lambda members: tuple(
+        for indexes in sorted(grouped, key=lambda members: tuple(
             (ordered[index].vendor, ordered[index].id) for index in members
         )):
             members = sorted(indexes)
             primary = ordered[members[0]]
-            member_set = set(members)
-            group_edges = [edge for edge in edges if edge[2] in member_set and edge[3] in member_set]
-            best = max(group_edges, default=(0.0, "", 0, 0), key=lambda edge: edge[0])
+            edges = [
+                (*match_score(ordered[left], ordered[right]), left, right)
+                for offset, left in enumerate(members)
+                for right in members[offset + 1:]
+            ]
+            best = max(edges, default=(0.0, "", 0, 0), key=lambda edge: edge[0])
             matches.append(FindingMatch(
                 primary=primary,
                 matched=[ordered[index] for index in members[1:]],

@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 # Ensure the convergence_loop module can find its dependencies
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent)
 _PARALLEL_DIR = str(
@@ -21,6 +23,7 @@ from consensus_synthesizer import (
     ConsensusFinding,
     ConsensusReport,
 )
+from convergence_loop import validate_consensus_report
 from convergence_loop import (
     _is_blocking,
     build_review_prompt,
@@ -63,7 +66,10 @@ def _make_consensus_report(
     return ConsensusReport(
         review_type="implementation",
         target="test-change",
-        reviewers=[],
+        reviewers=[
+            {"vendor": "vendor_a", "agent_id": "vendor_a", "success": True, "elapsed_seconds": 0.0},
+            {"vendor": "vendor_b", "agent_id": "vendor_b", "success": True, "elapsed_seconds": 0.0},
+        ],
         quorum_met=quorum_met,
         quorum_requested=2,
         quorum_received=2,
@@ -127,6 +133,26 @@ def _setup_converge(
         "synthesizer": mock_synthesizer,
         "to_dict_returns": to_dict_returns,
     }
+
+
+def test_consensus_validation_rejects_false_quorum() -> None:
+    report = {
+        "quorum_requested": 2,
+        "quorum_received": 0,
+        "quorum_met": True,
+        "quorum": {
+            "requested": 2,
+            "received": 0,
+            "minimum_required": 2,
+            "eligible_vendors": [],
+            "met": True,
+        },
+        "consensus_findings": [],
+        "summary": {"total_unique_findings": 0, "blocking_count": 0},
+    }
+
+    with pytest.raises(ValueError, match="met flag"):
+        validate_consensus_report(report)
 
 
 # ---------------------------------------------------------------------------

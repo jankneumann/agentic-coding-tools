@@ -8,6 +8,8 @@ archetype or retain the legacy static vendor configuration.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+import sys
 from typing import Callable
 
 
@@ -25,6 +27,38 @@ class RoutingContext:
 
 
 Resolver = Callable[[str | None, str], RoutingContext]
+
+
+def default_reviewer_resolver(phase: str | None, vendor: str) -> RoutingContext:
+    """Resolve local coordinator routing for ordinary review-mode callers."""
+    coordinator_root = Path(__file__).resolve().parents[3] / "agent-coordinator"
+    if str(coordinator_root) not in sys.path:
+        sys.path.insert(0, str(coordinator_root))
+    from src import agents_config
+
+    agents_config.load_archetypes_config()
+    if phase is not None:
+        resolved = agents_config.resolve_archetype_for_phase(phase, {}, provider=vendor)
+        return RoutingContext(
+            archetype=resolved.archetype,
+            tier=None,
+            phase=phase,
+            model=resolved.model,
+            thinking=resolved.thinking,
+            source="local_coordinator",
+        )
+    archetype = agents_config.get_archetype("reviewer")
+    if archetype is None:
+        raise RuntimeError("reviewer archetype is unavailable")
+    model_spec = agents_config.resolve_provider_model_spec(archetype.model, provider=vendor)
+    return RoutingContext(
+        archetype=archetype.name,
+        tier=archetype.model,
+        phase=None,
+        model=model_spec.model,
+        thinking=model_spec.thinking,
+        source="local_coordinator",
+    )
 
 
 def resolve_review_routing(
@@ -45,16 +79,7 @@ def resolve_review_routing(
         return explicit
     if dispatch_mode != "review":
         return None
-    if resolver is None:
-        return RoutingContext(
-            archetype=None,
-            tier=None,
-            phase=phase,
-            model=None,
-            thinking=None,
-            source="static",
-            fallback_reason="reviewer_resolution_unavailable",
-        )
+    resolver = resolver or default_reviewer_resolver
     try:
         return resolver(phase, vendor)
     except (KeyError, RuntimeError, ValueError):

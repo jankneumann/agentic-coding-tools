@@ -144,6 +144,25 @@ def test_replacement_is_config_ordered_and_never_already_dispatched() -> None:
     assert select_replacement_vendor(["alpha", "beta"], dispatched_vendors={"alpha", "beta"}) is None
 
 
+def test_success_after_logical_deadline_is_terminal_timeout() -> None:
+    calls = 0
+
+    def now() -> float:
+        nonlocal calls
+        calls += 1
+        return 0.0 if calls <= 3 else 2.0
+
+    result = run_vendor_recovery(
+        logical_request_id="timeout", vendor="alpha", primary_model="primary",
+        fallback_models=[], timeout_seconds=1,
+        invoke=lambda *_args: {"validation_status": "schema_valid", "findings": []},
+        now=now,
+    )
+
+    assert result["terminal_outcome"] == "timeout"
+    assert result["quorum_eligible"] is False
+
+
 def test_diagnostics_redact_and_bound_sensitive_output() -> None:
     text, truncated = sanitize_diagnostic("token=sk-super-secret Bearer abcdefghijklmnop", limit=20)
     assert "super-secret" not in text

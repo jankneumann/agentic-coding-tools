@@ -61,7 +61,7 @@ VALID_FINDINGS_JSON = json.dumps({
     "reviewer_vendor": "test",
     "findings": [
         {"id": 1, "type": "security", "criticality": "high",
-         "description": "test", "disposition": "fix"},
+         "description": "test", "disposition": "fix", "axis": "security", "severity": "critical"},
     ],
 })
 
@@ -202,6 +202,12 @@ class TestCanDispatch:
 # ---------------------------------------------------------------------------
 
 class TestDispatch:
+    def test_schema_invalid_findings_are_rejected(self) -> None:
+        invalid = json.loads(VALID_FINDINGS_JSON)
+        invalid["findings"][0]["axis"] = "unsupported-axis"
+
+        assert CliVendorAdapter._extract_findings(invalid) is None
+
     @patch("review_dispatcher.subprocess.run")
     def test_successful_dispatch(self, mock_run: MagicMock, tmp_path: Path) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
@@ -515,6 +521,43 @@ class TestOrchestrator:
         assert result.quorum_eligible is False
         assert result.attempts[0]["resolved_execution"]["thinking_translation"] == "unsupported"
         mock_call.assert_not_called()
+
+    @patch("api_key_resolver.ApiKeyResolver")
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_sdk_applies_configured_thinking(
+        self,
+        mock_call: MagicMock,
+        mock_resolver: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        mock_resolver.return_value.resolve.return_value = "sk-test"
+        mock_call.return_value = json.loads(VALID_FINDINGS_JSON)
+        adapter = _sdk_adapter("claude-remote", "claude_code")
+        adapter.sdk_config.thinking_parameter = "reasoning_effort"
+        adapter.sdk_config.thinking_values = {"high": "high"}
+        orch = ReviewOrchestrator({}, {"claude-remote": adapter})
+        routing = RoutingContext(
+            archetype="reviewer", tier="premium", phase=None,
+            model="claude-sonnet", thinking="high", source="test",
+        )
+
+        with patch.object(adapter, "can_dispatch", return_value=True):
+            results = orch.dispatch_and_wait(
+                review_type="plan", dispatch_mode="review", prompt="review",
+                cwd=tmp_path, routing_context=routing,
+            )
+
+        assert results[0].success is True
+        assert results[0].attempts[0]["resolved_execution"]["applied_thinking"] == "high"
+        assert mock_call.call_args.kwargs["thinking_parameter"] == "reasoning_effort"
+        assert mock_call.call_args.kwargs["thinking_value"] == "high"
+
+    def test_auth_is_preserved_in_recovery_payload(self) -> None:
+        response = ReviewOrchestrator._result_response(
+            ReviewResult(vendor="codex", success=False, error_class=ErrorClass.AUTH), "cli",
+        )
+
+        assert response["error_class"] == "auth"
 
     def test_from_config_dict_propagates_prompt_via_flag(self) -> None:
         """prompt_via_flag must survive from_config_dict into the CliConfig so
