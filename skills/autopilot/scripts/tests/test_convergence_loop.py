@@ -377,10 +377,10 @@ class TestDisagreementEscalate:
         assert len(result.escalate_findings) == 1
 
 
-class TestUnconfirmedRelaxedFinalRound:
-    """Unconfirmed medium finding in final round (round 3) → converged."""
+class TestUnconfirmedFinalRound:
+    """Unconfirmed medium findings remain fail-closed in the final round."""
 
-    def test_relaxed_final_round(self, tmp_path: Path) -> None:
+    def test_final_round_remains_blocking(self, tmp_path: Path) -> None:
         # Rounds 1-2: confirmed medium findings (blocking)
         # Round 3: only unconfirmed medium (relaxed in final round)
         results_per_round = []
@@ -411,7 +411,7 @@ class TestUnconfirmedRelaxedFinalRound:
         f2_unconfirmed = _make_consensus_finding(2, status="unconfirmed", criticality="medium")
         reports_per_round.append(_make_consensus_report(findings=[f2_unconfirmed]))
 
-        # Round 3 (final): only unconfirmed medium → relaxed
+        # Round 3 (final): unconfirmed medium remains actionable.
         results_per_round.append([
             _make_review_result("vendor_a", success=True, findings=[]),
             _make_review_result("vendor_b", success=True, findings=[
@@ -434,15 +434,16 @@ class TestUnconfirmedRelaxedFinalRound:
                 max_rounds=3,
             )
 
-        assert result.converged is True
+        assert result.converged is False
+        assert result.reason in {"max_rounds", "stalled"}
         assert result.rounds == 3
 
 
 class TestUnconfirmedBlocksEarlyRounds:
-    """Unconfirmed medium finding blocks early rounds but relaxes in final."""
+    """Unconfirmed medium findings block every round until adjudicated."""
 
-    def test_unconfirmed_blocks_early_relaxes_final(self, tmp_path: Path) -> None:
-        """Unconfirmed medium blocks rounds 1-2 (fix dispatched), relaxed in round 3."""
+    def test_unconfirmed_blocks_through_final_round(self, tmp_path: Path) -> None:
+        """Unconfirmed medium blocks all rounds, including the final one."""
         finding = _make_consensus_finding(1, status="unconfirmed", criticality="medium")
 
         # 3 rounds of the same unconfirmed finding
@@ -473,10 +474,9 @@ class TestUnconfirmedBlocksEarlyRounds:
                 fix_callback=fix_cb,
             )
 
-        # Rounds 1-2: unconfirmed medium blocks, fix_callback called
         assert fix_cb.call_count == 2
-        # Round 3 (final): unconfirmed relaxed, 0 blocking, converged
-        assert result.converged is True
+        assert result.converged is False
+        assert result.reason == "stalled"
         assert result.rounds == 3
 
     def test_unconfirmed_blocks_round_1(self, tmp_path: Path) -> None:
@@ -644,11 +644,11 @@ class TestIsBlocking:
     def test_unconfirmed_medium_blocks_by_default(self) -> None:
         assert _is_blocking({"status": "unconfirmed", "agreed_criticality": "medium"}) is True
 
-    def test_unconfirmed_medium_relaxed(self) -> None:
+    def test_unconfirmed_medium_is_not_relaxed(self) -> None:
         assert _is_blocking(
             {"status": "unconfirmed", "agreed_criticality": "medium"},
             relax_unconfirmed=True,
-        ) is False
+        ) is True
 
     def test_confirmed_high_not_relaxed(self) -> None:
         assert _is_blocking(
