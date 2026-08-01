@@ -239,6 +239,16 @@ def read_vendor_findings(out_dir: Path) -> dict[str, list[dict[str, Any]]]:
                 f"Manifest vendors[].name {name!r} fails path-safety regex"
             )
         relpath = entry["findings_path"]
+        # A schema-valid empty review has no findings file to read, but it is
+        # still a durable, quorum-eligible index entry.  Keep it enumerable so
+        # replay can reproduce the original quorum without inventing a file.
+        if relpath is None:
+            if entry.get("quorum_eligible") is not True or entry.get("finding_count") != 0:
+                raise ValueError(
+                    "findings_path may be null only for an eligible zero-finding vendor"
+                )
+            out[name] = []
+            continue
         if "/" in relpath or "\\" in relpath or ".." in relpath:
             raise ValueError(
                 f"Manifest findings_path {relpath!r} contains path "
@@ -322,18 +332,29 @@ def write_manifest(
                 f"'findings_path' field"
             )
         findings_path = v["findings_path"]
-        if not isinstance(findings_path, str):
+        quorum_eligible = v.get("quorum_eligible", True)
+        if not isinstance(quorum_eligible, bool):
+            raise ValueError(
+                f"vendors[].quorum_eligible for {name!r} must be a boolean"
+            )
+        if findings_path is None:
+            if v.get("finding_count") != 0 or quorum_eligible is not True:
+                raise ValueError(
+                    f"vendors[].findings_path for {name!r} may be null only "
+                    "for an eligible zero-finding result"
+                )
+        elif not isinstance(findings_path, str):
             raise ValueError(
                 f"vendors[].findings_path for {name!r} must be a string, "
                 f"got {type(findings_path).__name__}"
             )
-        if "/" in findings_path or "\\" in findings_path or ".." in findings_path:
+        if isinstance(findings_path, str) and ("/" in findings_path or "\\" in findings_path or ".." in findings_path):
             raise ValueError(
                 f"vendors[].findings_path {findings_path!r} for {name!r} "
                 f"contains path separator or '..'"
             )
         # Mirror the schema's pattern: findings-{vendor}-{plan|implementation}.json
-        if not _FINDINGS_PATH_RE.match(findings_path):
+        if isinstance(findings_path, str) and not _FINDINGS_PATH_RE.match(findings_path):
             raise ValueError(
                 f"vendors[].findings_path {findings_path!r} for {name!r} "
                 f"does not match required pattern "
@@ -359,17 +380,29 @@ def write_manifest(
     safe_dir = Path(out_dir).resolve(strict=False)
     safe_dir.mkdir(parents=True, exist_ok=True)
 
+    normalized_vendors = [dict(v) for v in vendors]
+    for vendor in normalized_vendors:
+        vendor.setdefault("quorum_eligible", True)
     dispatches_list = list(dispatches) if dispatches is not None else []
 
     if quorum_requested is None:
-        quorum_requested = len(vendors)
+        quorum_requested = len(normalized_vendors)
     if quorum_received is None:
         if dispatches_list:
-            quorum_received = sum(
-                1 for d in dispatches_list if d.get("success")
-            )
+            try:
+                from review_result_policy import is_quorum_eligible
+                quorum_received = len({
+                    d.get("terminal_vendor", d.get("vendor")) for d in dispatches_list
+                    if (
+                        is_quorum_eligible(d)
+                        if "attempts" in d
+                        else d.get("success") is True
+                    )
+                })
+            except ImportError:  # pragma: no cover - legacy standalone install
+                quorum_received = sum(1 for d in dispatches_list if d.get("success"))
         else:
-            quorum_received = len(vendors)
+            quorum_received = sum(1 for v in normalized_vendors if v["quorum_eligible"])
 
     manifest = {
         "schema_version": MANIFEST_SCHEMA_VERSION,
@@ -380,7 +413,7 @@ def write_manifest(
         "dispatches": dispatches_list,
         "quorum_requested": quorum_requested,
         "quorum_received": quorum_received,
-        "vendors": list(vendors),
+        "vendors": normalized_vendors,
     }
     mpath = safe_dir / "review-manifest.json"
     _atomic_write_json(mpath, manifest)
