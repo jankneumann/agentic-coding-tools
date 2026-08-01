@@ -118,7 +118,7 @@
 
 ## 4. Integration evidence
 
-- [ ] 4.1 Add the end-to-end review-hardening golden regression [M]
+- [x] 4.1 Add the end-to-end review-hardening golden regression [M]
   **Spec scenarios**: skill-workflow.2, skill-workflow.4, skill-workflow.12, old-producer/new-consumer and new-producer/old-consumer consensus fixtures, false quorum aliases, invalid attempt chains, agent-archetypes.1
   **Contracts**: `contracts/consensus-policy.schema.json`, `contracts/review-attempt.schema.json`
   **Design decisions**: D1 through D7
