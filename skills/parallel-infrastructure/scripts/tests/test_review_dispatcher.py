@@ -18,6 +18,7 @@ from review_dispatcher import (
     SdkVendorAdapter,
     classify_error,
 )
+from review_routing import RoutingContext
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -388,6 +389,77 @@ class TestDispatch:
 # ---------------------------------------------------------------------------
 
 class TestOrchestrator:
+    @patch("review_dispatcher.subprocess.run")
+    @patch("shutil.which", return_value="/usr/bin/codex")
+    def test_review_dispatch_recovers_invalid_output_with_resolved_routing(
+        self,
+        _which: MagicMock,
+        mock_run: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """A review-mode CLI call uses one shared recovery chain and routing."""
+        mock_run.side_effect = [
+            subprocess.CompletedProcess(args=[], returncode=0, stdout="not json", stderr=""),
+            subprocess.CompletedProcess(args=[], returncode=0, stdout=VALID_FINDINGS_JSON, stderr=""),
+        ]
+        orch = ReviewOrchestrator({
+            "codex-local": _adapter(
+                "codex-local", "codex", model="static-model",
+            ),
+        })
+
+        def resolver(phase: str | None, vendor: str) -> RoutingContext:
+            assert phase == "PLAN_REVIEW"
+            assert vendor == "codex"
+            return RoutingContext(
+                archetype="reviewer", tier="premium", phase=phase,
+                model="review-model", thinking=None, source="test",
+            )
+
+        results = orch.dispatch_and_wait(
+            review_type="plan", dispatch_mode="review", prompt="review",
+            cwd=tmp_path, phase="PLAN_REVIEW", routing_resolver=resolver,
+        )
+
+        assert len(results) == 1
+        result = results[0]
+        assert result.success is True
+        assert result.model_used == "review-model"
+        assert result.requested_routing == {
+            "archetype": "reviewer", "tier": "premium", "phase": "PLAN_REVIEW",
+        }
+        assert result.quorum_eligible is True
+        assert [attempt["reason"] for attempt in result.attempts] == [
+            "initial", "corrective_redispatch",
+        ]
+        assert mock_run.call_args_list[0].args[0][-3:-1] == ["-m", "review-model"]
+
+    @patch("review_dispatcher.subprocess.run")
+    @patch("shutil.which", return_value="/usr/bin/codex")
+    def test_unsupported_thinking_fails_before_cli_invocation(
+        self,
+        _which: MagicMock,
+        mock_run: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        orch = ReviewOrchestrator({
+            "codex-local": _adapter("codex-local", "codex", model="review-model"),
+        })
+        routing = RoutingContext(
+            archetype="reviewer", tier="premium", phase=None,
+            model="review-model", thinking="xhigh", source="test",
+        )
+
+        results = orch.dispatch_and_wait(
+            review_type="plan", dispatch_mode="review", prompt="review",
+            cwd=tmp_path, routing_context=routing,
+        )
+
+        assert results[0].success is False
+        assert results[0].terminal_outcome == "configuration"
+        assert results[0].attempts[0]["resolved_execution"]["thinking_translation"] == "unsupported"
+        mock_run.assert_not_called()
+
     def test_from_config_dict_propagates_prompt_via_flag(self) -> None:
         """prompt_via_flag must survive from_config_dict into the CliConfig so
         antigravity's prompt is dispatched as ``--prompt <value>`` (E7), not a

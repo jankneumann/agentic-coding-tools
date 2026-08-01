@@ -29,12 +29,15 @@ import shutil
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
+
+from review_attempts import run_vendor_recovery, validate_review_attempt_chain
+from review_routing import RoutingContext, Resolver, resolve_review_routing, translate_thinking
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +52,9 @@ class ErrorClass(str, Enum):
     CAPACITY = "capacity_exhausted"
     AUTH = "auth_required"
     TRANSIENT = "transient"
+    INVALID_OUTPUT = "invalid_output"
+    TIMEOUT = "timeout"
+    CONFIGURATION = "configuration"
     UNKNOWN = "unknown"
 
 
@@ -139,6 +145,8 @@ class CliConfig:
     model_flag: str
     model: str | None = None
     model_fallbacks: list[str] = field(default_factory=list)
+    thinking_flag: str = ""
+    thinking_values: dict[str, str] = field(default_factory=dict)
     prompt_via_stdin: bool = False
     # When set, the prompt is attached as the value of this flag (e.g. agy's
     # ``--prompt``) rather than as a trailing positional or via stdin. E7:
@@ -155,6 +163,8 @@ class SdkConfig:
     model: str
     method: str = "messages.create"
     model_fallbacks: list[str] = field(default_factory=list)
+    thinking_parameter: str = ""
+    thinking_values: dict[str, str] = field(default_factory=dict)
     api_key_env: str = ""
     max_tokens: int = 16384
 
@@ -188,6 +198,22 @@ class ReviewResult:
     # OpenRouter/OpenAI-compatible generation id for spend reconciliation
     # (OpenSpec add-adaptive-model-router, D7/D10). None for CLI/SDK adapters.
     generation_id: str | None = None
+    # Complete logical-result provenance is additive so old callers can keep
+    # consuming ``success``/``findings`` while newer checkpoint consumers use
+    # the transport-neutral attempt-chain shape directly.
+    logical_request_id: str | None = None
+    requested_vendor: str | None = None
+    requested_routing: dict[str, Any] | None = None
+    deadline_at: str | None = None
+    budget: dict[str, Any] | None = None
+    attempts: list[dict[str, Any]] = field(default_factory=list)
+    terminal_outcome: str | None = None
+    terminal_vendor: str | None = None
+    quorum_eligible: bool = False
+    # Raw process text is retained only while the orchestrator creates a
+    # bounded/redacted attempt record. It is never copied to the logical result.
+    raw_stdout: str | None = field(default=None, repr=False)
+    raw_stderr: str | None = field(default=None, repr=False)
 
 
 # ---------------------------------------------------------------------------
@@ -220,6 +246,7 @@ class CliVendorAdapter:
         mode: str,
         prompt: str,
         model: str | None = None,
+        thinking: str | None = None,
     ) -> list[str]:
         """Build subprocess command from config.
 
@@ -234,6 +261,12 @@ class CliVendorAdapter:
         effective_model = model or self.cli_config.model
         if effective_model:
             cmd.extend([self.cli_config.model_flag, effective_model])
+        flag, value, status = translate_thinking(
+            thinking, self.cli_config.thinking_flag, self.cli_config.thinking_values,
+        )
+        if status == "applied":
+            assert flag is not None and value is not None
+            cmd.extend([flag, value])
         if self.cli_config.prompt_via_flag:
             cmd.extend([self.cli_config.prompt_via_flag, prompt])
         elif not self.cli_config.prompt_via_stdin:
@@ -247,6 +280,7 @@ class CliVendorAdapter:
         cwd: Path,
         timeout_seconds: int = 300,
         archetype_model: str | None = None,
+        archetype_thinking: str | None = None,
     ) -> ReviewResult:
         """Dispatch a review with model fallback on capacity errors.
 
@@ -258,6 +292,16 @@ class CliVendorAdapter:
                 When provided, overrides the agent's default primary model
                 but reuses the existing fallback chain (design decision D4).
         """
+        _, _, thinking_status = translate_thinking(
+            archetype_thinking, self.cli_config.thinking_flag, self.cli_config.thinking_values,
+        )
+        if thinking_status == "unsupported":
+            return ReviewResult(
+                vendor=self.vendor, success=False,
+                error="Requested thinking setting is unsupported by this CLI adapter",
+                error_class=ErrorClass.CONFIGURATION,
+            )
+
         primary = archetype_model or self.cli_config.model
         models_to_try: list[str | None] = [primary]
         models_to_try.extend(self.cli_config.model_fallbacks)
@@ -271,7 +315,7 @@ class CliVendorAdapter:
             model_name = model or "(default)"
             models_attempted.append(model_name)
 
-            cmd = self.build_command(mode, prompt, model)
+            cmd = self.build_command(mode, prompt, model, archetype_thinking)
             stdin_text = prompt if self.cli_config.prompt_via_stdin else None
             start = time.monotonic()
 
@@ -297,6 +341,9 @@ class CliVendorAdapter:
                         models_attempted=models_attempted,
                         elapsed_seconds=elapsed,
                         error=None if findings else "Invalid JSON output",
+                        error_class=None if findings else ErrorClass.INVALID_OUTPUT,
+                        raw_stdout=result.stdout,
+                        raw_stderr=result.stderr,
                     )
 
                 # Non-zero exit — classify error
@@ -318,6 +365,8 @@ class CliVendorAdapter:
                         elapsed_seconds=time.monotonic() - start,
                         error=f"Auth expired. Run: {relogin}",
                         error_class=ErrorClass.AUTH,
+                        raw_stdout=result.stdout,
+                        raw_stderr=result.stderr,
                     )
 
                 if last_error_class == ErrorClass.CAPACITY:
@@ -339,7 +388,7 @@ class CliVendorAdapter:
                     models_attempted=models_attempted,
                     elapsed_seconds=elapsed,
                     error=f"Timeout after {timeout_seconds}s",
-                    error_class=ErrorClass.TRANSIENT,
+                    error_class=ErrorClass.TIMEOUT,
                 )
 
         # All models exhausted or non-retryable error
@@ -490,6 +539,8 @@ class CliVendorAdapter:
         mode: str,
         prompt: str,
         cwd: Path,
+        archetype_model: str | None = None,
+        archetype_thinking: str | None = None,
     ) -> ReviewResult:
         """Submit an async dispatch and return immediately with task_id.
 
@@ -503,8 +554,18 @@ class CliVendorAdapter:
                 error="Mode is not configured for async dispatch",
             )
 
+        _, _, thinking_status = translate_thinking(
+            archetype_thinking, self.cli_config.thinking_flag, self.cli_config.thinking_values,
+        )
+        if thinking_status == "unsupported":
+            return ReviewResult(
+                vendor=self.vendor, success=False,
+                error="Requested thinking setting is unsupported by this CLI adapter",
+                error_class=ErrorClass.CONFIGURATION,
+            )
+
         # Model fallback: try primary, then each fallback on capacity errors
-        models_to_try: list[str | None] = [self.cli_config.model]
+        models_to_try: list[str | None] = [archetype_model or self.cli_config.model]
         models_to_try.extend(self.cli_config.model_fallbacks)
 
         models_attempted: list[str] = []
@@ -513,7 +574,7 @@ class CliVendorAdapter:
             model_name = model or "(default)"
             models_attempted.append(model_name)
 
-            cmd = self.build_command(mode, prompt, model)
+            cmd = self.build_command(mode, prompt, model, archetype_thinking)
             stdin_text = prompt if self.cli_config.prompt_via_stdin else None
             start = time.monotonic()
 
@@ -1213,6 +1274,8 @@ class ReviewOrchestrator:
                         model_flag=cli.get("model_flag", "-m"),
                         model=cli.get("model"),
                         model_fallbacks=cli.get("model_fallbacks", []),
+                        thinking_flag=cli.get("thinking_flag", ""),
+                        thinking_values=cli.get("thinking_values", {}),
                         prompt_via_stdin=cli.get("prompt_via_stdin", False),
                         prompt_via_flag=cli.get("prompt_via_flag"),
                     ),
@@ -1229,6 +1292,8 @@ class ReviewOrchestrator:
                         model=sdk["model"],
                         method=sdk.get("method", "messages.create"),
                         model_fallbacks=sdk.get("model_fallbacks", []),
+                        thinking_parameter=sdk.get("thinking_parameter", ""),
+                        thinking_values=sdk.get("thinking_values", {}),
                         api_key_env=sdk.get("api_key_env", ""),
                         max_tokens=sdk.get("max_tokens", 16384),
                     ),
@@ -1459,6 +1524,160 @@ class ReviewOrchestrator:
 
         return reviewers
 
+    @staticmethod
+    def _routing_payload(routing: RoutingContext | None) -> dict[str, Any]:
+        """Return the contract's stable requested-routing subset."""
+        return {
+            "archetype": routing.archetype if routing else None,
+            "tier": routing.tier if routing else None,
+            "phase": routing.phase if routing else None,
+        }
+
+    @staticmethod
+    def _result_response(result: ReviewResult, transport: str) -> dict[str, Any]:
+        """Translate one adapter result into the shared recovery input."""
+        if result.success and result.findings is not None:
+            return {
+                "transport": transport,
+                "validation_status": "schema_valid",
+                "stdout": result.raw_stdout,
+                "stderr": result.raw_stderr,
+            }
+        error_class = result.error_class.value if result.error_class else "invalid_output"
+        if error_class not in {
+            "invalid_output", "capacity_exhausted", "auth", "transient",
+            "timeout", "configuration", "unknown",
+        }:
+            error_class = "unknown"
+        return {
+            "transport": transport,
+            "validation_status": "invalid" if error_class == "invalid_output" else "not_reached",
+            "error_class": error_class,
+            "error_detail": result.error or "review dispatch failed",
+            "stdout": result.raw_stdout,
+            "stderr": result.raw_stderr,
+        }
+
+    @staticmethod
+    def _logical_result(
+        *, vendor: str, chain: dict[str, Any], attempt_results: list[ReviewResult],
+    ) -> ReviewResult:
+        """Expose a validated attempt chain through the legacy result API."""
+        terminal = chain["attempts"][-1]
+        success = chain["terminal_outcome"] == "success"
+        source = attempt_results[-1] if attempt_results else None
+        error_value = terminal.get("error_class")
+        try:
+            error_class = ErrorClass(error_value) if error_value else None
+        except ValueError:
+            error_class = ErrorClass.UNKNOWN
+        return ReviewResult(
+            vendor=vendor,
+            success=success,
+            findings=source.findings if success and source else None,
+            model_used=terminal["resolved_execution"]["model"],
+            models_attempted=[
+                str(attempt["resolved_execution"]["model"])
+                for attempt in chain["attempts"]
+            ],
+            elapsed_seconds=sum(float(a["elapsed_seconds"]) for a in chain["attempts"]),
+            error=None if success else terminal.get("error_detail"),
+            error_class=error_class,
+            logical_request_id=chain["logical_request_id"],
+            requested_vendor=chain["requested_vendor"],
+            requested_routing=dict(chain["requested_routing"]),
+            deadline_at=chain["deadline_at"],
+            budget=dict(chain["budget"]),
+            attempts=list(chain["attempts"]),
+            terminal_outcome=chain["terminal_outcome"],
+            terminal_vendor=chain["terminal_vendor"],
+            quorum_eligible=bool(chain["quorum_eligible"]),
+        )
+
+    def _dispatch_cli_review(
+        self,
+        *, adapter: CliVendorAdapter, reviewer: ReviewerInfo, review_type: str,
+        dispatch_mode: str, prompt: str, cwd: Path, timeout_seconds: int,
+        routing: RoutingContext | None,
+    ) -> ReviewResult:
+        """Run CLI sync/async transports through the one recovery state machine."""
+        primary_model = (routing.model if routing else None) or adapter.cli_config.model
+        requested_routing = self._routing_payload(routing)
+        if not primary_model:
+            # The attempt helper requires a concrete model for attributable
+            # success. Fail closed rather than claiming an implicit default.
+            primary_model = "unresolved-model"
+            configuration_failure = True
+        else:
+            configuration_failure = False
+        attempt_results: list[ReviewResult] = []
+        mode_config = adapter.cli_config.dispatch_modes[dispatch_mode]
+
+        def invoke(_vendor: str, model: str, remaining: float, _reason: str) -> dict[str, Any]:
+            if configuration_failure:
+                result = ReviewResult(
+                    vendor=adapter.vendor, success=False,
+                    error="No concrete model available for review dispatch",
+                    error_class=ErrorClass.CONFIGURATION,
+                )
+            else:
+                # Recovery owns fallback order/deadline. A one-model adapter
+                # prevents the legacy adapter fallback loop from multiplying it.
+                one_model = CliVendorAdapter(
+                    agent_id=adapter.agent_id,
+                    vendor=adapter.vendor,
+                    cli_config=replace(adapter.cli_config, model_fallbacks=[]),
+                    transport=adapter.transport,
+                )
+                if mode_config.async_dispatch:
+                    submitted = one_model.dispatch_async(
+                        dispatch_mode, prompt, cwd,
+                        archetype_model=model,
+                        archetype_thinking=routing.thinking if routing else None,
+                    )
+                    result = (
+                        one_model.poll_for_result(submitted.task_id, mode_config.poll, cwd)
+                        if submitted.success and submitted.task_id and mode_config.poll
+                        else submitted
+                    )
+                    transport = "async"
+                else:
+                    result = one_model.dispatch(
+                        dispatch_mode, prompt, cwd,
+                        timeout_seconds=max(1, int(remaining)),
+                        archetype_model=model,
+                        archetype_thinking=routing.thinking if routing else None,
+                    )
+                    transport = "cli"
+                attempt_results.append(result)
+                return self._result_response(result, transport)
+            attempt_results.append(result)
+            return self._result_response(result, "async" if mode_config.async_dispatch else "cli")
+
+        chain = run_vendor_recovery(
+            logical_request_id=f"{review_type}:{reviewer.agent_id}",
+            vendor=reviewer.vendor,
+            primary_model=primary_model,
+            fallback_models=adapter.cli_config.model_fallbacks,
+            invoke=invoke,
+            timeout_seconds=timeout_seconds,
+            requested_routing=requested_routing,
+        )
+        # The core owns bounded retries; the adapter owns the provider-specific
+        # translation recorded on every concrete execution.
+        _, applied_thinking, translation = translate_thinking(
+            routing.thinking if routing else None,
+            adapter.cli_config.thinking_flag,
+            adapter.cli_config.thinking_values,
+        )
+        for attempt in chain["attempts"]:
+            execution = attempt["resolved_execution"]
+            execution["requested_thinking"] = routing.thinking if routing else None
+            execution["applied_thinking"] = applied_thinking
+            execution["thinking_translation"] = translation
+        validate_review_attempt_chain(chain)
+        return self._logical_result(vendor=reviewer.vendor, chain=chain, attempt_results=attempt_results)
+
     def dispatch_and_wait(
         self,
         review_type: str,
@@ -1467,6 +1686,9 @@ class ReviewOrchestrator:
         cwd: Path,
         timeout_seconds: int = 300,
         exclude_vendor: str | None = None,
+        routing_context: RoutingContext | None = None,
+        phase: str | None = None,
+        routing_resolver: Resolver | None = None,
     ) -> list[ReviewResult]:
         """Dispatch reviews to available vendors and collect results.
 
@@ -1514,6 +1736,21 @@ class ReviewOrchestrator:
                     continue
 
                 mode_config = adapter.cli_config.dispatch_modes[dispatch_mode]
+                routing = resolve_review_routing(
+                    vendor=reviewer.vendor,
+                    dispatch_mode=dispatch_mode,
+                    explicit=routing_context,
+                    phase=phase,
+                    resolver=routing_resolver,
+                )
+
+                if dispatch_mode == "review":
+                    results.append(self._dispatch_cli_review(
+                        adapter=adapter, reviewer=reviewer, review_type=review_type,
+                        dispatch_mode=dispatch_mode, prompt=prompt, cwd=cwd,
+                        timeout_seconds=timeout_seconds, routing=routing,
+                    ))
+                    continue
 
                 if mode_config.async_dispatch:
                     logger.info(
