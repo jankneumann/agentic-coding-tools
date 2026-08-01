@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Multi-Vendor Review Consensus Report",
-  "description": "Synthesized consensus from multiple vendor review findings",
+  "description": "Revision-2 consensus report with derived legacy aliases.",
   "type": "object",
   "required": ["schema_version", "review_type", "target", "reviewers", "quorum_met", "consensus_findings", "summary"],
   "properties": {
     "schema_version": {
       "type": "integer",
-      "const": 1
+      "const": 2
     },
     "review_type": {
       "type": "string",
@@ -57,6 +57,17 @@
       "type": "integer",
       "description": "Number of reviewers that returned valid findings"
     },
+    "quorum": {
+      "type": "object",
+      "required": ["requested", "received", "minimum_required", "eligible_vendors", "met"],
+      "properties": {
+        "requested": {"type": "integer", "minimum": 0},
+        "received": {"type": "integer", "minimum": 0},
+        "minimum_required": {"type": "integer", "minimum": 1},
+        "eligible_vendors": {"type": "array", "items": {"type": "string"}},
+        "met": {"type": "boolean"}
+      }
+    },
     "consensus_findings": {
       "type": "array",
       "items": {
@@ -71,6 +82,13 @@
             "enum": ["confirmed", "unconfirmed", "disagreement"],
             "description": "confirmed=2+ vendors agree, unconfirmed=single vendor, disagreement=vendors disagree on disposition"
           },
+          "policy_status": {"type": "string", "enum": ["confirmed", "provisional", "disagreement"]},
+          "group_id": {"type": "string"},
+          "algorithm_version": {"type": "string"},
+          "source_findings": {"type": "array"},
+          "match": {"type": "object"},
+          "adjudication": {"type": "object"},
+          "policy": {"type": "object"},
           "primary_vendor": {
             "type": "string",
             "description": "Vendor that reported the primary finding"
@@ -130,10 +148,15 @@
       "properties": {
         "total_unique_findings": { "type": "integer" },
         "confirmed_count": { "type": "integer" },
+        "provisional_count": { "type": "integer" },
         "unconfirmed_count": { "type": "integer" },
         "disagreement_count": { "type": "integer" },
-        "blocking_count": { "type": "integer", "description": "Findings that will block integration" }
+        "integration_blocking_count": { "type": "integer" },
+        "convergence_blocking_count": { "type": "integer" },
+        "effective_blocking_count": { "type": "integer" },
+        "blocking_count": { "type": "integer", "description": "Effective blockers; compatibility alias" }
       }
-    }
+    },
+    "applied_adjudications": {"type": "array"}
   }
 }
