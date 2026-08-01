@@ -51,6 +51,7 @@ from review_dispatcher import (  # noqa: E402
     ReviewOrchestrator,
     ReviewResult,
 )
+from review_result_policy import is_quorum_eligible  # noqa: E402
 
 # Module-level aliases so tests can monkeypatch the checkpoint helpers via
 # ``convergence_loop.cf_write_vendor_findings``. The bare imports also make
@@ -68,6 +69,49 @@ _BLOCKING_CRITICALITIES = {"medium", "high", "critical"}
 
 # Default stall detection window (number of data points to compare)
 _DEFAULT_STALL_WINDOW = 3
+
+
+def _logical_result_payload(result: ReviewResult) -> dict[str, Any] | None:
+    """Return a shared-policy payload for recovery-aware dispatches.
+
+    Older direct callers construct ``ReviewResult`` without an attempt chain.
+    Preserve their success flag as a compatibility fallback while requiring the
+    shared predicate whenever recovery provenance is available.
+    """
+    if not result.attempts or result.terminal_outcome is None:
+        return None
+    return {
+        "logical_request_id": result.logical_request_id,
+        "requested_vendor": result.requested_vendor,
+        "requested_routing": result.requested_routing,
+        "deadline_at": result.deadline_at,
+        "budget": result.budget,
+        "attempts": result.attempts,
+        "terminal_outcome": result.terminal_outcome,
+        "terminal_vendor": result.terminal_vendor,
+        "quorum_eligible": result.quorum_eligible,
+    }
+
+
+def _is_quorum_eligible_result(result: ReviewResult) -> bool:
+    payload = _logical_result_payload(result)
+    return result.success if payload is None else is_quorum_eligible(payload)
+
+
+def _checkpoint_dispatch(result: ReviewResult) -> dict[str, Any]:
+    """Serialize one result without discarding its logical-attempt evidence."""
+    payload = _logical_result_payload(result)
+    if payload is not None:
+        return payload
+    return {
+        "vendor": result.vendor,
+        "success": result.success,
+        "model_used": result.model_used,
+        "models_attempted": result.models_attempted,
+        "elapsed_seconds": result.elapsed_seconds,
+        "error": result.error,
+        "error_class": result.error_class.value if result.error_class else None,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -399,16 +443,9 @@ def converge(
             vendors_index: list[dict[str, Any]] = []
             dispatches: list[dict[str, Any]] = []
             for r in results:
-                dispatches.append({
-                    "vendor": r.vendor,
-                    "success": r.success,
-                    "model_used": r.model_used,
-                    "models_attempted": r.models_attempted,
-                    "elapsed_seconds": r.elapsed_seconds,
-                    "error": r.error,
-                    "error_class": r.error_class.value if r.error_class else None,
-                })
-                if r.success and r.findings:
+                quorum_eligible = _is_quorum_eligible_result(r)
+                dispatches.append(_checkpoint_dispatch(r))
+                if quorum_eligible and r.findings is not None:
                     findings_array = r.findings.get("findings", [])
                     cf_write_vendor_findings(
                         checkpoint_dir,
@@ -422,6 +459,7 @@ def converge(
                         "name": r.vendor,
                         "findings_path": f"findings-{r.vendor}-{review_type}.json",
                         "finding_count": len(findings_array),
+                        "quorum_eligible": True,
                     })
             cf_write_manifest(
                 checkpoint_dir,
@@ -434,7 +472,7 @@ def converge(
                 # vendors_index only lists successful reviews, so passing it
                 # implicitly via the default would understate intent.
                 quorum_requested=len(results),
-                quorum_received=sum(1 for r in results if r.success),
+                quorum_received=sum(1 for r in results if _is_quorum_eligible_result(r)),
             )
         except (OSError, PermissionError) as exc:
             cf_safe_log_error(
@@ -450,7 +488,7 @@ def converge(
         latest_checkpoint_dir = checkpoint_dir.resolve()
 
         # 2b. Check quorum
-        successful = [r for r in results if r.success]
+        successful = [r for r in results if _is_quorum_eligible_result(r)]
         if len(successful) < min_quorum:
             logger.warning(
                 "Quorum lost: %d/%d (need %d)",

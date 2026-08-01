@@ -348,3 +348,34 @@ Completed and pushed the attempt core, routing, consensus policy, fail-closed co
 
 ### Context
 Completed bounded SDK recovery and the remaining compatibility, integration, documentation, and validation work. Existing completed package tasks were reconciled in tasks.md with final evidence recorded.
+
+---
+
+## Phase: Implementation Iteration 1 (2026-08-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Reject unsupported SDK thinking before dispatch** `architectural: review-recovery` — A successful SDK response must not silently omit a requested reviewer thinking setting.
+2. **Use attempt-chain eligibility for recovery-aware convergence** `architectural: skill-workflow` — A legacy success flag cannot override malformed or ineligible logical review evidence.
+
+### Alternatives Considered
+- Trust ReviewResult.success for every quorum check: rejected because it would allow malformed logical results to count toward convergence
+
+### Trade-offs
+- Accepted legacy success compatibility for results without an attempt chain over requiring provenance from all historical callers because existing direct callers predate recovery provenance
+
+### Completed Work
+- Rejected unsupported SDK thinking before any SDK invocation and retained a configuration attempt artifact.
+- Applied shared logical-result quorum eligibility during convergence checkpointing and quorum checks.
+- Added regressions for SDK thinking rejection and malformed-chain quorum exclusion.
+- Passed 145 targeted tests, 50 coordinator routing tests, focused Ruff, schema parity, and strict OpenSpec validation.
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — SDK review recovery routing
+- `skills/autopilot/scripts/convergence_loop.py` — attempt-aware checkpoint quorum
+- `skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py` — SDK thinking regression
+- `skills/autopilot/scripts/tests/test_convergence_loop.py` — malformed-chain quorum regression
+
+### Context
+Refined fail-closed review routing and convergence checkpoint quorum handling. SDK reviews now reject unsupported thinking before execution, while checkpoint quorum preserves and evaluates logical attempt-chain evidence.

@@ -1688,20 +1688,33 @@ class ReviewOrchestrator:
         primary_model = (routing.model if routing else None) or adapter.sdk_config.model
         requested_routing = self._routing_payload(routing)
         attempt_results: list[ReviewResult] = []
+        # SDK dispatch has no configured, portable thinking control.  A
+        # requested setting must therefore fail closed before an SDK call; a
+        # later provenance annotation alone would incorrectly report success
+        # after silently dropping the request.
+        configuration_failure = bool(routing and routing.thinking is not None)
 
         def invoke(_vendor: str, model: str, remaining: float, _reason: str) -> dict[str, Any]:
             # Recovery owns model fallback order.  Each SDK invocation gets a
             # single concrete model so an adapter cannot reset the deadline.
-            one_model = SdkVendorAdapter(
-                agent_id=adapter.agent_id,
-                vendor=adapter.vendor,
-                sdk_config=replace(adapter.sdk_config, model=model, model_fallbacks=[]),
-                openbao_role_id=adapter.openbao_role_id,
-            )
-            result = one_model.dispatch(
-                mode="review", prompt=prompt, cwd=cwd,
-                timeout_seconds=max(1, int(remaining)), api_key=api_key,
-            )
+            if configuration_failure:
+                result = ReviewResult(
+                    vendor=adapter.vendor,
+                    success=False,
+                    error="Requested thinking setting is unsupported by this SDK adapter",
+                    error_class=ErrorClass.CONFIGURATION,
+                )
+            else:
+                one_model = SdkVendorAdapter(
+                    agent_id=adapter.agent_id,
+                    vendor=adapter.vendor,
+                    sdk_config=replace(adapter.sdk_config, model=model, model_fallbacks=[]),
+                    openbao_role_id=adapter.openbao_role_id,
+                )
+                result = one_model.dispatch(
+                    mode="review", prompt=prompt, cwd=cwd,
+                    timeout_seconds=max(1, int(remaining)), api_key=api_key,
+                )
             attempt_results.append(result)
             return self._result_response(result, "sdk")
 

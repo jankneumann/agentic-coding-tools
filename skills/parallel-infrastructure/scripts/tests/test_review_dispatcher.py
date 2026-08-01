@@ -487,6 +487,35 @@ class TestOrchestrator:
         ]
         assert results[0].attempts[-1]["transport"] == "sdk"
 
+    @patch("api_key_resolver.ApiKeyResolver")
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_sdk_rejects_unsupported_thinking_before_invocation(
+        self,
+        mock_call: MagicMock,
+        mock_resolver: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        mock_resolver.return_value.resolve.return_value = "sk-test"
+        adapter = _sdk_adapter("claude-remote", "claude_code")
+        orch = ReviewOrchestrator({}, {"claude-remote": adapter})
+        routing = RoutingContext(
+            archetype="reviewer", tier="premium", phase=None,
+            model="claude-sonnet", thinking="high", source="test",
+        )
+
+        with patch.object(adapter, "can_dispatch", return_value=True):
+            results = orch.dispatch_and_wait(
+                review_type="plan", dispatch_mode="review", prompt="review",
+                cwd=tmp_path, routing_context=routing,
+            )
+
+        result = results[0]
+        assert result.success is False
+        assert result.terminal_outcome == "configuration"
+        assert result.quorum_eligible is False
+        assert result.attempts[0]["resolved_execution"]["thinking_translation"] == "unsupported"
+        mock_call.assert_not_called()
+
     def test_from_config_dict_propagates_prompt_via_flag(self) -> None:
         """prompt_via_flag must survive from_config_dict into the CliConfig so
         antigravity's prompt is dispatched as ``--prompt <value>`` (E7), not a

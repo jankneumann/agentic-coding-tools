@@ -214,6 +214,59 @@ class TestQuorumLost:
         assert result.reason == "quorum_lost"
         assert result.rounds == 1
 
+    def test_rejects_success_flag_without_eligible_attempt_chain(self, tmp_path: Path) -> None:
+        """A malformed logical result cannot satisfy quorum by claiming success."""
+        invalid = _make_review_result("vendor_a", success=True, findings=[])
+        invalid.logical_request_id = "implementation:vendor_a"
+        invalid.requested_vendor = "vendor_a"
+        invalid.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None}
+        invalid.deadline_at = "2026-08-01T00:00:00+00:00"
+        invalid.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
+        invalid.attempts = [{
+            "attempt_index": 1,
+            "vendor": "vendor_a",
+            "transport": "cli",
+            "reason": "initial",
+            "terminal": True,
+            "success": False,
+            "elapsed_seconds": 0.0,
+            "parser_stage": "json",
+            "validation_status": "invalid",
+            "error_class": "invalid_output",
+            "error_detail": "malformed output",
+            "stdout_excerpt": None,
+            "stderr_excerpt": None,
+            "diagnostics_truncated": False,
+            "resolved_execution": {
+                "model": "test-model",
+                "requested_thinking": None,
+                "applied_thinking": None,
+                "thinking_translation": "not_requested",
+                "fallback_reason": None,
+            },
+        }]
+        invalid.terminal_outcome = "invalid_output_exhausted"
+        invalid.terminal_vendor = "vendor_a"
+        invalid.quorum_eligible = False
+        valid = _make_review_result("vendor_b", success=True, findings=[])
+
+        artifacts_dir = tmp_path / "artifacts"
+        artifacts_dir.mkdir()
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.dispatch_and_wait.return_value = [invalid, valid]
+
+        result = converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=artifacts_dir,
+            worktree_path=tmp_path,
+            orchestrator=mock_orchestrator,
+            min_quorum=2,
+        )
+
+        assert result.converged is False
+        assert result.reason == "quorum_lost"
+
 
 class TestMaxRoundsNotConverged:
     """Medium+ findings persist across 3 rounds → max_rounds."""
