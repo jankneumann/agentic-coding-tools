@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T20:20:48.583507+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Remediated all six medium-or-higher findings from the routed primary plan review. External vendor attempts remained blocked before repository-data egress, so the plan is locally corrected but not yet multi-vendor converged.",
+    "completed_work": [
+      "Fixed replacement-vendor double-count semantics and added a no-double-vote scenario.",
+      "Tightened terminal success provenance and per-source disposition contracts.",
+      "Corrected convergence package scope and verification ownership.",
+      "Aligned provisional terminology and added capacity/auth/transient/configuration recovery scenarios.",
+      "Passed strict OpenSpec, Draft 2020-12 contract, work-package DAG, and parallel overlap checks."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Enforce one vendor per round vote",
+        "rationale": "Replacement allocation transfers or cancels the vendor original slot before dispatch so one result cannot impersonate independent quorum.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Make source-level and terminal provenance authoritative",
+        "rationale": "Each source finding retains its disposition, and successful logical results require matching terminal vendor plus non-null model.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Obtain explicit repository-data egress approval and rerun multi-vendor PLAN_REVIEW.",
+      "Do not begin implementation until independent review quorum converges."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/review-findings-plan.json",
+        "description": "six actionable primary findings"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json",
+        "description": "canonical provisional and per-source disposition"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json",
+        "description": "terminal success provenance"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml",
+        "description": "corrected convergence test scope"
+      }
+    ]
+  }
+}

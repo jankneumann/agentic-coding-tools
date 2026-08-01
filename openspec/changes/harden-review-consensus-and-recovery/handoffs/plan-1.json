@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T19:48:43.377728+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Gate 1 selected deterministic fail-closed consensus with bounded invalid-output recovery. Gate 2 was approved by re-invoking autopilot for the same change. The plan remains independent of active router and structured-result proposals, so implementation can proceed from the feature worktree without waiting for their merge.",
+    "completed_work": [
+      "Created and strictly validated proposal, design, specs, contracts, tasks, and work-package DAG.",
+      "Seeded 17 implementation tasks into the coordinator; dependency edges were not returned with UUIDs during this initial seed."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Keep blocker policy independent of finding matching",
+        "rationale": "Unmatched actionable findings must remain convergence blockers until evidence-backed adjudication.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Use bounded invalid-output recovery and configured reviewer routing",
+        "rationale": "One corrective redispatch, configured model fallback, and explicit quorum exclusion repair issue #286 without hard-coding provider models.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Treat the repeated autopilot invocation as Gate 2 approval",
+        "rationale": "The user re-issued the exact existing change-id after reviewing the prepared artifacts.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run routed plan self-review and fail-closed multi-vendor plan convergence.",
+      "Implement the approved packages in managed child worktrees."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/proposal.md",
+        "description": "approved scope and selected approach"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/design.md",
+        "description": "seven design decisions"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/tasks.md",
+        "description": "test-first execution checklist"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml",
+        "description": "parallel package DAG"
+      }
+    ]
+  }
+}

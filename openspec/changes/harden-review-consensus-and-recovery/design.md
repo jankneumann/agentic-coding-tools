@@ -89,6 +89,8 @@ invoke → parse/validate
 
 Capacity errors continue directly through configured model fallbacks. Auth errors remain terminal and actionable for that vendor. Transient process errors retain their existing bounded retry behavior. The invalid-output budget for one vendor is exactly the initial attempt, one corrective attempt on the initial model, and one attempt per configured fallback model. The orchestrator may then select at most one replacement from available vendors that were not already dispatched, using stable configured order; the replacement gets the same bounded vendor-local chain. A corrective redispatch is never recursive, and a logical result contributes at most one quorum unit.
 
+Vendor allocation is also bounded at the review-round level. A vendor may own at most one logical review slot in a round. When a not-yet-dispatched primary is consumed as another slot's replacement, the scheduler transfers and cancels that vendor's original slot before dispatch, records the transfer in the round manifest, and never dispatches the vendor again for that round. `quorum_requested` is the number of remaining logical slots after deterministic transfers; `quorum_received` counts at most one eligible result per distinct vendor and per logical slot. This prevents one replacement result from impersonating independent vendor agreement.
+
 Alternative: run the same parser again. Rejected because identical input cannot produce a different result and the shipped checkpoint design intentionally provides durability, not automatic recovery.
 
 ### D5 — Diagnostics are bounded and redacted
@@ -109,7 +111,7 @@ Alternative: change Pi's static default to Kimi. Rejected because the current co
 
 ### D7 — Quorum eligibility is a shared predicate
 
-A logical result counts toward quorum only when dispatch completed, parsing/schema validation succeeded, the terminal attempt is attributable to a vendor/model execution, and the shared predicate marks it eligible. A valid zero-finding review counts; malformed, empty, configuration-failed, and non-terminal attempts do not. A replacement success counts once for the logical request, never once per attempt. The dispatcher, checkpoint writer, synthesizer, and convergence loop import the same predicate from a transport-neutral policy module rather than reimplementing `success` checks.
+A logical result counts toward quorum only when dispatch completed, parsing/schema validation succeeded, the terminal attempt is attributable to a non-null vendor/model execution, `terminal_vendor` equals the terminal attempt's vendor, and the shared predicate marks it eligible. A valid zero-finding review counts; malformed, empty, configuration-failed, and non-terminal attempts do not. A replacement success counts once for the logical request, never once per attempt. Across a review round, the same vendor cannot satisfy more than one logical slot even when it was selected as a replacement. The dispatcher, checkpoint writer, synthesizer, and convergence loop import the same predicate from a transport-neutral policy module rather than reimplementing `success` checks.
 
 Alternative: count non-empty findings. Rejected because a valid reviewer may correctly report zero findings.
 

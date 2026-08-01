@@ -47,3 +47,20 @@
 - Total findings addressed: 12 (9 high, 3 medium)
 - Remaining findings below threshold: none
 - Termination reason: threshold met
+
+## PLAN_REVIEW Remediation 1
+
+<!-- Date: 2026-08-01 -->
+
+The routed Codex review produced six medium-or-higher actionable findings. External vendor dispatch was denied before egress, so this is not a multi-vendor convergence claim; the next PLAN_REVIEW still requires independent quorum.
+
+| # | Criticality | Finding | Resolution |
+|---|---|---|---|
+| 1 | critical | A replacement vendor could later satisfy its own scheduled slot and impersonate independent quorum. | Added a one-vendor/one-logical-slot round allocation invariant, deterministic slot transfer/cancellation, manifest provenance, and a no-double-vote scenario. |
+| 2 | high | A successful attempt could validate with a null terminal model or mismatched terminal vendor. | Required a non-null model on the unique terminal successful attempt and made terminal-vendor equality a producer/shared-predicate invariant with a negative scenario. |
+| 3 | high | A per-vendor disposition map could overwrite two same-vendor source findings in one group. | Made disposition mandatory on every source finding and retained the vendor map only as a deprecated derived summary. |
+| 4 | high | The convergence package could neither edit nor execute its checkpoint regression. | Added `test_convergence_checkpoint.py` to package scope and its verification command. |
+| 5 | medium | The item contract still used `unconfirmed` while the spec made `provisional` canonical. | Changed the item enum to `provisional`; only the deprecated summary-count alias remains `unconfirmed_count`. |
+| 6 | medium | Capacity, authentication, transient, and configuration behavior lacked cross-transport acceptance scenarios. | Added normative CLI/SDK/async scenarios and expanded recovery characterization/engine task traceability. |
+
+The optional pre-parse streaming limit remains below the remediation threshold and is recorded as residual risk; the required 2 MiB post-parse matching guard remains in scope.

@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "harden-review-consensus-and-recovery",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: The replacement-vendor design can count one vendor twice toward quorum. The dispatcher currently walks every available vendor sequentially; if vendor A fails and the not-yet-dispatched vendor B is used as A's replacement, B remains scheduled for its own logical slot. D7 limits one vote per logical request, but never limits one quorum unit per vendor per review round, so B can satisfy both A's slot and B's slot and create false multi-vendor quorum.",
+      "resolution": "Define a round-level vendor-allocation invariant and scheduler behavior: a vendor may contribute at most one quorum-eligible logical result per review round. If a scheduled primary is consumed as a replacement, cancel or transfer its original slot, update quorum_requested deterministically, and prevent later redispatch. Add a regression with A failing, B replacing A successfully, and B's original slot proving ineligible/not dispatched.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/design.md",
+      "line_range": {"start": 80, "end": 112},
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The frozen review-attempt contract makes every terminal_outcome=success quorum-eligible even when the successful terminal attempt has resolved_execution.model=null, and it does not require terminal_vendor to equal that attempt's vendor. Such a document validates as success although D7 and the Shared Quorum Eligibility requirement explicitly reject unattributable results.",
+      "resolution": "Tighten the success branch so the unique terminal successful attempt requires a non-null model and attributable vendor, then add producer/application invariants that terminal_vendor equals the terminal attempt vendor. Add negative contract fixtures for null model and mismatched vendor and require the shared predicate to reject both.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json",
+      "line_range": {"start": 41, "end": 50},
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The consensus contract cannot always preserve every source disposition. source_findings records only vendor, finding_id, and fingerprint, while vendor_dispositions is a map keyed by vendor. A deterministic group can contain two findings from the same vendor through cross-vendor edges, causing one disposition to overwrite the other; neither the schema nor the design forbids that grouping.",
+      "resolution": "Store disposition on each source_findings entry (and derive any compatibility vendor summary), or formally guarantee and test at most one source finding per vendor in a group. Add a fixture with two same-vendor findings connected through another vendor and verify no provenance is lost.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json",
+      "line_range": {"start": 67, "end": 85},
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: wp-fail-closed-convergence is assigned tasks that modify skills/tests/autopilot/test_convergence_checkpoint.py, and it even locks that file, but its write_allow omits the file and its verification command does not run it. The package cannot implement or prove the checkpoint quorum scenarios in tasks 3.1 and 3.2 under its declared scope.",
+      "resolution": "Add skills/tests/autopilot/test_convergence_checkpoint.py to the package write_allow and verification command (or move that test ownership to another dependency-ordered package). Ensure every test file named by tasks 3.1/3.2 is both writable and executed by a package gate.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml",
+      "line_range": {"start": 321, "end": 356},
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: The specification makes provisional the canonical unmatched status and retains unconfirmed only as a deprecated count alias, but the frozen ConsensusFinding.status enum exposes only unconfirmed. Consumers cannot represent the specified provisional item status without violating the contract, so the vocabulary remains split at the main item boundary.",
+      "resolution": "Choose one canonical item status explicitly. Prefer status=provisional with a documented compatibility field/translation for legacy unconfirmed consumers, and align the schema, examples, migration notes, and tests.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json",
+      "line_range": {"start": 54, "end": 65},
+      "axis": "readability",
+      "severity": "nit"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Nit: D4 promises that capacity, auth, and transient failures retain distinct existing behavior, but the specification scenarios and task 2.4 tests cover only invalid-output recovery. Replacing the dispatcher with a shared attempt engine can therefore regress capacity fallback, auth terminal handling, or transient retry/deadline behavior while all named acceptance scenarios still pass.",
+      "resolution": "Add normative scenarios and characterization tests for capacity-to-model-fallback, auth-terminal behavior, transient retry exhaustion under the monotonic deadline, and configuration-failure replacement eligibility across CLI, SDK, and async paths.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/design.md",
+      "line_range": {"start": 80, "end": 92},
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 7,
+      "type": "performance",
+      "criticality": "low",
+      "description": "Optional: The 2 MiB vendor-output limit is specified only after parsing, which still permits adapters to buffer and JSON-parse arbitrarily large stdout before rejection. This protects the quadratic matcher but not dispatcher memory and parse time.",
+      "resolution": "Apply a byte limit while capturing adapter output and before JSON decoding, retain only bounded redacted excerpts after overflow, and add an oversized-stream test. If pre-parse bounding is intentionally out of scope, state that residual risk explicitly.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/specs/skill-workflow/spec.md",
+      "line_range": {"start": 97, "end": 100},
+      "axis": "performance",
+      "severity": "optional"
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The plan correctly separates semantic grouping from safety policy and makes unmatched actionable findings remain visible and convergence-blocking.",
+      "resolution": "Retain this separation and its fail-closed regression fixtures during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/design.md",
+      "line_range": {"start": 35, "end": 46},
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

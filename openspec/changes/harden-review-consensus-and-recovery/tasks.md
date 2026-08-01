@@ -43,8 +43,8 @@
 
 ## 2. Vendor recovery path
 
-- [ ] 2.1 Write invalid-output recovery tests [M]
-  **Spec scenarios**: skill-workflow.10 (corrective success), skill-workflow.11 (model fallback), skill-workflow.12 (exhaustion), replacement success/unavailable, skill-workflow.13 (attempt provenance), skill-workflow.14 (secret redaction), skill-workflow.16 (malformed quorum exclusion)
+- [ ] 2.1 Write transport recovery characterization tests [M]
+  **Spec scenarios**: skill-workflow.10 (corrective success), skill-workflow.11 (model fallback), skill-workflow.12 (exhaustion), replacement success/unavailable/no-double-vote, capacity fallback, auth terminal, transient exhaustion, configuration failure, skill-workflow.13 (attempt provenance), skill-workflow.14 (secret redaction), skill-workflow.16 (malformed/unattributable quorum exclusion)
   **Contracts**: `contracts/review-attempt.schema.json`
   **Design decisions**: D4, D5, D7
   **Dependencies**: None
@@ -65,7 +65,7 @@
   **Files**: `skills/parallel-infrastructure/scripts/review_attempts.py`, `skills/parallel-infrastructure/scripts/review_result_policy.py`, `skills/parallel-infrastructure/scripts/checkpoint_findings.py`, `skills/parallel-infrastructure/scripts/tests/test_review_attempts.py`, `skills/parallel-infrastructure/scripts/tests/test_checkpoint_findings.py`
 
 - [ ] 2.4 Implement the transport-neutral bounded recovery engine [M]
-  **Spec scenarios**: skill-workflow.10 through skill-workflow.12, replacement success/unavailable, deadline and budget exhaustion
+  **Spec scenarios**: skill-workflow.10 through skill-workflow.12, replacement success/unavailable/no-double-vote, capacity fallback, auth terminal, transient exhaustion, configuration failure, deadline and budget exhaustion
   **Contracts**: `contracts/review-attempt.schema.json`
   **Design decisions**: D4
   **Dependencies**: 2.3

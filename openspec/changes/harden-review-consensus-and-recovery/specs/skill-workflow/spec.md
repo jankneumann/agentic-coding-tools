@@ -105,6 +105,8 @@ CLI, SDK, and async review dispatch SHALL classify malformed, empty, or schema-i
 
 For each vendor, the invalid-output chain SHALL contain one initial attempt, at most one corrective redispatch on the initial model, and at most one attempt for each deduplicated configured fallback model. All attempts SHALL share a monotonic logical-request deadline. After vendor-local exhaustion, the orchestrator MAY try at most one available vendor that was not already dispatched, selected in stable configured order; that replacement receives the same vendor-local bound. The logical request SHALL contribute at most one quorum unit.
 
+The round scheduler SHALL assign a vendor to at most one logical review slot. If an undispatched primary vendor is consumed as a replacement, its original slot SHALL be transferred or cancelled before dispatch, the manifest SHALL record the allocation change, and the vendor SHALL NOT be dispatched again in that round. Quorum SHALL count at most one eligible result per distinct vendor.
+
 #### Scenario: Corrective redispatch succeeds
 - **WHEN** a review attempt exits successfully but returns malformed findings output
 - **THEN** the dispatcher SHALL retain a redacted diagnostic and perform at most one corrective redispatch to the same vendor/model
@@ -130,6 +132,33 @@ For each vendor, the invalid-output chain SHALL contain one initial attempt, at 
 - **THEN** the logical request SHALL end `invalid_output_exhausted`
 - **AND** no additional dispatch SHALL occur
 
+#### Scenario: Replacement vendor cannot vote twice
+- **GIVEN** vendor A fails and not-yet-dispatched vendor B is selected as A's replacement
+- **WHEN** B returns a schema-valid result
+- **THEN** B's original logical slot SHALL be transferred or cancelled before dispatch
+- **AND** B SHALL contribute at most one to both `quorum_requested` and `quorum_received`
+- **AND** the round manifest SHALL record that B was consumed as a replacement
+
+#### Scenario: Capacity failure uses configured model fallback
+- **WHEN** any CLI, SDK, or async attempt is classified as a capacity failure
+- **THEN** the dispatcher SHALL skip corrective redispatch and try each deduplicated configured model fallback at most once under the same deadline
+- **AND** terminal exhaustion SHALL remain classified `capacity_exhausted`
+
+#### Scenario: Authentication failure is terminal for the vendor
+- **WHEN** any CLI, SDK, or async attempt is classified as an authentication failure
+- **THEN** the dispatcher SHALL NOT retry that vendor or its model fallbacks
+- **AND** replacement eligibility and the terminal `auth` outcome SHALL be recorded explicitly
+
+#### Scenario: Transient failure exhausts its bounded retry budget
+- **WHEN** any CLI, SDK, or async attempt repeatedly fails with a transient process error
+- **THEN** retries SHALL stop at the existing configured transient limit or the monotonic logical-request deadline, whichever occurs first
+- **AND** the terminal attempt SHALL remain ineligible with a non-null `transient` or `timeout` error class
+
+#### Scenario: Routing configuration failure is explicit
+- **WHEN** any transport cannot translate the requested model or thinking configuration
+- **THEN** the attempt SHALL fail before vendor invocation with `error_class=configuration`
+- **AND** replacement policy MAY continue without counting the failed logical result toward quorum
+
 ### Requirement: Review Attempt Diagnostics
 
 Every logical vendor review SHALL persist bounded attempt provenance without persisting unredacted or unbounded process output.
@@ -147,7 +176,7 @@ Every logical vendor review SHALL persist bounded attempt provenance without per
 
 ### Requirement: Shared Quorum Eligibility
 
-The dispatcher, checkpoint writer, synthesizer, and convergence loop SHALL use one quorum-eligibility predicate that requires attributable, parsed, schema-valid completion output.
+The dispatcher, checkpoint writer, synthesizer, and convergence loop SHALL use one quorum-eligibility predicate that requires attributable, parsed, schema-valid completion output. A successful logical result SHALL identify a non-null terminal vendor and model, and `terminal_vendor` SHALL equal the unique terminal successful attempt's vendor.
 
 #### Scenario: Valid zero-finding review counts toward quorum
 - **WHEN** a vendor returns a schema-valid findings document with an empty findings array
@@ -163,6 +192,11 @@ The dispatcher, checkpoint writer, synthesizer, and convergence loop SHALL use o
 - **WHEN** a schema-valid logical result contains `findings=[]`
 - **THEN** the checkpoint manifest SHALL retain an eligibility/index record for that vendor even if no findings file is necessary
 - **AND** `quorum_received` SHALL include it by calling the shared predicate rather than counting findings or truthy payloads
+
+#### Scenario: Successful output without terminal routing provenance is ineligible
+- **WHEN** a nominally successful result has a null terminal model or its `terminal_vendor` differs from the unique terminal successful attempt vendor
+- **THEN** contract/application validation SHALL reject the result
+- **AND** the shared predicate SHALL not count it toward quorum
 
 ## MODIFIED Requirements
 
