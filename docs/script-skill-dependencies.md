@@ -141,6 +141,16 @@ Some skill-local scripts import from other skill directories via `sys.path` mani
 | `fix-scrub/scripts/vendor_dispatch.py` | `skills/parallel-infrastructure/scripts/review_dispatcher.py` |
 | `merge-pull-requests/scripts/vendor_review.py` | `skills/parallel-infrastructure/scripts/review_dispatcher.py`, `consensus_synthesizer.py` |
 
+## Review Result Compatibility
+
+`ReviewOrchestrator.dispatch_and_wait()` continues to return `ReviewResult`
+objects for CLI, SDK, and async callers. Existing callers may use `success`,
+`findings`, and `model_used`; review checkpoints and convergence consumers must
+use the additive logical-result fields (`attempts`, `terminal_outcome`,
+`terminal_vendor`, and `quorum_eligible`) through `is_quorum_eligible()`.
+This preserves the legacy channel while ensuring malformed output and fallback
+attempts cannot count as independent reviewer votes.
+
 ## Dependency Graph (Mermaid)
 
 ```mermaid

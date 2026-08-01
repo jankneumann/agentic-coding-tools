@@ -125,7 +125,7 @@
   **Dependencies**: 1.5, 2.6, 3.2
   **Files**: `skills/tests/autopilot/test_review_hardening_integration.py`, `skills/tests/autopilot/fixtures/review-hardening/**`
 
-- [ ] 4.2 Document typed-result channel compatibility [S]
+- [x] 4.2 Document typed-result channel compatibility [S]
   **Spec scenarios**: skill-workflow.13 (attempt provenance), agent-archetypes.4 (fallback provenance)
   **Contracts**: `contracts/README.md`
   **Design decisions**: D5, D6
