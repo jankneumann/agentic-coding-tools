@@ -61,7 +61,7 @@
       "properties": {
         "group_id": {"type": "string", "pattern": "^cg-[a-f0-9]{16,64}$"},
         "algorithm_version": {"type": "string", "minLength": 1},
-        "status": {"type": "string", "enum": ["confirmed", "unconfirmed", "disagreement"]},
+        "status": {"type": "string", "enum": ["confirmed", "provisional", "disagreement"], "description": "provisional is the canonical item status; unconfirmed survives only as the deprecated summary-count alias"},
         "criticality": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
         "description": {"type": "string", "minLength": 1},
         "source_findings": {
@@ -70,18 +70,20 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["vendor", "finding_id", "concern_fingerprint"],
+            "required": ["vendor", "finding_id", "concern_fingerprint", "disposition"],
             "properties": {
               "vendor": {"type": "string", "minLength": 1},
               "finding_id": {"type": ["string", "integer"]},
-              "concern_fingerprint": {"type": "string", "minLength": 16}
+              "concern_fingerprint": {"type": "string", "minLength": 16},
+              "disposition": {"type": "string", "enum": ["fix", "regenerate", "accept", "escalate"]}
             }
           }
         },
         "vendor_dispositions": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": {"type": "string", "enum": ["fix", "regenerate", "accept", "escalate"]}
+          "additionalProperties": {"type": "string", "enum": ["fix", "regenerate", "accept", "escalate"]},
+          "description": "Deprecated per-vendor summary derived from source_findings; source_findings is authoritative when one vendor contributes multiple findings"
         },
         "match": {
           "type": "object",

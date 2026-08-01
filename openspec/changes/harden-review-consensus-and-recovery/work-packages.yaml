@@ -330,6 +330,7 @@ packages:
       write_allow:
         - "skills/autopilot/scripts/convergence_loop.py"
         - "skills/autopilot/scripts/tests/test_convergence_loop.py"
+        - "skills/tests/autopilot/test_convergence_checkpoint.py"
         - "skills/autopilot/references/convergence-recovery.md"
         - "docs/parallel-agentic-development.md"
       read_allow:
@@ -353,7 +354,7 @@ packages:
       steps:
         - name: "Convergence loop tests pass"
           kind: command
-          command: "uv run --project skills pytest skills/autopilot/scripts/tests/test_convergence_loop.py -q"
+          command: "uv run --project skills pytest skills/autopilot/scripts/tests/test_convergence_loop.py skills/tests/autopilot/test_convergence_checkpoint.py -q"
           evidence:
             artifacts: []
             result_keys: ["convergence_tests_passed"]

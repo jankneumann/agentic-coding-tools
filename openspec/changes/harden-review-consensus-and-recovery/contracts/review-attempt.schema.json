@@ -35,7 +35,7 @@
       "type": "string",
       "enum": ["success", "invalid_output_exhausted", "capacity_exhausted", "auth", "transient", "timeout", "configuration", "unknown"]
     },
-    "terminal_vendor": {"type": ["string", "null"]},
+    "terminal_vendor": {"type": ["string", "null"], "description": "Producer and shared-predicate invariant: for success this equals the unique terminal successful attempt vendor"},
     "quorum_eligible": {"type": "boolean"}
   },
   "allOf": [
@@ -46,8 +46,19 @@
           "quorum_eligible": {"const": true},
           "terminal_vendor": {"type": "string", "minLength": 1},
           "attempts": {
-            "contains": {"properties": {"terminal": {"const": true}, "success": {"const": true}}, "required": ["terminal", "success"]},
-            "minContains": 1
+            "contains": {
+              "properties": {
+                "terminal": {"const": true},
+                "success": {"const": true},
+                "resolved_execution": {
+                  "properties": {"model": {"type": "string", "minLength": 1}},
+                  "required": ["model"]
+                }
+              },
+              "required": ["terminal", "success", "vendor", "resolved_execution"]
+            },
+            "minContains": 1,
+            "maxContains": 1
           }
         }
       }
@@ -122,7 +133,11 @@
               "parser_stage": {"const": "schema"},
               "validation_status": {"const": "schema_valid"},
               "error_class": {"const": null},
-              "error_detail": {"const": null}
+              "error_detail": {"const": null},
+              "resolved_execution": {
+                "properties": {"model": {"type": "string", "minLength": 1}},
+                "required": ["model"]
+              }
             }
           }
         },

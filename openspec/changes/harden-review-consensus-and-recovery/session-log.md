@@ -80,3 +80,74 @@ Gate 1 selected deterministic fail-closed consensus with bounded invalid-output 
 
 ### Context
 Resolved fail-closed policy, adjudication, quorum, recovery-budget, and routing-contract gaps found by two independent plan analyses. The frozen contracts now cover complete consensus and logical-attempt boundaries, and the work-package DAG isolates attempt, routing, transport, convergence, and integration ownership.
+
+---
+
+## Phase: Plan Review (2026-08-01)
+
+**Agent**: reviewer | **Session**: N/A
+
+### Decisions
+1. **Do not declare convergence from compatibility blocking_count** — Six live medium-or-higher fix dispositions and missing independent quorum require a fail-closed PLAN_FIX round.
+2. **Do not circumvent external-vendor data-egress denial** — No repository artifacts were sent after the approval reviewer rejected external CLI dispatch.
+
+### Capability Gaps Observed
+- **permission_denied**: External multi-vendor review requires explicit approval to transmit private repository artifacts to vendor services. (skill: parallel-review-plan, severity: high)
+
+### Completed Work
+- Completed a schema-valid Codex plan review across proposal, design, tasks, specifications, frozen contracts, work packages, and relevant implementation boundaries.
+- Recorded 8 findings: 4 critical, 2 nit, 1 optional, and 1 positive observation.
+- Validated review-findings-plan.json against review-findings.schema.json.
+- Validated the OpenSpec change strictly, both frozen contracts against Draft 2020-12, and the work-package DAG/scope/lock checks.
+
+### Next Steps
+- PLAN_FIX: define one-vendor/one-vote replacement scheduling so a replacement cannot also satisfy its original logical slot.
+- PLAN_FIX: tighten successful-attempt attribution and preserve disposition per source finding.
+- PLAN_FIX: add the convergence checkpoint test to package write scope and verification.
+- PLAN_FIX: align provisional status vocabulary and add non-invalid-output recovery tests.
+- Rerun PLAN_REVIEW; obtain explicit data-egress approval first if multi-vendor quorum is required.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/review-findings-plan.json` — schema-valid primary findings
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/review-prompt.md` — prepared external review prompt; not dispatched
+- `openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json` — unattributable-success contract gap
+- `openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml` — convergence checkpoint scope gap
+
+### Context
+Plan review did not converge: six medium-or-higher actionable findings remain. The highest-risk defects are false quorum when a replacement vendor is later dispatched in its own slot, and an attempt contract that accepts unattributable successes. External multi-vendor dispatch was blocked before execution because repository artifacts could not be sent to external vendor services without explicit data-egress approval; vendor participation was Codex only, with zero malformed vendor outputs because no external attempt ran.
+
+---
+
+## Phase: Plan Fix 1 (2026-08-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Enforce one vendor per round vote** `architectural: skill-workflow` — Replacement allocation transfers or cancels the vendor original slot before dispatch so one result cannot impersonate independent quorum.
+2. **Make source-level and terminal provenance authoritative** `architectural: skill-workflow` — Each source finding retains its disposition, and successful logical results require matching terminal vendor plus non-null model.
+
+### Trade-offs
+- Accepted an explicit second review gate after local remediation over treating a validated single-vendor fix pass as convergence because independent quorum is part of the requested safety property
+
+### Capability Gaps Observed
+- **permission_denied**: External review vendors could not receive private repository plan artifacts without explicit data-egress approval. (skill: parallel-review-plan, severity: high)
+
+### Completed Work
+- Fixed replacement-vendor double-count semantics and added a no-double-vote scenario.
+- Tightened terminal success provenance and per-source disposition contracts.
+- Corrected convergence package scope and verification ownership.
+- Aligned provisional terminology and added capacity/auth/transient/configuration recovery scenarios.
+- Passed strict OpenSpec, Draft 2020-12 contract, work-package DAG, and parallel overlap checks.
+
+### Next Steps
+- Obtain explicit repository-data egress approval and rerun multi-vendor PLAN_REVIEW.
+- Do not begin implementation until independent review quorum converges.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/review-findings-plan.json` — six actionable primary findings
+- `openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json` — canonical provisional and per-source disposition
+- `openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json` — terminal success provenance
+- `openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml` — corrected convergence test scope
+
+### Context
+Remediated all six medium-or-higher findings from the routed primary plan review. External vendor attempts remained blocked before repository-data egress, so the plan is locally corrected but not yet multi-vendor converged.
