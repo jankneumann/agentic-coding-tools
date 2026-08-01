@@ -39,3 +39,33 @@
 ### Context
 Completed phase 7 (wp-integration): confirmed no sibling wp branches exist so 7.1 had nothing to merge and both full suites reproduce baseline; proved the enablement gate fails correctly on a scratch flip-and-revert of INJECTION_DEFAULT_ENABLED with the flip byte-identically reverted; confirmed contract promotion is byte-identical; remediated both drift-gate blockers this change owns (regenerated contracts-inventory.md, added the missing documentation surface to two work packages context_impact blocks); validated the change by id at the CI-pinned openspec version 1.7.0; and recorded (without executing) the gh api call needed to make the two new CI jobs required contexts.
 
+
+
+## Phase: Implementation Iteration (2026-08-01)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Fixed `_ResolvedScope.allows` (issue #333) rather than deferring it** `architectural: semantic-context-evaluation` — `producers/semantic_runtime.py`'s `_ResolvedScope` stub carried `read_allow`/`deny` but no `allows(path)` method, while `semantic_context.py:454`'s client-side deny re-check calls `scopes.allows(hit.file_path)` unconditionally. Every case that reached the re-check raised `AttributeError`, caught by `collect_semantic_context`'s never-raises guarantee (D8) and turned into a `fallback`/`unavailable`/`unknown_state` arm with zero hits — which `scoring.scope.score_scope` then scores as compliant, because an arm with no rendered hits has no violations to find. The `scope_compliance` gate was passing without ever scoring a single hit. Fixed by delegating `_ResolvedScope.allows` to `context_eval.scoring.scope.allows` (the same deny-precedence function the gate scores against), rather than reimplementing the semantics a second time.
+2. **Left the three other filed follow-ups (issues #334-#336) unfixed** `architectural: semantic-context-evaluation` — #334 (`--live` is per-producer not per-case, fixtures hard-code `source_revision`) is a larger structural change with no adversarial-corpus regression signature the way #333 had; #335 is an ergonomics-only lint rule; #336 is a low-risk rename but not a defect. None of the three affect gate correctness the way #333 did, so none justified touching working code during an iteration pass scoped to bugs, edge cases, and quality issues.
+
+### Alternatives Considered
+- Reimplement deny-precedence matching directly inside `_ResolvedScope.allows`: rejected in favor of importing `context_eval.scoring.scope.allows` — both live in `packages/context-eval`, so there is no cross-package boundary to protect, and importing keeps the stub and the gate's own scoring function from silently diverging the way a second hand-written implementation could.
+
+### Trade-offs
+- Accepted writing a new test module (`test_semantic_runtime_producer.py`) rather than extending `test_scope_scorer.py` because that file drives `collect_semantic_context` through a hand-built, already-correct `_Scopes` stub defined in the test itself — it could not have caught this bug regardless of coverage, since the bug was specific to the harness's own `SemanticRuntimeProducer` wiring, never exercised by that file.
+
+### Completed Work
+- Fixed `_ResolvedScope.allows` in `packages/context-eval/src/context_eval/producers/semantic_runtime.py` (issue #333).
+- Added `packages/context-eval/tests/test_semantic_runtime_producer.py` (5 new tests) driving `SemanticRuntimeProducer` against the corpus's adversarial recorded responses (`ADV-DENY-PRECEDENCE`, `ADV-LEAKED-HIT`); verified against the bug by temporarily reverting the fix and confirming all five fail with `status='fallback'`, `trigger='unavailable'`, `reason='unknown_state'`.
+- Reverified full baseline after the fix: `packages/context-eval` 311 passed (306 + 5 new), `skills/tests/context-engineering/` 735 passed, `ruff check` clean, `mypy --strict` clean (17 files), `make semantic-enablement-gate` exit 0, `make context-drift-gate` exit 2 with only the pre-existing `openspec.projection` informational drift, `openspec validate --strict` valid at version 1.7.0.
+
+### Next Steps
+- None new. The three remaining filed follow-ups (#334-#336) stand as filed, not fixed here.
+
+### Relevant Files
+- `packages/context-eval/src/context_eval/producers/semantic_runtime.py` — `_ResolvedScope` now implements `allows(path)` by delegating to `scoring.scope.allows`
+- `packages/context-eval/tests/test_semantic_runtime_producer.py` — new: regression coverage for issue #333
+
+### Context
+IMPL_ITERATE phase. All seven implementation phases and all tasks were already complete; this phase's job was refinement, not new feature work. Of the four in-scope follow-ups flagged for judgement, only #333 (the `scope_compliance` gate scoring an empty arm as compliant due to a missing `allows` method) was a genuine defect with a small, low-risk fix and a clear regression test; the fix was made and verified against the full baseline. The other three (#334-#336) were left as filed issues per the phase's scope boundary.
