@@ -32,6 +32,15 @@ nobody enabled anything, and cannot be watched failing there — which is why
 reason is a gate people learn to route around; every unmet condition is printed
 with its id and the values that disagreed.
 
+**Identity is derived, not asserted — including the harness's own.** The report
+records both the harness's declared ``version`` and a digest of the harness's
+*source*, and this gate compares both. The declared version was the one expiry
+condition an operator could satisfy by writing a number down: a fix to a scorer
+leaves ``pyproject.toml`` untouched, so a report the harness demonstrably no
+longer reproduces kept counting as current evidence. A content digest makes a
+behavioural change to the measuring code invalidate its own evidence, which is
+what D12 says it wants and what the corpus digest has always done for the corpus.
+
 **Provenance is not evidence.** D12's six conditions all ask whether the report
 is *current*; none of them asked whether it is *about anything*. A hand-written
 document carrying the right digest, the right harness identity, a matching
@@ -91,6 +100,15 @@ GIT_TIMEOUT_SECONDS = 15
 CORPUS_DIGEST_CURRENT = "corpus_digest_current"
 HARNESS_VERSION_CURRENT = "harness_version_current"
 EMBEDDER_FINGERPRINT_CURRENT = "embedder_fingerprint_current"
+
+#: The content half of "is this the software that measured it?", and the reason
+#: the declared-version half is not enough on its own. ``harness.version`` is a
+#: string somebody writes into ``pyproject.toml``: it is the only D12 condition
+#: an operator can satisfy by assertion, and a fix to a scorer leaves it
+#: untouched, so a report the harness demonstrably no longer reproduces went on
+#: counting as current evidence. This compares a digest of the harness's own
+#: source, exactly as ``corpus_digest_current`` compares a digest of the corpus.
+HARNESS_FINGERPRINT_CURRENT = "harness_fingerprint_current"
 INDEXED_REVISION_REACHABLE = "indexed_revision_reachable"
 SCHEMA_VALID = "schema_valid"
 VERDICT_PASS = "verdict_pass"
@@ -108,6 +126,7 @@ REPORT_DESCRIBES_CORPUS = "report_describes_corpus"
 EXPIRY_CONDITIONS: tuple[str, ...] = (
     CORPUS_DIGEST_CURRENT,
     HARNESS_VERSION_CURRENT,
+    HARNESS_FINGERPRINT_CURRENT,
     EMBEDDER_FINGERPRINT_CURRENT,
     INDEXED_REVISION_REACHABLE,
     SCHEMA_VALID,
@@ -372,6 +391,25 @@ def _harness_version_condition(document: dict[str, Any], expected: str | None) -
     )
 
 
+def _harness_fingerprint_condition(document: dict[str, Any], source_root: Path | None) -> Condition:
+    try:
+        current = report.harness_fingerprint(source_root)
+    except report.ReportError as error:
+        raise EnablementGateError(str(error)) from error
+    recorded = document.get("harness", {}).get("fingerprint")
+    if recorded == current:
+        return Condition(
+            HARNESS_FINGERPRINT_CURRENT, True, f"the harness source still digests to {current}"
+        )
+    return Condition(
+        HARNESS_FINGERPRINT_CURRENT,
+        False,
+        f"the report was produced by harness source {recorded}, and the source here "
+        f"digests to {current}: the code that measured this has changed, whatever "
+        f"version it still calls itself",
+    )
+
+
 def _embedder_fingerprint_condition(
     document: dict[str, Any], contract_path: Path | None
 ) -> Condition:
@@ -454,6 +492,7 @@ def evaluate(
     corpus_root: Path,
     embedding_contract: Path | None = None,
     harness_version: str | None = None,
+    harness_source: Path | None = None,
 ) -> Outcome:
     """Decide whether the declared default is authorized by the recorded evidence."""
     enabled = declared_default(semantic_context)
@@ -483,6 +522,7 @@ def evaluate(
             valid,
             _corpus_digest_condition(document, corpus),
             _harness_version_condition(document, harness_version),
+            _harness_fingerprint_condition(document, harness_source),
             _embedder_fingerprint_condition(document, embedding_contract),
             _indexed_revision_condition(document, repository_root),
             _describes_corpus_condition(document, corpus),
@@ -507,6 +547,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             corpus_root=corpus_root,
             embedding_contract=args.embedding_contract,
             harness_version=args.harness_version,
+            harness_source=args.harness_source,
         )
     except EnablementGateError as error:
         print(f"apparatus failure: {error}", file=sys.stderr)
@@ -568,6 +609,14 @@ def _parser() -> argparse.ArgumentParser:
         "--harness-version",
         default=None,
         help="Override the installed harness version the report is compared against.",
+    )
+    parser.add_argument(
+        "--harness-source",
+        type=Path,
+        default=None,
+        help="The harness source tree whose digest the report is compared against. "
+        "Defaults to the running package's own source. Injected rather than "
+        "discovered so this condition can be watched rejecting a modified copy.",
     )
     return parser
 

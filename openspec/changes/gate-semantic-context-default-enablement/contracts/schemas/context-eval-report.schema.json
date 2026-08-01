@@ -59,8 +59,8 @@
     "harness": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "version", "corpus_digest"],
-      "description": "What produced this report, and against which corpus. Both halves are evidence-expiry inputs (design D12): a harness version bump or a corpus digest change withdraws the report's authorization to enable injection.",
+      "required": ["name", "version", "corpus_digest", "fingerprint"],
+      "description": "What produced this report, and against which corpus. Every part is an evidence-expiry input (design D12): a harness version bump, a change to the harness's own source, or a corpus digest change each withdraws the report's authorization to enable injection.",
       "properties": {
         "name": {
           "type": "string",
@@ -78,6 +78,11 @@
           "type": "string",
           "pattern": "^[0-9a-f]{64}$",
           "description": "Deterministic digest over the whole corpus directory, cases and thresholds alike. This is why there is no waiver field: an operator who believes a threshold is wrong edits the manifest, which changes this digest and invalidates every existing report against the new corpus."
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Deterministic digest over the harness's OWN source tree, built exactly as `corpus_digest` is built over the corpus. `version` is a string a person writes into `pyproject.toml`, which made it the one expiry condition an operator could satisfy by assertion: a fix to a scorer leaves the declared version untouched, so a report the harness demonstrably no longer reproduces went on counting as current evidence. This makes a behavioural change to the measuring code invalidate its own evidence with nobody remembering to bump anything — the same rule the embedder already obeys (design D6), applied to the harness itself."
         }
       }
     },

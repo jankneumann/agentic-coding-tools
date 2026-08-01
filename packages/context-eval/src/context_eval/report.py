@@ -30,8 +30,9 @@ same run, which is the one contradiction a reader has no way to resolve.
 
 from __future__ import annotations
 
+import hashlib
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -66,6 +67,17 @@ JSON_INDENT = "  "
 #: ``packages/context-eval``, by named parents rather than by index — the
 #: positional form is what made the archived evaluation unreproducible.
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent.parent
+
+#: The harness's own source tree, which :func:`harness_fingerprint` digests.
+SOURCE_ROOT = Path(__file__).resolve().parent
+
+_DIGEST_FIELD_SEPARATOR = "\x00"
+_DIGEST_RECORD_SEPARATOR = "\n"
+
+#: Never part of the harness's identity: bytecode is derived from the sources
+#: already hashed, and it appears or vanishes depending on who ran what.
+_UNSOURCED = "__pycache__"
+_BYTECODE_SUFFIX = ".pyc"
 
 
 class ReportError(Exception):
@@ -128,17 +140,30 @@ class IndexIdentity:
 
 @dataclass(frozen=True)
 class Harness:
-    """What produced this report, and against which corpus."""
+    """What produced this report, and against which corpus.
+
+    ``version`` is a string a person writes into ``pyproject.toml``.
+    ``fingerprint`` is a digest of the source that actually ran. Both are
+    recorded because they answer different questions, and the second exists
+    because the first was the one expiry condition an operator could satisfy by
+    assertion: a behavioural change to the measuring code left the declared
+    version untouched, so a report the harness no longer reproduces went on
+    counting as current evidence. Identity a harness can assert is identity a
+    harness can be wrong about — the same rule this module already applies to the
+    embedder (design D6), applied to the harness itself.
+    """
 
     name: str
     version: str
     corpus_digest: str
+    fingerprint: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "version": self.version,
             "corpus_digest": self.corpus_digest,
+            "fingerprint": self.fingerprint,
         }
 
 
@@ -277,13 +302,68 @@ def _enum_value(value: Any) -> Any:
     return inner if isinstance(inner, str) else value
 
 
-def harness_identity(corpus: Corpus, *, version: str | None = None) -> Harness:
+def harness_identity(
+    corpus: Corpus,
+    *,
+    version: str | None = None,
+    fingerprint: str | None = None,
+) -> Harness:
     """Name the harness and the corpus a report was produced against."""
     return Harness(
         name=HARNESS_NAME,
         version=version if version is not None else installed_version(),
         corpus_digest=corpus.digest,
+        fingerprint=fingerprint if fingerprint is not None else harness_fingerprint(),
     )
+
+
+def harness_fingerprint(source_root: Path | str | None = None) -> str:
+    """A digest over the harness's own source, keyed by relative path and sorted.
+
+    The same construction ``loader._digest`` uses for the corpus, and for the
+    same reason. The corpus digest exists because an operator who edits a
+    threshold must invalidate every report judged against the old one; this
+    exists because an operator who edits a *scorer* must invalidate every report
+    the new scorer would no longer produce. Until it did, the harness-expiry
+    check compared a version string nobody is obliged to change, and a fix to the
+    measuring code left its own stale evidence looking current — which is exactly
+    how a committed report that HEAD could no longer reproduce went undetected.
+
+    Bytes rather than parsed content, exactly as the corpus digest does:
+    reformatting moves the digest, which is conservative in the only direction
+    that is safe. Bytecode is excluded because it is derived from sources already
+    hashed and appears or vanishes depending on who ran what. Nothing here reads
+    a clock, a random source, or an unordered set, so two processes agree.
+
+    Args:
+        source_root: The tree to digest. Injected rather than discovered so the
+            gate can be pointed at a mutated copy and watched rejecting it —
+            a condition nobody has seen fire is a condition nobody has tested.
+    """
+    root = Path(source_root) if source_root is not None else SOURCE_ROOT
+    if not root.is_dir():
+        raise ReportError(f"the harness source is not a directory: {root}")
+    files = _source_files(root)
+    if not files:
+        raise ReportError(f"the harness source at {root} holds no files to fingerprint")
+    records = sorted(
+        _DIGEST_FIELD_SEPARATOR.join(
+            (path.relative_to(root).as_posix(), hashlib.sha256(path.read_bytes()).hexdigest())
+        )
+        for path in files
+    )
+    stream = _DIGEST_RECORD_SEPARATOR.join(records)
+    return hashlib.sha256(stream.encode("utf-8")).hexdigest()
+
+
+def _source_files(root: Path) -> Iterable[Path]:
+    return [
+        path
+        for path in root.rglob("*")
+        if path.is_file()
+        and path.suffix != _BYTECODE_SUFFIX
+        and _UNSOURCED not in path.relative_to(root).parts
+    ]
 
 
 def installed_version() -> str:

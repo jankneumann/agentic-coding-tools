@@ -182,7 +182,7 @@ Each gate SHALL declare the minimum index tier its measurement requires, and a r
 
 ### Requirement: Evaluation Report Record
 
-An evaluation report SHALL record the indexed revision, the evaluated repository revision, the embedding provider kind, model identity, dimension and fingerprint, the applied context budget, the corpus digest, the harness version, the service state at measurement time, and each gate's thresholds alongside its measured values and verdict. The report SHALL live at a durable path that does not move when this change is archived.
+An evaluation report SHALL record the indexed revision, the evaluated repository revision, the embedding provider kind, model identity, dimension and fingerprint, the applied context budget, the corpus digest, the harness version, a digest of the harness's own source, the service state at measurement time, and each gate's thresholds alongside its measured values and verdict. The report SHALL live at a durable path that does not move when this change is archived.
 
 #### Scenario: The report identifies its index and configuration
 
@@ -191,6 +191,12 @@ An evaluation report SHALL record the indexed revision, the evaluated repository
   the full embedding configuration that produced it
 - **AND** the model identity SHALL be derived from the configured embedding
   contract rather than asserted as a literal anywhere in the harness
+
+#### Scenario: The report identifies the software that produced it
+
+- **WHEN** a report is written
+- **THEN** it SHALL carry a digest derived from the harness's own source
+- **AND** that digest SHALL NOT be satisfiable by declaring a version string
 
 #### Scenario: The report has a durable home
 

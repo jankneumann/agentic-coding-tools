@@ -4,7 +4,8 @@
   "harness": {
     "name": "context-eval",
     "version": "0.1.0",
-    "corpus_digest": "6417066963927e0f1009a1b10fa49e6be6e11da3f7991290657b2adbbb7a0f56"
+    "corpus_digest": "6417066963927e0f1009a1b10fa49e6be6e11da3f7991290657b2adbbb7a0f56",
+    "fingerprint": "0e24a910de6347c4c7580af82dc8c7c41b671faea0955cda95c96f0e665cf446"
   },
   "repository": {
     "repo_slug": "agentic_coding_tools",
@@ -103,18 +104,15 @@
       "kind": "fail_closed_regression",
       "required": true,
       "min_index_tier": "none",
-      "verdict": "fail",
+      "verdict": "pass",
       "thresholds": {
         "min_expectation_match_rate": 1.0
       },
       "measured": {
-        "expectation_match_rate": 0.5714285714285714,
-        "expectations_honored": 4,
+        "expectation_match_rate": 1.0,
+        "expectations_honored": 7,
         "cases_scored": 7
-      },
-      "fail_reasons": [
-        "unmeasured"
-      ]
+      }
     }
   ],
   "per_consumer": [
@@ -306,22 +304,22 @@
         "baseline": {
           "rendered_files": [
             "openspec/changes/archive/2026-07-24-add-agy-grok-pi-harnesses/design.md",
+            "openspec/changes/gate-semantic-context-default-enablement/design.md",
             "openspec/changes/extract-gen-eval-package/plan-findings.md",
             "openspec/specs/skill-workflow/spec.md",
-            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-2/_prompt.md",
-            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-1/_prompt.md"
+            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-2/_prompt.md"
           ],
-          "rendered_lines": 234,
+          "rendered_lines": 217,
           "hit_at_k": false,
           "answer_coverage": 0.0,
           "evidence_density": 0.0,
           "steps_to_evidence": 6,
           "scope_violations": [
             "openspec/changes/archive/2026-07-24-add-agy-grok-pi-harnesses/design.md",
+            "openspec/changes/gate-semantic-context-default-enablement/design.md",
             "openspec/changes/extract-gen-eval-package/plan-findings.md",
             "openspec/specs/skill-workflow/spec.md",
-            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-2/_prompt.md",
-            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-1/_prompt.md"
+            "openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/reviews/round-2/_prompt.md"
           ]
         },
         "naive_phrase": {
@@ -450,16 +448,17 @@
       "scored": true,
       "arms": {
         "semantic": {
-          "rendered_files": [],
-          "rendered_lines": 0,
-          "hit_at_k": false,
-          "answer_coverage": 0.0,
-          "evidence_density": 0.0,
-          "steps_to_evidence": 6,
+          "rendered_files": [
+            "agent-coordinator/src/agents_config.py",
+            "agent-coordinator/src/work_queue.py"
+          ],
+          "rendered_lines": 4,
+          "hit_at_k": true,
+          "answer_coverage": 1.0,
+          "evidence_density": 0.5,
+          "steps_to_evidence": 1,
           "scope_violations": [],
-          "status": "fallback",
-          "fallback_trigger": "unavailable",
-          "fallback_reason": "unknown_state"
+          "status": "injected"
         },
         "baseline": {
           "rendered_files": [
@@ -499,26 +498,26 @@
       "scored": true,
       "arms": {
         "semantic": {
-          "rendered_files": [],
-          "rendered_lines": 0,
-          "hit_at_k": false,
-          "answer_coverage": 0.0,
-          "evidence_density": 0.0,
-          "steps_to_evidence": 6,
+          "rendered_files": [
+            "skills/parallel-infrastructure/scripts/scope_checker.py"
+          ],
+          "rendered_lines": 2,
+          "hit_at_k": true,
+          "answer_coverage": 1.0,
+          "evidence_density": 1.0,
+          "steps_to_evidence": 1,
           "scope_violations": [],
-          "status": "fallback",
-          "fallback_trigger": "unavailable",
-          "fallback_reason": "unknown_state"
+          "status": "injected"
         },
         "baseline": {
           "rendered_files": [
             "docs/archive/two-level-parallel-agentic-development.md",
             "openspec/specs/skill-workflow/spec.md",
             "agent-coordinator/src/guardrails.py",
-            "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/design.md",
-            "docs/parallel-agentic-development.md"
+            "openspec/changes/gate-semantic-context-default-enablement/tasks.md",
+            "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/design.md"
           ],
-          "rendered_lines": 162,
+          "rendered_lines": 172,
           "hit_at_k": false,
           "answer_coverage": 0.0,
           "evidence_density": 0.0,
@@ -527,8 +526,8 @@
             "docs/archive/two-level-parallel-agentic-development.md",
             "openspec/specs/skill-workflow/spec.md",
             "agent-coordinator/src/guardrails.py",
-            "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/design.md",
-            "docs/parallel-agentic-development.md"
+            "openspec/changes/gate-semantic-context-default-enablement/tasks.md",
+            "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/design.md"
           ]
         },
         "naive_phrase": {
@@ -556,8 +555,8 @@
           "steps_to_evidence": 6,
           "scope_violations": [],
           "status": "fallback",
-          "fallback_trigger": "unavailable",
-          "fallback_reason": "unknown_state"
+          "fallback_trigger": "out_of_scope",
+          "fallback_reason": "all_hits_scope_filtered"
         },
         "baseline": {
           "rendered_files": [
@@ -597,7 +596,7 @@
     "denominator_mismatch",
     "index_tier_insufficient"
   ],
-  "as_of": "2026-07-31T00:00:00Z",
+  "as_of": "2026-08-01T00:00:00Z",
   "judge": {
     "available": false
   }
