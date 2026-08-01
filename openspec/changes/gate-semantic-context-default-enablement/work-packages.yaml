@@ -468,7 +468,7 @@ packages:
       green on an unmodified tree -- its job is to catch a flip nobody has made,
       and making it red today would mean making main red for a condition nobody
       caused. The substitute is a mutation test, not an observation: construct
-      constant-`True` with no report, with a report stale by each of D12's six
+      constant-`True` with no report, with a report stale by each of D12's
       expiry conditions, with a failing report, and with a schema-invalid report,
       and assert non-zero for each.
 

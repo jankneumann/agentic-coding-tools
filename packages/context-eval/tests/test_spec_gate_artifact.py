@@ -9,22 +9,25 @@ waived report passes, over a markdown file no schema can read. Design decision
 D13 reconciles the requirement; this file is the executable half of that.
 
 **Why this test does not simply require a passing report to exist.**
-`docs/evaluation/semantic-context/report.json` is deliberately absent right now,
-and absent is the fail-closed default state (design D11). The measurement phase
-may legitimately produce a *failing* report. A test that demanded presence, or
-demanded `pass`, would be a test that pressures the measurement — which is the
-exact failure this whole change exists to correct. So the assertions here are
-chosen to be total over the three states the durable path can be in, and to say
-something true and load-bearing in each:
+`docs/evaluation/semantic-context/report.json` records `verdict: "fail"`, and a
+failing report is a correct and complete outcome (design D11). The measurement
+phase may legitimately produce one, and a test that demanded `pass` — or that
+demanded presence, on a tree where nothing had been measured — would be a test
+that pressures the measurement, which is the exact failure this whole change
+exists to correct. So the assertions here are chosen to be total over the three
+states the durable path can be in, and to say something true and load-bearing in
+each:
 
-- **No report** (the state today). The path is resolvable, durable, outside every
-  change directory, and named by every consumer that sends a reader to it.
-  Absence is readable *as* absence: `check` refuses to exit `0`, so nothing can
-  mistake "not measured" for "measured and fine" — which is exactly what the
-  waiver did.
-- **A FAIL report.** It is schema-valid, its verdict is drawn from the closed
-  two-member enum, it carries at least one explicit reason, and `check` exits
-  non-zero. A blocked or waived outcome has no representation other than this.
+- **No report.** The path is resolvable, durable, outside every change directory,
+  and named by every consumer that sends a reader to it. Absence is readable *as*
+  absence: `check` refuses to exit `0`, so nothing can mistake "not measured" for
+  "measured and fine" — which is exactly what the waiver did.
+- **A FAIL report** (the state today). It is schema-valid, its verdict is drawn
+  from the closed two-member enum, it carries at least one explicit reason, and
+  `check` exits non-zero. A blocked or waived outcome has no representation other
+  than this. The default is off for THIS reason — the evidence says no — and not
+  because no evidence exists; the two are different facts, and the whole of this
+  change is about not collapsing them.
 - **A PASS report.** It is schema-valid, its verdict is `pass`, it carries no
   fail reasons, and `check` exits `0`.
 

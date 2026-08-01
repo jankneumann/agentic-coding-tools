@@ -478,7 +478,7 @@ context-drift-gate: ## Composed deterministic context drift gate (exit 0 fresh /
 # single `INJECTION_DEFAULT_ENABLED` declaration in
 # skills/context-engineering/scripts/semantic_context.py against the recorded
 # evaluation report at docs/evaluation/semantic-context/report.json, applying
-# design decision D12's six expiry conditions. A failure names every condition
+# design decision D12's expiry conditions. A failure names every condition
 # it found unmet.
 #
 #   0  authorized, or nothing is claimed (the default is disabled)

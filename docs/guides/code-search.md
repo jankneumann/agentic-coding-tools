@@ -397,11 +397,17 @@ durable, machine-checkable, and fail-closed.
 | Measured stock `ccc` over sqlite-vec | Measures the Postgres/pgvector path that actually serves |
 | Unbounded ripgrep dump vs. a capped section | Both arms rendered under one shared context budget |
 
-**No such report exists yet.** Absent is the fail-closed default state, not a
-missing file: nothing exits `0` without a schema-valid passing report on disk,
-so the flag stays off and nothing depends on unproven retrieval quality. A
-measurement that is taken and comes back `fail` is a correct, complete outcome —
-it simply does not authorize enablement.
+**The report exists and it records `verdict: "fail"`** —
+`["unmeasured", "denominator_mismatch", "index_tier_insufficient"]`. The flag
+stays off because the evidence says no, not because evidence is absent, and the
+distinction is the whole point: "we did not measure it" and "we measured it and
+it failed" are different facts with different remedies, and collapsing them is
+exactly what the July 2026 waiver did. Semantic hit@5 is still unmeasured on this
+repository — `retrieval_quality` and `coding_context_utility` both declare
+`min_index_tier: live` and both received `none` — but that is now a named,
+machine-readable reason inside a schema-valid document rather than a missing
+file. A measurement that is taken and comes back `fail` is a correct, complete
+outcome; it simply does not authorize enablement.
 
 The previous attempt
 (`openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/spike-report.md:9-19`)

@@ -8,7 +8,7 @@ the substitute.
 
 Each test constructs the tree state the gate exists to reject — the default
 declared `True`, against evidence that is absent, stale by exactly one of design
-decision D12's six expiry conditions, failing, or schema-invalid — and asserts a
+decision D12's expiry conditions, failing, or schema-invalid — and asserts a
 non-zero exit that *names the condition*. Two controls sit beside them and are
 what make the rejections mean anything:
 
@@ -586,10 +586,13 @@ def test_a_recorded_apparatus_failure_does_not_authorize_enablement(
 def test_every_condition_the_gate_declares_is_mutated() -> None:
     """A condition dropped from the gate, or added without a mutant, is caught here.
 
-    The gate's own condition list is design decision D12's six expiry conditions
-    plus the base case they reduce to. If one of them stopped being checked, the
+    The gate's own condition list is design decision D12's expiry conditions plus
+    the base case they reduce to. If one of them stopped being checked, the
     parametrization above would still be green — nothing else in the suite would
-    notice, because the gate is green on this tree either way.
+    notice, because the gate is green on this tree either way. The list has grown
+    twice since D12 was written — `harness_fingerprint_current` and
+    `report_describes_corpus` — and this assertion is what obliges each addition
+    to arrive with a mutant rather than as an unexercised branch.
     """
     mutated = {condition for condition, _, _ in MUTATIONS}
     assert mutated == set(enablement_gate.CONDITIONS)
