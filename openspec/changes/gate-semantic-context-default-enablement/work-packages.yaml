@@ -77,10 +77,13 @@ packages:
         - "**/.venv/**"
     context_impact:
       # Published JSON Schemas are interface contracts; the new test module is
-      # source the semantic index embeds.
+      # source the semantic index embeds. Also touches
+      # openspec/contracts/README.md (task 1.4's promotion row), a
+      # documentation surface -- added at task 7.4 remediation.
       surfaces:
         - "apis"
         - "semantic_code"
+        - "documentation"
     worktree:
       name: ri13-contracts
       mode: isolated
@@ -271,9 +274,13 @@ packages:
         - "**/.venv/**"
     context_impact:
       # New scoring modules the semantic index embeds. No published interface
-      # changes -- the schemas are wp-contracts'.
+      # changes -- the schemas are wp-contracts'. `tests/fixtures/**` includes
+      # two markdown fixture files (epsilon.md, phrase.md), which the
+      # validator classifies as a documentation surface -- added at task 7.4
+      # remediation; they are test fixtures, not published documentation.
       surfaces:
         - "semantic_code"
+        - "documentation"
     worktree:
       name: ri13-scoring
       mode: isolated

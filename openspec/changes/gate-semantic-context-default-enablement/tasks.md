@@ -672,10 +672,27 @@ requires a favourable number.
       row naming this change. `packages/context-eval/tests/test_promoted_contracts.py`
       (57 passed) reproduces the same check automatically.
 
-- [ ] 7.4 Run `make context-drift-gate` and regenerate any artifact the new
+- [x] 7.4 Run `make context-drift-gate` and regenerate any artifact the new
       package or docs directory made stale
       **Dependencies**: 7.1
       **Size**: S
+      **Result**: `make context-drift-gate` reported exactly two blocking
+      drifts, both owned by this change: `api.contracts` (stale
+      `docs/architecture-analysis/contracts-inventory.md`, missing the three
+      newly promoted `semantic-context-evaluation` schemas) and
+      `context.impact` (`work-packages.yaml`'s `wp-contracts` and
+      `wp-scoring` packages had `context_impact` blocks that omitted the
+      `documentation` surface their diffs imply). Remediated with
+      `skills/project-context-refresh/scripts/cli.py generate api.contracts`
+      (regenerated only the inventory file, confirmed by `git status`) and by
+      adding `documentation` to both packages' `context_impact.surfaces`.
+      Reran `make context-drift-gate`: **exit 0**, only the pre-existing
+      `openspec.projection` informational drift remains — owned by
+      `cleanup-feature` / `openspec archive`, deliberately not remediated
+      here (it rewrites `openspec/specs/` from every active change's delta,
+      not just this one). `validate_context_impact.py --base main` now
+      reports all seven packages `declared`; `validate_work_packages.py`
+      confirms the edited file is still schema-valid.
 
 - [ ] 7.5 Run `openspec validate gate-semantic-context-default-enablement
       --strict` and fix everything it reports
