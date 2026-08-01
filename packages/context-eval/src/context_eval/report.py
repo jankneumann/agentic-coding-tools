@@ -75,10 +75,20 @@ SOURCE_ROOT = Path(__file__).resolve().parent
 _DIGEST_FIELD_SEPARATOR = "\x00"
 _DIGEST_RECORD_SEPARATOR = "\n"
 
-#: Never part of the harness's identity: bytecode is derived from the sources
-#: already hashed, and it appears or vanishes depending on who ran what.
-_UNSOURCED = "__pycache__"
-_BYTECODE_SUFFIX = ".pyc"
+#: What the harness IS. The digest covers files with this suffix and nothing
+#: else, exactly as the corpus digest covers corpus files: an identity that moved
+#: for anything that happened to be sitting in the directory would produce false
+#: EXPIRIES, and a gate that sends an operator to re-run a full evaluation
+#: because macOS Finder wrote a `.DS_Store` is a gate people learn to route
+#: around. Bytecode is excluded by construction rather than by a rule — a
+#: `.cpython-312.pyc` is not a `.py` — and so are coverage reports, editor swap
+#: files, and everything else nobody wrote.
+#:
+#: The cost is that a non-Python file the harness READ would be invisible to its
+#: own identity. There is none today, and
+#: ``test_the_harness_source_holds_nothing_the_digest_would_miss`` fails the day
+#: one arrives, so the decision is forced rather than silently taken.
+_SOURCE_SUFFIX = ".py"
 
 
 class ReportError(Exception):
@@ -332,9 +342,12 @@ def harness_fingerprint(source_root: Path | str | None = None) -> str:
 
     Bytes rather than parsed content, exactly as the corpus digest does:
     reformatting moves the digest, which is conservative in the only direction
-    that is safe. Bytecode is excluded because it is derived from sources already
-    hashed and appears or vanishes depending on who ran what. Nothing here reads
-    a clock, a random source, or an unordered set, so two processes agree.
+    that is safe. Only ``*.py`` is covered, because the digest must move for
+    every change to the harness and for nothing else: bytecode is derived from
+    sources already hashed, and a `.DS_Store` or a coverage report changes no
+    behaviour while producing a false expiry — the failure mode that teaches
+    people to route around a gate. Nothing here reads a clock, a random source,
+    or an unordered set, so two processes agree.
 
     Args:
         source_root: The tree to digest. Injected rather than discovered so the
@@ -358,13 +371,7 @@ def harness_fingerprint(source_root: Path | str | None = None) -> str:
 
 
 def _source_files(root: Path) -> Iterable[Path]:
-    return [
-        path
-        for path in root.rglob("*")
-        if path.is_file()
-        and path.suffix != _BYTECODE_SUFFIX
-        and _UNSOURCED not in path.relative_to(root).parts
-    ]
+    return [path for path in root.rglob(f"*{_SOURCE_SUFFIX}") if path.is_file()]
 
 
 def installed_version() -> str:

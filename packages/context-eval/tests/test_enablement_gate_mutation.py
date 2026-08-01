@@ -897,6 +897,64 @@ def test_an_unmodified_copy_of_the_harness_source_still_authorizes(
     assert not capsys.readouterr().err
 
 
+#: Files nobody wrote, that appear in a source tree anyway. `.DS_Store` is the
+#: one that matters: macOS Finder creates it from merely opening the directory.
+INCIDENTAL_FILES = (".DS_Store", "coverage.xml", ".relevance.py.swp", "scratch.md")
+
+
+def test_an_incidental_file_does_not_move_the_harness_fingerprint(tmp_path: Path) -> None:
+    """The digest identifies the harness, not the directory the harness sits in.
+
+    A digest over everything under `src/context_eval/` moved when Finder wrote a
+    `.DS_Store`, and the gate then reported `harness_fingerprint_current` unmet
+    with "the code that measured this has changed" — sending an operator to
+    re-run a full evaluation over a file with no bearing on behaviour. It cannot
+    authorize anything false; it produces a false EXPIRY, which is the failure
+    mode that teaches people to route around a gate rather than satisfy it.
+
+    Paired with the assertion that a real edit still moves it, because a digest
+    that ignored the wrong things would satisfy this test and be worthless.
+    """
+    pristine = _harness_source_copy(tmp_path, modified=False)
+    before = report_module.harness_fingerprint(pristine)
+
+    (pristine / "scoring").mkdir(exist_ok=True)
+    for name in INCIDENTAL_FILES:
+        (pristine / name).write_bytes(b"not the harness\n")
+        (pristine / "scoring" / name).write_bytes(b"not the harness either\n")
+    assert report_module.harness_fingerprint(pristine) == before, (
+        "an incidental file moved the harness's identity, so opening the "
+        "directory in Finder expires the evidence"
+    )
+
+    target = pristine / "scoring" / "relevance.py"
+    target.write_text(target.read_text(encoding="utf-8") + "\n# a scorer\n", encoding="utf-8")
+    assert report_module.harness_fingerprint(pristine) != before
+
+
+def test_the_harness_source_holds_nothing_the_digest_would_miss() -> None:
+    """The digest covers `*.py`; this fails the day something else carries behaviour.
+
+    The trade-off in narrowing the digest is that a non-Python file the harness
+    READ would be invisible to the harness's own identity. There is none today —
+    only `py.typed`, a marker with no content — and this assertion is what makes
+    the day one arrives a decision somebody has to make rather than a silent
+    hole in an expiry condition.
+    """
+    unhashed = sorted(
+        path.relative_to(HARNESS_SOURCE).as_posix()
+        for path in HARNESS_SOURCE.rglob("*")
+        if path.is_file()
+        and path.suffix != ".py"
+        and "__pycache__" not in path.relative_to(HARNESS_SOURCE).parts
+    )
+    assert unhashed == ["py.typed"], (
+        f"{unhashed} sit inside the harness source and are not covered by its "
+        "fingerprint. If any of them changes behaviour, widen _SOURCE_SUFFIX; if "
+        "none does, add it here and say so."
+    )
+
+
 def test_a_changed_scorer_moves_the_harness_fingerprint(tmp_path: Path) -> None:
     """The property the condition rests on, asserted directly.
 
