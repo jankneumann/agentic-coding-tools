@@ -601,19 +601,21 @@ be meaningful.
   unprinted skip and a passing gate are indistinguishable in a log.
 
 - [ ] 5.7 Wire the full-capability sweep into CI `[S]`
-  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (a pull request that was not planned through OpenSpec skips); (a pull request touching two change directories fails as ambiguous); (an unresolvable base fails rather than skipping); (a merge group batching two changes blocks without ambiguity); (the run on the integration branch cannot fail); (the job is not guarded off any declared event)
+  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (a pull request that was not planned through OpenSpec skips); (a pull request touching two change directories fails as ambiguous); (an unresolvable base fails rather than skipping); (a merge group batching two changes is evaluated once per change); (a merge group is not evaluated against changes outside the batch); (the run on the integration branch cannot fail); (the job is not guarded off any declared event)
   **Design decisions**: D12
   **Dependencies**: 3.16, 5.2
   **Note**: the three event paths differ in more than blocking-ness — they
-  differ in what requirement identifiers resolve to. `pull_request` passes
-  `--change <id>`; `merge_group` and `push`-on-`main` pass no `--change` and get
-  the union of every on-branch delta. Blocking-ness is INDEPENDENT of the flag:
-  `merge_group` omits `--change` and still blocks. Union mode's looseness is a
-  property of the branch, not the mode — on `push` to `main` the union admits
-  requirements from changes whose implementation has not landed, which is why
-  that run reports; on a merge-group branch it is exactly the batched changes,
-  so blocking on it is the point (D12). Both modes are 3.16's work, already
-  built by the time this task wires them.
+  differ in what requirement identifiers resolve to. `pull_request` and
+  `merge_group` both pass `--change <id>` (merge_group once per batched
+  change); only `push`-on-`main` omits it and gets the union of every on-branch
+  delta. **Every blocking invocation supplies `--change`; union mode is used by
+  exactly one run, the non-blocking one.** That is the invariant, not a
+  coincidence: union admits requirements from changes whose implementation has
+  not landed, so nothing that blocks can afford it. The gate must still not
+  INFER blocking from the flag and must not error on a missing `--change` —
+  that was an earlier draft's mistake and it rejected the one run entitled to
+  omit it (D12). Both modes are 3.16's work, already built by the time this
+  task wires them.
   **Note**: derive the change id from the DIFF, not the branch name. `ci.yml`
   triggers on unfiltered `pull_request:` and `merge_group:` (lines 3-7), and
   live branch prefixes include `dependabot/`, `chore/`, `claude/`, and
@@ -656,10 +658,21 @@ be meaningful.
     - `pull_request` → base `github.event.pull_request.base.sha`, derive the
       change id from the diff, invoke `--change <id>`, BLOCKING. Zero touched
       change directories → SKIP; two → fail as ambiguous.
-    - `merge_group` → base `github.event.merge_group.base_sha`, invoke with
-      `--change` OMITTED, BLOCKING. Do NOT derive a change id and do NOT apply
-      the ambiguity rule here: a merge group's diff spans every batched PR, so
-      deriving one id fails the queue whenever two OpenSpec changes batch.
+    - `merge_group` → base `github.event.merge_group.base_sha`, derive the SET
+      of touched change directories and invoke the gate once per id with
+      `--change <id>`, BLOCKING if any invocation fails. Do NOT apply the
+      ambiguity rule here: a merge group's diff spans every batched PR, so
+      several change directories is the ordinary case. Zero touched → SKIP.
+      Do NOT use union mode here. The set of change dirs in the DIFF is the
+      batch; the set in the TREE is not — a merge-queue branch is main plus the
+      batched PRs, so it carries all 33 unarchived change dirs main already
+      had (`git ls-tree --name-only origin/main openspec/changes/` → 34
+      entries). Three of them add 11 gen-eval-framework requirements with no
+      landed implementation; with 4.2b's exclusions file flipping reverse
+      enforcement on, a blocking union run fails on those 11 and the batch's
+      authors cannot fix it — citing them is not their work, and excluding them
+      fails the `other-changes-are-invisible` rule. Blocking scope comes from
+      the diff, never from the tree.
     - `push` to `main` → no base needed, `--change` omitted, NON-blocking; its
       exit status must not depend on what it found.
   **Note**: the two wrong implementations, both of which the earlier wording
@@ -716,6 +729,22 @@ be meaningful.
   this change's spec delta, and 4.2's citations name them; an archive-only run
   reports every one as unresolved. That is the blocking run's resolution rule
   (D12), and this task is where it is first exercised on real artifacts.
+  **Note**: this invocation IS the one that gates the merge, on both blocking
+  events — `pull_request` derives this same `--change <id>`, and `merge_group`
+  runs it once per batched change. That equivalence is what makes this a real
+  acceptance criterion, and it is worth stating because it was briefly untrue:
+  an earlier draft had `merge_group` block with `--change` OMITTED (union
+  mode), so 5.7c exercised an invocation no blocking event actually ran, and
+  nothing in the plan could have detected that the union-blocking run was
+  unsatisfiable. If a future edit reintroduces a blocking invocation this task
+  does not run, this task stops being an acceptance criterion — check that
+  first, before trusting its exit code.
+  **Note**: also run the post-merge invocation once, bare `--scope capability`
+  with no `--change`, and record its output WITHOUT gating on it. It must not
+  be made to pass — it unions every in-flight change on the branch and will
+  report other changes' uncited requirements, which is exactly why that run is
+  non-blocking. Recording it here proves the two modes were distinguished on
+  real artifacts rather than assumed to differ.
   **Note**: expect `code-search/v2.yaml` in the REPORT, not the failures — it
   is a pre-existing root-misplaced instance, and the rule reports the existing
   while failing only newly added ones. If it appears as a failure, discovery

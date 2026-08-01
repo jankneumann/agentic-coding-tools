@@ -432,20 +432,23 @@ packages:
       job on all three declared events, branching on github.event_name (bare
       invocation, fetch-depth: 0). Task 5.7 carries the full per-event table —
       follow it exactly. In summary: `pull_request` derives `--change <id>`
-      from the DIFF (not the branch name) and BLOCKS; `merge_group` omits
-      `--change`, applies NO ambiguity rule, and BLOCKS; `push` on main omits
-      `--change` and is NON-blocking. Do NOT add an `if:` excluding a declared
-      trigger — `grep -n 'if:' ci.yml` returns one hit today (`if: failure()`),
-      so nothing in that workflow is event-guarded. An unresolvable base where
-      one is required is an ERROR, never the SKIP, or the merge queue passes
-      silently.
+      from the DIFF (not the branch name) and BLOCKS; `merge_group` derives the
+      SET of change dirs from the diff and runs the gate once per id with
+      `--change <id>`, no ambiguity rule, BLOCKS; `push` on main omits
+      `--change` (union) and is NON-blocking. Every blocking invocation
+      supplies `--change`; union mode is used ONLY by the non-blocking run.
+      Do NOT use union mode on merge_group: the diff is the batch, the TREE is
+      not — a merge-queue branch carries every unarchived change dir main had,
+      and blocking on those fails the queue unfixably. Do NOT add an `if:`
+      excluding a declared trigger — `grep -n 'if:' ci.yml` returns one hit
+      today (`if: failure()`), so nothing there is event-guarded. An
+      unresolvable base where one is required is an ERROR, never the SKIP.
 
       Test file mapping: test_gen_eval_mode_selection.py is pre-existing;
       test_validate_feature_gate.py <- 5.6; test_ci_sweep_wiring.py <- 5.7,
-      driving the job's bash fragment extracted from ci.yml and covering all
-      five wiring scenarios (SKIP, unresolvable-base FAILURE, merge_group
-      union-and-block, push-to-main exiting zero despite findings, and no `if:`
-      guard). Both new files are in write_allow via
+      driving the job's bash fragment extracted from ci.yml and covering every
+      scenario named on task 5.7's `Spec scenarios` line. Both new
+      files are in write_allow via
       skills/tests/validate-feature/** and each has a verification step below
       that fails when the file is absent OR empty. Both resolution
       modes are wp-gate's work (task 3.16) and exist before this package runs; register `tests/validate-feature` in skills/pyproject.toml

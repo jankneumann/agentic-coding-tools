@@ -410,7 +410,7 @@ in scope:
 |---|---|---|---|---|
 | `/validate-feature` | local / pre-PR | `--change <id>` | Operations and requirements the change touches | Yes |
 | CI, merge candidate | `pull_request` | `--change <derived>` | Every capability, in full | Opted-in surfaces block (traced documents forward, exclusions-file capabilities reverse); the rest report |
-| CI, merge candidate | `merge_group` | `--change` omitted | Every capability, in full | Same — opted-in surfaces block |
+| CI, merge candidate | `merge_group` | `--change <derived>`, once per batched change | Every capability, in full | Same — opted-in surfaces block |
 | CI, debt visibility | `push` on `main` | `--change` omitted | Every capability, in full | No — reports only |
 
 **One job, three events, selected on `github.event_name`.** The three CI rows
@@ -430,14 +430,28 @@ run is kept, with its honest purpose — making accumulated debt visible on the
 integration branch — and is explicitly non-blocking, so nothing depends on it
 to stop anything.
 
-**Why `merge_group` omits `--change` instead of deriving one.** A merge group's
-diff spans every pull request the queue batched, so deriving a single change id
-there would hit the ambiguity rule whenever two OpenSpec changes batch together
-— failing the queue for doing exactly what a queue is for. The union mode is
-the right reading of a batch: on the merge-group branch, `openspec/changes/`
-holds precisely the changes that are landing. The ambiguity rule therefore
-applies on `pull_request` only, where more than one change directory in a diff
-really is someone conflating two changes.
+**Why `merge_group` iterates instead of unioning.** A merge group's diff spans
+every pull request the queue batched, so deriving a *single* change id there
+would hit the ambiguity rule whenever two OpenSpec changes batch together —
+failing the queue for doing exactly what a queue is for. The fix is to run the
+gate once per batched change id, not to abandon change scope.
+
+An earlier draft used union mode on `merge_group` instead, reasoning that a
+merge-group branch "holds precisely the changes that are landing, because the
+evaluated branch is the integration branch plus the batched pull requests."
+That reasoning refutes itself: the integration-branch half carries every
+unarchived change directory. `git ls-tree --name-only origin/main
+openspec/changes/` returns 34 entries, three of which add 11
+`gen-eval-framework` requirements with no landed implementation. With D13
+reverse enforcement on, a blocking union run would have failed on those 11 —
+and the batch's authors could not have fixed it: citing another change's
+requirements is not their work, and excluding them fails by D11's
+other-changes-are-invisible rule. **Blocking scope comes from the diff, never
+from the tree.** The tree is the same on every branch built from `main`; only
+the diff knows what is under evaluation.
+
+The ambiguity rule therefore applies on `pull_request` only, where more than
+one change directory in a diff really is someone conflating two changes.
 
 **Resolution is keyed on the `--change` flag, not on the run context.** Every
 resolution rule in this change is written in terms of *the active change's*
@@ -451,17 +465,18 @@ CI job invoked it and should not try.
 So the gate has one rule with two modes, selected by the flag: `--change <id>`
 shadows the archive with that delta (other in-flight changes neither citable nor
 excludable); omitting it shadows the archive with *every* delta present under
-`openspec/changes/` on the branch. Blocking-ness lives in the CI job and is
-independent of the flag: the `merge_group` invocation omits `--change` and
-still blocks.
+`openspec/changes/` on the branch, excluding `archive/` — those deltas are
+already merged into `openspec/specs/`, and re-applying a REMOVED or RENAMED one
+would resurrect or re-move a requirement.
 
-Union mode's looseness is a property of the *branch*, not of the mode. On
-`push` to `main` the directory holds every in-flight change whose plan merged
-and whose implementation did not, so the union admits requirements nothing has
-built yet — which is why that run reports and never fails. On a merge-group
-branch the same directory holds exactly the batched changes, so the union is
-exact and blocking on it is the point. Reading "union mode" as "non-blocking by
-nature" is the trap: it would leave the merge queue ungated.
+Blocking-ness lives in the CI job, but the two are not independent in practice:
+every blocking invocation supplies `--change <id>`, and union mode is used by
+exactly one run, the non-blocking post-merge one. That is not a coincidence to
+be tidied away — it is the invariant. Union mode admits requirements from
+changes whose implementation has not landed, so nothing that blocks can afford
+to use it. The gate still must not *infer* blocking from the flag, and must not
+fail merely because `--change` was omitted: that was the earlier draft's error,
+and it rejected the one run entitled to omit it.
 
 Resolving archive-only in union mode would instead report every
 citation a merged-but-unarchived change makes to its own new requirements, since

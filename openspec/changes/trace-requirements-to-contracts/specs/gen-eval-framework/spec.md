@@ -515,9 +515,11 @@ directly under `openspec/changes/<id>/` on the branch, excluding
 already been merged into `openspec/specs/`, so re-applying them shadows the
 archive with itself, and a delta that REMOVED or RENAMED a requirement would
 resurrect or re-move it. Which run blocks SHALL be a property of
-the CI job and not of the gate. Supplying `--change` SHALL NOT imply blocking
-and omitting it SHALL NOT imply reporting: the two choices are independent, and
-the merge-candidate run on `merge_group` both omits `--change` and blocks.
+the CI job and not of the gate: every blocking invocation SHALL supply
+`--change <id>`, and union mode SHALL be used only by the non-blocking
+post-merge run. The gate SHALL NOT infer blocking from the flag, and SHALL NOT
+fail merely because `--change` was omitted — a gate that required a change id
+would reject the one run legitimately entitled to omit it.
 
 The sweep SHALL run as a single CI job on three events — `pull_request`,
 `merge_group`, and `push` to the integration branch — and SHALL select both its
@@ -535,12 +537,23 @@ diff touches no change directory, it SHALL print an explicit SKIP naming the
 branch and SHALL NOT fail. Where it touches more than one, it SHALL fail as
 ambiguous rather than choosing.
 
-On `merge_group`, the job SHALL invoke the gate with `--change` omitted against
-the merge group's base commit, and SHALL block. It SHALL NOT derive a change id,
-and the ambiguity rule SHALL NOT apply: a merge group batches whatever the queue
-batched, so a diff spanning several change directories is its ordinary case
-rather than an error. Deriving a single change id there would fail the queue
-whenever two OpenSpec changes batch together.
+On `merge_group`, the job SHALL derive the set of change directories touched by
+the diff against the merge group's base commit, SHALL invoke the gate once per
+derived change id with `--change <id>`, and SHALL block if any invocation fails.
+The ambiguity rule SHALL NOT apply: a merge group batches whatever the queue
+batched, so several change directories is its ordinary case rather than an
+error. Where the diff touches no change directory, the job SHALL print an
+explicit SKIP naming the merge group and SHALL NOT fail.
+
+The merge-group run SHALL NOT use union mode. The set of change directories in
+the *diff* is the batch; the set present in the *tree* is not, because a
+merge-queue branch is the integration branch plus the batched pull requests and
+therefore carries every unarchived change directory the integration branch
+already had. Unioning the tree would evaluate a blocking run against
+requirements belonging to changes that are not in the batch, whose
+implementations have not landed and which the batch's authors cannot cite or
+exclude — an exclusion naming them fails by the rule above. A blocking run
+SHALL only ever be scoped to a change it is actually evaluating.
 
 On `push` to the integration branch, the job SHALL invoke the gate with
 `--change` omitted, SHALL evaluate every capability in full, and SHALL NOT
@@ -564,15 +577,19 @@ Keying resolution on the flag rather than on the run context is what keeps the
 gate out of the business of knowing which CI job invoked it. The gate still has
 exactly one resolution rule; the job, not the gate, reads `github.event_name`.
 
-Union mode's looseness is a property of the branch it runs on, not of the mode.
-On `push` to the integration branch, `openspec/changes/` holds every in-flight
-change whose plan has merged and whose implementation has not — so the union
-admits requirements nothing has built yet, and that run reports rather than
-blocks. Inside a merge group the same directory holds precisely the changes
-that are landing, because the evaluated branch *is* the integration branch plus
-the batched pull requests. There the union is exact, and blocking on it is the
-whole point of evaluating the merge candidate. Reading "union mode" as
-"non-blocking by nature" would leave the merge queue ungated.
+Union mode is deliberately the looser of the two — it admits requirements from
+changes whose implementation has not landed — and that is exactly why the only
+run that uses it reports and never blocks. `openspec/changes/` on any branch
+built from the integration branch holds every in-flight change, not the subset
+under evaluation, so union mode can never say anything scoped. An earlier draft
+of this requirement assumed a merge-queue branch was an exception, on the
+reasoning that it "is the integration branch plus the batched pull requests" —
+which is true and is precisely the refutation, since the integration branch part
+carries all the others. Under that draft the blocking merge-group run would have
+failed on uncited requirements belonging to changes outside the batch, and the
+batch's authors could not have fixed it: citing them is not their work, and
+excluding them fails by the other-changes-are-invisible rule. Blocking scope
+comes from the diff, never from the tree.
 
 The SKIP exists because OpenSpec is not the only way work reaches this
 repository. Dependency bumps, chores, and cloud-session branches carry no spec
@@ -651,14 +668,27 @@ only a check on the candidate can stop it going red.
 - **THEN** it SHALL fail naming each candidate change id
 - **AND** it SHALL NOT choose one
 
-<!-- Scenario ID: gen-eval-framework.merge-group-unions-and-blocks -->
-#### Scenario: A merge group batching two changes blocks without ambiguity
+<!-- Scenario ID: gen-eval-framework.merge-group-iterates-over-the-batch -->
+#### Scenario: A merge group batching two changes is evaluated once per change
 
 - **WHEN** the job runs on a `merge_group` event whose diff touches two
   directories under `openspec/changes/`
-- **THEN** it SHALL invoke the gate with `--change` omitted
+- **THEN** it SHALL invoke the gate twice, once per derived change id, each
+  with `--change <id>`
 - **AND** it SHALL NOT fail as ambiguous
-- **AND** a violation in an opted-in surface SHALL fail the merge group
+- **AND** a violation in an opted-in surface of either change SHALL fail the
+  merge group
+
+<!-- Scenario ID: gen-eval-framework.merge-group-ignores-unbatched-changes -->
+#### Scenario: A merge group is not evaluated against changes outside the batch
+
+- **WHEN** the job runs on a `merge_group` event and the branch carries
+  unarchived change directories that the diff against the merge group's base
+  does not touch
+- **THEN** those changes' requirements SHALL NOT enter any blocking invocation's
+  effective requirement set
+- **AND** the merge group SHALL NOT fail for an uncited requirement belonging
+  to a change outside the batch
 
 <!-- Scenario ID: gen-eval-framework.push-to-integration-branch-reports -->
 #### Scenario: The run on the integration branch cannot fail
