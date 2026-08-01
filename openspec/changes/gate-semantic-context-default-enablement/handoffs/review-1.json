@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T20:54:50.754191+00:00",
+  "coordinator_error": {
+    "error_type": "http_403",
+    "message": "API key is not permitted to act as requested agent_id",
+    "http_status": 403
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "phase": "IMPL_REVIEW",
+    "iteration": 0,
+    "outcome": "not_converged",
+    "reviewed_revision": "3a8e43034b90b941da4fc4a8edea584f77096cfa",
+    "summary": "IMPL_REVIEW round 1 for gate-semantic-context-default-enablement. Multi-vendor review dispatched to four non-claude vendors via review_dispatcher.py --mode alternative, so reviewers had tool and Bash access and could run the suite and the gates rather than review prose. Three of four succeeded: antigravity (gemini-3.6-flash-medium, 2 findings), codex (gpt-5.5, 2 findings), grok (grok-4.5, 4 findings). pi failed on an OpenRouter HTTP 402 insufficient-credits error -- an account condition, not a review failure. Vendor diversity is satisfied: both prior phases ran on claude and none of these three did. Every stated baseline reproduces exactly -- context-eval 311 passed, skills/tests/context-engineering 735 passed, ruff clean, mypy --strict clean over 17 files, make semantic-enablement-gate exit 0, openspec validate --strict valid, promoted contracts byte-identical to the change-local copies, worktree clean before and after with HEAD unchanged at 3a8e4303. OUTCOME not_converged on 4 blocking findings, three of them reproduced end-to-end rather than argued from reading. The two that matter most are the same defect class this change exists to eliminate, occurring inside the change: (1) the Enablement Consistency Gate authorizes an enabled default from a schema-valid 'pass' report carrying zero gates, zero consumers and cases_declared 0 -- raised by codex, independently reproduced here, exit 0 with seven 'met' conditions; and (2) a run in which no case can be scored crashes with an uncaught ScopeScoringError and writes no report at all -- found here and independently by grok, reproduced at the CLI, a direct violation of specs/semantic-context-evaluation/spec.md:129-135. Both are invisible today only because the default is off and the real run happened to score 7 of 19 cases. The other two blocking findings are artifact staleness: the committed report.json is a pre-ddc30be2 artifact that HEAD's own code no longer reproduces (regenerating flips fail_closed_regression from fail 4/7 to pass 7/7), and four locations added by this change assert that no report exists while the change commits one. Five non-blocking findings and three confirmed-but-already-filed items follow. No finding was manufactured. The implementation is unusually careful and most of it holds up under direct probing: the enablement-gate mutation test has a positive control, per-condition mutants, exit-code discrimination and a completeness assertion tying the mutant set to the gate's own condition list; the determinism tests assert that the shuffle actually reorders before asserting the output does not change; the declared denominator is honest in both directions; the corpus schema forbids globs and path traversal; and scoring.scope.matches mirrors skills/validate-packages/scripts/context_impact.py:144 exactly, including the '**/' prefix rule.",
+    "blocking_findings": [
+      {
+        "id": 1,
+        "type": "correctness",
+        "criticality": "critical",
+        "severity": "critical",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/enablement_gate.py",
+        "line_range": {
+          "start": 336,
+          "end": 376
+        },
+        "found_by": [
+          "codex",
+          "claude(independently reproduced)"
+        ],
+        "description": "The Enablement Consistency Gate authorizes an enabled default from a report that measured nothing. All six D12 expiry conditions check provenance metadata only (corpus digest, harness version, embedder fingerprint, indexed-revision reachability, schema validity, top-level verdict); none checks that the report's body describes the declared corpus. The promoted report schema sets no minItems on gates, per_consumer or cases, and no clause ties a passing verdict to a non-empty denominator. REPRODUCED: a hand-written report carrying the CURRENT corpus digest, the CURRENT harness version, a matching embedder fingerprint, a reachable indexed_revision, verdict 'pass', and corpus.cases_declared 0 / gates_declared 0 / gates [] / per_consumer [] / cases [] is accepted by report.write_report() as schema-valid, and enablement_gate.main() then prints seven 'met' conditions and returns 0 against a helper declaring INJECTION_DEFAULT_ENABLED = True. The declared-denominator and declared-gate guarantees live only inside compose_verdict(); the durable report is an editable file the gate re-reads without re-deriving anything. This is the change's own thesis failing on the change's own central artifact: green because the evidence is empty, not because it is good.",
+        "resolution": "After schema validation, load the current corpus in the gate path and refuse a passing report unless its body matches the declaration: cases_declared == len(corpus.cases), gates_declared == len(corpus.gates), consumers_declared == len(corpus.consumers), cases_scored == cases_declared, every declared gate id/kind present with verdict pass, every declared case present and scored. Add minItems to the schema as defence in depth, but the cross-check must live in the gate -- the emitter is not on the path a hand-edited artifact takes. Add an emptied-body mutant to test_enablement_gate_mutation.py."
+      },
+      {
+        "id": 2,
+        "type": "correctness",
+        "criticality": "high",
+        "severity": "critical",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/verdict.py",
+        "line_range": {
+          "start": 395,
+          "end": 486
+        },
+        "found_by": [
+          "claude",
+          "grok (independently)"
+        ],
+        "description": "A run in which NO case can be scored crashes instead of recording a failing report. _compose_gate catches only scoring.relevance.ScoringError, but scope.score_scope raises ScopeScoringError -- a sibling ValueError subclass, not a subclass of ScoringError (scope.py:76 vs relevance.py:53; note utility.py:55 imports the shared class, so the asymmetry is an oversight rather than a design). scope.py:241 raises it whenever per_case is empty, and compose_verdict is called at __main__.py:225 outside any try/except, so it escapes main(). REPRODUCED end-to-end: against a corpus copy whose cases carry no recorded_response (every case -> producer_error), 'python -m context_eval run' prints a bare traceback ending in 'ScopeScoringError: the scope gate scored no cases; a vacuous pass is unwritable' and writes NO report at all. This is the harness's most likely real-world outcome -- the actual measurement scored 7 of 19 -- and it violates specs/semantic-context-evaluation/spec.md:129-135 ('An evaluation that could not be taken SHALL be recorded as a failure with an explicit reason') and __main__.py:19-21 ('the report is still written, because a recorded apparatus failure is evidence'). test_verdict_failclosed.py covers one unscored case but never all of them.",
+        "resolution": "Make ScopeScoringError a subclass of the shared ScoringError (or catch both in _compose_gate) so an unmeasurable scope gate composes as FAIL/unmeasured like every other gate. Additionally wrap compose_verdict in __main__._run so no composition error escapes without the harness's own apparatus-failure message and exit code. Add a test asserting that every declared case unscored still yields a written, schema-valid report with verdict fail."
+      },
+      {
+        "id": 3,
+        "type": "correctness",
+        "criticality": "high",
+        "severity": "critical",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "docs/evaluation/semantic-context/report.json",
+        "found_by": [
+          "claude"
+        ],
+        "description": "The committed report is a stale artifact of a bug HEAD has fixed, and D12's expiry conditions cannot detect it. REPRODUCED: re-running 'context-eval run' at HEAD with the report's own recorded inputs (index tier none, evaluated_revision 748af34c, the recorded embedder identity) produces a materially different report -- fail_closed_regression goes from verdict fail / expectation_match_rate 0.571 (4/7) to verdict PASS / 1.0 (7/7), and ADV-LEAKED-HIT, ADV-DENY-PRECEDENCE and ADV-ALL-HITS-FILTERED go from empty unavailable/unknown_state fallback arms to real injected arms with hits. The top-level verdict and fail_reasons are unchanged, so the enablement decision is unaffected -- but the corpus digest and the harness version are also unchanged, so the change's own expiry mechanism treats a report its code no longer reproduces as current evidence. Three consequences are already committed: (a) the gates table records a 3-of-7 fail-closed behavioural failure of ri-12 that did not happen; (b) docs/evaluation/semantic-context/README.md's 'scope_compliance passed, and its pass is not evidence' paragraph asserts that _ResolvedScope 'supplies read_allow and deny but not allows()' and cites semantic_runtime.py:117-123, but ddc30be2 added allows() at semantic_runtime.py:137 and did not touch the README, so the doc now describes a defect the cited code does not have; (c) the committed gate rows are byte-for-byte what a wrong --evaluated-revision produces (verified), making the artifact indistinguishable from a misconfigured run. Nothing in tests, CI, the Makefile or docs pins the current numbers, so regeneration is low blast radius.",
+        "resolution": "Regenerate docs/evaluation/semantic-context/report.json at HEAD from the same recorded inputs (deterministic; index tier stays none, verdict stays fail) and update the two README paragraphs describing the AttributeError and the 4/7 rate. Annotating instead is the weaker option: it leaves a published artifact the committed code cannot re-derive, which is precisely the failure the change's own 'Why the report lives here' section says it exists to end."
+      },
+      {
+        "id": 4,
+        "type": "spec_gap",
+        "criticality": "high",
+        "severity": "critical",
+        "axis": "readability",
+        "disposition": "fix",
+        "file_path": "docs/guides/code-search.md",
+        "line_range": {
+          "start": 400,
+          "end": 400
+        },
+        "found_by": [
+          "claude"
+        ],
+        "description": "Four locations added by this change assert that no evaluation report exists, while the same change commits one at docs/evaluation/semantic-context/report.json: docs/guides/code-search.md:400 ('**No such report exists yet.** Absent is the fail-closed default state, not a missing file'); docs/guides/semantic-context-injection.md:13 ('No such report exists yet. Until one does...') and :139 ('**There is no report yet.** Absent is the fail-closed default state. The gate therefore requires the default to stay False'); and packages/context-eval/tests/test_spec_gate_artifact.py:12 ('deliberately absent right now') and :20 ('**No report** (the state today)'). All were written in phase 5 and never revised after phase 6 committed the report. They are not cosmetic: they state the WRONG REASON the default is off. 'No measurement exists' and 'the measurement was taken and returned fail with three named reasons' are different facts with different remedies, and collapsing them is exactly the confusion __main__.py:15-18 says the July 2026 waiver created.",
+        "resolution": "Update all four locations to state that a report exists and records verdict fail with fail_reasons [unmeasured, denominator_mismatch, index_tier_insufficient], so the default stays False because the evidence says no, not because evidence is absent. The test's three-state machine is correct and should stay; only its 'the state today' parenthetical is wrong."
+      }
+    ],
+    "non_blocking_findings": [
+      {
+        "id": 5,
+        "type": "contract_mismatch",
+        "criticality": "medium",
+        "severity": "optional",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/verdict.py",
+        "line_range": {
+          "start": 489,
+          "end": 532
+        },
+        "found_by": [
+          "claude",
+          "grok",
+          "antigravity"
+        ],
+        "description": "_fail_closed_gate returns [UNMEASURED] when a MEASURED expectation_match_rate falls below its threshold. Every other gate kind has a dedicated reason (retrieval_gate_below_threshold, utility_gate_below_threshold, scope_violation); the closed FailReason vocabulary has no member meaning 'the fail-closed gate measured below threshold', so the composer borrows the one reserved for 'could not measure'. The committed report is the artifact: fail_closed_regression carries measured.expectation_match_rate 0.571 with cases_scored 7 and fail_reasons ['unmeasured'], and that reason propagates to the run's top-level fail_reasons where it is indistinguishable from the 12 genuinely unmeasured cases. All three vendors and this reviewer raised it independently.",
+        "resolution": "Add a fail-closed below-threshold member to the FailReason enum in openspec/contracts/semantic-context-evaluation/schemas/context-eval-report.schema.json and verdict.FAIL_REASONS (a schema_version bump), reserving UNMEASURED for the existing empty-expectations ScoringError path at verdict.py:513."
+      },
+      {
+        "id": 6,
+        "type": "correctness",
+        "criticality": "medium",
+        "severity": "optional",
+        "axis": "architecture",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/verdict.py",
+        "line_range": {
+          "start": 464,
+          "end": 486
+        },
+        "found_by": [
+          "claude",
+          "grok",
+          "antigravity"
+        ],
+        "description": "_scope_gate passes scope_adapter=RESOLVED unconditionally, making scope.py:264-265 (the degraded -> APPARATUS_FAILURE branch) dead on the composition path. Under a degraded adapter with otherwise clean per-case results the run fails with apparatus_failure while the scope_compliance gate ROW records verdict pass and no reasons -- a report that says the apparatus was broken and that the scope measurement taken through it is compliant. The inline comment calls the run-level check 'a stricter statement'; it is stricter about the run and silent about the gate. test_a_degraded_scope_adapter_fails_the_run asserts only the run-level reason, so the gate-level green path is never proven red.",
+        "resolution": "Pass measurement.scope_adapter through to score_scope so the gate row carries apparatus_failure, and extend the test to assert the gate row, not just the run."
+      },
+      {
+        "id": 7,
+        "type": "resilience",
+        "criticality": "medium",
+        "severity": "optional",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/__main__.py",
+        "line_range": {
+          "start": 292,
+          "end": 331
+        },
+        "found_by": [
+          "claude"
+        ],
+        "description": "_measure's promise -- 'Every failure becomes an unscored case with a reason, never a dropped one' -- is wider than its except clause. It catches ProducerError and ApparatusError only; SemanticRuntimeProducer.render calls arm_from_section, which raises ArmError (arms.py:32) for a section no runtime could have produced and KeyError/TypeError for a malformed hit payload. None is caught, so all escape _run and kill the process with no report -- the same shape as blocking finding 2. Corroborating evidence that the taxonomy is aspirational: three of the five declared UNSCORED_REASONS (verdict.py:97-103) -- invalid_document, no_index_at_revision, timeout -- appear nowhere else under src/ and can never be produced, and there is no per-case timeout on the semantic path at all despite 'a case that raised, timed out or found no recorded response stays in the denominator'.",
+        "resolution": "Widen _measure to map ArmError and any unexpected per-case exception to unscored_reason invalid_document / apparatus_failure, and either implement a per-case timeout on the semantic producer or remove timeout and no_index_at_revision from UNSCORED_REASONS and the case schema so the declared vocabulary is reachable."
+      },
+      {
+        "id": 8,
+        "type": "observability",
+        "criticality": "low",
+        "severity": "fyi",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/verdict.py",
+        "line_range": {
+          "start": 264,
+          "end": 304
+        },
+        "found_by": [
+          "claude"
+        ],
+        "description": "Per-gate verdicts are not qualified by the run's denominator mismatch. The gate scorers iterate 'if case.case_id in scored', so a gate can record verdict pass over a strict subset of the declared cases while the run carries denominator_mismatch. The committed report shows it: scope_compliance reads pass with cases_scored 7 against cases_declared 19. The count is disclosed inside measured{} and the enablement gate reads only the top-level verdict, so nothing is exploitable today -- but blocking finding 1 is what happens when a consumer trusts a report field without re-deriving it, and a gate row reading pass over 37 percent of its corpus is the next candidate.",
+        "resolution": "Propagate denominator_mismatch (or a dedicated partial-denominator reason) onto every gate row composed over an incomplete scored set, so no gate reads pass while the run's denominator is short."
+      },
+      {
+        "id": 9,
+        "type": "correctness",
+        "criticality": "low",
+        "severity": "fyi",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/producers/exact_search.py",
+        "line_range": {
+          "start": 145,
+          "end": 260
+        },
+        "found_by": [
+          "claude"
+        ],
+        "description": "The exact-search baseline is taken over the WORKING TREE, not over --evaluated-revision. RipgrepSearcher shells out to rg with cwd=repository_root and TrackedFileSearcher enumerates via 'git ls-files' and reads file contents; neither pins to a revision, while the report records repository.evaluated_revision as the tree the measurement describes. OBSERVED during the regeneration probe for blocking finding 3: baseline rendered_files differ between the committed report and a rerun at the same declared revision purely because the worktree now contains this change's own files (openspec/changes/gate-semantic-context-default-enablement/design.md enters the baseline for FC-REVISION-MISMATCH). The semantic arm's git seam already answers from the declared revision (semantic_runtime.py:247-256), so the two arms are pinned to different trees. Distinct from issue #334, which is about --live being per-producer and the fixtures' hard-coded source_revision.",
+        "resolution": "Either enumerate and read the baseline through 'git ls-tree'/'git show' at --evaluated-revision, or record explicitly in the report that the baseline is taken over the working tree, so the arm's provenance is not overstated by repository.evaluated_revision."
+      }
+    ],
+    "confirmed_already_filed": [
+      {
+        "issue": "#337 (harness-version expiry)",
+        "note": "Independently raised by BOTH codex (high/critical) and grok (security/medium) without prompting: enablement_gate.py:246-249 accepts a caller-supplied --harness-version and treats it as the installed version, so passing a stale report's own version satisfies HARNESS_VERSION_CURRENT regardless of what is installed. The Makefile does not pass it, but the escape hatch is on the production gate CLI and no mutation covers it. NOT re-filed. Two independent vendors rating it critical is a signal that deferring it may be too generous -- it is the only D12 condition an operator can satisfy by assertion."
+      },
+      {
+        "issue": "#334 (--live per-producer / fixtures pin source_revision 748af34c)",
+        "note": "CONFIRMED empirically, answering orchestrator question 3. Running the harness with --evaluated-revision 0123...4567 turns all three ADV cases into index_revision_differs fallbacks with empty arms, and scope_compliance still records verdict PASS (rendered_scope_violations 0, outbound_scope_fidelity 1.0, cases_scored 7) -- byte-for-byte the committed report's gate rows. The producer's git seam answers 'rev-parse HEAD' with the declared revision (semantic_runtime.py:250-253), so the declaration is unfalsifiable from inside the harness. Already documented at design.md:706-710. NOT re-filed."
+      },
+      {
+        "issue": "design.md defect 5 (two empty-scope cases unscorable)",
+        "note": "FC-QUICK-TASK-NO-DECLARED-SCOPE and FC-DEBUG-ADHOC-NO-SCOPE are documented at design.md:694-701 as structurally scorable but rejected by SemanticRuntimeProducer.render's 'response is None' guard. It does not map to any of #333-#337 as the orchestrator described them. Flagged for the orchestrator to check whether an issue exists; deliberately NOT filed from this phase to avoid duplicating #325-#332."
+      }
+    ],
+    "orchestrator_questions_answered": [
+      {
+        "question": "1. scope_compliance: pass was measured before ddc30be2. Leave it with #337 filed, or regenerate/annotate?",
+        "answer": "REGENERATE -- this is blocking finding 3. The vacuity is not confined to scope_compliance. Regenerating at HEAD from the report's own recorded inputs is fully deterministic and flips fail_closed_regression from fail (0.571, 4/7) to pass (1.0, 7/7), turning three ADV cases from empty fallback arms into injected arms. The committed report therefore records a 3-of-7 fail-closed behavioural failure of ri-12 that did not happen. Annotation is insufficient because the existing annotation is itself now false: the README cites semantic_runtime.py:117-123 for a missing allows() that ddc30be2 added at :137. Nothing in tests, CI, Makefile or docs pins the numbers, so the blast radius is the report plus two README paragraphs."
+      },
+      {
+        "question": "2. cases_declared 19 vs cases_scored 7 -- is denominator_mismatch doing its job, and does anything silently narrow the denominator?",
+        "answer": "CONFIRMED HONEST. 19 case files on disk, 19 entries in the manifest's explicit cases list, consumer slice sizes 5+3+3+4+3+1 = 19. The corpus schema's CorpusRelativePath rejects glob metacharacters so the list cannot silently shrink; the loader requires every case claimed by exactly one slice and every slice-named case to exist; _aligned flags BOTH directions -- a declared case missing from the run and an undeclared extra -- which is the substitution a bare count comparison would miss; cases_declared comes from the corpus, never from the results. One caveat, filed as non-blocking finding 8: per-GATE verdicts are not qualified by the run-level mismatch, so scope_compliance reads pass over 7 of 19. The count is disclosed in measured{} and no consumer reads gate rows today."
+      },
+      {
+        "question": "3. Can a wrong --evaluated-revision produce a green-looking scope result by a second route?",
+        "answer": "YES, REPRODUCED. A deliberately wrong revision turns all three ADV cases into index_revision_differs fallbacks with empty arms, and scope_compliance still records verdict pass -- byte-for-byte the committed report's gate rows, which is why that artifact is indistinguishable from a misconfigured run. The producer's git seam answers 'rev-parse HEAD' with the declared revision, so the declaration cannot be falsified from inside. Already documented at design.md:706-710 and filed as #334; not re-filed. The general remedy design.md:691-693 states in its own words -- 'A gate that can only be satisfied by an empty arm should not be satisfiable at all' -- was applied to one cause (#333) and not implemented as a scorer-level guard, which is why the second route survives."
+      },
+      {
+        "question": "4. Is any check in this change decoration -- green on an unmodified tree AND never proven by mutation?",
+        "answer": "YES, and it is blocking finding 1. The enablement gate is green on an unmodified tree by design, and its mutation test is genuinely good: seven mutants, one per declared condition, a positive control asserting that an all-conditions-met report DOES authorize, exit-code discrimination between 2 and 3, and test_every_condition_the_gate_declares_is_mutated tying the mutant set to enablement_gate.CONDITIONS. But every mutant perturbs report PROVENANCE. Not one perturbs report CONTENT, so the gate's acceptance of an empty passing report was never watched failing -- and it does not fail. scope_compliance is the same shape one level down: it counts violations in an empty arm and reports the zero as compliance. The determinism tests, by contrast, are not decoration."
+      }
+    ],
+    "vendor_dispatch": {
+      "mode": "alternative (tool + Bash access granted to reviewers)",
+      "excluded_vendor": "claude_code (both prior phases ran on claude)",
+      "succeeded": [
+        "antigravity/gemini-3.6-flash-medium (126.5s)",
+        "codex/gpt-5.5 (276.4s)",
+        "grok/grok-4.5 (338.3s)"
+      ],
+      "failed": [
+        "pi/qwen3-coder -- OpenRouter HTTP 402 insufficient credits; account condition, not a review failure. Re-dispatch after topping up if a fourth opinion is wanted."
+      ],
+      "raw_findings": [
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-1/findings-antigravity-implementation.json",
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-1/findings-codex-implementation.json",
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-1/findings-grok-implementation.json",
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-1/review-manifest.json"
+      ]
+    },
+    "baselines_reproduced": {
+      "packages/context-eval": "311 passed, 0 skipped",
+      "skills/tests/context-engineering": "735 passed",
+      "ruff check src/ tests/": "clean",
+      "mypy src/context_eval/ --strict": "clean, 17 files",
+      "make semantic-enablement-gate": "exit 0",
+      "openspec validate --strict": "valid",
+      "contract promotion": "3/3 schemas byte-identical to the change-local copies",
+      "worktree": "clean before and after; HEAD 3a8e4303 unchanged; no tracked file modified"
+    },
+    "next_steps": [
+      "IMPL_ITERATE round 2 should take blocking findings 1 and 2 first: both are small, well-localized code fixes with obvious mutation tests, and both are this change's own thesis failing on its own artifacts.",
+      "Blocking finding 3 (regenerate report.json) should land AFTER 1 and 2, so the regenerated artifact is produced by the fixed harness rather than needing a third regeneration.",
+      "Blocking finding 4 (four stale 'no report exists' claims) is a pure documentation edit and can proceed in parallel.",
+      "Consider promoting #337 from deferred to in-scope: two independent vendors rated the --harness-version override critical/high without being prompted about it.",
+      "Check whether design.md defect 5 (two unscorable empty-scope cases) has an issue; this phase deliberately did not file one."
+    ]
+  }
+}

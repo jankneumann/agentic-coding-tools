@@ -1,0 +1,37 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "In `verdict._fail_closed_gate`, when the expectation match rate falls below the declared threshold (`failed = rate < declaration.thresholds[MIN_EXPECTATION_MATCH_RATE]`), the function attaches `[UNMEASURED]` as the gate's `fail_reasons`. The module docstring and overall design explicitly distinguish between 'could not measure' (`unmeasured`) and a measured threshold failure. Returning `unmeasured` when all fail-closed cases were successfully scored and the match rate was measured to be below threshold conflates a measured expectation failure with a missing measurement or environment failure.",
+      "resolution": "`_fail_closed_gate` should assign a failure reason that represents a measured threshold failure rather than `UNMEASURED` when `failed` is True, reserving `UNMEASURED` only for when zero cases could be scored.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/verdict.py",
+      "line_range": {
+        "start": 489,
+        "end": 532
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "`verdict._scope_gate` passes `scope_adapter=RESOLVED` unconditionally to `scope.score_scope()`. This bypasses `scope.py`'s internal check (`if scope_adapter == DEGRADED: reasons.append(APPARATUS_FAILURE)`), making that branch dead code during verdict composition. When `measurement.scope_adapter` is `degraded`, the `scope_compliance` gate outcome itself records `verdict: \"pass\"` and `fail_reasons: []` in `composed.gates`, even though top-level `compose_verdict` records `APPARATUS_FAILURE` for the overall run.",
+      "resolution": "Update `_scope_gate` to receive and pass `measurement.scope_adapter` to `scope.score_scope()`, so that the `scope_compliance` gate outcome accurately reflects degraded adapter states.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/verdict.py",
+      "line_range": {
+        "start": 464,
+        "end": 487
+      },
+      "axis": "architecture",
+      "severity": "optional"
+    }
+  ]
+}
