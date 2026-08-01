@@ -3,26 +3,57 @@ roadmap_id: dispatch-governance
 source_proposal: openspec/roadmaps/dispatch-governance/proposal.md
 status: planning
 items:
+- item_id: dg-00
+  title: Wire the merged model-routing core
+  change_id: add-adaptive-model-router
+  status: in_progress
+  priority: 1
+  effort: L
+  depends_on: []
+  description: Land the wiring backlog that PR 237 deliberately deferred - the model_routing
+    DB migration and catalog service, the /routing/* HTTP endpoints plus MCP tool,
+    ROUTING_ADAPTIVE delegation in agents_config.resolve_archetype_for_phase with static-tier
+    fallback, endpoint_kind/base_url fields in the agents.yaml schema, local endpoint
+    registration and health probe, refresher/probe/ledger scheduling in WatchdogService,
+    and OpenAICompatAdapter into review_dispatcher discovery order.
+  rationale: PR 237 merged 2026-07-14 and landed the routing intelligence - resolver.py
+    scoring, feedback posteriors, epsilon-greedy exploration, OpenAPI contracts for
+    five /routing/* paths, DB contracts for four tables - but explicitly deferred every
+    wiring task to an environment with Postgres and Node. The result is inert - there
+    is no /routing/* endpoint, no ROUTING_ADAPTIVE flag, and no applied migration anywhere
+    in agent-coordinator/src. Both dg-01 and dg-04 assume this substrate exists. Tracked
+    at 21 of 71 task checkboxes with a documented deferred backlog.
+  acceptance_outcomes:
+  - The /routing/* paths in the merged OpenAPI contract are served by real endpoints
+    and a matching MCP tool
+  - The model_routing migration is applied and catalog.py reads from it with no external
+    call on the read path
+  - ROUTING_ADAPTIVE off reproduces today's static-tier behavior exactly, and on delegates
+    to the resolver
+  - OpenAICompatAdapter is reachable through review_dispatcher's discovery order
 - item_id: dg-01
-  title: Add live vendor capability and cost registry
+  title: Add live vendor capability and availability registry
   change_id: add-live-vendor-capability-and-cost-registry
   status: approved
   priority: 1
   effort: M
-  depends_on: []
-  description: Add a coordinator vendor_registry service holding static capabilities
-    from agents.yaml plus dynamic availability, rate-limit windows with known reset
-    times, and a versioned real cost table replacing the policy.py stub tiers; expose
-    GET /vendors and GET /vendors/{id}/availability and teach the coordination bridge
-    to consume them.
-  rationale: The factual substrate the router reasons over. Without live availability
-    and real costs, every routing decision is a guess about which vendors are reachable
-    and what they cost. Re-homed from repo-improvement ri-04.
+  depends_on:
+  - dg-00
+  description: Add a coordinator vendor_registry surface holding static capabilities
+    from agents.yaml plus dynamic availability and rate-limit windows with known reset
+    times; expose GET /vendors and GET /vendors/{id}/availability and teach the coordination
+    bridge to consume them. Vendor cost data is read from the model-routing catalog
+    landed in dg-00 rather than stored a second time.
+  rationale: Re-homed from repo-improvement ri-04, with scope reduced. Its original
+    cost-table outcome - replacing the stub tiers in skills/autopilot-roadmap/scripts/policy.py
+    - was already delivered by PR 237, which swapped the hardcoded _estimate_cost_delta
+    for catalog-aware pricing with static fallback. What remains unbuilt is the availability
+    and rate-limit half - there is no GET /vendors anywhere in the coordinator.
   acceptance_outcomes:
   - GET /vendors returns capabilities, availability, and rate-limit reset times for
     every configured vendor
-  - The stubbed cost tiers in policy.py are replaced by a versioned cost table
-  - Availability reflects real vendor state rather than static configuration alone
+  - Availability reflects probed vendor state rather than static configuration alone
+  - Cost figures are read from the dg-00 catalog, with no second cost table introduced
 - item_id: dg-02
   title: Build structured vendor result channel
   change_id: build-structured-vendor-result-channel
@@ -32,12 +63,13 @@ items:
   depends_on: []
   description: Switch every CLI adapter to its vendor's structured JSON output mode
     with typed envelopes, replace stdout-regex completion polling with a coordinator
-    completion ledger (submit_work/complete_work as the single source of dispatch
-    state), add GET /locks?agent_id= plus bulk release to fix the cloud lock leak,
-    and extend or explicitly document SdkVendorAdapter coverage beyond review-only.
-  rationale: Rewrites the same CliVendorAdapter methods that dg-07 later wraps. Sequencing
-    it ahead of enforcement converts a merge conflict into an ordering. Re-homed from
-    repo-improvement ri-03.
+    completion ledger (submit_work/complete_work as the single source of dispatch state),
+    add GET /locks?agent_id= plus bulk release to fix the cloud lock leak, and extend
+    or explicitly document SdkVendorAdapter coverage beyond review-only.
+  rationale: Rewrites the same CliVendorAdapter methods that dg-07 later wraps and
+    that dg-00 threads OpenAICompatAdapter into. Sequencing it early converts a three-way
+    merge conflict into an ordering. Re-homed from repo-improvement ri-03, unchanged
+    - no merged work touches it.
   acceptance_outcomes:
   - No dispatch result is obtained by regex over stdout
   - Dispatch state is readable from the coordinator completion ledger alone
@@ -65,25 +97,33 @@ items:
   - worktree.py and merge_worktrees.py read the filesystem dimension with no behavior
     change
 - item_id: dg-04
-  title: Implement the task router (vendor x location x model)
+  title: Extend routing to vendor x location x isolation x dispatch mode
   change_id: implement-the-task-router-vendor-x-location-x-model
   status: approved
   priority: 1
   effort: L
   depends_on:
+  - dg-00
   - dg-01
-  description: Add POST /route/task and a bridge function as a superset of /archetypes/resolve_for_phase,
-    taking a task routing profile (phase and archetype signals, duration, scope, interactivity,
-    secret needs, parallelism, repo shape, roadmap policy) and returning vendor, location,
-    model, isolation, dispatch_mode, and rationale, driven by deterministic unit-testable
-    rules versioned in routing.yaml, with every decision recorded under a routing audit
-    event type and a local static fallback table when the coordinator is down.
-  rationale: Produces the isolation decision the rest of this epic delivers and enforces.
-    Re-homed from repo-improvement ri-05.
+  description: Extend the merged model_routing resolver and the existing /routing/*
+    contract namespace with the dimensions it does not yet carry - location (local
+    or cloud), isolation, and dispatch_mode - driven by a task routing profile (phase
+    and archetype signals, duration, scope, interactivity, secret needs, parallelism,
+    repo shape, roadmap policy). Rules stay deterministic and unit-testable, versioned
+    in routing.yaml, with every decision recorded as a routing audit event and a local
+    static fallback table for when the coordinator is unreachable.
+  rationale: Re-homed from repo-improvement ri-05, retargeted. The original framing
+    added a parallel POST /route/task, but PR 237 has already claimed the /routing/*
+    namespace with a resolver that scores model choice by cost and quality utility.
+    Two resolvers scoring overlapping decisions is the failure mode to avoid; this
+    item adds the missing dimensions to the merged one instead. Its isolation output
+    is what dg-05 pins and dg-07 enforces.
   acceptance_outcomes:
-  - Routing rules are deterministic and unit-testable with no model call in the decision
-    path
-  - Every routing decision is recorded as an audit event carrying its rationale
+  - Routing returns location, isolation, and dispatch_mode alongside the vendor and
+    model the merged resolver already selects
+  - Exactly one resolver scores routing decisions, reachable through the existing /routing/*
+    namespace
+  - Rules are deterministic and unit-testable with no model call in the decision path
   - A documented static fallback table produces a decision when the coordinator is
     unreachable
 - item_id: dg-05
@@ -120,14 +160,15 @@ items:
   - dg-02
   - dg-04
   - dg-05
-  description: Call route/task before each dispatch_fn and pass the decision into the
-    dispatch context as a contract, execute switch decisions with ledger-verified re-dispatch
-    to the alternate vendor, add a global iteration cap and no-progress detector to
-    the roadmap loop, and un-stub the cost-delta and wall-clock estimators.
+  description: Call the routing resolver before each dispatch_fn and pass the decision
+    into the dispatch context as a contract, execute switch decisions with ledger-verified
+    re-dispatch to the alternate vendor, add a global iteration cap and no-progress
+    detector to the roadmap loop, and un-stub the wall-clock estimator.
   rationale: Where the routing decision, including its isolation field, actually arrives
     at the point of execution. Until it lands, enforcement has nothing to enforce.
     Re-homed from repo-improvement ri-06, with dg-05 added to its dependencies so the
-    isolation field it carries has a pinned meaning.
+    isolation field it carries has a pinned meaning, and the cost-delta estimator dropped
+    from scope - PR 237 already replaced that stub with catalog-aware pricing.
   acceptance_outcomes:
   - No dispatch occurs without a routing decision attached to its context
   - Vendor switches are verified against the completion ledger before being treated
