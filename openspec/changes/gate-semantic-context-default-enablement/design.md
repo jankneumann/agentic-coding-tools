@@ -604,6 +604,11 @@ clause, not a flag ri-13 owns.
 
 ## Recorded outcome — phase 6, 2026-07-31 (D11)
 
+> **Superseded in part on 2026-08-01.** Two of the four gate rows below describe
+> an artifact HEAD no longer reproduces, and defect 4 has since been fixed. Read
+> [Amendment — 2026-08-01](#amendment--2026-08-01-the-report-regenerated-at-head)
+> with this section; the corrections are inline and flagged where they apply.
+
 D11 said the answer to *"does it pass?"* was **completely unknown** and that the
 plan was designed to be equally correct at 4/10. The answer is now recorded, and
 it is not a number.
@@ -645,6 +650,12 @@ denominator is all seven scored cases; the three that failed are the `ready`
 adversarial cases, which failed for the apparatus reason below rather than
 because any fail-closed guarantee broke.
 
+> **Corrected 2026-08-01.** With defect 4 fixed, this gate measures **1.0 (7/7)**
+> and passes. The 0.571 was an artefact of the harness and never a behavioural
+> failure of ri-12 — the sentence above already said the three failures were not
+> a broken guarantee, and the regenerated report now records that fact as a
+> number rather than as a caveat.
+
 ### The five defects, and what each would take
 
 None is a threshold anyone could argue about, and none is in `wp-measure`'s
@@ -676,7 +687,8 @@ None is a threshold anyone could argue about, and none is in `wp-measure`'s
    entropy or charset condition on the matched value, or an allowlist. Low
    severity relative to 1 and 2, but it is a fail-closed rule that a repository
    cannot satisfy without enumerating exclusions by hand.
-4. **The harness's scope stand-in does not implement ri-12's scope protocol.**
+4. **[FIXED by `ddc30be2`] The harness's scope stand-in does not implement
+   ri-12's scope protocol.**
    `producers/semantic_runtime.py:117-123` defines `_ResolvedScope` with
    `read_allow` and `deny`; `semantic_context.py:454` calls
    `scopes.allows(hit.file_path)`. Every case reaching the `ready` path raises
@@ -722,3 +734,53 @@ granting it, exactly as designed.
 The plan said the change is mergeable with a `fail`, and it is. What ri-13
 shipped is the apparatus that makes the next attempt legible: the failure above
 is a list of five citable defects instead of one sentence in a markdown file.
+
+---
+
+## Amendment — 2026-08-01: the report regenerated at HEAD
+
+The artifact committed on 2026-07-31 was produced before `ddc30be2` implemented
+`_ResolvedScope.allows()`. HEAD does not reproduce it. Re-running from the
+report's own recorded inputs — index tier `none`, evaluated revision `748af34c`,
+the recorded embedder identity; no live index, no database, no embedder — moves
+two of the four gate rows:
+
+| Gate | 2026-07-31 | 2026-08-01 |
+|---|---|---|
+| `retrieval_quality` | fail, nothing measured | unchanged |
+| `coding_context_utility` | fail, 0 cases over 5 consumers | unchanged |
+| `scope_compliance` | pass, over three EMPTY adversarial arms | pass, over two injected arms (2 files / 1 file) and one `all_hits_scope_filtered` fallback |
+| `fail_closed_regression` | **fail, 0.571 (4/7)** | **pass, 1.0 (7/7)** |
+
+The top-level verdict, its three `fail_reasons`, `cases_declared: 19`,
+`cases_scored: 7` and the index tier are all unchanged, so the enablement
+decision is unaffected: `INJECTION_DEFAULT_ENABLED` stays `False` because the
+recorded verdict is `fail`, and D11's second question is still unanswered because
+semantic hit@5 still has no index to be measured against.
+
+**Regenerated, not annotated.** Two of the committed rows were false statements
+about ri-12: a 3-of-7 fail-closed behavioural failure that did not happen, and a
+`scope_compliance` pass whose own README described it as vacuous. Leaving a
+published artifact the committed code cannot re-derive is the failure the
+evaluation README's *"Why the report lives here"* exists to end, and annotating
+would have preserved it with a footnote. Nothing was tuned, no run was repeated
+selectively, and no threshold or corpus case was touched.
+
+**Why nothing caught this, and what now does.** Both the corpus digest and the
+declared harness version were unchanged across `ddc30be2`, so every D12 expiry
+condition of the day reported the evidence as current. That gap was issue #337:
+the harness version is a string somebody writes into `pyproject.toml`, and it was
+the only expiry condition an operator could satisfy by assertion. The report now
+carries `harness.fingerprint`, a digest over the harness's own source built
+exactly as `corpus_digest` is built over the corpus, and the gate compares it as
+`harness_fingerprint_current`. A behavioural change to the measuring code now
+invalidates its own evidence, which is what D12 always claimed.
+
+**A note on the baseline arm.** `rendered_files` differ slightly from the
+previous artifact for a second, unrelated reason: the exact-search arm reads the
+working tree rather than `--evaluated-revision`, so files this change itself added
+enter the baseline. That is a separately recorded finding about overstated
+provenance, not an effect of the fix above. `--searcher` is not recorded in the
+report; `ripgrep` and `tracked` were both run and produce byte-identical results
+for all seven scored cases, so the unrecorded choice is immaterial to the
+recorded content.

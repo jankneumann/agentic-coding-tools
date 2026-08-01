@@ -10,7 +10,8 @@ It is the only artifact that may authorize enabling the injection default, and
 the only artifact the enablement gate reads.
 
 `report.json` records a `fail` verdict. Enablement is therefore unauthorized and
-`INJECTION_DEFAULT_ENABLED` stays `False`. See
+`INJECTION_DEFAULT_ENABLED` stays `False` — because the evidence says no, not
+because evidence is absent. See
 [The recorded measurement](#the-recorded-measurement) for what was and was not
 measured.
 
@@ -56,10 +57,11 @@ designed to be equally correct at 4/10.
 
 ## The recorded measurement
 
-Taken 2026-07-31 (`as_of: 2026-07-31T00:00:00Z`) against
+Taken 2026-08-01 (`as_of: 2026-08-01T00:00:00Z`) against
 `748af34c4268e768f0e3a7e7cdbe64c02835b7b6`, corpus digest
 `6417066963927e0f1009a1b10fa49e6be6e11da3f7991290657b2adbbb7a0f56`,
-harness `context-eval 0.1.0`. The CLI exited `2`.
+harness `context-eval 0.1.0`, harness source digest `0e24a910…`. The CLI
+exited `2`.
 
 **Verdict: `fail`** — `["unmeasured", "denominator_mismatch",
 "index_tier_insufficient"]`.
@@ -68,12 +70,25 @@ harness `context-eval 0.1.0`. The CLI exited `2`.
 |---|---|---|---|
 | `retrieval_quality` | `live` | **fail** | nothing measured; `unmeasured`, `index_tier_insufficient` |
 | `coding_context_utility` | `live` | **fail** | 0 cases scored across 5 utility-applicable consumers; `unmeasured`, `index_tier_insufficient` |
-| `scope_compliance` | `none` | **pass** | 0 rendered violations vs `max 0`; outbound fidelity `1.0` vs `min 1.0` — see the caveat below |
-| `fail_closed_regression` | `none` | **fail** | expectation match rate **0.571 (4/7)** vs `min 1.0` |
+| `scope_compliance` | `none` | **pass** | 0 rendered violations vs `max 0`; outbound fidelity `1.0` vs `min 1.0` — over non-empty adversarial arms, see below |
+| `fail_closed_regression` | `none` | **pass** | expectation match rate **1.0 (7/7)** vs `min 1.0` |
 
 `cases_declared: 19`, `cases_scored: 7` — hence `denominator_mismatch`. The
 twelve unscored cases are recorded individually with `unscored_reason:
 producer_error`, not dropped.
+
+This report was re-derived on 2026-08-01 from its own recorded inputs, and it is
+not the artifact committed on 2026-07-31. The first one was produced before
+`ddc30be2` implemented `_ResolvedScope.allows()`, and the harness at HEAD no
+longer reproduces it: two of its four gate rows change. It was regenerated rather
+than annotated, because a published artifact the committed code cannot re-derive
+is precisely the failure [Why the report lives here](#why-the-report-lives-here)
+says this directory exists to end. Nothing was tuned and nothing was re-run
+selectively: the index tier is still `none`, the corpus and its thresholds are
+untouched, and the top-level verdict is still `fail` for the same three reasons.
+That drift was invisible to the expiry conditions of the day — the corpus digest
+and the declared harness version were both unchanged — which is why
+`harness.fingerprint` now exists.
 
 **The index tier was `none`, and that is the headline.** `index_repo` never
 produced a `ready` index: five attempts, each after a documented change to the
@@ -98,25 +113,40 @@ could argue about:
    Seven tracked files are unindexable without an explicit `--exclude`; none is
    a target of any corpus case.
 
-**`scope_compliance` passed, and its pass is not evidence.** Every case that
-reaches ri-12's `ready` path raises
+**`scope_compliance` passed over arms that are not empty, which is what makes it
+evidence.** The earlier artifact recorded this same `pass` vacuously: the
+harness's scope stand-in supplied `read_allow` and `deny` but not `allows()`, so
+every case reaching ri-12's `ready` path raised
 `AttributeError: '_ResolvedScope' object has no attribute 'allows'` at
-`semantic_context.py:454`, because the harness's own scope stand-in
-(`packages/context-eval/src/context_eval/producers/semantic_runtime.py:117-123`)
-supplies `read_allow` and `deny` but not `allows()`. ri-12's never-raises
-guarantee swallows it and returns `unavailable` / `unknown_state`. The three
-adversarial responses therefore render nothing, and a gate that counts rendered
-violations counts zero — which is precisely the tautology design D8 says those
-cases exist to prevent. Read this gate as **unmeasured** regardless of what the
-report's `verdict` field says for it; the report is accurate about what it
-counted, and what it counted was empty arms.
+`semantic_context.py:454`, was swallowed by ri-12's never-raises guarantee, and
+came back as `unavailable`/`unknown_state` with nothing rendered. A gate counting
+rendered violations over three empty arms counts zero — the exact tautology
+design D8 introduced those cases to prevent. `ddc30be2` implemented `allows()` on
+`_ResolvedScope` by delegating to the shared read-scope semantics, and the
+regenerated report shows the difference:
 
-That same `AttributeError` is what drags `fail_closed_regression` to 4/7: the
-four genuinely non-`ready` responses (`not_indexed`, `revision_mismatch`,
-`scope_rejected`, `reindexing_in_background`) each produced exactly the
-trigger/reason pair they declare, so ri-12's own fail-closed mapping is intact
-and measured. The three that failed are the `ready` adversarial cases, which
-never got far enough to honour or violate anything.
+| Adversarial case | Then | Now |
+|---|---|---|
+| `ADV-LEAKED-HIT` | `unavailable`/`unknown_state`, 0 files | **injected**, 2 files, 4 lines, 0 violations |
+| `ADV-DENY-PRECEDENCE` | `unavailable`/`unknown_state`, 0 files | **injected**, 1 file, 2 lines, 0 violations |
+| `ADV-ALL-HITS-FILTERED` | `unavailable`/`unknown_state`, 0 files | `out_of_scope`/`all_hits_scope_filtered`, 0 files |
+
+Each of the three recorded responses carries a hit outside the declared scope.
+Two now render the in-scope remainder with the out-of-scope hit filtered out, and
+the third renders nothing *for the declared reason* — its every hit was filtered,
+which is `all_hits_scope_filtered`, not an apparatus failure wearing a fallback's
+clothes. The gate is therefore measuring ri-12's client-side deny re-check rather
+than measuring an empty section. It still covers only the 7 scored cases of 19.
+
+Removing that same `AttributeError` is also what moves `fail_closed_regression`
+from 0.571 (4/7) to **1.0 (7/7)**. The four genuinely non-`ready` responses
+(`not_indexed`, `revision_mismatch`, `scope_rejected`,
+`reindexing_in_background`) each produced exactly the trigger/reason pair they
+declare, as they always did; the three `ready` adversarial cases previously
+failed because they never got far enough to honour or violate anything, and now
+reach their declared outcome. **The 4/7 recorded on 2026-07-31 was an artefact of
+the harness, not a behavioural failure of ri-12** — the gate row asserted a
+3-of-7 fail-closed regression that did not happen.
 
 Two further cases — `FC-QUICK-TASK-NO-DECLARED-SCOPE` and
 `FC-DEBUG-ADHOC-NO-SCOPE` — are unscorable for an unrelated reason: they declare

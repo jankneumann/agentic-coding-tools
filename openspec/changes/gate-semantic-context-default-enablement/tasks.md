@@ -525,6 +525,17 @@ requires a favourable number.
       | `scope_compliance` | `none` | pass | 0 rendered violations vs max 0; outbound fidelity 1.0 vs min 1.0 — **vacuous, see below** |
       | `fail_closed_regression` | `none` | fail | expectation match rate **0.571 (4/7)** vs min 1.0 |
 
+      **Corrected 2026-08-01.** The two rows above describe an artifact HEAD no
+      longer reproduces. `ddc30be2` fixed the fourth defect below, and the
+      report was regenerated from its own recorded inputs at index tier `none`:
+      `scope_compliance` still passes but now over two injected adversarial arms
+      and one `all_hits_scope_filtered` fallback rather than three empty ones,
+      so it is no longer vacuous, and `fail_closed_regression` measures
+      **1.0 (7/7)** and passes. The verdict, its three `fail_reasons`,
+      `cases_declared: 19`, `cases_scored: 7` and the index tier are unchanged,
+      so the enablement decision is unaffected. Neither the corpus nor any
+      threshold was touched. See design.md, *Amendment — 2026-08-01*.
+
       Two runs were made and both are reported. The first declared
       `--evaluated-revision 184d1329…` (the branch tip); every recorded response
       in the corpus is pinned to `748af34c`, so all three adversarial `ready`
