@@ -566,13 +566,13 @@ be meaningful.
   File them; do not spec them here. Deciding what each one is for is mostly
   not gen-eval's call.
 
-- [ ] 5.4 Write tests for the generated Contract Ref column `[S]`
+- [x] 5.4 Write tests for the generated Contract Ref column `[S]`
   **Design decisions**: D8
   **Dependencies**: 3.7
   **Note**: must fail on the current hand-filled matrix, which is the point —
   the column has never been checked against anything.
 
-- [ ] 5.5 Generate `change-context.md`'s Contract Ref column from citations `[M]`
+- [x] 5.5 Generate `change-context.md`'s Contract Ref column from citations `[M]`
   **Design decisions**: D8
   **Dependencies**: 5.4
   **Note**: join matrix rows to citations by parse position of the same spec
