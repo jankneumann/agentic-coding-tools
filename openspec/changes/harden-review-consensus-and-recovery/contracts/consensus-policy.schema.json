@@ -1,74 +1,150 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools.dev/contracts/harden-review-consensus-and-recovery/consensus-policy.schema.json",
-  "title": "Consensus Policy Evaluation",
+  "title": "Consensus Report Revision 2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["criticality", "status", "vendor_dispositions", "adjudication", "policy"],
+  "required": ["schema_version", "review_type", "target", "quorum", "consensus_findings", "summary", "applied_adjudications"],
   "properties": {
-    "criticality": {
-      "type": "string",
-      "enum": ["low", "medium", "high", "critical"]
-    },
-    "status": {
-      "type": "string",
-      "enum": ["confirmed", "unconfirmed", "disagreement"]
-    },
-    "vendor_dispositions": {
-      "type": "object",
-      "minProperties": 1,
-      "additionalProperties": {
-        "type": "string",
-        "enum": ["fix", "regenerate", "accept", "escalate"]
-      }
-    },
-    "adjudication": {
-      "$ref": "#/$defs/Adjudication"
-    },
-    "policy": {
+    "schema_version": {"const": 2},
+    "review_type": {"type": "string", "minLength": 1},
+    "target": {"type": "string", "minLength": 1},
+    "quorum": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["integration_blocking", "convergence_blocking", "effective_blocking"],
+      "required": ["requested", "received", "met"],
       "properties": {
-        "integration_blocking": {"type": "boolean"},
-        "convergence_blocking": {"type": "boolean"},
-        "effective_blocking": {"type": "boolean"}
+        "requested": {"type": "integer", "minimum": 0},
+        "received": {"type": "integer", "minimum": 0},
+        "met": {"type": "boolean"}
       }
+    },
+    "consensus_findings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/ConsensusFinding"}
+    },
+    "summary": {"$ref": "#/$defs/Summary"},
+    "applied_adjudications": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/LedgerEntry"}
     }
   },
   "$defs": {
+    "Summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_unique_findings", "confirmed_count", "provisional_count",
+        "unconfirmed_count", "disagreement_count", "integration_blocking_count",
+        "convergence_blocking_count", "effective_blocking_count", "blocking_count"
+      ],
+      "properties": {
+        "total_unique_findings": {"type": "integer", "minimum": 0},
+        "confirmed_count": {"type": "integer", "minimum": 0},
+        "provisional_count": {"type": "integer", "minimum": 0},
+        "unconfirmed_count": {"type": "integer", "minimum": 0, "deprecated": true},
+        "disagreement_count": {"type": "integer", "minimum": 0},
+        "integration_blocking_count": {"type": "integer", "minimum": 0},
+        "convergence_blocking_count": {"type": "integer", "minimum": 0},
+        "effective_blocking_count": {"type": "integer", "minimum": 0},
+        "blocking_count": {"type": "integer", "minimum": 0, "deprecated": true}
+      },
+      "description": "provisional_count equals deprecated unconfirmed_count; blocking_count equals effective_blocking_count. Producers enforce these cross-field invariants."
+    },
+    "ConsensusFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_id", "algorithm_version", "status", "criticality", "description",
+        "source_findings", "vendor_dispositions", "match", "adjudication", "policy"
+      ],
+      "properties": {
+        "group_id": {"type": "string", "pattern": "^cg-[a-f0-9]{16,64}$"},
+        "algorithm_version": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "enum": ["confirmed", "unconfirmed", "disagreement"]},
+        "criticality": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+        "description": {"type": "string", "minLength": 1},
+        "source_findings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["vendor", "finding_id", "concern_fingerprint"],
+            "properties": {
+              "vendor": {"type": "string", "minLength": 1},
+              "finding_id": {"type": ["string", "integer"]},
+              "concern_fingerprint": {"type": "string", "minLength": 16}
+            }
+          }
+        },
+        "vendor_dispositions": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"type": "string", "enum": ["fix", "regenerate", "accept", "escalate"]}
+        },
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "score", "evidence"],
+          "properties": {
+            "method": {"type": "string", "enum": ["single", "structured", "description"]},
+            "score": {"type": "number", "minimum": 0, "maximum": 1},
+            "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          }
+        },
+        "adjudication": {"$ref": "#/$defs/Adjudication"},
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["integration_blocking", "convergence_blocking", "effective_blocking"],
+          "properties": {
+            "integration_blocking": {"type": "boolean"},
+            "convergence_blocking": {"type": "boolean"},
+            "effective_blocking": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "Authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_id", "actor_type", "mechanism", "authorized_at", "approval_ref"],
+      "properties": {
+        "actor_id": {"type": "string", "minLength": 1},
+        "actor_type": {"const": "human"},
+        "mechanism": {"type": "string", "enum": ["coordinator_audit", "github_approval", "signed_local_record"]},
+        "authorized_at": {"type": "string", "format": "date-time"},
+        "approval_ref": {"type": "string", "minLength": 1}
+      }
+    },
     "Adjudication": {
       "type": "object",
       "additionalProperties": false,
       "required": ["status"],
       "properties": {
-        "status": {
-          "type": "string",
-          "enum": ["unreviewed", "fixed", "false_positive", "accepted_risk", "deferred"]
-        },
+        "status": {"type": "string", "enum": ["unreviewed", "fixed", "false_positive", "accepted_risk", "deferred"]},
         "rationale": {"type": "string", "minLength": 1},
-        "evidence": {
-          "type": "array",
-          "items": {"type": "string", "minLength": 1},
-          "uniqueItems": true
-        },
-        "authorized_by": {"type": "string", "minLength": 1},
+        "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "authorization": {"$ref": "#/$defs/Authorization"},
         "tracking_reference": {"type": "string", "minLength": 1}
       },
       "allOf": [
-        {
-          "if": {"properties": {"status": {"enum": ["fixed", "false_positive"]}}},
-          "then": {"required": ["rationale", "evidence"]}
-        },
-        {
-          "if": {"properties": {"status": {"const": "accepted_risk"}}},
-          "then": {"required": ["rationale", "authorized_by"]}
-        },
-        {
-          "if": {"properties": {"status": {"const": "deferred"}}},
-          "then": {"required": ["rationale", "tracking_reference"]}
-        }
+        {"if": {"properties": {"status": {"enum": ["fixed", "false_positive"]}}, "required": ["status"]}, "then": {"required": ["rationale", "evidence"]}},
+        {"if": {"properties": {"status": {"const": "accepted_risk"}}, "required": ["status"]}, "then": {"required": ["rationale", "authorization"]}},
+        {"if": {"properties": {"status": {"const": "deferred"}}, "required": ["status"]}, "then": {"required": ["rationale", "tracking_reference"]}}
       ]
+    },
+    "LedgerEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_id", "concern_fingerprints", "adjudication", "recorded_at"],
+      "properties": {
+        "group_id": {"type": "string", "pattern": "^cg-[a-f0-9]{16,64}$"},
+        "concern_fingerprints": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 16}},
+        "adjudication": {"$ref": "#/$defs/Adjudication"},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
     }
   }
 }

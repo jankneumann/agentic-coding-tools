@@ -1,65 +1,142 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools.dev/contracts/harden-review-consensus-and-recovery/review-attempt.schema.json",
-  "title": "Review Dispatch Attempt",
+  "title": "Logical Review Request and Attempt Chain",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "attempt_index",
-    "vendor",
-    "transport",
-    "reason",
-    "success",
-    "elapsed_seconds",
-    "requested_routing",
-    "resolved_execution"
+    "logical_request_id", "requested_vendor", "requested_routing", "deadline_at",
+    "budget", "attempts", "terminal_outcome", "terminal_vendor", "quorum_eligible"
   ],
   "properties": {
-    "attempt_index": {"type": "integer", "minimum": 1},
-    "vendor": {"type": "string", "minLength": 1},
-    "transport": {"type": "string", "enum": ["cli", "sdk", "async"]},
-    "reason": {
+    "logical_request_id": {"type": "string", "minLength": 1},
+    "requested_vendor": {"type": "string", "minLength": 1},
+    "requested_routing": {"$ref": "#/$defs/RequestedRouting"},
+    "deadline_at": {"type": "string", "format": "date-time"},
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["corrective_max", "replacement_max", "fallback_models"],
+      "properties": {
+        "corrective_max": {"const": 1},
+        "replacement_max": {"const": 1},
+        "fallback_models": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/Attempt"},
+      "contains": {"properties": {"terminal": {"const": true}}, "required": ["terminal"]},
+      "minContains": 1,
+      "maxContains": 1
+    },
+    "terminal_outcome": {
       "type": "string",
-      "enum": ["initial", "corrective_redispatch", "model_fallback", "replacement_vendor"]
+      "enum": ["success", "invalid_output_exhausted", "capacity_exhausted", "auth", "transient", "timeout", "configuration", "unknown"]
     },
-    "success": {"type": "boolean"},
-    "elapsed_seconds": {"type": "number", "minimum": 0},
-    "parser_stage": {
-      "type": ["string", "null"],
-      "enum": ["extract", "json", "schema", null]
-    },
-    "error_class": {
-      "type": ["string", "null"],
-      "enum": ["invalid_output", "capacity_exhausted", "auth", "transient", "timeout", "unknown", null]
-    },
-    "error_detail": {"type": ["string", "null"], "maxLength": 4096},
-    "stdout_excerpt": {"type": ["string", "null"], "maxLength": 4096},
-    "stderr_excerpt": {"type": ["string", "null"], "maxLength": 4096},
-    "artifact_ref": {"type": ["string", "null"]},
-    "requested_routing": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["archetype", "tier"],
-      "properties": {
-        "archetype": {"type": ["string", "null"]},
-        "tier": {"type": ["string", "null"]}
-      }
-    },
-    "resolved_execution": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["model", "thinking"],
-      "properties": {
-        "model": {"type": ["string", "null"]},
-        "thinking": {"type": ["string", "null"]},
-        "fallback_reason": {"type": ["string", "null"]}
-      }
-    }
+    "terminal_vendor": {"type": ["string", "null"]},
+    "quorum_eligible": {"type": "boolean"}
   },
   "allOf": [
     {
-      "if": {"properties": {"success": {"const": false}}},
-      "then": {"required": ["error_class", "error_detail"]}
+      "if": {"properties": {"terminal_outcome": {"const": "success"}}, "required": ["terminal_outcome"]},
+      "then": {
+        "properties": {
+          "quorum_eligible": {"const": true},
+          "terminal_vendor": {"type": "string", "minLength": 1},
+          "attempts": {
+            "contains": {"properties": {"terminal": {"const": true}, "success": {"const": true}}, "required": ["terminal", "success"]},
+            "minContains": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {"not": {"properties": {"terminal_outcome": {"const": "success"}}, "required": ["terminal_outcome"]}},
+      "then": {
+        "properties": {
+          "quorum_eligible": {"const": false},
+          "attempts": {
+            "contains": {"properties": {"terminal": {"const": true}, "success": {"const": false}}, "required": ["terminal", "success"]},
+            "minContains": 1
+          }
+        }
+      }
     }
-  ]
+  ],
+  "$defs": {
+    "RequestedRouting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archetype", "tier", "phase"],
+      "properties": {
+        "archetype": {"type": ["string", "null"]},
+        "tier": {"type": ["string", "null"]},
+        "phase": {"type": ["string", "null"]}
+      }
+    },
+    "ResolvedExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "requested_thinking", "applied_thinking", "thinking_translation", "fallback_reason"],
+      "properties": {
+        "model": {"type": ["string", "null"]},
+        "requested_thinking": {"type": ["string", "null"]},
+        "applied_thinking": {"type": ["string", "null"]},
+        "thinking_translation": {"type": "string", "enum": ["not_requested", "applied", "unsupported"]},
+        "fallback_reason": {"type": ["string", "null"]}
+      }
+    },
+    "Attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt_index", "vendor", "transport", "reason", "terminal", "success",
+        "elapsed_seconds", "validation_status", "error_class", "error_detail",
+        "stdout_excerpt", "stderr_excerpt", "diagnostics_truncated", "resolved_execution"
+      ],
+      "properties": {
+        "attempt_index": {"type": "integer", "minimum": 1},
+        "vendor": {"type": "string", "minLength": 1},
+        "transport": {"type": "string", "enum": ["cli", "sdk", "async"]},
+        "reason": {"type": "string", "enum": ["initial", "corrective_redispatch", "model_fallback", "replacement_vendor"]},
+        "terminal": {"type": "boolean"},
+        "success": {"type": "boolean"},
+        "elapsed_seconds": {"type": "number", "minimum": 0},
+        "parser_stage": {"type": ["string", "null"], "enum": ["extract", "json", "schema", null]},
+        "validation_status": {"type": "string", "enum": ["schema_valid", "invalid", "not_reached"]},
+        "error_class": {"type": ["string", "null"], "enum": ["invalid_output", "capacity_exhausted", "auth", "transient", "timeout", "configuration", "unknown", null]},
+        "error_detail": {"type": ["string", "null"], "maxLength": 4096},
+        "stdout_excerpt": {"type": ["string", "null"], "maxLength": 4096},
+        "stderr_excerpt": {"type": ["string", "null"], "maxLength": 4096},
+        "diagnostics_truncated": {"type": "boolean"},
+        "artifact_ref": {"type": ["string", "null"], "description": "Reference to a bounded sanitized artifact only"},
+        "resolved_execution": {"$ref": "#/$defs/ResolvedExecution"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"success": {"const": true}}, "required": ["success"]},
+          "then": {
+            "properties": {
+              "parser_stage": {"const": "schema"},
+              "validation_status": {"const": "schema_valid"},
+              "error_class": {"const": null},
+              "error_detail": {"const": null}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"success": {"const": false}}, "required": ["success"]},
+          "then": {
+            "properties": {
+              "validation_status": {"enum": ["invalid", "not_reached"]},
+              "error_class": {"type": "string"},
+              "error_detail": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      ]
+    }
+  }
 }

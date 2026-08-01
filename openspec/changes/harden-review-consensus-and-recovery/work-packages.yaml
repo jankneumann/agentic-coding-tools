@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: harden-review-consensus-and-recovery
   title: "Fail-closed review consensus, bounded vendor recovery, reviewer-tier routing"
-  plan_revision: 1
+  plan_revision: 2
   created_by: codex-autopilot
   created_at: "2026-08-01T00:00:00Z"
 
@@ -30,27 +30,30 @@ packages:
     title: "Consensus policy, schema, deterministic grouping"
     task_type: implementation
     description: |
-      Tasks 1.1-1.5 plus Checkpoint 1. Characterize the false-zero behavior,
+      Tasks 1.1-1.5. Characterize the false-zero behavior,
       extend both consensus-report schema copies, preserve reviewer dispositions,
       implement evidence-backed adjudication, derive explicit policy counts, and
       replace primary-order greedy matching with deterministic structured groups.
     role: trust-layer-engineer
     archetype: implementer
     priority: 1
-    depends_on: []
+    depends_on: [wp-review-attempt-core]
     locks:
       files:
         - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/consensus_policy.py"
         - "openspec/schemas/consensus-report.schema.json"
       keys:
         - "contract:review-consensus-policy"
       ttl_minutes: 120
-      reason: "Consensus schema plus blocker policy are one atomic trust boundary"
+      reason: "Consensus schema plus blocker policy are one atomic trust boundary and consume shared quorum eligibility"
     scope:
       write_allow:
         - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/consensus_policy.py"
         - "skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py"
-        - "skills/parallel-infrastructure/scripts/tests/fixtures/review-hardening/**"
+        - "skills/parallel-infrastructure/scripts/tests/test_consensus_policy.py"
+        - "skills/parallel-infrastructure/scripts/tests/fixtures/review-hardening/consensus/**"
         - "skills/parallel-infrastructure/install_assets/openspec/schemas/consensus-report.schema.json"
         - "openspec/schemas/consensus-report.schema.json"
       read_allow:
@@ -96,47 +99,50 @@ packages:
       artifacts:
         - "openspec/schemas/consensus-report.schema.json"
 
-  - package_id: wp-vendor-recovery-routing
-    title: "Vendor recovery, diagnostics, reviewer routing"
+  - package_id: wp-review-attempt-core
+    title: "Review attempt, diagnostics, recovery, and quorum core"
     task_type: implementation
     description: |
-      Tasks 2.1-2.6 plus Checkpoint 2. Normalize attempt records across CLI,
-      SDK, and async completions; add invalid-output classification, bounded
-      corrective redispatch, redacted diagnostics, shared quorum eligibility,
-      config-driven thinking flags, and reviewer archetype routing provenance.
+      Tasks 2.1, 2.3, and 2.4. Build dependency-neutral logical-attempt,
+      diagnostic/redaction, quorum, checkpoint, and bounded recovery helpers.
+      Include deterministic one-replacement selection and exact deadline/budget
+      tests without modifying transport adapters.
     role: coordination-engineer
     archetype: implementer
     priority: 1
     depends_on: []
     locks:
       files:
-        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
-        - "agent-coordinator/src/agents_config.py"
-        - "agent-coordinator/agents.yaml"
+        - "skills/parallel-infrastructure/scripts/review_attempts.py"
+        - "skills/parallel-infrastructure/scripts/review_result_policy.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
       keys:
         - "contract:review-attempt-provenance"
-        - "feature:harden-review-consensus-and-recovery:routing"
+        - "feature:harden-review-consensus-and-recovery:attemptcore"
       ttl_minutes: 180
-      reason: "Dispatcher recovery and config translation share one attempt contract"
+      reason: "Attempt and quorum invariants are a dependency-neutral shared boundary"
     scope:
       write_allow:
-        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
-        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
-        - "agent-coordinator/agents.yaml"
-        - "agent-coordinator/src/agents_config.py"
-        - "agent-coordinator/tests/test_archetype_routing.py"
-        - "agent-coordinator/tests/test_agents_config.py"
+        - "skills/parallel-infrastructure/scripts/review_attempts.py"
+        - "skills/parallel-infrastructure/scripts/review_result_policy.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_attempts.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/tests/fixtures/review-hardening/attempts/**"
       read_allow:
         - "**"
       deny:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/review_routing.py"
         - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
         - "skills/autopilot/**"
+        - "agent-coordinator/**"
     context_impact:
       surfaces:
         - "apis"
         - "semantic_code"
     worktree:
-      name: review-hardening-dispatcher
+      name: review-hardening-attempt-core
       mode: isolated
     timeout_minutes: 180
     retry_budget: 2
@@ -144,28 +150,159 @@ packages:
     verification:
       tier_required: B
       steps:
-        - name: "Review dispatcher tests pass"
+        - name: "Review attempt and checkpoint tests pass"
           kind: command
-          command: "uv run --project skills pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py -q"
+          command: "uv run --project skills pytest skills/parallel-infrastructure/scripts/tests/test_review_attempts.py skills/parallel-infrastructure/scripts/tests/test_checkpoint_findings.py -q"
           evidence:
             artifacts: []
-            result_keys: ["dispatcher_tests_passed"]
+            result_keys: ["attempt_core_tests_passed"]
+    metadata:
+      loc_estimate: 360
+      complexity: high
+      package_kind: integration
+    inputs:
+      task_ids: ["2.1", "2.3", "2.4"]
+      contracts:
+        - "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"
+    outputs:
+      result_keys: ["attempt_core_tests_passed"]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/review_attempts.py"
+        - "skills/parallel-infrastructure/scripts/review_result_policy.py"
+
+  - package_id: wp-review-routing
+    title: "Reviewer routing and thinking translation"
+    task_type: implementation
+    description: |
+      Tasks 2.2 and 2.5. Add provider-configured thinking translation and a
+      pure routing helper implementing explicit > phase > review default >
+      static precedence. Keep transport wiring out of this package.
+    role: routing-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_routing.py"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/agents.yaml"
+      keys:
+        - "feature:harden-review-consensus-and-recovery:routing"
+      ttl_minutes: 120
+      reason: "Routing resolution and provider flag translation form one config boundary"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_routing.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_routing.py"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/tests/test_archetype_routing.py"
+        - "agent-coordinator/tests/test_agents_config.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/review_attempts.py"
+        - "skills/autopilot/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: review-hardening-routing
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Routing helper tests pass"
+          kind: command
+          command: "uv run --project skills pytest skills/parallel-infrastructure/scripts/tests/test_review_routing.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["routing_helper_tests_passed"]
         - name: "Coordinator routing tests pass"
           kind: command
           command: "uv run --project agent-coordinator pytest agent-coordinator/tests/test_archetype_routing.py agent-coordinator/tests/test_agents_config.py -q"
           evidence:
             artifacts: []
-            result_keys: ["routing_tests_passed"]
+            result_keys: ["coordinator_routing_tests_passed"]
     metadata:
-      loc_estimate: 720
+      loc_estimate: 300
       complexity: high
-      package_kind: integration
+      package_kind: config
     inputs:
-      task_ids: ["2.1", "2.2", "2.3", "2.4", "2.5", "2.6"]
+      task_ids: ["2.2", "2.5"]
       contracts:
         - "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"
     outputs:
-      result_keys: ["dispatcher_tests_passed", "routing_tests_passed"]
+      result_keys: ["routing_helper_tests_passed", "coordinator_routing_tests_passed"]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/review_routing.py"
+
+  - package_id: wp-review-dispatcher-integration
+    title: "Review dispatcher transport and caller integration"
+    task_type: implementation
+    description: |
+      Task 2.6. Integrate the frozen attempt/recovery and routing helpers into
+      CLI, SDK, and async transports; verify direct review, autopilot,
+      merge-pull-requests, and quick-task compatibility without duplicating policy.
+    role: integration-engineer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-review-attempt-core, wp-review-routing]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      keys:
+        - "feature:harden-review-consensus-and-recovery:dispatcherintegration"
+      ttl_minutes: 180
+      reason: "Transport wiring consumes both frozen helper boundaries"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+        - "skills/merge-pull-requests/scripts/tests/test_vendor_review.py"
+        - "skills/quick-task/scripts/quick_task.py"
+        - "skills/quick-task/tests/test_quick_task.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: review-hardening-dispatcher-integration
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Dispatcher and compatibility tests pass"
+          kind: command
+          command: "uv run --project skills pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/merge-pull-requests/scripts/tests/test_vendor_review.py skills/quick-task/tests/test_quick_task.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["dispatcher_integration_tests_passed"]
+    metadata:
+      loc_estimate: 360
+      complexity: high
+      package_kind: integration
+    inputs:
+      task_ids: ["2.6"]
+      contracts:
+        - "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"
+    outputs:
+      result_keys: ["dispatcher_integration_tests_passed"]
       artifacts:
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
 
@@ -173,17 +310,18 @@ packages:
     title: "Fail-closed convergence consumer"
     task_type: implementation
     description: |
-      Tasks 3.1-3.3 plus Checkpoint 3. Consume explicit convergence-blocking
+      Tasks 3.1-3.3. Consume explicit convergence-blocking
       and quorum policy, remove the final-round relaxation, preserve disagreement
       escalation, return inconclusive outcomes at exhaustion, and update recovery
       guidance for attempt artifacts plus evidence-backed adjudication.
     role: workflow-engineer
     archetype: implementer
     priority: 2
-    depends_on: [wp-consensus-policy, wp-vendor-recovery-routing]
+    depends_on: [wp-consensus-policy, wp-review-dispatcher-integration]
     locks:
       files:
         - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/tests/autopilot/test_convergence_checkpoint.py"
       keys:
         - "feature:harden-review-consensus-and-recovery:convergence"
       ttl_minutes: 120
@@ -246,7 +384,9 @@ packages:
     priority: 3
     depends_on:
       - wp-consensus-policy
-      - wp-vendor-recovery-routing
+      - wp-review-attempt-core
+      - wp-review-routing
+      - wp-review-dispatcher-integration
       - wp-fail-closed-convergence
     locks:
       files:
