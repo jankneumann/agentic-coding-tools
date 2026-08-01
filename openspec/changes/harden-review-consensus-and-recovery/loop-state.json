@@ -1,78 +1,69 @@
 {
   "schema_version": 4,
   "change_id": "harden-review-consensus-and-recovery",
-  "current_phase": "IMPL_REVIEW",
-  "iteration": 1,
-  "total_iterations": 14,
+  "current_phase": "IMPL_FIX",
+  "iteration": 2,
+  "total_iterations": 15,
   "max_phase_iterations": 3,
   "findings_trend": [
-    13
+    13,
+    11
   ],
   "blocking_findings": [
     {
+      "id": 1,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 1
+      "disposition": "fix"
     },
     {
+      "id": 2,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 2
+      "disposition": "fix"
     },
     {
+      "id": 3,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 3
+      "disposition": "fix"
     },
     {
+      "id": 4,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 4
+      "disposition": "fix"
     },
     {
+      "id": 5,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 5
+      "disposition": "fix"
     },
     {
+      "id": 6,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 6
+      "disposition": "fix"
     },
     {
+      "id": 7,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 7
+      "disposition": "fix"
     },
     {
+      "id": 8,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 8
+      "disposition": "fix"
     },
     {
+      "id": 9,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 9
+      "disposition": "fix"
     },
     {
+      "id": 10,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 10
+      "disposition": "fix"
     },
     {
+      "id": 11,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 11
-    },
-    {
-      "criticality": "critical",
-      "disposition": "fix",
-      "id": 12
-    },
-    {
-      "criticality": "critical",
-      "disposition": "fix",
-      "id": 13
+      "disposition": "fix"
     }
   ],
   "vendor_availability": {},
@@ -90,7 +81,8 @@
     "implementation-iteration-1-1",
     "implementation-review-1",
     "implementation-fix-1-1.json",
-    "implementation-iteration-2-1.json"
+    "implementation-iteration-2-1.json",
+    "implementation-review-2-1.json"
   ],
   "phase_history": [
     {
@@ -148,17 +140,22 @@
       "at": "2026-08-01T23:02:57.704357+00:00",
       "outcome": "fixed",
       "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-08-01T23:28:54.621396+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
     }
   ],
-  "last_handoff_id": "implementation-iteration-2-1.json",
+  "last_handoff_id": "implementation-review-2-1.json",
   "started_at": "2026-08-01T19:49:19.418681+00:00",
-  "phase_started_at": "2026-08-01T23:02:57.942712+00:00",
+  "phase_started_at": "2026-08-01T23:28:54.866663+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "implementer",
+  "phase_archetype": "reviewer",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
