@@ -254,3 +254,31 @@ Remediated the four actionable second-round findings and incorporated the observ
 
 ### Context
 Used four independently bounded external adapters after the sequential dispatcher exceeded its advertised vendor timeout. All four failed or timed out, yielding zero eligible external results, so the plan review remains not converged and requires an explicit operator waiver before implementation can begin.
+
+---
+
+## Phase: Plan Review Waiver (2026-08-01)
+
+**Agent**: operator | **Session**: N/A
+
+### Decisions
+1. **Waive PLAN_REVIEW quorum for bootstrap implementation** `architectural: skill-workflow` — The change repairs the review path that prevents its own pre-implementation quorum; all actionable Codex findings were remediated and structural validations are green.
+2. **Retain downstream review gates** `architectural: skill-workflow` — IMPL_REVIEW and VAL_REVIEW remain enabled after dispatcher hardening lands.
+
+### Trade-offs
+- Accepted a narrowly scoped operator waiver over indefinite bootstrap deadlock because the current dispatcher cannot establish quorum until the planned recovery and timeout fixes exist
+
+### Completed Work
+- Recorded explicit operator authorization to advance from PLAN_REVIEW to IMPLEMENT.
+- Preserved both failed external review manifests and all primary findings.
+
+### Next Steps
+- Execute the six-package implementation DAG with test-first commits.
+- Require implementation and validation review through the repaired path.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/independent-bootstrap-manifest.json` — 0/4 bounded external quorum evidence
+- `openspec/changes/harden-review-consensus-and-recovery/loop-state.json` — resumable autopilot state
+
+### Context
+The operator explicitly waived only PLAN_REVIEW quorum for this bootstrap change after two bounded external attempts produced zero eligible results. Implementation and validation review remain enabled so the repaired dispatcher must still prove itself before PR submission.
