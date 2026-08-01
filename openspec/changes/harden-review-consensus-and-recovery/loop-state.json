@@ -1,0 +1,60 @@
+{
+  "schema_version": 4,
+  "change_id": "harden-review-consensus-and-recovery",
+  "current_phase": "ESCALATE",
+  "iteration": 0,
+  "total_iterations": 6,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-harden-review-consensus-recovery-1",
+    "plan-iteration-1-1",
+    "plan-review-1"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-08-01T19:50:48.787501+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-08-01T20:10:37.277844+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-08-01T20:17:50.620886+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    }
+  ],
+  "last_handoff_id": "plan-review-1",
+  "started_at": "2026-08-01T19:49:19.418681+00:00",
+  "phase_started_at": "2026-08-01T20:22:05.334060+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "escalation_reason": "PLAN_REVIEW requires explicit approval to transmit private repository plan artifacts to configured external vendor services; the approval reviewer denied dispatch before egress.",
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "reviewer",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 3,
+    "total_loc_estimate": 1840
+  },
+  "gate_verdict": "proceed_with_review"
+}
