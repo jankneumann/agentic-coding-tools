@@ -446,3 +446,45 @@ Resolved fail-closed payload validation, reviewer routing, deadline enforcement,
 
 ### Context
 Completed the remaining review-recovery remediation: bounded replacement-vendor slot transfer and evidence-backed adjudication ledger application. Focused tests, lint, and strict OpenSpec validation passed.
+
+---
+
+## Phase: Implementation Review 2 (2026-08-01)
+
+**Agent**: codex-reviewer | **Session**: N/A
+
+### Decisions
+1. **Return not_converged** `architectural: skill-workflow` — External quorum was lost and source-verified contract violations remain merge-blocking.
+2. **Do not infer success from focused tests** `architectural: review-recovery` — The focused suite passed, but skills/install.sh --check failed and the normative cross-field/runtime contracts remain unsatisfied.
+
+### Capability Gaps Observed
+- **quorum_lost**: Four premium review routes timed out and Pi exhausted invalid-output recovery; no vendor result was schema-valid and attributable. (skill: parallel-review-implementation, severity: critical)
+- **progress_visibility**: The dispatcher exposes no current-vendor state and writes no terminal evidence until the full sequential round returns. (skill: parallel-infrastructure, severity: high)
+
+### Completed Work
+- Dispatched the approved implementation diff and OpenSpec artifacts to Antigravity, Claude Code, Codex, Grok, and Pi using reviewer/premium routing and 300-second vendor-local bounds.
+- Validated all five persisted attempt chains against Draft 2020-12 review-attempt.schema.json and validate_review_attempt_chain(); quorum remained 0/5.
+- Ran 131 focused dispatcher, attempt, routing, consensus, convergence, and golden-regression tests successfully.
+- Ran skills/install.sh --check and reproduced the review_routing.py coordinator-boundary failure.
+- Produced a schema-valid source-verified synthesis with 11 critical findings at reviews/round-2/review-findings.json.
+
+### In Progress
+- Targeted remediation is required before a further implementation-review round can converge.
+
+### Next Steps
+- Repair portable schema/routing discovery and make the install portability gate pass.
+- Enforce cancellable outer deadlines and progressive terminal checkpoint persistence across CLI, async, and SDK transports.
+- Apply full attempt-chain and consensus schemas plus complete relational validators before persistence or quorum decisions; sanitize error_detail.
+- Remove success-only eligibility fallbacks and stabilize structured matching/group identifiers independently of vendor and finding ID.
+- Rerun focused tests, skills/install.sh --check, and IMPL_REVIEW with a true two-vendor schema-valid quorum.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/round-2/review-manifest.json` — five-vendor terminal attempt evidence and 0/5 quorum
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/round-2/review-findings.json` — schema-valid source-verified synthesis with 11 critical findings
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — runtime portability, timeout, and persistence defects
+- `skills/parallel-infrastructure/scripts/review_attempts.py` — chain validation and diagnostic redaction defects
+- `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — producer validation, matching, and stable identity defects
+- `skills/autopilot/scripts/convergence_loop.py` — consensus relational validation and quorum eligibility defects
+
+### Context
+Implementation review did not converge. All five configured premium reviewer routes produced ineligible terminal results (four 299-second timeouts and Pi invalid-output exhaustion), so true external quorum was 0/5. Independent source-and-contract audits confirmed 11 merge-blocking defects despite 131 focused tests passing, including installed-runtime path/routing failures, non-preemptive deadlines, delayed persistence, incomplete chain and consensus validation, unsanitized diagnostics, eligibility drift, and unstable consensus identity.
