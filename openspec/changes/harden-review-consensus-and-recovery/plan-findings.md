@@ -64,3 +64,19 @@ The routed Codex review produced six medium-or-higher actionable findings. Exter
 | 6 | medium | Capacity, authentication, transient, and configuration behavior lacked cross-transport acceptance scenarios. | Added normative CLI/SDK/async scenarios and expanded recovery characterization/engine task traceability. |
 
 The optional pre-parse streaming limit remains below the remediation threshold and is recorded as residual risk; the required 2 MiB post-parse matching guard remains in scope.
+
+## PLAN_REVIEW Remediation 2
+
+<!-- Date: 2026-08-01 -->
+
+Approved external dispatch requested four reviewers but produced zero eligible results: Antigravity exceeded the documented per-vendor bound inside its model-fallback loop, and the sequential dispatcher never reached Claude Code, Grok, or Pi. The legacy local consensus reported `blocking_count=0`; this was rejected because quorum was not met and four actionable primary findings remained.
+
+| # | Criticality | Finding | Resolution |
+|---|---|---|---|
+| 1 | high | Revision-2 consensus removed legacy envelope and per-finding fields used by current readers. | Made revision 2 additive: retained derived legacy reviewers, flat quorum, item identifiers/match/type/criticality/disposition, and legacy `status`; added canonical `policy_status` and alias-validation requirements. |
+| 2 | critical | Nested quorum could validate `met=true` with no eligible results. | Added `minimum_required` and unique eligible vendors plus mandatory `validate_consensus_report()` invariants for received/requested, distinct vendors, threshold truth, and flat/nested equality. |
+| 3 | high | The attempt schema recorded budgets without constraining attempt chains. | Added expressible JSON Schema limits and mandatory `validate_review_attempt_chain()` checks for ordering, indexes, fallback membership, deadlines, vendor transitions, terminal attribution, and post-success attempts. |
+| 4 | medium | The consensus package did not execute its owned policy test suite. | Added `test_consensus_policy.py` to the package verification command. |
+| 5 | observed blocker | The public per-vendor timeout reset for each model attempt and prevented later vendors from running. | Defined one monotonic deadline for the entire vendor/model chain, outer enforcement, progressive terminal persistence, and continuation to later scheduled vendors. |
+
+The optional pre-parse output cap remains below threshold and is carried as residual risk. Independent vendor quorum remains required after implementation fixes the dispatcher behavior; the current apparatus cannot manufacture convergence from its zero count.

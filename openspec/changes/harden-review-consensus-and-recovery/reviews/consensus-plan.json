@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "harden-review-consensus-and-recovery",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": false,
+  "quorum_requested": 1,
+  "quorum_received": 1,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: The consensus contract can validate a false quorum signal: quorum has only requested, received, and an unconstrained met boolean, so documents such as requested=3, received=0, met=true validate. It also omits the configured minimum required reviewer count used by the convergence requirement, and does not constrain received to the distinct-vendor/request bound. This recreates the exact false-convergence class the change is intended to eliminate at the frozen trust boundary."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: The frozen revision-2 consensus contract is a breaking replacement, not the additive migration promised by the plan. It removes the required reviewers array, replaces the flat quorum_met/quorum_requested/quorum_received fields with a quorum object, and removes legacy per-finding fields such as agreed_type and recommended_disposition. Existing consumers such as scripts/impl_review_driver.py still read agreed_type, yet no task or package migrates that consumer and the proposal labels only final-round convergence as breaking."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: review-attempt.schema.json advertises a bounded attempt chain but does not validate the bound. An attempts array may contain unlimited corrective_redispatch and replacement_vendor entries, duplicate fallback-model attempts, duplicate/non-monotonic attempt_index values, arbitrary extra vendors, or a successful non-terminal attempt followed by a terminal failure and still satisfy the schema. The budget object merely records maxima and is not tied to the attempts."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: wp-consensus-policy owns and writes test_consensus_policy.py, but its only test command runs test_consensus_synthesizer.py. The package can therefore report consensus_tests_passed without executing the new pure blocker/adjudication policy tests required by task 1.4."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: The 2 MiB limit is still specified only after parsing, so a CLI/SDK adapter can buffer and JSON-decode arbitrarily large output before the matcher rejects it. This bounds pairwise matching but not dispatcher memory or parse time."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The revised plan correctly makes matching non-authoritative, preserves disposition per source finding, and explicitly prevents one replacement vendor from satisfying multiple round slots."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 6,
+    "confirmed_count": 0,
+    "unconfirmed_count": 6,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

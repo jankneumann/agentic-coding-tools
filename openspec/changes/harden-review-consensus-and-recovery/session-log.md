@@ -151,3 +151,76 @@ Plan review did not converge: six medium-or-higher actionable findings remain. T
 
 ### Context
 Remediated all six medium-or-higher findings from the routed primary plan review. External vendor attempts remained blocked before repository-data egress, so the plan is locally corrected but not yet multi-vendor converged.
+
+---
+
+## Phase: PLAN_REVIEW (2026-08-01)
+
+**Agent**: reviewer | **Session**: N/A
+
+### Decisions
+1. **Fail closed on missing independent reviewer quorum** — No external reviewer completed and the legacy synthesizer reported quorum not met, so the phase cannot converge regardless of its compatibility blocker count.
+2. **Treat the dispatcher overrun as a timeout failure** — The CLI documents --timeout as per-vendor, but the implementation applies 600 seconds per model attempt and has no outer deadline; the run remained blocked after the documented bound.
+3. **Require another PLAN_FIX round** — The frozen contracts currently admit false quorum and unbounded attempt chains, while the revision-2 report shape breaks a known consumer outside all package scopes.
+
+### Completed Work
+- Reviewed proposal, design, tasks, both specification deltas, both frozen contracts, work-package ownership, and existing consensus consumers.
+- Recorded 6 schema-valid Codex findings: 3 critical, 1 nit, 1 optional, and 1 positive observation.
+- Attempted approved external dispatch to Antigravity, Claude Code, Grok, and Pi; durably recorded the Antigravity timeout and the three undispatched vendors with quorum_received=0.
+- Generated a local-only consensus artifact; rejected its legacy blocking_count=0 signal because quorum was not met and three critical actionable findings remain.
+- Passed strict OpenSpec validation, Draft 2020-12 checks for both frozen contract schemas, review-findings schema validation, and git diff whitespace checks.
+
+### Next Steps
+- PLAN_FIX: preserve or explicitly migrate the legacy consensus report shape, including scripts/impl_review_driver.py and other flat quorum/per-finding readers.
+- PLAN_FIX: add minimum-required and distinct-vendor quorum invariants plus false-met negative fixtures.
+- PLAN_FIX: enforce attempt-chain bounds and ordering through schema constraints plus a mandatory application validator with negative fixtures.
+- PLAN_FIX: run test_consensus_policy.py in the wp-consensus-policy verification gate.
+- Rerun PLAN_REVIEW after fixing the dispatcher outer-deadline behavior or route vendors independently so one timeout cannot starve all remaining reviewers.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/review-findings-plan.json` — schema-valid primary findings
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/review-manifest.json` — durable external timeout and zero-quorum evidence
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/consensus-plan.json` — local-only consensus showing quorum not met
+- `openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json` — false-quorum and compatibility blockers
+- `openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json` — unenforced attempt-budget blocker
+
+### Context
+Plan review remains fail-closed and did not converge. The Codex review found three critical blockers: the revision-2 consensus artifact breaks legacy readers without a migration package, its quorum object can validate met=true with no eligible results, and the attempt schema does not enforce its advertised recovery budget. External multi-vendor review was explicitly approved and attempted, but the sequential dispatcher exceeded its documented 600-second per-vendor bound inside Antigravity's model loop; Claude Code, Grok, and Pi were never reached. External quorum is therefore 0/4 and no external finding may count toward consensus.
+
+---
+
+## Phase: Plan Fix 2 (2026-08-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Keep revision-2 consensus additive** `architectural: skill-workflow` — Canonical policy fields ship beside validated legacy aliases so existing readers do not silently change behavior.
+2. **Validate relational trust invariants in named application validators** `architectural: skill-workflow` — JSON Schema enforces structural bounds, while consensus and attempt validators own equality, ordering, distinct-vendor, deadline, and transition rules.
+3. **Bound the complete vendor model chain** `architectural: skill-workflow` — The public timeout is one monotonic per-vendor deadline and terminal state persists before the next vendor runs.
+
+### Trade-offs
+- Accepted a larger additive report during migration over breaking every existing consensus reader because compatibility fields are derived and validated against one canonical safety state
+
+### Capability Gaps Observed
+- **timeout_scope**: The legacy dispatcher applies its per-vendor timeout independently to model fallbacks and exposes no outer vendor-chain deadline or progressive results. (skill: parallel-infrastructure, severity: critical)
+
+### Completed Work
+- Added revision-2/legacy consensus compatibility aliases and validation scenarios.
+- Added minimum-required, distinct-vendor, and false-quorum invariants.
+- Added attempt schema bounds plus mandatory validate_review_attempt_chain application checks.
+- Added whole-chain timeout, progressive persistence, and later-vendor continuation requirements.
+- Added the missing consensus-policy test to package verification.
+- Passed strict OpenSpec, contract meta-schema, package DAG, and parallel overlap checks.
+
+### Next Steps
+- Persist and push PLAN_FIX evidence.
+- Do not rerun the same broken external dispatcher indefinitely; implementation must first land the bounded dispatch path or an independently bounded vendor route must be used.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/review-manifest.json` — zero-quorum timeout evidence
+- `openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json` — additive report and quorum invariants
+- `openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json` — bounded attempt-chain shape
+- `openspec/changes/harden-review-consensus-and-recovery/specs/skill-workflow/spec.md` — normative validators and whole-chain timeout
+
+### Context
+Remediated the four actionable second-round findings and incorporated the observed dispatcher timeout overrun into the normative recovery contract. The plan remains fail-closed because the current dispatcher produced zero independent vendor results; implementation must repair the bound before external convergence can be demonstrated.

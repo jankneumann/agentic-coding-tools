@@ -76,7 +76,7 @@ packages:
       steps:
         - name: "Consensus synthesizer tests pass"
           kind: command
-          command: "uv run --project skills pytest skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py -q"
+          command: "uv run --project skills pytest skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py skills/parallel-infrastructure/scripts/tests/test_consensus_policy.py -q"
           evidence:
             artifacts: []
             result_keys: ["consensus_tests_passed"]

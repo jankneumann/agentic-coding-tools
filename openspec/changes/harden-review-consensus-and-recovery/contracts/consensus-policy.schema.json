@@ -4,20 +4,32 @@
   "title": "Consensus Report Revision 2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "review_type", "target", "quorum", "consensus_findings", "summary", "applied_adjudications"],
+  "description": "Revision 2 is additive for legacy readers. validate_consensus_report() enforces alias equality and relational quorum invariants that JSON Schema cannot express.",
+  "required": [
+    "schema_version", "review_type", "target", "reviewers",
+    "quorum_met", "quorum_requested", "quorum_received", "quorum",
+    "consensus_findings", "summary", "applied_adjudications"
+  ],
   "properties": {
     "schema_version": {"const": 2},
-    "review_type": {"type": "string", "minLength": 1},
+    "review_type": {"type": "string", "enum": ["plan", "implementation"]},
     "target": {"type": "string", "minLength": 1},
+    "reviewers": {"type": "array", "items": {"$ref": "#/$defs/Reviewer"}},
+    "quorum_met": {"type": "boolean", "deprecated": true},
+    "quorum_requested": {"type": "integer", "minimum": 0, "deprecated": true},
+    "quorum_received": {"type": "integer", "minimum": 0, "deprecated": true},
     "quorum": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["requested", "received", "met"],
+      "required": ["requested", "received", "minimum_required", "eligible_vendors", "met"],
       "properties": {
         "requested": {"type": "integer", "minimum": 0},
         "received": {"type": "integer", "minimum": 0},
+        "minimum_required": {"type": "integer", "minimum": 1},
+        "eligible_vendors": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
         "met": {"type": "boolean"}
-      }
+      },
+      "description": "validate_consensus_report() enforces received <= requested, received == len(eligible_vendors), met == (received >= minimum_required), and equality with the deprecated flat aliases"
     },
     "consensus_findings": {
       "type": "array",
@@ -30,6 +42,19 @@
     }
   },
   "$defs": {
+    "Reviewer": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["vendor", "agent_id", "success", "elapsed_seconds"],
+      "properties": {
+        "vendor": {"type": "string", "minLength": 1},
+        "agent_id": {"type": "string", "minLength": 1},
+        "success": {"type": "boolean"},
+        "findings_count": {"type": "integer", "minimum": 0},
+        "elapsed_seconds": {"type": "number", "minimum": 0},
+        "error": {"type": ["string", "null"]}
+      }
+    },
     "Summary": {
       "type": "object",
       "additionalProperties": false,
@@ -55,13 +80,37 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "group_id", "algorithm_version", "status", "criticality", "description",
+        "id", "group_id", "algorithm_version", "status", "policy_status",
+        "primary_vendor", "primary_finding_id", "matched_findings", "match_score",
+        "agreed_type", "agreed_criticality", "recommended_disposition",
+        "criticality", "description",
         "source_findings", "vendor_dispositions", "match", "adjudication", "policy"
       ],
       "properties": {
+        "id": {"type": "integer", "minimum": 1, "deprecated": true},
         "group_id": {"type": "string", "pattern": "^cg-[a-f0-9]{16,64}$"},
         "algorithm_version": {"type": "string", "minLength": 1},
-        "status": {"type": "string", "enum": ["confirmed", "provisional", "disagreement"], "description": "provisional is the canonical item status; unconfirmed survives only as the deprecated summary-count alias"},
+        "status": {"type": "string", "enum": ["confirmed", "unconfirmed", "disagreement"], "deprecated": true},
+        "policy_status": {"type": "string", "enum": ["confirmed", "provisional", "disagreement"], "description": "Canonical revision-2 status; validate_consensus_report() enforces provisional iff deprecated status is unconfirmed"},
+        "primary_vendor": {"type": "string", "minLength": 1, "deprecated": true},
+        "primary_finding_id": {"type": ["string", "integer"], "deprecated": true},
+        "matched_findings": {
+          "type": "array",
+          "deprecated": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["vendor", "finding_id"],
+            "properties": {
+              "vendor": {"type": "string", "minLength": 1},
+              "finding_id": {"type": ["string", "integer"]}
+            }
+          }
+        },
+        "match_score": {"type": "number", "minimum": 0, "maximum": 1, "deprecated": true},
+        "agreed_type": {"type": "string", "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience"], "deprecated": true},
+        "agreed_criticality": {"type": "string", "enum": ["low", "medium", "high", "critical"], "deprecated": true},
+        "recommended_disposition": {"type": "string", "enum": ["fix", "regenerate", "accept", "escalate"], "deprecated": true},
         "criticality": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
         "description": {"type": "string", "minLength": 1},
         "source_findings": {
