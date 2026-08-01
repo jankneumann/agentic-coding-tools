@@ -10,8 +10,10 @@ authorization a flip would need; it does not flip the flag. The default may only
 change once a recorded evaluation at
 [`docs/evaluation/semantic-context/report.json`](../evaluation/semantic-context/README.md)
 shows semantic retrieval beating an exact-search baseline on retrieval quality
-*and* coding-context utility. No such report exists yet. Until one does, "no
-section" is the expected state and nothing may depend on one arriving.
+*and* coding-context utility. That report exists and records `verdict: "fail"`,
+so enablement is unauthorized on the evidence rather than for want of it. Until a
+passing one exists, "no section" is the expected state and nothing may depend on
+one arriving.
 
 ## The flag
 
@@ -136,16 +138,20 @@ Enablement is gated on evidence, and the evidence has one durable home:
   path, validate against its published schema, and carry `verdict: "pass"`.
   There is no waiver field and no `blocked`, `skip`, or `unmeasured` verdict — an
   evaluation that could not be taken is a `fail` with an explicit reason.
-- **There is no report yet.** Absent is the fail-closed default state. The gate
-  therefore requires the default to stay `False`.
+- **The report records `fail`.** Its `fail_reasons` are `["unmeasured",
+  "denominator_mismatch", "index_tier_insufficient"]`: the two gates that need a
+  live index never got one. The gate therefore requires the default to stay
+  `False` because the evidence says no — not because it is absent, which is a
+  different state with a different remedy.
 - **The check is `make semantic-enablement-gate`**, blocking in CI. It compares
   the declared default against the report and names every condition it finds
   unmet. A disabled default passes because it claims nothing.
 - **Evidence expires.** A changed corpus or threshold, a changed harness version,
-  a changed embedding fingerprint, an index revision unreachable from the tree
-  under test, a schema-invalid report, or a non-passing verdict each make an
-  existing report stop authorizing enablement. The
-  [evaluation README](../evaluation/semantic-context/README.md) lists all six.
+  a change to the harness's own source, a changed embedding fingerprint, an index
+  revision unreachable from the tree under test, a schema-invalid report, a
+  report whose body does not account for the declared corpus, or a non-passing
+  verdict each make an existing report stop authorizing enablement. The
+  [evaluation README](../evaluation/semantic-context/README.md) lists them all.
 
 None of this adds a runtime path. The per-request fallbacks documented above are
 already total and already fail closed; the gate operates on the *justification*

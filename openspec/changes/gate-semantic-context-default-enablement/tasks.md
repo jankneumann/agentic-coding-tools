@@ -306,7 +306,7 @@ requires `report.verdict == "pass"`. See design D11.
       `skills/tests/context-engineering/` must pass unchanged.
 
 - [x] 5.4 Implement the Enablement Consistency Gate and its
-      `make semantic-enablement-gate` target, with all six D12 expiry conditions
+      `make semantic-enablement-gate` target, with all the D12 expiry conditions
       **Spec scenarios**: `sw` — Evidence expiry / Stale evidence withdraws authorization
       **Contracts**: `contracts/schemas/context-eval-report.schema.json`
       **Design decisions**: D3, D12
