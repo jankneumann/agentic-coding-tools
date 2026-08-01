@@ -29,7 +29,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from consensus_policy import evaluate_blocking
+from consensus_policy import TrustedApprovalResolver, evaluate_blocking, is_valid_non_blocking_adjudication
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +144,9 @@ class ConsensusFinding:
     effective_blocking: bool = False
     match_method: str = "single"
     match_evidence: list[str] = field(default_factory=list)
+    concern_fingerprints: list[str] = field(default_factory=list)
+    source_fingerprints: dict[str, str] = field(default_factory=dict)
+    adjudication: dict[str, Any] = field(default_factory=lambda: {"status": "unreviewed"})
 
 
 @dataclass
@@ -164,6 +167,7 @@ class ConsensusReport:
     blocking_count: int = 0
     integration_blocking_count: int = 0
     convergence_blocking_count: int = 0
+    applied_adjudications: list[dict[str, Any]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -309,6 +313,8 @@ class ConsensusSynthesizer:
         review_type: str,
         target: str,
         vendor_results: list[VendorResult],
+        adjudication_ledger: list[dict[str, Any]] | Path | None = None,
+        trusted_approval_resolver: TrustedApprovalResolver | None = None,
     ) -> ConsensusReport:
         """Produce a consensus report from multiple vendor results."""
         for vendor_result in vendor_results:
@@ -350,6 +356,11 @@ class ConsensusSynthesizer:
 
         # Classify matches into consensus findings
         consensus_findings = self._classify(matches)
+        applied_adjudications = self._apply_adjudications(
+            consensus_findings,
+            adjudication_ledger=adjudication_ledger,
+            trusted_approval_resolver=trusted_approval_resolver,
+        )
 
         # Compute summary counts
         confirmed = sum(1 for cf in consensus_findings if cf.status == "confirmed")
@@ -359,7 +370,7 @@ class ConsensusSynthesizer:
         convergence_blocking = sum(cf.convergence_blocking for cf in consensus_findings)
         blocking = sum(cf.effective_blocking for cf in consensus_findings)
 
-        return ConsensusReport(
+        report = ConsensusReport(
             review_type=review_type,
             target=target,
             reviewers=reviewers,
@@ -375,6 +386,8 @@ class ConsensusSynthesizer:
             integration_blocking_count=integration_blocking,
             convergence_blocking_count=convergence_blocking,
         )
+        report.applied_adjudications = applied_adjudications
+        return report
 
     def _match_all(self, findings: list[Finding]) -> list[FindingMatch]:
         """Build deterministic clique groups without transitive bridges."""
@@ -434,10 +447,11 @@ class ConsensusSynthesizer:
             else:
                 status = policy_status = "disagreement"
                 recommended = "escalate"
-            fingerprints = sorted(
-                f"{finding.vendor}:{finding.id}:{finding.file_path or ''}:{finding.description.lower()}"
+            source_fingerprints = {
+                f"{finding.vendor}:{finding.id}": self._concern_fingerprint(finding)
                 for finding in members
-            )
+            }
+            fingerprints = sorted(source_fingerprints.values())
             group_id = "cg-" + hashlib.sha256("\n".join(fingerprints).encode()).hexdigest()[:16]
             decision = evaluate_blocking(
                 policy_status=policy_status,
@@ -464,13 +478,109 @@ class ConsensusSynthesizer:
                 effective_blocking=decision.effective_blocking,
                 match_method="single" if not m.matched else ("structured" if "location" in m.basis else "description"),
                 match_evidence=[m.basis] if m.basis else [],
+                concern_fingerprints=fingerprints,
+                source_fingerprints=source_fingerprints,
             ))
 
         return results
 
+    @staticmethod
+    def _concern_fingerprint(finding: Finding) -> str:
+        """Return a stable fingerprint for one source concern, not its group."""
+        normalized_description = " ".join(finding.description.lower().split())
+        value = "\0".join((
+            finding.vendor,
+            str(finding.id),
+            finding.type,
+            finding.file_path or "",
+            str(finding.line_start or ""),
+            str(finding.line_end or ""),
+            normalized_description,
+        ))
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _load_adjudication_ledger(
+        adjudication_ledger: list[dict[str, Any]] | Path | None,
+    ) -> list[dict[str, Any]]:
+        if adjudication_ledger is None:
+            return []
+        if isinstance(adjudication_ledger, Path):
+            try:
+                payload = json.loads(adjudication_ledger.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ConsensusInputError(
+                    f"cannot load adjudication ledger {adjudication_ledger}: {exc}"
+                ) from exc
+        else:
+            payload = adjudication_ledger
+        if isinstance(payload, dict):
+            payload = payload.get("entries")
+        if not isinstance(payload, list) or not all(isinstance(entry, dict) for entry in payload):
+            raise ConsensusInputError("adjudication ledger must be a list of entries")
+        return list(payload)
+
+    def _apply_adjudications(
+        self,
+        findings: list[ConsensusFinding],
+        *,
+        adjudication_ledger: list[dict[str, Any]] | Path | None,
+        trusted_approval_resolver: TrustedApprovalResolver | None,
+    ) -> list[dict[str, Any]]:
+        entries = self._load_adjudication_ledger(adjudication_ledger)
+        by_group = {finding.group_id: finding for finding in findings}
+        applied: list[dict[str, Any]] = []
+        for entry in entries:
+            group_id = entry.get("group_id")
+            fingerprints = entry.get("concern_fingerprints")
+            adjudication = entry.get("adjudication")
+            if (
+                not isinstance(group_id, str)
+                or group_id not in by_group
+                or not isinstance(fingerprints, list)
+                or fingerprints != sorted(fingerprints)
+                or fingerprints != by_group[group_id].concern_fingerprints
+                or not isinstance(adjudication, dict)
+                or not isinstance(entry.get("recorded_at"), str)
+            ):
+                raise ConsensusInputError("stale or malformed adjudication ledger entry")
+            status = adjudication.get("status")
+            if status not in {"unreviewed", "fixed", "false_positive", "accepted_risk", "deferred"}:
+                raise ConsensusInputError("adjudication ledger contains an unknown status")
+            if status in {"fixed", "false_positive", "accepted_risk"} and not is_valid_non_blocking_adjudication(
+                adjudication,
+                trusted_approval_resolver=trusted_approval_resolver,
+            ):
+                raise ConsensusInputError("adjudication ledger entry lacks valid evidence or authorization")
+            finding = by_group[group_id]
+            finding.adjudication = dict(adjudication)
+            decision = evaluate_blocking(
+                policy_status=finding.policy_status,
+                criticality=finding.agreed_criticality,
+                vendor_dispositions=finding.vendor_dispositions,
+                adjudication=finding.adjudication,
+                trusted_approval_resolver=trusted_approval_resolver,
+            )
+            finding.integration_blocking = decision.integration_blocking
+            finding.convergence_blocking = decision.convergence_blocking
+            finding.effective_blocking = decision.effective_blocking
+            applied.append(dict(entry))
+        return applied
+
     def to_dict(self, report: ConsensusReport) -> dict[str, Any]:
         """Convert report to dict conforming to consensus-report.schema.json."""
         eligible_vendors = [reviewer["vendor"] for reviewer in report.reviewers if reviewer["success"]]
+
+        def source_fingerprint(cf: ConsensusFinding, vendor: str, finding_id: int) -> str:
+            key = f"{vendor}:{finding_id}"
+            # Compatibility fixtures may construct ConsensusFinding directly.
+            # Keep them serializable while production synthesis always retains
+            # the exact source fingerprint calculated before grouping.
+            return cf.source_fingerprints.get(
+                key,
+                hashlib.sha256(f"{cf.group_id}\0{key}".encode("utf-8")).hexdigest(),
+            )
+
         return {
             "schema_version": 2,
             "review_type": report.review_type,
@@ -507,21 +617,25 @@ class ConsensusSynthesizer:
                         {
                             "vendor": cf.primary_vendor,
                             "finding_id": cf.primary_finding_id,
-                            "concern_fingerprint": cf.group_id,
+                            "concern_fingerprint": source_fingerprint(
+                                cf, cf.primary_vendor, cf.primary_finding_id,
+                            ),
                             "disposition": cf.vendor_dispositions.get(cf.primary_vendor, cf.recommended_disposition),
                         },
                         *[
                             {
                                 "vendor": item["vendor"],
                                 "finding_id": item["finding_id"],
-                                "concern_fingerprint": cf.group_id,
+                                "concern_fingerprint": source_fingerprint(
+                                    cf, item["vendor"], item["finding_id"],
+                                ),
                                 "disposition": cf.vendor_dispositions.get(item["vendor"], cf.recommended_disposition),
                             }
                             for item in cf.matched_findings
                         ],
                     ],
                     "match": {"method": cf.match_method, "score": cf.match_score, "evidence": cf.match_evidence},
-                    "adjudication": {"status": "unreviewed"},
+                    "adjudication": cf.adjudication,
                     **({
                         "policy": {
                             "integration_blocking": cf.integration_blocking,
@@ -543,7 +657,7 @@ class ConsensusSynthesizer:
                 "effective_blocking_count": report.blocking_count,
                 "blocking_count": report.blocking_count,
             },
-            "applied_adjudications": [],
+            "applied_adjudications": list(report.applied_adjudications),
         }
 
     def write_report(self, report: ConsensusReport, output_path: Path) -> None:

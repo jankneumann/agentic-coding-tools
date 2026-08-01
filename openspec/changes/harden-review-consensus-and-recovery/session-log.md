@@ -416,3 +416,33 @@ Refined fail-closed review routing and convergence checkpoint quorum handling. S
 
 ### Context
 Resolved fail-closed payload validation, reviewer routing, deadline enforcement, manifest provenance, consensus quorum validation, and deterministic non-transitive grouping. Replacement-vendor scheduling and durable trusted adjudication-ledger handling remain unresolved.
+
+---
+
+## Phase: Implementation Iteration 2 (2026-08-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Transfer replacement reviewer slots** `architectural: skill-workflow` — A replacement consumes its undispatched primary slot so no vendor can vote twice in a review round.
+2. **Require trusted accepted-risk verification** `architectural: skill-workflow` — Artifact authorization fields are not self-authenticating; only an injected trusted resolver can make an accepted-risk adjudication non-blocking.
+
+### Alternatives Considered
+- Count replacement dispatches as independent slots: rejected because Would allow a replacement vendor to inflate quorum by voting twice.
+
+### Trade-offs
+- Accepted strict rejection of stale or untrusted ledger entries over best-effort ledger carry-forward because Convergence must fail closed when adjudication provenance changes.
+
+### Completed Work
+- Implemented replacement-vendor scheduling with slot transfer, attempt provenance, and manifest allocation records.
+- Applied validated ledger adjudications to consensus policy and convergence synthesis.
+
+### Next Steps
+- Run the next implementation review round.
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — replacement review scheduling and manifest provenance
+- `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — ledger matching and adjudication application
+
+### Context
+Completed the remaining review-recovery remediation: bounded replacement-vendor slot transfer and evidence-backed adjudication ledger application. Focused tests, lint, and strict OpenSpec validation passed.

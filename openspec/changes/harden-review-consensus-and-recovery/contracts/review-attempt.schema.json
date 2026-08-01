@@ -40,7 +40,7 @@
         {
           "contains": {"properties": {"reason": {"const": "corrective_redispatch"}}, "required": ["reason"]},
           "minContains": 0,
-          "maxContains": 1
+          "maxContains": 2
         },
         {
           "contains": {"properties": {"reason": {"const": "replacement_vendor"}}, "required": ["reason"]},

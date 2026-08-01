@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T23:01:52.356057+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Completed the remaining review-recovery remediation: bounded replacement-vendor slot transfer and evidence-backed adjudication ledger application. Focused tests, lint, and strict OpenSpec validation passed.",
+    "completed_work": [
+      "Implemented replacement-vendor scheduling with slot transfer, attempt provenance, and manifest allocation records.",
+      "Applied validated ledger adjudications to consensus policy and convergence synthesis."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Transfer replacement reviewer slots",
+        "rationale": "A replacement consumes its undispatched primary slot so no vendor can vote twice in a review round.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Require trusted accepted-risk verification",
+        "rationale": "Artifact authorization fields are not self-authenticating; only an injected trusted resolver can make an accepted-risk adjudication non-blocking.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run the next implementation review round."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "description": "replacement review scheduling and manifest provenance"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/consensus_synthesizer.py",
+        "description": "ledger matching and adjudication application"
+      }
+    ]
+  }
+}

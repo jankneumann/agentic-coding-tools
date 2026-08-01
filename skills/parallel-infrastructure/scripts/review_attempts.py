@@ -89,8 +89,14 @@ def validate_review_attempt_chain(chain: Mapping[str, Any]) -> None:
     if any(attempt.get("success") is True for attempt in attempts[:-1]):
         raise ValueError("no attempt may follow a success")
     reasons = [attempt.get("reason") for attempt in attempts]
-    if reasons.count("corrective_redispatch") > 1 or reasons.count("replacement_vendor") > 1:
-        raise ValueError("corrective and replacement attempts are each bounded to one")
+    if reasons.count("replacement_vendor") > 1:
+        raise ValueError("replacement attempts are bounded to one")
+    corrective_vendors = [
+        attempt.get("vendor") for attempt in attempts
+        if attempt.get("reason") == "corrective_redispatch"
+    ]
+    if len(corrective_vendors) != len(set(corrective_vendors)):
+        raise ValueError("each vendor is limited to one corrective redispatch")
     budget = chain.get("budget")
     if not isinstance(budget, Mapping):
         raise ValueError("budget is required")
@@ -98,26 +104,31 @@ def validate_review_attempt_chain(chain: Mapping[str, Any]) -> None:
     if not isinstance(fallbacks, list) or len(fallbacks) != len(set(fallbacks)):
         raise ValueError("fallback_models must be a deduplicated list")
     initial_model = _model_of(attempts[0])
+    active_vendor = requested_vendor
+    active_initial_model = initial_model
     replacement_seen = False
-    fallback_models_used: set[str] = set()
+    fallback_models_used: set[tuple[str, str | None]] = set()
     for attempt in attempts:
         reason = attempt.get("reason")
         vendor = attempt.get("vendor")
         model = _model_of(attempt)
         if not isinstance(vendor, str) or not vendor:
             raise ValueError("every attempt needs a vendor")
-        if reason == "corrective_redispatch" and (vendor != requested_vendor or model != initial_model):
-            raise ValueError("corrective redispatch must repeat the requested vendor and initial model")
+        if reason == "corrective_redispatch" and (vendor != active_vendor or model != active_initial_model):
+            raise ValueError("corrective redispatch must repeat the active vendor and initial model")
         if reason == "model_fallback":
-            if replacement_seen or vendor != requested_vendor or model not in fallbacks or model in fallback_models_used:
-                raise ValueError("model fallback must be a configured, unique primary-vendor fallback")
-            fallback_models_used.add(str(model))
+            fallback_key = (vendor, model)
+            if vendor != active_vendor or model not in fallbacks or fallback_key in fallback_models_used:
+                raise ValueError("model fallback must be a configured, unique active-vendor fallback")
+            fallback_models_used.add(fallback_key)
         elif reason == "replacement_vendor":
             if replacement_seen or vendor == requested_vendor:
                 raise ValueError("replacement vendor transition is illegal")
             replacement_seen = True
-        elif replacement_seen and vendor != requested_vendor:
-            raise ValueError("replacement chains are not permitted in the core logical chain")
+            active_vendor = vendor
+            active_initial_model = model
+        elif replacement_seen and vendor != active_vendor:
+            raise ValueError("replacement follow-up attempts must stay with the replacement vendor")
     terminal = terminals[0]
     success = terminal.get("success") is True
     if chain.get("terminal_outcome") == "success":

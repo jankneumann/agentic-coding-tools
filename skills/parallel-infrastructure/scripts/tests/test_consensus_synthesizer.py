@@ -269,6 +269,68 @@ class TestCrossVendorFormatSkew:
 # ---------------------------------------------------------------------------
 
 class TestConsensusSynthesizer:
+    def test_ledger_applies_evidence_backed_false_positive(self) -> None:
+        synth = ConsensusSynthesizer()
+        initial = synth.synthesize("plan", "test", [
+            VendorResult(vendor="codex", findings=[_finding()]),
+        ])
+        finding = initial.consensus_findings[0]
+        ledger = [{
+            "group_id": finding.group_id,
+            "concern_fingerprints": finding.concern_fingerprints,
+            "adjudication": {
+                "status": "false_positive", "rationale": "out of scope",
+                "evidence": ["scope-proof.json"],
+            },
+            "recorded_at": "2026-08-01T00:00:00Z",
+        }]
+
+        report = synth.synthesize(
+            "plan", "test", [VendorResult(vendor="codex", findings=[_finding()])],
+            adjudication_ledger=ledger,
+        )
+
+        assert report.consensus_findings[0].adjudication["status"] == "false_positive"
+        assert report.consensus_findings[0].effective_blocking is False
+        assert synth.to_dict(report)["applied_adjudications"] == ledger
+
+    def test_stale_or_untrusted_ledger_entries_fail_closed(self) -> None:
+        synth = ConsensusSynthesizer()
+        report = synth.synthesize("plan", "test", [
+            VendorResult(vendor="codex", findings=[_finding()]),
+        ])
+        finding = report.consensus_findings[0]
+        stale = [{
+            "group_id": finding.group_id,
+            "concern_fingerprints": ["different-fingerprint"],
+            "adjudication": {"status": "unreviewed"},
+            "recorded_at": "2026-08-01T00:00:00Z",
+        }]
+        with pytest.raises(ValueError, match="stale or malformed"):
+            synth.synthesize(
+                "plan", "test", [VendorResult(vendor="codex", findings=[_finding()])],
+                adjudication_ledger=stale,
+            )
+
+        fabricated = [{
+            "group_id": finding.group_id,
+            "concern_fingerprints": finding.concern_fingerprints,
+            "adjudication": {
+                "status": "accepted_risk", "rationale": "looks fine",
+                "authorization": {
+                    "actor_id": "someone", "actor_type": "human",
+                    "mechanism": "github_approval", "authorized_at": "2026-08-01T00:00:00Z",
+                    "approval_ref": "PR-1",
+                },
+            },
+            "recorded_at": "2026-08-01T00:00:00Z",
+        }]
+        with pytest.raises(ValueError, match="evidence or authorization"):
+            synth.synthesize(
+                "plan", "test", [VendorResult(vendor="codex", findings=[_finding()])],
+                adjudication_ledger=fabricated,
+            )
+
     def test_description_bridge_does_not_merge_non_clique(self) -> None:
         synth = ConsensusSynthesizer(match_threshold=0.45)
         first = _finding(id=1, vendor="alpha", description="alpha beta gamma delta")

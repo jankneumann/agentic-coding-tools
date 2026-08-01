@@ -38,7 +38,7 @@ from urllib.request import Request, urlopen
 
 from jsonschema import Draft202012Validator
 
-from review_attempts import run_vendor_recovery, validate_review_attempt_chain
+from review_attempts import run_vendor_recovery, select_replacement_vendor, validate_review_attempt_chain
 from review_routing import RoutingContext, Resolver, resolve_review_routing, translate_thinking
 
 logger = logging.getLogger(__name__)
@@ -212,6 +212,7 @@ class ReviewResult:
     terminal_outcome: str | None = None
     terminal_vendor: str | None = None
     quorum_eligible: bool = False
+    replacement_allocation: dict[str, str] | None = None
     # Raw process text is retained only while the orchestrator creates a
     # bounded/redacted attempt record. It is never copied to the logical result.
     raw_stdout: str | None = field(default=None, repr=False)
@@ -1636,6 +1637,150 @@ class ReviewOrchestrator:
             quorum_eligible=bool(chain["quorum_eligible"]),
         )
 
+    @staticmethod
+    def _combine_replacement_result(
+        primary: ReviewResult,
+        replacement: ReviewResult,
+    ) -> ReviewResult:
+        """Make one replacement result the terminal result of the original slot."""
+        if not primary.attempts or not replacement.attempts:
+            raise ValueError("replacement requires recovery-aware logical results")
+        if not primary.logical_request_id or not primary.requested_vendor:
+            raise ValueError("primary replacement provenance is incomplete")
+        primary_attempts = [dict(attempt) for attempt in primary.attempts]
+        replacement_attempts = [dict(attempt) for attempt in replacement.attempts]
+        for attempt in primary_attempts:
+            attempt["terminal"] = False
+        replacement_attempts[0]["reason"] = "replacement_vendor"
+        attempts = primary_attempts + replacement_attempts
+        for index, attempt in enumerate(attempts, start=1):
+            attempt["attempt_index"] = index
+        fallback_models = list(dict.fromkeys([
+            *(primary.budget or {}).get("fallback_models", []),
+            *(replacement.budget or {}).get("fallback_models", []),
+        ]))
+        chain = {
+            "logical_request_id": primary.logical_request_id,
+            "requested_vendor": primary.requested_vendor,
+            "requested_routing": dict(primary.requested_routing or {}),
+            "deadline_at": primary.deadline_at,
+            "budget": {"corrective_max": 1, "replacement_max": 1, "fallback_models": fallback_models},
+            "attempts": attempts,
+            "terminal_outcome": replacement.terminal_outcome,
+            "terminal_vendor": replacement.terminal_vendor,
+            "quorum_eligible": replacement.quorum_eligible,
+        }
+        validate_review_attempt_chain(chain)
+        combined = ReviewOrchestrator._logical_result(
+            vendor=str(replacement.terminal_vendor),
+            chain=chain,
+            attempt_results=[replacement],
+        )
+        combined.replacement_allocation = {
+            "replaced_vendor": primary.requested_vendor,
+            "replacement_vendor": str(replacement.terminal_vendor),
+            "action": "transferred",
+        }
+        return combined
+
+    def _dispatch_replacement_review(
+        self,
+        reviewer: ReviewerInfo,
+        *,
+        review_type: str,
+        dispatch_mode: str,
+        prompt: str,
+        cwd: Path,
+        timeout_seconds: int,
+        routing_context: RoutingContext | None,
+        phase: str | None,
+        routing_resolver: Resolver | None,
+        api_key_resolver: Any,
+    ) -> ReviewResult:
+        """Dispatch an undispatched reviewer when it consumes another slot."""
+        routing = resolve_review_routing(
+            vendor=reviewer.vendor,
+            dispatch_mode=dispatch_mode,
+            explicit=routing_context,
+            phase=phase,
+            resolver=routing_resolver,
+        )
+        if reviewer.dispatch_tier == "cli":
+            adapter = self.adapters[reviewer.agent_id]
+            return self._dispatch_cli_review(
+                adapter=adapter, reviewer=reviewer, review_type=review_type,
+                dispatch_mode=dispatch_mode, prompt=prompt, cwd=cwd,
+                timeout_seconds=timeout_seconds, routing=routing,
+            )
+        sdk_adapter = self.sdk_adapters[reviewer.agent_id]
+        api_key = api_key_resolver.resolve(
+            sdk_adapter.openbao_role_id, sdk_adapter.sdk_config.api_key_env,
+        )
+        if not api_key:
+            chain = run_vendor_recovery(
+                logical_request_id=f"{review_type}:{reviewer.agent_id}",
+                vendor=reviewer.vendor,
+                primary_model=(routing.model if routing else None) or sdk_adapter.sdk_config.model,
+                fallback_models=[],
+                timeout_seconds=timeout_seconds,
+                requested_routing=self._routing_payload(routing),
+                invoke=lambda *_args: {
+                    "transport": "sdk",
+                    "validation_status": "not_reached",
+                    "error_class": "auth",
+                    "error_detail": "No API key available for SDK dispatch",
+                },
+            )
+            return self._logical_result(
+                vendor=reviewer.vendor, chain=chain, attempt_results=[],
+            )
+        return self._dispatch_sdk_review(
+            adapter=sdk_adapter, reviewer=reviewer, review_type=review_type,
+            prompt=prompt, cwd=cwd, timeout_seconds=timeout_seconds,
+            api_key=api_key, routing=routing,
+        )
+
+    def _replace_exhausted_review(
+        self,
+        primary: ReviewResult,
+        *,
+        available: list[ReviewerInfo],
+        dispatched_vendors: set[str],
+        consumed_replacement_vendors: set[str],
+        review_type: str,
+        dispatch_mode: str,
+        prompt: str,
+        cwd: Path,
+        timeout_seconds: int,
+        routing_context: RoutingContext | None,
+        phase: str | None,
+        routing_resolver: Resolver | None,
+        api_key_resolver: Any,
+    ) -> ReviewResult:
+        """Transfer one undispatched slot when invalid-output recovery exhausts."""
+        if primary.terminal_outcome != "invalid_output_exhausted":
+            return primary
+        reviewers_by_vendor = {reviewer.vendor: reviewer for reviewer in available}
+        replacement_vendor = select_replacement_vendor(
+            [reviewer.vendor for reviewer in available],
+            dispatched_vendors=dispatched_vendors,
+            eligible=lambda vendor: vendor not in consumed_replacement_vendors,
+        )
+        if replacement_vendor is None:
+            return primary
+        # Cancel the replacement's own slot before it can be dispatched, so it
+        # cannot provide a second quorum vote later in this round.
+        consumed_replacement_vendors.add(replacement_vendor)
+        dispatched_vendors.add(replacement_vendor)
+        replacement = self._dispatch_replacement_review(
+            reviewers_by_vendor[replacement_vendor],
+            review_type=review_type, dispatch_mode=dispatch_mode, prompt=prompt,
+            cwd=cwd, timeout_seconds=timeout_seconds,
+            routing_context=routing_context, phase=phase,
+            routing_resolver=routing_resolver, api_key_resolver=api_key_resolver,
+        )
+        return self._combine_replacement_result(primary, replacement)
+
     def _dispatch_cli_review(
         self,
         *, adapter: CliVendorAdapter, reviewer: ReviewerInfo, review_type: str,
@@ -1838,8 +1983,13 @@ class ReviewOrchestrator:
 
         api_key_resolver = ApiKeyResolver()
         results: list[ReviewResult] = []
+        dispatched_vendors: set[str] = set()
+        consumed_replacement_vendors: set[str] = set()
 
         for reviewer in available:
+            if reviewer.vendor in consumed_replacement_vendors:
+                continue
+            dispatched_vendors.add(reviewer.vendor)
             if reviewer.dispatch_tier == "cli":
                 # CLI dispatch
                 adapter = self.adapters[reviewer.agent_id]
@@ -1860,10 +2010,19 @@ class ReviewOrchestrator:
                 )
 
                 if dispatch_mode == "review":
-                    results.append(self._dispatch_cli_review(
+                    primary = self._dispatch_cli_review(
                         adapter=adapter, reviewer=reviewer, review_type=review_type,
                         dispatch_mode=dispatch_mode, prompt=prompt, cwd=cwd,
                         timeout_seconds=timeout_seconds, routing=routing,
+                    )
+                    results.append(self._replace_exhausted_review(
+                        primary, available=available, dispatched_vendors=dispatched_vendors,
+                        consumed_replacement_vendors=consumed_replacement_vendors,
+                        review_type=review_type, dispatch_mode=dispatch_mode, prompt=prompt,
+                        cwd=cwd, timeout_seconds=timeout_seconds,
+                        routing_context=routing_context, phase=phase,
+                        routing_resolver=routing_resolver,
+                        api_key_resolver=api_key_resolver,
                     ))
                     continue
 
@@ -1923,11 +2082,20 @@ class ReviewOrchestrator:
                         phase=phase,
                         resolver=routing_resolver,
                     )
-                    results.append(self._dispatch_sdk_review(
+                    primary = self._dispatch_sdk_review(
                         adapter=sdk_adapter, reviewer=reviewer,
                         review_type=review_type, prompt=prompt, cwd=cwd,
                         timeout_seconds=timeout_seconds, api_key=api_key,
                         routing=routing,
+                    )
+                    results.append(self._replace_exhausted_review(
+                        primary, available=available, dispatched_vendors=dispatched_vendors,
+                        consumed_replacement_vendors=consumed_replacement_vendors,
+                        review_type=review_type, dispatch_mode=dispatch_mode, prompt=prompt,
+                        cwd=cwd, timeout_seconds=timeout_seconds,
+                        routing_context=routing_context, phase=phase,
+                        routing_resolver=routing_resolver,
+                        api_key_resolver=api_key_resolver,
                     ))
                     continue
 
@@ -1989,6 +2157,8 @@ class ReviewOrchestrator:
                     "terminal_outcome": r.terminal_outcome,
                     "terminal_vendor": r.terminal_vendor,
                     "quorum_eligible": r.quorum_eligible,
+                    **({"replacement_allocation": r.replacement_allocation}
+                       if r.replacement_allocation else {}),
                 })
             else:
                 dispatches.append({

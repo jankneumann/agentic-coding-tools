@@ -395,6 +395,57 @@ class TestDispatch:
 # ---------------------------------------------------------------------------
 
 class TestOrchestrator:
+    def test_invalid_output_uses_one_undispatched_replacement_slot(
+        self, tmp_path: Path,
+    ) -> None:
+        """A replacement consumes its own slot and contributes only once."""
+        adapters = {
+            "alpha": _adapter("alpha", "alpha", command="alpha"),
+            "beta": _adapter("beta", "beta", command="beta"),
+        }
+        orch = ReviewOrchestrator(adapters)
+
+        def logical(vendor: str, agent_id: str, response: dict[str, object]) -> ReviewResult:
+            from review_attempts import run_vendor_recovery
+
+            chain = run_vendor_recovery(
+                logical_request_id=f"plan:{agent_id}", vendor=vendor,
+                primary_model="review-model", fallback_models=[], timeout_seconds=60,
+                invoke=lambda *_args: response,
+            )
+            source = ReviewResult(
+                vendor=vendor, success=response.get("validation_status") == "schema_valid",
+                findings=json.loads(VALID_FINDINGS_JSON) if response.get("validation_status") == "schema_valid" else None,
+            )
+            return ReviewOrchestrator._logical_result(
+                vendor=vendor, chain=chain, attempt_results=[source],
+            )
+
+        exhausted = logical("alpha", "alpha", {"validation_status": "invalid"})
+        replacement = logical("beta", "beta", {"validation_status": "schema_valid"})
+        with patch("shutil.which", return_value="/usr/bin/mock"), patch.object(
+            orch, "_dispatch_cli_review", side_effect=[exhausted, replacement],
+        ) as dispatch:
+            results = orch.dispatch_and_wait(
+                review_type="plan", dispatch_mode="review", prompt="review", cwd=tmp_path,
+            )
+
+        assert dispatch.call_count == 2
+        assert len(results) == 1
+        assert results[0].vendor == "beta"
+        assert results[0].requested_vendor == "alpha"
+        assert [attempt["reason"] for attempt in results[0].attempts] == [
+            "initial", "corrective_redispatch", "replacement_vendor",
+        ]
+        assert results[0].replacement_allocation == {
+            "replaced_vendor": "alpha", "replacement_vendor": "beta", "action": "transferred",
+        }
+        output = tmp_path / "reviews" / "review-manifest.json"
+        orch.write_manifest(results, output, "plan", "test-feature")
+        manifest = json.loads(output.read_text())
+        assert manifest["quorum_requested"] == manifest["quorum_received"] == 1
+        assert manifest["dispatches"][0]["replacement_allocation"]["replacement_vendor"] == "beta"
+
     @patch("review_dispatcher.subprocess.run")
     @patch("shutil.which", return_value="/usr/bin/codex")
     def test_review_dispatch_recovers_invalid_output_with_resolved_routing(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import Any
 
 
@@ -20,20 +21,52 @@ class BlockingDecision:
         return self.integration_blocking or self.convergence_blocking
 
 
-def _is_valid_non_blocking_adjudication(adjudication: dict[str, Any]) -> bool:
+TrustedApprovalResolver = Callable[[dict[str, Any]], bool]
+
+
+def is_valid_non_blocking_adjudication(
+    adjudication: dict[str, Any],
+    *,
+    trusted_approval_resolver: TrustedApprovalResolver | None = None,
+) -> bool:
+    """Return whether an adjudication may waive a blocker.
+
+    ``accepted_risk`` is deliberately not self-authenticating: artifact data
+    only supplies a reference.  A caller-owned trusted resolver must verify
+    that reference against an approval system before the waiver takes effect.
+    """
     status = adjudication.get("status")
     if status in {"fixed", "false_positive"}:
-        return bool(adjudication.get("rationale")) and bool(adjudication.get("evidence"))
+        evidence = adjudication.get("evidence")
+        return (
+            bool(adjudication.get("rationale"))
+            and isinstance(evidence, list)
+            and bool(evidence)
+            and all(isinstance(item, str) and item for item in evidence)
+        )
     if status != "accepted_risk":
         return False
     authorization = adjudication.get("authorization")
-    return (
+    if not (
         bool(adjudication.get("rationale"))
         and isinstance(authorization, dict)
         and authorization.get("actor_type") == "human"
-        and bool(authorization.get("actor_id"))
-        and bool(authorization.get("approval_ref"))
-    )
+        and isinstance(authorization.get("actor_id"), str)
+        and bool(authorization["actor_id"])
+        and authorization.get("mechanism") in {
+            "coordinator_audit", "github_approval", "signed_local_record",
+        }
+        and isinstance(authorization.get("authorized_at"), str)
+        and bool(authorization["authorized_at"])
+        and isinstance(authorization.get("approval_ref"), str)
+        and bool(authorization["approval_ref"])
+        and trusted_approval_resolver is not None
+    ):
+        return False
+    try:
+        return bool(trusted_approval_resolver(authorization))
+    except Exception:
+        return False
 
 
 def evaluate_blocking(
@@ -42,13 +75,17 @@ def evaluate_blocking(
     criticality: str,
     vendor_dispositions: dict[str, str],
     adjudication: dict[str, Any],
+    trusted_approval_resolver: TrustedApprovalResolver | None = None,
 ) -> BlockingDecision:
     """Derive independent integration and convergence blockers.
 
     Matching only provides ``policy_status``.  It cannot waive an actionable
     finding: valid evidence-backed adjudication is the only waiver mechanism.
     """
-    if _is_valid_non_blocking_adjudication(adjudication):
+    if is_valid_non_blocking_adjudication(
+        adjudication,
+        trusted_approval_resolver=trusted_approval_resolver,
+    ):
         return BlockingDecision(False, False)
 
     actionable = bool(_ACTIONABLE.intersection(vendor_dispositions.values()))

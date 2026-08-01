@@ -421,6 +421,7 @@ def converge(
     orchestrator: ReviewOrchestrator | None = None,
     post_fix_validator: Callable[[Path], list[str]] | None = None,
     escalation_callback: Callable[[dict[str, Any]], None] | None = None,
+    trusted_approval_resolver: Callable[[dict[str, Any]], bool] | None = None,
     blocking_criticalities: set[str] | None = None,
     stall_window: int = _DEFAULT_STALL_WINDOW,
 ) -> ConvergenceResult:
@@ -446,6 +447,8 @@ def converge(
             the loop exits without converging (reason is "max_rounds",
             "disagreement", or "stalled"). The summary includes unresolved
             findings, iteration history, and vendor agreement rate.
+        trusted_approval_resolver: Verifies accepted-risk approval references
+            against a trusted human approval source.
         blocking_criticalities: Set of criticality levels that count as
             blocking. Defaults to ``{"medium", "high", "critical"}``.
         stall_window: Number of data points for stall detection.
@@ -564,10 +567,15 @@ def converge(
         # sees the failure.
         try:
             vendor_results = _review_results_to_vendor_results(results)
+            adjudication_ledger = artifacts_dir / "adjudications.json"
             report = synthesizer.synthesize(
                 review_type=review_type,
                 target=change_id,
                 vendor_results=vendor_results,
+                adjudication_ledger=(
+                    adjudication_ledger if adjudication_ledger.exists() else None
+                ),
+                trusted_approval_resolver=trusted_approval_resolver,
             )
             consensus_dict = synthesizer.to_dict(report)
             validate_consensus_report(consensus_dict)
