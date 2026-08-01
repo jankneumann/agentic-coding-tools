@@ -91,7 +91,7 @@ that way answers a question about a different copy.
   the only guard against the resolver and the CLI diverging on what a
   requirement is.
 
-- [ ] 1.4 Write tests for the effective requirement set `[S]`
+- [x] 1.4 Write tests for the effective requirement set `[S]`
   **Spec scenarios**: The Active Change's Spec Delta Shadows The Archived Spec (a citation to the change's own new requirement resolves); (removing a requirement breaks operations that still cite it); (renaming a requirement moves its identifier, fail-closed); (another change's unarchived requirement cannot be referenced)
   **Design decisions**: D11
   **Dependencies**: 1.2
@@ -106,7 +106,7 @@ that way answers a question about a different copy.
   message says the requirement is not in the effective set, not merely "not
   found". The two are different problems with different fixes.
 
-- [ ] 1.5 Implement effective-set resolution with delta shadowing `[M]`
+- [x] 1.5 Implement effective-set resolution with delta shadowing `[M]`
   **Design decisions**: D11
   **Dependencies**: 1.4
   **Note**: parses ADDED / MODIFIED / REMOVED / RENAMED sections of the
@@ -119,7 +119,7 @@ that way answers a question about a different copy.
   `openspec/changes/*/specs/` — a resolver that can see them will eventually be
   asked to resolve against them.
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2 — The traceability model
 
