@@ -50,7 +50,7 @@ that way answers a question about a different copy.
 
 ## Phase 1 — Requirement identifiers
 
-- [ ] 1.1 Write tests for identifier derivation from spec headings `[S]`
+- [x] 1.1 Write tests for identifier derivation from spec headings `[S]`
   **Spec scenarios**: Requirement Identifiers Are Stable And Fail Closed (an identifier is derived from the heading); (two headings deriving the same identifier fail the resolver)
   **Design decisions**: D2
   **Dependencies**: None
@@ -65,7 +65,7 @@ that way answers a question about a different copy.
   (no real collision exists across the 632 current headings — that is the
   point of adding the check now).
 
-- [ ] 1.2 Implement the requirement resolver `[M]`
+- [x] 1.2 Implement the requirement resolver `[M]`
   **Design decisions**: D2
   **Dependencies**: 1.1
   **Note**: reads `openspec/specs/<capability>/spec.md`, yields
@@ -79,7 +79,7 @@ that way answers a question about a different copy.
   ancestor-search precedent). `scripts/check_traceability.py` resolves the
   defaults; tests inject `tmp_path` roots.
 
-- [ ] 1.3 Write a test that derived ids agree with OpenSpec's own parse `[S]`
+- [x] 1.3 Write a test that derived ids agree with OpenSpec's own parse `[S]`
   **Design decisions**: D2, and the "second parser drifts" risk
   **Dependencies**: 1.2
   **Note**: assert the resolver finds exactly the requirements
