@@ -39,11 +39,11 @@ The architecture analysis groups model resolution as a high-impact dependency an
 
 Each synthesized finding retains its source dispositions. A shared pure policy function derives:
 
-- `integration_blocking`: existing behavior—confirmed actionable findings and disagreements block; unconfirmed findings warn.
-- `convergence_blocking`: medium-or-higher findings with source disposition `fix`, `regenerate`, or `escalate` block until adjudicated; disagreements always block.
-- `effective_blocking`: the conservative union used by compatibility `blocking_count` and operator summaries.
+- `integration_blocking`: existing behavior—confirmed actionable findings and unadjudicated disagreements block; provisional findings warn.
+- `convergence_blocking`: medium-or-higher findings with source disposition `fix`, `regenerate`, or `escalate` block until a valid `fixed`, `false_positive`, or human-authorized `accepted_risk` adjudication; deferred findings and unadjudicated disagreements block.
+- `effective_blocking`: the deduplicated union of the two policies, used by compatibility `blocking_count` and operator summaries.
 
-The summary exposes all three counts plus confirmed/provisional/disagreement counts. Existing consumers of `blocking_count` become safer without having to adopt new fields immediately.
+The summary exposes `confirmed_count`, `provisional_count`, `disagreement_count`, `integration_blocking_count`, `convergence_blocking_count`, and `effective_blocking_count`. Deprecated `unconfirmed_count` aliases `provisional_count`; compatibility `blocking_count` aliases `effective_blocking_count`. Counts are over unique consensus groups, so the effective count is a set union rather than the arithmetic sum of the policy counts.
 
 Alternative: redefine every gate to share one policy. Rejected because integration currently has an intentional warning-only rule for unconfirmed findings, while autopilot convergence promises stronger iterative review.
 
@@ -57,13 +57,15 @@ Every consensus item gets an adjudication state:
 - `accepted_risk` — a human-authorized waiver with rationale;
 - `deferred` — tracked elsewhere and still blocking unless policy explicitly permits it.
 
-The original `vendor_dispositions` map is always present, including unmatched findings. The synthesizer never changes an unmatched `fix` to `accept`. The rejected `write_allow` recommendation becomes a golden `false_positive` fixture with source-reachability and byte-identity evidence.
+The original `vendor_dispositions` map is always present, including unmatched findings. The synthesizer never changes an unmatched `fix` to `accept`. Adjudications enter synthesis through an explicit ledger keyed by the stable consensus-group identifier; unknown identifiers and invalid evidence shapes fail validation rather than being ignored. A later synthesis carries an adjudication only when the stable identifier still names the same normalized concern. The rejected `write_allow` recommendation becomes a golden `false_positive` fixture with source-reachability and byte-identity evidence.
+
+Only `fixed`, `false_positive`, and `accepted_risk` are non-blocking, and only after their required evidence/authorization validates. `deferred` is tracking metadata, not a waiver, and remains convergence-blocking. An unadjudicated disagreement escalates; a valid non-blocking adjudication resolves the policy blocker without rewriting the original disagreement or vendor dispositions.
 
 Alternative: use `recommended_disposition=accept` as adjudication. Rejected because it destroys provenance and cannot distinguish refutation from risk acceptance.
 
 ### D3 — Matching is deterministic, structured-first, and non-authoritative
 
-The matcher creates candidate edges using normalized file paths, overlapping/nearby line ranges, normalized type families, package/requirement tokens, and description tokens with a small owned synonym map. It scores all cross-vendor edges, sorts them by stable keys, and builds deterministic connected groups without a primary-vendor greedy pass. Match provenance records the method and contributing evidence.
+The matcher creates candidate edges using normalized file paths, overlapping/nearby line ranges, normalized type families, package/requirement tokens, and description tokens with a small owned synonym map. It scores all cross-vendor edges, sorts them by stable keys, and builds deterministic connected groups without a primary-vendor greedy pass. Each group identifier is derived from a versioned hash of the sorted normalized concern fingerprints, not an input index. Match provenance records the method, algorithm version, and contributing evidence.
 
 Exact location can cross type-family boundaries; taxonomy differences lower confidence but are not an absolute veto. Description-only matching still requires a conservative threshold. Any finding that remains unmatched stays independently actionable, so recall errors cannot create false convergence.
 
@@ -78,24 +80,28 @@ invoke → parse/validate
   ├─ valid → success
   └─ invalid_output → one corrective redispatch
        ├─ valid → success
-       └─ invalid_output → configured model fallback(s)
+       └─ invalid_output → each configured model fallback once
             ├─ valid → success
-            └─ exhausted → vendor failure; orchestrator may select replacement vendor
+            └─ exhausted → at most one not-yet-dispatched replacement vendor
+                 ├─ valid → success
+                 └─ exhausted/unavailable → explicit logical-request failure
 ```
 
-Capacity errors continue directly through configured model fallbacks. Auth errors remain terminal and actionable. Transient process errors retain their existing retry behavior. Retry budgets are bounded per logical review request; a corrective redispatch is never recursive.
+Capacity errors continue directly through configured model fallbacks. Auth errors remain terminal and actionable for that vendor. Transient process errors retain their existing bounded retry behavior. The invalid-output budget for one vendor is exactly the initial attempt, one corrective attempt on the initial model, and one attempt per configured fallback model. The orchestrator may then select at most one replacement from available vendors that were not already dispatched, using stable configured order; the replacement gets the same bounded vendor-local chain. A corrective redispatch is never recursive, and a logical result contributes at most one quorum unit.
 
 Alternative: run the same parser again. Rejected because identical input cannot produce a different result and the shipped checkpoint design intentionally provides durability, not automatic recovery.
 
 ### D5 — Diagnostics are bounded and redacted
 
-Each attempt records `error_class`, `error_detail`, bounded stdout/stderr excerpts, parser stage, elapsed time, requested archetype/tier, resolved model/thinking, and fallback reason. Excerpts use one shared truncation/redaction helper before entering memory, manifests, or logs. Full raw output may be written only to the existing review artifact directory with restrictive local semantics; manifests reference it rather than embedding unbounded content.
+Each attempt records a logical request identifier, attempt index, terminal flag, `error_class`, `error_detail`, bounded stdout/stderr excerpts, parser stage, elapsed time, requested archetype/tier, resolved model, requested/applied thinking, translation status, and fallback reason. Excerpts use one shared truncation/redaction helper before entering artifacts, memory, manifests, logs, or handoffs. Raw unredacted output is never persisted by this recovery path; any `artifact_ref` names a bounded sanitized artifact.
 
 Alternative: store raw output verbatim in the manifest. Rejected because vendor output may contain secrets, prompts, or very large payloads.
 
 ### D6 — Reviewer routing consumes the existing source of truth
 
-`ReviewOrchestrator.dispatch_and_wait()` accepts a logical phase/archetype routing context, resolves `reviewer`/`premium` through the existing coordinator/config path, and passes provider-specific model plus thinking to CLI, SDK, and async adapters. Static `agents.yaml` model values are fallback defaults only when archetype resolution genuinely fails. Manifest entries distinguish requested tier from resolved model and record why fallback occurred.
+`ReviewOrchestrator.dispatch_and_wait()` accepts a logical phase/archetype routing context and applies this precedence: explicit resolved routing context; autopilot review-phase mapping; the default `reviewer` archetype for review-mode calls such as direct CLI and pull-request review; then static vendor configuration only if coordinator and local archetype resolution both fail. Quick-mode calls retain their existing static routing unless a caller explicitly supplies routing context. Provider resolution passes model plus thinking to CLI, SDK, and async adapters. Manifest entries distinguish requested tier from resolved model and record why fallback occurred.
+
+Thinking translation is configuration-driven at the adapter boundary. Providers without a non-null thinking setting need no flag. When a requested setting is non-null, the adapter must either translate and record it or fail the attempt with a configuration error so replacement/quorum policy can act; it must not silently omit the setting or claim it was applied. Same-provider model fallbacks retain the requested thinking setting unless provider configuration explicitly maps a fallback-specific value.
 
 For Pi this means standard remains `qwen/qwen3-coder`, while a review request resolves to premium `qwen/qwen3-coder-plus`. No provider model IDs are hard-coded in the dispatcher.
 
@@ -103,7 +109,7 @@ Alternative: change Pi's static default to Kimi. Rejected because the current co
 
 ### D7 — Quorum eligibility is a shared predicate
 
-A result counts toward quorum only when dispatch completed, parsing/schema validation succeeded, and the result is attributable to a vendor/model attempt. A valid zero-finding review counts; malformed or empty output does not. The dispatcher, checkpoint manifest, synthesizer, and convergence loop call the same predicate rather than reimplementing `success` checks.
+A logical result counts toward quorum only when dispatch completed, parsing/schema validation succeeded, the terminal attempt is attributable to a vendor/model execution, and the shared predicate marks it eligible. A valid zero-finding review counts; malformed, empty, configuration-failed, and non-terminal attempts do not. A replacement success counts once for the logical request, never once per attempt. The dispatcher, checkpoint writer, synthesizer, and convergence loop import the same predicate from a transport-neutral policy module rather than reimplementing `success` checks.
 
 Alternative: count non-empty findings. Rejected because a valid reviewer may correctly report zero findings.
 
@@ -149,14 +155,17 @@ Dispatcher          Vendor/model A         Vendor/model fallback       Manifest/
 | Diagnostics expose sensitive text | Security/privacy regression | Central redaction, strict truncation, artifact references instead of raw manifest payloads |
 | Router proposals change APIs | Merge conflicts or duplicate resolution | Optional compatibility parameters and config-derived adapters; no hard-coded model table |
 | Schema additions break strict consumers | Validation failures | Additive fields first, schema version bump, compatibility `blocking_count`, consumer tests |
+| Adjudication attaches to the wrong regrouped finding | A stale waiver could suppress a live blocker | Versioned stable concern identifiers; reject unknown/stale ledger entries |
+| Replacement retries inflate quorum or spend | Duplicate votes and unbounded cost | One replacement maximum, one logical quorum unit, explicit attempt budget |
+| Package-level checkpoint edits collide | Parallel worktrees conflict on `tasks.md` | Coordinator owns checkpoint updates after package integration |
 
 ## Migration Plan
 
-1. Land additive contract/schema fields and shared policy/quorum helpers with characterization tests.
+1. Land additive contract/schema fields plus transport-neutral blocker, adjudication, attempt, diagnostic, routing, and quorum helpers with characterization tests.
 2. Switch consensus synthesis to disposition preservation, deterministic grouping, and explicit counts; validate old and new fixtures.
-3. Add dispatcher attempt records, invalid-output classification, bounded recovery, and redacted diagnostics behind optional routing context.
-4. Wire reviewer archetype resolution across CLI/SDK/async paths and record provenance.
-5. Switch convergence to `convergence_blocking_count`; remove final-round relaxation and return inconclusive/escalated on exhaustion.
-6. Update operator recovery documentation and issue #286 evidence.
+3. Add dispatcher attempt records, invalid-output classification, bounded recovery, deterministic replacement selection, and redacted diagnostics behind optional routing context.
+4. Wire reviewer archetype resolution and explicit thinking translation across CLI/SDK/async paths; verify direct review, pull-request review, and quick-task compatibility.
+5. Switch convergence and checkpoint quorum accounting to the shared predicates and explicit counts; remove final-round relaxation and return inconclusive/escalated on exhaustion.
+6. Update operator recovery documentation and issue #286 evidence. Package agents never edit `tasks.md`; the coordinator records checkpoint completion after package integration.
 
 Rollback reverts consumers in reverse order. Additive artifacts remain readable; older consumers can ignore new fields. If recovery causes vendor-specific regressions, disable corrective redispatch while retaining diagnostics and fail-closed quorum. The human merge gate remains mandatory throughout rollout.

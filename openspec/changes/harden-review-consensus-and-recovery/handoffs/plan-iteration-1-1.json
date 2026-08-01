@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T20:07:40.301051+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "architect",
+    "session_id": null,
+    "summary": "Resolved fail-closed policy, adjudication, quorum, recovery-budget, and routing-contract gaps found by two independent plan analyses. The frozen contracts now cover complete consensus and logical-attempt boundaries, and the work-package DAG isolates attempt, routing, transport, convergence, and integration ownership.",
+    "completed_work": [
+      "Added modified convergence, quorum-reporting, and checkpoint-layout requirements.",
+      "Expanded the consensus contract with stable groups, policy counts, quorum, and trusted adjudication records.",
+      "Replaced the attempt contract with a bounded logical-request chain and strict success/failure invariants.",
+      "Specified deterministic matching limits, replacement selection, routing precedence, and thinking translation.",
+      "Reworked tasks and work packages to cover shared helpers and compatibility callers without parallel file overlap.",
+      "Passed strict OpenSpec, Draft 2020-12 contract, work-package DAG, scope-overlap, lock-overlap, and diff checks."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use stable adjudication ledger identities",
+        "rationale": "Adjudications may carry across rounds only when the versioned group identifier and exact concern fingerprints still match.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Bound one logical review request explicitly",
+        "rationale": "One corrective attempt, deduplicated same-provider fallbacks, a monotonic deadline, and at most one undispatched replacement prevent recursive cost and quorum inflation.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Make compatibility aliases exact",
+        "rationale": "unconfirmed_count equals provisional_count and blocking_count equals the conservative effective-blocking union.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Split dispatcher concerns into staged packages",
+        "rationale": "Transport-neutral attempt/quorum and routing helpers can be tested independently before adapter and caller integration.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run the independently routed PLAN_REVIEW phase against the refined revision-2 contracts.",
+      "If review converges, implement the six-package DAG from the managed feature worktree."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/plan-findings.md",
+        "description": "resolved plan-quality findings and readiness evidence"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/contracts/",
+        "description": "frozen consensus and logical-attempt boundaries"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml",
+        "description": "revised dependency and file-ownership DAG"
+      }
+    ]
+  }
+}

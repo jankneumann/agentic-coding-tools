@@ -2,10 +2,12 @@
 
 This change modifies internal JSON/Python boundaries rather than HTTP, database, or event interfaces. The frozen revision-1 coordination contracts are:
 
-- `consensus-policy.schema.json` — normalized input/output contract for blocker and adjudication policy.
-- `review-attempt.schema.json` — per-attempt diagnostics and routing provenance shared by CLI, SDK, async polling, manifests, and the future typed-result channel.
+- `consensus-policy.schema.json` — complete revision-2 consensus boundary: stable groups, match provenance, adjudication ledger entries, quorum, exact summary counts, and compatibility aliases.
+- `review-attempt.schema.json` — one logical review request and its bounded attempt chain, including terminal/quorum invariants, sanitized diagnostics, and routing/thinking provenance across CLI, SDK, async polling, and an optional replacement vendor.
 
-Production implementation remains authoritative in `openspec/schemas/consensus-report.schema.json`, its install-asset copy, and the dataclasses/config models in `review_dispatcher.py` and `agents_config.py`. Package implementations MUST keep production shapes compatible with these frozen contracts. No OpenAPI, SQL, generated language type, event, or mock contract applies.
+Production implementation remains authoritative in `openspec/schemas/consensus-report.schema.json`, its install-asset copy, and the dataclasses/config models in the transport-neutral review helpers, `review_dispatcher.py`, and `agents_config.py`. Package implementations MUST validate producer and consumer fixtures against these frozen contracts. Cross-field aliases (`unconfirmed_count == provisional_count`, `blocking_count == effective_blocking_count`) and authorization trust checks are application invariants tested in addition to JSON Schema validation. No OpenAPI, SQL, generated language type, event, or mock contract applies.
+
+The authoritative adjudication ledger is stored at `openspec/changes/<change-id>/reviews/adjudications.json` and written atomically. Entries are keyed by stable `group_id` plus the exact sorted concern fingerprints. The synthesizer may apply a prior entry only when both still match; unknown or stale entries fail closed. Review vendors and the synthesizer cannot originate `accepted_risk` authorization. Its `approval_ref` must resolve through an injected trusted-approval resolver to a human coordinator audit record, GitHub approval, or signed local record.
 
 Validate with:
 
