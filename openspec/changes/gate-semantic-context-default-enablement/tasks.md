@@ -624,11 +624,19 @@ requires a favourable number.
 
 ## Phase 7 — wp-integration: integrate, promote, prove
 
-- [ ] 7.1 Merge every package; run the full `packages/context-eval` suite, the
+- [x] 7.1 Merge every package; run the full `packages/context-eval` suite, the
       full `skills/tests/context-engineering/` suite, and
       `bash skills/install.sh --check`
       **Dependencies**: 6.5
       **Size**: M
+      **Result**: nothing to merge — `git branch --list` shows no `--wp-*`
+      siblings for this change; all seven packages executed sequentially on
+      the single branch `openspec/gate-semantic-context-default-enablement`.
+      Full suites reproduce the phase 5/6 baseline unchanged:
+      `packages/context-eval` **306 passed, 0 skipped**;
+      `skills/tests/context-engineering/` **735 passed**;
+      `bash skills/install.sh --check` exits 0 ("Skill install portability
+      validation passed").
 
 - [ ] 7.2 Prove the enablement gate by mutation on the integrated tree: flip
       `INJECTION_DEFAULT_ENABLED` to `True` in a scratch commit, run
