@@ -160,9 +160,16 @@ def _check(*, report_path: Path, corpus_root: Path, expect_digest: bool) -> int:
     """Read a report from disk and decide the exit code from what is there.
 
     Every unusable state collapses to :data:`EXIT_REPORT_UNUSABLE`, deliberately:
-    absent, unparseable, schema-invalid and stale are four ways of having no
-    evidence, and a caller that distinguished them would be tempted to accept
-    some of them.
+    absent, unparseable, schema-invalid, stale and self-contradicting are five
+    ways of having no evidence, and a caller that distinguished them would be
+    tempted to accept some of them.
+
+    The last of those is the one that was missing. This function used to decide
+    from ``document["verdict"]`` alone, so a hand-edited ``pass`` over rows
+    recording failure exited ``0`` here exactly as it did in the enablement gate.
+    Both now ask :func:`report.body_consistency` the same question through the
+    same code, because two implementations of "does this document agree with
+    itself" would eventually disagree with each other.
     """
     try:
         document = report.read_report(report_path)
@@ -184,6 +191,20 @@ def _check(*, report_path: Path, corpus_root: Path, expect_digest: bool) -> int:
                 file=sys.stderr,
             )
             return EXIT_REPORT_UNUSABLE
+
+    consistency = report.body_consistency(document)
+    if not consistency.consistent:
+        # The other live consumer of the same trust, and it read the same string.
+        # A document whose conclusion its own rows contradict was composed by
+        # nothing, so it is unusable in the same way an unparseable one is —
+        # not a measurement that failed, which is a different fact with a
+        # different remedy.
+        print(
+            "report unusable: the report contradicts itself: "
+            + "; ".join(consistency.contradictions),
+            file=sys.stderr,
+        )
+        return EXIT_REPORT_UNUSABLE
 
     if document["verdict"] == PASS:
         return EXIT_PASS

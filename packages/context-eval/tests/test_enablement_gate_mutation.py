@@ -39,6 +39,18 @@ the foot of this file close that, against both layers: the report contract's
 `report_describes_corpus`, which re-derives the declared denominator from the
 file on disk rather than trusting the emitter to have been its last author.
 
+**A third family, and it exists because the second was not enough either.** The
+content mutants perturb COVERAGE — which cases, gates and consumers the report
+accounts for — and every one of them was watched failing, and the gate still
+authorized an enabled default from a report that measured nothing: a three-field
+edit of the committed artifact (`verdict` `fail` to `pass`, `fail_reasons`
+deleted, `indexed_revision` filled in) printed NINE met conditions on its way to
+exit `0` over a body recording two failed required gates, five failed consumers
+and seven of nineteen cases scored. Nothing above perturbed OUTCOME consistency,
+so nothing above was ever going to catch it. `CONTRADICTIONS` at the foot of this
+file is that family, and it is written differently from everything else here on
+purpose: see its own commentary.
+
 Without this file the gate is decoration. Weakening any assertion here is
 therefore a change to what the gate means, not a change to a test.
 """
@@ -76,6 +88,7 @@ from context_eval.__main__ import (  # noqa: E402
     EXIT_PASS,
     EXIT_REPORT_UNUSABLE,
 )
+from context_eval.__main__ import main as cli_main  # noqa: E402
 from context_eval.loader import load_corpus  # noqa: E402
 from context_eval.models import Case, Corpus  # noqa: E402
 from context_eval.scoring.arms import Arm, RenderedHit, fallback_arm  # noqa: E402
@@ -451,6 +464,28 @@ def _report_omitting_a_declared_gate(tmp_path: Path, evidence: Evidence) -> list
     )
 
 
+def _gate_passing_below_its_declared_tier(tmp_path: Path, evidence: Evidence) -> list[str]:
+    """(b.6) A gate recorded as passing over an index that could not have run it.
+
+    One field, and the schema cannot fault it: `index.tier` is a legal enum value
+    and `min_index_tier` is a legal enum value, and whether the first satisfies
+    the second is an ORDERED comparison JSON Schema has no way to make over an
+    enum. `_compose_gate` appends `index_tier_insufficient` and fails the gate
+    before any number is considered, so this pairing is unproducible — and it is
+    the pairing the reviewed forgery carried, `index.tier: "none"` under two
+    gates declaring `live`.
+    """
+    document = deepcopy(evidence.passing)
+    document["index"]["tier"] = "none"
+    report_module.validate_report(document)  # the contract has no complaint
+    report_path = report_module.write_report(tmp_path / "report.json", document)
+    return _argv(
+        helper=_helper_with_default(tmp_path, enabled=True),
+        report_path=report_path,
+        contract=_contract(tmp_path, _recorded_fingerprint(document)),
+    )
+
+
 #: Condition, mutation, and the exit code the gate owes it. The code matters:
 #: "we have no usable evidence" (3) and "we measured and it failed" (2) are
 #: different facts with different remedies, and the July 2026 waiver is what
@@ -466,6 +501,11 @@ MUTATIONS: tuple[tuple[str, Mutation, int], ...] = (
     (
         enablement_gate.REPORT_DESCRIBES_CORPUS,
         _report_omitting_a_declared_gate,
+        EXIT_REPORT_UNUSABLE,
+    ),
+    (
+        enablement_gate.VERDICT_CONSISTENT,
+        _gate_passing_below_its_declared_tier,
         EXIT_REPORT_UNUSABLE,
     ),
     (enablement_gate.VERDICT_PASS, _failing_report, EXIT_GATE_FAILURE),
@@ -590,9 +630,18 @@ def test_every_condition_the_gate_declares_is_mutated() -> None:
     the base case they reduce to. If one of them stopped being checked, the
     parametrization above would still be green — nothing else in the suite would
     notice, because the gate is green on this tree either way. The list has grown
-    twice since D12 was written — `harness_fingerprint_current` and
-    `report_describes_corpus` — and this assertion is what obliges each addition
-    to arrive with a mutant rather than as an unexercised branch.
+    three times since D12 was written — `harness_fingerprint_current`,
+    `report_describes_corpus` and `verdict_consistent` — and this assertion is
+    what obliges each addition to arrive with a mutant rather than as an
+    unexercised branch.
+
+    **What it structurally cannot do is notice a condition nobody declared.** It
+    quantifies over `enablement_gate.CONDITIONS`, so a hole in that set is a hole
+    in this assertion too, and every blocking finding this gate has taken so far
+    has been a MISSING condition rather than an unproven one. `CONTRADICTIONS`
+    below is the answer to that: it is a list of documents that must not
+    authorize, written without reference to the condition set, so it can fail for
+    a condition that does not exist yet.
     """
     mutated = {condition for condition, _, _ in MUTATIONS}
     assert mutated == set(enablement_gate.CONDITIONS)
@@ -885,3 +934,263 @@ def test_no_rejection_is_silent(
         if not any(declared in stderr for declared in enablement_gate.CONDITIONS):
             unexplained.append(f"{condition}: {stderr!r}")
     assert not unexplained, "rejections with no named condition:\n" + "\n".join(unexplained)
+
+
+# --------------------------------------------------------------------------
+# the contradiction corpus — reports that must not authorize, whatever the
+# gate happens to declare
+#
+# Everything above this line is organized BY CONDITION: one mutant per entry in
+# `enablement_gate.CONDITIONS`, and `test_every_condition_the_gate_declares_is_
+# mutated` keeps that correspondence total. That structure proves every declared
+# condition is live and is structurally incapable of noticing a condition nobody
+# declared — which is what both blocking findings against this gate have been.
+#
+# This section is organized the other way round: by DOCUMENT. Each entry is a
+# report that describes a measurement which did not happen, and the assertion is
+# only that the tree refuses it. Nothing here names a condition, imports
+# `CONDITIONS`, or asserts which layer objects, so adding a case here is a way to
+# discover that no layer objects at all. That is the whole point: a test written
+# over the declared set can never find the gap in the set.
+#
+# All seven were run against an export of the pre-fix tree before any of them was
+# written, and the result is recorded here rather than summarized, because two of
+# the seven were ALREADY refused and saying otherwise would overstate the fix:
+#
+#     contradiction                                   schema    gate  check
+#     a pass over a failing required gate             accepts      0      0
+#     a gate that passed and named fail reasons       refuses      3      3
+#     a gate that passed below the tier it declares   accepts      0      0
+#     a pass over a failing consumer                  accepts      0      0
+#     a consumer that passed and named fail reasons   refuses      3      3
+#     a pass over nineteen unmeasured cases           accepts      0      0
+#     a pass over a scored count nothing filled       accepts      3      0
+#
+# Four of seven authorized an enabled default outright and five of seven were
+# read by `context_eval check` as a passing measurement. The two already refused
+# are the two the report contract's per-row `fail_reasons` clauses happened to
+# reach — which is the argument for this section rather than against it: those
+# two were closed because somebody once wrote a clause about ROWS, and nothing
+# had ever asked whether the conclusion followed from them.
+#
+# After the fix all seven are refused by both consumers. Two of them are still
+# schema-valid — the tier pairing, which is an ordered comparison JSON Schema
+# cannot make over an enum, and the scored count, which is a comparison between
+# two sibling integers — and those two are what the gate's own re-derivation is
+# watched catching alone.
+# --------------------------------------------------------------------------
+
+
+def _pass_over_a_failing_gate(document: dict[str, Any]) -> None:
+    """The reviewed forgery, minimally: a required gate says no, the report says yes."""
+    document["gates"][0]["verdict"] = "fail"
+    document["gates"][0]["fail_reasons"] = ["unmeasured"]
+
+
+def _gate_passing_with_fail_reasons(document: dict[str, Any]) -> None:
+    """One row making two contradictory claims about itself."""
+    document["gates"][0]["fail_reasons"] = ["index_tier_insufficient"]
+
+
+def _gate_passing_below_its_tier(document: dict[str, Any]) -> None:
+    """A gate that passed over an index that could not have measured it."""
+    document["index"]["tier"] = "none"
+
+
+def _pass_over_a_failing_consumer(document: dict[str, Any]) -> None:
+    """Do-no-harm is per consumer and nothing offsets it, so this cannot compose."""
+    document["per_consumer"][0]["verdict"] = "fail"
+    document["per_consumer"][0]["fail_reasons"] = ["consumer_regression"]
+
+
+def _consumer_passing_with_fail_reasons(document: dict[str, Any]) -> None:
+    document["per_consumer"][0]["fail_reasons"] = ["consumer_regression"]
+
+
+def _pass_over_unscored_cases(document: dict[str, Any]) -> None:
+    """Every declared case present, and not one of them measured.
+
+    The strongest of the reviewed forgeries, because it satisfies the denominator
+    re-derivation exactly: all nineteen ids are here, the counts agree with the
+    body, and the body is empty of measurement.
+    """
+    for case in document["cases"]:
+        case["scored"] = False
+        case["unscored_reason"] = "producer_error"
+        case.pop("arms", None)
+    document["corpus"]["cases_scored"] = 0
+
+
+def _pass_over_a_short_scored_count(document: dict[str, Any]) -> None:
+    """A pass over a denominator the report itself says it did not fill."""
+    document["corpus"]["cases_scored"] = document["corpus"]["cases_declared"] - 1
+
+
+#: Documents describing a measurement that did not happen. Deliberately NOT
+#: derived from `enablement_gate.CONDITIONS`, and deliberately asserting nothing
+#: about which layer refuses them.
+CONTRADICTIONS: tuple[tuple[str, BodyMutation], ...] = (
+    ("a pass over a failing required gate", _pass_over_a_failing_gate),
+    ("a gate that passed and named fail reasons", _gate_passing_with_fail_reasons),
+    ("a gate that passed below the tier it declares", _gate_passing_below_its_tier),
+    ("a pass over a failing consumer", _pass_over_a_failing_consumer),
+    ("a consumer that passed and named fail reasons", _consumer_passing_with_fail_reasons),
+    ("a pass over nineteen declared and unmeasured cases", _pass_over_unscored_cases),
+    ("a pass over a scored count nothing filled", _pass_over_a_short_scored_count),
+)
+
+
+@pytest.mark.parametrize(
+    ("label", "mutation"),
+    CONTRADICTIONS,
+    ids=[label for label, _ in CONTRADICTIONS],
+)
+def test_no_self_contradicting_report_authorizes_an_enabled_default(
+    label: str,
+    mutation: BodyMutation,
+    tmp_path: Path,
+    evidence: Evidence,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The end-to-end assertion, and the only one that matters to an operator.
+
+    Written past the emitter, because a hand-edited file takes no other route and
+    because the whole family exists to describe documents `compose_verdict()`
+    cannot produce. Which layer objects is not asserted: some of these the report
+    contract now refuses outright, others are legal JSON that only the gate's
+    re-derivation can fault, and an assertion naming the layer would have to be
+    rewritten every time the division moved.
+    """
+    document = deepcopy(evidence.passing)
+    mutation(document)
+    argv = _argv(
+        helper=_helper_with_default(tmp_path, enabled=True),
+        report_path=_raw_report(tmp_path, document),
+        contract=_contract(tmp_path, _recorded_fingerprint(document)),
+    )
+
+    assert enablement_gate.main(argv) != EXIT_PASS, f"{label} authorized enablement"
+    assert "unmet condition" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("label", "mutation"),
+    CONTRADICTIONS,
+    ids=[label for label, _ in CONTRADICTIONS],
+)
+def test_the_body_derivation_rejects_every_contradiction(
+    label: str, mutation: BodyMutation, evidence: Evidence
+) -> None:
+    """The gate's own layer, asserted where the contract cannot mask it.
+
+    Three of these the report contract now refuses, and `evaluate()` stops at
+    `schema_valid` when it does — so the test above would keep passing if the
+    re-derivation were deleted. This calls the re-derivation directly, which is
+    the only way to watch the second layer refuse a document the first one
+    already refused.
+    """
+    document = deepcopy(evidence.passing)
+    mutation(document)
+    consistency = report_module.body_consistency(document)
+    assert not consistency.consistent, f"{label} was read as self-consistent"
+    assert consistency.contradictions
+
+
+@pytest.mark.parametrize(
+    ("label", "mutation"),
+    CONTRADICTIONS,
+    ids=[label for label, _ in CONTRADICTIONS],
+)
+def test_no_self_contradicting_report_is_readable_as_a_measurement(
+    label: str, mutation: BodyMutation, tmp_path: Path, evidence: Evidence
+) -> None:
+    """`context_eval check` is the other consumer, and it read the same string.
+
+    It decided from `document["verdict"]` alone, so every document here exited
+    `0` from it — including the three the report contract refuses, because a
+    caller reaching `check` on a hand-edited file is exactly the caller the
+    contract was not run for.
+    """
+    document = deepcopy(evidence.passing)
+    mutation(document)
+    argv = [
+        "check",
+        "--report",
+        str(_raw_report(tmp_path, document)),
+        "--corpus",
+        str(CORPUS_ROOT),
+    ]
+    assert cli_main(argv) != EXIT_PASS, f"{label} was read as a passing measurement"
+
+
+def test_the_authorizing_report_does_not_contradict_itself(evidence: Evidence) -> None:
+    """The control, and the reason the whole family means anything.
+
+    A derivation that called every report contradictory would satisfy all
+    twenty-one assertions above and would also refuse the one report that should
+    be accepted. This asserts the other side on the same prepared evidence
+    `test_a_current_passing_report_authorizes_an_enabled_default` runs the gate
+    over.
+    """
+    consistency = report_module.body_consistency(evidence.passing)
+    assert consistency.consistent, consistency.contradictions
+    assert consistency.derived_verdict == consistency.recorded_verdict == "pass"
+
+
+def test_a_recorded_apparatus_failure_is_not_a_contradiction(evidence: Evidence) -> None:
+    """The derivation is one-way, and this is the document that proves it must be.
+
+    A degraded scope adapter fails the run at the top level without failing any
+    gate, so this report records `fail` over a body whose rows all pass. Deriving
+    `pass` from those rows and calling the mismatch a contradiction would make a
+    recorded apparatus failure unreportable — an outcome the contract requires to
+    be writable, and the one the July 2026 waiver most needed to be able to say.
+    """
+    consistency = report_module.body_consistency(evidence.apparatus)
+    assert consistency.recorded_verdict == "fail"
+    assert consistency.derived_verdict == "pass"
+    assert consistency.consistent
+
+
+def test_the_three_field_edit_of_the_committed_report_is_refused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The finding itself, against the real artifact, as one test.
+
+    Not the prepared evidence: the document a reviewer actually edited. Take
+    `docs/evaluation/semantic-context/report.json`, flip `verdict` to `pass`,
+    delete `fail_reasons`, and fill `indexed_revision` with a reachable commit —
+    which a live run populates anyway. Three fields, no fabricated measurements,
+    and every provenance condition keeps holding because none of them reads the
+    body. The pre-fix gate printed nine met conditions and returned `0`.
+    """
+    committed = REPO_ROOT / "docs" / "evaluation" / "semantic-context" / "report.json"
+    if not committed.is_file():  # pragma: no cover - the artifact is committed
+        pytest.skip("no durable report in this checkout")
+
+    document = json.loads(committed.read_text(encoding="utf-8"))
+    assert document["verdict"] == "fail", (
+        "the committed report no longer records the failure this forgery inverts"
+    )
+    # The control on the real artifact: as committed it agrees with itself, so
+    # the rejection below is caused by the three edits and by nothing else.
+    assert report_module.body_consistency(document).consistent
+
+    document["verdict"] = "pass"
+    document.pop("fail_reasons", None)
+    document["index"]["indexed_revision"] = HEAD
+
+    # Both layers, asserted separately. The report contract refuses this document
+    # outright, and `evaluate()` stops at `schema_valid` when it does — so
+    # without this line the test would keep passing with the re-derivation gone.
+    with pytest.raises(report_module.ReportError):
+        report_module.validate_report(document)
+    assert not report_module.body_consistency(document).consistent
+
+    argv = _argv(
+        helper=_helper_with_default(tmp_path, enabled=True),
+        report_path=_raw_report(tmp_path, document),
+        contract=_contract(tmp_path, str(document["index"]["embedder"]["fingerprint"])),
+    )
+    assert enablement_gate.main(argv) != EXIT_PASS
+    assert "unmet condition" in capsys.readouterr().err

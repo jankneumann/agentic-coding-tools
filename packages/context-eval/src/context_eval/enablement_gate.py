@@ -55,6 +55,23 @@ was the last thing to touch it, and the report contract now sets ``minItems`` on
 Two layers, because they fail independently: the schema does not run on a file
 somebody edited by hand, and the gate does not run on a file nobody committed.
 
+**And a conclusion is not evidence either.** The same error survived that fix
+one layer further in. Every condition above interrogates what surrounds the
+report's conclusion — where it came from, whether it accounts for the declared
+corpus — and the conclusion itself stayed a string this gate read. A three-field
+edit of the committed report (``verdict`` ``fail`` to ``pass``, ``fail_reasons``
+deleted, ``indexed_revision`` filled in) printed nine met conditions and returned
+``0`` while the same file recorded two required gates failing at
+``index.tier: "none"`` against a declared ``min_index_tier: "live"``, five of six
+consumers failing, and seven of nineteen cases scored. ``compose_verdict()``
+cannot produce such a document — which is exactly why a text editor can.
+:data:`VERDICT_CONSISTENT` re-derives the composer's pass invariant from the body
+through :func:`report.body_consistency`, and the report contract now refuses a
+passing verdict over a failing gate. The same helper is the one
+``context_eval.__main__.check`` calls, because a second implementation of "does
+this document agree with itself" would eventually answer differently from this
+one and no reader would know which answer governed.
+
 The declared default is read by parsing the source, not by importing it. Two
 reasons, and the second is the load-bearing one: importing would run ri-12's
 module in the gate's process for a single boolean, and parsing lets the gate
@@ -113,6 +130,18 @@ INDEXED_REVISION_REACHABLE = "indexed_revision_reachable"
 SCHEMA_VALID = "schema_valid"
 VERDICT_PASS = "verdict_pass"
 
+#: Not one of D12's original six either, and the narrowest statement of the
+#: defect this gate keeps re-learning: the field that authorizes was the one
+#: field nothing derived. ``verdict_pass`` reads ``document["verdict"]``, and
+#: :data:`REPORT_DESCRIBES_CORPUS` re-derives only the DENOMINATOR — the counts,
+#: the case ids, the gate ids, the consumer names. A document may therefore
+#: account for the whole declared corpus and still contradict its own conclusion.
+#: This condition re-derives the OUTCOME: ``compose_verdict()`` returns ``pass``
+#: only when every declared case was scored, every required gate passed and every
+#: precondition held, so a report recording ``pass`` over rows that record
+#: failure describes a run that cannot have happened.
+VERDICT_CONSISTENT = "verdict_consistent"
+
 #: Not one of D12's original six, and added because those six were all
 #: **provenance**. A hand-written document carrying the current corpus digest,
 #: the current harness identity, a matching embedder fingerprint, a reachable
@@ -131,6 +160,7 @@ EXPIRY_CONDITIONS: tuple[str, ...] = (
     INDEXED_REVISION_REACHABLE,
     SCHEMA_VALID,
     REPORT_DESCRIBES_CORPUS,
+    VERDICT_CONSISTENT,
     VERDICT_PASS,
 )
 
@@ -144,6 +174,8 @@ CONDITIONS: tuple[str, ...] = (REPORT_PRESENT, *EXPIRY_CONDITIONS)
 #: than evidence that speaks against enablement. The distinction is the same one
 #: the CLI's exit codes draw, and it is the one the July 2026 waiver blurred:
 #: "we have no measurement" and "we measured and it failed" are different facts.
+#: A self-contradicting document is the first of those, not the second: nothing
+#: composed it, so there is no measurement it reports.
 EVIDENCE_ABSENT_CONDITIONS: tuple[str, ...] = tuple(
     condition for condition in CONDITIONS if condition != VERDICT_PASS
 )
@@ -269,6 +301,36 @@ def _verdict_condition(document: dict[str, Any]) -> Condition:
         VERDICT_PASS,
         False,
         f"the recorded verdict is {verdict!r} ({reasons}); it never authorized anything",
+    )
+
+
+def _consistent_verdict_condition(document: dict[str, Any]) -> Condition:
+    """The report's conclusion follows from the report's own body.
+
+    Re-derived rather than read, through the one helper
+    ``context_eval.__main__.check`` also calls. Every other condition here is a
+    comparison against something outside the document — the corpus on disk, the
+    installed harness, the configured embedder, git. This one is entirely
+    internal, and it is the only one that can notice a document nothing composed.
+
+    One-way, deliberately: see :class:`report.BodyConsistency`. A recorded
+    ``fail`` over a body with no visible failure is a legitimately composed
+    report — a degraded scope adapter fails the run without failing any gate —
+    and rejecting it would make a recorded apparatus failure unreportable.
+    """
+    consistency = report.body_consistency(document)
+    if consistency.consistent:
+        return Condition(
+            VERDICT_CONSISTENT,
+            True,
+            f"the recorded verdict {consistency.recorded_verdict!r} is the one this "
+            f"body composes to",
+        )
+    return Condition(
+        VERDICT_CONSISTENT,
+        False,
+        "the report contradicts itself, so nothing composed it: "
+        + "; ".join(consistency.contradictions),
     )
 
 
@@ -526,6 +588,7 @@ def evaluate(
             _embedder_fingerprint_condition(document, embedding_contract),
             _indexed_revision_condition(document, repository_root),
             _describes_corpus_condition(document, corpus),
+            _consistent_verdict_condition(document),
             _verdict_condition(document),
         ),
     )

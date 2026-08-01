@@ -43,7 +43,7 @@ from .loader import DEFAULT_SCHEMA_DIR
 from .models import Budget, Case, Corpus
 from .scoring import relevance, scope, utility
 from .scoring.arms import Arm
-from .verdict import CaseOutcome, ComposedVerdict, MeasurementContext
+from .verdict import INDEX_TIERS, CaseOutcome, ComposedVerdict, MeasurementContext
 
 REPORT_SCHEMA_NAME = "context-eval-report.schema.json"
 DEFAULT_REPORT_SCHEMA = DEFAULT_SCHEMA_DIR / REPORT_SCHEMA_NAME
@@ -54,6 +54,7 @@ SCHEMA_VERSION = 1
 
 HARNESS_NAME = "context-eval"
 
+PASS = "pass"
 FAIL = "fail"
 
 #: The report is indented so a diff between two runs is readable. A STRING
@@ -595,6 +596,147 @@ def attach_judge(document: Mapping[str, Any], review: Mapping[str, Any]) -> dict
     attached = dict(document)
     attached["judge"] = dict(review)
     return attached
+
+
+# ---------------------------------------------------------------------------
+# the document agreeing with itself
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class BodyConsistency:
+    """Whether a report's conclusion follows from the body it carries.
+
+    ``compose_verdict()`` returns ``pass`` only when every declared case was
+    scored, every declared gate produced a passing result and every precondition
+    held — but it guarantees that about a value in memory, and every consumer
+    re-reads an editable file from disk. A guarantee that does not travel with
+    the artifact is not a guarantee about the artifact, so the invariant is
+    re-derived here from the only document a gate ever actually reads.
+
+    The derivation is deliberately ONE-WAY. ``derived == "fail"`` while the
+    document records ``pass`` is a contradiction: no run that produced those rows
+    could have composed that conclusion. The converse is not. A run whose gates
+    all passed still fails for a degraded scope adapter or for a case result the
+    corpus never declared, and those reasons live at the top level rather than in
+    any row — so a recorded ``fail`` over a body with nothing visibly wrong is a
+    legitimately composed document, and rejecting it would make a recorded
+    apparatus failure unreportable.
+    """
+
+    derived_verdict: str
+    recorded_verdict: str | None
+    #: Every way the document disagrees with itself, each naming what disagreed.
+    contradictions: tuple[str, ...]
+    #: Every failure the BODY records, whether or not the conclusion admits it.
+    body_failures: tuple[str, ...]
+
+    @property
+    def consistent(self) -> bool:
+        return not self.contradictions
+
+
+def _rows(document: Mapping[str, Any], key: str) -> list[Mapping[str, Any]]:
+    value = document.get(key)
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        return []
+    return [row for row in value if isinstance(row, Mapping)]
+
+
+def _tier_satisfies(tier: Any, declared: Any) -> bool:
+    """Does the index that answered reach the tier a gate says it needs?
+
+    An ordered comparison over :data:`INDEX_TIERS`, exactly as
+    ``MeasurementContext.satisfies`` makes it — the same list, so a fourth tier
+    is one edit rather than a truth table somebody has to remember to extend.
+    This is also why the comparison is not mirrored into the report schema: JSON
+    Schema has no ordering over an enum, so expressing it there means writing out
+    the tier pairs by hand, and a new tier would leave the hand-written table
+    silently valid while comparing against nothing.
+    """
+    if tier not in INDEX_TIERS or declared not in INDEX_TIERS:
+        # An unreadable tier cannot be shown to satisfy anything, and a gate that
+        # passed against one is a gate nobody can check.
+        return False
+    return INDEX_TIERS.index(tier) >= INDEX_TIERS.index(declared)
+
+
+def body_consistency(document: Mapping[str, Any]) -> BodyConsistency:
+    """Re-derive the verdict from the body, and say where the two disagree.
+
+    Every input is already in the report; nothing here reads the corpus, the
+    harness, or the disk. That is the point — this asks the one question the nine
+    conditions around it never asked, which is whether the document agrees with
+    itself.
+    """
+    failures: list[str] = []
+    contradictions: list[str] = []
+
+    tier = (document.get("index") or {}).get("tier")
+
+    for gate in _rows(document, "gates"):
+        identifier = gate.get("id")
+        verdict = gate.get("verdict")
+        if verdict == FAIL and gate.get("required") is not False:
+            reasons = ", ".join(str(reason) for reason in gate.get("fail_reasons") or ())
+            failures.append(
+                f"required gate {identifier!r} is recorded as a failure"
+                + (f" ({reasons})" if reasons else "")
+            )
+        elif verdict == PASS:
+            if gate.get("fail_reasons"):
+                contradictions.append(
+                    f"gate {identifier!r} is recorded as a pass and names "
+                    f"fail_reasons {list(gate['fail_reasons'])!r}"
+                )
+            declared = gate.get("min_index_tier")
+            if not _tier_satisfies(tier, declared):
+                contradictions.append(
+                    f"gate {identifier!r} is recorded as a pass at index tier "
+                    f"{tier!r} while declaring it needs {declared!r}"
+                )
+
+    for entry in _rows(document, "per_consumer"):
+        name = entry.get("consumer")
+        if entry.get("verdict") == FAIL:
+            failures.append(f"consumer {name!r} is recorded as a failure")
+        elif entry.get("verdict") == PASS and entry.get("fail_reasons"):
+            contradictions.append(
+                f"consumer {name!r} is recorded as a pass and names "
+                f"fail_reasons {list(entry['fail_reasons'])!r}"
+            )
+
+    unscored = [
+        row.get("case_id")
+        for row in _rows(document, "cases")
+        if row.get("scored") is not True
+    ]
+    if unscored:
+        failures.append(f"{len(unscored)} declared cases carry no measurement: {unscored!r}")
+
+    counts = document.get("corpus") or {}
+    declared_cases = counts.get("cases_declared")
+    scored_cases = counts.get("cases_scored")
+    if isinstance(declared_cases, int) and isinstance(scored_cases, int):
+        if scored_cases != declared_cases:
+            failures.append(
+                f"it scored {scored_cases} of the {declared_cases} cases it declares"
+            )
+
+    recorded = document.get("verdict")
+    derived = FAIL if failures else PASS
+    if derived == FAIL and recorded == PASS:
+        contradictions.append(
+            "it records verdict 'pass' over a body that records failure: "
+            + "; ".join(failures)
+        )
+
+    return BodyConsistency(
+        derived_verdict=derived,
+        recorded_verdict=recorded if isinstance(recorded, str) else None,
+        contradictions=tuple(contradictions),
+        body_failures=tuple(failures),
+    )
 
 
 # ---------------------------------------------------------------------------
