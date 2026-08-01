@@ -1,9 +1,9 @@
 {
   "schema_version": 4,
   "change_id": "harden-review-consensus-and-recovery",
-  "current_phase": "IMPL_ITERATE",
+  "current_phase": "IMPL_REVIEW",
   "iteration": 0,
-  "total_iterations": 11,
+  "total_iterations": 12,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -18,7 +18,8 @@
     "plan-review-1",
     "plan_review-1",
     "implementation-partial-1",
-    "implementation-2"
+    "implementation-2",
+    "implementation-iteration-1-1"
   ],
   "phase_history": [
     {
@@ -56,11 +57,16 @@
       "at": "2026-08-01T21:56:48.081084+00:00",
       "outcome": "complete",
       "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-08-01T22:02:51.714712+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
     }
   ],
-  "last_handoff_id": "implementation-2",
+  "last_handoff_id": "implementation-iteration-1-1",
   "started_at": "2026-08-01T19:49:19.418681+00:00",
-  "phase_started_at": "2026-08-01T21:57:03.895620+00:00",
+  "phase_started_at": "2026-08-01T22:02:51.902853+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
