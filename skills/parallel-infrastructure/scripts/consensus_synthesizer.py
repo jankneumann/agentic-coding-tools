@@ -21,12 +21,15 @@ Usage:
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from consensus_policy import evaluate_blocking
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +136,14 @@ class ConsensusFinding:
     agreed_criticality: str
     recommended_disposition: str
     description: str
-    vendor_dispositions: dict[str, str] | None = None
+    vendor_dispositions: dict[str, str] = field(default_factory=dict)
+    group_id: str = ""
+    policy_status: str = "provisional"
+    integration_blocking: bool = False
+    convergence_blocking: bool = False
+    effective_blocking: bool = False
+    match_method: str = "single"
+    match_evidence: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -152,6 +162,8 @@ class ConsensusReport:
     unconfirmed_count: int = 0
     disagreement_count: int = 0
     blocking_count: int = 0
+    integration_blocking_count: int = 0
+    convergence_blocking_count: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -271,12 +283,9 @@ class ConsensusSynthesizer:
         confirmed = sum(1 for cf in consensus_findings if cf.status == "confirmed")
         unconfirmed = sum(1 for cf in consensus_findings if cf.status == "unconfirmed")
         disagreement = sum(1 for cf in consensus_findings if cf.status == "disagreement")
-        blocking = sum(
-            1
-            for cf in consensus_findings
-            if (cf.status == "confirmed" and cf.recommended_disposition == "fix")
-            or cf.status == "disagreement"
-        )
+        integration_blocking = sum(cf.integration_blocking for cf in consensus_findings)
+        convergence_blocking = sum(cf.convergence_blocking for cf in consensus_findings)
+        blocking = sum(cf.effective_blocking for cf in consensus_findings)
 
         return ConsensusReport(
             review_type=review_type,
@@ -291,54 +300,60 @@ class ConsensusSynthesizer:
             unconfirmed_count=unconfirmed,
             disagreement_count=disagreement,
             blocking_count=blocking,
+            integration_blocking_count=integration_blocking,
+            convergence_blocking_count=convergence_blocking,
         )
 
     def _match_all(self, findings: list[Finding]) -> list[FindingMatch]:
-        """Match findings across vendors using greedy best-match."""
-        used: set[tuple[str, int]] = set()
-        matches: list[FindingMatch] = []
+        """Build order-invariant connected groups from stable scored edges."""
+        ordered = sorted(findings, key=lambda f: (f.vendor, f.id, f.description))
+        parent = list(range(len(ordered)))
 
-        # Group findings by vendor
-        by_vendor: dict[str, list[Finding]] = {}
-        for f in findings:
-            by_vendor.setdefault(f.vendor, []).append(f)
+        def find(index: int) -> int:
+            while parent[index] != index:
+                parent[index] = parent[parent[index]]
+                index = parent[index]
+            return index
 
-        vendors = list(by_vendor.keys())
+        def union(left: int, right: int) -> None:
+            left_root, right_root = find(left), find(right)
+            if left_root != right_root:
+                parent[max(left_root, right_root)] = min(left_root, right_root)
 
-        # For each finding, find best matches from other vendors
-        for f in findings:
-            key = (f.vendor, f.id)
-            if key in used:
-                continue
-
-            match = FindingMatch(primary=f)
-            used.add(key)
-
-            # Find matches from other vendors
-            for other_vendor in vendors:
-                if other_vendor == f.vendor:
+        edges: list[tuple[float, str, int, int]] = []
+        for left, finding in enumerate(ordered):
+            for right in range(left + 1, len(ordered)):
+                candidate = ordered[right]
+                if finding.vendor == candidate.vendor:
                     continue
-                best_score = 0.0
-                best_match: Finding | None = None
-                best_basis = ""
-                for candidate in by_vendor[other_vendor]:
-                    ckey = (candidate.vendor, candidate.id)
-                    if ckey in used:
-                        continue
-                    s, basis = match_score(f, candidate)
-                    if s > best_score:
-                        best_score = s
-                        best_match = candidate
-                        best_basis = basis
+                score, basis = match_score(finding, candidate)
+                if score >= self.match_threshold:
+                    edges.append((score, basis, left, right))
+        for _score, _basis, left, right in sorted(
+            edges, key=lambda edge: (-edge[0], edge[1], ordered[edge[2]].vendor,
+                                      ordered[edge[2]].id, ordered[edge[3]].vendor,
+                                      ordered[edge[3]].id),
+        ):
+            union(left, right)
 
-                if best_match and best_score >= self.match_threshold:
-                    match.matched.append(best_match)
-                    match.score = max(match.score, best_score)
-                    match.basis = best_basis
-                    used.add((best_match.vendor, best_match.id))
-
-            matches.append(match)
-
+        grouped: dict[int, list[int]] = {}
+        for index in range(len(ordered)):
+            grouped.setdefault(find(index), []).append(index)
+        matches: list[FindingMatch] = []
+        for indexes in sorted(grouped.values(), key=lambda members: tuple(
+            (ordered[index].vendor, ordered[index].id) for index in members
+        )):
+            members = sorted(indexes)
+            primary = ordered[members[0]]
+            member_set = set(members)
+            group_edges = [edge for edge in edges if edge[2] in member_set and edge[3] in member_set]
+            best = max(group_edges, default=(0.0, "", 0, 0), key=lambda edge: edge[0])
+            matches.append(FindingMatch(
+                primary=primary,
+                matched=[ordered[index] for index in members[1:]],
+                score=best[0],
+                basis=best[1],
+            ))
         return matches
 
     def _classify(self, matches: list[FindingMatch]) -> list[ConsensusFinding]:
@@ -346,86 +361,79 @@ class ConsensusSynthesizer:
         results: list[ConsensusFinding] = []
 
         for i, m in enumerate(matches, 1):
-            if not m.matched:
-                # Single vendor finding — unconfirmed
-                results.append(ConsensusFinding(
-                    id=i,
-                    status="unconfirmed",
-                    primary_vendor=m.primary.vendor,
-                    primary_finding_id=m.primary.id,
-                    matched_findings=[],
-                    match_score=0.0,
-                    agreed_type=m.primary.type,
-                    agreed_criticality=m.primary.criticality,
-                    recommended_disposition="accept",
-                    description=m.primary.description,
-                ))
-                continue
-
-            # Multi-vendor match — check for disposition agreement
-            all_dispositions = {m.primary.vendor: m.primary.disposition}
-            for matched in m.matched:
-                all_dispositions[matched.vendor] = matched.disposition
-
-            unique_dispositions = set(all_dispositions.values())
-
-            # Determine agreed criticality (take highest)
+            members = [m.primary, *m.matched]
+            all_dispositions = {finding.vendor: finding.disposition for finding in members}
             agreed_crit = m.primary.criticality
             for matched in m.matched:
                 agreed_crit = _higher_criticality(agreed_crit, matched.criticality)
-
-            if len(unique_dispositions) == 1:
-                # All vendors agree on disposition
-                results.append(ConsensusFinding(
-                    id=i,
-                    status="confirmed",
-                    primary_vendor=m.primary.vendor,
-                    primary_finding_id=m.primary.id,
-                    matched_findings=[
-                        {"vendor": mf.vendor, "finding_id": mf.id}
-                        for mf in m.matched
-                    ],
-                    match_score=m.score,
-                    agreed_type=m.primary.type,
-                    agreed_criticality=agreed_crit,
-                    recommended_disposition=m.primary.disposition,
-                    description=m.primary.description,
-                ))
+            if not m.matched:
+                status, policy_status = "unconfirmed", "provisional"
+                recommended = m.primary.disposition
+            elif len(set(all_dispositions.values())) == 1:
+                status = policy_status = "confirmed"
+                recommended = m.primary.disposition
             else:
-                # Disposition disagreement
-                results.append(ConsensusFinding(
-                    id=i,
-                    status="disagreement",
-                    primary_vendor=m.primary.vendor,
-                    primary_finding_id=m.primary.id,
-                    matched_findings=[
-                        {"vendor": mf.vendor, "finding_id": mf.id}
-                        for mf in m.matched
-                    ],
-                    match_score=m.score,
-                    agreed_type=m.primary.type,
-                    agreed_criticality=agreed_crit,
-                    recommended_disposition="escalate",
-                    description=m.primary.description,
-                    vendor_dispositions=all_dispositions,
-                ))
+                status = policy_status = "disagreement"
+                recommended = "escalate"
+            fingerprints = sorted(
+                f"{finding.vendor}:{finding.id}:{finding.file_path or ''}:{finding.description.lower()}"
+                for finding in members
+            )
+            group_id = "cg-" + hashlib.sha256("\n".join(fingerprints).encode()).hexdigest()[:16]
+            decision = evaluate_blocking(
+                policy_status=policy_status,
+                criticality=agreed_crit,
+                vendor_dispositions=all_dispositions,
+                adjudication={"status": "unreviewed"},
+            )
+            results.append(ConsensusFinding(
+                id=i,
+                status=status,
+                policy_status=policy_status,
+                primary_vendor=m.primary.vendor,
+                primary_finding_id=m.primary.id,
+                matched_findings=[{"vendor": item.vendor, "finding_id": item.id} for item in m.matched],
+                match_score=m.score,
+                agreed_type=m.primary.type,
+                agreed_criticality=agreed_crit,
+                recommended_disposition=recommended,
+                description=m.primary.description,
+                vendor_dispositions=all_dispositions,
+                group_id=group_id,
+                integration_blocking=decision.integration_blocking,
+                convergence_blocking=decision.convergence_blocking,
+                effective_blocking=decision.effective_blocking,
+                match_method="single" if not m.matched else ("structured" if "location" in m.basis else "description"),
+                match_evidence=[m.basis] if m.basis else [],
+            ))
 
         return results
 
     def to_dict(self, report: ConsensusReport) -> dict[str, Any]:
         """Convert report to dict conforming to consensus-report.schema.json."""
+        eligible_vendors = [reviewer["vendor"] for reviewer in report.reviewers if reviewer["success"]]
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "review_type": report.review_type,
             "target": report.target,
             "reviewers": report.reviewers,
             "quorum_met": report.quorum_met,
             "quorum_requested": report.quorum_requested,
             "quorum_received": report.quorum_received,
+            "quorum": {
+                "requested": report.quorum_requested,
+                "received": report.quorum_received,
+                "minimum_required": self.quorum,
+                "eligible_vendors": eligible_vendors,
+                "met": report.quorum_met,
+            },
             "consensus_findings": [
                 {
                     "id": cf.id,
+                    "group_id": cf.group_id,
+                    "algorithm_version": "structured-v1",
                     "status": cf.status,
+                    "policy_status": cf.policy_status,
                     "primary_vendor": cf.primary_vendor,
                     "primary_finding_id": cf.primary_finding_id,
                     "matched_findings": cf.matched_findings,
@@ -433,18 +441,48 @@ class ConsensusSynthesizer:
                     "agreed_type": cf.agreed_type,
                     "agreed_criticality": cf.agreed_criticality,
                     "recommended_disposition": cf.recommended_disposition,
+                    "criticality": cf.agreed_criticality,
                     "description": cf.description,
-                    **({"vendor_dispositions": cf.vendor_dispositions} if cf.vendor_dispositions else {}),
+                    "vendor_dispositions": cf.vendor_dispositions,
+                    "source_findings": [
+                        {
+                            "vendor": cf.primary_vendor,
+                            "finding_id": cf.primary_finding_id,
+                            "concern_fingerprint": cf.group_id,
+                            "disposition": cf.vendor_dispositions[cf.primary_vendor],
+                        },
+                        *[
+                            {
+                                "vendor": item["vendor"],
+                                "finding_id": item["finding_id"],
+                                "concern_fingerprint": cf.group_id,
+                                "disposition": cf.vendor_dispositions[item["vendor"]],
+                            }
+                            for item in cf.matched_findings
+                        ],
+                    ],
+                    "match": {"method": cf.match_method, "score": cf.match_score, "evidence": cf.match_evidence},
+                    "adjudication": {"status": "unreviewed"},
+                    "policy": {
+                        "integration_blocking": cf.integration_blocking,
+                        "convergence_blocking": cf.convergence_blocking,
+                        "effective_blocking": cf.effective_blocking,
+                    },
                 }
                 for cf in report.consensus_findings
             ],
             "summary": {
                 "total_unique_findings": report.total_unique,
                 "confirmed_count": report.confirmed_count,
+                "provisional_count": report.unconfirmed_count,
                 "unconfirmed_count": report.unconfirmed_count,
                 "disagreement_count": report.disagreement_count,
+                "integration_blocking_count": report.integration_blocking_count,
+                "convergence_blocking_count": report.convergence_blocking_count,
+                "effective_blocking_count": report.blocking_count,
                 "blocking_count": report.blocking_count,
             },
+            "applied_adjudications": [],
         }
 
     def write_report(self, report: ConsensusReport, output_path: Path) -> None:
