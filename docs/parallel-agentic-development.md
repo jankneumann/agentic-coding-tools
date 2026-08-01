@@ -593,6 +593,13 @@ The `converge()` API extends with three callback-based extension points that pre
 
 **Configurability**: `BLOCKING_CRITICALITIES` and the stall detection window are now parameters of `converge()` rather than hardcoded constants, allowing callers to tune convergence behavior per use case (e.g., tighter thresholds for security-sensitive reviews).
 
+Review convergence is fail-closed: use the consensus report's explicit
+`convergence_blocking_count`, never a matching heuristic or final-round
+relaxation. An unmatched actionable finding remains visible until it has an
+evidence-backed adjudication. Invalid vendor output is retained only as bounded
+redacted attempt diagnostics and cannot count toward quorum; a schema-valid
+empty review can count.
+
 ### Session Scope Enforcement
 
 **Implementation**: [`guardrails.py`](../agent-coordinator/src/guardrails.py), [`session_grants.py`](../agent-coordinator/src/session_grants.py)
