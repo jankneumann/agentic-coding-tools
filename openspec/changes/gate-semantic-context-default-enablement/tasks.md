@@ -638,7 +638,7 @@ requires a favourable number.
       `bash skills/install.sh --check` exits 0 ("Skill install portability
       validation passed").
 
-- [ ] 7.2 Prove the enablement gate by mutation on the integrated tree: flip
+- [x] 7.2 Prove the enablement gate by mutation on the integrated tree: flip
       `INJECTION_DEFAULT_ENABLED` to `True` in a scratch commit, run
       `make semantic-enablement-gate`, capture non-zero exit and the named
       reason, then revert
@@ -648,6 +648,16 @@ requires a favourable number.
       **Size**: S
       **Note**: a gate that was never shown to fail is not evidence that it
       works. Capture the output as an artifact.
+      **Result**: flipped in scratch commit `84120599a2d8e5f3c995d108e70e32d2e26b5a8d`,
+      reverted in the next commit (byte-identical to pre-flip, verified via
+      `git diff HEAD~1`). Raw module exit `3`; `make`'s collapsed exit `2`
+      with `make: *** [semantic-enablement-gate] Error 3` naming the real
+      code. All three unmet conditions (`embedder_fingerprint_current`,
+      `indexed_revision_reachable`, `verdict_pass`) were named correctly.
+      Full output recorded at
+      `docs/evaluation/semantic-context/enablement-gate-mutation-proof.md`.
+      The gate is green again post-revert with the unmodified baseline
+      message.
 
 - [ ] 7.3 Confirm all three contracts are promoted and byte-identical, and that
       `openspec/contracts/README.md` lists them
