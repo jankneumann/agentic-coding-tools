@@ -53,7 +53,7 @@ Any evaluation used to authorize semantic context enablement SHALL record the ex
 
 ### Requirement: Enablement Evidence Expiry
 
-Authorization to enable semantic context SHALL lapse when the evidence supporting it no longer describes the current system. A changed evaluation corpus, a changed threshold, a changed harness version, a change to the harness's own source, a changed embedding fingerprint, an index revision unreachable from the tree under test, a report that fails schema validation, or a report whose body does not account for every case, gate, and consumer the corpus declares SHALL each render the evidence absent.
+Authorization to enable semantic context SHALL lapse when the evidence supporting it no longer describes the current system. A changed evaluation corpus, a changed threshold, a changed harness version, a change to the harness's own source, a changed embedding fingerprint, an index revision unreachable from the tree under test, a report that fails schema validation, a report whose body does not account for every case, gate, and consumer the corpus declares, or a report whose recorded verdict is not the verdict its own body composes to SHALL each render the evidence absent.
 
 #### Scenario: A changed threshold invalidates the existing evidence
 
@@ -89,3 +89,15 @@ Authorization to enable semantic context SHALL lapse when the evidence supportin
   declares, or records a scored-case count its own results do not support
 - **THEN** the evidence SHALL be treated as absent
 - **AND** the unmet condition SHALL be named
+
+#### Scenario: A report that contradicts its own body authorizes nothing
+
+- **WHEN** a report records a passing verdict while its own body records a
+  failing required gate, a failing consumer, an unscored declared case, a
+  scored-case count below its declared count, or a gate that passed at an index
+  tier below the one that gate declares it needs
+- **THEN** the recorded verdict SHALL be re-derived from the body rather than
+  read, and the evidence SHALL be treated as absent
+- **AND** a report whose recorded verdict is a failure SHALL remain valid
+  evidence of that failure even where its individual results all passed, because
+  a run may fail for a reason no single result carries

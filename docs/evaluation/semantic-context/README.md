@@ -227,6 +227,7 @@ enablement as unauthorized — when any of these hold (design decision D12):
 | `index.indexed_revision` is not reachable from the evaluated tree | The measurement describes a tree this one does not descend from. |
 | The report fails schema validation | It is not a report. |
 | The report's body does not account for every declared case, gate, and consumer | Provenance says the evidence is *current*; only the body says it is *about anything*. A document carrying the right digest, the right harness identity, a matching fingerprint, a reachable revision and a `pass` verdict, with `gates: []` and `cases: []`, is green because it is empty. |
+| The report's `verdict` is not the one its own body composes to | Accounting for the whole corpus is not the same as agreeing with it. `compose_verdict()` returns `pass` only when every declared case was scored, every required gate passed and every precondition held, so a `pass` recorded over failing gates, failing consumers, unscored cases, or a gate that passed below the index tier it declares describes a run that cannot have happened. |
 | `verdict` is not `pass` | It never authorized anything. |
 
 Any one of these requires the injection default to stay disabled. This is what
@@ -278,6 +279,24 @@ empty body is unwritable; `report_describes_corpus` re-derives the declared
 denominator from the file on disk, so a schema-valid report that omits a declared
 gate, consumer, or case — which no schema can detect, because it is a comparison
 between two documents — is treated as absent evidence.
+
+A third family closes the same error one layer further in, and it exists because
+the second was not enough either. Accounting for the corpus is not agreeing with
+it: a **three-field** edit of the report below — `verdict` `fail` to `pass`,
+`fail_reasons` deleted, `indexed_revision` filled with any reachable commit,
+which a live run populates anyway — printed **nine** met conditions on its way to
+exit `0`, over a body still recording two required gates failing, five of six
+consumers failing, seven of nineteen cases scored, and `index.tier: "none"`
+against two gates declaring `min_index_tier: "live"`. Every condition
+interrogated what surrounded the conclusion; nothing derived the conclusion. Two
+layers again. The report contract refuses a `pass` that reports a failing gate, a
+failing consumer, or an unscored case; `verdict_consistent` re-derives the
+composer's whole invariant from the artifact, including the two comparisons a
+schema cannot make — `cases_scored` against `cases_declared`, which is a sibling
+comparison, and `index.tier` against each gate's `min_index_tier`, which is an
+ordered one over an enum. The derivation is one-way: a recorded `fail` over a
+body with nothing visibly wrong is legitimate, because a degraded scope adapter
+fails the run without failing any gate.
 
 Without `EMBEDDING_CONTRACT` the embedding fingerprint has nothing to be compared
 against, and that is an unmet condition rather than a skipped one: an unchecked

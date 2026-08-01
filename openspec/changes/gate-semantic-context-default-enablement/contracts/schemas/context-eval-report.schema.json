@@ -302,6 +302,66 @@
       },
       "then": { "not": { "required": ["fail_reasons"] } },
       "description": "Closed in both directions. A pass listing reasons it failed is two contradictory claims about one run, and a reader — or a gate — would have to guess which one governs."
+    },
+    {
+      "title": "A passing report records no failing gate",
+      "if": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "const": "pass" } }
+      },
+      "then": {
+        "properties": {
+          "gates": {
+            "items": {
+              "not": {
+                "required": ["verdict"],
+                "properties": { "verdict": { "const": "fail" } }
+              }
+            }
+          }
+        }
+      },
+      "description": "The same contradiction the two clauses above close for `fail_reasons`, closed for the conclusion itself. `compose_verdict()` returns `pass` only when every declared gate produced a passing result, so a pass over a failing gate is not a document the emitter can write — which is precisely why a text editor can: flipping the top-level `verdict` of a recorded failure is a one-token edit, and every provenance check keeps holding because none of them reads the body. That edit, on the committed report, printed nine met enablement-gate conditions on its way to exit 0. The enablement gate now re-derives the whole invariant from the artifact as well (`verdict_consistent`), because a schema does not run on a file somebody edited by hand."
+    },
+    {
+      "title": "A passing report records no failing consumer",
+      "if": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "const": "pass" } }
+      },
+      "then": {
+        "properties": {
+          "per_consumer": {
+            "items": {
+              "not": {
+                "required": ["verdict"],
+                "properties": { "verdict": { "const": "fail" } }
+              }
+            }
+          }
+        }
+      },
+      "description": "Do-no-harm is absolute and per consumer: `score_utility` fails its gate on any failing consumer and nothing offsets anything, so a pass over a recorded regression is unproducible. Stated here as well as in the composer because the composer's guarantee is about a value in memory and every consumer of this contract re-reads an editable file."
+    },
+    {
+      "title": "A passing report scored every case it reports",
+      "if": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "const": "pass" } }
+      },
+      "then": {
+        "properties": {
+          "cases": {
+            "items": {
+              "not": {
+                "required": ["scored"],
+                "properties": { "scored": { "const": false } }
+              }
+            }
+          }
+        }
+      },
+      "description": "An unscored declared case is `unmeasured` and `denominator_mismatch` in the composer, never a skip — that is the whole difference between this harness and the runner design D2 rejected. The forgery that motivated this clause kept all nineteen declared case ids and marked every one `scored: false` with `cases_scored: 0`, which satisfied the denominator re-derivation exactly: the counts agreed with the body, and the body held no measurement. The sibling comparison `cases_scored == cases_declared` is one JSON Schema cannot make, and the enablement gate re-derives it instead."
     }
   ],
   "$defs": {
