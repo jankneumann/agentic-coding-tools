@@ -515,3 +515,24 @@ Implementation review did not converge. All five configured premium reviewer rou
 
 ### Context
 Resolved all 11 source-audited IMPL_REVIEW blockers across portable routing, bounded attempt recovery, progressive terminal checkpoints, and consensus validation. Focused review hardening tests pass.
+
+---
+
+## Phase: Implementation Fix 3 (2026-08-01)
+
+**Agent**: implementer | **Session**: N/A
+
+### Decisions
+1. **Keep quorum eligibility fail closed** — Checkpoint tests now model valid terminal evidence rather than restoring success-only compatibility.
+
+### Completed Work
+- Stubbed public resolver unavailability in routing test
+- Updated checkpoint fixtures and fake consensus reports to revision-2 contract shape
+- Committed and pushed remediation commit 690ebdaa
+
+### Relevant Files
+- `skills/tests/autopilot/test_convergence_checkpoint.py` — valid logical-attempt fixtures
+- `skills/parallel-infrastructure/scripts/tests/test_review_routing.py` — deterministic fallback test
+
+### Context
+Made review-routing fallback coverage deterministic and upgraded convergence checkpoint fixtures to explicit schema-valid logical terminal attempt chains. The exact expanded verification suite passes.
