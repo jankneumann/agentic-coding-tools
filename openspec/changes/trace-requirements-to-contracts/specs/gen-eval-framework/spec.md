@@ -530,18 +530,31 @@ an event with no rule is the unfalsifiable green this requirement exists to
 prevent; the event set is therefore normative here, not a CI implementation
 detail.
 
-Change-id derivation SHALL consider only directories matching
-`openspec/changes/<id>/` where `<id>` is not `archive`, and SHALL be computed
-with rename detection disabled so that the derived set does not depend on a
-similarity heuristic. `openspec/changes/archive/` SHALL NOT yield a change id.
-It is a directory directly under `openspec/changes/`, so every rule phrased as
-"the change directory touched by the diff" admits it unless it says otherwise;
-an archive pull request would then derive the literal id `archive` and invoke a
-blocking run against a directory that has no `specs/`. Excluding it makes an
-archive pull request touch no change directory, which is the SKIP — correct,
-because archiving is OpenSpec bookkeeping rather than a change the gate can
-scope to, and any traceability debt the merge introduces is reported by the
-post-merge run.
+Change-id derivation SHALL consider only paths that the diff ADDS or MODIFIES,
+under a directory matching `openspec/changes/<id>/` where `<id>` is not
+`archive`, and SHALL be computed with rename detection disabled so that the
+derived set does not depend on a similarity heuristic. Deleted paths SHALL NOT
+yield a change id.
+
+All three conditions are load-bearing, and the deletion filter is the one whose
+absence is least visible. Archiving is a `git mv` from
+`openspec/changes/<id>/` to `openspec/changes/archive/<date>-<id>/`. With
+rename detection disabled — which the determinism requirement above mandates —
+that move decomposes into deletions at the source and additions at the
+destination. Excluding `archive` therefore suppresses only the destination
+half: the source half still names `<id>`, so an archive pull request would
+derive the id of the change it is archiving and invoke a blocking run against a
+directory that no longer exists on that commit. Excluding deletions suppresses
+the source half, and the two exclusions together make an archive pull request
+touch no change directory at all.
+
+That result — the SKIP — is the correct one, because archiving is OpenSpec
+bookkeeping rather than a change the gate can scope to, and any traceability
+debt the merge introduces is reported by the post-merge run.
+
+The deletion filter also makes derivation robust to a base commit that predates
+an archive: without it, any pull request whose diff spans an archive commit
+derives the archived id alongside its own and fails the ambiguity rule.
 
 On `pull_request`, the job SHALL derive a change id from the change directory
 touched by the diff against the pull request's base commit, SHALL invoke the
@@ -651,7 +664,9 @@ only a check on the candidate can stop it going red.
 
 - **WHEN** the sweep runs at capability scope with no `--change` argument
 - **THEN** it SHALL resolve against the archived specs shadowed by every spec
-  delta present under `openspec/changes/`
+  delta present directly under `openspec/changes/<id>/`
+- **AND** it SHALL NOT union deltas under `openspec/changes/archive/`, which
+  are already merged into `openspec/specs/`
 - **AND** it SHALL NOT fail for the absence of a change id
 
 <!-- Scenario ID: gen-eval-framework.non-openspec-pr-skips -->
@@ -695,12 +710,13 @@ only a check on the candidate can stop it going red.
 <!-- Scenario ID: gen-eval-framework.archive-pull-requests-skip -->
 #### Scenario: An archive pull request derives no change id
 
-- **WHEN** the job runs on a pull request whose only touched paths under
-  `openspec/changes/` are beneath `openspec/changes/archive/`
+- **WHEN** the job runs on a pull request that moves `openspec/changes/<id>/`
+  to `openspec/changes/archive/<date>-<id>/` and changes nothing else under
+  `openspec/changes/`
 - **THEN** it SHALL derive no change id
-- **AND** it SHALL print a SKIP rather than deriving the id `archive`
-- **AND** it SHALL NOT fail as ambiguous, whether or not the diff is computed
-  with rename detection
+- **AND** it SHALL derive neither the literal id `archive` from the added paths
+  nor `<id>` from the deleted paths
+- **AND** it SHALL print a SKIP and SHALL NOT fail as ambiguous
 
 <!-- Scenario ID: gen-eval-framework.merge-group-ignores-unbatched-changes -->
 #### Scenario: A merge group is not evaluated against changes outside the batch

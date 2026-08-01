@@ -496,17 +496,34 @@ every such pull request the day this lands. On `pull_request` — and only there
 guessing; on `merge_group` a batch of several is the ordinary case and the job
 iterates.
 
-Derivation excludes `openspec/changes/archive/` and disables rename detection.
-`archive` is itself a directory directly under `openspec/changes/`, so an
-unqualified "the change directory touched by the diff" admits it, and every
-`chore(openspec): archive <id>` pull request would derive the literal id
-`archive` and invoke a blocking run against a directory with no `specs/`. Worse,
-which failure you get would depend on an unstated flag: verified on three real
-archive commits, rename detection collapses the move to `{archive}` (count 1 —
-silently degrades), while `--no-renames` yields `{archive, <the archived id>}`
-or more (count 2+ — hard-reds every archive pull request). Naming the flag and
-excluding `archive` makes an archive pull request take the SKIP, which is
-right: archiving is bookkeeping, not a change the gate can scope to.
+Derivation takes three conditions together — added-or-modified paths only,
+under `openspec/changes/<id>/`, with `<id>` not `archive`, rename detection
+off — and all three are load-bearing. Archiving is a `git mv` from
+`openspec/changes/<id>/` to `openspec/changes/archive/<date>-<id>/`, so with
+rename detection off (which determinism requires) it decomposes into deletions
+at the source and additions at the destination. Excluding `archive` suppresses
+only the destination; the source still names `<id>`.
+
+Two drafts of this rule were wrong in opposite directions, both measured on the
+same three real archive commits, and the measurements are recorded because
+neither error was visible by reading:
+
+| Draft | `247bc201` | `600744a5` | `a17e33f7` | Effect |
+|---|---|---|---|---|
+| no exclusions, renames on | `{archive}` | `{archive}` | `{archive}` | blocking run on a dir with no `specs/` |
+| no exclusions, `--no-renames` | 2 ids | 3 ids | 2 ids | ambiguity — every archive PR reds |
+| exclude `archive` only | 1 id | 2 ids | 1 id | silently degrades, or reds |
+| + `--diff-filter=d` | `{}` | `{}` | `{}` | SKIP — correct |
+
+The deletion filter is the condition whose absence is least visible, because
+its failure mode on a single-change archive PR is *one* derived id: no
+ambiguity, no SKIP, just a blocking run against a directory that no longer
+exists on that commit. It also makes derivation robust to a base predating an
+archive — without it, any pull request whose diff spans an archive commit
+derives the archived id alongside its own and trips ambiguity.
+
+The SKIP is the right outcome: archiving is bookkeeping, not a change the gate
+can scope to.
 
 **The base is named, and an unresolvable base is an error — not the SKIP.**
 "The diff" is against the pull request's base commit on `pull_request` and the

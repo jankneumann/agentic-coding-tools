@@ -263,7 +263,10 @@ packages:
 
       3.16 owns BOTH capability-scope resolution modes (D12): `--change <id>`
       shadows the archive with that delta, omitting it unions every delta
-      under openspec/changes/. `--change` is orthogonal to `--scope`, so
+      directly under `openspec/changes/<id>/` — EXCLUDING
+      `openspec/changes/archive/`, whose 128 deltas are already merged into
+      openspec/specs/ and whose REMOVED/RENAMED sections would resurrect or
+      re-move requirements if re-applied. `--change` is orthogonal to `--scope`, so
       `--scope capability --change <id>` must parse — it is what task 5.7c
       runs on the merge candidate. The gate must NOT error on a missing
       `--change` at capability scope; that is the post-merge job's signature.
@@ -437,10 +440,12 @@ packages:
       writing any YAML: (1) every BLOCKING invocation supplies `--change`, and
       union mode is used ONLY by the non-blocking push run; (2) `merge_group`
       iterates once per batched change id — never union, because the diff is
-      the batch and the TREE is not; (3) derivation excludes
-      `openspec/changes/archive/` and passes `--no-renames`, or every archive
-      PR breaks; (4) no `if:` excluding a declared trigger, and an unresolvable
-      base where one is required is an ERROR, never the SKIP.
+      the batch and the TREE is not; (3) derivation needs ALL THREE of
+      `--no-renames`, `--diff-filter=d` (exclude deletions) and `grep -v
+      '^archive$'` — task 5.7 has the exact command and the measurements
+      showing each of the three drafts that omitted one broke a real archive
+      PR; (4) no `if:` excluding a declared trigger, and an unresolvable base
+      where one is required is an ERROR, never the SKIP.
 
       Test file mapping: test_gen_eval_mode_selection.py is pre-existing;
       test_validate_feature_gate.py <- 5.6; test_ci_sweep_wiring.py <- 5.7,

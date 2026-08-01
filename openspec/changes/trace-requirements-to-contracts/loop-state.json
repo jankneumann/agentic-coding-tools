@@ -1,11 +1,25 @@
 {
   "blocking_findings": [
     {
-      "id": "R7-F1",
+      "id": "R8-F1",
       "severity": "critical",
       "status": "FIXED inline",
-      "title": "Change-id derivation admitted openspec/changes/archive/",
-      "summary": "R6-N1 excluded archive/ from UNION mode but the exclusion was never propagated to the DERIVATION rule one paragraph below, which round 6 had just rewritten. Verified on three real archive commits: with rename detection a chore(openspec): archive PR derives the literal id 'archive' (count 1, blocking run against a dir with no specs/); with --no-renames it derives 2-3 ids and hard-reds every archive PR. Fixed by excluding archive/ from derivation, mandating --no-renames so the result cannot depend on a similarity heuristic, and adding scenario archive-pull-requests-skip."
+      "title": "The round-7 archive fix's two halves defeated each other",
+      "summary": "--no-renames decomposes the archive git mv into deletions at openspec/changes/<id>/ plus additions at openspec/changes/archive/<date>-<id>/. Excluding `archive` suppressed only the additions, so an archive PR still derived the id of the change it was archiving. Measured: 247bc201 -> 1 id (blocking run against a dir with 0 files at that commit), 600744a5 -> 2 ids (ambiguity, hard red), a17e33f7 -> 1 id. Fixed by adding --diff-filter=d; all three then derive {} -> SKIP, normal PRs keep their own id, and a base predating an archive no longer trips ambiguity."
+    },
+    {
+      "id": "R8-F2",
+      "severity": "critical",
+      "status": "FIXED inline",
+      "title": "Union mode's archive exclusion reached the prose but not the scenario or the dispatch payload",
+      "summary": "Round 6 excluded archive/ from union mode in spec.md requirement prose and design.md only. The scenario omitted-change-flag-unions-deltas (what a test is written from), task 3.16's note, task 5.7's note and wp-gate's package description (what an agent is actually handed) all still said 'every delta under openspec/changes/'. Propagated to all four."
+    },
+    {
+      "id": "R8-N1",
+      "severity": "nit",
+      "status": "FIXED inline",
+      "title": "archive-pull-requests-skip had an unreachable WHEN",
+      "summary": "Its WHEN said the only touched paths are beneath archive/, which is false under the mandated --no-renames since a real archive commit touches paths at the source too. Rewritten to describe the git mv, and to assert neither half yields an id."
     }
   ],
   "change_id": "trace-requirements-to-contracts",
@@ -20,7 +34,8 @@
     1,
     4,
     2,
-    1
+    1,
+    2
   ],
   "force": false,
   "gate_signals": {
@@ -44,12 +59,13 @@
     "plan-review-20260731T195510Z",
     "plan-review-20260801T152600Z",
     "plan-review-20260801T160500Z",
-    "plan-review-20260801T180000Z"
+    "plan-review-20260801T180000Z",
+    "plan-review-20260801T193000Z"
   ],
   "implementation_strategy": {},
-  "iteration": 7,
-  "last_handoff_id": "plan-review-20260801T180000Z",
-  "max_phase_iterations": 7,
+  "iteration": 8,
+  "last_handoff_id": "plan-review-20260801T193000Z",
+  "max_phase_iterations": 8,
   "memory_ids": [],
   "package_authors": {},
   "packages_status": {},
@@ -218,6 +234,27 @@
       "round": 7,
       "at": "2026-08-01T18:00:00+00:00",
       "note": "R7-F1 plus all 3 nits fixed inline. No operator decision was needed: the fix follows directly from R6-N1's own stated reasoning. 59 scenarios. NOT YET CONFIRMED by any reviewer."
+    },
+    {
+      "phase": "PLAN_REVIEW",
+      "outcome": "started",
+      "round": 8,
+      "at": "2026-08-01T18:30:00+00:00",
+      "note": "FINAL review round. Operator instruction: 'run round 8, then proceed to IMPLEMENT regardless'. Whatever round 8 returns, the loop does NOT iterate again \u2014 blocking findings are fixed inline if cheap and otherwise carried into IMPLEMENT as a recorded known-issues list. not_converged here does NOT mean ESCALATE."
+    },
+    {
+      "phase": "PLAN_REVIEW",
+      "outcome": "not_converged",
+      "round": 8,
+      "at": "2026-08-01T19:30:00+00:00",
+      "note": "FINAL round. 2 critical + 2 nit + 1 fyi, all text-only. Cleared on independent check: [human] carve-out intact across all packages, every write_allow covers its tasks' files, no task without a writable owner, wp-wiring PREFLIGHT exits 1 on the unmodified tree, derivation correct on normal/dependabot/docs/chore/claude/codex/merge_group cases. One reviewer sub-claim did NOT hold: three-dot merge-base form derives 1 id, not 2 \u2014 corrected, does not affect the fix."
+    },
+    {
+      "phase": "PLAN_FIX",
+      "outcome": "complete",
+      "round": 8,
+      "at": "2026-08-01T19:30:00+00:00",
+      "note": "Both criticals and the reachable nit fixed inline; no operator decision needed. Per operator instruction ('run round 8, then proceed to IMPLEMENT regardless'), the loop does NOT iterate again. 59 scenarios. PLAN phase closes here with the fix unconfirmed by any reviewer \u2014 that is the accepted, instructed outcome, not an oversight."
     }
   ],
   "phase_started_at": "2026-07-31T20:33:27.549085+00:00",

@@ -451,7 +451,14 @@ that way answers a question about a different copy.
   **Note**: `--change` is what selects RESOLUTION, and it is orthogonal to
   `--scope`. Supplied: the archive is shadowed by that one change's delta,
   other in-flight changes neither citable nor excludable. Omitted: the archive
-  is shadowed by the union of every delta under `openspec/changes/`. Capability
+  is shadowed by the union of every delta directly under
+  `openspec/changes/<id>/`, EXCLUDING `openspec/changes/archive/` — those 128
+  deltas are already merged into `openspec/specs/`, so re-applying them shadows
+  the archive with itself, and a REMOVED or RENAMED section would resurrect or
+  re-move a requirement. Assert the exclusion in `test_resolution_modes.py`
+  against a fixture that has an `archive/` subtree; the repository's real
+  `openspec/changes/archive/` is 128 deltas deep and makes a good smoke check
+  but a poor unit fixture. Capability
   scope accepts BOTH forms — `--scope capability --change <id>` is exactly what
   task 5.7c runs on the merge candidate, and `--scope capability` bare is the
   post-merge job. Do NOT make the gate error on a missing `--change` at
@@ -661,19 +668,35 @@ be meaningful.
   currently returns exactly one hit (`if: failure()`) — no job in this workflow
   is event-guarded, so an unguarded job runs on all three whether or not the
   plan anticipated it. The three behaviours:
-    - DERIVATION, shared by both blocking events: consider only
-      `openspec/changes/<id>/` where `<id>` is NOT `archive`, and pass
-      `--no-renames` so the derived set does not depend on git's similarity
-      heuristic. Verified on three real archive commits (`247bc201`,
-      `600744a5`, `a17e33f7`): without the `archive` exclusion, a
-      `chore(openspec): archive <id>` PR derives the literal id `archive` and
-      runs the BLOCKING gate against a directory with no `specs/`. With rename
-      detection on, the move collapses to `{archive}` (count 1, silently
-      degrades); with `--no-renames` it yields `{archive, <archived id>}` or
-      more (count 2+, hard-reds every archive PR). Excluding `archive` makes
-      those PRs touch zero change dirs → SKIP, which is correct: archiving is
-      bookkeeping, not a change to scope to, and any debt the merge introduces
-      is reported by the post-merge run.
+    - DERIVATION, shared by both blocking events. Three conditions, ALL
+      required — the exact command, verified against real commits:
+
+          git diff --no-renames --diff-filter=d --name-only <base> HEAD \
+            -- openspec/changes/ \
+            | sed 's#^openspec/changes/\([^/]*\)/.*#\1#' | sort -u \
+            | grep -v '^archive$'
+
+      `--no-renames` so the set does not depend on git's similarity heuristic;
+      `--diff-filter=d` (lowercase — EXCLUDE deletions) so the source half of
+      an archive `git mv` does not name the change being archived;
+      `grep -v archive` so the destination half does not name the literal id
+      `archive`. Dropping any one of the three breaks a real case.
+      **The deletion filter is the one whose absence is invisible**, and an
+      earlier draft of this task omitted it while claiming the archive
+      exclusion alone produced a SKIP. It does not: with `--no-renames` the
+      `git mv` decomposes into deletions at `openspec/changes/<id>/` plus
+      additions at `openspec/changes/archive/<date>-<id>/`, so excluding
+      `archive` suppresses only the additions. Measured on three real archive
+      commits with the archive exclusion but no deletion filter:
+        `247bc201` → `{derive-descriptors-from-contracts}` — one id, so no
+                     ambiguity and no SKIP; the BLOCKING gate then runs
+                     `--change` against a directory with zero files at that
+                     commit (`git ls-tree -r 247bc201 <that dir>` → 0).
+        `600744a5` → two ids → ambiguity rule → every archive PR hard-reds.
+        `a17e33f7` → one id, same silent-degradation path as the first.
+      With `--diff-filter=d` all three derive `{}` → SKIP, a normal openspec
+      commit still derives its own id, and a base predating an archive commit
+      derives only the PR's own id instead of tripping ambiguity.
     - `pull_request` → base `github.event.pull_request.base.sha`, derive the
       change id from the diff, invoke `--change <id>`, BLOCKING. Zero touched
       change directories → SKIP; two → fail as ambiguous.
