@@ -80,3 +80,7 @@ Approved external dispatch requested four reviewers but produced zero eligible r
 | 5 | observed blocker | The public per-vendor timeout reset for each model attempt and prevented later vendors from running. | Defined one monotonic deadline for the entire vendor/model chain, outer enforcement, progressive terminal persistence, and continuation to later scheduled vendors. |
 
 The optional pre-parse output cap remains below threshold and is carried as residual risk. Independent vendor quorum remains required after implementation fixes the dispatcher behavior; the current apparatus cannot manufacture convergence from its zero count.
+
+### Independently bounded bootstrap review
+
+To avoid the broken sequential dispatcher, Antigravity, Claude Code, Grok, and Pi were dispatched concurrently with reviewer/premium models, fallbacks disabled, and one 300-second hard limit per vendor. Results were Antigravity invalid JSON (`error_class=null`, 230.80s), Pi invalid JSON (`error_class=null`, 1.54s), Claude timeout (300.04s), and Grok timeout (300.03s). Quorum remained 0/4. The run is durable at `reviews/independent-bootstrap-manifest.json` and does not change the fail-closed `not_converged` outcome.
