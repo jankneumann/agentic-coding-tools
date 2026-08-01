@@ -1,45 +1,39 @@
 {
   "blocking_findings": [
     {
-      "id": "F1",
+      "id": "R6-F1",
       "severity": "critical",
-      "status": "FIXED under operator decision (one job, event-selected mode)",
-      "title": "Blocking CI job's event set and base discriminator are unspecified",
-      "summary": "ci.yml has three triggers (push:[main], pull_request, merge_group) and zero event guards ('grep -n \"if:\"' returns only 'if: failure()'). 'grep -rn event_name' across all five plan artifacts returns zero. D12's table, tasks.md:634 and work-packages.yaml:408 all say the blocking sweep is pull_request-triggered, which either makes the round-4 merge_group fix unreachable, or \u2014 with no guard, the repo convention \u2014 runs the job on push where no base exists and spec.md:520 makes that a hard failure, redding main on every push."
+      "status": "OPEN \u2014 needs operator decision",
+      "title": "merge_group union-and-block is unsatisfiable",
+      "summary": "git ls-tree origin/main openspec/changes/ returns 34 entries (33 in-flight + archive/). extract-gen-eval-package (6), factory-missions-architecture-alignment (3) and rename-descriptor-model-levels (2) carry gen-eval-framework deltas = 11 requirements with no landed implementation. Union mode on merge_group therefore unions all in-flight deltas exactly as push-on-main does; there is no 'exactness' distinction. With 4.2b flipping reverse enforcement on, the BLOCKING merge_group run fails on those 11, failing this PR and everything queued behind it. Not excludable: spec.md:404 other-changes-are-invisible makes naming them a failure. The orchestrator's justification at spec.md:567 asserted the opposite premise without verifying it."
     },
     {
-      "id": "F3",
+      "id": "R6-F2",
       "severity": "critical",
-      "status": "FIXED under operator decision (one job, event-selected mode)",
-      "title": "merge_group diff spans every batched PR, so the ambiguity rule fails the queue",
-      "summary": "spec.md:524 says a diff touching more than one change directory SHALL fail as ambiguous. On merge_group the diff covers the whole group, so any two OpenSpec changes batched together fail the merge queue. Coupled to F1: whether this matters at all depends on whether the blocking job runs on merge_group."
+      "status": "OPEN \u2014 coupled to R6-F1",
+      "title": "The only acceptance criterion never runs the gating invocation",
+      "summary": "Task 5.7c runs --scope capability --change trace-requirements-to-contracts (the pull_request mode) and concludes the merge will not red main. It never runs the bare union invocation that actually gates merge_group, which is precisely why nothing in the plan detected R6-F1. Its resolution depends on what R6-F1's invocation turns out to be."
     },
     {
-      "id": "F2",
-      "severity": "critical",
+      "id": "R6-N1",
+      "severity": "nit",
       "status": "FIXED inline",
-      "title": "proposal.md contradicted D12, the spec delta, and its own risks table",
-      "summary": "proposal.md:229 stated as an acceptance criterion that the integration-branch sweep FAILS on violations, while the risks table in the same file says it 'reports them in full without blocking'. Both lines 65 and 229 attributed blocking to the integration branch rather than the merge candidate. Corrected."
-    },
-    {
-      "id": "F4",
-      "severity": "critical",
-      "status": "FIXED inline",
-      "title": "skill-workflow's no-hand-fill requirement had no owner",
-      "summary": "The hand-fill instruction lives in two source copies of the change-context.md template, neither covered by any package's write_allow. wp-matrix believed SKILL.md was the only copy. Added both paths to wp-matrix write_allow, named them in task 5.5, and added a verification step confirmed to FAIL on the unmodified tree (exit 1, naming both files)."
+      "title": "Union mode did not exclude openspec/changes/archive/",
+      "summary": "'every spec delta present under openspec/changes/' literally includes archive/, which holds 128 archived deltas already merged into openspec/specs/. Re-applying them shadows the archive with itself, and a REMOVED/RENAMED delta would resurrect or re-move a requirement. Now excluded explicitly."
     }
   ],
   "change_id": "trace-requirements-to-contracts",
   "cli_review_enabled": true,
-  "current_phase": "PLAN_FIX",
+  "current_phase": "ESCALATE",
   "error": null,
-  "escalation_reason": null,
+  "escalation_reason": "Round 6 found the operator's round-5 decision UNSATISFIABLE as implemented, on a false premise the orchestrator asserted without checking. merge_group union-and-block cannot work: a merge-queue branch is main plus the batched PRs, and main carries all 33 unarchived change directories, 3 of which add 11 uncited gen-eval-framework requirements. Task 4.2b flips that capability into blocking reverse enforcement, so the blocking union run fails on other changes' requirements \u2014 and they cannot be excluded, because scenario other-changes-are-invisible makes an exclusion naming another in-flight change's requirement a failure. R6-F2 is why nothing caught it: task 5.7c, the only acceptance criterion, runs the pull_request-mode invocation and never the union invocation that gates the merge. Both need one operator decision. iteration 6 of 6.",
   "findings_trend": [
     10,
     6,
     3,
     1,
-    4
+    4,
+    2
   ],
   "force": false,
   "gate_signals": {
@@ -61,12 +55,13 @@
     "plan-review-20260728T151918Z",
     "plan-review-20260731T134500Z",
     "plan-review-20260731T195510Z",
-    "plan-review-20260801T152600Z"
+    "plan-review-20260801T152600Z",
+    "plan-review-20260801T160500Z"
   ],
   "implementation_strategy": {},
-  "iteration": 5,
-  "last_handoff_id": "plan-review-20260801T152600Z",
-  "max_phase_iterations": 5,
+  "iteration": 6,
+  "last_handoff_id": "plan-review-20260801T160500Z",
+  "max_phase_iterations": 6,
   "memory_ids": [],
   "package_authors": {},
   "packages_status": {},
@@ -180,10 +175,31 @@
       "round": 5,
       "at": "2026-08-01T16:10:00+00:00",
       "note": "F1+F3 fixed across all four owning artifacts. Also corrected three statements the operator's decision falsified that no finding had named: (a) 'the blocking job SHALL supply --change' in the spec delta, false once merge_group blocks while omitting it; (b) the union-mode rationale 'that is exactly why the job using it reports and never blocks', in BOTH spec.md and design.md; (c) tasks.md's 'the two jobs differ...' note. Union looseness reframed as a property of the branch, not the mode. 5 new scenarios (57 total). NOT YET CONFIRMED by any reviewer."
+    },
+    {
+      "phase": "PLAN_REVIEW",
+      "outcome": "started",
+      "round": 6,
+      "at": "2026-08-01T16:15:00+00:00",
+      "note": "max_phase_iterations raised 5->6 per the skill's ESCALATE resume path ('re-evaluate the gate check for previous_phase'), the same route the round-3 escalation took at 3->4. Confirming round against 5979e25f, which no reviewer has read."
+    },
+    {
+      "phase": "PLAN_REVIEW",
+      "outcome": "not_converged",
+      "round": 6,
+      "at": "2026-08-01T16:05:00+00:00",
+      "note": "2 blocking + 3 nits. All four narrow briefs (B2-B5) came back CLEAN and were spot-checked: ci.yml declares exactly the three triggers, per-event non-blocking is expressible in Actions without continue-on-error, wp-wiring's trimmed pointer lost nothing, and the F4 template gate fails correctly on the unmodified tree. The two criticals came from reading the spec end to end \u2014 not stale prose this time, but a false premise in the orchestrator's own round-5 justification."
+    },
+    {
+      "phase": "PLAN_FIX",
+      "outcome": "partial",
+      "round": 6,
+      "at": "2026-08-01T16:05:00+00:00",
+      "note": "R6-N1 fixed inline (union mode now excludes archive/). R6-F1 and R6-F2 NOT fixed \u2014 coupled, and the orchestrator has now been wrong twice in a row about merge_group semantics specifically. Escalated rather than guessed a third time."
     }
   ],
   "phase_started_at": "2026-07-31T20:33:27.549085+00:00",
-  "previous_phase": "ESCALATE",
+  "previous_phase": "PLAN_REVIEW",
   "schema_version": 4,
   "started_at": "2026-07-28T14:22:58.793360+00:00",
   "total_iterations": 1,

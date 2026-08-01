@@ -510,7 +510,11 @@ is supplied. Given `--change <id>`, it SHALL resolve against the archived
 capability specs shadowed by that change's spec delta, with other in-flight
 changes' requirements neither citable nor excludable. With `--change` omitted,
 it SHALL resolve against the archived specs shadowed by every spec delta present
-under `openspec/changes/` on the branch. Which run blocks SHALL be a property of
+directly under `openspec/changes/<id>/` on the branch, excluding
+`openspec/changes/archive/`. Archived deltas SHALL NOT be unioned: they have
+already been merged into `openspec/specs/`, so re-applying them shadows the
+archive with itself, and a delta that REMOVED or RENAMED a requirement would
+resurrect or re-move it. Which run blocks SHALL be a property of
 the CI job and not of the gate. Supplying `--change` SHALL NOT imply blocking
 and omitting it SHALL NOT imply reporting: the two choices are independent, and
 the merge-candidate run on `merge_group` both omits `--change` and blocks.
