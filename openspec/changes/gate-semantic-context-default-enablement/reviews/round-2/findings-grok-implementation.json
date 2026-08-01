@@ -1,0 +1,20 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "R1's empty-body hole was closed, but the same class of defect remains for a partial-but-non-empty hollow report. I constructed (by hand, not via a real measurement) a schema-valid report that: (1) carries all 19 corpus case ids, all 4 gate ids, and all 6 consumers; (2) marks every case `scored: false` with `unscored_reason: \"producer_error\"` and sets `corpus.cases_scored: 0`; (3) forces every gate and consumer and the top-level field to `verdict: \"pass\"` with non-empty fabricated `measured`/`metrics` maps; (4) keeps current corpus digest, harness version, harness source fingerprint, embedder fingerprint, and a HEAD-reachable `indexed_revision`. Then: `report.validate_report(doc)` accepted it; `report.write_report(...)` wrote it; and with `INJECTION_DEFAULT_ENABLED: bool = True` the gate authorized enablement. Command (worktree root): packages/context-eval/.venv/bin/python (inline script calling enablement_gate.main([...])) \u2014 observed stdout: 'INJECTION_DEFAULT_ENABLED is True, authorized by .../report.json' with every condition printed as met, including `report_describes_corpus` ('accounts for all 19 declared cases, 4 gates and 6 consumers') and `verdict_pass`, exit code 0. Controls on the same tree: empty body still rejected (exit 3, schema_valid); omitting one declared gate still rejected (exit 3, report_describes_corpus); a legitimately composed full-score pass still authorizes (exit 0); 332 tests pass; `make semantic-enablement-gate` is green with default off. Root cause: both R1 layers only enforce non-emptiness / ID coverage / count consistency. Schema allows `corpus.cases_scored` minimum 0 under a top-level `pass`, and `_describes_corpus_condition` never requires that any case was actually scored (or that a pass obeys the composer's own invariant that any unscored declared case fails the run). Provenance + a non-empty skeleton is still treated as evidence of a measurement that did not happen.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/enablement_gate.py",
+      "line_range": {
+        "start": 301,
+        "end": 375
+      },
+      "resolution": "Re-derive the composer's pass invariant onto the on-disk artifact, in both layers: (1) in `_describes_corpus_condition` (or a sibling condition), refuse a report that claims `verdict: \"pass\"` unless every declared case is present with `scored: true` and `corpus.cases_scored == len(corpus.cases)` (composer already fails any unscored declared case with `unmeasured`/`denominator_mismatch` \u2014 that rule must travel with the file); optionally also reject internal contradictions such as gate `measured.cases_scored` disagreeing with the body. (2) In both copies of `context-eval-report.schema.json`, add a pass-side constraint so a top-level pass cannot declare `cases_scored: 0` (minimum bar) and cannot omit the all-scored body the emitter is supposed to produce. (3) Extend `test_enablement_gate_mutation.py` MISDESCRIBING_BODIES / hollow-report coverage with this exact mutant (19 unscored cases, fabricated pass gates, current provenance) and assert exit != 0 naming the condition \u2014 the existing empty-array and omit-one-id mutants do not catch it. Do not re-score thresholds in the gate; the defect is 'pass over an unmeasured body', not 'pass with wrong numbers'."
+    }
+  ]
+}

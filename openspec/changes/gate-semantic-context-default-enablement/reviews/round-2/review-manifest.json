@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-08-01T21:58:23Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 68.55873725004494,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.5",
+      "models_attempted": [
+        "gpt-5.5"
+      ],
+      "elapsed_seconds": 227.06290841591544,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 290.8099031250458,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "qwen/qwen3-coder"
+      ],
+      "elapsed_seconds": 1.3238486250629649,
+      "error": "402: {\"message\":\"Insufficient credits. Add more using https://openrouter.ai/settings/credits\",\"code\":402,\"metadata\":{\"limit_source\":\"openrouter_credits\",\"remedy_hint\":\"Add credits at https://openrouter.ai/settings/credits, or lower max_tokens / prompt size to fit your remaining balance.\"}}\n",
+      "error_class": "unknown"
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 3,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-implementation.json",
+      "finding_count": 2
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-implementation.json",
+      "finding_count": 1
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-implementation.json",
+      "finding_count": 1
+    }
+  ]
+}
