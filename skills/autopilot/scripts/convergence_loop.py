@@ -175,17 +175,22 @@ def _is_blocking(
     relax_unconfirmed: bool = False,
     blocking_criticalities: set[str] | None = None,
 ) -> bool:
-    """Determine if a consensus finding is blocking.
+    """Determine if a consensus finding blocks convergence.
 
-    Blocking = medium+ criticality AND (confirmed or unconfirmed).
-    In the final round, unconfirmed findings are relaxed (not blocking).
+    Revision-2 consensus reports carry the fail-closed policy decision.  The
+    legacy fallback remains only for reports produced by older synthesizers.
 
     Args:
         cf: Consensus finding dict.
-        relax_unconfirmed: If True, unconfirmed findings are not blocking.
+        relax_unconfirmed: Deprecated compatibility argument; ignored for
+            revision-2 policy decisions.
         blocking_criticalities: Custom set of criticalities that count as
             blocking. Defaults to ``_BLOCKING_CRITICALITIES``.
     """
+    policy = cf.get("policy")
+    if isinstance(policy, dict) and "convergence_blocking" in policy:
+        return bool(policy["convergence_blocking"])
+
     effective_criticalities = (
         blocking_criticalities if blocking_criticalities is not None
         else _BLOCKING_CRITICALITIES
@@ -199,7 +204,7 @@ def _is_blocking(
     if status == "confirmed":
         return True
 
-    if status == "unconfirmed" and not relax_unconfirmed:
+    if status == "unconfirmed":
         return True
 
     return False
@@ -529,15 +534,12 @@ def converge(
                 )))
             return disagreement_result
 
-        # 2g. Filter blocking findings (medium+ confirmed/unconfirmed)
-        is_final_round = round_num == max_rounds
-
-        # 2h. Relax unconfirmed in final round
+        # 2g. Filter the explicit fail-closed policy count.  Do not relax
+        # unadjudicated findings in the final round: exhaustion escalates.
         blocking = [
             cf for cf in consensus_dict.get("consensus_findings", [])
             if _is_blocking(
                 cf,
-                relax_unconfirmed=is_final_round,
                 blocking_criticalities=blocking_criticalities,
             )
         ]
