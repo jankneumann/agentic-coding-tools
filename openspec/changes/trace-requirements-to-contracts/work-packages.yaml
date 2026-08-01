@@ -428,26 +428,26 @@ packages:
       Wire the change-scoped gate into
       skills/validate-feature/SKILL.md (bare invocation, --scope change
       --change <id>, non-zero exit fails validation) with skill tests per the
-      skill-workflow delta; wire the full-capability sweep into ci.yml as a
-      `pull_request` job (blocking, bare invocation, fetch-depth: 0 since a
-      merge base is computed) plus a non-blocking `push`-on-main job for debt
-      visibility — a push job alone runs after the merge and cannot block it
-      (D12). The blocking job derives `--change <id>` from the change directory
-      the DIFF touches, not from the branch name (ci.yml has no branch filter,
-      and OPENSPEC_BRANCH_OVERRIDE / agent-id suffixes defeat name parsing);
-      zero touched change directories prints a SKIP and exits zero, two fails
-      as ambiguous. NAME the base: `pull_request` carries
-      github.event.pull_request.base.sha, `merge_group` carries
-      github.event.merge_group.base_sha, ci.yml:7 triggers on both unfiltered,
-      and an unresolvable base is an ERROR — never the SKIP, or the merge queue
-      passes silently. The push job passes no `--change` at all.
+      skill-workflow delta; wire the full-capability sweep into ci.yml as ONE
+      job on all three declared events, branching on github.event_name (bare
+      invocation, fetch-depth: 0). Task 5.7 carries the full per-event table —
+      follow it exactly. In summary: `pull_request` derives `--change <id>`
+      from the DIFF (not the branch name) and BLOCKS; `merge_group` omits
+      `--change`, applies NO ambiguity rule, and BLOCKS; `push` on main omits
+      `--change` and is NON-blocking. Do NOT add an `if:` excluding a declared
+      trigger — `grep -n 'if:' ci.yml` returns one hit today (`if: failure()`),
+      so nothing in that workflow is event-guarded. An unresolvable base where
+      one is required is an ERROR, never the SKIP, or the merge queue passes
+      silently.
 
       Test file mapping: test_gen_eval_mode_selection.py is pre-existing;
-      test_validate_feature_gate.py <- 5.6; test_ci_sweep_wiring.py <- 5.7
-      (the SKIP path and the unresolvable-base failure, driving the job's bash
-      fragment extracted from ci.yml). Both new files are in write_allow via
+      test_validate_feature_gate.py <- 5.6; test_ci_sweep_wiring.py <- 5.7,
+      driving the job's bash fragment extracted from ci.yml and covering all
+      five wiring scenarios (SKIP, unresolvable-base FAILURE, merge_group
+      union-and-block, push-to-main exiting zero despite findings, and no `if:`
+      guard). Both new files are in write_allow via
       skills/tests/validate-feature/** and each has a verification step below
-      that fails when the file is absent. Both resolution
+      that fails when the file is absent OR empty. Both resolution
       modes are wp-gate's work (task 3.16) and exist before this package runs; register `tests/validate-feature` in skills/pyproject.toml
       `testpaths`, without which the new skill tests never run in CI; update
       packages/gen-eval/README.md with the four-edge chain and the D5
@@ -543,9 +543,18 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["wiring_tests"]
-        - name: "the CI-sweep wiring scenarios have a test that exists"
+        # NOT `test -f` — that step passed against an empty file created by
+        # `touch`, and the directory-wide pytest step above already exits 0 on
+        # the unmodified tree, so between them nothing noticed the file was
+        # never written. Targeting the file with pytest closes both holes:
+        # verified exit 4 when the file is absent (today's tree) and exit 5
+        # ("no tests ran") when it exists but is empty. Only real collected
+        # tests exit 0.
+        - name: "the CI-sweep wiring scenarios have tests that actually run"
           kind: command
-          command: "test -f skills/tests/validate-feature/test_ci_sweep_wiring.py"
+          command: >-
+            skills/.venv/bin/python -m pytest
+            skills/tests/validate-feature/test_ci_sweep_wiring.py -q
           cwd: "."
           expect_exit_code: 0
           evidence:

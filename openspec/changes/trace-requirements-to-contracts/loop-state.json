@@ -3,14 +3,14 @@
     {
       "id": "F1",
       "severity": "critical",
-      "status": "OPEN \u2014 needs operator decision",
+      "status": "FIXED under operator decision (one job, event-selected mode)",
       "title": "Blocking CI job's event set and base discriminator are unspecified",
       "summary": "ci.yml has three triggers (push:[main], pull_request, merge_group) and zero event guards ('grep -n \"if:\"' returns only 'if: failure()'). 'grep -rn event_name' across all five plan artifacts returns zero. D12's table, tasks.md:634 and work-packages.yaml:408 all say the blocking sweep is pull_request-triggered, which either makes the round-4 merge_group fix unreachable, or \u2014 with no guard, the repo convention \u2014 runs the job on push where no base exists and spec.md:520 makes that a hard failure, redding main on every push."
     },
     {
       "id": "F3",
       "severity": "critical",
-      "status": "OPEN \u2014 needs operator decision",
+      "status": "FIXED under operator decision (one job, event-selected mode)",
       "title": "merge_group diff spans every batched PR, so the ambiguity rule fails the queue",
       "summary": "spec.md:524 says a diff touching more than one change directory SHALL fail as ambiguous. On merge_group the diff covers the whole group, so any two OpenSpec changes batched together fail the merge queue. Coupled to F1: whether this matters at all depends on whether the blocking job runs on merge_group."
     },
@@ -31,9 +31,9 @@
   ],
   "change_id": "trace-requirements-to-contracts",
   "cli_review_enabled": true,
-  "current_phase": "ESCALATE",
+  "current_phase": "PLAN_FIX",
   "error": null,
-  "escalation_reason": "Round 5 returned not_converged with 4 blocking findings, all independently re-verified at the source. Two were fixed inline (F2 proposal.md self-contradiction, F4 unowned change-context.md templates). Two are COUPLED and require an operator decision because they concern the same behaviour and a fix to either alone can be wrong: F1 (the blocking CI job's event set and base discriminator are unspecified) and F3 (on merge_group the diff spans every batched PR, so the ambiguity rule fails the merge queue whenever two OpenSpec changes batch). iteration 5 of max_phase_iterations 5. Orchestrator declined to raise the cap a third time.",
+  "escalation_reason": null,
   "findings_trend": [
     10,
     6,
@@ -167,10 +167,23 @@
       "round": 5,
       "at": "2026-08-01T15:26:00+00:00",
       "note": "F2 and F4 fixed inline; both validators green. F1 and F3 NOT fixed \u2014 they are coupled (both concern whether and how the blocking job runs on merge_group) and fixing either alone can be wrong. Escalated rather than guessed, because the last two rounds' findings were both defects introduced by the orchestrator's own fix to the preceding round."
+    },
+    {
+      "phase": "ESCALATE",
+      "outcome": "resolved",
+      "at": "2026-08-01T16:10:00+00:00",
+      "note": "Operator resolved the coupled F1+F3 decision: ONE CI job on all three declared events, behaviour selected on github.event_name. pull_request -> PR base, --change derived, BLOCKING. merge_group -> group base, --change OMITTED (union), BLOCKING, ambiguity rule does not apply. push:[main] -> --change omitted, NON-blocking. Unresolvable base where one is required is an ERROR naming the event."
+    },
+    {
+      "phase": "PLAN_FIX",
+      "outcome": "complete",
+      "round": 5,
+      "at": "2026-08-01T16:10:00+00:00",
+      "note": "F1+F3 fixed across all four owning artifacts. Also corrected three statements the operator's decision falsified that no finding had named: (a) 'the blocking job SHALL supply --change' in the spec delta, false once merge_group blocks while omitting it; (b) the union-mode rationale 'that is exactly why the job using it reports and never blocks', in BOTH spec.md and design.md; (c) tasks.md's 'the two jobs differ...' note. Union looseness reframed as a property of the branch, not the mode. 5 new scenarios (57 total). NOT YET CONFIRMED by any reviewer."
     }
   ],
   "phase_started_at": "2026-07-31T20:33:27.549085+00:00",
-  "previous_phase": "PLAN_REVIEW",
+  "previous_phase": "ESCALATE",
   "schema_version": 4,
   "started_at": "2026-07-28T14:22:58.793360+00:00",
   "total_iterations": 1,

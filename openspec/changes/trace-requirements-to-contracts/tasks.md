@@ -601,15 +601,19 @@ be meaningful.
   unprinted skip and a passing gate are indistinguishable in a log.
 
 - [ ] 5.7 Wire the full-capability sweep into CI `[S]`
-  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (a pull request that was not planned through OpenSpec skips); (a diff touching two change directories fails as ambiguous)
+  **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (a pull request that was not planned through OpenSpec skips); (a pull request touching two change directories fails as ambiguous); (an unresolvable base fails rather than skipping); (a merge group batching two changes blocks without ambiguity); (the run on the integration branch cannot fail); (the job is not guarded off any declared event)
   **Design decisions**: D12
   **Dependencies**: 3.16, 5.2
-  **Note**: the two jobs differ in more than blocking-ness — they differ in
-  what requirement identifiers resolve to. The `pull_request` job passes
-  `--change <id>`; the `push`-on-`main` job passes no `--change` and gets the
-  union of every on-branch delta, which is looser and is exactly why it reports
-  and never blocks (D12). Both modes are 3.16's work, already built by the time
-  this task wires them.
+  **Note**: the three event paths differ in more than blocking-ness — they
+  differ in what requirement identifiers resolve to. `pull_request` passes
+  `--change <id>`; `merge_group` and `push`-on-`main` pass no `--change` and get
+  the union of every on-branch delta. Blocking-ness is INDEPENDENT of the flag:
+  `merge_group` omits `--change` and still blocks. Union mode's looseness is a
+  property of the branch, not the mode — on `push` to `main` the union admits
+  requirements from changes whose implementation has not landed, which is why
+  that run reports; on a merge-group branch it is exactly the batched changes,
+  so blocking on it is the point (D12). Both modes are 3.16's work, already
+  built by the time this task wires them.
   **Note**: derive the change id from the DIFF, not the branch name. `ci.yml`
   triggers on unfiltered `pull_request:` and `merge_group:` (lines 3-7), and
   live branch prefixes include `dependabot/`, `chore/`, `claude/`, and
@@ -622,7 +626,9 @@ be meaningful.
   planning was never expected to produce a spec delta, a citation, or an
   exclusions file, and failing a dependency bump for not authoring an artifact
   nobody asked it for would red every such PR the day this lands. Two touched
-  directories is a real ambiguity: fail naming both, do not choose.
+  directories is a real ambiguity **on `pull_request`**: fail naming both, do
+  not choose. On `merge_group` it is the ordinary case — see the event table
+  below; the ambiguity rule must not fire there.
   **Note**: NAME the base the diff is taken against, and make an unresolvable
   base an ERROR, never the SKIP. `pull_request` carries
   `github.event.pull_request.base.sha`; `merge_group` does not — it carries
@@ -641,14 +647,32 @@ be meaningful.
   Without a named file and a verification step that fails when it is missing,
   these two scenarios are the only ones in the change with no mechanism that
   notices they were never written.
-  **Note**: the BLOCKING sweep is `pull_request`-triggered. An earlier draft
-  put it on `push` to `main` reasoning that cron cannot block a merge — true,
-  but a push event on `main` fires *after* the merge lands and shares the
-  defect. It can red `main`; it cannot stop `main` going red. Only a check on
-  the merge candidate blocks the merge.
-  **Note**: keep a second, explicitly NON-blocking `push`-on-`main` job for
-  debt visibility on the integration branch. Two jobs, two honest purposes;
-  nothing depends on the push job to stop anything.
+  **Note**: ONE job, three events, selected on `github.event_name`. Do NOT add
+  an `if:` that excludes any declared trigger. `ci.yml` fires on `push: [main]`,
+  `pull_request`, and `merge_group`, and `grep -n 'if:' .github/workflows/ci.yml`
+  currently returns exactly one hit (`if: failure()`) — no job in this workflow
+  is event-guarded, so an unguarded job runs on all three whether or not the
+  plan anticipated it. The three behaviours:
+    - `pull_request` → base `github.event.pull_request.base.sha`, derive the
+      change id from the diff, invoke `--change <id>`, BLOCKING. Zero touched
+      change directories → SKIP; two → fail as ambiguous.
+    - `merge_group` → base `github.event.merge_group.base_sha`, invoke with
+      `--change` OMITTED, BLOCKING. Do NOT derive a change id and do NOT apply
+      the ambiguity rule here: a merge group's diff spans every batched PR, so
+      deriving one id fails the queue whenever two OpenSpec changes batch.
+    - `push` to `main` → no base needed, `--change` omitted, NON-blocking; its
+      exit status must not depend on what it found.
+  **Note**: the two wrong implementations, both of which the earlier wording
+  invited. `if: github.event_name == 'pull_request'` makes the merge_group base
+  derivation unreachable code and leaves the queue ungated at the one moment
+  the check is last standing. No guard at all runs the blocking path on
+  push-to-`main`, where neither base exists and the unresolvable-base rule then
+  reds `main` on every push. The event set is normative in the spec delta for
+  exactly this reason.
+  **Note**: an earlier draft put the blocking sweep on `push` to `main`,
+  reasoning that cron cannot block a merge — true, but a push event on `main`
+  fires *after* the merge lands and shares the defect. It can red `main`; it
+  cannot stop `main` going red. Only a check on the merge candidate blocks it.
   **Note**: opted-in surfaces block; the rest report. There is NO separate
   blocking flag — opting in is the switch (D6 forward, D13 reverse), and
   adding one would create an opted-in-but-not-blocking state, the

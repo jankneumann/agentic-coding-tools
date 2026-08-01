@@ -511,35 +511,64 @@ capability specs shadowed by that change's spec delta, with other in-flight
 changes' requirements neither citable nor excludable. With `--change` omitted,
 it SHALL resolve against the archived specs shadowed by every spec delta present
 under `openspec/changes/` on the branch. Which run blocks SHALL be a property of
-the CI job and not of the gate: the blocking job SHALL supply `--change`, and
-the post-merge job SHALL omit it.
+the CI job and not of the gate. Supplying `--change` SHALL NOT imply blocking
+and omitting it SHALL NOT imply reporting: the two choices are independent, and
+the merge-candidate run on `merge_group` both omits `--change` and blocks.
 
-The blocking job SHALL derive its change id from the change directory under
-`openspec/changes/` touched by the diff against a named base: the pull request's
-base commit on a `pull_request` event, and the merge group's base commit on a
-`merge_group` event. Where that base cannot be resolved, the job SHALL fail
-naming the event and the base it could not resolve, and SHALL NOT skip. Where
-the base resolves and the diff touches no change directory, the job SHALL print
-an explicit SKIP naming the branch and SHALL NOT fail. Where it touches more
-than one, the job SHALL fail as ambiguous rather than choosing.
+The sweep SHALL run as a single CI job on three events — `pull_request`,
+`merge_group`, and `push` to the integration branch — and SHALL select both its
+invocation and whether its result gates on `github.event_name`. The job SHALL
+NOT be guarded off any of those three events. A required check that does not run
+on `merge_group` is not a check on the merge candidate, and an unguarded job on
+an event with no rule is the unfalsifiable green this requirement exists to
+prevent; the event set is therefore normative here, not a CI implementation
+detail.
+
+On `pull_request`, the job SHALL derive a change id from the change directory
+under `openspec/changes/` touched by the diff against the pull request's base
+commit, SHALL invoke the gate with `--change <id>`, and SHALL block. Where the
+diff touches no change directory, it SHALL print an explicit SKIP naming the
+branch and SHALL NOT fail. Where it touches more than one, it SHALL fail as
+ambiguous rather than choosing.
+
+On `merge_group`, the job SHALL invoke the gate with `--change` omitted against
+the merge group's base commit, and SHALL block. It SHALL NOT derive a change id,
+and the ambiguity rule SHALL NOT apply: a merge group batches whatever the queue
+batched, so a diff spanning several change directories is its ordinary case
+rather than an error. Deriving a single change id there would fail the queue
+whenever two OpenSpec changes batch together.
+
+On `push` to the integration branch, the job SHALL invoke the gate with
+`--change` omitted, SHALL evaluate every capability in full, and SHALL NOT
+block — its exit status SHALL NOT depend on what it found.
+
+Where a base commit is required and cannot be resolved, the job SHALL fail
+naming the event and the base it could not resolve, and SHALL NOT skip.
 
 An unresolvable base and an absent change directory SHALL NOT share an exit
 path. They are opposite conditions: the second says the work was not planned
 through OpenSpec and is legitimately out of the gate's remit, while the first
 says the gate does not know what it is looking at. A rule that skipped on both
 would turn every event whose base the derivation did not anticipate into a
-silent pass — and `merge_group` is exactly such an event, triggered unfiltered
-by this repository's CI, carrying no `pull_request` payload for a base
-expression to read. That is the unfalsifiable-green outcome this capability's
+silent pass. That is the unfalsifiable-green outcome this capability's
 change-scope requirement already forbids in terms; the blocking sweep does not
-get an exemption from it.
+get an exemption from it. The rule is stated for the three events the job runs
+on precisely so that a fourth event, added later without a rule, fails loudly
+instead of passing quietly.
 
 Keying resolution on the flag rather than on the run context is what keeps the
-two runs from needing a discriminator the gate cannot see. The union mode is
-deliberately the looser of the two — it admits requirements from changes whose
-implementation has not landed — and that is exactly why the job using it
-reports and never blocks; encoding "blocking" in the gate itself would put the
-gate in the business of knowing which CI job invoked it.
+gate out of the business of knowing which CI job invoked it. The gate still has
+exactly one resolution rule; the job, not the gate, reads `github.event_name`.
+
+Union mode's looseness is a property of the branch it runs on, not of the mode.
+On `push` to the integration branch, `openspec/changes/` holds every in-flight
+change whose plan has merged and whose implementation has not — so the union
+admits requirements nothing has built yet, and that run reports rather than
+blocks. Inside a merge group the same directory holds precisely the changes
+that are landing, because the evaluated branch *is* the integration branch plus
+the batched pull requests. There the union is exact, and blocking on it is the
+whole point of evaluating the merge candidate. Reading "union mode" as
+"non-blocking by nature" would leave the merge queue ungated.
 
 The SKIP exists because OpenSpec is not the only way work reaches this
 repository. Dependency bumps, chores, and cloud-session branches carry no spec
@@ -603,21 +632,47 @@ only a check on the candidate can stop it going red.
 <!-- Scenario ID: gen-eval-framework.unresolvable-base-fails-not-skips -->
 #### Scenario: An unresolvable base fails rather than skipping
 
-- **WHEN** the blocking job runs on an event whose base commit it cannot
-  resolve, including a `merge_group` event where no `pull_request` payload
-  exists
+- **WHEN** the job runs on an event that requires a base commit and cannot
+  resolve it
 - **THEN** it SHALL fail naming the event and the base it could not resolve
 - **AND** it SHALL NOT take the no-change-directory SKIP path, which would make
   an unanticipated event indistinguishable from work not planned through
   OpenSpec
 
 <!-- Scenario ID: gen-eval-framework.ambiguous-change-fails -->
-#### Scenario: A diff touching two change directories fails as ambiguous
+#### Scenario: A pull request touching two change directories fails as ambiguous
 
-- **WHEN** the blocking job's diff touches more than one directory under
-  `openspec/changes/`
+- **WHEN** the job runs on a `pull_request` event whose diff touches more than
+  one directory under `openspec/changes/`
 - **THEN** it SHALL fail naming each candidate change id
 - **AND** it SHALL NOT choose one
+
+<!-- Scenario ID: gen-eval-framework.merge-group-unions-and-blocks -->
+#### Scenario: A merge group batching two changes blocks without ambiguity
+
+- **WHEN** the job runs on a `merge_group` event whose diff touches two
+  directories under `openspec/changes/`
+- **THEN** it SHALL invoke the gate with `--change` omitted
+- **AND** it SHALL NOT fail as ambiguous
+- **AND** a violation in an opted-in surface SHALL fail the merge group
+
+<!-- Scenario ID: gen-eval-framework.push-to-integration-branch-reports -->
+#### Scenario: The run on the integration branch cannot fail
+
+- **WHEN** the job runs on a `push` to the integration branch and the sweep
+  finds violations in opted-in surfaces
+- **THEN** it SHALL report every violation it found
+- **AND** it SHALL exit zero, because a run that fires after the merge can red
+  the branch but cannot stop it going red
+
+<!-- Scenario ID: gen-eval-framework.job-runs-on-every-declared-event -->
+#### Scenario: The job is not guarded off any declared event
+
+- **WHEN** the CI workflow declares the `pull_request`, `merge_group`, and
+  `push` triggers
+- **THEN** the sweep job SHALL run on all three
+- **AND** it SHALL NOT carry a condition that excludes it from `merge_group`,
+  which would leave the merge candidate unevaluated by the check that gates it
 
 ### Requirement: The gate fails closed on malformed input
 

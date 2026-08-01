@@ -406,21 +406,38 @@ enforces that today, and deletion is where interface debt accumulates unseen.
 **Decision.** Two run contexts, one gate, differing only in what they consider
 in scope:
 
-| Context | Trigger | Scope | Blocking |
-|---|---|---|---|
-| `/validate-feature` | local / pre-PR | Operations and requirements the change touches | Yes |
-| CI full sweep | `pull_request` | Every capability, in full | Opted-in surfaces block (traced documents forward, exclusions-file capabilities reverse); the rest report |
-| CI debt visibility | `push` on `main` | Every capability, in full | No — reports only |
+| Context | Trigger | Gate invocation | Scope | Blocking |
+|---|---|---|---|---|
+| `/validate-feature` | local / pre-PR | `--change <id>` | Operations and requirements the change touches | Yes |
+| CI, merge candidate | `pull_request` | `--change <derived>` | Every capability, in full | Opted-in surfaces block (traced documents forward, exclusions-file capabilities reverse); the rest report |
+| CI, merge candidate | `merge_group` | `--change` omitted | Every capability, in full | Same — opted-in surfaces block |
+| CI, debt visibility | `push` on `main` | `--change` omitted | Every capability, in full | No — reports only |
 
-**Why the blocking sweep is `pull_request`-triggered.** An earlier draft ran the
-full sweep push-triggered on `main`, reasoning that a *scheduled* run cannot
-block a merge. That reasoning was right and the conclusion did not follow: a
-push event on `main` fires **after** the merge has landed, so it shares the
-defect it was chosen to avoid. It can red `main`; it cannot stop `main` going
-red. Only a check that runs on the merge candidate can block the merge, so the
-blocking sweep runs on `pull_request`. The push-on-`main` run is kept, with its
-honest purpose — making accumulated debt visible on the integration branch —
-and is explicitly non-blocking, so nothing depends on it to stop anything.
+**One job, three events, selected on `github.event_name`.** The three CI rows
+are one workflow job, not three. It is deliberately *not* guarded off any
+declared event: `ci.yml` triggers on `push: [main]`, `pull_request`, and
+`merge_group`, and a required check that does not run on `merge_group` is not a
+check on the merge candidate at all. The event selects the invocation and
+whether the result gates; nothing else varies.
+
+**Why the blocking sweep is not push-triggered.** An earlier draft ran the full
+sweep push-triggered on `main`, reasoning that a *scheduled* run cannot block a
+merge. That reasoning was right and the conclusion did not follow: a push event
+on `main` fires **after** the merge has landed, so it shares the defect it was
+chosen to avoid. It can red `main`; it cannot stop `main` going red. Only a
+check that runs on the merge candidate can block the merge. The push-on-`main`
+run is kept, with its honest purpose — making accumulated debt visible on the
+integration branch — and is explicitly non-blocking, so nothing depends on it
+to stop anything.
+
+**Why `merge_group` omits `--change` instead of deriving one.** A merge group's
+diff spans every pull request the queue batched, so deriving a single change id
+there would hit the ambiguity rule whenever two OpenSpec changes batch together
+— failing the queue for doing exactly what a queue is for. The union mode is
+the right reading of a batch: on the merge-group branch, `openspec/changes/`
+holds precisely the changes that are landing. The ambiguity rule therefore
+applies on `pull_request` only, where more than one change directory in a diff
+really is someone conflating two changes.
 
 **Resolution is keyed on the `--change` flag, not on the run context.** Every
 resolution rule in this change is written in terms of *the active change's*
@@ -434,11 +451,19 @@ CI job invoked it and should not try.
 So the gate has one rule with two modes, selected by the flag: `--change <id>`
 shadows the archive with that delta (other in-flight changes neither citable nor
 excludable); omitting it shadows the archive with *every* delta present under
-`openspec/changes/` on the branch. Blocking-ness lives in the CI job — the
-`pull_request` job passes `--change`, the `push` job does not. The union mode is
-deliberately the looser one, admitting requirements from changes whose
-implementation has not landed, and that is precisely why the job using it
-reports and never fails. Resolving archive-only there would instead report every
+`openspec/changes/` on the branch. Blocking-ness lives in the CI job and is
+independent of the flag: the `merge_group` invocation omits `--change` and
+still blocks.
+
+Union mode's looseness is a property of the *branch*, not of the mode. On
+`push` to `main` the directory holds every in-flight change whose plan merged
+and whose implementation did not, so the union admits requirements nothing has
+built yet — which is why that run reports and never fails. On a merge-group
+branch the same directory holds exactly the batched changes, so the union is
+exact and blocking on it is the point. Reading "union mode" as "non-blocking by
+nature" is the trap: it would leave the merge queue ungated.
+
+Resolving archive-only in union mode would instead report every
 citation a merged-but-unarchived change makes to its own new requirements, since
 a delta lives under `openspec/changes/<id>/` until cleanup archives it.
 
