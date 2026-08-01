@@ -337,6 +337,66 @@ def test_an_offline_run_records_a_schema_valid_failing_report(tmp_path: Path) ->
     assert len(document["cases"]) == document["corpus"]["cases_declared"]
 
 
+def _unscorable_corpus(tmp_path: Path) -> Path:
+    """The reduced corpus with every recorded response removed.
+
+    Every case then fails its producer, so the run scores nothing at all. That is
+    not an exotic state: the committed measurement scored 7 of 19, and one more
+    broken producer would have made it 0 of 19.
+    """
+    corpus = _reduced_corpus(tmp_path)
+    for case_path in sorted((corpus / "cases").glob("*.yaml")):
+        document = yaml.safe_load(case_path.read_text(encoding="utf-8"))
+        if document.pop("recorded_response", None) is None:
+            continue
+        case_path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    return corpus
+
+
+def test_a_run_that_scores_no_case_at_all_still_records_a_failing_report(
+    tmp_path: Path,
+) -> None:
+    """The invariant this module opens with, in the state that used to break it.
+
+    With nothing scored, every gate's scorer refuses to compose a vacuous pass.
+    Each of those refusals must become a *failing gate with no numbers* inside a
+    written report; a scorer whose error class escaped composition instead took
+    the whole run down with a bare traceback and left no evidence behind at all,
+    which is the one outcome `spec.md`'s "an evaluation that could not be taken
+    SHALL be recorded as a failure with an explicit reason" forbids.
+    """
+    corpus = _unscorable_corpus(tmp_path)
+    checkout = _checkout(tmp_path)
+    destination = tmp_path / "report.json"
+
+    code = main(_run_argv(tmp_path, corpus, checkout, destination))
+
+    assert destination.is_file(), (
+        "a run that could measure nothing still has to record that it could not; "
+        "an unrecorded failure is indistinguishable from a run nobody took"
+    )
+    assert code != EXIT_PASS
+
+    document = report_module.read_report(destination)
+    report_module.validate_report(document)
+    assert document["verdict"] == "fail"
+    assert document["corpus"]["cases_scored"] == 0
+    assert "unmeasured" in document["fail_reasons"]
+
+    declared = yaml.safe_load((corpus / "manifest.yaml").read_text(encoding="utf-8"))["gates"]
+    assert {gate["id"] for gate in document["gates"]} == {gate["id"] for gate in declared}, (
+        "a gate whose scorer refused to compose must appear as a failure, not vanish"
+    )
+    unmeasured = [
+        gate["id"]
+        for gate in document["gates"]
+        if gate["verdict"] == "fail" and "unmeasured" in gate["fail_reasons"]
+    ]
+    assert "scope_compliance" in unmeasured, (
+        "the scope gate's own refusal is the one that used to escape composition"
+    )
+
+
 def test_a_run_that_cannot_load_its_corpus_exits_one(tmp_path: Path) -> None:
     checkout = _checkout(tmp_path)
     destination = tmp_path / "report.json"

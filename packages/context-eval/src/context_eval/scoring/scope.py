@@ -44,6 +44,11 @@ implementations over a table of paths. ``packages/`` may not import ``skills/``,
 so the choice is between mirroring with a proof of agreement and depending on a
 sibling skill; a silent divergence in glob matching is precisely the failure this
 gate exists to detect.
+
+**This module's error class is a subclass of the shared one.** ``ScopeScoringError``
+extends :class:`~context_eval.scoring.relevance.ScoringError` so that "the scope
+gate could not be measured" reaches the composer through the same channel every
+other scorer uses. See the class docstring for why that is structural.
 """
 
 from __future__ import annotations
@@ -54,6 +59,7 @@ from fnmatch import fnmatchcase
 
 from ..models import Case, Scope
 from .arms import Arm
+from .relevance import ScoringError
 
 PASS = "pass"
 FAIL = "fail"
@@ -73,8 +79,19 @@ RESOLVED = "resolved"
 DEGRADED = "degraded"
 
 
-class ScopeScoringError(ValueError):
-    """The scope measurement is not well defined for the inputs it was given."""
+class ScopeScoringError(ScoringError):
+    """The scope measurement is not well defined for the inputs it was given.
+
+    A subclass of the shared :class:`~context_eval.scoring.relevance.ScoringError`,
+    and that is the whole of the guarantee rather than a convenience. The composer
+    turns "this gate could not be measured" into a failing gate with no numbers by
+    catching one class; a scorer whose error sat outside that class escaped
+    composition entirely and took the run down with a bare traceback, writing no
+    report at all — which is the single outcome the harness must never produce.
+    Catching a tuple of error classes in the composer would have fixed the symptom
+    and left the next scorer free to reintroduce it. ``utility`` already raises the
+    shared class; this makes all three scorers agree.
+    """
 
 
 def matches(path: str, pattern: str) -> bool:
