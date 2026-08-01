@@ -219,6 +219,31 @@ class TestConsensusSynthesizer:
         assert result.total_unique == 0
         assert result.blocking_count == 0
 
+    def test_unmatched_actionable_finding_is_not_rewritten_to_accept(self) -> None:
+        result = ConsensusSynthesizer().synthesize(
+            review_type="plan", target="test-feature",
+            vendor_results=[VendorResult(vendor="codex", findings=[
+                _finding(description="Only codex found this issue", disposition="fix"),
+            ])],
+        )
+        finding = result.consensus_findings[0]
+        assert finding.recommended_disposition == "fix"
+        assert finding.effective_blocking is True
+
+    def test_groups_are_order_invariant(self) -> None:
+        first = _finding(id=1, vendor="codex", file_path="src/a.py", line_start=4)
+        second = _finding(id=8, vendor="grok", file_path="src/a.py", line_start=4)
+        synth = ConsensusSynthesizer()
+        forward = synth.synthesize("plan", "test", [
+            VendorResult(vendor="codex", findings=[first]),
+            VendorResult(vendor="grok", findings=[second]),
+        ])
+        reverse = synth.synthesize("plan", "test", [
+            VendorResult(vendor="grok", findings=[second]),
+            VendorResult(vendor="codex", findings=[first]),
+        ])
+        assert forward.consensus_findings[0].group_id == reverse.consensus_findings[0].group_id
+
     def test_criticality_takes_highest(self) -> None:
         """Confirmed finding uses highest criticality from matched vendors."""
         synth = ConsensusSynthesizer()
@@ -272,7 +297,7 @@ class TestConsensusSynthesizer:
             ],
         )
         d = synth.to_dict(result)
-        assert d["schema_version"] == 1
+        assert d["schema_version"] == 2
         assert d["review_type"] == "plan"
         assert d["target"] == "test-feature"
         assert "reviewers" in d
@@ -294,7 +319,7 @@ class TestConsensusSynthesizer:
         synth.write_report(result, output)
         assert output.exists()
         data = json.loads(output.read_text())
-        assert data["schema_version"] == 1
+        assert data["schema_version"] == 2
 
     def test_finding_from_dict(self) -> None:
         """Finding.from_dict parses review-findings format."""
