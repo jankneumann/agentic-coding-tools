@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "change_id": "harden-review-consensus-and-recovery",
+  "review_type": "plan",
+  "created_at": "2026-08-01T21:04:00Z",
+  "method": "independent_bounded_bootstrap",
+  "data_egress_approved": true,
+  "timeout_seconds_per_vendor_chain": 300,
+  "fallbacks_disabled": true,
+  "quorum_requested": 4,
+  "quorum_received": 0,
+  "minimum_required": 2,
+  "quorum_met": false,
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "requested_model": "gemini-3.6-flash-high",
+      "success": false,
+      "elapsed_seconds": 230.79950008296873,
+      "error": "Invalid JSON output",
+      "error_class": null
+    },
+    {
+      "vendor": "claude_code",
+      "requested_model": "opus",
+      "success": false,
+      "elapsed_seconds": 300.04153549997136,
+      "error": "Timeout after 300s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "grok",
+      "requested_model": "grok-4.5",
+      "success": false,
+      "elapsed_seconds": 300.0289607080631,
+      "error": "Timeout after 300s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "pi",
+      "requested_model": "qwen/qwen3-coder-plus",
+      "success": false,
+      "elapsed_seconds": 1.5368731250055134,
+      "error": "Invalid JSON output",
+      "error_class": null
+    }
+  ],
+  "notes": [
+    "Vendors ran concurrently so one failure could not starve later reviewers.",
+    "Each adapter used its reviewer/premium model and a single hard-bounded attempt.",
+    "No failed or malformed result counted toward quorum."
+  ]
+}
