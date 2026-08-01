@@ -64,6 +64,7 @@ SRC = PACKAGE_ROOT / "src"
 CORPUS_ROOT = PACKAGE_ROOT / "corpus"
 RESPONSES = CORPUS_ROOT / "responses"
 SEMANTIC_CONTEXT = REPO_ROOT / "skills" / "context-engineering" / "scripts" / "semantic_context.py"
+HARNESS_SOURCE = SRC / "context_eval"
 
 if str(SRC) not in sys.path:  # pragma: no cover - import plumbing
     sys.path.insert(0, str(SRC))
@@ -255,6 +256,7 @@ def _argv(
     report_path: Path,
     corpus: Path = CORPUS_ROOT,
     contract: Path | None = None,
+    harness_source: Path | None = None,
 ) -> list[str]:
     argv = [
         "--repository-root",
@@ -268,6 +270,8 @@ def _argv(
     ]
     if contract is not None:
         argv += ["--embedding-contract", str(contract)]
+    if harness_source is not None:
+        argv += ["--harness-source", str(harness_source)]
     return argv
 
 
@@ -386,6 +390,49 @@ def _unreachable_revision(tmp_path: Path, evidence: Evidence) -> list[str]:
     )
 
 
+def _harness_source_copy(tmp_path: Path, *, modified: bool) -> Path:
+    """A copy of the harness's own source, optionally with one file changed.
+
+    A copy rather than the real tree: mutating `src/` in place during a test run
+    would have the suite measuring a harness that no longer exists on disk by the
+    time it finishes, and a same-second restore can leave the mutant's bytecode
+    behind where `inspect.getsource` will not show it. The digest is over
+    corpus-relative paths and file bytes, so an unmodified copy digests
+    identically to the original — which is what makes the modified one a
+    single-variable mutation.
+    """
+    destination = tmp_path / ("mutated-src" if modified else "pristine-src")
+    shutil.copytree(
+        HARNESS_SOURCE, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
+    )
+    if modified:
+        target = destination / "scoring" / "relevance.py"
+        assert target.is_file(), "the mutated file must be one the harness actually scores with"
+        target.write_text(
+            target.read_text(encoding="utf-8") + "\n# a scorer somebody changed\n",
+            encoding="utf-8",
+        )
+    return destination
+
+
+def _changed_harness_source(tmp_path: Path, evidence: Evidence) -> list[str]:
+    """(b.2b) The code that measured this is not the code here, whatever it is called.
+
+    The mutation is a real edit to a real scorer, not a rewritten field in the
+    report. `harness.version` would be untouched by such an edit — that is the
+    entire defect this condition exists to close — so a mutant that rewrote the
+    recorded digest instead would prove only that string comparison works.
+    """
+    document = deepcopy(evidence.passing)
+    report_path = report_module.write_report(tmp_path / "report.json", document)
+    return _argv(
+        helper=_helper_with_default(tmp_path, enabled=True),
+        report_path=report_path,
+        contract=_contract(tmp_path, _recorded_fingerprint(document)),
+        harness_source=_harness_source_copy(tmp_path, modified=True),
+    )
+
+
 def _report_omitting_a_declared_gate(tmp_path: Path, evidence: Evidence) -> list[str]:
     """(b.5) Current, schema-valid, passing — and silent about a declared gate.
 
@@ -413,6 +460,7 @@ MUTATIONS: tuple[tuple[str, Mutation, int], ...] = (
     (enablement_gate.SCHEMA_VALID, _schema_invalid_report, EXIT_REPORT_UNUSABLE),
     (enablement_gate.CORPUS_DIGEST_CURRENT, _moved_corpus, EXIT_REPORT_UNUSABLE),
     (enablement_gate.HARNESS_VERSION_CURRENT, _other_harness_version, EXIT_REPORT_UNUSABLE),
+    (enablement_gate.HARNESS_FINGERPRINT_CURRENT, _changed_harness_source, EXIT_REPORT_UNUSABLE),
     (enablement_gate.EMBEDDER_FINGERPRINT_CURRENT, _changed_fingerprint, EXIT_REPORT_UNUSABLE),
     (enablement_gate.INDEXED_REVISION_REACHABLE, _unreachable_revision, EXIT_REPORT_UNUSABLE),
     (
@@ -753,6 +801,45 @@ def test_the_hollow_report_the_gate_used_to_authorize(
     )
     assert enablement_gate.main(argv) != EXIT_PASS
     assert "unmet condition" in capsys.readouterr().err
+
+
+def test_an_unmodified_copy_of_the_harness_source_still_authorizes(
+    tmp_path: Path, evidence: Evidence, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The control for the harness-fingerprint mutant, and the reason it means anything.
+
+    A digest that varied with where the source happened to sit would reject every
+    tree, and the mutant above would be watching a tautology rather than a
+    condition. The fingerprint is over relative paths and file bytes, so a
+    verbatim copy digests identically — which makes the appended comment in
+    `_changed_harness_source` the only variable between the two.
+    """
+    document = deepcopy(evidence.passing)
+    pristine = _harness_source_copy(tmp_path, modified=False)
+    assert report_module.harness_fingerprint(pristine) == document["harness"]["fingerprint"]
+
+    argv = _argv(
+        helper=_helper_with_default(tmp_path, enabled=True),
+        report_path=report_module.write_report(tmp_path / "report.json", document),
+        contract=_contract(tmp_path, _recorded_fingerprint(document)),
+        harness_source=pristine,
+    )
+    assert enablement_gate.main(argv) == EXIT_PASS
+    assert not capsys.readouterr().err
+
+
+def test_a_changed_scorer_moves_the_harness_fingerprint(tmp_path: Path) -> None:
+    """The property the condition rests on, asserted directly.
+
+    `harness.version` is unchanged by every edit below — that is the defect. The
+    digest is not.
+    """
+    pristine = _harness_source_copy(tmp_path, modified=False)
+    mutated = _harness_source_copy(tmp_path, modified=True)
+    assert report_module.harness_fingerprint(pristine) != report_module.harness_fingerprint(mutated)
+    assert report_module.harness_fingerprint(pristine) == report_module.harness_fingerprint(
+        HARNESS_SOURCE
+    ), "the digest varies with location, so it identifies a path rather than a harness"
 
 
 def test_the_authorizing_report_accounts_for_the_whole_corpus(evidence: Evidence) -> None:

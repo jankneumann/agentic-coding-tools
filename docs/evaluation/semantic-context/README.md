@@ -192,6 +192,7 @@ enablement as unauthorized — when any of these hold (design decision D12):
 |---|---|
 | `harness.corpus_digest` differs from the recomputed digest of `packages/context-eval/corpus/` | A case or a threshold changed; the report was judged against different evidence. |
 | `harness.version` differs from the installed harness version | The report was produced by software nobody has anymore. |
+| `harness.fingerprint` differs from the digest of `packages/context-eval/src/context_eval/` | The code that measured this has changed, whatever version it still calls itself. `version` is a string a person writes into `pyproject.toml` — the one condition here an operator could satisfy by assertion, and the reason a report HEAD could no longer reproduce once counted as current evidence. |
 | `index.embedder.fingerprint` differs from the configured embedding contract's fingerprint | A model, dimension, or indexing-parameter change invalidates the measurement. A matching model name alone does not restore it. |
 | `index.indexed_revision` is not reachable from the evaluated tree | The measurement describes a tree this one does not descend from. |
 | The report fails schema validation | It is not a report. |
