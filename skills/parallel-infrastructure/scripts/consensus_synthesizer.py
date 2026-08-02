@@ -43,11 +43,14 @@ class ConsensusInputError(ValueError):
 
 def _consensus_schema_path() -> Path:
     """Find the portable consensus schema installed with this skill."""
+    portable = Path(__file__).resolve().parent.parent / "install_assets" / "openspec" / "schemas" / "consensus-report.schema.json"
+    if portable.is_file():
+        return portable
     for root in (Path.cwd(), *Path(__file__).resolve().parents):
         for relative in (
-            Path("openspec/schemas/consensus-report.schema.json"),
             Path("skills/parallel-infrastructure/install_assets/openspec/schemas/consensus-report.schema.json"),
             Path("install_assets/openspec/schemas/consensus-report.schema.json"),
+            Path("openspec/schemas/consensus-report.schema.json"),
         ):
             candidate = root / relative
             if candidate.is_file():
@@ -71,7 +74,10 @@ def validate_consensus_payload(payload: dict[str, Any]) -> None:
     if payload.get("quorum_requested") != quorum.get("requested") or payload.get("quorum_received") != quorum.get("received") or payload.get("quorum_met") != quorum.get("met"):
         raise ConsensusInputError("consensus quorum aliases disagree")
     vendors = quorum.get("eligible_vendors")
-    if not isinstance(vendors, list) or len(vendors) != len(set(vendors)) or quorum.get("received") != len(vendors) or quorum.get("met") != (quorum.get("received") >= quorum.get("minimum_required")):
+    if (not isinstance(vendors, list) or len(vendors) != len(set(vendors))
+            or quorum.get("received") != len(vendors)
+            or quorum.get("received") > quorum.get("requested")
+            or quorum.get("met") != (quorum.get("received") >= quorum.get("minimum_required"))):
         raise ConsensusInputError("consensus quorum is inconsistent")
     if summary.get("total_unique_findings") != len(findings) or summary.get("provisional_count") != summary.get("unconfirmed_count") or summary.get("blocking_count") != summary.get("effective_blocking_count"):
         raise ConsensusInputError("consensus summary aliases disagree")
@@ -150,6 +156,8 @@ class Finding:
     file_path: str | None = None
     line_start: int | None = None
     line_end: int | None = None
+    affected_symbol: str | None = None
+    requirement_id: str | None = None
     vendor: str = ""
 
     @classmethod
@@ -165,6 +173,8 @@ class Finding:
             file_path=data.get("file_path"),
             line_start=line_start,
             line_end=line_end,
+            affected_symbol=data.get("affected_symbol") or data.get("symbol"),
+            requirement_id=data.get("requirement_id") or data.get("requirement"),
             vendor=vendor,
         )
 
@@ -275,15 +285,6 @@ def _types_compatible(a: str, b: str) -> bool:
     return _canonical_type(a) == _canonical_type(b)
 
 
-def _normalize_path(path: str) -> str:
-    """Strip diff prefixes and leading ./ so vendor path formats align."""
-    p = path.strip().lstrip("/")
-    for prefix in ("a/", "b/", "./"):
-        if p.startswith(prefix) and len(p) > len(prefix):
-            p = p[len(prefix):]
-    return p
-
-
 def _paths_match(a: str | None, b: str | None) -> bool:
     """True when two vendor-reported paths plausibly name the same file.
 
@@ -311,6 +312,20 @@ _TYPE_FAMILIES = {
     "style": "style", "observability": "observability",
 }
 
+_SYNONYMS = {
+    "absent": "missing", "omitted": "missing", "lacks": "missing",
+    "rejects": "refuse", "rejected": "refuse", "refuses": "refuse",
+    "blocker": "blocking", "blockers": "blocking", "blocked": "blocking",
+    "persisted": "write", "persists": "write", "writes": "write", "written": "write",
+    "duplicate": "repeated", "duplicates": "repeated", "duplicated": "repeated",
+    "different": "paraphrase", "differently": "paraphrase", "reworded": "paraphrase",
+    "contract": "schema", "validation": "validate", "validator": "validate",
+}
+_STOP_WORDS = {
+    "the", "and", "for", "from", "with", "that", "this", "into", "only",
+    "after", "before", "when", "while", "than", "then", "every", "still",
+}
+
 
 def _type_family(value: str) -> str:
     canonical = _canonical_type(value)
@@ -319,7 +334,38 @@ def _type_family(value: str) -> str:
 
 def _tokenize(text: str) -> set[str]:
     """Tokenize text for Jaccard similarity."""
-    return {w.lower().strip(".,;:!?()[]{}\"'") for w in text.split() if len(w) > 2}
+    tokens = {
+        re.sub(r"[^a-z0-9_-]", "", word.lower())
+        for word in text.split()
+    }
+    return {
+        _SYNONYMS.get(token, token) for token in tokens
+        if len(token) > 2 and token not in _STOP_WORDS
+    }
+
+
+def _normalize_path(value: str | None) -> str | None:
+    if not value:
+        return None
+    parts: list[str] = []
+    for part in value.replace("\\", "/").split("/"):
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            if parts:
+                parts.pop()
+            continue
+        parts.append(part)
+    if len(parts) > 1 and parts[0] in {"a", "b"}:
+        parts = parts[1:]
+    return "/".join(parts)
+
+
+def _normalize_identity(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = re.sub(r"[^a-z0-9_.:-]", "", value.lower())
+    return normalized or None
 
 
 def _jaccard(a: set[str], b: set[str]) -> float:
@@ -345,6 +391,14 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
     """
     same_family = _type_family(a.type) == _type_family(b.type)
     same_file = _paths_match(a.file_path, b.file_path)
+    path_a, path_b = _normalize_path(a.file_path), _normalize_path(b.file_path)
+    symbol_a, symbol_b = _normalize_identity(a.affected_symbol), _normalize_identity(b.affected_symbol)
+    requirement_a, requirement_b = _normalize_identity(a.requirement_id), _normalize_identity(b.requirement_id)
+
+    if requirement_a and requirement_a == requirement_b:
+        return 0.94, "requirement"
+    if symbol_a and symbol_a == symbol_b and (not path_a or not path_b or same_file):
+        return 0.93, "symbol"
 
     # Location match: same file + overlapping lines. Two vendors pointing
     # at the same lines almost certainly describe the same issue even
@@ -356,6 +410,9 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
             if same_family:
                 return 0.95, "location+type"
             return 0.88, "location+cross-family"
+        distance = max(a.line_start - b_end, b.line_start - a_end, 0)
+        if distance <= 20 and (same_family or (symbol_a and symbol_a == symbol_b)):
+            return 0.86, "nearby-location"
 
     # Different type families need deterministic structural evidence; text
     # similarity alone is too weak to merge unrelated categories.
@@ -368,7 +425,7 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
         return min(0.5 + desc_sim * 0.4, 0.85), "file+type+description"
 
     if desc_sim >= 0.4:
-        return min(0.2 + desc_sim * 0.8, 0.75), "type+description"
+        return min(0.45 + desc_sim * 0.4, 0.8), "type+description"
 
     return 0.0, ""
 
@@ -385,6 +442,8 @@ def _higher_criticality(a: str, b: str) -> str:
 MATCH_THRESHOLD = 0.6
 MAX_FINDINGS_PER_VENDOR = 500
 MAX_VENDOR_PAYLOAD_BYTES = 2 * 1024 * 1024
+MAX_TOTAL_FINDINGS = 2500
+MAX_MATCH_COMPARISONS = 250_000
 
 
 class ConsensusSynthesizer:
@@ -403,6 +462,9 @@ class ConsensusSynthesizer:
         trusted_approval_resolver: TrustedApprovalResolver | None = None,
     ) -> ConsensusReport:
         """Produce a consensus report from multiple vendor results."""
+        vendors = [result.vendor for result in vendor_results]
+        if len(vendors) != len(set(vendors)):
+            raise ConsensusInputError("vendor_results must contain distinct vendors")
         for vendor_result in vendor_results:
             if len(vendor_result.findings) > MAX_FINDINGS_PER_VENDOR:
                 raise ConsensusInputError(
@@ -416,6 +478,8 @@ class ConsensusSynthesizer:
                 raise ConsensusInputError(
                     f"{vendor_result.vendor}: exceeds {MAX_VENDOR_PAYLOAD_BYTES} byte limit"
                 )
+        if sum(len(result.findings) for result in vendor_results) > MAX_TOTAL_FINDINGS:
+            raise ConsensusInputError(f"review exceeds {MAX_TOTAL_FINDINGS} total findings")
         successful = [vr for vr in vendor_results if vr.success]
         quorum_met = len(successful) >= self.quorum
 
@@ -476,24 +540,49 @@ class ConsensusSynthesizer:
         return report
 
     def _match_all(self, findings: list[Finding]) -> list[FindingMatch]:
-        """Build deterministic clique groups without transitive bridges."""
+        """Build deterministic clique groups from bounded evidence buckets."""
         ordered = sorted(findings, key=lambda f: (f.vendor, f.id, f.description))
         grouped: list[list[int]] = []
+        buckets: dict[str, set[int]] = {}
+        comparisons = 0
+
+        def keys(finding: Finding) -> set[str]:
+            family = _type_family(finding.type)
+            result = {f"term:{family}:{token}" for token in _tokenize(finding.description)}
+            path = _normalize_path(finding.file_path)
+            symbol = _normalize_identity(finding.affected_symbol)
+            requirement = _normalize_identity(finding.requirement_id)
+            if path:
+                result.add(f"path:{path}")
+            if symbol:
+                result.add(f"symbol:{symbol}")
+            if requirement:
+                result.add(f"requirement:{requirement}")
+            return result
+
         for index, candidate in enumerate(ordered):
-            for members in grouped:
+            candidate_keys = keys(candidate)
+            candidate_groups = sorted({group for key in candidate_keys for group in buckets.get(key, set())})
+            for group_index in candidate_groups:
+                members = grouped[group_index]
                 # Admission requires an edge to the stable anchor AND every
                 # existing member. This prevents a weak A-B/B-C bridge from
                 # merging A and C when A-C itself is below threshold.
                 if any(ordered[member].vendor == candidate.vendor for member in members):
                     continue
-                if all(
-                    match_score(ordered[member], candidate)[0] >= self.match_threshold
-                    for member in members
-                ):
+                comparisons += len(members)
+                if comparisons > MAX_MATCH_COMPARISONS:
+                    raise ConsensusInputError("consensus matching exceeded bounded work budget")
+                if all(match_score(ordered[member], candidate)[0] >= self.match_threshold for member in members):
                     members.append(index)
+                    for key in candidate_keys:
+                        buckets.setdefault(key, set()).add(group_index)
                     break
             else:
                 grouped.append([index])
+                group_index = len(grouped) - 1
+                for key in candidate_keys:
+                    buckets.setdefault(key, set()).add(group_index)
         matches: list[FindingMatch] = []
         for indexes in sorted(grouped, key=lambda members: tuple(
             (ordered[index].vendor, ordered[index].id) for index in members
@@ -579,9 +668,11 @@ class ConsensusSynthesizer:
         )
         value = "\0".join((
             _type_family(finding.type),
-            finding.file_path or "",
+            _normalize_path(finding.file_path) or "",
             str(finding.line_start or ""),
             str(finding.line_end or ""),
+            _normalize_identity(finding.affected_symbol) or "",
+            _normalize_identity(finding.requirement_id) or "",
             normalized_description,
         ))
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
@@ -687,7 +778,7 @@ class ConsensusSynthesizer:
                 {
                     "id": cf.id,
                     "group_id": cf.group_id,
-                    "algorithm_version": "structured-v1",
+                    "algorithm_version": "structured-v2",
                     "status": cf.status,
                     "policy_status": cf.policy_status,
                     "primary_vendor": cf.primary_vendor,

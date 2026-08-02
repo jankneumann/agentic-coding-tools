@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-02T15:39:06Z",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "implementer",
+    "session_id": null,
+    "summary": "Resolved all 12 round-3 source blockers and added explicit regressions for each trust, recovery, durability, routing, and redaction boundary.",
+    "completed_work": [
+      "Aligned frozen, production, and installed consensus schemas with one shared full validator",
+      "Restricted checkpoints, quorum, and synthesis to distinct validated terminal vendors",
+      "Added bounded structured matching with normalized path, symbol, requirement, and synonym evidence",
+      "Shipped the portable review-attempt schema and stopped every nonrecoverable fallback class",
+      "Propagated deadlines through async polling and SDK calls without abandoned recovery workers",
+      "Added progressive convergence checkpoints and manifest v2 partial/final slot accounting",
+      "Sanitized SDK diagnostics and added HTTP-local-static routing provenance plus no-key SDK chains",
+      "Passed 424 skill tests, 107 coordinator tests, Ruff, install check, strict OpenSpec validation, and diff checks"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Fail closed on review evidence",
+        "rationale": "Only a schema-valid terminal attempt chain can contribute a distinct vendor vote; legacy success flags are audit-only.",
+        "capability": "review-recovery",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run IMPL_REVIEW round 4 with external quorum and source verification"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/reviews/round-3/review-findings.json",
+        "description": "authoritative 12-blocker remediation set"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/consensus_synthesizer.py",
+        "description": "shared strict consensus validation and structured matcher"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_attempts.py",
+        "description": "portable bounded recovery core"
+      },
+      {
+        "path": "skills/autopilot/scripts/convergence_loop.py",
+        "description": "eligible-result synthesis and progressive durability"
+      }
+    ]
+  }
+}

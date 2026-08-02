@@ -38,7 +38,12 @@ from urllib.request import Request, urlopen
 
 from jsonschema import Draft202012Validator
 
-from review_attempts import run_vendor_recovery, select_replacement_vendor, validate_review_attempt_chain
+from review_attempts import (
+    run_vendor_recovery,
+    sanitize_diagnostic,
+    select_replacement_vendor,
+    validate_review_attempt_chain,
+)
 from review_routing import RoutingContext, Resolver, resolve_review_routing, translate_thinking
 
 logger = logging.getLogger(__name__)
@@ -577,6 +582,7 @@ class CliVendorAdapter:
         cwd: Path,
         archetype_model: str | None = None,
         archetype_thinking: str | None = None,
+        timeout_seconds: float = 120,
     ) -> ReviewResult:
         """Submit an async dispatch and return immediately with task_id.
 
@@ -620,7 +626,7 @@ class CliVendorAdapter:
                     input=stdin_text,
                     capture_output=True,
                     text=True,
-                    timeout=120,  # submit timeout (not execution timeout)
+                    timeout=max(0.001, timeout_seconds),
                     cwd=str(cwd),
                 )
             except subprocess.TimeoutExpired:
@@ -709,6 +715,7 @@ class CliVendorAdapter:
         task_id: str,
         poll_config: PollConfig,
         cwd: Path | None = None,
+        timeout_seconds: float | None = None,
     ) -> ReviewResult:
         """Poll an async task until completion or timeout.
 
@@ -729,7 +736,11 @@ class CliVendorAdapter:
         failure_re = re.compile(poll_config.failure_pattern, re.IGNORECASE)
 
         start = time.monotonic()
-        deadline = start + poll_config.timeout_seconds
+        effective_timeout = min(
+            float(poll_config.timeout_seconds),
+            float(timeout_seconds) if timeout_seconds is not None else float(poll_config.timeout_seconds),
+        )
+        deadline = start + max(0.0, effective_timeout)
         attempts = 0
 
         while time.monotonic() < deadline:
@@ -739,16 +750,21 @@ class CliVendorAdapter:
             )
 
             try:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
                 result = subprocess.run(
                     poll_cmd,
                     capture_output=True,
                     text=True,
-                    timeout=30,
+                    timeout=max(0.001, min(30.0, remaining)),
                     cwd=str(cwd) if cwd else None,
                 )
             except subprocess.TimeoutExpired:
                 logger.warning("Poll command timed out, retrying")
-                time.sleep(poll_config.interval_seconds)
+                remaining = deadline - time.monotonic()
+                if remaining > 0:
+                    time.sleep(min(poll_config.interval_seconds, remaining))
                 continue
 
             combined = result.stdout + "\n" + result.stderr
@@ -776,15 +792,17 @@ class CliVendorAdapter:
                 )
 
             # Still running — wait and retry
-            time.sleep(poll_config.interval_seconds)
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                time.sleep(min(poll_config.interval_seconds, remaining))
 
         # Timeout
         return ReviewResult(
             vendor=self.vendor,
             success=False,
             elapsed_seconds=time.monotonic() - start,
-            error=f"Polling timed out after {poll_config.timeout_seconds}s ({attempts} attempts)",
-            error_class=ErrorClass.TRANSIENT,
+            error=f"Polling timed out after {effective_timeout:g}s ({attempts} attempts)",
+            error_class=ErrorClass.TIMEOUT,
             task_id=task_id,
         )
 
@@ -884,18 +902,20 @@ class SdkVendorAdapter:
                 )
                 continue
             except _SdkAuthError as exc:
+                safe_error, _ = sanitize_diagnostic(exc)
                 return ReviewResult(
                     vendor=self.vendor,
                     success=False,
                     models_attempted=models_attempted,
                     elapsed_seconds=time.monotonic() - dispatch_start,
-                    error=f"SDK auth error: {exc}",
+                    error=f"SDK auth error: {safe_error}",
                     error_class=ErrorClass.AUTH,
                 )
             except _SdkTransientError as exc:
-                last_error = str(exc)
+                last_error, _ = sanitize_diagnostic(exc)
+                last_error = last_error or "SDK transient error"
                 logger.warning(
-                    "%s SDK transient error: %s", self.vendor, str(exc)[:200],
+                    "%s SDK transient error: %s", self.vendor, last_error,
                 )
                 break
 
@@ -1000,6 +1020,7 @@ class SdkVendorAdapter:
                     response_mime_type="application/json",
                     max_output_tokens=self.sdk_config.max_tokens,
                 ),
+                request_options={"timeout": timeout},
                 **thinking_kwargs,
             )
             text = response.text if response.text else ""
@@ -1591,6 +1612,7 @@ class ReviewOrchestrator:
             return {
                 "transport": transport,
                 "validation_status": "schema_valid",
+                "findings": result.findings,
                 "stdout": result.raw_stdout,
                 "stderr": result.raw_stderr,
             }
@@ -1619,6 +1641,11 @@ class ReviewOrchestrator:
         terminal = chain["attempts"][-1]
         success = chain["terminal_outcome"] == "success"
         source = attempt_results[-1] if attempt_results else None
+        terminal_response = chain.pop("_terminal_response", None)
+        terminal_findings = (
+            terminal_response.get("findings")
+            if isinstance(terminal_response, dict) else None
+        )
         error_value = terminal.get("error_class")
         try:
             error_class = ErrorClass.AUTH if error_value == "auth" else (ErrorClass(error_value) if error_value else None)
@@ -1627,7 +1654,7 @@ class ReviewOrchestrator:
         return ReviewResult(
             vendor=vendor,
             success=success,
-            findings=source.findings if success and source else None,
+            findings=(source.findings if source else terminal_findings) if success else None,
             model_used=terminal["resolved_execution"]["model"],
             models_attempted=[
                 str(attempt["resolved_execution"]["model"])
@@ -1831,9 +1858,14 @@ class ReviewOrchestrator:
                         dispatch_mode, prompt, cwd,
                         archetype_model=model,
                         archetype_thinking=routing.thinking if routing else None,
+                        timeout_seconds=remaining,
                     )
+                    remaining_after_submit = max(0.0, remaining - submitted.elapsed_seconds)
                     result = (
-                        one_model.poll_for_result(submitted.task_id, mode_config.poll, cwd)
+                        one_model.poll_for_result(
+                            submitted.task_id, mode_config.poll, cwd,
+                            timeout_seconds=remaining_after_submit,
+                        )
                         if submitted.success and submitted.task_id and mode_config.poll
                         else submitted
                     )
@@ -1866,6 +1898,7 @@ class ReviewOrchestrator:
             invoke=invoke,
             timeout_seconds=timeout_seconds,
             requested_routing=requested_routing,
+            retain_terminal_response=True,
         )
         # The core owns bounded retries; the adapter owns the provider-specific
         # translation recorded on every concrete execution.
@@ -1936,6 +1969,7 @@ class ReviewOrchestrator:
             invoke=invoke,
             timeout_seconds=timeout_seconds,
             requested_routing=requested_routing,
+            retain_terminal_response=True,
         )
         for attempt in chain["attempts"]:
             execution = attempt["resolved_execution"]
@@ -2074,6 +2108,13 @@ class ReviewOrchestrator:
             elif reviewer.dispatch_tier == "sdk":
                 # SDK dispatch
                 sdk_adapter = self.sdk_adapters[reviewer.agent_id]
+                routing = resolve_review_routing(
+                    vendor=reviewer.vendor,
+                    dispatch_mode=dispatch_mode,
+                    explicit=routing_context,
+                    phase=phase,
+                    resolver=routing_resolver,
+                )
                 api_key = api_key_resolver.resolve(
                     sdk_adapter.openbao_role_id,
                     sdk_adapter.sdk_config.api_key_env,
@@ -2084,21 +2125,42 @@ class ReviewOrchestrator:
                     "resolved" if api_key else "missing",
                 )
                 if not api_key:
-                    record(ReviewResult(
-                        vendor=reviewer.vendor,
-                        success=False,
-                        error="No API key available for SDK dispatch",
-                    ))
+                    if dispatch_mode == "review":
+                        chain = run_vendor_recovery(
+                            logical_request_id=f"{review_type}:{reviewer.agent_id}",
+                            vendor=reviewer.vendor,
+                            primary_model=(routing.model if routing else None) or sdk_adapter.sdk_config.model,
+                            fallback_models=[],
+                            timeout_seconds=timeout_seconds,
+                            requested_routing=self._routing_payload(routing),
+                            invoke=lambda *_args: {
+                                "transport": "sdk",
+                                "validation_status": "not_reached",
+                                "error_class": "auth",
+                                "error_detail": "No API key available for SDK dispatch",
+                            },
+                        )
+                        primary = self._logical_result(
+                            vendor=reviewer.vendor, chain=chain, attempt_results=[],
+                        )
+                        record(self._replace_exhausted_review(
+                            primary, available=available, dispatched_vendors=dispatched_vendors,
+                            consumed_replacement_vendors=consumed_replacement_vendors,
+                            review_type=review_type, dispatch_mode=dispatch_mode, prompt=prompt,
+                            cwd=cwd, timeout_seconds=timeout_seconds,
+                            routing_context=routing_context, phase=phase,
+                            routing_resolver=routing_resolver,
+                            api_key_resolver=api_key_resolver,
+                        ))
+                    else:
+                        record(ReviewResult(
+                            vendor=reviewer.vendor,
+                            success=False,
+                            error="No API key available for SDK dispatch",
+                        ))
                     continue
 
                 if dispatch_mode == "review":
-                    routing = resolve_review_routing(
-                        vendor=reviewer.vendor,
-                        dispatch_mode=dispatch_mode,
-                        explicit=routing_context,
-                        phase=phase,
-                        resolver=routing_resolver,
-                    )
                     primary = self._dispatch_sdk_review(
                         adapter=sdk_adapter, reviewer=reviewer,
                         review_type=review_type, prompt=prompt, cwd=cwd,
@@ -2134,6 +2196,8 @@ class ReviewOrchestrator:
         review_type: str,
         target: str,
         vendors: list[dict[str, Any]] | None = None,
+        logical_slots: int | None = None,
+        round_state: str = "final",
     ) -> None:
         """Write review-manifest.json via the shared checkpoint_findings helper.
 
@@ -2160,6 +2224,7 @@ class ReviewOrchestrator:
             )
 
         from checkpoint_findings import write_manifest as _cf_write_manifest
+        from checkpoint_findings import write_vendor_findings as _cf_write_vendor_findings
 
         dispatches = []
         for r in results:
@@ -2178,12 +2243,31 @@ class ReviewOrchestrator:
                        if r.replacement_allocation else {}),
                 })
             else:
-                dispatches.append({
-                    "vendor": r.vendor, "success": r.success, "model_used": r.model_used,
-                    "models_attempted": r.models_attempted, "elapsed_seconds": r.elapsed_seconds,
-                    "error": r.error,
-                    "error_class": "auth" if r.error_class == ErrorClass.AUTH else (r.error_class.value if r.error_class else None),
+                raise ValueError("review manifests require terminal attempt-chain evidence")
+        if vendors is None:
+            generated_vendors: list[dict[str, Any]] = []
+            for result in results:
+                if not result.attempts or not result.quorum_eligible:
+                    continue
+                findings = (result.findings or {}).get("findings", [])
+                findings_path: str | None = None
+                if findings:
+                    written = _cf_write_vendor_findings(
+                        output_path.parent,
+                        vendor=result.vendor,
+                        review_type=review_type,
+                        target=target,
+                        findings=findings,
+                        reviewer_vendor=result.vendor,
+                    )
+                    findings_path = written.name
+                generated_vendors.append({
+                    "name": result.vendor,
+                    "findings_path": findings_path,
+                    "finding_count": len(findings),
+                    "quorum_eligible": True,
                 })
+            vendors = generated_vendors
         _cf_write_manifest(
             output_path.parent,
             review_type=review_type,
@@ -2191,8 +2275,8 @@ class ReviewOrchestrator:
             vendors=list(vendors) if vendors is not None else [],
             change_id=None,
             dispatches=dispatches,
-            quorum_requested=len(results),
-            quorum_received=None,
+            logical_slots=len(results) if logical_slots is None else logical_slots,
+            round_state=round_state,
         )
 
 
@@ -2404,6 +2488,7 @@ def main() -> int:
         dispatch_mode=args.mode,
     )
     available = [r for r in reviewers if r.available]
+    scheduled_logical_slots = len({reviewer.vendor for reviewer in available})
     print(f"Available reviewers: {[(r.agent_id, r.dispatch_tier) for r in available]}")
 
     if not available:
@@ -2437,6 +2522,10 @@ def main() -> int:
         orch.write_manifest(
             partial, output_dir / "review-manifest.json", args.review_type,
             "cli-dispatch", vendors=vendors_index,
+            logical_slots=scheduled_logical_slots - sum(
+                bool(item.replacement_allocation) for item in partial
+            ),
+            round_state="partial",
         )
 
     # Dispatch
@@ -2484,6 +2573,10 @@ def main() -> int:
     orch.write_manifest(
         results, manifest_path, args.review_type, "cli-dispatch",
         vendors=vendors_index,
+        logical_slots=scheduled_logical_slots - sum(
+            bool(item.replacement_allocation) for item in results
+        ),
+        round_state="final",
     )
     print(f"\nManifest: {manifest_path}")
 

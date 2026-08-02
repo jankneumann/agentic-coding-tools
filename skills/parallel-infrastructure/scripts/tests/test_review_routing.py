@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from review_routing import RoutingContext, resolve_review_routing, translate_thinking
+from review_routing import RoutingContext, _local_routing, resolve_review_routing, translate_thinking
 
 
 def _resolved(phase: str | None, vendor: str) -> RoutingContext:
@@ -53,6 +53,14 @@ def test_default_resolver_falls_back_without_a_public_coordinator(monkeypatch) -
     assert result.model is None
     assert result.source == "static"
     assert result.fallback_reason == "reviewer_resolution_unavailable"
+
+
+def test_public_local_resolver_preserves_archetype_tier_and_provider_model() -> None:
+    result = _local_routing("IMPL_REVIEW", "pi")
+    assert result.source == "coordinator_local"
+    assert result.archetype == "reviewer"
+    assert result.tier == "premium"
+    assert result.model == "qwen/qwen3-coder-plus"
 
 
 def test_quick_mode_keeps_static_routing() -> None:

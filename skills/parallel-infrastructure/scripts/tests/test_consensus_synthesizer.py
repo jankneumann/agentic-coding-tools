@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+import consensus_synthesizer as consensus_module
 
 from consensus_synthesizer import (
     ConsensusSynthesizer,
@@ -16,6 +17,7 @@ from consensus_synthesizer import (
     _tokenize,
     _types_compatible,
     match_score,
+    validate_consensus_payload,
 )
 
 
@@ -33,12 +35,15 @@ def _finding(
     file_path: str | None = None,
     line_start: int | None = None,
     line_end: int | None = None,
+    affected_symbol: str | None = None,
+    requirement_id: str | None = None,
 ) -> Finding:
     return Finding(
         id=id, type=type, criticality=criticality,
         description=description, disposition=disposition,
         vendor=vendor, file_path=file_path,
         line_start=line_start, line_end=line_end,
+        affected_symbol=affected_symbol, requirement_id=requirement_id,
     )
 
 
@@ -72,6 +77,25 @@ class TestTokenization:
 # ---------------------------------------------------------------------------
 
 class TestMatchScore:
+    def test_normalized_path_and_nearby_location_match(self) -> None:
+        a = _finding(file_path="./src/../src/api.py", line_start=10, line_end=12)
+        b = _finding(file_path="src\\api.py", line_start=25, vendor="grok")
+        score, basis = match_score(a, b)
+        assert score >= 0.8
+        assert basis == "nearby-location"
+
+    def test_symbol_and_requirement_identity_match_paraphrases(self) -> None:
+        symbol_a = _finding(description="writer accepts bad data", affected_symbol="Manifest.write")
+        symbol_b = _finding(description="unrelated wording", affected_symbol="manifest.write", vendor="grok")
+        assert match_score(symbol_a, symbol_b)[1] == "symbol"
+        req_a = _finding(description="first phrasing", requirement_id="R-12")
+        req_b = _finding(description="second phrasing", requirement_id="r-12", vendor="grok")
+        assert match_score(req_a, req_b)[1] == "requirement"
+
+    def test_owned_synonyms_match_differently_worded_defect(self) -> None:
+        a = _finding(description="contract omits blocker validation and persisted duplicate votes")
+        b = _finding(description="schema missing blocking validate and writes repeated votes", vendor="grok")
+        assert match_score(a, b)[0] >= 0.6
     def test_different_types_without_structural_evidence_do_not_match(self) -> None:
         a = _finding(type="security")
         b = _finding(type="performance")
@@ -276,6 +300,35 @@ class TestCrossVendorFormatSkew:
 # ---------------------------------------------------------------------------
 
 class TestConsensusSynthesizer:
+    def test_matching_total_work_is_bounded(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(consensus_module, "MAX_MATCH_COMPARISONS", 1)
+        findings = [
+            _finding(id=index, vendor=f"vendor-{index}", description="shared token distinct concern")
+            for index in range(3)
+        ]
+        with pytest.raises(ValueError, match="bounded work budget"):
+            ConsensusSynthesizer()._match_all(findings)
+
+    def test_full_consensus_contract_rejects_false_zero_and_non_boolean_policy(self) -> None:
+        synth = ConsensusSynthesizer(quorum=1)
+        report = synth.to_dict(synth.synthesize(
+            "implementation", "target", [VendorResult(vendor="claude_code", findings=[
+                _finding(type="behavioral_failure", vendor="claude_code"),
+            ])],
+        ))
+        validate_consensus_payload(report)
+        report["consensus_findings"][0]["policy"]["effective_blocking"] = 0
+        with pytest.raises(ValueError, match="invalid consensus report"):
+            validate_consensus_payload(report)
+
+    def test_full_consensus_contract_requires_revision_two_fields(self) -> None:
+        synth = ConsensusSynthesizer(quorum=1)
+        report = synth.to_dict(synth.synthesize(
+            "plan", "target", [VendorResult(vendor="codex", findings=[_finding()])],
+        ))
+        del report["consensus_findings"][0]["source_findings"]
+        with pytest.raises(ValueError, match="invalid consensus report"):
+            validate_consensus_payload(report)
     def test_fingerprint_is_stable_across_vendor_and_local_id(self) -> None:
         a = _finding(id=1, vendor="codex", file_path="src/api.py", line_start=7)
         b = _finding(id=99, vendor="grok", file_path="src/api.py", line_start=7)

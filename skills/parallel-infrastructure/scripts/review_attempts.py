@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import re
+import signal
+import threading
 import time
 from collections.abc import Callable, Iterable, Mapping
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
-from queue import Empty, Queue
-from threading import Thread
 from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
@@ -86,14 +86,13 @@ def _attempt_record(
 @lru_cache(maxsize=1)
 def _review_attempt_validator() -> Draft202012Validator:
     """Load the frozen contract from either a source tree or installed skill copy."""
-    relative_contract = Path(
-        "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"
+    relative_contracts = (
+        Path("install_assets/openspec/schemas/review-attempt.schema.json"),
+        Path("skills/parallel-infrastructure/install_assets/openspec/schemas/review-attempt.schema.json"),
+        Path("openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"),
     )
-    contract_path = next(
-        (parent / relative_contract for parent in Path(__file__).resolve().parents
-         if (parent / relative_contract).is_file()),
-        None,
-    )
+    contract_path = next((parent / relative for parent in Path(__file__).resolve().parents
+                          for relative in relative_contracts if (parent / relative).is_file()), None)
     if contract_path is None:
         raise ValueError("review attempt schema is unavailable")
     try:
@@ -230,39 +229,43 @@ def _invoke_with_deadline(
     invoke: Callable[[str, str, float, str], Mapping[str, Any]], *, vendor: str,
     model: str, remaining: float, reason: str,
 ) -> Mapping[str, Any]:
-    """Return at the deadline even when an adapter's synchronous call hangs.
+    """Invoke synchronously under an interrupting logical deadline.
 
-    The worker is daemonized so a non-cooperative SDK or polling adapter cannot
-    hold the recovery coordinator (or process shutdown) past its logical slot.
-    Adapters still receive the remaining budget and should use it for their own
-    request, poll, sleep, and retry timeouts.
+    The dispatcher adapters also receive ``remaining`` and apply it to owned
+    subprocesses and SDK clients.  The POSIX timer is the final cooperative
+    cancellation boundary, so no abandoned worker thread/process survives.
     """
-    response_queue: Queue[Mapping[str, Any]] = Queue(maxsize=1)
+    class DeadlineExpired(Exception):
+        pass
 
-    def call() -> None:
-        try:
-            response = invoke(vendor, model, remaining, reason)
-            response_queue.put(
-                response if isinstance(response, Mapping) else {
-                    "error_class": "configuration",
-                    "error_detail": "review adapter returned a non-mapping response",
-                }
-            )
-        except BaseException:
-            # Never persist or print raw SDK exception text from this boundary.
-            response_queue.put({
-                "error_class": "transient",
-                "error_detail": "review adapter invocation failed",
-            })
+    def expire(_signum: int, _frame: object) -> None:
+        raise DeadlineExpired
 
-    Thread(target=call, name="review-attempt-invoke", daemon=True).start()
+    use_timer = threading.current_thread() is threading.main_thread()
+    previous_handler = signal.getsignal(signal.SIGALRM) if use_timer else None
     try:
-        return response_queue.get(timeout=remaining)
-    except Empty:
+        if use_timer:
+            signal.signal(signal.SIGALRM, expire)
+            signal.setitimer(signal.ITIMER_REAL, remaining)
+        response = invoke(vendor, model, remaining, reason)
+        return response if isinstance(response, Mapping) else {
+            "error_class": "configuration",
+            "error_detail": "review adapter returned a non-mapping response",
+        }
+    except DeadlineExpired:
         return {
             "error_class": "timeout",
             "error_detail": "logical vendor deadline exhausted during invocation",
         }
+    except BaseException:
+        return {
+            "error_class": "transient",
+            "error_detail": "review adapter invocation failed",
+        }
+    finally:
+        if use_timer:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, previous_handler)
 
 
 def run_vendor_recovery(
@@ -270,6 +273,7 @@ def run_vendor_recovery(
     invoke: Callable[[str, str, float, str], Mapping[str, Any]], timeout_seconds: float,
     requested_routing: Mapping[str, object] | None = None,
     now: Callable[[], float] = time.monotonic,
+    retain_terminal_response: bool = False,
 ) -> dict[str, object]:
     """Execute the bounded primary/corrective/fallback state machine.
 
@@ -281,8 +285,10 @@ def run_vendor_recovery(
     ordered_fallbacks = list(dict.fromkeys(model for model in fallback_models if model != primary_model))
     deadline = now() + timeout_seconds
     attempts: list[dict[str, object]] = []
+    terminal_response: Mapping[str, Any] | None = None
 
     def invoke_one(model: str, reason: str, fallback_reason: str | None = None) -> dict[str, object]:
+        nonlocal terminal_response
         remaining = deadline - now()
         if remaining <= 0:
             response: Mapping[str, Any] = {"error_class": "timeout", "error_detail": "logical vendor deadline exhausted"}
@@ -297,11 +303,13 @@ def run_vendor_recovery(
                     "error_class": "timeout",
                     "error_detail": "logical vendor deadline exhausted during invocation",
                 }
+            terminal_response = response
             record = _attempt_record(index=len(attempts) + 1, vendor=vendor, model=model, reason=reason, response=response, elapsed=elapsed, fallback_reason=fallback_reason)
             attempts.append(record)
             return record
         record = _attempt_record(index=len(attempts) + 1, vendor=vendor, model=model, reason=reason, response=response, elapsed=0.0, fallback_reason=fallback_reason)
         attempts.append(record)
+        terminal_response = response
         return record
 
     initial = invoke_one(primary_model, "initial")
@@ -315,7 +323,7 @@ def run_vendor_recovery(
         for fallback in ordered_fallbacks:
             attempted = invoke_one(fallback, "model_fallback", fallback_reason=str(initial["error_class"]))
             initial = attempted
-            if attempted["success"] or attempted["error_class"] == "auth":
+            if attempted["success"] or attempted["error_class"] not in {"invalid_output", "capacity_exhausted"}:
                 break
     terminal = attempts[-1]
     terminal["terminal"] = True
@@ -336,4 +344,6 @@ def run_vendor_recovery(
         "quorum_eligible": success,
     }
     validate_review_attempt_chain(result)
+    if retain_terminal_response and terminal_response is not None:
+        result["_terminal_response"] = dict(terminal_response)
     return result

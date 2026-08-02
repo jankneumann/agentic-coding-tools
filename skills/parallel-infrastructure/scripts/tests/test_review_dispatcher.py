@@ -18,6 +18,7 @@ from review_dispatcher import (
     ReviewResult,
     SdkConfig,
     SdkVendorAdapter,
+    _SdkTransientError,
     classify_error,
 )
 from review_routing import RoutingContext
@@ -555,6 +556,44 @@ class TestOrchestrator:
         assert results[0].attempts[-1]["transport"] == "sdk"
 
     @patch("api_key_resolver.ApiKeyResolver")
+    def test_sdk_no_key_is_terminal_validated_attempt_chain(
+        self, mock_resolver: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_resolver.return_value.resolve.return_value = None
+        adapter = _sdk_adapter("claude-remote", "claude_code")
+        orch = ReviewOrchestrator({}, {"claude-remote": adapter})
+        routing = RoutingContext(
+            archetype="reviewer", tier="premium", phase="IMPL_REVIEW",
+            model="opus", thinking=None, source="test",
+        )
+        with patch.object(adapter, "can_dispatch", return_value=True):
+            result = orch.dispatch_and_wait(
+                review_type="implementation", dispatch_mode="review", prompt="review",
+                cwd=tmp_path, routing_context=routing,
+            )[0]
+        assert result.success is False
+        assert result.terminal_outcome == "auth"
+        assert result.attempts[-1]["terminal"] is True
+        assert result.attempts[-1]["error_class"] == "auth"
+        assert result.requested_routing == {
+            "archetype": "reviewer", "tier": "premium", "phase": "IMPL_REVIEW",
+        }
+
+    def test_sdk_transient_log_is_redacted_and_bounded(
+        self, caplog: pytest.LogCaptureFixture, tmp_path: Path,
+    ) -> None:
+        adapter = _sdk_adapter()
+        leaked = "token=SUPERSECRET Bearer abcdefghijklmnop api_key=ALSOSECRET " + ("x" * 5000)
+        with patch.object(adapter, "_call_sdk", side_effect=_SdkTransientError(leaked)):
+            with caplog.at_level("WARNING"):
+                result = adapter.dispatch("review", "prompt", tmp_path, api_key="configured")
+        assert "SUPERSECRET" not in caplog.text
+        assert "abcdefghijklmnop" not in caplog.text
+        assert "ALSOSECRET" not in caplog.text
+        assert len(caplog.text) < 4500
+        assert "SUPERSECRET" not in (result.error or "")
+
+    @patch("api_key_resolver.ApiKeyResolver")
     @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
     def test_sdk_rejects_unsupported_thinking_before_invocation(
         self,
@@ -667,6 +706,7 @@ class TestOrchestrator:
         assert reviewers[0].vendor == "grok"
 
     def test_write_manifest(self, tmp_path: Path) -> None:
+        """Legacy success flags cannot be persisted as quorum evidence."""
         orch = ReviewOrchestrator({})
         results = [
             ReviewResult(vendor="codex", success=True, model_used="gpt-5.4",
@@ -676,13 +716,8 @@ class TestOrchestrator:
                         models_attempted=["(default)", "grok-4.5"]),
         ]
         output = tmp_path / "reviews" / "review-manifest.json"
-        orch.write_manifest(results, output, "plan", "test-feature")
-        assert output.exists()
-        data = json.loads(output.read_text())
-        assert data["quorum_requested"] == 2
-        assert data["quorum_received"] == 1
-        assert data["dispatches"][0]["success"] is True
-        assert data["dispatches"][1]["error_class"] == "capacity_exhausted"
+        with pytest.raises(ValueError, match="attempt-chain evidence"):
+            orch.write_manifest(results, output, "plan", "test-feature")
 
 
 # ---------------------------------------------------------------------------

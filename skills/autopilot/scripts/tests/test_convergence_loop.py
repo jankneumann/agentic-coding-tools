@@ -71,6 +71,24 @@ def _make_review_result(
         result.terminal_outcome = "success"
         result.terminal_vendor = vendor
         result.quorum_eligible = True
+    else:
+        result.logical_request_id = f"implementation:{vendor}"
+        result.requested_vendor = vendor
+        result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None}
+        result.deadline_at = "2026-08-01T00:00:00+00:00"
+        result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
+        result.attempts = [{
+            "attempt_index": 1, "vendor": vendor, "transport": "cli", "reason": "initial",
+            "terminal": True, "success": False, "elapsed_seconds": 0.0,
+            "parser_stage": None, "validation_status": "not_reached",
+            "error_class": "timeout", "error_detail": "timed out", "stdout_excerpt": None,
+            "stderr_excerpt": None, "diagnostics_truncated": False,
+            "resolved_execution": {"model": "test-model", "requested_thinking": None,
+                                   "applied_thinking": None, "thinking_translation": "not_requested",
+                                   "fallback_reason": None},
+        }]
+        result.terminal_outcome = "timeout"
+        result.terminal_vendor = vendor
     return result
 
 
@@ -122,7 +140,7 @@ def _make_consensus_finding(
         primary_finding_id=id,
         matched_findings=[],
         match_score=0.9,
-        agreed_type="bug",
+        agreed_type="correctness",
         agreed_criticality=criticality,
         recommended_disposition=disposition,
         description=f"Test finding {id}",
@@ -167,22 +185,14 @@ def _setup_converge(
 
 
 def test_consensus_validation_rejects_false_quorum() -> None:
-    report = {
-        "quorum_requested": 2,
-        "quorum_received": 0,
-        "quorum_met": True,
-        "quorum": {
-            "requested": 2,
-            "received": 0,
-            "minimum_required": 2,
-            "eligible_vendors": [],
-            "met": True,
-        },
-        "consensus_findings": [],
-        "summary": {"total_unique_findings": 0, "blocking_count": 0},
-    }
+    report = __import__("consensus_synthesizer", fromlist=["ConsensusSynthesizer"]).ConsensusSynthesizer().to_dict(
+        _make_consensus_report([])
+    )
+    report["quorum"]["received"] = 0
+    report["quorum"]["eligible_vendors"] = []
+    report["quorum_received"] = 0
 
-    with pytest.raises(ValueError, match="met flag"):
+    with pytest.raises(ValueError, match="quorum is inconsistent"):
         validate_consensus_report(report)
 
 

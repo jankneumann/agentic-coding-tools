@@ -597,3 +597,32 @@ Final implementation-review iteration did not converge. All five configured prem
 
 ### Context
 The operator approved one additional IMPL_FIX → IMPL_REVIEW cycle beyond the configured review cap. Validation and PR submission remain prohibited until implementation review converges.
+
+---
+
+## Phase: Implementation Fix 4 (2026-08-02)
+
+**Agent**: implementer | **Session**: N/A
+
+### Decisions
+1. **Use one complete consensus trust boundary** `architectural: review-recovery` — Producers and convergence consumers now validate the same strict revision-2 schema plus relational invariants.
+2. **Count only validated terminal vendors** `quality: skill-workflow` — Checkpoints, quorum, and synthesis use one distinct eligible-result set; legacy success flags remain audit-only.
+3. **Terminate at the logical deadline without abandoned workers** `resilience: review-recovery` — Adapters receive the remaining budget and the synchronous outer boundary uses an interrupting deadline, leaving no live recovery worker.
+4. **Version partial-round durability explicitly** `observability: review-recovery` — Manifest schema v2 preserves the scheduled logical-slot count and requires a partial/final marker.
+
+### Completed Work
+- Resolved all 12 source-verified IMPL_REVIEW round-3 blockers across consensus contracts, structured matching, portable attempt validation, recovery transitions/deadlines, progressive checkpointing, quorum derivation, diagnostic redaction, and routing provenance.
+- Added regression coverage for every round-3 reproduction, including later-vendor crash persistence, copied-install execution, no-key SDK chains, contradictory quorum, and no-live-worker timeouts.
+- Passed 424 targeted skill/workflow/install tests, 107 coordinator routing tests, focused Ruff, install portability, strict OpenSpec validation, and diff checks.
+
+### Next Steps
+- Run the operator-authorized fourth multi-vendor IMPL_REVIEW round without a quorum waiver.
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — strict shared validation and bounded structured matching
+- `skills/parallel-infrastructure/scripts/review_attempts.py` — portable schema and terminal recovery/deadline enforcement
+- `skills/parallel-infrastructure/scripts/checkpoint_findings.py` — derived quorum and versioned partial/final manifests
+- `skills/autopilot/scripts/convergence_loop.py` — distinct eligible synthesis and progressive checkpoint callback
+
+### Context
+The extra IMPL_FIX cycle completed without changing orchestrator state. Implementation review remains mandatory; validation and PR submission are still prohibited until round 4 converges.

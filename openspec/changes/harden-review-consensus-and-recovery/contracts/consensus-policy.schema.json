@@ -108,7 +108,7 @@
           }
         },
         "match_score": {"type": "number", "minimum": 0, "maximum": 1, "deprecated": true},
-        "agreed_type": {"type": "string", "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience"], "deprecated": true},
+        "agreed_type": {"type": "string", "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience", "behavioral_failure"], "deprecated": true},
         "agreed_criticality": {"type": "string", "enum": ["low", "medium", "high", "critical"], "deprecated": true},
         "recommended_disposition": {"type": "string", "enum": ["fix", "regenerate", "accept", "escalate"], "deprecated": true},
         "criticality": {"type": "string", "enum": ["low", "medium", "high", "critical"]},

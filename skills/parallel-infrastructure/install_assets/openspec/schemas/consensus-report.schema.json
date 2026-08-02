@@ -1,162 +1,201 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Multi-Vendor Review Consensus Report",
-  "description": "Revision-2 consensus report with derived legacy aliases.",
+  "$id": "https://agentic-coding-tools.dev/contracts/harden-review-consensus-and-recovery/consensus-policy.schema.json",
+  "title": "Consensus Report Revision 2",
   "type": "object",
-  "required": ["schema_version", "review_type", "target", "reviewers", "quorum_met", "consensus_findings", "summary"],
+  "additionalProperties": false,
+  "description": "Revision 2 is additive for legacy readers. validate_consensus_report() enforces alias equality and relational quorum invariants that JSON Schema cannot express.",
+  "required": [
+    "schema_version", "review_type", "target", "reviewers",
+    "quorum_met", "quorum_requested", "quorum_received", "quorum",
+    "consensus_findings", "summary", "applied_adjudications"
+  ],
   "properties": {
-    "schema_version": {
-      "type": "integer",
-      "const": 2
-    },
-    "review_type": {
-      "type": "string",
-      "enum": ["plan", "implementation"]
-    },
-    "target": {
-      "type": "string",
-      "description": "Feature ID or package ID being reviewed"
-    },
-    "reviewers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["vendor", "agent_id", "success", "elapsed_seconds"],
-        "properties": {
-          "vendor": {
-            "type": "string",
-            "enum": ["claude", "codex", "antigravity", "grok", "pi"]
-          },
-          "agent_id": {
-            "type": "string"
-          },
-          "success": {
-            "type": "boolean"
-          },
-          "findings_count": {
-            "type": "integer"
-          },
-          "elapsed_seconds": {
-            "type": "number"
-          },
-          "error": {
-            "type": ["string", "null"]
-          }
-        }
-      }
-    },
-    "quorum_met": {
-      "type": "boolean",
-      "description": "True if minimum reviewer count threshold was met"
-    },
-    "quorum_requested": {
-      "type": "integer",
-      "description": "Number of reviewers requested"
-    },
-    "quorum_received": {
-      "type": "integer",
-      "description": "Number of reviewers that returned valid findings"
-    },
+    "schema_version": {"const": 2},
+    "review_type": {"type": "string", "enum": ["plan", "implementation"]},
+    "target": {"type": "string", "minLength": 1},
+    "reviewers": {"type": "array", "items": {"$ref": "#/$defs/Reviewer"}},
+    "quorum_met": {"type": "boolean", "deprecated": true},
+    "quorum_requested": {"type": "integer", "minimum": 0, "deprecated": true},
+    "quorum_received": {"type": "integer", "minimum": 0, "deprecated": true},
     "quorum": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["requested", "received", "minimum_required", "eligible_vendors", "met"],
       "properties": {
         "requested": {"type": "integer", "minimum": 0},
         "received": {"type": "integer", "minimum": 0},
         "minimum_required": {"type": "integer", "minimum": 1},
-        "eligible_vendors": {"type": "array", "items": {"type": "string"}},
+        "eligible_vendors": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
         "met": {"type": "boolean"}
-      }
+      },
+      "description": "validate_consensus_report() enforces received <= requested, received == len(eligible_vendors), met == (received >= minimum_required), and equality with the deprecated flat aliases"
     },
     "consensus_findings": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["id", "status", "primary_vendor", "primary_finding_id", "agreed_type", "agreed_criticality", "recommended_disposition"],
-        "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["confirmed", "unconfirmed", "disagreement"],
-            "description": "confirmed=2+ vendors agree, unconfirmed=single vendor, disagreement=vendors disagree on disposition"
-          },
-          "policy_status": {"type": "string", "enum": ["confirmed", "provisional", "disagreement"]},
-          "group_id": {"type": "string"},
-          "algorithm_version": {"type": "string"},
-          "source_findings": {"type": "array"},
-          "match": {"type": "object"},
-          "adjudication": {"type": "object"},
-          "policy": {"type": "object"},
-          "primary_vendor": {
-            "type": "string",
-            "description": "Vendor that reported the primary finding"
-          },
-          "primary_finding_id": {
-            "type": "integer",
-            "description": "Finding ID within the primary vendor's findings array"
-          },
-          "matched_findings": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": ["vendor", "finding_id"],
-              "properties": {
-                "vendor": { "type": "string" },
-                "finding_id": { "type": "integer" }
-              }
-            },
-            "description": "Matching findings from other vendors"
-          },
-          "match_score": {
-            "type": "number",
-            "minimum": 0.0,
-            "maximum": 1.0,
-            "description": "Confidence of the cross-vendor match"
-          },
-          "agreed_type": {
-            "type": "string",
-            "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience"]
-          },
-          "agreed_criticality": {
-            "type": "string",
-            "enum": ["low", "medium", "high", "critical"]
-          },
-          "recommended_disposition": {
-            "type": "string",
-            "enum": ["fix", "regenerate", "accept", "escalate"]
-          },
-          "description": {
-            "type": "string",
-            "description": "Synthesized description combining vendor perspectives"
-          },
-          "vendor_dispositions": {
+      "items": {"$ref": "#/$defs/ConsensusFinding"}
+    },
+    "summary": {"$ref": "#/$defs/Summary"},
+    "applied_adjudications": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/LedgerEntry"}
+    }
+  },
+  "$defs": {
+    "Reviewer": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["vendor", "agent_id", "success", "elapsed_seconds"],
+      "properties": {
+        "vendor": {"type": "string", "minLength": 1},
+        "agent_id": {"type": "string", "minLength": 1},
+        "success": {"type": "boolean"},
+        "findings_count": {"type": "integer", "minimum": 0},
+        "elapsed_seconds": {"type": "number", "minimum": 0},
+        "error": {"type": ["string", "null"]}
+      }
+    },
+    "Summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_unique_findings", "confirmed_count", "provisional_count",
+        "unconfirmed_count", "disagreement_count", "integration_blocking_count",
+        "convergence_blocking_count", "effective_blocking_count", "blocking_count"
+      ],
+      "properties": {
+        "total_unique_findings": {"type": "integer", "minimum": 0},
+        "confirmed_count": {"type": "integer", "minimum": 0},
+        "provisional_count": {"type": "integer", "minimum": 0},
+        "unconfirmed_count": {"type": "integer", "minimum": 0, "deprecated": true},
+        "disagreement_count": {"type": "integer", "minimum": 0},
+        "integration_blocking_count": {"type": "integer", "minimum": 0},
+        "convergence_blocking_count": {"type": "integer", "minimum": 0},
+        "effective_blocking_count": {"type": "integer", "minimum": 0},
+        "blocking_count": {"type": "integer", "minimum": 0, "deprecated": true}
+      },
+      "description": "provisional_count equals deprecated unconfirmed_count; blocking_count equals effective_blocking_count. Producers enforce these cross-field invariants."
+    },
+    "ConsensusFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "group_id", "algorithm_version", "status", "policy_status",
+        "primary_vendor", "primary_finding_id", "matched_findings", "match_score",
+        "agreed_type", "agreed_criticality", "recommended_disposition",
+        "criticality", "description",
+        "source_findings", "vendor_dispositions", "match", "adjudication", "policy"
+      ],
+      "properties": {
+        "id": {"type": "integer", "minimum": 1, "deprecated": true},
+        "group_id": {"type": "string", "pattern": "^cg-[a-f0-9]{16,64}$"},
+        "algorithm_version": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "enum": ["confirmed", "unconfirmed", "disagreement"], "deprecated": true},
+        "policy_status": {"type": "string", "enum": ["confirmed", "provisional", "disagreement"], "description": "Canonical revision-2 status; validate_consensus_report() enforces provisional iff deprecated status is unconfirmed"},
+        "primary_vendor": {"type": "string", "minLength": 1, "deprecated": true},
+        "primary_finding_id": {"type": ["string", "integer"], "deprecated": true},
+        "matched_findings": {
+          "type": "array",
+          "deprecated": true,
+          "items": {
             "type": "object",
-            "additionalProperties": {
-              "type": "string",
-              "enum": ["fix", "regenerate", "accept", "escalate"]
-            },
-            "description": "Per-vendor disposition map, present when status=disagreement"
+            "additionalProperties": false,
+            "required": ["vendor", "finding_id"],
+            "properties": {
+              "vendor": {"type": "string", "minLength": 1},
+              "finding_id": {"type": ["string", "integer"]}
+            }
+          }
+        },
+        "match_score": {"type": "number", "minimum": 0, "maximum": 1, "deprecated": true},
+        "agreed_type": {"type": "string", "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience", "behavioral_failure"], "deprecated": true},
+        "agreed_criticality": {"type": "string", "enum": ["low", "medium", "high", "critical"], "deprecated": true},
+        "recommended_disposition": {"type": "string", "enum": ["fix", "regenerate", "accept", "escalate"], "deprecated": true},
+        "criticality": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+        "description": {"type": "string", "minLength": 1},
+        "source_findings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["vendor", "finding_id", "concern_fingerprint", "disposition"],
+            "properties": {
+              "vendor": {"type": "string", "minLength": 1},
+              "finding_id": {"type": ["string", "integer"]},
+              "concern_fingerprint": {"type": "string", "minLength": 16},
+              "disposition": {"type": "string", "enum": ["fix", "regenerate", "accept", "escalate"]}
+            }
+          }
+        },
+        "vendor_dispositions": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"type": "string", "enum": ["fix", "regenerate", "accept", "escalate"]},
+          "description": "Deprecated per-vendor summary derived from source_findings; source_findings is authoritative when one vendor contributes multiple findings"
+        },
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "score", "evidence"],
+          "properties": {
+            "method": {"type": "string", "enum": ["single", "structured", "description"]},
+            "score": {"type": "number", "minimum": 0, "maximum": 1},
+            "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          }
+        },
+        "adjudication": {"$ref": "#/$defs/Adjudication"},
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["integration_blocking", "convergence_blocking", "effective_blocking"],
+          "properties": {
+            "integration_blocking": {"type": "boolean"},
+            "convergence_blocking": {"type": "boolean"},
+            "effective_blocking": {"type": "boolean"}
           }
         }
       }
     },
-    "summary": {
+    "Authorization": {
       "type": "object",
-      "required": ["total_unique_findings", "confirmed_count", "unconfirmed_count", "disagreement_count", "blocking_count"],
+      "additionalProperties": false,
+      "required": ["actor_id", "actor_type", "mechanism", "authorized_at", "approval_ref"],
       "properties": {
-        "total_unique_findings": { "type": "integer" },
-        "confirmed_count": { "type": "integer" },
-        "provisional_count": { "type": "integer" },
-        "unconfirmed_count": { "type": "integer" },
-        "disagreement_count": { "type": "integer" },
-        "integration_blocking_count": { "type": "integer" },
-        "convergence_blocking_count": { "type": "integer" },
-        "effective_blocking_count": { "type": "integer" },
-        "blocking_count": { "type": "integer", "description": "Effective blockers; compatibility alias" }
+        "actor_id": {"type": "string", "minLength": 1},
+        "actor_type": {"const": "human"},
+        "mechanism": {"type": "string", "enum": ["coordinator_audit", "github_approval", "signed_local_record"]},
+        "authorized_at": {"type": "string", "format": "date-time"},
+        "approval_ref": {"type": "string", "minLength": 1}
       }
     },
-    "applied_adjudications": {"type": "array"}
+    "Adjudication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"type": "string", "enum": ["unreviewed", "fixed", "false_positive", "accepted_risk", "deferred"]},
+        "rationale": {"type": "string", "minLength": 1},
+        "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "authorization": {"$ref": "#/$defs/Authorization"},
+        "tracking_reference": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"enum": ["fixed", "false_positive"]}}, "required": ["status"]}, "then": {"required": ["rationale", "evidence"]}},
+        {"if": {"properties": {"status": {"const": "accepted_risk"}}, "required": ["status"]}, "then": {"required": ["rationale", "authorization"]}},
+        {"if": {"properties": {"status": {"const": "deferred"}}, "required": ["status"]}, "then": {"required": ["rationale", "tracking_reference"]}}
+      ]
+    },
+    "LedgerEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_id", "concern_fingerprints", "adjudication", "recorded_at"],
+      "properties": {
+        "group_id": {"type": "string", "pattern": "^cg-[a-f0-9]{16,64}$"},
+        "concern_fingerprints": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 16}},
+        "adjudication": {"$ref": "#/$defs/Adjudication"},
+        "recorded_at": {"type": "string", "format": "date-time"}
+      }
+    }
   }
 }

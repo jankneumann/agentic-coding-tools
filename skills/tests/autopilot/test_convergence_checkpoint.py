@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from convergence_loop import converge  # type: ignore[import-untyped]
+from convergence_loop import _eligible_distinct_results, converge  # type: ignore[import-untyped]
 # Importing convergence_loop above puts parallel-infrastructure on sys.path,
 # so checkpoint_findings + review_dispatcher are now importable.
 from checkpoint_findings import read_manifest, read_vendor_findings  # type: ignore[import-untyped]
@@ -117,7 +117,7 @@ def _blocking_consensus_report() -> dict[str, Any]:
 
 
 def _failed_review_result(vendor: str, error: str = "vendor unreachable") -> ReviewResult:
-    return ReviewResult(
+    result = ReviewResult(
         vendor=vendor,
         success=False,
         model_used=None,
@@ -125,6 +125,24 @@ def _failed_review_result(vendor: str, error: str = "vendor unreachable") -> Rev
         elapsed_seconds=0.5,
         error=error,
     )
+    result.logical_request_id = f"plan:{vendor}"
+    result.requested_vendor = vendor
+    result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None}
+    result.deadline_at = "2026-08-01T00:00:00+00:00"
+    result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
+    result.attempts = [{
+        "attempt_index": 1, "vendor": vendor, "transport": "cli", "reason": "initial",
+        "terminal": True, "success": False, "elapsed_seconds": 0.0,
+        "parser_stage": None, "validation_status": "not_reached",
+        "error_class": "timeout", "error_detail": error, "stdout_excerpt": None,
+        "stderr_excerpt": None, "diagnostics_truncated": False,
+        "resolved_execution": {"model": "test-model", "requested_thinking": None,
+                               "applied_thinking": None, "thinking_translation": "not_requested",
+                               "fallback_reason": None},
+    }]
+    result.terminal_outcome = "timeout"
+    result.terminal_vendor = vendor
+    return result
 
 
 class _FakeOrchestrator:
@@ -135,6 +153,31 @@ class _FakeOrchestrator:
 
     def dispatch_and_wait(self, **_kwargs: Any) -> list[ReviewResult]:
         return self._results
+
+
+def test_convergence_checkpoints_completed_vendor_before_later_crash(tmp_path: Path) -> None:
+    completed = _review_result("codex", [_vendor_finding(1)])
+
+    class CrashAfterOne:
+        def dispatch_and_wait(self, **kwargs: Any) -> list[ReviewResult]:
+            kwargs["on_terminal_result"](completed, [completed])
+            raise RuntimeError("later vendor crashed")
+
+    with pytest.raises(RuntimeError, match="later vendor crashed"):
+        converge(
+            change_id="test-feature", review_type="plan", artifacts_dir=tmp_path,
+            worktree_path=tmp_path, orchestrator=CrashAfterOne(), max_rounds=1,
+        )
+    manifest = read_manifest(tmp_path / ".review-cache" / "round-1")
+    assert manifest["round_state"] == "partial"
+    assert manifest["quorum_received"] == 1
+
+
+def test_eligible_result_set_rejects_duplicates_and_success_without_chain() -> None:
+    codex = _review_result("codex", [])
+    duplicate = _review_result("codex", [])
+    legacy = ReviewResult(vendor="grok", success=True, findings={"findings": []})
+    assert _eligible_distinct_results([codex, duplicate, legacy]) == [codex]
 
 
 class _FakeSynthesizer:
@@ -199,7 +242,7 @@ def test_success_path_writes_checkpoint(
     manifest = read_manifest(result.checkpoint_dir)
     assert manifest["change_id"] == "test-feature"
     assert manifest["review_type"] == "plan"
-    assert manifest["schema_version"] == 1
+    assert manifest["schema_version"] == 2
     # Per-vendor files round-trip through read_vendor_findings
     loaded = read_vendor_findings(result.checkpoint_dir)
     assert set(loaded) == {"claude_code", "codex"}
@@ -288,7 +331,7 @@ def test_empty_round_quorum_lost_no_crash(
     monkeypatch.setattr(
         "convergence_loop.ConsensusSynthesizer", _FakeSynthesizer
     )
-    failed = ReviewResult(vendor="claude_code", success=False, error="timeout")
+    failed = _failed_review_result("claude_code", "timeout")
     orch = _FakeOrchestrator([failed])
     result = converge(
         change_id="test-feature",

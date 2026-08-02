@@ -43,9 +43,11 @@ if _PARALLEL_INFRA_DIR not in sys.path:
     sys.path.insert(0, _PARALLEL_INFRA_DIR)
 
 from consensus_synthesizer import (  # noqa: E402
+    ConsensusInputError,
     ConsensusSynthesizer,
     Finding,
     VendorResult,
+    validate_consensus_payload,
 )
 from review_dispatcher import (  # noqa: E402
     ReviewOrchestrator,
@@ -72,100 +74,11 @@ _DEFAULT_STALL_WINDOW = 3
 
 
 def validate_consensus_report(report: dict[str, Any]) -> None:
-    """Reject internally inconsistent consensus before making a decision.
-
-    JSON Schema validates each field's shape; this guard covers the
-    cross-field trust invariants which otherwise permit false quorum and
-    false-zero convergence signals.
-    """
-    quorum = report.get("quorum")
-    if not isinstance(quorum, dict):
-        raise ValueError("consensus report is missing canonical quorum")
-    requested = quorum.get("requested")
-    received = quorum.get("received")
-    minimum_required = quorum.get("minimum_required")
-    eligible_vendors = quorum.get("eligible_vendors")
-    met = quorum.get("met")
-    if (
-        not isinstance(requested, int) or not isinstance(received, int)
-        or not isinstance(minimum_required, int) or isinstance(requested, bool)
-        or isinstance(received, bool) or isinstance(minimum_required, bool)
-        or requested < 0 or received < 0 or minimum_required < 1
-    ):
-        raise ValueError("consensus quorum counts are invalid")
-    if not isinstance(eligible_vendors, list) or not all(isinstance(vendor, str) and vendor for vendor in eligible_vendors):
-        raise ValueError("consensus eligible_vendors is invalid")
-    if len(set(eligible_vendors)) != len(eligible_vendors) or received != len(eligible_vendors) or received > requested:
-        raise ValueError("consensus eligible-vendor count is inconsistent")
-    if not isinstance(met, bool) or met != (received >= minimum_required):
-        raise ValueError("consensus quorum met flag is inconsistent")
-    for flat, canonical in (("quorum_requested", requested), ("quorum_received", received), ("quorum_met", met)):
-        if report.get(flat) != canonical:
-            raise ValueError(f"consensus {flat} disagrees with canonical quorum")
-
-    findings = report.get("consensus_findings")
-    summary = report.get("summary")
-    if not isinstance(findings, list) or not isinstance(summary, dict):
-        raise ValueError("consensus findings or summary is invalid")
-    if summary.get("total_unique_findings") != len(findings):
-        raise ValueError("consensus total_unique_findings is inconsistent")
-    expected = {
-        "confirmed_count": sum(f.get("status") == "confirmed" for f in findings if isinstance(f, dict)),
-        "unconfirmed_count": sum(f.get("status") == "unconfirmed" for f in findings if isinstance(f, dict)),
-        "disagreement_count": sum(f.get("status") == "disagreement" for f in findings if isinstance(f, dict)),
-        "integration_blocking_count": sum(bool((f.get("policy") or {}).get("integration_blocking")) for f in findings if isinstance(f, dict)),
-        "convergence_blocking_count": sum(bool((f.get("policy") or {}).get("convergence_blocking")) for f in findings if isinstance(f, dict)),
-        "effective_blocking_count": sum(bool((f.get("policy") or {}).get("effective_blocking")) for f in findings if isinstance(f, dict)),
-    }
-    for key, value in expected.items():
-        if key in summary and summary[key] != value:
-            raise ValueError(f"consensus {key} is inconsistent")
-    if "blocking_count" in summary and summary["blocking_count"] != summary.get("effective_blocking_count", expected["effective_blocking_count"]):
-        raise ValueError("consensus blocking_count is inconsistent")
-
-    # Revision-2 compatibility fields are mandatory at this trust boundary;
-    # accepting a partial report lets a producer hide an alias disagreement.
-    required_summary = {
-        "total_unique_findings", "confirmed_count", "provisional_count",
-        "unconfirmed_count", "disagreement_count", "integration_blocking_count",
-        "convergence_blocking_count", "effective_blocking_count", "blocking_count",
-    }
-    if not required_summary.issubset(summary):
-        raise ValueError("consensus summary omits required revision-2 aliases")
-    if summary["provisional_count"] != summary["unconfirmed_count"]:
-        raise ValueError("consensus provisional aliases disagree")
-    if summary["blocking_count"] != summary["effective_blocking_count"]:
-        raise ValueError("consensus blocking aliases disagree")
-    status_aliases = {
-        "confirmed": "confirmed", "unconfirmed": "provisional", "disagreement": "disagreement",
-    }
-    for finding in findings:
-        if not isinstance(finding, dict):
-            raise ValueError("consensus finding is invalid")
-        required_finding = {
-            "group_id", "algorithm_version", "status", "policy_status",
-            "criticality", "agreed_criticality", "match_score", "match",
-            "source_findings", "vendor_dispositions", "adjudication", "policy",
-        }
-        if not required_finding.issubset(finding):
-            raise ValueError("consensus finding omits required revision-2 fields")
-        if status_aliases.get(finding["status"]) != finding["policy_status"]:
-            raise ValueError("consensus finding status aliases disagree")
-        if finding["criticality"] != finding["agreed_criticality"]:
-            raise ValueError("consensus finding criticality aliases disagree")
-        match = finding["match"]
-        if not isinstance(match, dict) or match.get("score") != finding["match_score"]:
-            raise ValueError("consensus finding match aliases disagree")
-        sources, dispositions = finding["source_findings"], finding["vendor_dispositions"]
-        if not isinstance(sources, list) or not sources or not isinstance(dispositions, dict):
-            raise ValueError("consensus source evidence is invalid")
-        if any(not isinstance(source, dict) or source.get("disposition") != dispositions.get(source.get("vendor")) for source in sources):
-            raise ValueError("consensus source dispositions disagree")
-        policy = finding["policy"]
-        if not isinstance(policy, dict) or policy.get("effective_blocking") != bool(
-            policy.get("integration_blocking") or policy.get("convergence_blocking")
-        ):
-            raise ValueError("consensus effective-blocking policy is inconsistent")
+    """Use the producer's complete schema-plus-relational trust boundary."""
+    try:
+        validate_consensus_payload(report)
+    except ConsensusInputError as exc:
+        raise ValueError(str(exc)) from exc
 
 
 def _logical_result_payload(result: ReviewResult) -> dict[str, Any] | None:
@@ -192,6 +105,21 @@ def _logical_result_payload(result: ReviewResult) -> dict[str, Any] | None:
 def _is_quorum_eligible_result(result: ReviewResult) -> bool:
     payload = _logical_result_payload(result)
     return payload is not None and is_quorum_eligible(payload)
+
+
+def _eligible_distinct_results(results: list[ReviewResult]) -> list[ReviewResult]:
+    """Return one validated terminal result per terminal vendor, in order."""
+    eligible: list[ReviewResult] = []
+    seen: set[str] = set()
+    for result in results:
+        if not _is_quorum_eligible_result(result):
+            continue
+        terminal_vendor = result.terminal_vendor
+        if not isinstance(terminal_vendor, str) or terminal_vendor in seen:
+            continue
+        seen.add(terminal_vendor)
+        eligible.append(result)
+    return eligible
 
 
 def _checkpoint_dispatch(result: ReviewResult) -> dict[str, Any]:
@@ -523,28 +451,23 @@ def converge(
             "Convergence round %d/%d for %s", round_num, max_rounds, change_id,
         )
 
-        # 2a. Dispatch reviews
+        # 2a. Dispatch reviews. Install the durable callback before the first
+        # vendor starts so a later adapter crash cannot erase completed slots.
         prompt = build_review_prompt(artifacts_dir, round_num)
-        results = orchestrator.dispatch_and_wait(
-            review_type=review_type,
-            dispatch_mode="review",
-            prompt=prompt,
-            cwd=worktree_path,
-        )
-
-        # 2aa. Durably checkpoint vendor findings BEFORE synthesis. This is
-        # the load-bearing write of the proposal: if synthesizer.synthesize()
-        # below raises, the data is already on disk and recoverable. The
-        # narrow try/except around the writes only logs and re-raises; it
-        # does not swallow.
         checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
-        try:
+        discover = getattr(orchestrator, "discover_reviewers", None)
+        scheduled_slots = 0
+        if callable(discover):
+            scheduled_slots = len({
+                reviewer.vendor for reviewer in discover(dispatch_mode="review")
+                if getattr(reviewer, "available", False)
+            })
+
+        def checkpoint_results(partial: list[ReviewResult], *, round_state: str) -> None:
+            eligible_results = _eligible_distinct_results(partial)
             vendors_index: list[dict[str, Any]] = []
-            dispatches: list[dict[str, Any]] = []
-            for r in results:
-                quorum_eligible = _is_quorum_eligible_result(r)
-                dispatches.append(_checkpoint_dispatch(r))
-                if quorum_eligible and r.findings is not None:
+            for r in eligible_results:
+                if r.findings is not None:
                     findings_array = r.findings.get("findings", [])
                     cf_write_vendor_findings(
                         checkpoint_dir,
@@ -560,19 +483,30 @@ def converge(
                         "finding_count": len(findings_array),
                         "quorum_eligible": True,
                     })
+            logical_slots = scheduled_slots or len(partial)
+            logical_slots -= sum(bool(r.replacement_allocation) for r in partial)
             cf_write_manifest(
                 checkpoint_dir,
                 review_type=review_type,
                 target=change_id,
                 vendors=vendors_index,
                 change_id=change_id,
-                dispatches=dispatches,
-                # quorum_requested = total vendors dispatched (incl. failures);
-                # vendors_index only lists successful reviews, so passing it
-                # implicitly via the default would understate intent.
-                quorum_requested=len(results),
-                quorum_received=sum(1 for r in results if _is_quorum_eligible_result(r)),
+                dispatches=[_checkpoint_dispatch(r) for r in partial],
+                logical_slots=logical_slots,
+                round_state=round_state,
             )
+
+        try:
+            results = orchestrator.dispatch_and_wait(
+                review_type=review_type,
+                dispatch_mode="review",
+                prompt=prompt,
+                cwd=worktree_path,
+                on_terminal_result=lambda _result, partial: checkpoint_results(
+                    partial, round_state="partial"
+                ),
+            )
+            checkpoint_results(results, round_state="final")
         except (OSError, PermissionError) as exc:
             cf_safe_log_error(
                 "convergence.checkpoint_write_failed",
@@ -587,7 +521,7 @@ def converge(
         latest_checkpoint_dir = checkpoint_dir.resolve()
 
         # 2b. Check quorum
-        successful = [r for r in results if _is_quorum_eligible_result(r)]
+        successful = _eligible_distinct_results(results)
         if len(successful) < min_quorum:
             logger.warning(
                 "Quorum lost: %d/%d (need %d)",
@@ -609,7 +543,7 @@ def converge(
         # ORIGINAL exception unmodified. NOT a fallback — the caller still
         # sees the failure.
         try:
-            vendor_results = _review_results_to_vendor_results(results)
+            vendor_results = _review_results_to_vendor_results(successful)
             adjudication_ledger = artifacts_dir / "adjudications.json"
             report = synthesizer.synthesize(
                 review_type=review_type,

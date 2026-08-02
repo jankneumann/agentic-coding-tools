@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import sys
+import subprocess
+import shutil
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -209,3 +212,45 @@ def test_blocking_invoke_cannot_hold_recovery_past_remaining_deadline() -> None:
     assert time.monotonic() - started < 0.15
     assert result["terminal_outcome"] == "timeout"
     assert result["quorum_eligible"] is False
+    assert not any(thread.name == "review-attempt-invoke" for thread in threading.enumerate())
+
+
+@pytest.mark.parametrize("terminal_class", ["transient", "timeout", "configuration", "unknown", "auth"])
+def test_nonrecoverable_fallback_failure_stops_chain(terminal_class: str) -> None:
+    outcomes = iter([
+        {"error_class": "capacity_exhausted"},
+        {"error_class": terminal_class},
+        {"validation_status": "schema_valid"},
+    ])
+    result = run_vendor_recovery(
+        logical_request_id="terminal-fallback", vendor="alpha", primary_model="primary",
+        fallback_models=["fallback", "unused"], invoke=lambda *_args: next(outcomes),
+        timeout_seconds=10,
+    )
+    assert len(result["attempts"]) == 2
+    assert result["terminal_outcome"] == terminal_class
+
+
+def test_copied_install_uses_portable_review_attempt_schema(tmp_path: Path) -> None:
+    scripts = tmp_path / "parallel-infrastructure" / "scripts"
+    assets = tmp_path / "parallel-infrastructure" / "install_assets" / "openspec" / "schemas"
+    scripts.mkdir(parents=True)
+    assets.mkdir(parents=True)
+    source = Path(__file__).resolve().parents[1]
+    shutil.copy2(source / "review_attempts.py", scripts / "review_attempts.py")
+    shutil.copy2(
+        source.parent / "install_assets" / "openspec" / "schemas" / "review-attempt.schema.json",
+        assets / "review-attempt.schema.json",
+    )
+    program = (
+        "import sys; sys.path.insert(0, sys.argv[1]); "
+        "from review_attempts import run_vendor_recovery; "
+        "r=run_vendor_recovery(logical_request_id='x',vendor='v',primary_model='m',"
+        "fallback_models=[],invoke=lambda *_:{'validation_status':'schema_valid'},timeout_seconds=1); "
+        "assert r['terminal_outcome']=='success'"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", program, str(scripts)],
+        cwd=tmp_path, capture_output=True, text=True, timeout=10,
+    )
+    assert completed.returncode == 0, completed.stderr

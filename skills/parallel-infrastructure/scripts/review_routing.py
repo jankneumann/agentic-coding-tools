@@ -30,6 +30,35 @@ class RoutingContext:
 Resolver = Callable[[str | None, str], RoutingContext]
 
 
+def _load_local_resolver() -> object:
+    """Load the coordinator's public resolver from a source checkout."""
+    for parent in Path(__file__).resolve().parents:
+        coordinator = parent / "agent-coordinator"
+        if (coordinator / "src" / "agents_config.py").is_file():
+            if str(coordinator) not in sys.path:
+                sys.path.insert(0, str(coordinator))
+            from src import agents_config
+            return agents_config
+    raise RuntimeError("local coordinator resolver is unavailable")
+
+
+def _local_routing(phase: str | None, vendor: str) -> RoutingContext:
+    module = _load_local_resolver()
+    resolved = module.resolve_archetype_for_phase(phase or "IMPL_REVIEW", {}, provider=vendor)
+    tier = None
+    archetype = module.get_archetype(resolved.archetype)
+    if archetype is not None and archetype.model in module.ALL_MODEL_TIERS:
+        tier = archetype.model
+    return RoutingContext(
+        archetype=resolved.archetype,
+        tier=tier,
+        phase=phase,
+        model=resolved.model,
+        thinking=resolved.thinking,
+        source="coordinator_local",
+    )
+
+
 def default_reviewer_resolver(phase: str | None, vendor: str) -> RoutingContext:
     """Resolve routing through the coordinator's portable public bridge.
 
@@ -39,23 +68,26 @@ def default_reviewer_resolver(phase: str | None, vendor: str) -> RoutingContext:
     when the coordinator is not reachable.
     """
     bridge_path = Path(__file__).resolve().parents[2] / "coordination-bridge" / "scripts" / "coordination_bridge.py"
-    spec = importlib.util.spec_from_file_location("coordination_bridge", bridge_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("coordinator bridge is unavailable")
-    bridge = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = bridge
-    spec.loader.exec_module(bridge)
-    resolved = bridge.try_resolve_archetype_for_phase(phase or "IMPL_REVIEW", {}, provider=vendor)
-    if not isinstance(resolved, dict):
-        raise RuntimeError("reviewer resolution is unavailable")
-    return RoutingContext(
-        archetype=resolved.get("archetype") if isinstance(resolved.get("archetype"), str) else None,
-        tier=None,
-        phase=phase,
-        model=resolved.get("model") if isinstance(resolved.get("model"), str) else None,
-        thinking=resolved.get("thinking") if isinstance(resolved.get("thinking"), str) else None,
-        source="coordinator_http",
-    )
+    try:
+        spec = importlib.util.spec_from_file_location("coordination_bridge", bridge_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("coordinator bridge is unavailable")
+        bridge = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = bridge
+        spec.loader.exec_module(bridge)
+        resolved = bridge.try_resolve_archetype_for_phase(phase or "IMPL_REVIEW", {}, provider=vendor)
+        if isinstance(resolved, dict):
+            return RoutingContext(
+                archetype=resolved.get("archetype") if isinstance(resolved.get("archetype"), str) else None,
+                tier=resolved.get("tier") if isinstance(resolved.get("tier"), str) else None,
+                phase=phase,
+                model=resolved.get("model") if isinstance(resolved.get("model"), str) else None,
+                thinking=resolved.get("thinking") if isinstance(resolved.get("thinking"), str) else None,
+                source="coordinator_http",
+            )
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
+    return _local_routing(phase, vendor)
 
 
 def resolve_review_routing(
@@ -79,7 +111,7 @@ def resolve_review_routing(
     resolver = resolver or default_reviewer_resolver
     try:
         return resolver(phase, vendor)
-    except (KeyError, RuntimeError, ValueError):
+    except (ImportError, KeyError, OSError, RuntimeError, ValueError):
         return RoutingContext(
             archetype=None,
             tier=None,
