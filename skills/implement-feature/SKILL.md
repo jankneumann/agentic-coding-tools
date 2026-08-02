@@ -697,6 +697,8 @@ After PR is approved:
 /cleanup-feature <change-id>
 ```
 
+**Optional polish (manual):** After the suite is green — either before opening the PR or as follow-up commits on the feature branch — you may run `/simplify` for behavior-preserving clarity or isomorphic DRY on the changed surface. Keep simplify work as separate `refactor(...)` commits (and optional leading `test(...): pin behavior…` characterization commits). Do **not** mix simplify into `feat`/`fix` commits, and do **not** treat simplify as required for implement-feature completion. Autopilot does not run simplify by default.
+
 ## Common Rationalizations
 
 | Rationalization | Why it's wrong |

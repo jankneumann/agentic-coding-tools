@@ -632,3 +632,5 @@ Or skip validation and proceed to cleanup:
 ```
 /cleanup-feature <change-id>
 ```
+
+**Optional polish (manual):** After iterations converge and the suite is green, operators may run `/simplify` on the changed surface for behavior-preserving cleanup (coverage gate + dual-run). Land as pure `refactor(...)` commits separate from iterate fix commits. Not required for iterate completion; not default-on in autopilot.
