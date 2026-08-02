@@ -1095,6 +1095,25 @@ def test_no_rejection_is_silent(
 # cannot make over an enum, and the scored count, which is a comparison between
 # two sibling integers — and those two are what the gate's own re-derivation is
 # watched catching alone.
+#
+# Two more entries were added a round later, and their pre-fix codes were taken
+# the same way: against a `git archive` export of `6ec3ea43`, the tree on which
+# the seven above were already closed.
+#
+#     contradiction                                   schema    gate  check
+#     a pass over a degraded scope adapter            accepts      0      0
+#     a pass over a disabled code-search service      accepts      0      0
+#
+# Neither was refused by any layer. Both are documents `compose_verdict()`
+# decides on and nothing here derived: `environment.scope_adapter` is its
+# `apparatus_failure`, and `environment.code_search_enabled` under a live-tier
+# gate is its `service_disabled_during_measurement`. Both fields are recorded in
+# the report and required by the contract, so deriving them needs nothing outside
+# the file — the family above simply never perturbed the `environment` block,
+# only rows and counts. The first of the two is the exact document
+# `test_a_recorded_apparatus_failure_is_not_a_contradiction` was written around:
+# it asserted the permissive half of one-wayness and, in asserting
+# `derived_verdict == "pass"`, pinned the hole in place.
 # --------------------------------------------------------------------------
 
 
@@ -1143,6 +1162,28 @@ def _pass_over_a_short_scored_count(document: dict[str, Any]) -> None:
     document["corpus"]["cases_scored"] = document["corpus"]["cases_declared"] - 1
 
 
+def _pass_over_a_degraded_scope_adapter(document: dict[str, Any]) -> None:
+    """The apparatus failed and the report says the run passed.
+
+    `compose_verdict()` records `apparatus_failure` for the whole run on
+    `scope_adapter: "degraded"` before it composes a single gate, so this pairing
+    is unproducible. Every row in the document is untouched, which is exactly why
+    nothing that read only rows could see it.
+    """
+    document["environment"]["scope_adapter"] = "degraded"
+
+
+def _pass_with_the_code_search_service_disabled(document: dict[str, Any]) -> None:
+    """A retrieval measurement taken while the service that retrieves was off.
+
+    The sibling of the tier pairing above, and the other half of one precondition
+    pair: `_compose_gate` appends `index_tier_insufficient` and
+    `service_disabled_during_measurement` on adjacent lines, and for one round
+    only the first of the two was re-derived from the artifact.
+    """
+    document["environment"]["code_search_enabled"] = False
+
+
 #: Documents describing a measurement that did not happen. Deliberately NOT
 #: derived from `enablement_gate.CONDITIONS`, and deliberately asserting nothing
 #: about which layer refuses them.
@@ -1154,6 +1195,11 @@ CONTRADICTIONS: tuple[tuple[str, BodyMutation], ...] = (
     ("a consumer that passed and named fail reasons", _consumer_passing_with_fail_reasons),
     ("a pass over nineteen declared and unmeasured cases", _pass_over_unscored_cases),
     ("a pass over a scored count nothing filled", _pass_over_a_short_scored_count),
+    ("a pass over a degraded scope adapter", _pass_over_a_degraded_scope_adapter),
+    (
+        "a pass over a disabled code-search service",
+        _pass_with_the_code_search_service_disabled,
+    ),
 )
 
 
@@ -1244,8 +1290,8 @@ def test_the_authorizing_report_does_not_contradict_itself(evidence: Evidence) -
     """The control, and the reason the whole family means anything.
 
     A derivation that called every report contradictory would satisfy all
-    twenty-one assertions above and would also refuse the one report that should
-    be accepted. This asserts the other side on the same prepared evidence
+    twenty-seven assertions above and would also refuse the one report that
+    should be accepted. This asserts the other side on the same prepared evidence
     `test_a_current_passing_report_authorizes_an_enabled_default` runs the gate
     over.
     """
@@ -1255,18 +1301,30 @@ def test_the_authorizing_report_does_not_contradict_itself(evidence: Evidence) -
 
 
 def test_a_recorded_apparatus_failure_is_not_a_contradiction(evidence: Evidence) -> None:
-    """The derivation is one-way, and this is the document that proves it must be.
+    """One-wayness is still right, and this is still its control — for a new reason.
 
-    A degraded scope adapter fails the run at the top level without failing any
-    gate, so this report records `fail` over a body whose rows all pass. Deriving
-    `pass` from those rows and calling the mismatch a contradiction would make a
-    recorded apparatus failure unreportable — an outcome the contract requires to
-    be writable, and the one the July 2026 waiver most needed to be able to say.
+    The document is unchanged: a composed run whose scope adapter was degraded,
+    recording `fail` over rows that all pass. What changed is that the derivation
+    now reads `environment` too, so it derives `fail` as well, and agreement is
+    what makes this a control rather than a contradiction.
+
+    `derived_verdict` was asserted to be `"pass"` here for one round, and that
+    assertion is the whole of the third blocking finding against this gate: the
+    test written to justify one-wayness constructed precisely the document the
+    gate could not see, and asserted only the half that was permissive. One-way
+    is still necessary — but for `missing_required_gate` and for a case the
+    corpus never declared, which are decided against the corpus and leave no
+    trace in the document, and never for an apparatus failure the document
+    records in full.
     """
     consistency = report_module.body_consistency(evidence.apparatus)
     assert consistency.recorded_verdict == "fail"
-    assert consistency.derived_verdict == "pass"
+    assert consistency.derived_verdict == "fail"
     assert consistency.consistent
+    assert any("scope adapter" in failure for failure in consistency.body_failures), (
+        f"the apparatus failure is not named in {consistency.body_failures!r}, so the "
+        "derivation agreed with the recorded verdict for some other reason"
+    )
 
 
 def test_the_three_field_edit_of_the_committed_report_is_refused(
@@ -1311,3 +1369,125 @@ def test_the_three_field_edit_of_the_committed_report_is_refused(
     )
     assert argv.run() != EXIT_PASS
     assert "unmet condition" in capsys.readouterr().err
+
+
+def test_the_two_field_edit_of_a_composed_apparatus_failure_is_refused(
+    tmp_path: Path, evidence: Evidence, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The third finding, against a document the composer really produced.
+
+    `evidence.apparatus` is `_document(corpus, _measurement(scope_adapter=
+    "degraded"))`: composer output, `verdict: "fail"`, `fail_reasons:
+    ["apparatus_failure"]`, and every gate, consumer and case row passing and
+    scored. Two fields — flip the verdict, delete the reasons — and nothing else.
+    Nothing is fabricated: every number here is the composer's own output from a
+    real run, which is what separates this from the forgery the module docstring
+    discloses as out of reach.
+
+    Measured on an export of `6ec3ea43` before the fix: `validate_report`
+    accepted it, `body_consistency` returned `consistent`, and the gate printed
+    all ten conditions met — `verdict_consistent` among them — on its way to exit
+    `0`. `context_eval check` exited `0` too.
+    """
+    document = deepcopy(evidence.apparatus)
+    document["verdict"] = "pass"
+    document.pop("fail_reasons", None)
+
+    # Schema-valid, and that is the point: every row passes, so the report
+    # contract has nothing to object to. Only a derivation that reads the
+    # environment block can fault this document.
+    report_module.validate_report(document)
+    assert not report_module.body_consistency(document).consistent
+
+    argv = _argv(
+        helper=_helper_with_default(tmp_path, enabled=True),
+        report_path=_raw_report(tmp_path, document),
+        contract=_contract(tmp_path, _recorded_fingerprint(document)),
+    )
+    assert argv.run() != EXIT_PASS
+    stderr = capsys.readouterr().err
+    assert enablement_gate.VERDICT_CONSISTENT in stderr, (
+        f"the gate rejected the document without naming the condition:\n{stderr}"
+    )
+
+
+# --------------------------------------------------------------------------
+# the report contract's body clauses, one at a time
+#
+# `CONTRADICTIONS` above deliberately does not say WHICH layer refuses a
+# document, and that is right for an end-to-end assertion. The cost was that
+# layer one went unproven per clause: each of the report contract's three body
+# clauses could be deleted on its own with this whole suite green, because the
+# only test that noticed their absence carried a document violating all three at
+# once. A clause nothing can be watched refusing is decoration, and decoration is
+# this change's subject.
+#
+# The schema is not redundant with `body_consistency` either. A gate row with
+# `verdict: "fail"` and `required: false` under a recorded pass is refused HERE
+# and accepted THERE, because `body_consistency` guards on `required is not
+# False` while `compose_verdict` never consults `required` when it extends its
+# reasons. And this is a promoted, published contract with consumers that never
+# run this suite.
+# --------------------------------------------------------------------------
+
+
+def _a_failing_gate_row(document: dict[str, Any]) -> None:
+    document["gates"][0]["verdict"] = "fail"
+    document["gates"][0]["fail_reasons"] = ["unmeasured"]
+
+
+def _a_failing_consumer_row(document: dict[str, Any]) -> None:
+    document["per_consumer"][0]["verdict"] = "fail"
+    document["per_consumer"][0]["fail_reasons"] = ["consumer_regression"]
+
+
+def _an_unscored_case_row(document: dict[str, Any]) -> None:
+    document["cases"][0]["scored"] = False
+    document["cases"][0]["unscored_reason"] = "producer_error"
+    document["cases"][0].pop("arms", None)
+
+
+#: Clause title, and a passing document that violates that clause and no other.
+BODY_CLAUSES: tuple[tuple[str, BodyMutation], ...] = (
+    ("A passing report records no failing gate", _a_failing_gate_row),
+    ("A passing report records no failing consumer", _a_failing_consumer_row),
+    ("A passing report scored every case it reports", _an_unscored_case_row),
+)
+
+
+def _schema_without(title: str) -> dict[str, Any]:
+    """The promoted contract with one top-level clause removed, by title."""
+    schema = json.loads(report_module.DEFAULT_REPORT_SCHEMA.read_text(encoding="utf-8"))
+    remaining = [clause for clause in schema["allOf"] if clause.get("title") != title]
+    assert len(remaining) == len(schema["allOf"]) - 1, (
+        f"{title!r} is not a top-level clause of the report contract"
+    )
+    schema["allOf"] = remaining
+    return schema
+
+
+@pytest.mark.parametrize(
+    ("title", "mutation"),
+    BODY_CLAUSES,
+    ids=[title for title, _ in BODY_CLAUSES],
+)
+def test_each_body_clause_is_the_only_thing_refusing_its_own_document(
+    title: str, mutation: BodyMutation, tmp_path: Path, evidence: Evidence
+) -> None:
+    """One clause, one document, and the deletion that must be detectable.
+
+    Two assertions, and the second is what makes the first mean anything. The
+    full contract refuses the document; the contract with only this clause
+    removed accepts it. So the clause is the sole reason the document is refused,
+    and deleting it from the schema turns this test red — which is precisely what
+    was not true of any of the three when they were written.
+    """
+    document = deepcopy(evidence.passing)
+    mutation(document)
+
+    with pytest.raises(report_module.ReportError):
+        report_module.validate_report(document)
+
+    without = tmp_path / "schema-without-the-clause.json"
+    without.write_text(json.dumps(_schema_without(title)), encoding="utf-8")
+    report_module.validate_report(document, schema_path=without)
