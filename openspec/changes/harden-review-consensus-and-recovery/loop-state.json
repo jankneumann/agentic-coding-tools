@@ -1,82 +1,90 @@
 {
-  "schema_version": 4,
+  "blocking_findings": [
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 1
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 2
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 3
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 4
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 5
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 6
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 7
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 8
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 9
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 10
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 11
+    },
+    {
+      "criticality": "critical",
+      "disposition": "fix",
+      "id": 12
+    }
+  ],
   "change_id": "harden-review-consensus-and-recovery",
-  "current_phase": "IMPL_FIX",
-  "iteration": 3,
-  "total_iterations": 17,
-  "max_phase_iterations": 4,
+  "cli_review_enabled": true,
+  "current_phase": "IMPL_REVIEW",
+  "error": null,
+  "escalation_reason": null,
   "findings_trend": [
     13,
     11,
     12
   ],
-  "blocking_findings": [
-    {
-      "id": 1,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 2,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 3,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 4,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 5,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 6,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 7,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 8,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 9,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 10,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 11,
-      "criticality": "critical",
-      "disposition": "fix"
-    },
-    {
-      "id": 12,
-      "criticality": "critical",
-      "disposition": "fix"
-    }
-  ],
-  "vendor_availability": {},
-  "packages_status": {},
-  "package_authors": {},
-  "implementation_strategy": {},
-  "memory_ids": [],
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 3,
+    "total_loc_estimate": 1840
+  },
+  "gate_verdict": "proceed_with_review",
   "handoff_ids": [
     "gatekeeper-harden-review-consensus-recovery-1",
     "plan-iteration-1-1",
@@ -90,8 +98,17 @@
     "implementation-iteration-2-1.json",
     "implementation-review-2-1.json",
     "implementation-fix-3-1.json",
-    "implementation-review-3-1.json"
+    "implementation-review-3-1.json",
+    "implementation-fix-4-1.json"
   ],
+  "implementation_strategy": {},
+  "iteration": 3,
+  "last_handoff_id": "implementation-fix-4-1.json",
+  "max_phase_iterations": 4,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "phase_archetype": null,
   "phase_history": [
     {
       "at": "2026-08-01T19:50:48.787501+00:00",
@@ -169,29 +186,18 @@
       "note": "Operator approved exactly one additional IMPL_FIX -> IMPL_REVIEW cycle beyond the configured cap; IMPL_REVIEW and VAL_REVIEW remain enabled and no review quorum waiver was granted.",
       "outcome": "operator_override_extra_cycle",
       "phase": "ESCALATE"
+    },
+    {
+      "at": "2026-08-02T15:42:06.306841+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
     }
   ],
-  "last_handoff_id": "implementation-review-3-1.json",
-  "started_at": "2026-08-01T19:49:19.418681+00:00",
-  "phase_started_at": "2026-08-02T15:16:38.236454+00:00",
+  "phase_started_at": "2026-08-02T15:42:26.060039+00:00",
   "previous_phase": "IMPL_REVIEW",
-  "escalation_reason": null,
+  "schema_version": 4,
+  "started_at": "2026-08-01T19:49:19.418681+00:00",
+  "total_iterations": 18,
   "val_review_enabled": true,
-  "cli_review_enabled": true,
-  "error": null,
-  "phase_archetype": null,
-  "force": false,
-  "gate_signals": {
-    "external_dep_count": 0,
-    "has_broad_write_scope": false,
-    "has_db_migration": false,
-    "has_proposal": true,
-    "has_security_signal": false,
-    "has_specs": true,
-    "has_tasks": true,
-    "has_work_packages": true,
-    "package_count": 3,
-    "total_loc_estimate": 1840
-  },
-  "gate_verdict": "proceed_with_review"
+  "vendor_availability": {}
 }
