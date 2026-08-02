@@ -1,0 +1,199 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/check_test_contract.py",
+      "line_range": {
+        "start": 37,
+        "end": 121
+      },
+      "description": "Critical: check_test_contract.py's assertion detector is anchored to the first token of a diff line (ASSERT_LINE_RE begins `^[+\\-]\\s*` followed by `assert`/`expect(`/`self.assert\u2026`), so it only sees single-line assertions. Verified empirically: a repo where `assert f() == {\\n    \"a\": 1,\\n}` is mutated to `\"a\": 2` reports `clean: true`, exit 0 \u2014 the changed line is `+        \"a\": 2,`, which never starts with an assertion token. The same probe also deleted `tests/test_del.py` (containing `assert g() == 5`) and the deletion was invisible: scan_unified_diff hits `+++ /dev/null` and `continue`s before updating `current_path`/`in_test_file` (lines 96-107), so a deleted test file is neither scanned nor listed in `test_files_touched` (it did not appear in the JSON output at all). Both the two cheapest ways to make a failing suite green under /simplify \u2014 reformat the expectation across lines, or delete the test \u2014 pass the gate. Worse, when the file preceding a deleted test file in the diff was itself a test file, the stale `current_path` mis-attributes the deleted file's `-assert` lines to the wrong path. The spec scenario ('changes `assert result == 1` to `assert result == 2`') and the unit tests only exercise the one-line case, so the tests are green while the guarantee the skill advertises ('simplify commits must not change what tests assert') does not hold. Fix: track hunk state and treat a changed line as an assertion mutation when it falls inside an assertion statement's continuation (e.g. paren-depth tracking from the last assertion-start line in the hunk, or an AST/tree-sitter pass for Python/TS), and treat `+++ /dev/null` as an explicit 'test file deleted' finding rather than a skip.",
+      "resolution": "Add continuation-line tracking (paren depth or AST) so multi-line expectation bodies are covered, and emit a finding when a test file is deleted (`+++ /dev/null` after a test-path `--- a/...`). Add regression tests for both bypasses."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "package_id": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "line_range": {
+        "start": 98,
+        "end": 148
+      },
+      "description": "Critical: the 'HEAD' half of the dual-run never checks out `--head`. `dual_run` resolves `head_sha = resolve_sha(repo, head)` (line 107) but then runs `run_tests(test_cmd, repo, head_sha)` (line 130) in the caller's working tree, while stamping the result with `ref=head_sha` and writing `head: <sha>` into simplify-report.json. Verified: invoking with `--head <baseline-sha>` on a repo whose actual HEAD is a later commit produced a report claiming `head: d106b39a` (the baseline) and `head_run.ref: d106b39a`, when the code that actually executed was commit 8c49afff's working tree. Two consequences: (a) any `--head` other than the current checkout silently produces a report that attributes a run to a commit that was never materialised; (b) with a dirty working tree \u2014 the normal state mid-simplify, and the script's own docstring only says 'Prefer a clean working tree' without enforcing it \u2014 the report certifies uncommitted code under a commit SHA. This artifact is the evidence the spec's 'Dual-run proves preservation' scenario and SKILL.md Verification step 4 tell reviewers to attach, so a mislabelled report defeats the purpose of the gate. It is also literal non-conformance with the spec table entry: 'Runs a configured test command at a baseline ref and at HEAD'.",
+      "resolution": "Either check out `head_sha` into a second detached worktree (symmetric with the baseline path), or refuse to run when `--head` does not resolve to the current checkout and record `dirty: true` plus `git status --porcelain` output in the report when the tree is not clean."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "line_range": {
+        "start": 111,
+        "end": 137
+      },
+      "description": "Critical: the baseline run executes in a pristine `git worktree add --detach` checkout (line 112-122) that contains only tracked files \u2014 no `.venv`, no `node_modules`, no build output, no editable install. In this very repo the command SKILL.md recommends verbatim (`--test-cmd \"pytest -q\"`, SKILL.md:193-198) cannot work there: `pytest` is not on PATH (memory of this tree: skills tests run as `skills/.venv/bin/python -m pytest`, and `.venv` is gitignored so it is absent from a fresh worktree). The baseline run therefore exits non-zero for environment reasons, `both_passed` goes false, the process exits 2, and the note emitted is the actively misleading `baseline suite was already red \u2014 fix tests before simplifying` (line 134). An agent following the skill will conclude the pre-existing suite is broken and either abandon a valid simplification or 'fix' non-existent test failures. Every venv- or node_modules-based project hits this on first use, i.e. the flagship gate of the change fails closed with a wrong diagnosis in the common case. Secondary leak: if `git worktree remove --force` fails, the `.git/worktrees` admin entry survives (`shutil.rmtree` removes only the directory) and no `git worktree prune` is issued.",
+      "resolution": "Distinguish 'test command could not run' from 'tests failed' (e.g. treat exit 127 / exec failure and empty collection as a setup error with exit 1 and a distinct note), document that the baseline runs in a bare worktree, add a `--baseline-setup-cmd` hook (`uv sync`, `npm ci`) or a `--baseline-worktree-link` option to symlink/copy the dependency dir, and call `git worktree prune` in the finally block."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/check_scope.py",
+      "line_range": {
+        "start": 55,
+        "end": 72
+      },
+      "description": "Critical: both diff-based gates only see committed work, and they report a clean pass \u2014 not an error \u2014 when work is uncommitted. `measure_scope` runs `git diff --name-only <base>...<head>` and `--numstat <base>...<head>`; `check_test_contract.evaluate` uses the same three-dot range. Verified: a repo with 20 uncommitted new files totalling ~1200 changed lines yields `Rule of 500 check: OK / files: 0 (max 5) / lines: 0 (max 500)`, exit 0. SKILL.md's workflow does tell the agent to commit each simplification (step 5) before running the checks (step 6), but a gate whose entire value is being mechanical must not hand out a green when it measured nothing \u2014 the failure mode is silent and indistinguishable from a genuinely small diff. This also interacts with finding 1: staged-but-uncommitted expectation edits pass check_test_contract for the same reason.",
+      "resolution": "Include working-tree state (`git diff <base>` plus `git diff --cached` and `git status --porcelain`), or at minimum detect a dirty tree and exit 1 with 'uncommitted changes present \u2014 commit or pass --committed-only'. Also refuse to report OK when the measured file count is 0 but the tree is dirty."
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/check_test_contract.py",
+      "line_range": {
+        "start": 2,
+        "end": 16
+      },
+      "description": "Critical: the module docstring states 'Characterization commits that *add* new tests are fine; this checker focuses on modified lines inside assertion/expect calls', but the implementation matches `^[+\\-]` and so flags pure additions. Verified: a range containing one `test: pin behavior` commit adding `tests/test_char.py` with `assert f() == 1`, followed by a refactor commit, exits 2 with `Test contract: BROKEN \u2014 assertion/expect lines changed` and the action text 'revert expectation edits'. The behavior is arguably the intended strictness (spec and SKILL.md both place the characterization commit before the baseline SHA), and skills/tests/simplify/test_check_test_contract.py:111-132 codifies it \u2014 but then the docstring is simply wrong, and the operator-facing message is wrong too: it accuses the agent of editing expectations when nothing was edited, and its prescribed remedy (revert) would delete the characterization tests the coverage gate just required. Given the whole point of Phase A is that agents follow this text literally, a contradictory docstring plus a misdirecting error message is a live footgun, not a cosmetic issue.",
+      "resolution": "Correct the docstring to 'any assertion line added or removed in the range counts \u2014 set --base at the post-characterization tip', and split the diagnostic: report added-assertion findings under a distinct heading ('assertion lines added \u2014 is your --base after the characterization commit?') from removed/modified ones, which alone warrant the 'revert expectation edits' advice."
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "architecture",
+      "severity": "optional",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/pyproject.toml",
+      "line_range": {
+        "start": 88,
+        "end": 100
+      },
+      "description": "Optional: Phase C ships three spec requirements with zero automated coverage. The spec adds 'Tech-Debt Remediation Routing to Simplify' and 'Optional Post-Implementation Simplify Polish' as SHALL requirements, and Phase A's requirement includes 'invocation SHALL remain operator-manual', yet `grep -rn simplify skills/tests/tech-debt-analysis/ skills/tests/implement-feature/` returns nothing, there is no `skills/tests/iterate-on-implementation/` directory at all, and nothing asserts that autopilot does not reference simplify (I confirmed autopilot currently has no simplify reference \u2014 that invariant is exactly what a test should lock in). Phase A's markdown got eleven content invariants; the routing tables and polish notes that Phase C adds to three other SKILL.md files are prose that the next unrelated edit to those files can silently delete without a red test. Success Criterion 5 ('Catalogue/skill-flow/tech-debt/implement/iterate docs describe the handoffs; autopilot remains manual-only') is therefore asserted only by human reading.",
+      "resolution": "Add content invariants mirroring test_skill_md.py: tech-debt SKILL.md contains a routing row for `/simplify` and one for `/deprecation-and-migration`; implement-feature and iterate-on-implementation each contain an optional-manual `/simplify` polish note; and a negative test that no autopilot phase config lists simplify as a default phase. Add `tests/iterate-on-implementation` to `testpaths`."
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "readability",
+      "severity": "nit",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/simplify/test_skill_md.py",
+      "line_range": {
+        "start": 66,
+        "end": 79
+      },
+      "description": "Nit: two of the new content invariants are near-tautologies that cannot fail. `test_simplify_manual_invocation_only` asserts `\"autopilot\" in lower and (\"not\" in lower or \"default\" in lower)` \u2014 the substring 'not' occurs in ordinary English prose throughout a 300-line SKILL.md (it appears in 'not' inside 'note', 'cannot', 'nothing', and dozens of standalone uses), so the second conjunct is satisfied by any document and the test degrades to 'the word autopilot appears somewhere'. A regression that flipped the doc to 'Autopilot runs simplify by default' would still pass. Likewise `test_simplify_has_isomorphic_extract_pattern` asserts `\"isomorphic extract\" in lower or \"isomorphic\" in lower`; the second disjunct is strictly weaker and is already satisfied by the frontmatter tag `isomorphic` on line 9, so the specific pattern-catalog entry the spec requires is not actually pinned. Given the change's own thesis is that a test which never exercises the surface cannot pin it (SKILL.md:274), the content tests should hold themselves to it.",
+      "resolution": "Assert on the specific phrase: `\"manual only\" in lower` and `\"do **not** auto-run simplify\"` (or a normalized form), and drop the weakening disjunct so `\"isomorphic extract\"` must be present in the pattern table."
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "line_range": {
+        "start": 17,
+        "end": 22
+      },
+      "description": "Nit: the docstring promises a fallback that does not exist \u2014 'Falls back to `git stash` + checkout only if worktree fails (and restores afterward).' The code raises `RuntimeError(f\"git worktree add failed: \u2026\")` (lines 118-121), which surfaces as exit 1 with no stash path anywhere in the file. Worktree add legitimately fails in real conditions the skill will meet (baseline SHA already checked out in another linked worktree \u2014 routine in this repo's `.git-worktrees/` layout \u2014 or a read-only/older git), and an operator reading the docstring will expect degraded-but-working behavior rather than a hard stop.",
+      "resolution": "Delete the sentence (raising is the safer behavior), or implement the fallback. If deleting, add the real guidance: 'baseline SHA must not already be checked out in another worktree'."
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/check_test_contract.py",
+      "line_range": {
+        "start": 29,
+        "end": 49
+      },
+      "description": "Nit: the comment calls the detector 'path-based; language-agnostic', but only TEST_PATH_RE is language-agnostic \u2014 ASSERT_LINE_RE covers Python and JS/TS idioms only. Rust `assert_eq!(x, 1)` does not match (after `assert` the `\\b` fails because `_` is a word character, and no alternative covers `_eq`), and gtest `EXPECT_EQ(...)`, Go's `if got != want { t.Errorf(...) }` table style, and Ruby `x.must_equal` are all invisible. For a repo that is Python-first this is low impact today, but the skill is offered as a general-purpose contract and the comment overstates coverage.",
+      "resolution": "Narrow the comment to 'test-path matching is language-agnostic; assertion matching covers Python and JS/TS', and add `assert_eq!`/`assert_ne!`, `EXPECT_`/`ASSERT_` (gtest), and `t.Errorf`/`t.Fatalf` alternatives if broader coverage is wanted."
+    },
+    {
+      "id": 10,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/SKILL.md",
+      "line_range": {
+        "start": 296,
+        "end": 299
+      },
+      "description": "Nit: the scripts measure `<base>...<head>` (three-dot, merge-base symmetric difference \u2014 check_scope.py:57,59 and check_test_contract.py:125) while SKILL.md Verification step 7 tells the operator to eyeball `git diff <baseline>..HEAD --stat` (two-dot). When the baseline is a direct ancestor of HEAD the two agree, but when the operator passes a branch name (e.g. `--base main`) after main has moved, the scripts silently exclude changes the operator's own command shows \u2014 the gate then reports a smaller diff than the human sees, in the permissive direction.",
+      "resolution": "Use two-dot in both scripts (the baseline is defined as 'the tip before the first simplify production edit', which is an ancestor by construction), or make the range operator an explicit flag and align SKILL.md step 7 to whichever is chosen."
+    },
+    {
+      "id": 11,
+      "type": "security",
+      "criticality": "low",
+      "axis": "security",
+      "severity": "fyi",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "line_range": {
+        "start": 61,
+        "end": 88
+      },
+      "description": "FYI: on the shell-injection question specifically \u2014 there is no injection vector from git refs. Every git invocation passes an argv list with `shell=False` (`_run([\"git\", \"rev-parse\", ref], \u2026)`, `[\"git\", \"worktree\", \"add\", \u2026]`), so a ref named `; rm -rf /` is passed as a single argv element and simply fails to resolve. The one `shell=True` call is `run_tests`, whose command is the operator's own `--test-cmd` string; shell semantics are required there (`pytest -q`, `npm test`) and the operator already controls the process, so this is design, not a vulnerability. The residual risk worth naming in the docs is different: the baseline run executes the *baseline commit's* test code inside a checkout of that commit, so pointing this at an untrusted branch (a contributor PR under review) is arbitrary code execution from two revisions rather than one. Also minor: `--report` defaults to `simplify-report.json` in the repo root, which is untracked and not gitignored, so it can be swept into a `git add -A` on the simplify PR \u2014 the same PR whose file count check_scope.py is measuring.",
+      "resolution": "Add a one-line note to SKILL.md that dual-run executes test code from both revisions (do not run against untrusted branches), and either default the report path under a gitignored directory or add `simplify-report.json` to .gitignore."
+    },
+    {
+      "id": 12,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/check_scope.py",
+      "line_range": {
+        "start": 1,
+        "end": 30
+      },
+      "description": "none: Positive observation \u2014 the Phase B scripts are well-shaped as portable skill payloads. All three are pure standard library plus `git` with no agent-coordinator import, satisfying the spec's 'MUST NOT require agent-coordinator' constraint and keeping the skill usable from any runtime mirror; all three share one consistent exit-code taxonomy (0 ok / 2 gate failure / 1 usage-or-git error) that matches the table in SKILL.md:214-218 exactly, so an orchestrator can branch on 2-vs-1 without per-script special casing; each exposes a pure, importable core (`evaluate`, `scan_unified_diff`, `dual_run`) separate from `main(argv)`, which is why the unit tests can drive them in-process rather than via subprocess; results are dataclasses serialized with an explicit `schema_version` on the report; and every git call uses argv lists rather than string interpolation. The spec delta is well-formed (every requirement leads with SHALL on its first line, each has at least one WHEN/THEN scenario), tasks.md is fully checked, and `skills/tests/simplify/` is already wired into `skills/pyproject.toml` testpaths \u2014 I ran it: 23 passed. The findings above are about what the gates fail to catch, not about the shape of the code.",
+      "resolution": "No action."
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "review_type": "implementation",
+  "target": "whole-branch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: check_test_contract.scan_unified_diff ignores deleted test files (+++ /dev/null). Removed assertion lines on deleted tests produce zero findings, so a simplify that deletes characterization tests can pass the contract check.",
+      "resolution": "Track path from --- lines when +++ is /dev/null; still scan -assert lines for that path.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/check_test_contract.py",
+      "line_range": {"start": 93, "end": 120}
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "description": "Nit: verify_behavior_preservation module docstring claims a git-stash fallback when worktree fails, but dual_run only uses worktree and raises on failure.",
+      "resolution": "Align docstring with implementation (worktree-only) or implement the documented fallback.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "line_range": {"start": 17, "end": 21}
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "description": "Nit: dual-run HEAD path executes --test-cmd in the live working tree, so uncommitted dirty files can make HEAD results non-reproducible relative to head_sha.",
+      "resolution": "Run HEAD tests in a detached worktree at head_sha (same as baseline), or refuse to run when git status is dirty.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "line_range": {"start": 128, "end": 131}
+    },
+    {
+      "id": 4,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "description": "Nit: check_test_contract module docstring says characterization commits that add tests are fine, but the scanner flags every +assert line including pure additions. Correct only when --base is set after pin; docstring overpromises.",
+      "resolution": "Clarify docstring: set --base to the post-characterization tip; pure +assert in range fails intentionally.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/check_test_contract.py",
+      "line_range": {"start": 1, "end": 16}
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "axis": "security",
+      "severity": "fyi",
+      "description": "FYI: verify_behavior_preservation runs --test-cmd with shell=True. Acceptable for operator-supplied pytest/npm commands but unsafe if args come from untrusted input.",
+      "resolution": "Document that --test-cmd is trusted local shell; optional future: argv list mode without shell.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "line_range": {"start": 78, "end": 79}
+    },
+    {
+      "id": 6,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "none",
+      "description": "none: Skill contract, OpenSpec delta, dual-run exit codes (0/1/2), and tech-debt remediation routing are coherent and match the approved A+B+C design.",
+      "resolution": "Keep pattern.",
+      "disposition": "accept",
+      "package_id": "whole-branch"
+    }
+  ]
+}

@@ -191,12 +191,15 @@ Never mix `feat` / `fix` with simplify polish in the same commit.
 ### 6. Dual-run verify
 
 ```bash
-# Recommended mechanical dual-run (writes simplify-report.json by default)
+# Recommended mechanical dual-run (writes simplify-report.json by default).
+# Prefer an absolute interpreter so detached worktrees resolve tools;
+# the script also symlinks .venv / node_modules from the main repo when present.
 python3 "<skill-base-dir>/scripts/verify_behavior_preservation.py" \
   --baseline <baseline-sha> \
-  --test-cmd "pytest -q"   # or npm test / project-specific
+  --test-cmd "skills/.venv/bin/python -m pytest -q"   # or npm test / project-specific
 
-# Assertion contract on the simplify range (should be clean for expectation bodies)
+# Assertion contract on the simplify range (should be clean for expectation bodies).
+# --base MUST be the tip AFTER characterization commits.
 python3 "<skill-base-dir>/scripts/check_test_contract.py" --base <baseline-sha>
 python3 "<skill-base-dir>/scripts/check_scope.py" --base <baseline-sha>
 ```
@@ -215,7 +218,11 @@ Scripts live in `<skill-base-dir>/scripts/` (installed copy under `.claude/skill
 |---|---|---|
 | `check_scope.py` | Diff line/file counts vs Rule of 500 | `0` ok, `2` over limit without `--allow-codemod`, `1` error |
 | `check_test_contract.py` | Detect assertion/expect body changes in test paths | `0` ok, `2` contract break, `1` error |
-| `verify_behavior_preservation.py` | Run tests at baseline and HEAD; write JSON report | `0` both green, `2` failure, `1` error |
+| `verify_behavior_preservation.py` | Run tests at baseline and HEAD in detached worktrees; write JSON report | `0` both green, `2` failure, `1` error |
+
+`check_test_contract.py` expects `--base` at the tip **after** characterization commits. Within that range, any `+/-` assertion line (including deleted test files) is a contract break.
+
+`verify_behavior_preservation.py` takes a **trusted** `--test-cmd` shell string (e.g. `pytest -q`). Both SHAs are checked out via temporary detached worktrees so a dirty working tree cannot skew results.
 
 ## Language sketches (clarity, not prescription)
 

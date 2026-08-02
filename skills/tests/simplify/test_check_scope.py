@@ -142,3 +142,27 @@ def test_over_line_limit(git_repo: Path):
         )
         == 2
     )
+
+
+def test_uncommitted_churn_is_measured(git_repo: Path):
+    """Dirty working tree must not report a silent 0-file pass for large edits."""
+    mod = _load()
+    base = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=git_repo, text=True
+    ).strip()
+    for i in range(6):
+        (git_repo / f"u{i}.py").write_text(f"v = {i}\n", encoding="utf-8")
+    # uncommitted
+    code = mod.main(
+        [
+            "--base",
+            base,
+            "--repo",
+            str(git_repo),
+            "--max-files",
+            "5",
+            "--max-lines",
+            "500",
+        ]
+    )
+    assert code == 2
