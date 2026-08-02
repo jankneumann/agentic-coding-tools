@@ -626,3 +626,40 @@ The operator approved one additional IMPL_FIX → IMPL_REVIEW cycle beyond the c
 
 ### Context
 The extra IMPL_FIX cycle completed without changing orchestrator state. Implementation review remains mandatory; validation and PR submission are still prohibited until round 4 converges.
+
+---
+
+## Phase: Implementation Review 4 (2026-08-02)
+
+**Agent**: codex-reviewer | **Session**: N/A
+
+### Decisions
+1. **Return max_iter** `architectural: skill-workflow` — This is the fourth and final authorized implementation-review round; external quorum was lost and source-verified merge blockers remain.
+2. **Keep validation and PR submission blocked** `architectural: review-recovery` — No implementation-review waiver was granted, and green focused tests do not refute the reproduced trust-boundary failures.
+
+### Capability Gaps Observed
+- **quorum_lost**: Four premium vendor routes timed out and Pi exhausted invalid-output recovery; no external result was quorum-eligible. (skill: parallel-review-implementation, severity: critical)
+- **contract_integrity**: Consensus validation, deterministic grouping, compatibility eligibility, deadline enforcement, routing provenance, and copied-install schema discovery remain inconsistent with the frozen contracts. (skill: parallel-infrastructure, severity: critical)
+
+### Completed Work
+- Dispatched the approved whole-branch diff to Antigravity, Claude Code, Codex, Grok, and Pi with 300-second vendor-local bounds.
+- Persisted and validated five terminal attempt chains in a versioned final manifest with stable quorum_requested=5; quorum_received=0.
+- Ran 232 focused review-hardening tests, the skill install portability check, schema parity checks, and git diff checks successfully.
+- Produced a schema-valid source-audited review with nine critical findings at reviews/round-4/review-findings.json.
+
+### In Progress
+- Operator action is required because the extra implementation-review cycle and configured cap are exhausted.
+
+### Next Steps
+- Treat reviews/round-4/review-findings.json as the merge-blocking remediation set.
+- Do not advance to validation or PR submission without a new operator-authorized remediation cycle and a converged implementation review.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/round-4/review-manifest.json` — final five-vendor attempt evidence and 0/5 quorum
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/round-4/review-findings.json` — schema-valid source-verified findings with nine blockers
+- `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — false-zero validator, success-only quorum, nondeterministic matching, and duplicate adjudication defects
+- `skills/parallel-infrastructure/scripts/review_attempts.py` — main-thread-only interrupting deadline
+- `skills/parallel-infrastructure/scripts/review_routing.py` — incomplete tier and routing-fallback provenance
+
+### Context
+Operator-authorized implementation-review round 4 reached final external quorum 0/5 and did not converge. Four premium CLI routes timed out at the bounded vendor deadline and Pi exhausted its schema-invalid recovery chain. Independent source verification found nine critical contract and recovery blockers, including a still-accepted false-zero consensus report.
