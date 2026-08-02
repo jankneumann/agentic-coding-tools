@@ -1,69 +1,75 @@
 {
   "schema_version": 4,
   "change_id": "harden-review-consensus-and-recovery",
-  "current_phase": "IMPL_REVIEW",
-  "iteration": 2,
-  "total_iterations": 16,
+  "current_phase": "ESCALATE",
+  "iteration": 3,
+  "total_iterations": 17,
   "max_phase_iterations": 3,
   "findings_trend": [
     13,
-    11
+    11,
+    12
   ],
   "blocking_findings": [
     {
+      "id": 1,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 1
+      "disposition": "fix"
     },
     {
+      "id": 2,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 2
+      "disposition": "fix"
     },
     {
+      "id": 3,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 3
+      "disposition": "fix"
     },
     {
+      "id": 4,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 4
+      "disposition": "fix"
     },
     {
+      "id": 5,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 5
+      "disposition": "fix"
     },
     {
+      "id": 6,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 6
+      "disposition": "fix"
     },
     {
+      "id": 7,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 7
+      "disposition": "fix"
     },
     {
+      "id": 8,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 8
+      "disposition": "fix"
     },
     {
+      "id": 9,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 9
+      "disposition": "fix"
     },
     {
+      "id": 10,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 10
+      "disposition": "fix"
     },
     {
+      "id": 11,
       "criticality": "critical",
-      "disposition": "fix",
-      "id": 11
+      "disposition": "fix"
+    },
+    {
+      "id": 12,
+      "criticality": "critical",
+      "disposition": "fix"
     }
   ],
   "vendor_availability": {},
@@ -83,7 +89,8 @@
     "implementation-fix-1-1.json",
     "implementation-iteration-2-1.json",
     "implementation-review-2-1.json",
-    "implementation-fix-3-1.json"
+    "implementation-fix-3-1.json",
+    "implementation-review-3-1.json"
   ],
   "phase_history": [
     {
@@ -151,17 +158,22 @@
       "at": "2026-08-01T23:41:45.000463+00:00",
       "outcome": "fixed",
       "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-08-02T00:07:55.290733+00:00",
+      "outcome": "max_iter",
+      "phase": "IMPL_REVIEW"
     }
   ],
-  "last_handoff_id": "implementation-fix-3-1.json",
+  "last_handoff_id": "implementation-review-3-1.json",
   "started_at": "2026-08-01T19:49:19.418681+00:00",
-  "phase_started_at": "2026-08-01T23:41:45.206650+00:00",
-  "previous_phase": null,
-  "escalation_reason": null,
+  "phase_started_at": "2026-08-02T00:07:55.491987+00:00",
+  "previous_phase": "IMPL_REVIEW",
+  "escalation_reason": "IMPL_REVIEW exhausted 3/3 rounds. Final external quorum was 0/5 and 12 source-verified critical blockers remain; validation and PR submission are prohibited until an operator resolves the escalation.",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "implementer",
+  "phase_archetype": "reviewer",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,

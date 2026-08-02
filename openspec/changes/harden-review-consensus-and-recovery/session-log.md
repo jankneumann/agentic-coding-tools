@@ -536,3 +536,40 @@ Resolved all 11 source-audited IMPL_REVIEW blockers across portable routing, bou
 
 ### Context
 Made review-routing fallback coverage deterministic and upgraded convergence checkpoint fixtures to explicit schema-valid logical terminal attempt chains. The exact expanded verification suite passes.
+
+---
+
+## Phase: Implementation Review 3 (2026-08-02)
+
+**Agent**: codex-reviewer | **Session**: N/A
+
+### Decisions
+1. **Return max_iter** `architectural: skill-workflow` — This is iteration 3 of 3; external quorum was lost and source-verified merge blockers remain.
+2. **Do not infer convergence from green focused tests** `architectural: review-recovery` — The current tests do not cover false-zero schema types, ineligible synthesis inputs, copied attempt schemas, async cancellation, malformed quorum persistence, or raw SDK log redaction.
+
+### Capability Gaps Observed
+- **quorum_lost**: Four premium vendor routes timed out and Pi exhausted bounded invalid-output recovery; no external result was eligible. (skill: parallel-review-implementation, severity: critical)
+- **contract_integrity**: Shared consensus, attempt, checkpoint, routing, and convergence boundaries remain inconsistent or non-portable. (skill: parallel-infrastructure, severity: critical)
+
+### Completed Work
+- Dispatched the approved whole-branch implementation review to Antigravity, Claude Code, Codex, Grok, and Pi with 300-second vendor-local bounds.
+- Validated all five durable terminal attempt chains; quorum remained 0/5.
+- Ran 152 focused tests, skills/install.sh --check, focused ruff, strict OpenSpec validation, and git diff checks successfully.
+- Produced a schema-valid source-verified review with 12 critical findings at reviews/round-3/review-findings.json.
+
+### In Progress
+- Operator-directed remediation is required because the implementation-review iteration cap is exhausted.
+
+### Next Steps
+- Treat reviews/round-3/review-findings.json as the merge-blocking remediation set.
+- Fix the shared consensus validator/schema, eligible-result synthesis, structured matching, portable attempt contract, bounded cancellation, progressive convergence checkpoints, manifest invariants, diagnostic redaction, and routing provenance before validation.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/round-3/review-manifest.json` — five-vendor bounded attempt evidence and 0/5 quorum
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/round-3/review-findings.json` — schema-valid source-verified findings with 12 blockers
+- `skills/parallel-infrastructure/scripts/review_attempts.py` — portable schema, transition, and cancellation defects
+- `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — schema and structured-matching defects
+- `skills/autopilot/scripts/convergence_loop.py` — eligibility and progressive-checkpoint defects
+
+### Context
+Final implementation-review iteration did not converge. All five configured premium external reviewer routes produced ineligible terminal results (four bounded 299-second timeouts and Pi invalid-output exhaustion), so true external quorum was 0/5. Independent read-only source audits reproduced 12 merge-blocking contract, correctness, resilience, security, and performance defects despite 152 focused tests, install portability check, lint, strict OpenSpec validation, and all five persisted attempt chains passing their current validators.
