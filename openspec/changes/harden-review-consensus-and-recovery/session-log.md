@@ -573,3 +573,27 @@ Made review-routing fallback coverage deterministic and upgraded convergence che
 
 ### Context
 Final implementation-review iteration did not converge. All five configured premium external reviewer routes produced ineligible terminal results (four bounded 299-second timeouts and Pi invalid-output exhaustion), so true external quorum was 0/5. Independent read-only source audits reproduced 12 merge-blocking contract, correctness, resilience, security, and performance defects despite 152 focused tests, install portability check, lint, strict OpenSpec validation, and all five persisted attempt chains passing their current validators.
+
+---
+
+## Phase: Escalation Override (2026-08-02)
+
+**Agent**: autopilot-operator | **Session**: N/A
+
+### Decisions
+1. **Authorize one extra implementation cycle** `operator override: skill-workflow` — Increase the implementation-review cap from three to four and resume at IMPL_FIX.
+2. **Retain all review gates** `quality: review-recovery` — IMPL_REVIEW and VAL_REVIEW stay enabled; this authorization is not a quorum waiver.
+
+### In Progress
+- Remediate all 12 source-verified blockers from implementation review round 3.
+
+### Next Steps
+- Run the targeted IMPL_FIX dispatch and verification suite.
+- Run exactly one additional multi-vendor IMPL_REVIEW round; converge or return to ESCALATE.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/round-3/review-findings.json` — authoritative remediation set
+- `openspec/changes/harden-review-consensus-and-recovery/loop-state.json` — operator-authorized review cap and resumed phase
+
+### Context
+The operator approved one additional IMPL_FIX → IMPL_REVIEW cycle beyond the configured review cap. Validation and PR submission remain prohibited until implementation review converges.

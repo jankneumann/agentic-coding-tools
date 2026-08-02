@@ -1,10 +1,10 @@
 {
   "schema_version": 4,
   "change_id": "harden-review-consensus-and-recovery",
-  "current_phase": "ESCALATE",
+  "current_phase": "IMPL_FIX",
   "iteration": 3,
   "total_iterations": 17,
-  "max_phase_iterations": 3,
+  "max_phase_iterations": 4,
   "findings_trend": [
     13,
     11,
@@ -163,17 +163,23 @@
       "at": "2026-08-02T00:07:55.290733+00:00",
       "outcome": "max_iter",
       "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-08-02T15:16:38.236454+00:00",
+      "note": "Operator approved exactly one additional IMPL_FIX -> IMPL_REVIEW cycle beyond the configured cap; IMPL_REVIEW and VAL_REVIEW remain enabled and no review quorum waiver was granted.",
+      "outcome": "operator_override_extra_cycle",
+      "phase": "ESCALATE"
     }
   ],
   "last_handoff_id": "implementation-review-3-1.json",
   "started_at": "2026-08-01T19:49:19.418681+00:00",
-  "phase_started_at": "2026-08-02T00:07:55.491987+00:00",
+  "phase_started_at": "2026-08-02T15:16:38.236454+00:00",
   "previous_phase": "IMPL_REVIEW",
-  "escalation_reason": "IMPL_REVIEW exhausted 3/3 rounds. Final external quorum was 0/5 and 12 source-verified critical blockers remain; validation and PR submission are prohibited until an operator resolves the escalation.",
+  "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "reviewer",
+  "phase_archetype": null,
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
