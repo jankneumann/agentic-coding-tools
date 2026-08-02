@@ -60,7 +60,7 @@ designed to be equally correct at 4/10.
 Taken 2026-08-01 (`as_of: 2026-08-01T00:00:00Z`) against
 `748af34c4268e768f0e3a7e7cdbe64c02835b7b6`, corpus digest
 `6417066963927e0f1009a1b10fa49e6be6e11da3f7991290657b2adbbb7a0f56`,
-harness `context-eval 0.1.0`, harness source digest `a1c52e21…`. The CLI
+harness `context-eval 0.1.0`, harness source digest `d8bcd8ea…`. The CLI
 exited `2`.
 
 **Verdict: `fail`** — `["unmeasured", "denominator_mismatch",
@@ -90,16 +90,18 @@ That drift was invisible to the expiry conditions of the day — the corpus dige
 and the declared harness version were both unchanged — which is why
 `harness.fingerprint` now exists.
 
-**`harness.fingerprint` was re-derived again on 2026-08-01, and nothing else
-was.** The enablement gate's own source changed after this report was recorded —
-the verdict is now re-derived from the body rather than read, and the digest now
-covers `*.py` rather than everything in the directory — and a change to the
-measuring code invalidates its own evidence by construction, whether or not it
-touched a scorer. What the field should say was established rather than assumed:
-the harness at the previous commit and the harness at this one were both run over
-this same tree with this report's own recorded inputs, and the two documents
-differ in **exactly one field**, `harness.fingerprint`. Every gate row, every
-consumer row, every case result and both arms of all nineteen cases are
+**`harness.fingerprint` has been re-derived twice since this report was
+recorded, on 2026-08-01 and again on 2026-08-02, and nothing else was.** The
+enablement gate's own source changed after the measurement — the verdict is now
+re-derived from the body rather than read, the digest now covers `*.py` rather
+than everything in the directory, and that re-derivation now reads the
+`environment` block as well as the rows — and a change to the measuring code
+invalidates its own evidence by construction, whether or not it touched a scorer.
+What the field should say was established rather than assumed, the same way both
+times: the harness at the previous commit and the harness at this one were both
+run over this same tree with this report's own recorded inputs, and the two
+documents differ in **exactly one field**, `harness.fingerprint`. Every gate row,
+every consumer row, every case result and both arms of all nineteen cases are
 byte-identical, which is what "the measurement path is untouched" has to mean if
 it is to be checkable. Re-running the harness *here* instead would have changed
 three further fields — `cases[17]`'s baseline arm picks up whichever
@@ -312,9 +314,17 @@ failing consumer, or an unscored case; `verdict_consistent` re-derives the
 composer's whole invariant from the artifact, including the two comparisons a
 schema cannot make — `cases_scored` against `cases_declared`, which is a sibling
 comparison, and `index.tier` against each gate's `min_index_tier`, which is an
-ordered one over an enum. The derivation is one-way: a recorded `fail` over a
-body with nothing visibly wrong is legitimate, because a degraded scope adapter
-fails the run without failing any gate.
+ordered one over an enum — and the `environment` block, whose `scope_adapter`
+and `code_search_enabled` are the composer's `apparatus_failure` and
+`service_disabled_during_measurement`. The derivation is one-way: a recorded
+`fail` over a body with nothing visibly wrong is legitimate, because
+`missing_required_gate` and a case the corpus never declared are decided against
+the corpus rather than against the document, and `report_describes_corpus` is
+what catches those. A degraded scope adapter is not one of them, though it was
+cited as one for a round: it is recorded in the report and required by the
+contract, so a `pass` over `scope_adapter: "degraded"` — a document the composer
+cannot produce, and honest drift rather than forgery — read as self-consistent
+to both consumers until the environment block was derived too.
 
 Without `EMBEDDING_CONTRACT` the embedding fingerprint has nothing to be compared
 against, and that is an unmet condition rather than a skipped one: an unchecked

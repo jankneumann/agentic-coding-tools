@@ -43,7 +43,14 @@ from .loader import DEFAULT_SCHEMA_DIR
 from .models import Budget, Case, Corpus
 from .scoring import relevance, scope, utility
 from .scoring.arms import Arm
-from .verdict import INDEX_TIERS, CaseOutcome, ComposedVerdict, MeasurementContext
+from .verdict import (
+    DEGRADED,
+    INDEX_TIERS,
+    LIVE_TIER,
+    CaseOutcome,
+    ComposedVerdict,
+    MeasurementContext,
+)
 
 REPORT_SCHEMA_NAME = "context-eval-report.schema.json"
 DEFAULT_REPORT_SCHEMA = DEFAULT_SCHEMA_DIR / REPORT_SCHEMA_NAME
@@ -622,13 +629,34 @@ class BodyConsistency:
     re-derived here from the only document a gate ever actually reads.
 
     The derivation is deliberately ONE-WAY. ``derived == "fail"`` while the
-    document records ``pass`` is a contradiction: no run that produced those rows
-    could have composed that conclusion. The converse is not. A run whose gates
-    all passed still fails for a degraded scope adapter or for a case result the
-    corpus never declared, and those reasons live at the top level rather than in
-    any row — so a recorded ``fail`` over a body with nothing visibly wrong is a
-    legitimately composed document, and rejecting it would make a recorded
-    apparatus failure unreportable.
+    document records ``pass`` is a contradiction: no run that produced this body
+    could have composed that conclusion. The converse is not — and the reason has
+    to be stated exactly, because the approximate version of it was a hole.
+
+    Two of ``compose_verdict()``'s reasons are CORPUS-RELATIVE and cannot be
+    derived from this document at all. :data:`verdict.MISSING_REQUIRED_GATE`
+    needs the manifest's gate list to know that a declared gate produced no row,
+    and the undeclared-case half of :data:`verdict.DENOMINATOR_MISMATCH` needs
+    the manifest's case list to know that a reported case was never declared. A
+    run failing for either records a body with nothing visibly wrong, so refusing
+    it would make those outcomes unreportable. They are checked against the
+    corpus instead, by the enablement gate's ``report_describes_corpus``.
+
+    Every OTHER input the composer decides on is in this document, and every one
+    of them is re-derived below: the gate rows and the consumer rows, the scored
+    flags and the two declared counts, ``index.tier`` against each gate's
+    ``min_index_tier`` — and the ``environment`` block, whose ``scope_adapter``
+    and ``code_search_enabled`` are the composer's
+    :data:`verdict.APPARATUS_FAILURE` and
+    :data:`verdict.SERVICE_DISABLED_DURING_MEASUREMENT`.
+
+    That last one is why this paragraph is written as an enumeration rather than
+    as an example. The degraded scope adapter used to be cited HERE as the reason
+    one-wayness is necessary, and it was the wrong reason twice over: the field
+    is recorded in the report and it is schema-required, so it was never a reason
+    the document could not supply — it was a derivation nobody had written. For
+    as long as it was missing, a ``pass`` recorded over ``scope_adapter:
+    "degraded"`` read as self-consistent to everything that reads this file.
     """
 
     derived_verdict: str
@@ -680,8 +708,32 @@ def body_consistency(document: Mapping[str, Any]) -> BodyConsistency:
     contradictions: list[str] = []
 
     tier = (document.get("index") or {}).get("tier")
+    environment = document.get("environment") or {}
+    gates = _rows(document, "gates")
 
-    for gate in _rows(document, "gates"):
+    # The two run-level preconditions, derived first because that is where
+    # ``compose_verdict`` applies them: a measurement taken in the wrong state
+    # measured something other than what it claims, whatever every row says. Both
+    # fields are schema-required, so a schema-valid document always answers both
+    # questions, and neither answer needs anything outside the file.
+    if environment.get("scope_adapter") == DEGRADED:
+        failures.append(
+            f"it was measured through a {DEGRADED} scope adapter, which fails the "
+            "run whatever the numbers say"
+        )
+    if environment.get("code_search_enabled") is not True and any(
+        gate.get("min_index_tier") == LIVE_TIER for gate in gates
+    ):
+        # The sibling of the ``_tier_satisfies`` comparison below, and read from
+        # the same field: ``_compose_gate`` appends ``index_tier_insufficient``
+        # and ``service_disabled_during_measurement`` on adjacent lines, and for
+        # one round only the first of the two was re-derived here.
+        failures.append(
+            "the code-search service was disabled while gates declaring a "
+            f"{LIVE_TIER!r} index were measured"
+        )
+
+    for gate in gates:
         identifier = gate.get("id")
         verdict = gate.get("verdict")
         if verdict == FAIL and gate.get("required") is not False:

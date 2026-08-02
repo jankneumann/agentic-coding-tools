@@ -347,10 +347,15 @@ def _consistent_verdict_condition(document: dict[str, Any]) -> Condition:
     installed harness, the configured embedder, git. This one is entirely
     internal, and it is the only one that can notice a document nothing composed.
 
-    One-way, deliberately: see :class:`report.BodyConsistency`. A recorded
-    ``fail`` over a body with no visible failure is a legitimately composed
-    report — a degraded scope adapter fails the run without failing any gate —
-    and rejecting it would make a recorded apparatus failure unreportable.
+    One-way, deliberately: see :class:`report.BodyConsistency`, which enumerates
+    what it derives and what it cannot. A recorded ``fail`` over a body with no
+    visible failure is a legitimately composed report, because
+    ``missing_required_gate`` and a case the corpus never declared are decided
+    against the CORPUS and leave every row in the document intact; refusing such
+    a report would make those outcomes unreportable, and
+    :data:`REPORT_DESCRIBES_CORPUS` is the condition that catches them, because
+    it is the one holding the corpus. A degraded scope adapter is not among them:
+    the report records it, so the derivation reads it.
     """
     consistency = report.body_consistency(document)
     if consistency.consistent:
