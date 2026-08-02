@@ -740,7 +740,7 @@ be meaningful.
   stopping unrelated work; diff-scoping alone would leave them invisible
   forever, since no change touches them.
 
-- [ ] 5.7b Register `tests/validate-feature` in `skills/pyproject.toml` `[XS]`
+- [x] 5.7b Register `tests/validate-feature` in `skills/pyproject.toml` `[XS]`
   **Spec scenarios**: skill-workflow delta: Validation-Time Requirement Traceability Gate (skill wiring is covered by skill tests)
   **Dependencies**: 5.6
   **Note**: `testpaths` in `skills/pyproject.toml` currently lists
@@ -753,6 +753,25 @@ be meaningful.
   fails exactly the way a gate that cannot fail does.
   **Note**: verify by deleting the entry and confirming the new tests vanish
   from the collected set, not merely that they pass with it present.
+  **DONE AHEAD OF 5.6** — the registration is independent of the new tests and
+  was landed early, so it is not a reason to defer wp-wiring. Verified as the
+  note requires, bare from `skills/`: `pytest --collect-only -q | grep -c
+  '^tests/validate-feature/'` → **5** with the entry, **0** with it deleted, **5**
+  after restore. Full bare suite: **2350 passed** (adding the path co-collects
+  cleanly — no flat-module shadowing against the already-listed dirs).
+  **5.6 STILL OWES ITS HALF**: this closed the directory, not the file. When
+  `test_ci_sweep_wiring.py` is written it must land *under* `skills/tests/
+  validate-feature/` to inherit this entry, and the delete-verification must be
+  re-run so it covers the new file. A `[x]` here is not evidence the sweep tests
+  are collected.
+  **Scope finding, out of scope here**: `tests/validate-feature` was not an
+  isolated omission. 25 of the dirs under `skills/tests/` are unlisted, hiding
+  102 files / ~1161 tests, of which 23 currently FAIL (`tests/autopilot` 7,
+  `tests/playwright-validator` 6, `tests/phase-record-compaction` 5,
+  `tests/docs` 3, `tests/agent-coordinator` 2). Collecting all 25 at once also
+  raises 13 collection errors from flat-module shadowing (several skills ship a
+  top-level `scripts/models.py`), so they cannot simply be appended. Filed
+  separately; deliberately NOT fixed here.
 
 - [ ] 5.7c `[human]` The unmutated tree passes at capability scope `[M]`
   **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (both scenarios)

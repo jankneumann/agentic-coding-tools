@@ -96,6 +96,15 @@ testpaths = [
     "tests/parallel-infrastructure",
     "tests/project-context-runtime",
     "tests/project-context-refresh",
+    # trace-requirements-to-contracts task 5.7b. `tests/validate-feature` was
+    # never listed, so test_gen_eval_mode_selection.py has never run in CI —
+    # the same fail-open this list already recorded for tests/coordination-bridge
+    # above. It is not an isolated slip: 25 of the dirs under skills/tests/ are
+    # unlisted, hiding ~1161 tests and 23 real failures, and collecting them all
+    # at once additionally trips flat-module shadowing (several skills ship a
+    # top-level scripts/models.py). Fixing that is issue-tracked separately; this
+    # entry closes only the directory this change depends on.
+    "tests/validate-feature",
     "expedite/scripts/tests",
 ]
 
