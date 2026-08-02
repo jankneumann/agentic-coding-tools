@@ -192,17 +192,20 @@ Never mix `feat` / `fix` with simplify polish in the same commit.
 
 ```bash
 # Recommended mechanical dual-run (writes simplify-report.json by default).
-# Prefer an absolute interpreter so detached worktrees resolve tools;
+# Prefer a project-local interpreter so detached worktrees resolve tools;
 # the script also symlinks .venv / node_modules from the main repo when present.
 python3 "<skill-base-dir>/scripts/verify_behavior_preservation.py" \
   --baseline <baseline-sha> \
-  --test-cmd "skills/.venv/bin/python -m pytest -q"   # or npm test / project-specific
+  --test-cmd "python3 -m pytest -q"   # or: .venv/bin/python -m pytest / npm test
 
 # Assertion contract on the simplify range (should be clean for expectation bodies).
 # --base MUST be the tip AFTER characterization commits.
 python3 "<skill-base-dir>/scripts/check_test_contract.py" --base <baseline-sha>
 python3 "<skill-base-dir>/scripts/check_scope.py" --base <baseline-sha>
 ```
+
+Source-contribution-only example (this monorepo, not portable to consumers):
+`skills/.venv/bin/python -m pytest -q skills/tests/simplify/`
 
 Manual equivalent: run the same suite on `<baseline-sha>` and on `HEAD`; both must pass.
 

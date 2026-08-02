@@ -20,11 +20,11 @@ Notes:
     directories so uncommitted working-tree dirt does not affect results.
 
     Common local toolchains (``.venv``, ``node_modules``) are **symlinked** from
-    the main repo into each worktree when present, so recommended commands like
-    ``skills/.venv/bin/python -m pytest -q`` still resolve.
+    the main repo into each worktree when present, so commands like
+    ``.venv/bin/python -m pytest -q`` still resolve.
 
     ``--test-cmd`` is executed with the shell (trusted operator command). Prefer
-    absolute interpreter paths. Do not pass untrusted strings.
+    project-local interpreter paths. Do not pass untrusted strings.
 """
 
 from __future__ import annotations
@@ -193,7 +193,7 @@ def dual_run(
     notes: list[str] = [
         "runs use detached git worktrees so dirty working trees do not affect results",
         "test-cmd is shell-executed; treat as trusted operator input",
-        "prefer absolute interpreter paths (e.g. skills/.venv/bin/python -m pytest)",
+        "prefer project-local interpreter paths (e.g. .venv/bin/python -m pytest)",
     ]
 
     baseline_result: RunResult | None = None
