@@ -8,6 +8,7 @@ Usage:
         [--head HEAD] \\
         [--report simplify-report.json] \\
         [--skip-baseline-run]   # only re-check HEAD if baseline already known green
+        [--timeout SECONDS]
 
 Exit codes:
     0 — both runs green (or baseline skipped and HEAD green)
@@ -15,16 +16,22 @@ Exit codes:
     1 — usage / git / IO error
 
 Notes:
-    Baseline run uses `git worktree add --detach` into a temp directory when
-    possible so the main working tree is not dirtied. Falls back to
-    `git stash` + checkout only if worktree fails (and restores afterward).
-    Prefer a clean working tree.
+    Both baseline and HEAD runs use ``git worktree add --detach`` into temporary
+    directories so uncommitted working-tree dirt does not affect results.
+
+    Common local toolchains (``.venv``, ``node_modules``) are **symlinked** from
+    the main repo into each worktree when present, so recommended commands like
+    ``skills/.venv/bin/python -m pytest -q`` still resolve.
+
+    ``--test-cmd`` is executed with the shell (trusted operator command). Prefer
+    absolute interpreter paths. Do not pass untrusted strings.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -32,6 +39,9 @@ import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Toolchain dirs commonly gitignored but required to run tests.
+_TOOLCHAIN_LINKS = (".venv", "node_modules", "skills/.venv", ".tox")
 
 
 @dataclass
@@ -56,9 +66,15 @@ class DualRunReport:
     head_run: RunResult
     both_passed: bool
     notes: list[str] = field(default_factory=list)
+    dual_run_complete: bool = True
 
 
-def _run(cmd: list[str] | str, cwd: Path, shell: bool = False) -> subprocess.CompletedProcess[str]:
+def _run(
+    cmd: list[str] | str,
+    cwd: Path,
+    shell: bool = False,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         cmd,
         cwd=cwd,
@@ -66,6 +82,7 @@ def _run(cmd: list[str] | str, cwd: Path, shell: bool = False) -> subprocess.Com
         text=True,
         check=False,
         shell=shell,
+        timeout=timeout,
     )
 
 
@@ -75,16 +92,31 @@ def _tail(text: str, limit: int = 4000) -> str:
     return text[-limit:]
 
 
-def run_tests(command: str, cwd: Path, ref_label: str) -> RunResult:
-    proc = _run(command, cwd=cwd, shell=True)
+def run_tests(
+    command: str,
+    cwd: Path,
+    ref_label: str,
+    *,
+    timeout: float | None = None,
+) -> RunResult:
+    try:
+        proc = _run(command, cwd=cwd, shell=True, timeout=timeout)
+        code = proc.returncode
+        out, err = proc.stdout or "", proc.stderr or ""
+    except subprocess.TimeoutExpired as exc:
+        code = 124
+        out = (exc.stdout or "") if isinstance(exc.stdout, str) else ""
+        err = f"TIMEOUT after {timeout}s\n" + (
+            (exc.stderr or "") if isinstance(exc.stderr, str) else ""
+        )
     return RunResult(
         ref=ref_label,
         command=command,
-        exit_code=proc.returncode,
-        passed=proc.returncode == 0,
+        exit_code=code,
+        passed=code == 0,
         cwd=str(cwd),
-        stdout_tail=_tail(proc.stdout or ""),
-        stderr_tail=_tail(proc.stderr or ""),
+        stdout_tail=_tail(out),
+        stderr_tail=_tail(err),
     )
 
 
@@ -95,6 +127,58 @@ def resolve_sha(repo: Path, ref: str) -> str:
     return proc.stdout.strip()
 
 
+def _link_toolchains(repo: Path, worktree: Path) -> list[str]:
+    """Symlink common ignored toolchain dirs from repo into worktree."""
+    linked: list[str] = []
+    for rel in _TOOLCHAIN_LINKS:
+        src = repo / rel
+        dst = worktree / rel
+        if not src.exists():
+            continue
+        if dst.exists() or dst.is_symlink():
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.symlink(src, dst, target_is_directory=src.is_dir())
+            linked.append(rel)
+        except OSError:
+            continue
+    return linked
+
+
+def _run_in_detached_worktree(
+    repo: Path,
+    sha: str,
+    test_cmd: str,
+    *,
+    timeout: float | None = None,
+) -> tuple[RunResult, list[str]]:
+    """Add a temporary detached worktree at sha, run tests, remove worktree."""
+    tmp = Path(tempfile.mkdtemp(prefix="simplify-dual-run-"))
+    notes: list[str] = []
+    try:
+        add = _run(
+            ["git", "worktree", "add", "--detach", str(tmp), sha],
+            cwd=repo,
+        )
+        if add.returncode != 0:
+            raise RuntimeError(
+                f"git worktree add failed for {sha[:12]}: "
+                f"{add.stderr.strip() or add.stdout.strip()}"
+            )
+        linked = _link_toolchains(repo, tmp)
+        if linked:
+            notes.append(f"symlinked toolchain dirs for {sha[:12]}: {', '.join(linked)}")
+        result = run_tests(test_cmd, tmp, sha, timeout=timeout)
+        return result, notes
+    finally:
+        rm = _run(["git", "worktree", "remove", "--force", str(tmp)], cwd=repo)
+        if rm.returncode != 0:
+            _run(["git", "worktree", "prune"], cwd=repo)
+        if tmp.exists():
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 def dual_run(
     repo: Path,
     baseline: str,
@@ -102,36 +186,42 @@ def dual_run(
     test_cmd: str,
     *,
     skip_baseline: bool = False,
+    timeout: float | None = None,
 ) -> DualRunReport:
     baseline_sha = resolve_sha(repo, baseline)
     head_sha = resolve_sha(repo, head)
-    notes: list[str] = []
+    notes: list[str] = [
+        "runs use detached git worktrees so dirty working trees do not affect results",
+        "test-cmd is shell-executed; treat as trusted operator input",
+        "prefer absolute interpreter paths (e.g. skills/.venv/bin/python -m pytest)",
+    ]
 
     baseline_result: RunResult | None = None
+    dual_complete = True
     if not skip_baseline:
-        tmp = Path(tempfile.mkdtemp(prefix="simplify-baseline-"))
-        try:
-            add = _run(
-                ["git", "worktree", "add", "--detach", str(tmp), baseline_sha],
-                cwd=repo,
-            )
-            if add.returncode != 0:
-                raise RuntimeError(
-                    f"git worktree add failed: {add.stderr.strip() or add.stdout.strip()}"
-                )
-            baseline_result = run_tests(test_cmd, tmp, baseline_sha)
-        finally:
-            _run(["git", "worktree", "remove", "--force", str(tmp)], cwd=repo)
-            if tmp.exists():
-                shutil.rmtree(tmp, ignore_errors=True)
+        baseline_result, n1 = _run_in_detached_worktree(
+            repo, baseline_sha, test_cmd, timeout=timeout
+        )
+        notes.extend(n1)
     else:
-        notes.append("baseline run skipped (--skip-baseline-run)")
+        dual_complete = False
+        notes.append(
+            "baseline run skipped (--skip-baseline-run); dual-run is incomplete "
+            "— only HEAD was proven green"
+        )
 
-    head_result = run_tests(test_cmd, repo, head_sha)
+    head_result, n2 = _run_in_detached_worktree(
+        repo, head_sha, test_cmd, timeout=timeout
+    )
+    notes.extend(n2)
 
     both = head_result.passed and (baseline_result is None or baseline_result.passed)
     if baseline_result is not None and not baseline_result.passed:
-        notes.append("baseline suite was already red — fix tests before simplifying")
+        notes.append(
+            "baseline suite failed in detached worktree — confirm test-cmd uses an "
+            "absolute interpreter / that .venv was symlinked; do not assume the "
+            "suite is broken without checking the report tails"
+        )
     if not head_result.passed:
         notes.append("HEAD suite failed after simplify — revert last simplification")
 
@@ -145,6 +235,7 @@ def dual_run(
         head_run=head_result,
         both_passed=both,
         notes=notes,
+        dual_run_complete=dual_complete,
     )
 
 
@@ -155,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--test-cmd",
         required=True,
-        help="Shell command to run tests (e.g. 'pytest -q' or 'npm test')",
+        help="Trusted shell command to run tests (prefer absolute venv path)",
     )
     parser.add_argument("--repo", type=Path, default=Path.cwd(), help="Repository root")
     parser.add_argument(
@@ -167,7 +258,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--skip-baseline-run",
         action="store_true",
-        help="Only run tests at HEAD (when baseline was already verified)",
+        help="Only run tests at HEAD (dual-run incomplete; still exit 0 if HEAD green)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        help="Optional per-run timeout in seconds (exit 124 on timeout)",
     )
     parser.add_argument("--json-stdout", action="store_true", help="Also print report JSON to stdout")
     args = parser.parse_args(argv)
@@ -180,6 +277,7 @@ def main(argv: list[str] | None = None) -> int:
             args.head,
             args.test_cmd,
             skip_baseline=args.skip_baseline_run,
+            timeout=args.timeout,
         )
     except RuntimeError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -201,6 +299,7 @@ def main(argv: list[str] | None = None) -> int:
         f"Behavior preservation dual-run\n"
         f"  baseline: {report.baseline} → {_status(report.baseline_run)}\n"
         f"  head:     {report.head} → {_status(report.head_run)}\n"
+        f"  dual_run_complete: {report.dual_run_complete}\n"
         f"  report:   {report_path}"
     )
     for note in report.notes:

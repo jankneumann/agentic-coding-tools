@@ -1,0 +1,119 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: check_test_contract.py ignores deleted test files because +++ /dev/null is skipped without retaining the old test path, so removed assert lines can pass the assertion contract check.",
+      "resolution": "Track the path from the preceding --- line and scan removed assertion lines when the new path is /dev/null; add a deletion regression test.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/check_test_contract.py",
+      "line_range": {
+        "start": 93,
+        "end": 120
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: verify_behavior_preservation.py resolves --head but runs the HEAD test command in the live repository, so dirty working-tree files or a non-HEAD --head ref can be reported as the resolved head_sha without actually testing that tree.",
+      "resolution": "Run both baseline and head refs in detached temporary worktrees, or refuse dirty trees and verify the checked-out commit matches head_sha before running tests.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "line_range": {
+        "start": 106,
+        "end": 130
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Critical: --skip-baseline-run can emit exit 0 and both_passed=true with baseline_run=null, which does not mechanically prove the required dual-run baseline plus HEAD verification.",
+      "resolution": "Require an explicit prior baseline report or mark both_passed false/unknown when baseline execution is skipped.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "line_range": {
+        "start": 127,
+        "end": 132
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: assertion detection only matches changed lines that start with assert/expect tokens, so multiline expectation body edits such as changed object fields inside expect(...).toEqual({...}) are missed.",
+      "resolution": "Track assertion/expect blocks across hunks or parse common test syntaxes enough to flag changed lines inside assertion bodies; add multiline expect/assert regression tests.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/check_test_contract.py",
+      "line_range": {
+        "start": 36,
+        "end": 48
+      }
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "FYI: verify_behavior_preservation.py executes --test-cmd with shell=True. That is acceptable for trusted operator commands, but becomes shell injection if future callers source the command from repo metadata or untrusted workflow input.",
+      "resolution": "Document the trust boundary clearly and consider an argv-list mode for non-shell execution.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "fyi",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py",
+      "line_range": {
+        "start": 78,
+        "end": 79
+      }
+    },
+    {
+      "id": 6,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: the check_test_contract.py docstring says characterization commits that add tests are fine, but the implementation and tests intentionally flag pure +assert additions when they are inside the checked range.",
+      "resolution": "Clarify that --base must point after characterization commits and that any added/removed assertion line in the simplify range fails.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/scripts/check_test_contract.py",
+      "line_range": {
+        "start": 1,
+        "end": 16
+      }
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: The main simplify skill text covers the coverage gate, characterization-first workflow, expanded isomorphic/dead-code/redundant-intermediate catalog, manual invocation, and ecosystem routing without auto-wiring simplify into implement or autopilot.",
+      "resolution": "Keep this structure; it matches the OpenSpec intent and keeps the behavior-preservation contract visible at invocation time.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/simplify/SKILL.md",
+      "line_range": {
+        "start": 30,
+        "end": 218
+      }
+    }
+  ]
+}

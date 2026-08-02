@@ -73,10 +73,15 @@ def test_simplify_has_isomorphic_extract_pattern():
 def test_simplify_manual_invocation_only():
     text = (SKILL_DIR / "SKILL.md").read_text()
     lower = text.lower()
-    assert "manual" in lower
-    assert "autopilot" in lower and (
-        "not" in lower or "default" in lower
-    ), "simplify must state it is not default-on in autopilot"
+    assert "manual only" in lower or "invocation mode:** **manual" in lower
+    assert "not" in lower and "default" in lower and "autopilot" in lower, (
+        "simplify must state it is not default-on in autopilot"
+    )
+
+
+def test_simplify_has_redundant_intermediate_pattern():
+    text = (SKILL_DIR / "SKILL.md").read_text().lower()
+    assert "redundant intermediate" in text
 
 
 def test_simplify_documents_scripts():
