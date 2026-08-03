@@ -100,6 +100,12 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 override-dependencies = [
+    # CVE-2026-69247: cryptography 44.0.0-49.x reports the outcome of PKCS#7
+    # RecipientInfo decryption in distinguishable ways (and observably by
+    # timing), giving an attacker a Bleichenbacher oracle against the
+    # content-encryption key. Fixed in 50.0.0. Transitive here; force the
+    # patched version until an upstream parent floor covers it.
+    "cryptography>=50.0.0",
     # CVE-2026-53538/53539/53540: python-multipart < 0.0.31 has DoS and
     # parser-differential vulnerabilities (negative Content-Length unbounded
     # read; semicolon-separator quadratic scan; semicolon field-smuggling).
