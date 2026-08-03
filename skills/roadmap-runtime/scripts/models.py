@@ -196,6 +196,7 @@ class RoadmapItem:
     description: str | None = None
     rationale: str | None = None
     change_id: str | None = None
+    capability: str | None = None
     acceptance_outcomes: list[str] = field(default_factory=list)
     failure_reason: str | None = None
     blocked_by: list[str] = field(default_factory=list)
@@ -226,6 +227,8 @@ class RoadmapItem:
             d["rationale"] = self.rationale
         if self.change_id:
             d["change_id"] = self.change_id
+        if self.capability:
+            d["capability"] = self.capability
         if self.acceptance_outcomes:
             d["acceptance_outcomes"] = self.acceptance_outcomes
         if self.failure_reason:
@@ -269,6 +272,7 @@ class RoadmapItem:
             description=data.get("description"),
             rationale=data.get("rationale"),
             change_id=data.get("change_id"),
+            capability=data.get("capability"),
             acceptance_outcomes=data.get("acceptance_outcomes", []),
             failure_reason=data.get("failure_reason"),
             blocked_by=data.get("blocked_by", []),
