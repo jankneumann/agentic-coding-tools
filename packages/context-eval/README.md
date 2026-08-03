@@ -22,8 +22,23 @@ corpus/
 src/context_eval/
   models.py             frozen views of the corpus documents
   loader.py             load + validate + digest
+  producers/            what answers a case: exact_search (the baseline arm),
+                        semantic_runtime (ri-12's own decision tree), scope_adapter
+  scoring/              relevance, utility, scope, and the shared arm view — each
+                        reading its thresholds from the manifest, never from Python
+  verdict.py            composes four gate results into one closed pass|fail
+  report.py             builds, validates on write, and re-derives body consistency
+  enablement_gate.py    the build-time question: does the declared default have
+                        evidence? (design D14)
+  judge.py              advisory only, attached after composition, never read by a gate
+  __main__.py           the CLI: run | check, with exit codes 0/1/2/3
 tests/                  run from the repository root
 ```
+
+This listing named only `models.py` and `loader.py` until 2026-08-03 — the two
+modules that existed when phase 2 wrote it. Everything else arrived across
+phases 3-7 and went undocumented here, which is the same drift the durable
+evaluation README carries a test against.
 
 Run the tests with the infra-skills venv, from the repository root:
 

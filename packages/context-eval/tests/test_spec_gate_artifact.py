@@ -291,3 +291,95 @@ def test_no_closed_enum_verdict_can_be_read_from_the_superseded_artifact() -> No
         pytest.skip("the archived spike report is not in this checkout")
     with pytest.raises(report_module.ReportError):
         report_module.read_report(SUPERSEDED_REPORT)
+
+
+DURABLE_README = REPO_ROOT / "docs" / "evaluation" / "semantic-context" / "README.md"
+
+#: Values the published prose restates from `report.json`. Each is (json path,
+#: how the README abbreviates it). A restated fact is a second copy of a derived
+#: value, and a second copy is the thing that goes stale.
+_RESTATED = (
+    (("harness", "fingerprint"), 8),
+    (("harness", "corpus_digest"), 64),
+    (("repository", "evaluated_revision"), 40),
+)
+
+
+def test_the_published_evidence_prose_matches_the_report() -> None:
+    """The README's quoted provenance is the report's, or this fails.
+
+    `2864bbfc` moved `harness.fingerprint`, updated `report.json`, edited this
+    README, and left one sentence restating the OLD digest. Four multi-vendor
+    review rounds, a validation pass, and the author all missed it, because every
+    one of them checked that the report's fingerprint equalled the source digest
+    and nobody checked that the README's restatement equalled the report.
+
+    That is this capability's own subject — a derived value copied into prose,
+    where the copy is maintained by hand and agrees with the original only until
+    it doesn't. `harness.version` was the same defect one layer down (#337) and
+    was fixed by deriving it; prose cannot be derived, so it is pinned instead.
+
+    Abbreviations are honoured: the README writes a fingerprint as its first
+    eight hex characters followed by an ellipsis, so a prefix match is what the
+    document actually claims.
+    """
+    if not DURABLE_README.is_file():  # pragma: no cover - the artifact is committed
+        pytest.skip("no durable README in this checkout")
+    if not DURABLE_REPORT.is_file():  # pragma: no cover - the artifact is committed
+        pytest.skip("no durable report in this checkout")
+
+    prose = DURABLE_README.read_text(encoding="utf-8")
+    document = json.loads(DURABLE_REPORT.read_text(encoding="utf-8"))
+
+    for path, width in _RESTATED:
+        value = document
+        for key in path:
+            value = value[key]
+        assert isinstance(value, str)
+        abbreviated = value[:width]
+        assert abbreviated in prose, (
+            f"{'.'.join(path)} is {value!r} in report.json, and the README quotes "
+            f"no value beginning {abbreviated!r}. The published evidence and the "
+            "artifact it describes disagree about what produced the measurement."
+        )
+
+
+def test_the_readme_quotes_no_provenance_the_report_disowns() -> None:
+    """The other direction: no stale digest may survive anywhere in the prose.
+
+    The test above would pass if someone ADDED the current fingerprint while
+    leaving the old one further down — the exact shape of the defect, since
+    `2864bbfc` did update part of this file and miss one sentence.
+
+    Scoped to hex runs introduced as `digest` or `fingerprint`, not to every hex
+    run. The README legitimately cites commit SHAs (`ddc30be2`, `2864bbfc`)
+    which the report does not record and must not be flagged. A first draft of
+    this test matched any 16+ character run instead, and PASSED against the
+    broken README — the stale value was abbreviated to eight characters and slid
+    underneath the threshold. A backstop that misses the defect it was written
+    for is worse than no backstop, because it reads as coverage.
+    """
+    if not DURABLE_README.is_file():  # pragma: no cover - the artifact is committed
+        pytest.skip("no durable README in this checkout")
+    if not DURABLE_REPORT.is_file():  # pragma: no cover - the artifact is committed
+        pytest.skip("no durable report in this checkout")
+
+    document = json.loads(DURABLE_REPORT.read_text(encoding="utf-8"))
+    recorded = {
+        str(document["harness"]["fingerprint"]),
+        str(document["harness"]["corpus_digest"]),
+        str(document["repository"]["evaluated_revision"]),
+    }
+    quoted = set(
+        re.findall(
+            r"(?:digest|fingerprint)[^`\n]*`([0-9a-f]{8,})…?`",
+            DURABLE_README.read_text(encoding="utf-8"),
+        )
+    )
+
+    orphans = {q for q in quoted if not any(known.startswith(q) for known in recorded)}
+    assert not orphans, (
+        f"the README quotes provenance the report does not record: {sorted(orphans)!r}. "
+        "A stale digest left in the prose is indistinguishable, to a reader, from "
+        "the value that actually produced the measurement."
+    )

@@ -60,8 +60,16 @@ designed to be equally correct at 4/10.
 Taken 2026-08-01 (`as_of: 2026-08-01T00:00:00Z`) against
 `748af34c4268e768f0e3a7e7cdbe64c02835b7b6`, corpus digest
 `6417066963927e0f1009a1b10fa49e6be6e11da3f7991290657b2adbbb7a0f56`,
-harness `context-eval 0.1.0`, harness source digest `d8bcd8ea…`. The CLI
+harness `context-eval 0.1.0`, harness source digest `dc25e1ce…`. The CLI
 exited `2`.
+
+That digest is restated here for a reader's convenience and is **not** the
+authority: `report.json` carries it, the gate recomputes it, and
+`test_the_published_evidence_prose_matches_the_report` fails if this line and
+the artifact ever disagree again. They did once — `2864bbfc` moved the
+fingerprint, updated the report, edited this file, and left this sentence
+behind, which is the exact failure this whole capability exists to catch,
+committed into its own published evidence.
 
 **Verdict: `fail`** — `["unmeasured", "denominator_mismatch",
 "index_tier_insufficient"]`.
@@ -90,8 +98,11 @@ That drift was invisible to the expiry conditions of the day — the corpus dige
 and the declared harness version were both unchanged — which is why
 `harness.fingerprint` now exists.
 
-**`harness.fingerprint` has been re-derived twice since this report was
-recorded, on 2026-08-01 and again on 2026-08-02, and nothing else was.** The
+**`harness.fingerprint` has been re-derived on every change to the harness
+source since this report was recorded, and nothing else was.** A count was
+written here twice and was wrong twice; the sentence now states the rule
+instead, because a number that has to be maintained by hand is the same defect
+one paragraph up. The
 enablement gate's own source changed after the measurement — the verdict is now
 re-derived from the body rather than read, the digest now covers `*.py` rather
 than everything in the directory, and that re-derivation now reads the
