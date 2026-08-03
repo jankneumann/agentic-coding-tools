@@ -704,6 +704,17 @@ requires a favourable number.
       not just this one). `validate_context_impact.py --base main` now
       reports all seven packages `declared`; `validate_work_packages.py`
       confirms the edited file is still schema-valid.
+      **Correction, 2026-08-03 (VAL_REVIEW):** the `exit 0` above was true when
+      this task ran and is no longer true of the tree. `make context-drift-gate`
+      now exits 2 with `decisions.timeline` blocking on
+      `docs/decisions/skill-workflow.md`, in addition to the `openspec.projection`
+      informational drift recorded here. That blocker is **not this change's**:
+      `git diff origin/main..HEAD -- docs/decisions/` is empty, and nine active
+      unarchived changes declare a `skill-workflow` delta, so it is the derived
+      artifact drift of issue #157. It arrived after this task, and the checkbox
+      is left checked because the work it records was done. Recorded rather than
+      silently corrected, because two committed records of one gate disagreeing
+      is exactly the contradiction this change exists to make visible.
 
 - [x] 7.5 Run `openspec validate gate-semantic-context-default-enablement
       --strict` and fix everything it reports
