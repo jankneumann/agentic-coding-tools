@@ -22,7 +22,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 # Ensure the convergence_loop module can find its dependencies
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent / "scripts")
@@ -43,7 +42,6 @@ from consensus_synthesizer import (
 from convergence_loop import (
     _is_blocking,
     converge,
-    ConvergenceResult,
 )
 from review_dispatcher import ReviewResult
 
@@ -163,7 +161,7 @@ class TestEscalationOnMaxRounds:
 
     def test_escalation_callback_called_on_max_rounds(self, tmp_path: Path) -> None:
         """escalation_callback fires when reason='max_rounds'."""
-        finding = _make_consensus_finding(1, status="confirmed", criticality="high")
+        _finding = _make_consensus_finding(1, status="confirmed", criticality="high")
 
         results_per_round = []
         reports_per_round = []
@@ -731,7 +729,7 @@ class TestBackwardCompatibility:
 
     def test_no_escalation_callback_still_works(self, tmp_path: Path) -> None:
         """Without escalation_callback, max_rounds exits as before."""
-        finding = _make_consensus_finding(1, status="confirmed", criticality="high")
+        _finding = _make_consensus_finding(1, status="confirmed", criticality="high")
         results_per_round = []
         reports_per_round = []
 

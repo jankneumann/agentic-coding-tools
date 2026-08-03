@@ -259,7 +259,7 @@ def _extract_column_type(col_def: Node) -> str:
         type_keywords.add(kw)
 
     type_parts = []
-    skip_next = False
+    _skip_next = False
     for child in col_def.children:
         if child.type == "identifier" and not type_parts:
             # First identifier is column name, skip

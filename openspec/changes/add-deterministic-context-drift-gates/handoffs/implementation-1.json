@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-26T16:40:45.742846+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented the composed deterministic context drift gate across six work packages. The plan grew twice under measurement: wp-emitter was added after the baseline exposed a false positive in the decisions producer, and the architecture analyzers had to be repaired because provenance could not otherwise be written honestly. The gate now goes from exit 2 with three named stale artifacts to exit 0 on the remediated tree, with the fail and pass states both captured as evidence.",
+    "completed_work": [
+      "wp-contracts: context-drift-gate.schema.json published, installed and promoted; promoted-contract test generalised to a SCHEMA_OWNERS map covering every owning skill",
+      "wp-lifecycle: classify_degradation with four disjoint groups, additive to an unchanged decide_outcome; architecture producer switched from build_provenance to check_freshness; check-mode read-only assertion over list_producers() digesting tracked and untracked paths",
+      "wp-emitter: decision index Source links rendered repository-relative; generalised path-independence guard over every registered producer",
+      "wp-gate: gate.py composition, classification wiring and report rendering; cli gate subcommand; make context-drift-gate target",
+      "wp-ci: blocking context-drift-gate job added, validate-decision-index retired, cross-skill dependency declared, branch-protection promotion documented as a known gap",
+      "wp-integration: architecture analyzers repaired, provenance tracked, stale inventories regenerated, gate proven to fail then pass"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "The decisions producer false positive was fixed at the emitter, not the caller",
+        "rationale": "emit_decisions_from_archive interpolated the archive_root it was given into every rendered Source: link, and the CLI resolves --repo to an absolute path before the producer runs. Measured: relative root 0 artifacts, absolute 17. A producer-side relative-path fix was rejected because it would leave 'make decisions --archive-root <absolute>' able to write machine paths into a committed artifact, and would depend on cwd, which the producer contract does not guarantee. Retiring validate-decision-index was made conditional on this fix: replacing a passing check with a permanently failing one is not a consolidation.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "The architecture analyzers were repaired rather than working around them",
+        "rationale": "make architecture-refresh failed before promotion on every run, so no provenance existed. Writing provenance anyway was rejected: build_provenance records an input_fingerprint over current sources, so committing it over artifacts last regenerated 2026-02-23 would have made check_freshness report fresh -- manufacturing the exact false green D4 exists to eliminate. Three defects fixed: MIGRATIONS_DIR pointed at the removed supabase path, TS_SRC_DIR pointed at a 'web' directory that never existed, and the ts-node runner was incompatible with the resolved typescript 7.x.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "A missing configured input root is now a loud skip that writes no artifact",
+        "rationale": "analyze_typescript.ts exits 0 on a missing directory and writes 'Modules: 0, Components: 0' -- indistinguishable from a repository with no TypeScript. That silence is why an all-zeros ts_analysis.json sat committed for five months. Recording zero modules from a missing directory misreports a configuration error as analysis, which is the same category of defect as the fail-open architecture producer. The validation lives in the skill so every consuming repository gets it; the two path corrections live in the repo-specific Makefile that install.sh does not distribute.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Unverifiable provenance exits 2, not 1",
+        "rationale": "D5's original table contradicted D4 and the spec scenario 'Missing provenance blocks', which requires the drift exit code. The spec is normative and its behaviour is right: a missing baseline is fixed by regenerating and committing, which is drift remediation, not an apparatus repair. Exit 1 is now reserved for a producer that reached no verdict at all, including a drifted finding that names no artifact -- 'name every stale artifact by path' cannot be satisfied by a finding that names nothing.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Each package's claims were verified by the orchestrator, not accepted on report",
+        "rationale": "For every package: git worktree list to confirm placement, a diff against the feature branch to confirm scope, and independent reproduction of the RED state. The wp-contracts gate was re-failed by removing the install asset; the wp-lifecycle fix was confirmed by running the producer on the live tree; the wp-emitter fix was confirmed by re-running the relative-vs-absolute comparison. Self-reports about worktree placement are unreliable in this harness.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Validation should confirm the gate is green on main after merge, then apply the documented gh api branch-protection change -- in that order.",
+      "Re-run the gate after any rebase: openspec.projection's informational count tracks the number of active changes and will move."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/project-context-refresh/scripts/gate.py",
+        "description": "the composed gate"
+      },
+      {
+        "path": "skills/project-context-refresh/scripts/orchestrator.py",
+        "description": "classifier and the architecture fail-closed fix"
+      },
+      {
+        "path": "skills/explore-feature/scripts/archive_index.py",
+        "description": "path-independent decision index rendering"
+      },
+      {
+        "path": "skills/refresh-architecture/scripts/refresh_architecture.sh",
+        "description": "analyzer runner and missing-root validation"
+      },
+      {
+        "path": "openspec/changes/add-deterministic-context-drift-gates/gate-baseline-pre-remediation.json",
+        "description": "evidence the gate fails"
+      },
+      {
+        "path": "openspec/changes/add-deterministic-context-drift-gates/gate-green-post-remediation.json",
+        "description": "evidence the gate passes"
+      }
+    ]
+  }
+}

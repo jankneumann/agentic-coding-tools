@@ -43,6 +43,12 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.6",
     "mypy>=1.13",
+    # Validates emitted reports/descriptors against the published JSON Schema
+    # contract in tests/test_contract_schemas.py. Deliberately a dev dep, not a
+    # runtime one: the point of shipping the schemas is that consumers can
+    # validate without gen-eval's runtime, so gen-eval must not need a
+    # validator either.
+    "jsonschema>=4.23",
 ]
 
 [tool.ruff]

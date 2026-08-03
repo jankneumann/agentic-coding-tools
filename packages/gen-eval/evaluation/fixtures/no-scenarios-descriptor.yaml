@@ -1,0 +1,29 @@
+# A descriptor that declares a surface but supplies no scenarios.
+#
+# Used by evaluation/scenarios/self-run.yaml to drive gen-eval *through*
+# gen-eval and assert two guarantees at once:
+#
+#   UP-4 — there is no `startup:` block. Before it became optional this file
+#          could not have existed: it would have needed a no-op command, a
+#          no-op teardown, and a health_check URL that had to genuinely
+#          succeed, all for a project with nothing to start. The inner run is
+#          also invoked *without* --no-services, so a regression that made
+#          startup mandatory again fails here rather than being papered over
+#          by the skip flag.
+#
+#   UP-3 — scenario_dirs points at an empty directory, so the inner run
+#          evaluates zero scenarios and must exit 1 even at
+#          --fail-threshold 0.
+
+project: gen-eval-self-check
+version: "0.1.0"
+
+services:
+  - name: noop-cli
+    type: cli
+    command: "true"
+    commands: []
+
+# Deliberately empty — see empty/.gitkeep.
+scenario_dirs:
+  - empty

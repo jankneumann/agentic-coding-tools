@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -246,6 +246,43 @@ def _index_single_change(change_dir: Path) -> ArchiveEntry | None:
 # ── Decision-index emitter pass (piggybacks on archive discovery) ───
 
 
+#: Files/dirs whose presence marks a repository root. ``.git`` is a directory in
+#: a normal clone and a file in a linked worktree, so existence — not type — is
+#: the test.
+_REPO_ROOT_MARKERS = (".git",)
+
+
+def find_repository_root(start: Path) -> Path | None:
+    """Return the nearest ancestor of *start* (inclusive) that is a repo root.
+
+    ``None`` when no marker is found, which is the normal case for a synthesized
+    archive under a temporary directory.
+    """
+    resolved = start.resolve()
+    for candidate in (resolved, *resolved.parents):
+        if any((candidate / marker).exists() for marker in _REPO_ROOT_MARKERS):
+            return candidate
+    return None
+
+
+def repository_relative_path(path: Path, repository_root: Path | None) -> str:
+    """Render *path* as a POSIX path relative to *repository_root*.
+
+    The decision index is a **committed** artifact, so a back-reference must
+    describe a location in the repository, never a location on the machine that
+    happened to run the emitter. Falls back to *path* as given when no repository
+    root was found or when *path* lies outside it — there is no correct
+    repository-relative spelling in that case, and inventing one would be worse
+    than an honest verbatim path.
+    """
+    if repository_root is None:
+        return path.as_posix()
+    try:
+        return path.resolve().relative_to(repository_root).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
 def emit_decisions_from_archive(
     archive_root: Path,
     output_dir: Path,
@@ -259,12 +296,25 @@ def emit_decisions_from_archive(
     Reuses the same walk pattern as `index_archive` so the two passes stay
     consistent about "which changes exist". Returns the number of tagged
     decisions extracted.
+
+    Every back-reference is rewritten relative to the repository root before
+    rendering, so the emitted bytes are identical whether *archive_root* was
+    passed as ``openspec/changes`` or as ``/abs/path/to/repo/openspec/changes``.
+    Interpolating the caller's spelling instead would write machine-specific
+    paths into a committed artifact and make every freshness check that compares
+    a fresh render against the committed tree report drift that does not exist.
     """
     from decision_index import emit_decision_index, extract_decisions
 
+    repository_root = find_repository_root(archive_root)
+
     all_decisions = []
     for session_log in sorted(archive_root.rglob("session-log.md")):
-        all_decisions.extend(extract_decisions(session_log))
+        source_relpath = repository_relative_path(session_log, repository_root)
+        all_decisions.extend(
+            replace(decision, source_relpath=source_relpath)
+            for decision in extract_decisions(session_log)
+        )
 
     logger.info(
         "Extracted %d tagged decisions from %s",

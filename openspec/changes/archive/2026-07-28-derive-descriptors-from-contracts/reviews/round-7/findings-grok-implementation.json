@@ -1,0 +1,117 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "packages/gen-eval/src/gen_eval/__main__.py:324 always loads with InterfaceDescriptor.from_yaml. A ToolDescriptor YAML (what scripts/generate_tool_descriptor.py writes for task 5.3, including top-level commands/executable/contract) has those fields ignored by the base model, leaves services[0].commands=[], and therefore all_interfaces() returns []. Empirically: generate_tool_descriptor \u2192 ToolDescriptor.from_yaml yields 17 units; InterfaceDescriptor.from_yaml on the same file yields []. After 5.3, dogfood still sees 0 declared interfaces, flag extraction gets declared=set() so no cli:--* tested ids, coverage stays 0%, and D10/D8 prove nothing. No Phase 5 task owns archetype-aware loading (dispatch on executable/operations/contract, or a type field). Same entrypoint also drops ServiceDescriptor.operations: load as base keeps services so the flat list is non-empty, but build_operation_coverage falls back to _from_element and fan-in is lost (mcp:check_locks covers 1 pseudo-op instead of list_active_locks+get_lock_status).",
+      "resolution": "Add a single load path used by __main__ (and any other callers) that selects ToolDescriptor / ServiceDescriptor / InterfaceDescriptor from the YAML shape, preserve scenario_dirs resolution, and make 5.3 depend on that task. Cover with a regression that runs generate_tool_descriptor then loads through the CLI path and asserts len(all_interfaces())==contract unit count.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/gen-eval/src/gen_eval/__main__.py"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "packages/gen-eval/src/gen_eval/service_descriptor.py:229-235 operations_for_element builds the comparison key as f\"{surface}:{element}\" for every surface. OperationSpec.interface_id(\"http\") returns an unprefixed \"METHOD /path\" (lines 102-103), while MCP/CLI return \"mcp:\u2026\" / \"cli:\u2026\". For HTTP, op.interface_id(\"http\") == \"http:POST /locks/acquire\" is never true. Concrete: ServiceDescriptor.from_contract(openapi fixture); operations_for_element(\"http\", \"POST /locks/acquire\") returns [] while operations_for_element(\"mcp\", \"check_locks\") correctly returns [\"list_active_locks\",\"get_lock_status\"]. Public fan-in API is wrong for the primary service surface.",
+      "resolution": "Compare against interface_id(surface) directly (or strip/add prefixes consistently per surface). Add a unit test that acquire_lock is returned for the HTTP element string the descriptor itself emits.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/gen-eval/src/gen_eval/service_descriptor.py"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "packages/gen-eval/src/gen_eval/service_descriptor.py:_extract_operations and packages/gen-eval/src/gen_eval/verify/surfaces.py:verify_fastapi only walk path-item keys that look like HTTP methods. An OpenAPI 3.1 path item written as {\"$ref\": \"#/components/pathItems/X\"} is skipped entirely ($ref \u2209 _HTTP_METHODS). Empirically _extract_operations on such a document returns [] with no error, so the declared surface shrinks (D1 fail-open via the contract) and verify_fastapi never reports those live routes as excess either. Same class of hole D1 attributes to introspection, arriving through unresolved refs.",
+      "resolution": "Resolve path-item (and operation) $refs before method iteration in both extraction and the FastAPI verifier, or fail closed when a path item is only a $ref and cannot be resolved. Fixture + tests for components.pathItems.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "packages/gen-eval/src/gen_eval/service_descriptor.py"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "packages/gen-eval/src/gen_eval/evaluator.py:_cli_identifiers tokenises the full argv and treats every _is_flag token as a flag, with no end-of-options handling. Concrete: args=[\"--descriptor\",\"x.yaml\",\"--\",\"--mode\"] with declared {cli:--descriptor, cli:--mode} records both flags as tested, so --mode is marked covered though it was a positional value after --. That inflates coverage_pct and can clear unevaluated_interfaces for a unit the process never interpreted as a flag.",
+      "resolution": "When iterating tokens for flags, stop (or switch to value-only mode) after a bare \"--\". Add a vocabulary test mirroring the equals-split case.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "packages/gen-eval/src/gen_eval/evaluator.py"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "D10 requires one vocabulary for declared and tested identifiers. ToolCommandSpec.coverage_units (descriptor.py:153-154) only emits flag.name (long form). FlagSpec.short is stored but never becomes a coverage unit and Evaluator._cli_identifiers never maps -v \u2192 --verbose. Concrete: declared has cli:--verbose only; step args=[\"-v\"] with short: -v on the contract produces unit cli:-v, fails the declared membership filter, and the long unit stays uncovered despite a real exercise. Tests only cover recording cli:-v when that exact unit is declared (test_coverage_vocabulary.py:166-168), not long/short aliasing.",
+      "resolution": "Either emit both long and short as the same coverage unit (canonicalize to long in extraction) or document that scenarios must use the long form and reject shorts in dogfood. Prefer mapping short\u2192long via the descriptor flag list when declared is a ToolDescriptor.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Task 4.7 requires wiring verify_argparse against gen-eval's own parser and showing it FAIL when a flag is added without contracting. Landed tests (test_subset_verifiers.py:193-209) build a synthetic ArgumentParser by add_argument for each contracted unit \u2014 a mirror of the contract, not packages/gen-eval/src/gen_eval/__main__.py:parse_args. That check is tautological for __main__ drift: truncate or add flags only in parse_args and the synthetic suite stays green. parse_args also discards the ArgumentParser (returns only Namespace), so CI cannot call verify_argparse on the real surface without a build_parser() refactor. Without that, 4.7 is decoration relative to the failure mode the task statement names (contract rotted to a subset of reality).",
+      "resolution": "Extract build_parser() used by parse_args; CI/unit test must be verify_argparse(build_parser(), ToolDescriptor.from_contract(...)) and a red test that mutates a copy of that parser (or temporarily adds a flag) rather than a contract-derived toy parser.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "packages/gen-eval/tests/test_subset_verifiers.py"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Task 5.4d says wire --min-coverage and the completeness check into make dogfood, but never names a tool-safe threshold. D11 and task 5.4b state coverage_pct >= 80 is arithmetically unreachable on this CLI (~5/17 \u2248 29%). Makefile dogfood today only passes --fail-threshold 1.0. If 5.4d sets --min-coverage 80 (matching the service/spec \"80%+\" language still in specs/gen-eval-framework/spec.md dogfood scenarios), make dogfood is permanently red even when D11 completeness is satisfied. Completeness is the tool gate; the percentage is informative.",
+      "resolution": "Specify the dogfood CLI as completeness-check primary and either omit --min-coverage, leave default 0, or set an explicitly low informative floor. Update the MODIFIED Dogfood 80% scenarios to scope the percentage to the service archetype only (as D11 already decides).",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/tasks.md"
+    },
+    {
+      "id": 8,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "packages/gen-eval/src/gen_eval/__main__.py:_percentage and exit_decision treat --min-coverage as a 0\u2013100 percent while --fail-threshold is a 0\u20131 rate. --min-coverage 0.8 is accepted as a 0.8% floor (cannot be distinguished from a user meaning 80%). The help text and tests acknowledge this footgun but do not mitigate it. On a suite at ~30% coverage, the gate silently passes under the mis-set floor \u2014 the opposite of D10's \"something can fail on it\".",
+      "resolution": "Reject (0,1) exclusive with an error naming both units, or accept a trailing % / dual form with a clear rule; print the effective floor in the PASS/FAIL line in a way that makes 0.8% obvious (already partially done). Prefer hard-reject of the ambiguous band for a gate flag.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "packages/gen-eval/src/gen_eval/__main__.py"
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Tasks 5.1\u20135.2 require a deprecation warning when a descriptor declares no contract. InterfaceDescriptor has no contract field (only ToolDescriptor/ServiceDescriptor do). With the current __main__ loader, every YAML is an InterfaceDescriptor: derived artifacts that carry contract: in YAML lose that field on load, so 5.2 either always warns (including on the post-5.3 dogfood descriptor) or cannot see contract at all. 5.1/5.2 cannot meet the spec scenario \"Hand-authored descriptor still loads\" vs contract-derived without the archetype load path from finding 1; sequencing 5.1\u21925.3 without that path makes the deprecation signal wrong.",
+      "resolution": "Implement archetype-aware loading before or inside 5.1/5.2; key the warning on the loaded model's contract is None (and hand-authored shape), with tests for derived tool YAML (no warning) vs legacy evaluation/descriptor shape (warning).",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/tasks.md"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "packages/gen-eval/src/gen_eval/service_descriptor.py:_merge_schemas unions properties with dict spread, so a shared parameter name with different schemas keeps only the right-hand schema (last write wins) with no conflict signal. Fan-in of two operations that both require property x with incompatible types yields a single silent type. Intersecting required is sound (deliberate choice 2); property clobber is not argued and can produce an MCP input_schema that matches neither operation.",
+      "resolution": "On key collision, merge with allOf, prefer the wider type, or raise/fail closed when schemas are not equal. Add a projection test with conflicting property types.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "packages/gen-eval/src/gen_eval/service_descriptor.py"
+    }
+  ]
+}

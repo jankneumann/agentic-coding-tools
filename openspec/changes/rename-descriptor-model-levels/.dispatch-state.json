@@ -1,0 +1,7 @@
+{
+  "change_id": "rename-descriptor-model-levels",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

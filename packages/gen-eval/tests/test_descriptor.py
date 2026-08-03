@@ -8,14 +8,14 @@ import yaml
 
 from gen_eval.descriptor import (
     AuthConfig,
-    CommandDescriptor,
-    EndpointDescriptor,
+    CommandSpec,
+    EndpointSpec,
     FileInterfaceMapping,
     InterfaceDescriptor,
-    ServiceDescriptor,
+    McpToolSpec,
+    ServiceSpec,
     StartupConfig,
     StateVerifier,
-    ToolDescriptor,
 )
 
 
@@ -33,12 +33,12 @@ class TestAuthConfig:
 
 class TestEndpointDescriptor:
     def test_basic(self) -> None:
-        ep = EndpointDescriptor(path="/health", method="GET")
+        ep = EndpointSpec(path="/health", method="GET")
         assert ep.path == "/health"
         assert not ep.auth_required
 
     def test_with_schemas(self) -> None:
-        ep = EndpointDescriptor(
+        ep = EndpointSpec(
             path="/locks/acquire",
             method="POST",
             auth_required=True,
@@ -51,33 +51,33 @@ class TestEndpointDescriptor:
 
 class TestServiceDescriptor:
     def test_http_service(self) -> None:
-        svc = ServiceDescriptor(
+        svc = ServiceSpec(
             name="api",
             type="http",
             base_url="http://localhost:8081",
-            endpoints=[EndpointDescriptor(path="/health")],
+            endpoints=[EndpointSpec(path="/health")],
         )
         assert svc.type == "http"
         assert len(svc.endpoints) == 1
 
     def test_mcp_service(self) -> None:
-        svc = ServiceDescriptor(
+        svc = ServiceSpec(
             name="mcp",
             type="mcp",
             transport="sse",
             mcp_url="http://localhost:8082/sse",
-            tools=[ToolDescriptor(name="acquire_lock")],
+            tools=[McpToolSpec(name="acquire_lock")],
         )
         assert svc.type == "mcp"
         assert svc.tools[0].name == "acquire_lock"
 
     def test_cli_service(self) -> None:
-        svc = ServiceDescriptor(
+        svc = ServiceSpec(
             name="cli",
             type="cli",
             command="coordination-cli",
             json_flag="--output-format json",
-            commands=[CommandDescriptor(name="lock", subcommands=["acquire", "release"])],
+            commands=[CommandSpec(name="lock", subcommands=["acquire", "release"])],
         )
         assert svc.commands[0].subcommands == ["acquire", "release"]
 
@@ -166,7 +166,7 @@ class TestInterfaceDescriptor:
             project="browser-test",
             version="0.1",
             services=[
-                ServiceDescriptor(
+                ServiceSpec(
                     name="web-ui",
                     type="browser",
                     launch_url="http://localhost:3000",

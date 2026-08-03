@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/contracts/code-search/schemas/semantic-context-hit.schema.json",
+  "title": "InjectedHit",
+  "description": "One semantic code hit rendered into a coding job's `Semantic code context` section, with the provenance required to judge whether it can be trusted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "file_path",
+    "start_line",
+    "end_line",
+    "score",
+    "indexed_commit",
+    "index_id",
+    "scope_decision",
+    "language",
+    "content"
+  ],
+  "properties": {
+    "file_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Repository-relative, normalized path. Never absolute and never containing a '..' segment — a rendered section invites the worker to open these files, so a path that escapes the repository is a scope claim this contract must be unable to make. The pattern enforces both, rather than only describing them.",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]+$"
+    },
+    "start_line": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "First line of the excerpt, 1-based and inclusive."
+    },
+    "end_line": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Last line of the excerpt, 1-based and inclusive. Never less than start_line."
+    },
+    "score": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1,
+      "description": "Relevance. Carries ri-03's `CodeSearchHit.similarity` value under the roadmap's name."
+    },
+    "indexed_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+      "description": "Full Git object ID the serving index was built from. Carries ri-03's `CodeSearchHit.source_revision`. Equals the requested revision, because a mismatch is a fallback rather than an injection."
+    },
+    "index_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "description": "Identity of the index that served this hit. `format` is an annotation that validators ignore unless a format checker is installed, so the shape is pinned by `pattern` as well — otherwise any string would pass and the serving index would stop being identifiable."
+    },
+    "scope_decision": {
+      "const": "allowed",
+      "description": "Always `allowed`. A hit failing the local deny re-check is omitted with reason `scope_filtered`, never rendered with a downgraded decision."
+    },
+    "language": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Language label, used to pick the fenced-code info string."
+    },
+    "content": {
+      "type": "string",
+      "description": "The excerpt verbatim. Never truncated: an over-long hit is omitted with reason `hit_line_cap` so the rendered line range is always true.",
+      "maxLength": 200000
+    }
+  }
+}

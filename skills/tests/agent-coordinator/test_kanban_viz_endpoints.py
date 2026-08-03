@@ -25,7 +25,7 @@ import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -175,7 +175,7 @@ def test_worktrees_active_filters_stale_preserves_pinned(
         "pinned": False,
         "owner_session": None,
     }
-    stale_entry = {
+    _stale_entry = {
         "agent_id": "stale-agent",
         "branch": "openspec/def",
         "worktree_path": "/tmp/def",
@@ -1081,6 +1081,6 @@ def test_all_kanban_viz_routes_registered(_base_config: None) -> None:
     assert not missing, f"Missing Kanban-viz routes: {missing}"
 
     # DELETE /locks uses a :path param (to support slashes in file paths)
-    lock_paths = {p for p in paths if p.startswith("/locks/") and "delete" not in p.lower()}
+    _lock_paths = {p for p in paths if p.startswith("/locks/") and "delete" not in p.lower()}
     # FastAPI registers it as /locks/{file_path} or /locks/{file_path:path}
     assert any("locks" in p for p in paths), "Expected /locks DELETE route to be registered"

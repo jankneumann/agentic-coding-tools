@@ -28,6 +28,13 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 DEFAULT_URL = "http://localhost:8081"
+CODE_SEARCH_STATUS_PATH = "/search/code/status"
+_CODE_SEARCH_STATUS_FIELDS = {
+    "available",
+    "state",
+    "reason",
+    "usable_index_count",
+}
 
 # Endpoints that confirm a capability is *actually routed*.
 # We probe the real capability routes — a 401/403 proves the route exists
@@ -113,6 +120,35 @@ def probe_route(base_url: str, path: str, timeout: float = 2.0) -> bool:
         return False
 
 
+def _is_code_search_ready(payload: object) -> bool:
+    """Validate the exact ready variant of the v2 code-search status contract."""
+    if not isinstance(payload, dict) or set(payload) != _CODE_SEARCH_STATUS_FIELDS:
+        return False
+    usable_index_count = payload.get("usable_index_count")
+    return (
+        payload.get("available") is True
+        and payload.get("state") == "ready"
+        and payload.get("reason") == "ready"
+        and type(usable_index_count) is int
+        and usable_index_count >= 1
+    )
+
+
+def probe_code_search_status(base_url: str, timeout: float = 2.0) -> bool:
+    """Return true only when the status body proves usable semantic search."""
+    url = f"{base_url.rstrip('/')}{CODE_SEARCH_STATUS_PATH}"
+    req = Request(url, method="GET")
+    req.add_header("User-Agent", "agentic-coding-tools/0.1")
+    _add_cf_access_headers(req)
+    try:
+        with urlopen(req, timeout=timeout) as resp:
+            if resp.status != 200:
+                return False
+            return _is_code_search_ready(json.loads(resp.read()))
+    except (URLError, OSError, ValueError, json.JSONDecodeError):
+        return False
+
+
 def detect_mcp_server() -> bool:
     """Detect whether a provider-native coordination MCP server is connected.
 
@@ -162,6 +198,7 @@ def detect(base_url: str) -> dict:
         "CAN_HANDOFF": False,
         "CAN_POLICY": False,
         "CAN_AUDIT": False,
+        "CAN_CODE_SEARCH": False,
     }
 
     if health is not None:
@@ -171,6 +208,7 @@ def detect(base_url: str) -> dict:
         result["health"] = health
         for cap, path in ROUTE_PROBES.items():
             result[cap] = probe_route(base_url, path)
+        result["CAN_CODE_SEARCH"] = probe_code_search_status(base_url)
         return result
 
     # HTTP unavailable — fall back to MCP server detection for CLI environments.

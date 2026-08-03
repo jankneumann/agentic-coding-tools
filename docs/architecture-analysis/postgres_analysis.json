@@ -164,6 +164,12 @@
           "type": "INTEGER",
           "nullable": true,
           "default": "3"
+        },
+        {
+          "name": "IF",
+          "type": "NOT EXISTS labels TEXT[]",
+          "nullable": true,
+          "default": "'{}'"
         }
       ],
       "primary_key": [
@@ -1679,6 +1685,400 @@
       ],
       "file": "016_notification_tokens.sql",
       "line": 1
+    },
+    {
+      "name": "public.issue_comments",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "issue_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "author",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "body",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "017_issue_tracking.sql",
+      "line": 32
+    },
+    {
+      "name": "public.code_search_registry",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "repo_slug",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "repo_root",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "last_indexed_commit",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "embedder_model",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "embedding_dim",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "chunk_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "IF",
+          "type": "NOT EXISTS canonical_index_id UUID",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "repo_slug"
+      ],
+      "file": "028_code_search_registry.sql",
+      "line": 11
+    },
+    {
+      "name": "public.code_search_indexes",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "index_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "storage_key",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "repo_slug",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "namespace_kind",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "namespace_key",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "source_revision",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "embedder_model",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "embedding_dim",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "'pending'"
+        },
+        {
+          "name": "attempt_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "lease_token",
+          "type": "UUID",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "lease_owner",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "lease_expires_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "chunk_count",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "last_error",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "retention_until",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "started_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "completed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "deleted_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "CONSTRAINT",
+          "type": "code_search_indexes_natural_key",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "IF",
+          "type": "NOT EXISTS policy_fingerprint TEXT",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "index_id"
+      ],
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "line": 1
+    },
+    {
+      "name": "public.code_search_index_file_attempts",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "index_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "attempt_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "file_path",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "git_blob_id",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "git_entry_type",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "eligible",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "eligibility_reason",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "content_digest",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "chunk_digest",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "chunk_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "0"
+        }
+      ],
+      "primary_key": [
+        "index_id",
+        "attempt_count",
+        "file_path"
+      ],
+      "file": "030_incremental_code_search_indexes.sql",
+      "line": 175
+    },
+    {
+      "name": "public.code_search_index_files",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "index_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "file_path",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "git_blob_id",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "git_entry_type",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "eligible",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "eligibility_reason",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "content_digest",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "chunk_digest",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "chunk_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "0"
+        }
+      ],
+      "primary_key": [
+        "index_id",
+        "file_path"
+      ],
+      "file": "030_incremental_code_search_indexes.sql",
+      "line": 210
     }
   ],
   "foreign_keys": [
@@ -1753,6 +2153,66 @@
       ],
       "constraint_name": "",
       "on_delete": "NO ACTION"
+    },
+    {
+      "from_table": "public.work_queue",
+      "from_columns": [
+        "IF"
+      ],
+      "to_table": "public.work_queue",
+      "to_columns": [
+        "id"
+      ],
+      "constraint_name": "",
+      "on_delete": "NO ACTION"
+    },
+    {
+      "from_table": "public.issue_comments",
+      "from_columns": [
+        "issue_id"
+      ],
+      "to_table": "public.work_queue",
+      "to_columns": [
+        "id"
+      ],
+      "constraint_name": "",
+      "on_delete": "CASCADE"
+    },
+    {
+      "from_table": "public.code_search_indexes",
+      "from_columns": [
+        "repo_slug"
+      ],
+      "to_table": "public.code_search_registry",
+      "to_columns": [
+        "repo_slug"
+      ],
+      "constraint_name": "",
+      "on_delete": "RESTRICT"
+    },
+    {
+      "from_table": "public.code_search_index_file_attempts",
+      "from_columns": [
+        "index_id"
+      ],
+      "to_table": "public.code_search_indexes",
+      "to_columns": [
+        "index_id"
+      ],
+      "constraint_name": "",
+      "on_delete": "CASCADE"
+    },
+    {
+      "from_table": "public.code_search_index_files",
+      "from_columns": [
+        "index_id"
+      ],
+      "to_table": "public.code_search_indexes",
+      "to_columns": [
+        "index_id"
+      ],
+      "constraint_name": "",
+      "on_delete": "CASCADE"
     }
   ],
   "indexes": [
@@ -2223,6 +2683,138 @@
         "expires_at"
       ],
       "unique": false
+    },
+    {
+      "name": "idx_work_queue_labels",
+      "table": "public.work_queue",
+      "columns": [
+        "labels"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_parent",
+      "table": "public.work_queue",
+      "columns": [
+        "parent_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_issue_type",
+      "table": "public.work_queue",
+      "columns": [
+        "issue_type"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_assignee",
+      "table": "public.work_queue",
+      "columns": [
+        "assignee"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_issue_comments_issue",
+      "table": "public.issue_comments",
+      "columns": [
+        "issue_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_issue_comments_created",
+      "table": "public.issue_comments",
+      "columns": [
+        "created_at"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_feature_registry_merge_queue_gin",
+      "table": "public.feature_registry",
+      "columns": [
+        "(metadata -> 'merge_queue'"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_feature_registry_merge_queue_train_id",
+      "table": "public.feature_registry",
+      "columns": [
+        "(metadata -> 'merge_queue' ->> 'train_id'"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_feature_registry_merge_queue_partition_id",
+      "table": "public.feature_registry",
+      "columns": [
+        "(metadata -> 'merge_queue' ->> 'partition_id'"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_feature_registry_merge_queue_train_position",
+      "table": "public.feature_registry",
+      "columns": [
+        "(((metadata -> 'merge_queue' ->> 'train_position'"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_archetype",
+      "table": "public.work_queue",
+      "columns": [
+        "(agent_requirements->>'archetype'"
+      ],
+      "unique": false
+    },
+    {
+      "name": "code_search_indexes_revision_lookup",
+      "table": "public.code_search_indexes",
+      "columns": [
+        "repo_slug",
+        "source_revision",
+        "status"
+      ],
+      "unique": false
+    },
+    {
+      "name": "code_search_indexes_gc_candidates",
+      "table": "public.code_search_indexes",
+      "columns": [
+        "retention_until",
+        "status"
+      ],
+      "unique": false
+    },
+    {
+      "name": "code_search_indexes_compatible_parent_idx",
+      "table": "public.code_search_indexes",
+      "columns": [
+        "repo_slug",
+        "namespace_kind",
+        "namespace_key",
+        "embedder_model",
+        "embedding_dim",
+        "policy_fingerprint",
+        "pipeline_fingerprint",
+        "embedder_fingerprint",
+        "completed_at DESC"
+      ],
+      "unique": false
+    },
+    {
+      "name": "code_search_index_files_blob_idx",
+      "table": "public.code_search_index_files",
+      "columns": [
+        "index_id",
+        "git_blob_id"
+      ],
+      "unique": false
     }
   ],
   "stored_functions": [
@@ -2246,8 +2838,8 @@
     },
     {
       "name": "public.claim_task",
-      "file": "001_core_schema.sql",
-      "line": 208,
+      "file": "027_claim_task_exclude_submitter.sql",
+      "line": 1,
       "language": "plpgsql"
     },
     {
@@ -2258,8 +2850,8 @@
     },
     {
       "name": "public.submit_task",
-      "file": "001_core_schema.sql",
-      "line": 302,
+      "file": "021_agent_requirements.sql",
+      "line": 88,
       "language": "plpgsql"
     },
     {
@@ -2282,14 +2874,14 @@
     },
     {
       "name": "public.discover_agents",
-      "file": "003_agent_discovery.sql",
-      "line": 49,
+      "file": "023_add_phase_archetype.sql",
+      "line": 28,
       "language": "plpgsql"
     },
     {
       "name": "public.agent_heartbeat",
-      "file": "003_agent_discovery.sql",
-      "line": 83,
+      "file": "026_add_gatekeeper_archetype.sql",
+      "line": 32,
       "language": "plpgsql"
     },
     {
@@ -2331,7 +2923,7 @@
     {
       "name": "public.get_agent_profile",
       "file": "007_agent_profiles.sql",
-      "line": 73,
+      "line": 80,
       "language": "plpgsql"
     },
     {
@@ -2384,7 +2976,7 @@
     },
     {
       "name": "public.coordinator_notify",
-      "file": "015_notification_triggers.sql",
+      "file": "025_notify_enrich_change_id.sql",
       "line": 1,
       "language": "plpgsql"
     },
@@ -2396,14 +2988,56 @@
     },
     {
       "name": "public.notify_work_queue_change",
-      "file": "015_notification_triggers.sql",
-      "line": 75,
+      "file": "025_notify_enrich_change_id.sql",
+      "line": 67,
       "language": "plpgsql"
     },
     {
       "name": "public.notify_agent_discovery_change",
       "file": "015_notification_triggers.sql",
       "line": 104,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.notify_audit_log_change",
+      "file": "025_notify_enrich_change_id.sql",
+      "line": 118,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.code_search_indexes_set_storage_key",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "line": 78,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.code_search_registry_validate_canonical",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "line": 134,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.code_search_indexes_validate_canonical_target",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "line": 189,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.validate_code_search_repository_identity",
+      "file": "030_incremental_code_search_indexes.sql",
+      "line": 31,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.validate_code_search_parent",
+      "file": "030_incremental_code_search_indexes.sql",
+      "line": 248,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.validate_code_search_parent_target",
+      "file": "030_incremental_code_search_indexes.sql",
+      "line": 330,
       "language": "plpgsql"
     }
   ],
@@ -2463,6 +3097,27 @@
       "event": "INSERT|UPDATE",
       "timing": "AFTER",
       "function": "notify_agent_discovery_change"
+    },
+    {
+      "name": "trg_audit_log_notify",
+      "table": "public.audit_log",
+      "event": "INSERT",
+      "timing": "AFTER",
+      "function": "notify_audit_log_change"
+    },
+    {
+      "name": "trg_work_queue_notify",
+      "table": "public.work_queue",
+      "event": "UPDATE",
+      "timing": "AFTER",
+      "function": "notify_work_queue_change"
+    },
+    {
+      "name": "trg_audit_log_notify",
+      "table": "public.audit_log",
+      "event": "INSERT",
+      "timing": "AFTER",
+      "function": "notify_audit_log_change"
     }
   ],
   "fk_graph": [
@@ -2507,13 +3162,48 @@
       "columns": [
         "policy_id"
       ]
+    },
+    {
+      "from": "public.work_queue",
+      "to": "public.work_queue",
+      "columns": [
+        "IF"
+      ]
+    },
+    {
+      "from": "public.issue_comments",
+      "to": "public.work_queue",
+      "columns": [
+        "issue_id"
+      ]
+    },
+    {
+      "from": "public.code_search_indexes",
+      "to": "public.code_search_registry",
+      "columns": [
+        "repo_slug"
+      ]
+    },
+    {
+      "from": "public.code_search_index_file_attempts",
+      "to": "public.code_search_indexes",
+      "columns": [
+        "index_id"
+      ]
+    },
+    {
+      "from": "public.code_search_index_files",
+      "to": "public.code_search_indexes",
+      "columns": [
+        "index_id"
+      ]
     }
   ],
   "summary": {
-    "total_tables": 24,
-    "total_columns": 236,
-    "total_foreign_keys": 6,
-    "total_indexes": 57,
+    "total_tables": 29,
+    "total_columns": 293,
+    "total_foreign_keys": 11,
+    "total_indexes": 72,
     "most_referenced_tables": [
       {
         "table": "public.changesets",
@@ -2524,18 +3214,34 @@
         "references": 2
       },
       {
+        "table": "public.work_queue",
+        "references": 2
+      },
+      {
+        "table": "public.code_search_indexes",
+        "references": 2
+      },
+      {
         "table": "public.agent_sessions",
         "references": 1
       },
       {
         "table": "public.network_policies",
         "references": 1
+      },
+      {
+        "table": "public.code_search_registry",
+        "references": 1
       }
     ],
     "widest_tables": [
       {
+        "table": "public.code_search_indexes",
+        "column_count": 23
+      },
+      {
         "table": "public.work_queue",
-        "column_count": 17
+        "column_count": 18
       },
       {
         "table": "public.agent_profiles",
@@ -2567,10 +3273,6 @@
       },
       {
         "table": "public.handoff_documents",
-        "column_count": 10
-      },
-      {
-        "table": "public.memory_procedural",
         "column_count": 10
       }
     ]

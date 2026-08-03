@@ -1,0 +1,17 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "derive-descriptors: three of wp-contracts' five verification gates use bare `python3` with `import jsonschema` / `import yaml`, so they cannot pass regardless of correct schema and contract work. Executed from the repo root as written: Gate \"CLI contract schema is valid JSON Schema\" \u2192 `ModuleNotFoundError: No module named 'jsonschema'` (exit 1); Gate \"gen-eval CLI contract exists and validates against the schema\" \u2192 `ModuleNotFoundError: No module named 'yaml'` (exit 1); Gate \"Contract instances validate against the PROMOTED schema\" \u2192 same `yaml` failure (exit 1). `which python3` \u2192 `/opt/homebrew/bin/python3`. The same package's pytest gate already uses `uv run` with `cwd: packages/gen-eval`, and `uv run --directory packages/gen-eval python -c \"import jsonschema,yaml\"` succeeds \u2014 jsonschema is a gen-eval dev dependency and pyyaml a runtime dependency. Gate \"Promoted CLI contract schema is byte-identical\" is unaffected (stdlib only). This is the residual of the round-4 interpreter class of bug: B's gen_eval gates and A's regenerate/`McpToolSpec` probe were switched to `uv run python`, but these three file validators were not. Until fixed, wp-contracts verification is red on a correct tree whenever the ambient `python3` is not a pre-provisioned venv.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    }
+  ]
+}

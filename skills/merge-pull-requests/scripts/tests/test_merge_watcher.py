@@ -10,9 +10,8 @@ Design decisions:
 
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -82,7 +81,7 @@ class TestMergeWatcherTick:
 
         with patch("merge_watcher.monitor_ci_for_rollback") as mock_rollback:
             mock_rollback.return_value = {"action": "stable"}
-            result = merge_watcher_tick()
+            _result = merge_watcher_tick()
 
         mock_rebase.assert_called_once()
 

@@ -7,7 +7,6 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 # ---------------------------------------------------------------------------
 # sys.path insertion so we can import modules from scripts/

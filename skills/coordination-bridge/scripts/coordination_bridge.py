@@ -48,6 +48,7 @@ _CAPABILITY_FLAGS = (
     "CAN_FEATURE_REGISTRY",
     "CAN_MERGE_QUEUE",
     "CAN_ISSUES",
+    "CAN_CODE_SEARCH",
 )
 
 _CAPABILITY_PROBES: dict[str, list[tuple[str, str, dict[str, Any] | None]]] = {
@@ -71,6 +72,53 @@ _HANDOFF_WRITE_ENDPOINTS: list[tuple[str, str]] = [
 _HANDOFF_READ_ENDPOINTS: list[tuple[str, str]] = [
     ("POST", "/handoffs/read"),
 ]
+_CODE_SEARCH_STATUS_FIELDS = {
+    "available",
+    "state",
+    "reason",
+    "usable_index_count",
+}
+
+# --- semantic code search (ri-03 query surface, ri-12 client) ---------------
+#
+# The coordinator answers POST /search/code with a discriminated
+# ``CodeSearchResponse`` (``agent-coordinator/src/code_search.py``). Exactly one
+# of its states -- ``ready`` -- means "these results describe the revision you
+# asked about". Every other state, including one a future coordinator adds,
+# means "do not use these as current". The tables below encode that as a total
+# function so the fail-closed decision cannot be forgotten at a call site.
+CODE_SEARCH_PATH = "/search/code"
+
+_CODE_SEARCH_READY_STATE = "ready"
+
+# ri-12 design D8: the four fallback triggers, keyed by wire state.
+_CODE_SEARCH_STATE_FALLBACKS: dict[str, tuple[str, str]] = {
+    "not_indexed": ("stale", "revision_not_indexed"),
+    "revision_mismatch": ("mismatched", "index_revision_differs"),
+    "scope_rejected": ("out_of_scope", "scope_rejected"),
+    "not_configured": ("unavailable", "service_unavailable"),
+    "unavailable": ("unavailable", "service_unavailable"),
+}
+# A state this client does not recognize is never an empty success.
+_CODE_SEARCH_UNKNOWN_STATE_FALLBACK = ("unavailable", "unknown_state")
+
+# Transport-level outcomes carry a fallback too, so a caller can rely on the
+# single rule "fallback is None means the results are injectable".
+_CODE_SEARCH_REASON_FALLBACKS: dict[str, str] = {
+    "capability_absent": "capability_absent",
+    "route_unavailable": "service_unavailable",
+    "service_overloaded": "service_overloaded",
+    "service_error": "service_overloaded",
+}
+_CODE_SEARCH_DEFAULT_FALLBACK_REASON = "bridge_failed"
+
+_CODE_SEARCH_STATUS_REASONS: dict[int, str] = {
+    401: "unauthorized",
+    403: "forbidden",
+    404: "route_unavailable",
+    422: "invalid_request",
+    429: "service_overloaded",
+}
 
 
 # SSRF Protection: URL Allowlist
@@ -165,6 +213,7 @@ def _coordinator_state(
         "guardrails": response["CAN_GUARDRAILS"],
         "feature_registry": response["CAN_FEATURE_REGISTRY"],
         "merge_queue": response["CAN_MERGE_QUEUE"],
+        "code_search": response["CAN_CODE_SEARCH"],
     }
     return response
 
@@ -306,6 +355,30 @@ def _probe_capability(
     return False
 
 
+def _is_code_search_ready(payload: object) -> bool:
+    """Validate the exact ready variant of the v2 code-search status contract."""
+    if not isinstance(payload, dict) or set(payload) != _CODE_SEARCH_STATUS_FIELDS:
+        return False
+    usable_index_count = payload.get("usable_index_count")
+    return (
+        payload.get("available") is True
+        and payload.get("state") == "ready"
+        and payload.get("reason") == "ready"
+        and type(usable_index_count) is int
+        and usable_index_count >= 1
+    )
+
+
+def _probe_code_search_status(*, http_url: str, api_key: str | None) -> bool:
+    response = _http_request(
+        method="GET",
+        path="/search/code/status",
+        http_url=http_url,
+        api_key=api_key,
+    )
+    return response["status_code"] == 200 and _is_code_search_ready(response["data"])
+
+
 def detect_coordination(
     http_url: str | None = None,
     api_key: str | None = None,
@@ -351,6 +424,10 @@ def detect_coordination(
         )
         for name, probes in _CAPABILITY_PROBES.items()
     }
+    flags["CAN_CODE_SEARCH"] = _probe_code_search_status(
+        http_url=resolved_url,
+        api_key=resolved_api_key,
+    )
 
     return _coordinator_state(
         available=True,
@@ -1164,6 +1241,224 @@ def try_issue_search(
         http_url=http_url,
         api_key=api_key,
     )
+
+
+def _code_search_fallback(*, trigger: str, reason: str, state: str | None) -> dict[str, Any]:
+    """Build the ri-12 D8 fallback record shared by every non-injectable result."""
+    return {
+        "trigger": trigger,
+        "reason": reason,
+        "strategy": "exact_search",
+        "state": state,
+    }
+
+
+def classify_code_search_state(state: Any) -> dict[str, Any] | None:
+    """Map a ``CodeSearchState`` wire value onto a fallback record.
+
+    Returns ``None`` -- and only for the exact string ``"ready"`` -- to mean
+    "these results may be injected". Every other value, including a state a
+    later coordinator version introduces, a differently-cased spelling, or a
+    non-string, yields a fallback record with trigger ``unavailable`` and
+    reason ``unknown_state``.
+
+    The mapping is therefore total over ``CodeSearchState`` by construction
+    (ri-12 design D8): there is no input for which this function returns
+    ``None`` without having recognized the ready state. Never raises.
+    """
+    if state == _CODE_SEARCH_READY_STATE:
+        return None
+    key = state if isinstance(state, str) else ""
+    trigger, reason = _CODE_SEARCH_STATE_FALLBACKS.get(
+        key, _CODE_SEARCH_UNKNOWN_STATE_FALLBACK
+    )
+    return _code_search_fallback(
+        trigger=trigger,
+        reason=reason,
+        state=state if isinstance(state, str) else None,
+    )
+
+
+def _code_search_transport_fallback(reason: str) -> dict[str, Any]:
+    """Fallback record for an outcome that never produced a response state."""
+    return _code_search_fallback(
+        trigger="unavailable",
+        reason=_CODE_SEARCH_REASON_FALLBACKS.get(
+            reason, _CODE_SEARCH_DEFAULT_FALLBACK_REASON
+        ),
+        state=None,
+    )
+
+
+def _skipped_code_search(*, reason: str, state: dict[str, Any]) -> dict[str, Any]:
+    return _skipped_operation(
+        operation="try_code_search",
+        reason=reason,
+        state=state,
+        extra={
+            "status_code": None,
+            "response": None,
+            "code_search_state": None,
+            "fallback": _code_search_transport_fallback(reason),
+        },
+    )
+
+
+def _failed_code_search(
+    *,
+    reason: str,
+    state: dict[str, Any],
+    response: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "status": "failed",
+        "operation": "try_code_search",
+        "reason": reason,
+        "COORDINATOR_AVAILABLE": bool(state.get("COORDINATOR_AVAILABLE", False)),
+        "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "none"),
+        "status_code": response.get("status_code"),
+        "response": response.get("data"),
+        "code_search_state": None,
+        "error": response.get("error"),
+        "fallback": _code_search_transport_fallback(reason),
+    }
+
+
+def _code_search_ready_is_consistent(data: dict[str, Any]) -> bool:
+    """Check the ready-state invariants ri-03's own model validator enforces.
+
+    ``CodeSearchResponse`` cannot be constructed with ``state="ready"`` unless
+    it is current, carries a result list, and requires no fallback
+    (``code_search.py`` ``validate_state_invariants``). A body that claims
+    ``ready`` without them did not come from that contract, so it is treated as
+    malformed rather than injected on trust.
+    """
+    if data.get("current") is not True:
+        return False
+    if not isinstance(data.get("results"), list):
+        return False
+    fallback = data.get("fallback")
+    return isinstance(fallback, dict) and fallback.get("required") is False
+
+
+def try_code_search(
+    *,
+    query: str,
+    repo_slug: str,
+    source_revision: str,
+    namespace: dict[str, Any],
+    scope: dict[str, Any],
+    index_id: str | None = None,
+    limit: int = 10,
+    offset: int = 0,
+    languages: list[str] | None = None,
+    paths: list[str] | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
+    """Run a semantic code-search query over HTTP when the capability is present.
+
+    This is the only place in ``skills/`` that speaks HTTP to ``/search/code``.
+    It is a transport helper: it builds no scope, re-ranks nothing, and returns
+    the coordinator's discriminated response untouched under ``"response"``.
+    Retrieval policy (scope derivation, dedup, budgeting) belongs to
+    ``context-engineering`` -- ri-12 design D1.
+
+    Envelope, per the coordination-bridge *Uniform HTTP Helper Envelope*
+    contract -- this function never raises:
+
+    - ``status="skipped"`` with ``reason`` ``coordinator_unavailable`` or
+      ``capability_absent`` when detection says the query cannot be made. No
+      HTTP request is issued. Because ``CAN_CODE_SEARCH`` is deliberately
+      absent from MCP tool probes (ri-03 scenario ``code-search.13``), an
+      MCP-only transport always lands here -- injection is HTTP-only (D13).
+    - ``status="failed"`` with a ``reason`` distinguishing an unreachable host
+      (``coordinator_unreachable``), a rejected credential (``unauthorized``),
+      a refused scope (``forbidden``), an unmounted or disabled route
+      (``route_unavailable``), a rejected request body (``invalid_request``),
+      an overload signal (``service_overloaded``), a server error
+      (``service_error``), any other non-2xx (``unexpected_status``), and a
+      body that is not a ``CodeSearchResponse`` (``malformed_response``).
+    - ``status="ok"`` with the response under ``"response"`` and its state
+      under ``"code_search_state"``.
+
+    In every case the result carries a ``"fallback"`` key. It is ``None`` if
+    and only if the coordinator returned a self-consistent ``ready`` response;
+    otherwise it is the D8 fallback record ``{trigger, reason, strategy,
+    state}``. Callers decide "may I inject?" by testing ``fallback is None``,
+    which no unrecognized state can satisfy.
+
+    Spec: openspec/changes/inject-scoped-semantic-context-into-coding-jobs/
+          specs/coordination-bridge/spec.md -- Semantic Code Search Bridge
+          Helper.
+    """
+    state = detect_coordination(http_url=http_url, api_key=api_key)
+    if not state["COORDINATOR_AVAILABLE"]:
+        return _skipped_code_search(reason="coordinator_unavailable", state=state)
+    if not state.get("CAN_CODE_SEARCH", False):
+        return _skipped_code_search(reason="capability_absent", state=state)
+
+    payload: dict[str, Any] = {
+        "query": query,
+        "repo_slug": repo_slug,
+        "source_revision": source_revision,
+        "namespace": namespace,
+        "scope": scope,
+        "limit": limit,
+        "offset": offset,
+    }
+    if index_id is not None:
+        payload["index_id"] = index_id
+    if languages is not None:
+        payload["languages"] = languages
+    if paths is not None:
+        payload["paths"] = paths
+
+    response = _http_request(
+        method="POST",
+        path=CODE_SEARCH_PATH,
+        payload=payload,
+        http_url=state.get("http_url"),
+        api_key=_resolve_api_key(api_key),
+        timeout=timeout,
+    )
+
+    status_code = response.get("status_code")
+    if status_code is None:
+        return _failed_code_search(
+            reason="coordinator_unreachable", state=state, response=response
+        )
+    if not 200 <= status_code < 300:
+        reason = _CODE_SEARCH_STATUS_REASONS.get(status_code)
+        if reason is None:
+            reason = "service_error" if status_code >= 500 else "unexpected_status"
+        return _failed_code_search(reason=reason, state=state, response=response)
+
+    data = response.get("data")
+    if not isinstance(data, dict) or not isinstance(data.get("state"), str):
+        return _failed_code_search(
+            reason="malformed_response", state=state, response=response
+        )
+
+    wire_state: str = data["state"]
+    if wire_state == _CODE_SEARCH_READY_STATE and not _code_search_ready_is_consistent(
+        data
+    ):
+        return _failed_code_search(
+            reason="malformed_response", state=state, response=response
+        )
+
+    return {
+        "status": "ok",
+        "operation": "try_code_search",
+        "COORDINATOR_AVAILABLE": True,
+        "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+        "status_code": status_code,
+        "response": data,
+        "code_search_state": wire_state,
+        "fallback": classify_code_search_state(wire_state),
+    }
 
 
 _ARCHETYPE_RESOLVE_REQUIRED_FIELDS = ("model", "system_prompt", "archetype", "reasons")

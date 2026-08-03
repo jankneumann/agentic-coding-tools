@@ -1,0 +1,764 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/packages/gen-eval/src/gen_eval/contracts/scenario.schema.json",
+  "title": "gen-eval scenario",
+  "x-gen-eval-contract-version": "2",
+  "$defs": {
+    "ActionStep": {
+      "description": "A single step in a scenario.\n\nEach step targets a specific transport (http, mcp, cli, db, wait)\nand optionally captures response values for use in subsequent steps.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "transport": {
+          "enum": [
+            "http",
+            "mcp",
+            "cli",
+            "db",
+            "wait"
+          ],
+          "title": "Transport",
+          "type": "string"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "headers": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Headers"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Args"
+        },
+        "sql": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sql"
+        },
+        "seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seconds"
+        },
+        "expect": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExpectBlock"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "capture": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capture"
+        },
+        "timeout_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Seconds"
+        },
+        "use_llm_judgment": {
+          "default": false,
+          "title": "Use Llm Judgment",
+          "type": "boolean"
+        },
+        "side_effects": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SideEffectsBlock"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "semantic": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SemanticBlock"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "transport"
+      ],
+      "title": "ActionStep",
+      "type": "object"
+    },
+    "ExpectBlock": {
+      "description": "Expected outcomes for a step.\n\nSupports HTTP status codes, CLI exit codes, response body assertions\n(via JSONPath), database row counts/values, error message matching,\nnon-emptiness checks, and extended assertion types (D1).",
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exit Code"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "rows": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rows"
+        },
+        "row": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Row"
+        },
+        "error_contains": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Contains"
+        },
+        "error_excludes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Excludes"
+        },
+        "not_empty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Not Empty"
+        },
+        "body_contains": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body Contains"
+        },
+        "body_excludes": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body Excludes"
+        },
+        "status_one_of": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status One Of"
+        },
+        "rows_gte": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rows Gte"
+        },
+        "rows_lte": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rows Lte"
+        },
+        "array_contains": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Array Contains"
+        }
+      },
+      "title": "ExpectBlock",
+      "type": "object"
+    },
+    "ScenarioSource": {
+      "description": "Provenance information for a generated Scenario.\n\nAll fields are optional; populated only when the originating\ngenerator has the relevant context. Introduced by WP3 of the\nfactory-missions-architecture-alignment change.",
+      "properties": {
+        "template_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Template Path"
+        },
+        "cli_seed": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cli Seed"
+        },
+        "openspec_scenario": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Openspec Scenario"
+        }
+      },
+      "title": "ScenarioSource",
+      "type": "object"
+    },
+    "SemanticBlock": {
+      "description": "Semantic evaluation configuration for an action step (D4).\n\nWhen present, the evaluator invokes LLM-as-judge after structural\nassertions pass. Verdicts are additive: they enhance but never\noverride structural verdicts.",
+      "properties": {
+        "judge": {
+          "default": true,
+          "title": "Judge",
+          "type": "boolean"
+        },
+        "criteria": {
+          "default": "",
+          "title": "Criteria",
+          "type": "string"
+        },
+        "min_confidence": {
+          "default": 0.7,
+          "title": "Min Confidence",
+          "type": "number"
+        }
+      },
+      "title": "SemanticBlock",
+      "type": "object"
+    },
+    "SideEffectStep": {
+      "description": "A single side-effect verification step (D2).\n\nUsed within SideEffectsBlock to declare expected (verify) or\nprohibited (prohibit) side effects of an action step. Side-effect\nsteps are read-only (D10): HTTP restricts to GET/HEAD only.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "transport": {
+          "enum": [
+            "http",
+            "mcp",
+            "cli",
+            "db"
+          ],
+          "title": "Transport",
+          "type": "string"
+        },
+        "mode": {
+          "default": "verify",
+          "enum": [
+            "verify",
+            "prohibit"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint"
+        },
+        "headers": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Headers"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Args"
+        },
+        "sql": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sql"
+        },
+        "expect": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExpectBlock"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "timeout_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout Seconds"
+        }
+      },
+      "required": [
+        "id",
+        "transport"
+      ],
+      "title": "SideEffectStep",
+      "type": "object"
+    },
+    "SideEffectsBlock": {
+      "description": "Declarative side-effect verification for an action step (D2).\n\nCo-located with the producing step for self-documenting scenarios.",
+      "properties": {
+        "verify": {
+          "items": {
+            "$ref": "#/$defs/SideEffectStep"
+          },
+          "title": "Verify",
+          "type": "array"
+        },
+        "prohibit": {
+          "items": {
+            "$ref": "#/$defs/SideEffectStep"
+          },
+          "title": "Prohibit",
+          "type": "array"
+        }
+      },
+      "title": "SideEffectsBlock",
+      "type": "object"
+    }
+  },
+  "description": "A complete test scenario.\n\nAn ordered sequence of action steps with expected outcomes,\ncategory/priority metadata for budget allocation, and optional\ncleanup steps that always execute.",
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "category": {
+      "title": "Category",
+      "type": "string"
+    },
+    "priority": {
+      "default": 2,
+      "title": "Priority",
+      "type": "integer"
+    },
+    "interfaces": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Interfaces",
+      "type": "array"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/ActionStep"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "cleanup": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ActionStep"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cleanup"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "generated_by": {
+      "default": "template",
+      "enum": [
+        "template",
+        "llm"
+      ],
+      "title": "Generated By",
+      "type": "string"
+    },
+    "parameters": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "items": {},
+            "type": "array"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parameters"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScenarioSource"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "description",
+    "category",
+    "interfaces",
+    "steps"
+  ],
+  "type": "object"
+}

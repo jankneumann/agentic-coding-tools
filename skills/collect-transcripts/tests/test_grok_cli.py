@@ -13,12 +13,19 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "grok_cli"
 sys.path.insert(0, str(SCRIPTS_DIR))
+
+# The adapter is imported inside each test, after the sys.path insert above.
+# This TYPE_CHECKING binding exists purely so the forward-reference
+# annotations below resolve for static analysis; it never runs.
+if TYPE_CHECKING:
+    from adapters.grok_cli import GrokCLIAdapter
 
 _FIXTURE = "session-2026-05-01T10-00-grok01.jsonl"
 

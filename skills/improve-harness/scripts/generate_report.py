@@ -11,7 +11,6 @@ per-finding source attribution and cross-source agreement summaries.
 
 from __future__ import annotations
 
-import json
 import os
 import textwrap
 from datetime import datetime, timezone
@@ -107,8 +106,8 @@ def generate_report(
         )
         lines.append(f"- **Affected skills**: {', '.join(finding['affected_skills']) or '—'}")
         lines.append(
-            f"- **Action**: Investigate root cause and consider creating an "
-            f"OpenSpec proposal to address this gap."
+            "- **Action**: Investigate root cause and consider creating an "
+            "OpenSpec proposal to address this gap."
         )
         lines.append("")
 
@@ -265,8 +264,8 @@ def generate_report_multi_source(
         )
         lines.append(f"- **Sources**: {', '.join(r['sources']) or '—'}")
         lines.append(
-            f"- **Action**: Investigate root cause and consider creating an "
-            f"OpenSpec proposal to address this gap."
+            "- **Action**: Investigate root cause and consider creating an "
+            "OpenSpec proposal to address this gap."
         )
         lines.append("")
 

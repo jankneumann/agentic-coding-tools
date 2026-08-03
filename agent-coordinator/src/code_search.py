@@ -1,265 +1,593 @@
-"""Semantic code-search service for the coordinator (change: add-semantic-code-search).
+"""Typed, fail-closed semantic code-search service."""
 
-Sibling of ``memory.py``: a service class over injected backends, plus module-level accessors.
-Consumed by BOTH surfaces (design D5 — exposed as a tool/endpoint, never an MCP resource, so it
-survives http_proxy mode):
-
-  - ``search_code`` MCP tool in ``coordination_mcp.py``  (local agents)
-  - ``POST /search/code`` in ``coordination_api.py``     (cloud agents)
-
-Both delegate to ``CodeSearchService.search`` so their payloads are identical by construction.
-Search is a READ (design D5): it never locks, enqueues, or triggers indexing. Registration on
-both surfaces is gated by ``CODE_SEARCH_ENABLED`` (design D10, default off), so nothing depends on
-unproven retrieval quality until the spike gate (D9) is closed.
-
-The pgvector KNN and registry lookup are injected as backends. In production they wrap the
-coordinator's asyncpg pool (``make_pg_backends``); in tests they are mocked, so all of the
-service logic — server-side embedding (D4), embedder-consistency check (D4), scope filtering
-(D7), and the error taxonomy — is unit-testable without a live database or embedder.
-"""
 from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass, field
-from fnmatch import fnmatch
-from typing import Any
+import re
+from collections import Counter
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from datetime import datetime
+from enum import StrEnum
+from time import monotonic
+from typing import Annotated, Any, Literal
+from uuid import UUID
+
+from code_search_pkg.query_pg import (
+    QueryableIndex,
+    QueryProviderContract,
+    query_codebase_pg,
+    select_exact_index,
+    select_main_index,
+)
+from code_search_pkg.registry_models import NamespaceKind
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
+
+from .code_search_authorization import (
+    ExplicitScopeRequest,
+    PrincipalGrantResolver,
+    ScopeForbiddenError,
+    ScopeRejectedError,
+    WorkPackageScopeRequest,
+    WorkPackageScopeResolver,
+    authorize_code_search_scope,
+    validate_safe_glob,
+)
 
 logger = logging.getLogger(__name__)
 
+FullRevision = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}([0-9a-f]{24})?$")]
+RepoSlug = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,50}$")]
+SafeGlob = Annotated[str, StringConstraints(min_length=1, max_length=512)]
+Fingerprint = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+_REFERENCE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
-# --- feature flag (design D10) ---------------------------------------------------------------
 
 def code_search_enabled() -> bool:
-    """True iff CODE_SEARCH_ENABLED is truthy. Default off — no surface registration otherwise."""
-    return os.environ.get("CODE_SEARCH_ENABLED", "").lower() in ("1", "true", "yes", "on")
+    """Return whether semantic code search is explicitly enabled."""
 
+    return os.environ.get("CODE_SEARCH_ENABLED", "").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
-# --- error taxonomy (maps to the OpenAPI Problem responses) ----------------------------------
 
 class CodeSearchError(Exception):
-    """Base for code-search errors. `status` is the HTTP code the API layer emits."""
+    """Base transport-aware code-search error with a non-sensitive message."""
 
     status = 500
     type_uri = "urn:coordinator:code-search:error"
 
 
-class RepoNotIndexedError(CodeSearchError):
-    """Repo has no registry row — distinct from 'indexed but no similar chunks' (409)."""
-
-    status = 409
-    type_uri = "urn:coordinator:code-search:repo-not-indexed"
+class CodeSearchForbiddenError(CodeSearchError):
+    status = 403
+    type_uri = "urn:coordinator:code-search:forbidden"
 
 
-class EmbedderMismatchError(CodeSearchError):
-    """Query-time embedder != the model the repo was indexed with (design D4) (422)."""
+class CodeSearchState(StrEnum):
+    READY = "ready"
+    REVISION_MISMATCH = "revision_mismatch"
+    NOT_INDEXED = "not_indexed"
+    NOT_CONFIGURED = "not_configured"
+    UNAVAILABLE = "unavailable"
+    SCOPE_REJECTED = "scope_rejected"
 
-    status = 422
-    type_uri = "urn:coordinator:code-search:embedder-mismatch"
+
+class _ClosedModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-# --- result shapes -----------------------------------------------------------------------------
+class SearchNamespace(_ClosedModel):
+    kind: NamespaceKind
+    key: str = Field(min_length=1, max_length=255)
 
-@dataclass
-class CodeSearchHit:
-    file_path: str
-    language: str
-    content: str
-    start_line: int
-    end_line: int
-    score: float
+    @model_validator(mode="after")
+    def validate_main_key(self) -> SearchNamespace:
+        if self.kind is NamespaceKind.MAIN and self.key != "main":
+            raise ValueError("main namespace must use key='main'")
+        return self
+
+
+class ExplicitScope(_ClosedModel):
+    kind: Literal["explicit"] = "explicit"
+    read_allow: list[SafeGlob] = Field(min_length=1, max_length=100)
+    deny: list[SafeGlob] = Field(default_factory=list, max_length=100)
+
+    @field_validator("read_allow", "deny")
+    @classmethod
+    def validate_patterns(cls, values: list[str]) -> list[str]:
+        if len(set(values)) != len(values):
+            raise ValueError("scope patterns must be unique")
+        return [validate_safe_glob(value) for value in values]
+
+
+class WorkPackageScope(_ClosedModel):
+    kind: Literal["work_package"] = "work_package"
+    change_id: str = Field(min_length=1, max_length=200)
+    package_id: str = Field(min_length=1, max_length=200)
+    scope_revision: FullRevision
+
+    @field_validator("change_id", "package_id")
+    @classmethod
+    def validate_reference(cls, value: str) -> str:
+        if not _REFERENCE_RE.fullmatch(value):
+            raise ValueError("work-package identifier is invalid")
+        return value
+
+
+ScopeInput = Annotated[ExplicitScope | WorkPackageScope, Field(discriminator="kind")]
+
+
+class CodeSearchRequest(_ClosedModel):
+    query: str = Field(min_length=1, max_length=8192)
+    repo_slug: RepoSlug
+    source_revision: FullRevision
+    namespace: SearchNamespace
+    index_id: UUID | None = None
+    scope: ScopeInput
+    limit: int = Field(default=10, ge=1, le=50)
+    offset: int = Field(default=0, ge=0, le=1000)
+    languages: list[str] | None = Field(default=None, max_length=30)
+    paths: list[SafeGlob] | None = Field(default=None, max_length=100)
+
+    @field_validator("languages")
+    @classmethod
+    def validate_languages(cls, values: list[str] | None) -> list[str] | None:
+        if values is None:
+            return None
+        if len(set(values)) != len(values) or any(
+            not value
+            or len(value) > 64
+            or any(ord(char) < 32 or ord(char) == 127 for char in value)
+            for value in values
+        ):
+            raise ValueError("languages are invalid")
+        return values
+
+    @field_validator("paths")
+    @classmethod
+    def validate_paths(cls, values: list[str] | None) -> list[str] | None:
+        if values is None:
+            return None
+        if len(set(values)) != len(values):
+            raise ValueError("paths must be unique")
+        return [validate_safe_glob(value) for value in values]
+
+    @model_validator(mode="after")
+    def require_non_main_index(self) -> CodeSearchRequest:
+        if self.namespace.kind is not NamespaceKind.MAIN and self.index_id is None:
+            raise ValueError("non-main namespaces require an exact index_id")
+        return self
+
+
+class RequestedIdentity(_ClosedModel):
+    repo_slug: RepoSlug
+    source_revision: FullRevision
+    namespace: SearchNamespace
+    index_id: UUID | None
+
+
+class IndexProvenance(_ClosedModel):
+    index_id: UUID
+    repo_slug: RepoSlug
+    source_revision: FullRevision
+    namespace: SearchNamespace
+    embedder_model: str = Field(min_length=1, max_length=500)
+    embedding_dim: int = Field(ge=1, le=65535)
+    embedder_fingerprint: Fingerprint
+    policy_fingerprint: Fingerprint
+    pipeline_fingerprint: Fingerprint
+    completed_at: datetime
+
+
+class ScopeDisposition(_ClosedModel):
+    decision: Literal["allowed", "rejected"]
+    source: Literal["explicit", "work_package"]
+    authority: Literal["principal_grant", "work_package_registry"]
+
+
+class CodeSearchHit(_ClosedModel):
+    file_path: str = Field(min_length=1, max_length=4096)
+    language: str = Field(min_length=1, max_length=64)
+    content: str = Field(max_length=200000)
+    start_line: int = Field(ge=1)
+    end_line: int = Field(ge=1)
+    similarity: float = Field(ge=-1, le=1)
+    repo_slug: RepoSlug
+    source_revision: FullRevision
+    index_id: UUID
+    scope_decision: Literal["allowed"] = "allowed"
+
+
+class Fallback(_ClosedModel):
+    required: bool
+    strategy: Literal["exact_search"] = "exact_search"
+    reason: CodeSearchState | None
+
+
+class CodeSearchResponse(_ClosedModel):
+    state: CodeSearchState
+    current: bool
+    request: RequestedIdentity
+    index: IndexProvenance | None
+    scope: ScopeDisposition
+    results: list[CodeSearchHit] = Field(max_length=50)
+    fallback: Fallback
+
+    @model_validator(mode="after")
+    def validate_state_invariants(self) -> CodeSearchResponse:
+        if self.state is CodeSearchState.READY:
+            if (
+                not self.current
+                or self.index is None
+                or self.scope.decision != "allowed"
+                or self.fallback.required
+                or self.fallback.reason is not None
+            ):
+                raise ValueError("ready response invariants are inconsistent")
+        elif (
+            self.current
+            or self.results
+            or not self.fallback.required
+            or self.fallback.reason is not self.state
+        ):
+            raise ValueError("non-ready response invariants are inconsistent")
+        if self.state is CodeSearchState.SCOPE_REJECTED:
+            if self.scope.decision != "rejected" or self.index is not None:
+                raise ValueError("scope_rejected requires rejected scope and no index")
+        elif self.scope.decision != "allowed":
+            raise ValueError("non-scope failures require an allowed scope")
+        if self.state is CodeSearchState.NOT_INDEXED and self.index is not None:
+            raise ValueError("not_indexed cannot identify a selected index")
+        return self
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "file_path": self.file_path,
-            "language": self.language,
-            "content": self.content,
-            "start_line": self.start_line,
-            "end_line": self.end_line,
-            "score": self.score,
-        }
+        return self.model_dump(mode="json")
 
 
-@dataclass
-class CodeSearchResponse:
-    repo: str
-    results: list[CodeSearchHit] = field(default_factory=list)
-    scope_filtered: bool = False
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "repo": self.repo,
-            "results": [h.to_dict() for h in self.results],
-            "scope_filtered": self.scope_filtered,
-        }
-
-
-# --- scope filtering (design D7) ---------------------------------------------------------------
-
-def filter_by_scope(
-    hits: Sequence[CodeSearchHit],
-    read_allow: Sequence[str] | None,
-    deny: Sequence[str] | None,
-) -> list[CodeSearchHit]:
-    """Drop hits outside read_allow globs or inside deny globs.
-
-    Uses the same ``fnmatch`` semantics as
-    ``skills/parallel-infrastructure/scripts/scope_checker.py`` so an agent can never retrieve
-    code its work package is not allowed to read. Empty/None read_allow means "no allow
-    restriction" (parity with ripgrep today); deny always subtracts.
-    """
-    allow = list(read_allow or [])
-    block = list(deny or [])
-    out: list[CodeSearchHit] = []
-    for h in hits:
-        if allow and not any(fnmatch(h.file_path, g) for g in allow):
-            continue
-        if block and any(fnmatch(h.file_path, g) for g in block):
-            continue
-        out.append(h)
-    return out
-
-
-# Injected backend signatures (async):
-RegistryLookup = Callable[[str], Awaitable[dict[str, Any] | None]]
 Embedder = Callable[[str], Awaitable[Sequence[float]]]
-# (repo, embedding, limit, offset, languages, paths) -> ranked row dicts
-SearchBackend = Callable[..., Awaitable[list[dict[str, Any]]]]
+Observer = Callable[[str, Mapping[str, str | int | float | None]], None]
 
 
 class CodeSearchService:
-    """Embed the query server-side, run the pgvector KNN, scope-filter, return hits."""
+    """Resolve authority and exact index identity before semantic work."""
 
     def __init__(
         self,
-        registry_lookup: RegistryLookup,
-        embedder: Embedder,
-        search_backend: SearchBackend,
-        embedder_model: str | None = None,
-    ):
-        self._registry = registry_lookup
+        *,
+        pool: Any,
+        embedder: Embedder | None,
+        provider_contract: QueryProviderContract | None,
+        grant_resolver: PrincipalGrantResolver,
+        work_package_resolver: WorkPackageScopeResolver | None = None,
+        observer: Observer | None = None,
+    ) -> None:
+        self._pool = pool
         self._embedder = embedder
-        self._search = search_backend
-        self._model = embedder_model or os.environ.get(
-            "CODE_SEARCH_EMBEDDER", "sentence-transformers/all-MiniLM-L6-v2"
-        )
+        self._provider = provider_contract
+        self._grant_resolver = grant_resolver
+        self._work_package_resolver = work_package_resolver
+        self._observer = observer
+        self._state_counts: Counter[str] = Counter()
 
     async def search(
         self,
-        query: str,
-        repo: str,
-        limit: int = 10,
-        offset: int = 0,
-        languages: list[str] | None = None,
-        paths: list[str] | None = None,
-        scope: dict[str, Any] | None = None,
+        request: CodeSearchRequest | Mapping[str, Any],
+        *,
+        principal_id: str,
     ) -> CodeSearchResponse:
-        # 1. Registry: repo must be indexed, and the registered embedder must match ours (D4).
-        row = await self._registry(repo)
-        if row is None:
-            raise RepoNotIndexedError(
-                f"Repo {repo!r} has no code_search_registry entry. Run index_repo first."
-            )
-        if row.get("embedder_model") != self._model:
-            raise EmbedderMismatchError(
-                f"Repo {repo!r} indexed with {row.get('embedder_model')!r}, "
-                f"service configured with {self._model!r}"
-            )
-
-        # 2. Server-side query embedding (callers send text only — cloud agents lack a model) (D4).
-        embedding = await self._embedder(query)
-
-        # 3. One-statement KNN. Over-fetch when a scope will post-filter, to still fill `limit`.
-        fetch = limit * 4 if scope else limit
-        rows = await self._search(repo, embedding, fetch, offset, languages, paths)
-        hits = [
-            CodeSearchHit(
-                file_path=r["file_path"],
-                language=r["language"],
-                content=r["content"],
-                start_line=r["start_line"],
-                end_line=r["end_line"],
-                score=float(r["score"]),
-            )
-            for r in rows
-        ]
-
-        # 4. Scope filtering (D7).
-        scoped = scope is not None
-        if scope is not None:
-            read_allow, deny = await self._resolve_scope(scope)
-            hits = filter_by_scope(hits, read_allow, deny)[:limit]
-        else:
-            hits = hits[:limit]
-
-        return CodeSearchResponse(repo=repo, results=hits, scope_filtered=scoped)
-
-    async def _resolve_scope(self, scope: dict[str, Any]) -> tuple[list[str], list[str]]:
-        """Resolve a scope to (read_allow, deny) globs.
-
-        Explicit ``{read_allow, deny}`` is used as-is. A ``{work_package: id}`` reference is
-        resolved from work-packages.yaml when a resolver is configured; absent one, it degrades to
-        no restriction (the reference is advisory, not a hard dependency of the read path).
-        """
-        if "read_allow" in scope or "deny" in scope:
-            return list(scope.get("read_allow", [])), list(scope.get("deny", []))
-        # work_package resolution is environment-specific; default to unrestricted if unavailable.
-        return [], []
-
-
-# --- production backend wiring (thin; exercised where asyncpg + ParadeDB exist) ---------------
-
-def make_pg_backends(pool: Any) -> tuple[RegistryLookup, SearchBackend]:
-    """Build (registry_lookup, search_backend) over a live asyncpg pool.
-
-    Thin translation to raw SQL — the pgvector KNN cannot go through the PostgREST-style
-    DatabaseClient. Not unit-tested here (needs a DB); the SQL matches contracts/db/schema.sql
-    and packages/code-search query_pg.
-    """
-    from code_search_pkg.query_pg import build_search_sql, to_pgvector_literal
-
-    async def registry_lookup(repo: str) -> dict[str, Any] | None:
-        row = await pool.fetchrow(
-            "SELECT repo_slug, embedder_model, embedding_dim FROM code_search_registry "
-            "WHERE repo_slug = $1",
-            repo,
+        started_at = monotonic()
+        validated = (
+            request
+            if isinstance(request, CodeSearchRequest)
+            else CodeSearchRequest.model_validate(request)
         )
-        return dict(row) if row else None
-
-    async def search_backend(
-        repo: str,
-        embedding: Sequence[float],
-        limit: int,
-        offset: int,
-        languages: list[str] | None,
-        paths: list[str] | None,
-    ) -> list[dict[str, Any]]:
-        rows = await pool.fetch(
-            build_search_sql(repo),
-            to_pgvector_literal(embedding),
-            languages,
-            paths,
-            limit,
-            offset,
+        identity = RequestedIdentity(
+            repo_slug=validated.repo_slug,
+            source_revision=validated.source_revision,
+            namespace=validated.namespace,
+            index_id=validated.index_id,
         )
-        return [dict(r) for r in rows]
+        scope_source: Literal["explicit", "work_package"] = (
+            "explicit" if isinstance(validated.scope, ExplicitScope) else "work_package"
+        )
+        default_authority: Literal["principal_grant", "work_package_registry"] = (
+            "principal_grant" if scope_source == "explicit" else "work_package_registry"
+        )
+        try:
+            grant = await self._grant_resolver(principal_id, validated.repo_slug)
+            effective_scope = await authorize_code_search_scope(
+                principal_id=principal_id,
+                repo_slug=validated.repo_slug,
+                namespace_kind=validated.namespace.kind.value,
+                namespace_key=validated.namespace.key,
+                source_revision=validated.source_revision,
+                grant=grant,
+                requested_scope=_authorization_scope(validated.scope),
+                paths=validated.paths or (),
+                work_package_resolver=self._work_package_resolver,
+            )
+        except ScopeForbiddenError as error:
+            self._observe(validated, CodeSearchState.SCOPE_REJECTED, "forbidden", None, started_at)
+            raise CodeSearchForbiddenError(
+                "The principal has no code-search grant for this repository."
+            ) from error
+        except ScopeRejectedError:
+            response = _non_ready_response(
+                state=CodeSearchState.SCOPE_REJECTED,
+                request=identity,
+                index=None,
+                scope=ScopeDisposition(
+                    decision="rejected",
+                    source=scope_source,
+                    authority=default_authority,
+                ),
+            )
+            self._observe_response(validated, response, started_at)
+            return response
+        except Exception:
+            response = _non_ready_response(
+                state=CodeSearchState.UNAVAILABLE,
+                request=identity,
+                index=None,
+                scope=ScopeDisposition(
+                    decision="allowed",
+                    source=scope_source,
+                    authority=default_authority,
+                ),
+            )
+            self._observe_response(validated, response, started_at)
+            return response
 
-    return registry_lookup, search_backend
+        disposition = ScopeDisposition(
+            decision="allowed",
+            source=effective_scope.source,
+            authority=effective_scope.authority,
+        )
+        try:
+            selected = await self._select_index(validated)
+        except Exception:
+            response = _non_ready_response(
+                state=CodeSearchState.UNAVAILABLE,
+                request=identity,
+                index=None,
+                scope=disposition,
+            )
+            self._observe_response(validated, response, started_at)
+            return response
+        if selected is None:
+            response = _non_ready_response(
+                state=CodeSearchState.NOT_INDEXED,
+                request=identity,
+                index=None,
+                scope=disposition,
+            )
+            self._observe_response(validated, response, started_at)
+            return response
+
+        provenance = _index_provenance(selected)
+        if selected.source_revision != validated.source_revision:
+            response = _non_ready_response(
+                state=CodeSearchState.REVISION_MISMATCH,
+                request=identity,
+                index=provenance,
+                scope=disposition,
+            )
+            self._observe_response(validated, response, started_at)
+            return response
+        if (
+            self._provider is None
+            or self._embedder is None
+            or not selected.matches_provider(self._provider)
+        ):
+            response = _non_ready_response(
+                state=CodeSearchState.NOT_CONFIGURED,
+                request=identity,
+                index=provenance,
+                scope=disposition,
+            )
+            self._observe_response(validated, response, started_at)
+            return response
+
+        if not getattr(selected, "storage_exists", True):
+            response = _non_ready_response(
+                state=CodeSearchState.UNAVAILABLE,
+                request=identity,
+                index=provenance,
+                scope=disposition,
+            )
+            self._observe_response(validated, response, started_at)
+            return response
+
+        try:
+            embedding = await self._embedder(validated.query)
+            if len(embedding) != selected.embedding_dim:
+                raise ValueError("query embedding dimension is incompatible")
+            rows = await query_codebase_pg(
+                self._pool,
+                selected.storage_key,
+                embedding,
+                limit=validated.limit,
+                offset=validated.offset,
+                languages=validated.languages,
+                allow_path_regexes=effective_scope.allow_path_regexes,
+                deny_path_regexes=effective_scope.deny_path_regexes,
+                path_regexes=effective_scope.path_regexes,
+            )
+            hits = [_hit(row, selected) for row in rows if effective_scope.allows(row.file_path)][
+                : validated.limit
+            ]
+        except Exception:
+            response = _non_ready_response(
+                state=CodeSearchState.UNAVAILABLE,
+                request=identity,
+                index=provenance,
+                scope=disposition,
+            )
+            self._observe_response(validated, response, started_at)
+            return response
+
+        response = CodeSearchResponse(
+            state=CodeSearchState.READY,
+            current=True,
+            request=identity,
+            index=provenance,
+            scope=disposition,
+            results=hits,
+            fallback=Fallback(required=False, reason=None),
+        )
+        self._observe_response(validated, response, started_at)
+        return response
+
+    async def _select_index(self, request: CodeSearchRequest) -> QueryableIndex | None:
+        if request.namespace.kind is NamespaceKind.MAIN:
+            return await select_main_index(self._pool, request.repo_slug)
+        assert request.index_id is not None
+        return await select_exact_index(
+            self._pool,
+            index_id=request.index_id,
+            repo_slug=request.repo_slug,
+            namespace_kind=request.namespace.kind,
+            namespace_key=request.namespace.key,
+        )
+
+    def metrics_snapshot(self) -> dict[str, int]:
+        """Return bounded per-state counters without request or source content."""
+
+        return dict(self._state_counts)
+
+    def _observe_response(
+        self,
+        request: CodeSearchRequest,
+        response: CodeSearchResponse,
+        started_at: float,
+    ) -> None:
+        self._observe(
+            request,
+            response.state,
+            response.fallback.reason.value if response.fallback.reason else "ready",
+            str(response.index.index_id) if response.index else None,
+            started_at,
+        )
+
+    def _observe(
+        self,
+        request: CodeSearchRequest,
+        state: CodeSearchState,
+        reason: str,
+        index_id: str | None,
+        started_at: float,
+    ) -> None:
+        self._state_counts[state.value] += 1
+        latency_ms = min((monotonic() - started_at) * 1000, 3_600_000)
+        fields: dict[str, str | int | float | None] = {
+            "repo_slug": request.repo_slug,
+            "source_revision": request.source_revision,
+            "index_id": index_id,
+            "state": state.value,
+            "reason": reason,
+            "latency_ms": round(latency_ms, 3),
+        }
+        logger.info(
+            "code_search_query_complete repo_slug=%s source_revision=%s "
+            "index_id=%s state=%s reason=%s latency_ms=%.3f",
+            fields["repo_slug"],
+            fields["source_revision"],
+            fields["index_id"],
+            fields["state"],
+            fields["reason"],
+            fields["latency_ms"],
+        )
+        if self._observer is not None:
+            try:
+                self._observer("code_search_query_complete", fields)
+            except Exception:
+                logger.debug("code_search_observer_failed", exc_info=False)
+
+
+def _authorization_scope(
+    scope: ExplicitScope | WorkPackageScope,
+) -> ExplicitScopeRequest | WorkPackageScopeRequest:
+    if isinstance(scope, ExplicitScope):
+        return ExplicitScopeRequest(
+            read_allow=tuple(scope.read_allow),
+            deny=tuple(scope.deny),
+        )
+    return WorkPackageScopeRequest(
+        change_id=scope.change_id,
+        package_id=scope.package_id,
+        scope_revision=scope.scope_revision,
+    )
+
+
+def _index_provenance(index: QueryableIndex) -> IndexProvenance:
+    return IndexProvenance(
+        index_id=index.index_id,
+        repo_slug=index.repo_slug,
+        source_revision=index.source_revision,
+        namespace=SearchNamespace(
+            kind=index.namespace_kind,
+            key=index.namespace_key,
+        ),
+        embedder_model=index.embedder_model,
+        embedding_dim=index.embedding_dim,
+        embedder_fingerprint=index.embedder_fingerprint,
+        policy_fingerprint=index.policy_fingerprint,
+        pipeline_fingerprint=index.pipeline_fingerprint,
+        completed_at=index.completed_at,
+    )
+
+
+def _hit(row: Any, index: QueryableIndex) -> CodeSearchHit:
+    return CodeSearchHit(
+        file_path=row.file_path,
+        language=row.language,
+        content=row.content,
+        start_line=row.start_line,
+        end_line=row.end_line,
+        similarity=float(row.score),
+        repo_slug=index.repo_slug,
+        source_revision=index.source_revision,
+        index_id=index.index_id,
+    )
+
+
+def _non_ready_response(
+    *,
+    state: CodeSearchState,
+    request: RequestedIdentity,
+    index: IndexProvenance | None,
+    scope: ScopeDisposition,
+) -> CodeSearchResponse:
+    return CodeSearchResponse(
+        state=state,
+        current=False,
+        request=request,
+        index=index,
+        scope=scope,
+        results=[],
+        fallback=Fallback(required=True, reason=state),
+    )
 
 
 _service: CodeSearchService | None = None
 
 
 def get_code_search_service() -> CodeSearchService:
-    """Module-level accessor (mirrors get_memory_service). Wired lazily from the app lifespan."""
     if _service is None:
-        raise RuntimeError(
-            "code-search service not initialized — call init_code_search_service() at startup"
-        )
+        raise RuntimeError("code-search service is not initialized")
     return _service
 
 
-def init_code_search_service(service: CodeSearchService) -> None:
+def init_code_search_service(service: CodeSearchService | None) -> None:
     global _service
     _service = service

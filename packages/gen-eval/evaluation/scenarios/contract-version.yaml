@@ -1,0 +1,51 @@
+# The published schema contract surface (UP-2).
+#
+# A consumer pins a contract version and needs to assert, at runtime, that
+# the gen-eval it found on PATH still speaks it. That probe is a documented
+# part of the interface, so it is evaluated like any other.
+
+- id: contract-version-probe-exits-zero
+  name: --print-contract-version exits 0 without --descriptor
+  description: >
+    The version probe must short-circuit before the otherwise-required
+    --descriptor flag. It is implemented as an argparse Action so it fires
+    during argument consumption; a flag inspected after parsing would exit 2
+    here instead, which is what this scenario detects.
+  category: contract
+  priority: 1
+  interfaces: ["cli:gen-eval"]
+  tags: [contract, up-2]
+  steps:
+    - id: probe
+      transport: cli
+      args: ["--print-contract-version"]
+      expect:
+        exit_code: 0
+        not_empty: true
+
+- id: contract-version-value-is-pinned
+  name: --print-contract-version reports the pinned contract version
+  description: >
+    Asserts the exact published version, not merely that something was
+    printed. Bumping CONTRACT_VERSION without updating this scenario is
+    intended to fail — the whole point of a pinned contract is that the bump
+    is deliberate and visible.
+
+    Note the assertion key. CliClient runs json.loads() on stdout before
+    falling back to {"raw": "<stdout>"}, and "1" is valid JSON, so a scalar
+    numeric version parses to {"result": 1} — an int, not the string "1".
+    A version like "v1" or "1.2.0-rc" would land under `raw` instead. This
+    surprised the author; it is recorded in evaluation/README.md as a
+    finding rather than worked around silently.
+  category: contract
+  priority: 1
+  interfaces: ["cli:gen-eval"]
+  tags: [contract, up-2, pinned]
+  steps:
+    - id: probe-value
+      transport: cli
+      args: ["--print-contract-version"]
+      expect:
+        exit_code: 0
+        body:
+          result: 2

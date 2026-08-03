@@ -5,10 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 import yaml
 from models import (
-    CheckpointPhase,
     Effort,
     ItemStatus,
     Policy,
@@ -138,7 +136,7 @@ class TestFailureHandling:
                 return "failed:Build error"
             return "success"
 
-        result = execute_roadmap(tmp_path, dispatch_fn=fail_first)
+        _result = execute_roadmap(tmp_path, dispatch_fn=fail_first)
 
         # Read updated roadmap to check propagation
         roadmap_data = yaml.safe_load((tmp_path / "roadmap.yaml").read_text())

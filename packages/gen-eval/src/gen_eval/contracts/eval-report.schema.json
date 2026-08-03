@@ -1,0 +1,475 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/packages/gen-eval/src/gen_eval/contracts/eval-report.schema.json",
+  "title": "gen-eval report",
+  "x-gen-eval-contract-version": "2",
+  "$defs": {
+    "OperationCoverage": {
+      "description": "Coverage for one operation across every surface (D4).\n\nThe operation is the unit. An operation published on three surfaces and\nexercised through one is *covered*, with two exposed-but-uncovered\nsurfaces \u2014 not two gaps.",
+      "properties": {
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "surfaces": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SurfaceCoverage"
+          },
+          "title": "Surfaces",
+          "type": "object"
+        },
+        "covered": {
+          "readOnly": true,
+          "title": "Covered",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "operation_id",
+        "covered"
+      ],
+      "title": "OperationCoverage",
+      "type": "object"
+    },
+    "ScenarioVerdict": {
+      "description": "Result of evaluating one scenario.",
+      "properties": {
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "scenario_name": {
+          "title": "Scenario Name",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "fail",
+            "error",
+            "skip"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/StepVerdict"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "duration_seconds": {
+          "default": 0.0,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "interfaces_tested": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Interfaces Tested",
+          "type": "array"
+        },
+        "failure_summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Summary"
+        },
+        "cleanup_warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cleanup Warnings",
+          "type": "array"
+        },
+        "category": {
+          "default": "",
+          "title": "Category",
+          "type": "string"
+        },
+        "backend_used": {
+          "default": "template",
+          "title": "Backend Used",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "scenario_name",
+        "status",
+        "steps"
+      ],
+      "title": "ScenarioVerdict",
+      "type": "object"
+    },
+    "SemanticVerdict": {
+      "description": "Result of semantic (LLM-as-judge) evaluation.",
+      "properties": {
+        "status": {
+          "enum": [
+            "pass",
+            "fail",
+            "skip"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "confidence": {
+          "default": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "reasoning": {
+          "default": "",
+          "title": "Reasoning",
+          "type": "string"
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Message"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "SemanticVerdict",
+      "type": "object"
+    },
+    "StepVerdict": {
+      "description": "Result of executing one step.",
+      "properties": {
+        "step_id": {
+          "title": "Step Id",
+          "type": "string"
+        },
+        "transport": {
+          "title": "Transport",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "fail",
+            "error",
+            "skip"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "actual": {
+          "additionalProperties": true,
+          "title": "Actual",
+          "type": "object"
+        },
+        "expected": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected"
+        },
+        "diff": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diff"
+        },
+        "duration_ms": {
+          "default": 0.0,
+          "title": "Duration Ms",
+          "type": "number"
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error Message"
+        },
+        "is_cleanup": {
+          "default": false,
+          "title": "Is Cleanup",
+          "type": "boolean"
+        },
+        "captured_vars": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Captured Vars"
+        },
+        "side_effect_verdicts": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Side Effect Verdicts"
+        },
+        "semantic_verdict": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SemanticVerdict"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "step_id",
+        "transport",
+        "status"
+      ],
+      "title": "StepVerdict",
+      "type": "object"
+    },
+    "SurfaceCoverage": {
+      "description": "Whether one surface publishes an operation, and whether it was exercised.\n\n``exposed`` and ``covered`` are deliberately independent booleans. A\nsurface that does not publish the operation is ``exposed=False`` and is\n**not** a coverage gap \u2014 no run could ever cover it. A surface that\npublishes it and was not exercised is ``exposed=True, covered=False``, and\nis. The flat model could not tell those apart: both were simply absent\nfrom the covered set.",
+      "properties": {
+        "exposed": {
+          "default": false,
+          "title": "Exposed",
+          "type": "boolean"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Element"
+        },
+        "covered": {
+          "default": false,
+          "title": "Covered",
+          "type": "boolean"
+        }
+      },
+      "title": "SurfaceCoverage",
+      "type": "object"
+    },
+    "VisibilityBreakdown": {
+      "description": "Pass/fail/error/skip counts for a single visibility bucket.",
+      "properties": {
+        "total": {
+          "default": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "passed": {
+          "default": 0,
+          "title": "Passed",
+          "type": "integer"
+        },
+        "failed": {
+          "default": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "errors": {
+          "default": 0,
+          "title": "Errors",
+          "type": "integer"
+        },
+        "skipped": {
+          "default": 0,
+          "title": "Skipped",
+          "type": "integer"
+        },
+        "pass_rate": {
+          "readOnly": true,
+          "title": "Pass Rate",
+          "type": "number"
+        }
+      },
+      "required": [
+        "pass_rate"
+      ],
+      "title": "VisibilityBreakdown",
+      "type": "object"
+    }
+  },
+  "description": "Complete gen-eval run report.\n\nThis is a pydantic model rather than a plain dataclass so that\n``eval-report.schema.json`` can be *generated* from it (see\n``scripts/generate_contract_schemas.py``) instead of hand-authored and\nleft to drift away from the emitter.",
+  "properties": {
+    "total_scenarios": {
+      "title": "Total Scenarios",
+      "type": "integer"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "integer"
+    },
+    "failed": {
+      "title": "Failed",
+      "type": "integer"
+    },
+    "errors": {
+      "title": "Errors",
+      "type": "integer"
+    },
+    "skipped": {
+      "title": "Skipped",
+      "type": "integer"
+    },
+    "pass_rate": {
+      "title": "Pass Rate",
+      "type": "number"
+    },
+    "coverage_pct": {
+      "title": "Coverage Pct",
+      "type": "number"
+    },
+    "duration_seconds": {
+      "title": "Duration Seconds",
+      "type": "number"
+    },
+    "budget_exhausted": {
+      "title": "Budget Exhausted",
+      "type": "boolean"
+    },
+    "verdicts": {
+      "items": {
+        "$ref": "#/$defs/ScenarioVerdict"
+      },
+      "title": "Verdicts",
+      "type": "array"
+    },
+    "per_interface": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object"
+      },
+      "title": "Per Interface",
+      "type": "object"
+    },
+    "per_category": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "type": "object"
+      },
+      "title": "Per Category",
+      "type": "object"
+    },
+    "unevaluated_interfaces": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unevaluated Interfaces",
+      "type": "array"
+    },
+    "cost_summary": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Cost Summary",
+      "type": "object"
+    },
+    "per_operation": {
+      "items": {
+        "$ref": "#/$defs/OperationCoverage"
+      },
+      "title": "Per Operation",
+      "type": "array"
+    },
+    "unevaluated_operations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unevaluated Operations",
+      "type": "array"
+    },
+    "declared_interface_count": {
+      "default": 0,
+      "title": "Declared Interface Count",
+      "type": "integer"
+    },
+    "iterations_completed": {
+      "title": "Iterations Completed",
+      "type": "integer"
+    },
+    "per_visibility": {
+      "additionalProperties": {
+        "$ref": "#/$defs/VisibilityBreakdown"
+      },
+      "title": "Per Visibility",
+      "type": "object"
+    }
+  },
+  "required": [
+    "total_scenarios",
+    "passed",
+    "failed",
+    "errors",
+    "skipped",
+    "pass_rate",
+    "coverage_pct",
+    "duration_seconds",
+    "budget_exhausted",
+    "verdicts",
+    "per_interface",
+    "per_category",
+    "unevaluated_interfaces",
+    "cost_summary",
+    "iterations_completed"
+  ],
+  "type": "object"
+}

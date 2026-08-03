@@ -26,6 +26,13 @@ class ExpectBlock(BaseModel):
     rows: int | None = None
     row: dict[str, Any] | None = None
     error_contains: str | None = None
+    #: Assert a substring is ABSENT from stderr/body. The mirror of
+    #: ``error_contains``, and the only way to express "this flag suppressed
+    #: something". A scenario that can only assert presence cannot
+    #: discriminate a flag whose effect is to remove output: it asserts a line
+    #: the default run prints too, and credits the flag for a coverage unit it
+    #: never exercised. Symmetric with ``body_excludes`` below.
+    error_excludes: str | None = None
     not_empty: bool | None = None
     # Extended assertion types (D1)
     body_contains: dict[str, Any] | None = None

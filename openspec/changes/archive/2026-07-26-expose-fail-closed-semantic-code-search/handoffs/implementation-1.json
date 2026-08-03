@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-24T14:15:47.288735+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented the strict v2 semantic-query path over immutable RI02 indexes. The reader now proves exact revision, canonical index identity, provider compatibility, principal-bound scope, runtime readiness, and transport parity before returning provenance-bearing hits; every non-ready state requires exact-search fallback.",
+    "completed_work": [
+      "Added exact immutable storage selection and bounded cosine KNN.",
+      "Added principal/work-package authorization and typed fail-closed states.",
+      "Added loop-owned HTTP/direct-MCP runtimes, proxy parity, and truthful capability discovery.",
+      "Added 478 passing deterministic tests plus six explicitly resource-deferred RI03 Postgres cases."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Fail closed before embedding",
+        "rationale": "Revision, index, provider, and scope authority are validated before any semantic provider or storage work.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Publish body-aware dynamic capability",
+        "rationale": "CAN_CODE_SEARCH is true only when a ready provider and compatible canonical v2 storage are currently usable.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Complete independent implementation reviews and validation artifacts.",
+      "Run live Postgres/provider/retrieval-quality gates before production enablement."
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/code_search.py",
+        "description": "typed fail-closed service"
+      },
+      {
+        "path": "agent-coordinator/src/code_search_runtime.py",
+        "description": "loop-owned readiness/runtime"
+      },
+      {
+        "path": "packages/code-search/src/code_search_pkg/query_pg.py",
+        "description": "immutable index query adapter"
+      },
+      {
+        "path": "docs/guides/code-search.md",
+        "description": "operator contract and fallback guidance"
+      }
+    ]
+  }
+}

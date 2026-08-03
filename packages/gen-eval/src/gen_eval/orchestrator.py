@@ -24,7 +24,7 @@ from gen_eval.models import (
     ScenarioGenerator,
     ScenarioVerdict,
 )
-from gen_eval.reports import GenEvalReport
+from gen_eval.reports import GenEvalReport, build_operation_coverage
 
 logger = logging.getLogger(__name__)
 
@@ -143,12 +143,24 @@ class GenEvalOrchestrator:
         from the interface descriptor file.  Descriptor files must be treated as
         trusted input — never load a descriptor from an untrusted source.
         """
+        if self.descriptor.startup is None:
+            logger.debug("No startup block in descriptor; nothing to start")
+            return
         cmd = self.descriptor.startup.command
         logger.info("Starting services: %s", cmd)
         subprocess.run(cmd, shell=True, check=True, capture_output=True, timeout=120)
 
     async def _health_check(self) -> None:
-        """Poll the health check endpoint with retry and exponential backoff."""
+        """Poll the health check endpoint with retry and exponential backoff.
+
+        Skipped entirely when the descriptor has no startup block. Note this
+        runs even under ``no_services`` (to verify externally-managed services
+        are reachable), so a descriptor with nothing to start must not be
+        forced to supply a health check URL that has to genuinely succeed.
+        """
+        if self.descriptor.startup is None:
+            logger.debug("No startup block in descriptor; skipping health check")
+            return
         health_target = self.descriptor.startup.health_check
         retries = self.config.health_check_retries
         interval = self.config.health_check_interval_seconds
@@ -190,6 +202,8 @@ class GenEvalOrchestrator:
         from the interface descriptor file.  Descriptor files must be treated as
         trusted input — never load a descriptor from an untrusted source.
         """
+        if self.descriptor.startup is None:
+            return
         seed_cmd = self.descriptor.startup.seed_command
         if not seed_cmd or not self.config.seed_data:
             return
@@ -203,6 +217,9 @@ class GenEvalOrchestrator:
         from the interface descriptor file.  Descriptor files must be treated as
         trusted input — never load a descriptor from an untrusted source.
         """
+        if self.descriptor.startup is None:
+            logger.debug("No startup block in descriptor; nothing to tear down")
+            return
         cmd = self.descriptor.startup.teardown
         logger.info("Tearing down services: %s", cmd)
         try:
@@ -296,16 +313,26 @@ class GenEvalOrchestrator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _match_interface_coverage(
+    def _attribute_interfaces(
         tested: set[str], descriptor_interfaces: set[str]
-    ) -> set[str]:
-        """Match tested interfaces against descriptor interfaces.
+    ) -> dict[str, str]:
+        """Attribute each tested interface to the declared interface it exercises.
 
         Handles parametric HTTP paths: a tested interface like
         ``"GET /locks/status/src/main.py"`` matches a descriptor template
         ``"GET /locks/status/{path}"``.
 
-        Returns the subset of ``descriptor_interfaces`` that are covered.
+        Returns ``tested identifier -> declared identifier``, mapping an
+        identifier that matches nothing declared **to itself**. That fallback
+        is deliberate: a scenario exercising an undocumented surface is a
+        finding for subset verification, not noise to drop. Callers separate
+        the two by intersecting the values with ``descriptor_interfaces``.
+
+        Returning the mapping rather than only the covered set is what lets the
+        legacy ``per_interface`` map be keyed on the declared vocabulary. Keyed
+        on the raw tested string, one declared interface splits across as many
+        keys as the suite used path values, and no key matches the declared
+        surface the same report publishes.
         """
         # Build regex patterns for descriptor interfaces with path parameters
         templates: list[tuple[re.Pattern[str], str]] = []
@@ -321,20 +348,22 @@ class GenEvalOrchestrator:
             else:
                 exact.add(iface)
 
-        covered: set[str] = set()
+        attribution: dict[str, str] = {}
 
         for t in tested:
             # Exact match first
             if t in exact:
-                covered.add(t)
+                attribution[t] = t
                 continue
             # Template match
             for pattern, template_name in templates:
                 if pattern.match(t):
-                    covered.add(template_name)
+                    attribution[t] = template_name
                     break
+            else:
+                attribution[t] = t
 
-        return covered
+        return attribution
 
     def _build_report(
         self,
@@ -356,19 +385,39 @@ class GenEvalOrchestrator:
         tested_interfaces: set[str] = set()
         for v in verdicts:
             tested_interfaces.update(v.interfaces_tested)
-        covered = self._match_interface_coverage(tested_interfaces, all_interfaces)
+        attribution = self._attribute_interfaces(tested_interfaces, all_interfaces)
+        covered = {declared for declared in attribution.values() if declared in all_interfaces}
+
+        # Operation × surface coverage (D4). Built from the declared elements
+        # scenarios actually reached, so an operation published on three
+        # surfaces and exercised through one is covered rather than two gaps.
+        per_operation = build_operation_coverage(self.descriptor, covered)
+        unevaluated_operations = [op.operation_id for op in per_operation if not op.covered]
+
+        # The headline number is denominated in operations, not elements, and
+        # is read off the records above rather than recomputed. Dividing by
+        # len(all_interfaces) counts each unexercised sibling surface as a
+        # miss, so an operation published on three surfaces and fully covered
+        # reports 33% — the arithmetic D4 exists to remove. For a
+        # single-surface descriptor the two denominators are equal, because
+        # build_operation_coverage synthesises one operation per element.
         coverage_pct = (
-            (len(covered) / len(all_interfaces) * 100) if all_interfaces else 0.0
+            (sum(1 for op in per_operation if op.covered) / len(per_operation) * 100)
+            if per_operation
+            else 0.0
         )
 
-        # Per-interface aggregation
+        # Per-interface aggregation, keyed on the DECLARED interface (D6).
+        # An identifier that matched nothing declared keeps its own name — see
+        # _attribute_interfaces.
         per_interface: dict[str, dict[str, int]] = {}
         for v in verdicts:
             for iface in v.interfaces_tested:
-                if iface not in per_interface:
-                    per_interface[iface] = {"pass": 0, "fail": 0, "error": 0}
-                if v.status in per_interface[iface]:
-                    per_interface[iface][v.status] += 1
+                declared = attribution.get(iface, iface)
+                if declared not in per_interface:
+                    per_interface[declared] = {"pass": 0, "fail": 0, "error": 0}
+                if v.status in per_interface[declared]:
+                    per_interface[declared][v.status] += 1
 
         # Per-category aggregation
         per_category: dict[str, dict[str, int]] = {}
@@ -380,8 +429,13 @@ class GenEvalOrchestrator:
             if v.status in ("pass", "fail", "error"):
                 per_category[cat][v.status] += 1
 
-        # Unevaluated interfaces
-        unevaluated = sorted(all_interfaces - covered)
+        # Unevaluated interfaces, computed from the operation model (D6) rather
+        # than maintained beside it. uncovered_elements() skips surfaces that do
+        # not expose the operation, so an interface that does not exist cannot
+        # be reported as an untested one.
+        unevaluated = sorted(
+            {element for op in per_operation for element in op.uncovered_elements()}
+        )
 
         # Cost summary
         cost_summary: dict[str, float] = {
@@ -408,6 +462,9 @@ class GenEvalOrchestrator:
             per_interface=per_interface,
             per_category=per_category,
             unevaluated_interfaces=unevaluated,
+            declared_interface_count=len(all_interfaces),
             cost_summary=cost_summary,
             iterations_completed=iterations_completed,
+            per_operation=per_operation,
+            unevaluated_operations=unevaluated_operations,
         )

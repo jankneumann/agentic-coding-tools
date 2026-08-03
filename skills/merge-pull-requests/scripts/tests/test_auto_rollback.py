@@ -13,14 +13,12 @@ Design decisions:
 import json
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from auto_rollback import (
-    ROLLBACK_MONITOR_MINUTES,
     attribute_breakage,
     create_revert_pr,
     monitor_ci_for_rollback,
@@ -186,7 +184,7 @@ class TestMonitorCIForRollback:
         }
 
         with patch("auto_rollback.emit_event") as mock_emit:
-            result = monitor_ci_for_rollback(
+            _result = monitor_ci_for_rollback(
                 merge_sha="abc123",
                 pr_number=42,
                 pr_title="feat: add API",

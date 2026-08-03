@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from api_key_resolver import ApiKeyResolver
 
@@ -38,7 +37,7 @@ class TestApiKeyResolver:
 
     def test_resolve_openbao_preferred(self) -> None:
         """OpenBao is preferred over env var when available."""
-        resolver = ApiKeyResolver()
+        _resolver = ApiKeyResolver()
         mock_hvac = MagicMock()
         mock_client = MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -59,7 +58,7 @@ class TestApiKeyResolver:
 
     def test_resolve_falls_back_to_env_when_openbao_fails(self) -> None:
         """Falls back to env var when OpenBao resolution raises."""
-        resolver = ApiKeyResolver()
+        _resolver = ApiKeyResolver()
         mock_hvac = MagicMock()
         mock_hvac.Client.side_effect = Exception("Connection refused")
 

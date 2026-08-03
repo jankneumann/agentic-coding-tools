@@ -14,12 +14,12 @@ import pytest
 
 from gen_eval.change_detector import ChangeDetector
 from gen_eval.descriptor import (
-    EndpointDescriptor,
+    EndpointSpec,
     FileInterfaceMapping,
     InterfaceDescriptor,
-    ServiceDescriptor,
+    McpToolSpec,
+    ServiceSpec,
     StartupConfig,
-    ToolDescriptor,
 )
 from gen_eval.feedback import FeedbackSynthesizer
 from gen_eval.models import EvalFeedback, ScenarioVerdict, StepVerdict
@@ -36,23 +36,23 @@ def descriptor() -> InterfaceDescriptor:
         project="test-project",
         version="0.1.0",
         services=[
-            ServiceDescriptor(
+            ServiceSpec(
                 name="api",
                 type="http",
                 base_url="http://localhost:8081",
                 endpoints=[
-                    EndpointDescriptor(path="/locks/acquire", method="POST"),
-                    EndpointDescriptor(path="/locks/release", method="POST"),
-                    EndpointDescriptor(path="/health", method="GET"),
+                    EndpointSpec(path="/locks/acquire", method="POST"),
+                    EndpointSpec(path="/locks/release", method="POST"),
+                    EndpointSpec(path="/health", method="GET"),
                 ],
             ),
-            ServiceDescriptor(
+            ServiceSpec(
                 name="mcp",
                 type="mcp",
                 transport="sse",
                 mcp_url="http://localhost:8082/sse",
                 tools=[
-                    ToolDescriptor(name="acquire_lock"),
+                    McpToolSpec(name="acquire_lock"),
                 ],
             ),
         ],

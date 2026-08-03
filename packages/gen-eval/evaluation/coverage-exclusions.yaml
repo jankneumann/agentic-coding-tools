@@ -1,0 +1,67 @@
+# Contracted coverage units the dogfood suite does not exercise, and why.
+#
+# D11: every contracted coverage unit is either exercised by a scenario or
+# listed here with a stated reason. `scripts/check_coverage_completeness.py`
+# fails on any unit that is neither, on any entry whose reason is blank, and
+# on any entry naming a unit the contract no longer declares.
+#
+# A reason is for a reviewer, not for the checker — the checker only asks that
+# one exists. Write what would have to change for the unit to move out of this
+# file, so the next person can tell a real constraint from an old excuse.
+#
+# This file is deliberately NOT in the CLI contract. The contract declares what
+# gen-eval's surface *is*; that does not change because one suite happens not
+# to exercise part of it, and a second consumer reading the same contract must
+# not inherit these gaps as though they were properties of the interface.
+
+exclusions:
+  - unit: cli:--cli-command
+    reason: >-
+      Only meaningful in `cli-augmented` mode, which shells out to a generator
+      CLI that must exist on PATH. The dogfood suite runs in CI with no such
+      binary installed, and stubbing one would assert the stub rather than the
+      flag. Exercisable once a contracted generator CLI is available to the
+      suite.
+
+  - unit: cli:--sdk-budget
+    reason: >-
+      Only meaningful in `sdk-only` mode, which requires live model
+      credentials. A dogfood run must be reproducible offline and must not
+      spend money, so this is excluded on the same terms as the mode itself.
+
+  - unit: cli:--time-budget
+    reason: >-
+      Asserting the flag means asserting budget *exhaustion*, which needs a run
+      long enough to exhaust it. Setting it high proves nothing (nothing
+      happens either way) and setting it low makes the assertion a race against
+      CI machine speed. The budget path is covered by unit tests against the
+      orchestrator instead, where the clock can be controlled.
+
+  - unit: cli:--max-iterations
+    reason: >-
+      Adaptive mode only starts a second iteration when the first leaves
+      coverage gaps. The inner fixture declares no scenarios at all, so there
+      is no first iteration to leave gaps, and a fixture that could would take
+      several minutes per dogfood run.
+
+  - unit: cli:--parallel
+    reason: >-
+      Concurrency is not observable through an exit code or report file — a
+      parallel run and a serial run of the same suite produce identical
+      artifacts. Asserting it needs timing or instrumentation, which belongs in
+      a unit test rather than a black-box CLI scenario.
+
+  - unit: cli:--categories
+    reason: >-
+      Exercising the filter means asserting which scenarios were *skipped*, so
+      it needs an inner fixture carrying several categories and a report
+      assertion on the resulting counts. Worth adding; not a constraint, just
+      unbuilt. Track as follow-up work rather than a permanent exclusion.
+
+  - unit: cli:--changed-features-ref
+    reason: >-
+      Resolves a git ref and intersects it with the descriptor's
+      file_interface_map. Both are absent from the inner fixture, and pointing
+      it at a real ref would make the dogfood suite's result depend on
+      repository history — a test that passes or fails according to what was
+      committed last is not a test of this flag.

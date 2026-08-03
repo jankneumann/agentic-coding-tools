@@ -22,7 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -284,7 +284,7 @@ def dry_run_report(scores: list[TriageScore]) -> str:
 
     lines.append("## Estimated Operations (dry-run — no API calls made)")
     lines.append("")
-    lines.append(f"- Triage model calls: 0 (heuristic scoring, no LLM needed)")
+    lines.append("- Triage model calls: 0 (heuristic scoring, no LLM needed)")
     lines.append(f"- Deep analysis model calls: {len(flagged)} (if enabled)")
     lines.append("")
 

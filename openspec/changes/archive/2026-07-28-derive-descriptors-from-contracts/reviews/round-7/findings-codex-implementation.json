@@ -1,0 +1,49 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": "codex-001",
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "packages/gen-eval/src/gen_eval/__main__.py:324 \u2014 the runtime CLI still loads every descriptor with `InterfaceDescriptor.from_yaml()`. Generated service descriptors write the operation model at `operations` (scripts/generate_service_descriptor.py:122), but the base model ignores that top-level field, so `build_operation_coverage()` sees no `operations` and falls back to one flat operation per element. A generated descriptor where `acquire_lock` is exposed as HTTP+MCP+CLI and a scenario exercises `POST /locks/acquire` will report element-level operations like `mcp:acquire_lock` / `cli:lock acquire` as uncovered instead of reporting operation `acquire_lock` as covered per D4.",
+      "disposition": "fix"
+    },
+    {
+      "id": "codex-002",
+      "type": "plan-risk",
+      "criticality": "high",
+      "description": "openspec/changes/derive-descriptors-from-contracts/tasks.md:319 \u2014 task 5.3 promises that migrating `evaluation/descriptor.yaml` to a derived tool descriptor makes dogfood report the contracted flag count, but the generated tool descriptor stores flag units in top-level `commands` (scripts/generate_tool_descriptor.py:163) while the runtime loader at `__main__.py:324` constructs only `InterfaceDescriptor`. That base `all_interfaces()` only reads `services[*].commands` (descriptor.py:285), so the migrated descriptor will still have zero declared interfaces unless Phase 5 also adds archetype-aware descriptor loading.",
+      "disposition": "fix"
+    },
+    {
+      "id": "codex-003",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "packages/gen-eval/src/gen_eval/service_descriptor.py:311 \u2014 OpenAPI path-item parameters are not merged into each operation before MCP projection, and `$ref` path items are skipped by the `for method, raw in item.items()` loop. For a standard contract like `/items/{id}: parameters: [{name: id, in: path, required: true}]` with `get.operationId: get_item`, `_flatten_parameters()` only sees `raw.get('parameters')`, so the derived MCP input schema omits the required `id`. The same omission happens for referenced path items, where the operation is never extracted at all.",
+      "disposition": "fix"
+    },
+    {
+      "id": "codex-004",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "packages/gen-eval/src/gen_eval/evaluator.py:580 \u2014 `_cli_identifiers()` scans all tokens for flags and never stops at the conventional `--` option terminator. A CLI step with `args: ['--mode','template-only','--','--descriptor']` and declared units `{'cli:--mode','cli:--descriptor'}` records both flags, even though the second token is a literal positional value after `--`; coverage is falsely credited for `cli:--descriptor`.",
+      "disposition": "fix"
+    },
+    {
+      "id": "codex-005",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "packages/gen-eval/src/gen_eval/verify/surfaces.py:65 \u2014 `verify_argparse()` only iterates the root parser's `_actions` and does not descend into `_SubParsersAction` choices. For a parser with subcommand `lock` whose subparser declares undocumented `--force`, calling `verify_argparse(root_parser, descriptor)` returns no violation because the subparser action has no option strings; the exposed element `cli:lock --force` is hidden from the subset verifier.",
+      "disposition": "fix"
+    },
+    {
+      "id": "codex-006",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "packages/gen-eval/src/gen_eval/service_descriptor.py:229 \u2014 `operations_for_element()` compares every surface as `f'{surface}:{element}'`, but HTTP identifiers are deliberately unprefixed. Calling `operations_for_element('http', 'GET /locks/active')` on the fixture returns `[]` even though `list_active_locks` is served by that HTTP element; only MCP/CLI callers using unprefixed element names can succeed.",
+      "disposition": "fix"
+    }
+  ]
+}

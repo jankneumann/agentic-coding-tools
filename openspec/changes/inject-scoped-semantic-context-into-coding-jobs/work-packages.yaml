@@ -1,0 +1,600 @@
+schema_version: 1
+
+feature:
+  id: inject-scoped-semantic-context-into-coding-jobs
+  title: "Inject scoped semantic context into coding jobs"
+  plan_revision: 1
+  created_by: claude-plan-feature
+  created_at: "2026-07-26T00:00:00Z"
+
+# This change introduces no HTTP surface -- the coordinator's is ri-03's and is
+# unchanged. Its canonical contract is the injected-section schema, so the
+# contract file slot carries the two JSON Schemas rather than an OpenAPI
+# document, the same convention ri-08, ri-09, and ri-10 used.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/contracts/schemas/semantic-context-section.schema.json"
+    files:
+      - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/contracts/schemas/semantic-context-section.schema.json"
+      - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/contracts/schemas/semantic-context-hit.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Freeze the injected-section and per-hit provenance contracts"
+    task_type: contracts
+    description: |
+      Tasks 0.1-0.5. Author both JSON Schemas, document the
+      similarity/score and source_revision/indexed_commit render mapping, prove
+      the injected-vs-fallback invariant is unrepresentable, and promote the
+      schemas to the stable openspec/contracts path before any consumer binds
+      to a change-local path.
+    role: contracts-author
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/contracts"
+        - "openspec/contracts/code-search/schemas"
+      keys:
+        - "contract:semantic-context-section-v1"
+        - "contract:semantic-context-hit-v1"
+      ttl_minutes: 60
+      reason: "Freeze the injected-context boundary before consumers bind to it"
+    scope:
+      write_allow:
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/contracts/**"
+        - "openspec/contracts/code-search/schemas/**"
+        - "skills/tests/context-engineering/test_semantic_context_schemas.py"
+        - "skills/tests/context-engineering/test_promoted_semantic_context_contracts.py"
+      read_allow:
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/**"
+        - "openspec/contracts/**"
+        - "agent-coordinator/src/code_search.py"
+        - "skills/project-context-runtime/**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Two published JSON Schemas plus a promoted copy are interface contracts;
+      # the new test modules are source the semantic index embeds; the contracts
+      # README is committed documentation.
+      surfaces:
+        - "apis"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: semantic-context-contracts
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Schemas are valid and reject contradictory states"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/context-engineering/test_semantic_context_schemas.py skills/tests/context-engineering/test_promoted_semantic_context_contracts.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "semantic_context_schemas_valid"
+    metadata:
+      loc_estimate: 220
+      complexity: low
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+    outputs:
+      result_keys:
+        - "semantic_context_schemas_valid"
+      artifacts:
+        - "openspec/contracts/code-search/schemas/semantic-context-section.schema.json"
+        - "openspec/contracts/code-search/schemas/semantic-context-hit.schema.json"
+
+  - package_id: wp-bridge-transport
+    title: "Add the try_code_search bridge helper"
+    task_type: tooling
+    description: |
+      Tasks 1.1-1.4. Add the only place that speaks HTTP to /search/code,
+      obeying the uniform helper envelope: never raise, distinguish every
+      failure cause, and skip the call outright when CAN_CODE_SEARCH is false.
+      Preserve ri-03's decision that MCP-only transport reports no code search.
+    role: python-engineer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/tests/coordination-bridge/test_try_code_search.py"
+      keys:
+        - "feature:inject-scoped-semantic-context:transport"
+        - "api:POST /search/code"
+      ttl_minutes: 90
+      reason: "Own the client side of the semantic query boundary"
+    scope:
+      write_allow:
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/tests/coordination-bridge/test_try_code_search.py"
+      read_allow:
+        - "skills/coordination-bridge/**"
+        - "agent-coordinator/src/code_search.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/**"
+        - "openspec/contracts/code-search/**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "**/.venv/**"
+    context_impact:
+      # A new public bridge helper is an interface surface; the edited module and
+      # new test are source the semantic index embeds.
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: semantic-context-transport
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Bridge helper suite and existing bridge suites pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/coordination-bridge/test_try_code_search.py skills/coordination-bridge/scripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "bridge_code_search_tests_pass"
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      contract_package: wp-contracts
+    outputs:
+      result_keys:
+        - "bridge_code_search_tests_pass"
+      artifacts:
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+
+  - package_id: wp-retrieval
+    title: "Build the scoped, deterministic retrieval helper"
+    task_type: backend
+    description: |
+      Tasks 2.1-2.10. Resolve the worktree revision, derive the explicit scope
+      from ri-08 index_scopes, select namespace and index from the ri-09
+      checkpoint record, deduplicate and budget deterministically, re-check
+      scope locally, and map every service state onto one of the four fallback
+      triggers without ever raising.
+    role: python-engineer
+    archetype: implementer
+    priority: 3
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/context-engineering/scripts/__init__.py"
+        - "skills/context-engineering/scripts/semantic_context.py"
+        - "skills/tests/context-engineering/test_semantic_context_determinism.py"
+        - "skills/tests/context-engineering/test_semantic_context_budget.py"
+      keys:
+        - "feature:inject-scoped-semantic-context:retrieval"
+        - "contract:semantic-context-section-v1"
+      ttl_minutes: 120
+      reason: "Own scope derivation, dedup, and budget determinism"
+    scope:
+      write_allow:
+        - "skills/context-engineering/scripts/__init__.py"
+        - "skills/context-engineering/scripts/semantic_context.py"
+        - "skills/tests/context-engineering/test_semantic_context_determinism.py"
+        - "skills/tests/context-engineering/test_semantic_context_budget.py"
+      read_allow:
+        - "skills/context-engineering/**"
+        - "skills/coordination-bridge/**"
+        - "skills/validate-packages/scripts/context_impact.py"
+        - "skills/project-context-refresh/scripts/semantic_adapter.py"
+        - "skills/project-context-refresh/scripts/checkpoint.py"
+        - "skills/project-context-runtime/**"
+        - "agent-coordinator/src/code_search.py"
+        - "agent-coordinator/src/code_search_authorization.py"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/**"
+        - "openspec/contracts/code-search/**"
+      deny:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "**/.venv/**"
+    context_impact:
+      # A new shared helper module with an importable public API is an interface
+      # surface; the module and its tests are source the semantic index embeds.
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: semantic-context-retrieval
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Determinism and budget suites pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/context-engineering/test_semantic_context_determinism.py skills/tests/context-engineering/test_semantic_context_budget.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "retrieval_determinism_tests_pass"
+    metadata:
+      loc_estimate: 520
+      complexity: high
+      package_kind: algorithm
+    inputs:
+      contract_revision: 1
+      contract_package: wp-contracts
+    outputs:
+      result_keys:
+        - "retrieval_determinism_tests_pass"
+      artifacts:
+        - "skills/context-engineering/scripts/semantic_context.py"
+
+  - package_id: wp-renderer
+    title: "Render the Semantic code context section"
+    task_type: tooling
+    description: |
+      Tasks 3.1-3.5. Emit the injected section with full per-hit provenance,
+      the fallback variant with trigger and suggested exact-search command, and
+      nothing at all when injection is disabled so a flag-off run is
+      byte-identical to today. Built against the frozen schema, so it runs in
+      parallel with wp-retrieval.
+    role: python-engineer
+    archetype: implementer
+    priority: 3
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/context-engineering/scripts/render_semantic_context.py"
+        - "skills/tests/context-engineering/test_render_semantic_context.py"
+      keys:
+        - "feature:inject-scoped-semantic-context:render"
+      ttl_minutes: 90
+      reason: "Own the rendered section format and its golden text"
+    scope:
+      write_allow:
+        - "skills/context-engineering/scripts/render_semantic_context.py"
+        - "skills/tests/context-engineering/test_render_semantic_context.py"
+      read_allow:
+        - "skills/context-engineering/**"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/**"
+        - "openspec/contracts/code-search/**"
+      deny:
+        - "skills/context-engineering/scripts/semantic_context.py"
+        - "**/.venv/**"
+    context_impact:
+      # A new renderer module and its test are source the semantic index embeds.
+      # The rendered format is fixed by the already-published schema, so this
+      # package adds no new interface surface of its own.
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: semantic-context-renderer
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Renderer golden-text suite passes"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/context-engineering/test_render_semantic_context.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "renderer_tests_pass"
+    metadata:
+      loc_estimate: 240
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      contract_package: wp-contracts
+    outputs:
+      result_keys:
+        - "renderer_tests_pass"
+      artifacts:
+        - "skills/context-engineering/scripts/render_semantic_context.py"
+
+  - package_id: wp-fallback-tests
+    title: "Prove all four fallback triggers never block the job"
+    task_type: testing
+    description: |
+      Tasks 5.1-5.5. One suite per trigger asserting the exact trigger and
+      reason, that the emitted section names exact search, and that the helper
+      returned rather than raised. Plus the unknown-state case, which must map
+      to unavailable rather than to injection.
+    role: qa-engineer
+    archetype: implementer
+    priority: 4
+    depends_on:
+      - wp-retrieval
+      - wp-bridge-transport
+    locks:
+      files:
+        - "skills/tests/context-engineering/test_fallback_stale.py"
+        - "skills/tests/context-engineering/test_fallback_unavailable.py"
+        - "skills/tests/context-engineering/test_fallback_mismatched.py"
+        - "skills/tests/context-engineering/test_fallback_out_of_scope.py"
+        - "skills/tests/context-engineering/test_fallback_never_blocks.py"
+      keys:
+        - "feature:inject-scoped-semantic-context:fallback"
+      ttl_minutes: 120
+      reason: "Own the fail-closed proof matrix"
+    scope:
+      write_allow:
+        - "skills/tests/context-engineering/test_fallback_stale.py"
+        - "skills/tests/context-engineering/test_fallback_unavailable.py"
+        - "skills/tests/context-engineering/test_fallback_mismatched.py"
+        - "skills/tests/context-engineering/test_fallback_out_of_scope.py"
+        - "skills/tests/context-engineering/test_fallback_never_blocks.py"
+      read_allow:
+        - "skills/context-engineering/**"
+        - "skills/coordination-bridge/**"
+        - "skills/tests/**"
+        - "agent-coordinator/src/code_search.py"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/**"
+      deny:
+        - "skills/context-engineering/scripts/**"
+        - "**/.venv/**"
+    context_impact:
+      # Five new test modules; source the semantic index embeds. No interface or
+      # documentation surface changes.
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: semantic-context-fallback-tests
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "All four fallback trigger suites pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/context-engineering/test_fallback_stale.py skills/tests/context-engineering/test_fallback_unavailable.py skills/tests/context-engineering/test_fallback_mismatched.py skills/tests/context-engineering/test_fallback_out_of_scope.py skills/tests/context-engineering/test_fallback_never_blocks.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "fallback_matrix_tests_pass"
+    metadata:
+      loc_estimate: 380
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      retrieval_package: wp-retrieval
+      transport_package: wp-bridge-transport
+    outputs:
+      result_keys:
+        - "fallback_matrix_tests_pass"
+      artifacts:
+        - "skills/tests/context-engineering/test_fallback_never_blocks.py"
+
+  - package_id: wp-consumers
+    title: "Teach the six coding jobs to request the section"
+    task_type: docs
+    description: |
+      Tasks 4.1-4.5. Document the retrieval protocol once in
+      context-engineering, then add one short delegating block per consumer
+      skill with a distinct consumer identifier. No consumer restates the
+      algorithm.
+    role: technical-writer
+    archetype: implementer
+    priority: 4
+    depends_on:
+      - wp-retrieval
+      - wp-renderer
+    locks:
+      files:
+        - "skills/context-engineering/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/quick-task/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/debugging-and-error-recovery/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/parallel-review-implementation/SKILL.md"
+        - "skills/tests/context-engineering/test_consumer_protocol_blocks.py"
+      keys:
+        - "feature:inject-scoped-semantic-context:consumers"
+      ttl_minutes: 120
+      reason: "Own the single shared protocol and its six call sites"
+    scope:
+      write_allow:
+        - "skills/context-engineering/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/quick-task/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/debugging-and-error-recovery/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/parallel-review-implementation/SKILL.md"
+        - "skills/tests/context-engineering/test_consumer_protocol_blocks.py"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/**"
+      deny:
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+        - "skills/context-engineering/scripts/**"
+        - "**/.venv/**"
+    context_impact:
+      # Seven committed SKILL.md files are documentation; the new test module is
+      # source the semantic index embeds.
+      surfaces:
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: semantic-context-consumers
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Every consumer declares a distinct id and delegates"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/context-engineering/test_consumer_protocol_blocks.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "consumer_protocol_tests_pass"
+    metadata:
+      loc_estimate: 320
+      complexity: medium
+      package_kind: config
+    inputs:
+      contract_revision: 1
+      retrieval_package: wp-retrieval
+      renderer_package: wp-renderer
+    outputs:
+      result_keys:
+        - "consumer_protocol_tests_pass"
+      artifacts:
+        - "skills/context-engineering/SKILL.md"
+
+  - package_id: wp-integration
+    title: "Prove the flag-off invariant and reconcile the change"
+    task_type: integration
+    description: |
+      Tasks 6.1-6.6. Run every ri-12 suite plus the pre-existing bridge suites,
+      prove that with injection disabled an assembled context block is
+      byte-identical to the pre-change output, publish the operator guide, sync
+      the runtime skill mirrors, and validate the change strictly.
+    role: integration-engineer
+    archetype: implementer
+    priority: 6
+    depends_on:
+      - wp-consumers
+      - wp-fallback-tests
+    locks:
+      files:
+        - "docs/guides/semantic-context-injection.md"
+        - "docs/guides/code-search.md"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/tasks.md"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/session-log.md"
+        - "skills/tests/context-engineering/test_injection_disabled_invariant.py"
+      keys:
+        - "feature:inject-scoped-semantic-context:integration"
+      ttl_minutes: 120
+      reason: "Reconcile all packages and record end-to-end evidence"
+    scope:
+      write_allow:
+        - "docs/guides/semantic-context-injection.md"
+        - "docs/guides/code-search.md"
+        - "skills/tests/context-engineering/test_injection_disabled_invariant.py"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/tasks.md"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/session-log.md"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/reviews/**"
+        - "openspec/changes/inject-scoped-semantic-context-into-coding-jobs/review-findings-implementation.json"
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      # Integration sees the union of every package's diff: two published
+      # schemas, a new operator guide plus an edited one, and every source and
+      # test module the other packages added.
+      surfaces:
+        - "apis"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: semantic-context-integration
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Full ri-12 suite plus pre-existing bridge suites pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/context-engineering skills/tests/coordination-bridge skills/coordination-bridge/scripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "ri12_suites_pass"
+        - name: "Disabled injection leaves assembled context byte-identical"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/context-engineering/test_injection_disabled_invariant.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "flag_off_invariant_holds"
+        - name: "Work packages validate against their schema"
+          kind: command
+          command: "python3 skills/validate-packages/scripts/validate_work_packages.py openspec/changes/inject-scoped-semantic-context-into-coding-jobs/work-packages.yaml"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "work_packages_valid"
+        - name: "Strict OpenSpec validation passes"
+          kind: command
+          command: "openspec validate inject-scoped-semantic-context-into-coding-jobs --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_strict_pass"
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contract_revision: 1
+      consumers_package: wp-consumers
+      fallback_package: wp-fallback-tests
+    outputs:
+      result_keys:
+        - "ri12_suites_pass"
+        - "flag_off_invariant_holds"
+        - "work_packages_valid"
+        - "openspec_strict_pass"
+      artifacts:
+        - "docs/guides/semantic-context-injection.md"

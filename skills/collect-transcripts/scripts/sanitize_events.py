@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 # Import the session-log sanitizer
 _SESSION_LOG_DIR = Path(__file__).resolve().parent.parent.parent / "session-log" / "scripts"

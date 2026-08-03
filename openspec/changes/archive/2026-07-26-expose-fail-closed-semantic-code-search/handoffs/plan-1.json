@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-24T01:31:43.685915+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Planned a strict v2 semantic-query boundary over RI02 immutable indexes. Independent review tightened non-main selection, principal-bound scope authorization, dynamic readiness, dependency packaging, contract truth tables, and observability before implementation.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Exact immutable selection",
+        "rationale": "Main uses the guarded canonical pointer; non-main requests require exact index_id and full identity validation.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Principal-bound scope ceiling",
+        "rationale": "Caller filters only narrow server-owned repository and namespace grants; unresolved work-package provenance fails closed.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Loop-owned dynamic runtime",
+        "rationale": "HTTP and direct MCP own separate bounded runtimes with TTL, backoff, invalidation, and shutdown cancellation.",
+        "capability": "code-search",
+        "supersedes": null
+      },
+      {
+        "title": "Declared query package dependency",
+        "rationale": "Coordinator local and production installs use one supported code-search-pkg and asyncpg boundary instead of Docker-only source copying.",
+        "capability": "code-search",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement contract tests first, then the shared package/query boundary.",
+      "Keep external Postgres and provider tests resource-gated but preserve explicit degraded evidence."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/expose-fail-closed-semantic-code-search/proposal.md",
+        "description": "Reviewed direction"
+      },
+      {
+        "path": "openspec/changes/expose-fail-closed-semantic-code-search/design.md",
+        "description": "Implementation decisions"
+      },
+      {
+        "path": "openspec/changes/expose-fail-closed-semantic-code-search/contracts/openapi/v2.yaml",
+        "description": "Normative wire contract"
+      },
+      {
+        "path": "openspec/changes/expose-fail-closed-semantic-code-search/work-packages.yaml",
+        "description": "Validated execution DAG"
+      }
+    ]
+  }
+}

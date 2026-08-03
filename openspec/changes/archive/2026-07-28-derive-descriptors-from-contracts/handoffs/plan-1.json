@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-07-25T16:48:50.228821+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned contract-derived gen-eval descriptors. Root cause across three defects is that gen-eval has no notion of an operation: surface-local interface strings, hand-authored, with no link to the contract. Selected the contract-as-source model with generated, drift-guarded descriptors and reverse subset verifiers. Tier: coordinated; 6 work packages.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Contract is the source; introspection is the verifier",
+        "rationale": "Direction is the whole design. If introspection populates the declared set, a broken or unreachable surface yields an empty set and unevaluated_interfaces == [] reports full coverage. PR #277 hit that class three times (UP-1 broken console script, UP-3 zero-scenario run, UP-4 health check that had to succeed). This INVERTS the existing normative statement in Requirement: Interface Descriptor, which currently mandates auto-discovery from tools/list and --help.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Every drift guard fails closed",
+        "rationale": "A byte-diff alone is satisfied by 'empty == empty' \u2014 both files can rot to nothing together and stay green. Guards assert non-emptiness and an operation-count match against the contract before diffing.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Coverage keyed on operation x surface, with exposure first-class",
+        "rationale": "The coordinator's 38 HTTP / 39 MCP / 37 CLI counts prove surfaces are genuinely partial, so 'not exposed on surface X' must be first-class or every derived descriptor carries permanent false gaps. Also fixes one operation tested once counting as two remaining gaps.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Tool contracts get their own schema rather than reusing OpenAPI",
+        "rationale": "OpenAPI cannot express exit codes, and a tool's flags are process configuration rather than operation parameters. Forcing --fail-threshold into an OpenAPI operation would be the same category error UP-4 corrected in the lifecycle.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Start with wp-contracts - it is the DAG root and every other package validates against cli-contract.schema.json.",
+      "wp-tool-descriptor and wp-service-descriptor then run in parallel on disjoint write scopes (descriptor.py vs service_descriptor.py).",
+      "Acceptance signal for wp-integration: `make dogfood` must stop reporting '0 interfaces'."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/proposal.md",
+        "description": "approved proposal, Approach 1 selected at Gate 1"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/design.md",
+        "description": "decisions D1-D8"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/DOWNSTREAM.md",
+        "description": "notice to ACA ri-06; DS-1 is actionable immediately"
+      },
+      {
+        "path": "openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json",
+        "description": "tool contract schema (D5)"
+      }
+    ]
+  }
+}

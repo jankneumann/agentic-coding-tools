@@ -14,8 +14,7 @@ import argparse
 import json
 import logging
 import sys
-from collections import defaultdict, deque
-from datetime import datetime, timezone
+from collections import defaultdict
 from pathlib import Path
 
 logger = logging.getLogger(__name__)

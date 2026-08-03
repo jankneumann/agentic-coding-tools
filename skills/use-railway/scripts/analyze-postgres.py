@@ -25,7 +25,7 @@ import os
 import re
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -33,10 +33,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import dal
 from dal import (
     LOG_LINES_DEFAULT,
-    ProgressTimer,
     RailwayContext,
-    _analyze_window,
-    _build_metrics_history,
     _init_context,
     _trend_indicator,
     get_all_metrics_from_api,
@@ -44,7 +41,6 @@ from dal import (
     get_railway_status,
     get_recent_logs,
     progress,
-    run_psql_query,
     run_railway_command,
     run_ssh_query,
 )
@@ -2203,14 +2199,14 @@ def generate_recommendations(result: AnalysisResult) -> List[Dict[str, str]]:
                 "priority": "immediate",
                 "issue": f"Invalid index '{idx.get('index')}' on {idx.get('schema')}.{idx.get('table')}",
                 "action": "Drop and recreate the index",
-                "explanation": f"This index is marked as invalid - PostgreSQL will NOT use it for queries. "
-                               f"CAUSE: Usually a CREATE INDEX CONCURRENTLY that failed partway through (e.g., due to constraint violation, "
-                               f"out of disk space, or duplicate key). "
-                               f"WHY THIS MATTERS: The index takes up disk space and slows writes, but provides zero query benefit. "
-                               f"FIX: Drop it and recreate. Use CONCURRENTLY to avoid locking the table.",
+                "explanation": "This index is marked as invalid - PostgreSQL will NOT use it for queries. "
+                               "CAUSE: Usually a CREATE INDEX CONCURRENTLY that failed partway through (e.g., due to constraint violation, "
+                               "out of disk space, or duplicate key). "
+                               "WHY THIS MATTERS: The index takes up disk space and slows writes, but provides zero query benefit. "
+                               "FIX: Drop it and recreate. Use CONCURRENTLY to avoid locking the table.",
                 "commands": [
                     f"DROP INDEX CONCURRENTLY IF EXISTS \"{idx.get('index')}\";",
-                    f"-- Then recreate with: CREATE INDEX CONCURRENTLY ...",
+                    "-- Then recreate with: CREATE INDEX CONCURRENTLY ...",
                 ],
             })
 
@@ -2237,8 +2233,8 @@ def generate_recommendations(result: AnalysisResult) -> List[Dict[str, str]]:
                 "issue": f"Backend processes forced {bg['buffers_backend_fsync']:,} fsync operations",
                 "action": "Increase shared_buffers to reduce dirty buffer pressure",
                 "explanation": "Normally, the background writer or checkpointer flushes dirty buffers to disk. "
-                               f"When shared_buffers is too small, backends must flush dirty buffers themselves "
-                               f"(buffers_backend_fsync > 0). This forces query processes to do I/O, causing latency spikes.",
+                               "When shared_buffers is too small, backends must flush dirty buffers themselves "
+                               "(buffers_backend_fsync > 0). This forces query processes to do I/O, causing latency spikes.",
             })
 
         # Check if most checkpoints are requested (not timed)
@@ -2934,9 +2930,9 @@ def format_report(result: AnalysisResult) -> str:
             if rec.get("commands"):
                 lines.append("   **Commands:**")
                 for cmd in rec["commands"]:
-                    lines.append(f"   ```sql")
+                    lines.append("   ```sql")
                     lines.append(f"   {cmd}")
-                    lines.append(f"   ```")
+                    lines.append("   ```")
 
             # Note if restart is required
             if rec.get("restart_required"):

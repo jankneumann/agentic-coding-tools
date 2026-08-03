@@ -1,0 +1,241 @@
+# Contracted flags whose behaviour a dogfood scenario can actually assert.
+#
+# D11 asks that every contracted coverage unit be exercised or excluded with a
+# reason. Exercising here means asserting an observable consequence, not merely
+# passing the flag and watching the process survive — a flag that is only
+# parsed contributes a number to the coverage percentage and no evidence, which
+# is the laundering D11 exists to stop.
+#
+# The operational test of that standard: remove the flag under test from a
+# scenario's args and the scenario must FAIL. Three of the five here once
+# passed either way, asserting output the default run produced too. They were
+# rewritten, and evaluation/README.md records how to re-run the check.
+#
+# Flags whose behaviour needs a live generator CLI, an SDK budget, a git
+# working tree or a multi-minute run are excluded instead, with their reasons
+# recorded in evaluation/coverage-exclusions.yaml.
+#
+# Paths are relative to packages/gen-eval, which is the dogfood runner's
+# working directory.
+
+- id: cli-verbose-announces-the-declared-surface
+  name: --verbose reports the descriptor's interface count
+  description: >
+    The verbose path prints "descriptor loaded — N services, M interfaces",
+    which is the only place a run states the size of the declared surface it
+    is about to measure. It is also the line that read "0 interfaces" for
+    every gen-eval dogfood run before the descriptor was derived from a
+    contract, so a regression to an empty surface is visible here.
+
+    Asserted on the inner fixture rather than gen-eval's own descriptor: the
+    fixture's count is stable, whereas the real one moves whenever a flag is
+    contracted.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--verbose"]
+  tags: [flags, d11, verbose]
+  steps:
+    - id: verbose-run
+      transport: cli
+      args:
+        - "--verbose"
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/flag-verbose"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        # Exit 1 is the zero-scenario guard, as in self-run.yaml.
+        exit_code: 1
+        error_contains: "descriptor loaded"
+      timeout_seconds: 60
+
+- id: cli-min-coverage-rejects-a-rate
+  name: --min-coverage rejects a value that is a rate, not a percent
+  description: >
+    --fail-threshold is a rate in [0, 1] and --min-coverage is a percent in
+    [0, 100], so 0.8 reads differently in each. Read as a percent it is a 0.8%
+    floor that every non-empty run clears, so the gate passes silently and a
+    green build looks like an enforced coverage floor.
+
+    This asserts the flag's validation rather than its threshold arithmetic,
+    because the failure being pinned is a usage error: the run must refuse the
+    value rather than accept a meaning the operator did not intend.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--min-coverage"]
+  tags: [flags, d11, d10, usage-errors]
+  steps:
+    - id: rate-shaped-min-coverage
+      transport: cli
+      args:
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--min-coverage"
+        - "0.8"
+      expect:
+        # argparse's own usage exit; the EX_USAGE=64 override is scoped to
+        # --openspec-change (see cli-entrypoint.yaml).
+        exit_code: 2
+        error_contains: "not a rate"
+      timeout_seconds: 60
+
+- id: cli-report-format-json-writes-only-json
+  name: --report-format json suppresses the markdown report
+  description: >
+    The default is `both`, so a scenario that does not pass this flag cannot
+    tell the formats apart. Asserting the *absence* of the markdown report is
+    what makes this an exercise of the flag rather than of the report writer:
+    under the default the same run emits both files.
+
+    The absence is what discriminates. Under --verbose the default run prints a
+    "report written to ..." line per artifact, including gen-eval-report.md;
+    with --report-format json that line is gone. Asserting only the presence of
+    gen-eval-report.json — as this scenario originally did — passes identically
+    with the flag omitted, crediting a coverage unit that was never exercised.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--report-format"]
+  tags: [flags, d11, reports]
+  steps:
+    - id: json-only-run
+      transport: cli
+      args:
+        - "--verbose"
+        - "--report-format"
+        - "json"
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/flag-report-format"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        exit_code: 1
+        error_contains: "gen-eval-report.json"
+        # The load-bearing assertion. Drop it and the scenario passes with
+        # --report-format removed entirely.
+        error_excludes: "gen-eval-report.md"
+      timeout_seconds: 60
+
+- id: cli-mode-rejects-an-unknown-value
+  name: --mode rejects a value outside the declared enum
+  description: >
+    `template-only` is the DEFAULT mode, so passing it explicitly and asserting
+    "mode=template-only" is not an exercise of the flag — the identical line is
+    printed when --mode is omitted. That was this scenario's original form and
+    it credited a coverage unit for nothing.
+
+    There is no positive assertion available: the other two modes need a
+    generator CLI or SDK credentials the dogfood run does not have, and they
+    are excluded for that reason. What the flag can be held to is that its enum
+    is closed. An unknown value must be refused rather than silently falling
+    back to the default, which is the failure that would make every
+    --mode-bearing invocation in this suite meaningless.
+
+    This mirrors cli-min-coverage-rejects-a-rate: the observable consequence is
+    a usage rejection, and it is unreachable with the flag omitted.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--mode"]
+  tags: [flags, d11, modes, usage-errors]
+  steps:
+    - id: unknown-mode-run
+      transport: cli
+      args:
+        - "--mode"
+        - "not-a-mode"
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+      expect:
+        # argparse's own usage exit, as in cli-min-coverage-rejects-a-rate.
+        exit_code: 2
+        error_contains: "argument --mode: invalid choice"
+        # Proves the run was refused at parse time rather than falling through
+        # to a default-mode run that happens to fail for its own reasons.
+        error_excludes: "descriptor loaded"
+      timeout_seconds: 60
+
+- id: cli-no-services-skips-startup
+  name: --no-services skips a startup command that would otherwise fail
+  description: >
+    The flag's whole job is to skip the startup command. Asserting that against
+    no-scenarios-descriptor.yaml — which has no startup block at all — cannot
+    work: a run that skips startup and a run with no startup to skip emit the
+    same output, so the assertion held with the flag omitted. That was this
+    scenario's original form.
+
+    failing-startup-descriptor.yaml supplies a startup command (`false`) that
+    always fails and a health check that always passes. Without the flag the run
+    dies in _run_startup; with it, startup is skipped and the run reaches the
+    zero-scenario guard. Both exit 1, so the exit code alone proves nothing —
+    the two assertions below are what separate them.
+
+    The health check is deliberately made to pass: --no-services skips the
+    startup command and the teardown but still runs the health check (see
+    orchestrator.run), so a failing one would sink both runs identically.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--no-services"]
+  tags: [flags, d11, lifecycle]
+  steps:
+    - id: no-services-run
+      transport: cli
+      args:
+        - "--verbose"
+        - "--no-services"
+        - "--descriptor"
+        - "evaluation/fixtures/failing-startup-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/flag-no-services"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        exit_code: 1
+        # Reached only if startup was skipped.
+        error_contains: "no scenarios were evaluated"
+        # Raised only if it was not. Without the flag this is what the run
+        # dies on, so its absence is the positive evidence the flag worked.
+        error_excludes: "CalledProcessError"
+      timeout_seconds: 60
+
+- id: cli-output-dir-controls-the-report-location
+  name: --output-dir puts the reports where it was told
+  description: >
+    Round-8/9 finding N1. Every other scenario passes --output-dir to keep its
+    artifacts out of the package root, and that alone was enough for the
+    coverage model to credit `cli:--output-dir` as exercised — delete the flag
+    from all five and the suite stays green. A flag credited because it appeared
+    in an argv is exactly the laundering D11 exists to stop, and it does not
+    stop being that because the flag is incidental rather than under test.
+
+    So one scenario has to earn it. Under --verbose the run prints a "report
+    written to ..." line per artifact, carrying the resolved directory; asserting
+    the non-default path fails the moment the flag stops being honoured or stops
+    being passed.
+
+    Note this cannot be folded into cli-verbose-announces-the-declared-surface:
+    ExpectBlock carries a single error_contains, and that scenario's assertion
+    on the interface count is load-bearing for a different regression.
+  category: flag-surface
+  priority: 2
+  interfaces: ["cli:--output-dir"]
+  tags: [flags, d11, reports]
+  steps:
+    - id: output-dir-run
+      transport: cli
+      args:
+        - "--verbose"
+        - "--descriptor"
+        - "evaluation/fixtures/no-scenarios-descriptor.yaml"
+        - "--output-dir"
+        - "evaluation/.reports/flag-output-dir"
+        - "--fail-threshold"
+        - "0"
+      expect:
+        exit_code: 1
+        # The non-default directory is the assertion. Remove --output-dir and
+        # the reports land in the default location, so this stops matching.
+        error_contains: "flag-output-dir/gen-eval-report.json"
+      timeout_seconds: 60

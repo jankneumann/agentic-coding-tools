@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from generator import emit_playwright_config, emit_test_script
 from parser import (

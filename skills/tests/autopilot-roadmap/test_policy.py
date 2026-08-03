@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 from models import Policy, PolicyAction
-from policy import PolicyDecision, VendorLimit, evaluate_policy
+from policy import VendorLimit, evaluate_policy
 
 
 class TestWaitPolicy:

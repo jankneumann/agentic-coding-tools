@@ -1,0 +1,263 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: packages/gen-eval/tests/test_integration_scenarios.py:45 and packages/gen-eval/tests/test_integration_orchestrator.py:34 still point package integration tests at the old repo-root evaluation/gen_eval/scenarios tree. I ran `cd packages/gen-eval && uv run pytest`; it collected 1059 tests and failed 7: `test_full_template_only_run` reported `report.total_scenarios == 0`, and every scenario-category integration test printed `Scenario directory not found: .../.git-worktrees/derive-descriptors-from-contracts/evaluation/gen_eval/scenarios/<category>`. The package Makefile's `test` target runs `uv run pytest -q -m \"not slow\"`, so it does not exclude these integration tests either. The CI unit command `uv run pytest -v -m \"not e2e and not integration\" --tb=short` passes, but the bare package test command requested for this review is not green.",
+      "resolution": "Either update the integration tests to point at the package-local scenarios that actually exist, restore/provide the repo-root scenario fixtures they expect, or change the package test target/default instructions to exclude integration tests consistently.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/tests/test_integration_scenarios.py",
+      "line_range": {
+        "start": 45,
+        "end": 45
+      }
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "description": "Nit: openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md:215-227 still says descriptor reclamation `SHALL increment the descriptor contract version`, but I ran `cd packages/gen-eval && uv run python -c ...` and observed `CONTRACT_VERSION 2`, `VERSION_file 2`, and all three schemas, including `eval-report.schema.json`, carrying `x-gen-eval-contract-version 2`; `git diff -- packages/gen-eval/src/gen_eval/contracts/__init__.py ...` printed no diff versus the merge base. DOWNSTREAM.md:192-197 correctly says there is no second increment and that reclaiming a Python export is not a breaking JSON Schema change. The OpenSpec requirement is stale and contradicts the implemented state and the round-7 correction.",
+      "resolution": "Update the Descriptor Reclamation requirement/scenario to require a downstream notice and package-level export correction without requiring an additional JSON Schema contract-version bump.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": {
+        "start": 215,
+        "end": 227
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "Archetype-aware descriptor loading is fixed. I ran `cd packages/gen-eval && uv run python -c ...` through `gen_eval.__main__.parse_args(['--descriptor','evaluation/descriptor.yaml'])` and `load_descriptor(args.descriptor)`; it printed `loaded_type ToolDescriptor`, `commands 1 interfaces 17 executable gen-eval`, and the resolved CLI contract path. The negative control `InterfaceDescriptor.from_yaml(args.descriptor)` printed `base_interfaces 0 base_has_commands False`, confirming the runtime path now preserves the derived fields that the base loader drops.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py",
+      "line_range": {
+        "start": 337,
+        "end": 385
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "Operation-denominated `coverage_pct` is fixed. I constructed one `ServiceDescriptor` operation exposed on HTTP, MCP, and CLI, then built an orchestrator report with a single passing verdict for `GET /thing`; the command printed `all_interfaces ['GET /thing', 'mcp:get_thing', 'cli:thing get']`, `coverage_pct 100.0`, `unevaluated_operations []`, and `unevaluated_interfaces ['cli:thing get', 'mcp:get_thing']`. The headline number is now operation-denominated per D4 while still reporting unexercised sibling surfaces.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/orchestrator.py",
+      "line_range": {
+        "start": 391,
+        "end": 406
+      }
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "HTTP fan-in lookup is fixed. I constructed a `ServiceDescriptor` with operation `getThing` exposed as `GET /thing` and ran `operations_for_element`; the command printed `bare_http ['getThing']`, `prefixed_http ['getThing']`, and `mcp ['getThing']`. The public API no longer returns an empty list for HTTP elements.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/service_descriptor.py",
+      "line_range": {
+        "start": 226,
+        "end": 249
+      }
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "OpenAPI `$ref` path items and path-level parameters are fixed. I generated a 3.1 document with `paths./items/{id}.$ref -> #/components/pathItems/ItemPath` and a path-level required `id` parameter, then ran `ServiceDescriptor.from_contract` and `verify_fastapi`; the command printed `operations [('getItem', [{'in': 'path', 'name': 'id', 'required': True, 'schema': {'type': 'string'}}])]`, `mcp_schema {'type': 'object', 'properties': {'id': {'type': 'string'}}, 'required': ['id']}`, `verify_extra []`, and the bad-reference control printed `bad_ref_error ValueError /bad: path item $ref '#/components/pathItems/Missing' resolves to nothing`. This is fail-closed and preserves path-item parameters in the derived input schema.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/openapi.py",
+      "line_range": {
+        "start": 49,
+        "end": 104
+      }
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "The argparse subset gate is no longer tautological. I temporarily inserted `--undeclared-review-probe` into the real `src/gen_eval/__main__.py` parser, then ran `cd packages/gen-eval && uv run pytest tests/test_subset_verifiers.py::TestAgainstGenEvalsOwnContract::test_the_real_parser_declares_nothing_the_contract_omits -q`; it failed with `gen-eval's argparse exposes flags its own CLI contract does not declare: ['cli:--undeclared-review-probe']`. I then restored `__main__.py`, cleared `src`/`tests` `__pycache__`, and `git status --short -- packages/gen-eval/src/gen_eval/__main__.py packages/gen-eval/tests` printed no changes.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/tests/test_subset_verifiers.py",
+      "line_range": {
+        "start": 203,
+        "end": 221
+      }
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "The `--` option terminator is honored. I ran `_cli_identifiers` with `args=['--mode','template-only','--','--descriptor']` against gen-eval's declared surface; it printed `terminator ['cli:--mode']`. `cli:--descriptor` after the terminator was not credited.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/evaluator.py",
+      "line_range": {
+        "start": 575,
+        "end": 584
+      }
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "Short-flag aliasing is fixed for descriptors that declare aliases. gen-eval's own contract printed `short_aliases {}` so `-v` correctly credits nothing there; with a probe `ToolDescriptor` declaring `FlagSpec(name='--verbose', short='-v')`, the command printed `declared {'cli:--verbose'}`, `aliases {'cli:-v': 'cli:--verbose'}`, and `short_v ['cli:--verbose']`.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/evaluator.py",
+      "line_range": {
+        "start": 601,
+        "end": 610
+      }
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "`verify_argparse` now descends into subparsers. I built a real argparse parser with subcommand `run` and undocumented `--force`, plus a descriptor that only contracts the `run` command; `verify_argparse` printed `[('cli', 'cli:run --force')]`.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/verify/surfaces.py",
+      "line_range": {
+        "start": 66,
+        "end": 92
+      }
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "Dogfood threshold reachability is fixed. I ran `cd packages/gen-eval && make dogfood`; it exited 0 after `gen-eval: completed \u2014 13/13 passed (100.0%)`, `gen-eval: PASS (pass rate 100.0% >= 100.0%; coverage 58.8% >= 1.0%)`, and `coverage complete: 10 of 17 units exercised (58.8%), 7 excluded with reasons`. The report probe printed `declared 17 coverage_pct 58.82352941176471` and the seven unevaluated units, matching the exclusions. The spec's 80% text is scoped to service dogfood, while tool dogfood is gated by completeness.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/Makefile",
+      "line_range": {
+        "start": 29,
+        "end": 48
+      }
+    },
+    {
+      "id": 12,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "The runtime contract-version value itself is not bumped by this branch. I ran `cd packages/gen-eval && uv run python -c ...` and observed `CONTRACT_VERSION 2`, `VERSION_file 2`, and `eval-report.schema.json 2`, `interface-descriptor.schema.json 2`, `scenario.schema.json 2`; `git diff -- packages/gen-eval/src/gen_eval/contracts/__init__.py packages/gen-eval/src/gen_eval/contracts/eval-report.schema.json packages/gen-eval/README.md packages/gen-eval/evaluation/scenarios/contract-version.yaml openspec/changes/derive-descriptors-from-contracts/DOWNSTREAM.md` printed no diff versus the merge base for the runtime pins. This matches the round-7 rule that export-name reclamation is not a breaking schema change.",
+      "resolution": "No runtime change required; see finding 2 for stale spec text.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/contracts/__init__.py",
+      "line_range": {
+        "start": 36,
+        "end": 45
+      }
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "`_merge_schemas` fails closed on incompatible shared-property schemas. I generated two OpenAPI operations bound to the same MCP element `shared`, both declaring query parameter `x` but with types `string` and `integer`; `ServiceDescriptor.from_contract(...).mcp_tools()` printed `schema_conflict ValueError mcp:shared: operations bound to this element declare incompatible schemas for 'x' \u2014 {'type': 'string'} vs {'type': 'integer'}`.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/service_descriptor.py",
+      "line_range": {
+        "start": 392,
+        "end": 430
+      }
+    },
+    {
+      "id": 14,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "The `--min-coverage` unit ambiguity is fixed. I ran `cd packages/gen-eval && uv run gen-eval --descriptor evaluation/descriptor.yaml --output-dir evaluation/.reports/mincov-probe --fail-threshold 1.0 --min-coverage 0.8`; it exited 2 before evaluation and argparse printed `argument --min-coverage: 0.8 is a percent, so it means 0.8% ... If you meant 80%, pass 80`.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/__main__.py",
+      "line_range": {
+        "start": 40,
+        "end": 67
+      }
+    },
+    {
+      "id": 15,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "The new gates are empirically fail-capable. For the drift guard, I temporarily changed `evaluation/descriptor.yaml` from `project: gen-eval` to `project: gen-eval-review-drift` and ran `uv run python scripts/generate_tool_descriptor.py --check`; it exited 1 and printed `drift: .../evaluation/descriptor.yaml` plus a unified diff. For completeness, I fed temp reports/exclusions to `scripts/check_coverage_completeness.py`; it exited 1 for unexplained unevaluated units, blank reasons, stale exclusions, and zero declared surface, and exited 0 only for a matching non-blank exclusion. I restored the descriptor and `git status --short -- packages/gen-eval/evaluation/descriptor.yaml` printed no changes.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/scripts/check_coverage_completeness.py",
+      "line_range": {
+        "start": 67,
+        "end": 129
+      }
+    },
+    {
+      "id": 16,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "The deprecation-warning path is correctly scoped. I loaded a temp base descriptor with no `contract:` and a temp contract-backed tool descriptor through `load_descriptor`; the command printed `no_contract InterfaceDescriptor warnings [('DeprecationWarning', '<path> declares no `contract:`...')]` and `with_contract ToolDescriptor warnings []`.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py",
+      "line_range": {
+        "start": 371,
+        "end": 385
+      }
+    }
+  ]
+}

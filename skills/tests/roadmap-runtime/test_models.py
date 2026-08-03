@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 import yaml
@@ -21,7 +20,6 @@ from models import (
     PolicyAction,
     Roadmap,
     RoadmapItem,
-    RoadmapStatus,
     load_roadmap,
     save_roadmap,
 )
