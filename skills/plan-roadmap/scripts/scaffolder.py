@@ -35,6 +35,40 @@ def _derive_change_id(item: RoadmapItem) -> str:
     return _slugify(item.title)
 
 
+#: A change-id becomes a single directory name under ``openspec/changes/``.
+#: Dots are allowed because real change-ids use them (``adopt-opsx-1.0-workflow``),
+#: but a leading dot is not, and ``..`` is rejected separately below.
+_CHANGE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+
+
+def validate_change_id(change_id: str) -> str | None:
+    """Check that ``change_id`` is safe to use as a single path component.
+
+    Derived ids are always safe — ``_slugify`` strips everything outside
+    ``[a-z0-9-]``. Explicit ids are not: ``change_id`` is an optional field in
+    ``roadmap.yaml``, so its value can come from a hand edit or from a model,
+    and it flows unmodified into ``repo_root / "openspec" / "changes" / id``.
+    A value like ``../../../escaped`` writes outside the repository entirely.
+
+    Args:
+        change_id: The candidate id.
+
+    Returns:
+        An error message, or ``None`` when the id is safe.
+    """
+    if not change_id:
+        return "change_id is empty — it must be a non-empty directory name."
+    if ".." in change_id:
+        return f"change_id {change_id!r} contains '..' — it must not traverse directories."
+    if not _CHANGE_ID_RE.match(change_id):
+        return (
+            f"change_id {change_id!r} is not a safe directory name — it must start "
+            f"with a lowercase letter or digit and contain only lowercase letters, "
+            f"digits, '.', '_' and '-'."
+        )
+    return None
+
+
 def _write_proposal(item: RoadmapItem, roadmap_id: str, change_dir: Path) -> None:
     """Write a proposal.md for the given item."""
     outcomes_md = "\n".join(f"- {o}" for o in item.acceptance_outcomes) if item.acceptance_outcomes else "- TBD"
@@ -178,6 +212,12 @@ def scaffold_change(roadmap: Roadmap, repo_root: Path, item_id: str) -> Path:
         )
 
     change_id = item.change_id or _derive_change_id(item)
+    # Explicit ids come from roadmap.yaml and are never passed through
+    # _slugify, so they must be checked before touching the filesystem.
+    id_error = validate_change_id(change_id)
+    if id_error:
+        raise ValueError(f"Item {item_id!r}: {id_error}")
+
     # Update the item's change_id so it's tracked
     item.change_id = change_id
 

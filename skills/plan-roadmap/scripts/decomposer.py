@@ -36,6 +36,10 @@ from models import (  # type: ignore[import-untyped]
     validate_against_schema,
 )
 
+# change_id safety is defined next to the derivation that produces it, so the
+# validator and the scaffolder can never disagree about what is a legal id.
+from scaffolder import validate_change_id  # noqa: E402
+
 # Heading pattern: captures level (number of #) and text
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
 
@@ -124,11 +128,17 @@ def validate_roadmap(data: dict, repo_root: Path) -> list[str]:
     for item_id in sorted(dupes):
         errors.append(f"Duplicate item_id {item_id!r} — every item_id must be unique.")
 
-    # 3. change_id uniqueness (only among items that declare one — presence is
-    #    optional so pre-existing roadmaps without the field stay valid).
+    # 3. change_id safety and uniqueness (only among items that declare one —
+    #    presence is optional so pre-existing roadmaps without the field stay
+    #    valid). Safety is checked here so a malformed id is rejected at
+    #    validation time rather than when it reaches the filesystem.
     change_seen: dict[str, str] = {}
     for item in roadmap.items:
         if not item.change_id:
+            continue
+        id_error = validate_change_id(item.change_id)
+        if id_error:
+            errors.append(f"Item {item.item_id!r}: {id_error}")
             continue
         if item.change_id in change_seen:
             errors.append(
