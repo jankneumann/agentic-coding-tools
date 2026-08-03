@@ -1,0 +1,578 @@
+schema_version: 1
+
+feature:
+  id: derive-descriptors-from-contracts
+  title: "Contract-derived gen-eval descriptors"
+  plan_revision: 1
+  created_by: claude-plan-feature
+  created_at: "2026-07-25T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/derive-descriptors-from-contracts/contracts/README.md"
+    files:
+      - "openspec/changes/derive-descriptors-from-contracts/contracts/README.md"
+      - "openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ---------------------------------------------------------------- contracts
+  - package_id: wp-contracts
+    title: "CLI contract schema plus gen-eval's own CLI contract"
+    task_type: implementation
+    description: |
+      Tasks 1.1, 1.2, 1.7, 1.8, 1.9, 1.10. Finalize
+      contracts/cli-contract.schema.json, author gen-eval's CLI contract under
+      openspec/contracts/gen-eval-framework/cli/, promote the SCHEMA to
+      openspec/contracts/gen-eval-framework/schemas/ while the change is still
+      in flight, document the new <capability>/cli/ sub-path in
+      openspec/contracts/README.md, and author the OpenAPI service-contract
+      fixture Phase 2 derives from.
+
+      Schema vs instance: schemas/ holds cli-contract.schema.json; cli/ holds
+      the contract instances validated against it. Conflating the two was a
+      plan-review finding.
+
+      Root of the DAG: every other package derives from or
+      validates against this schema, so its shape must settle before parallel
+      work starts.
+    role: python-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json"
+      keys:
+        - "contract:gen-eval-framework:cli"
+      ttl_minutes: 120
+      reason: "CLI contract schema is the coordination boundary for all other packages"
+    scope:
+      write_allow:
+        - "openspec/changes/derive-descriptors-from-contracts/contracts/**"
+        - "openspec/contracts/gen-eval-framework/cli/**"
+        - "openspec/contracts/gen-eval-framework/schemas/**"
+        - "openspec/contracts/README.md"
+        # Task 1.1 writes schema-validation tests. Without this the package owns
+        # a task it cannot perform: `deny: packages/gen-eval/src/**` correctly
+        # keeps it out of source, but tests are not source and it needs one file.
+        - "packages/gen-eval/tests/test_cli_contract_schema.py"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/gen-eval/src/**"
+    worktree:
+      name: ddfc-contracts
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "CLI contract schema is valid JSON Schema"
+          kind: command
+          command: "uv run --project packages/gen-eval python -c \"import json,jsonschema,pathlib; jsonschema.Draft202012Validator.check_schema(json.loads(pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json').read_text()))\""
+          evidence:
+            artifacts: []
+            result_keys: ["cli_contract_schema_valid"]
+        - name: "Schema-validation tests exist and pass (task 1.1)"
+          kind: command
+          command: "uv run pytest tests/test_cli_contract_schema.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["cli_contract_schema_tests"]
+        # Asserts a non-zero file count BEFORE validating. The previous form was a
+        # list comprehension over glob(), which exits 0 having validated nothing
+        # when task 1.7 is skipped, the file lands as .yml, or it goes to another
+        # capability path — a gate that cannot fail is decoration, and vacuous
+        # green on an empty set is the exact defect this change exists to remove.
+        - name: "gen-eval CLI contract exists and validates against the schema"
+          kind: command
+          command: "uv run --project packages/gen-eval python -c \"import json,yaml,jsonschema,pathlib,glob; s=json.loads(pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json').read_text()); f=sorted(glob.glob('openspec/contracts/gen-eval-framework/cli/*.y*ml')); assert f, 'no CLI contract instance found under openspec/contracts/gen-eval-framework/cli/'; [jsonschema.Draft202012Validator(s).validate(yaml.safe_load(pathlib.Path(p).read_text())) for p in f]; print(f'validated {len(f)} contract instance(s)')\""
+          evidence:
+            artifacts: []
+            result_keys: ["gen_eval_cli_contract_valid"]
+        # Compares the promoted copy against the change-local source. Existence
+        # plus a matching $id is not enough: any stale or unrelated schema
+        # carrying that $id would satisfy it, while consumers read the promoted
+        # copy and instances are validated against the local one. The two must
+        # be the same document.
+        - name: "Promoted CLI contract schema is byte-identical to the reviewed source"
+          kind: command
+          command: "uv run --project packages/gen-eval python -c \"import json,pathlib,sys; src=pathlib.Path('openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json'); dst=pathlib.Path('openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json'); sys.exit(f'schema not promoted to {dst} — its \\$id points there and DS-3 directs consumers to it') if not dst.is_file() else None; a=src.read_bytes(); b=dst.read_bytes(); sys.exit('promoted schema differs from the reviewed source') if a!=b else None; d=json.loads(b); sys.exit('promoted \\$id does not match its location') if not d['\\$id'].endswith('/schemas/cli-contract.schema.json') else print('promotion verified: byte-identical')\""
+          evidence:
+            artifacts: []
+            result_keys: ["cli_contract_schema_promoted"]
+        - name: "Contract instances validate against the PROMOTED schema, not only the local copy"
+          kind: command
+          command: "uv run --project packages/gen-eval python -c \"import json,yaml,jsonschema,pathlib,glob,sys; p=pathlib.Path('openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json'); sys.exit('promoted schema missing') if not p.is_file() else None; s=json.loads(p.read_text()); jsonschema.Draft202012Validator.check_schema(s); f=sorted(glob.glob('openspec/contracts/gen-eval-framework/cli/*.y*ml')); sys.exit('no contract instance found') if not f else None; [jsonschema.Draft202012Validator(s).validate(yaml.safe_load(pathlib.Path(x).read_text())) for x in f]; print(f'{len(f)} instance(s) valid against the promoted schema')\""
+          evidence:
+            artifacts: []
+            result_keys: ["instances_valid_against_promoted_schema"]
+    outputs:
+      result_keys:
+        - cli_contract_schema
+        - gen_eval_cli_contract
+      artifacts:
+        - "openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json"
+
+  # ------------------------------------------------------------------- tool
+  - package_id: wp-tool-descriptor
+    title: "Tool descriptor model with its derivation drift guard"
+    task_type: implementation
+    description: |
+      Tasks 1.3-1.6. ToolDescriptor model, generate_tool_descriptor.py with
+      --check, and the three fail-closed assertions (non-empty, count match,
+      byte-identical).
+
+      Each assertion must be proven to FAIL on a deliberately broken fixture.
+      An assertion that only passes on good input is decoration.
+    role: python-engineer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "packages/gen-eval/src/gen_eval/descriptor.py"
+      keys:
+        - "feature:gen-eval-descriptor:tool"
+      ttl_minutes: 120
+      reason: "ToolDescriptor model lives in descriptor.py"
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/gen_eval/descriptor.py"
+        - "packages/gen-eval/scripts/generate_tool_descriptor.py"
+        - "packages/gen-eval/tests/test_tool_descriptor.py"
+        - "packages/gen-eval/tests/test_derivation_drift.py"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/gen-eval/src/gen_eval/evaluator.py"
+        - "packages/gen-eval/src/gen_eval/reports.py"
+    worktree:
+      name: ddfc-tool
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Tool descriptor tests pass"
+          kind: command
+          command: "uv run pytest tests/test_tool_descriptor.py tests/test_derivation_drift.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["tool_descriptor_tests"]
+        - name: "Drift guard fails on a broken fixture"
+          kind: command
+          command: "uv run pytest tests/test_derivation_drift.py -q -k 'empty or count_mismatch'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["drift_guard_fails_closed"]
+    outputs:
+      result_keys:
+        - tool_descriptor_model
+        - tool_descriptor_generator
+      artifacts:
+        - "packages/gen-eval/scripts/generate_tool_descriptor.py"
+
+  # ---------------------------------------------------------------- service
+  - package_id: wp-service-descriptor
+    title: "Service descriptor derivation from OpenAPI"
+    task_type: implementation
+    description: |
+      Tasks 2.1-2.5. ServiceDescriptor model, OpenAPI operation extraction,
+      the OpenAPI-to-MCP projection with its carve-outs (resources and prompts
+      excluded; descriptions copied verbatim because an agent reads them), and
+      generate_service_descriptor.py with --check.
+
+      Runs in parallel with wp-tool-descriptor. Write scopes are disjoint:
+      this package owns service_descriptor.py, that one owns descriptor.py.
+    role: python-engineer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "packages/gen-eval/src/gen_eval/service_descriptor.py"
+      keys:
+        - "feature:gen-eval-descriptor:service"
+      ttl_minutes: 120
+      reason: "Service descriptor derivation surface"
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/gen_eval/service_descriptor.py"
+        - "packages/gen-eval/scripts/generate_service_descriptor.py"
+        - "packages/gen-eval/tests/test_service_descriptor.py"
+        - "packages/gen-eval/tests/test_mcp_projection.py"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/gen-eval/src/gen_eval/descriptor.py"
+        - "packages/gen-eval/src/gen_eval/evaluator.py"
+    worktree:
+      name: ddfc-service
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Service descriptor tests pass"
+          kind: command
+          command: "uv run pytest tests/test_service_descriptor.py tests/test_mcp_projection.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["service_descriptor_tests"]
+        - name: "MCP projection excludes resources and prompts"
+          kind: command
+          command: "uv run pytest tests/test_mcp_projection.py -q -k 'carve_out or resources'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["mcp_projection_carve_outs"]
+    outputs:
+      result_keys:
+        - service_descriptor_model
+        - service_descriptor_generator
+      artifacts:
+        - "packages/gen-eval/scripts/generate_service_descriptor.py"
+
+  # --------------------------------------------------------------- coverage
+  - package_id: wp-coverage-model
+    title: "Operation-keyed coverage model with legacy field compatibility"
+    task_type: implementation
+    description: |
+      Tasks 3.1-3.8. Operation x surface coverage structures in the report
+      model; computing the legacy flat unevaluated_interfaces AND per_interface
+      from the operation model so ACA ri-06's existing assertions keep working;
+      extending _extract_interfaces so tested identifiers share a vocabulary
+      with the derived declared surface; and adding a --min-coverage gate.
+
+      The vocabulary work is not optional polish. _extract_interfaces requires
+      step.command for CLI steps, but gen-eval's 8 dogfood steps use args: with
+      no command, so it yields []. Ship the derived declared surface without it
+      and coverage becomes 0% — today's vacuous pass turns into a guaranteed
+      spec violation, undetected because the CLI has no coverage threshold.
+
+      Depends on wp-service-descriptor for the operation model shape and on
+      wp-tool-descriptor for the tool coverage vocabulary.
+    role: python-engineer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-service-descriptor, wp-tool-descriptor]
+    locks:
+      files:
+        - "packages/gen-eval/src/gen_eval/reports.py"
+        - "packages/gen-eval/src/gen_eval/evaluator.py"
+      keys:
+        - "feature:gen-eval-coverage:model"
+        - "feature:gen-eval-coverage:vocabulary"
+      ttl_minutes: 120
+      reason: "Coverage structures live in reports.py; the tested vocabulary lives in evaluator.py"
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/gen_eval/reports.py"
+        - "packages/gen-eval/src/gen_eval/orchestrator.py"
+        - "packages/gen-eval/src/gen_eval/evaluator.py"
+        - "packages/gen-eval/src/gen_eval/__main__.py"
+        # eval-report.schema.json is GENERATED FROM reports.GenEvalReport, which
+        # this package changes when it adds the operation-keyed coverage
+        # structures. Without write access the package cannot regenerate the
+        # artifact its own edits invalidate, and
+        # test_contract_schemas.py::TestNoDrift would fail downstream with no
+        # package able to fix it.
+        - "packages/gen-eval/src/gen_eval/contracts/eval-report.schema.json"
+        - "packages/gen-eval/tests/test_coverage_model.py"
+        - "packages/gen-eval/tests/test_coverage_vocabulary.py"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/gen-eval/src/gen_eval/descriptor.py"
+    worktree:
+      name: ddfc-coverage
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coverage model tests pass"
+          kind: command
+          command: "uv run pytest tests/test_coverage_model.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["coverage_model_tests"]
+        - name: "Legacy flat fields still emitted (unevaluated_interfaces and per_interface)"
+          kind: command
+          command: "uv run pytest tests/test_coverage_model.py -q -k 'legacy or back_compat or per_interface'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["legacy_field_compat"]
+        - name: "Tested identifiers are non-empty for the real args-only dogfood scenarios"
+          kind: command
+          command: "uv run pytest tests/test_coverage_vocabulary.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["tested_vocabulary_non_empty"]
+        - name: "Coverage threshold fails a below-threshold run independently of pass-rate"
+          kind: command
+          command: "uv run pytest tests/test_coverage_vocabulary.py -q -k 'min_coverage or threshold'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["min_coverage_gate_fails_closed"]
+        # This package changes GenEvalReport, from which eval-report.schema.json
+        # is generated, so regeneration must be proven HERE. No earlier package
+        # touches the report model, so no earlier --check covers these edits.
+        - name: "Published contract artifacts regenerate clean after the report-model change"
+          kind: command
+          # `uv run`, NOT bare python3. gen-eval is src-layout, so an unqualified
+          # interpreter resolves gen_eval from whatever is installed — verified:
+          # agent-coordinator/.venv/lib/python3.12/site-packages/gen_eval/.
+          # The generator imports gen_eval.reports.GenEvalReport, the exact model
+          # THIS package modifies, so a bare-python3 run would regenerate from
+          # the unmodified installed copy, diff clean, and report success while
+          # this package's changes stayed invisible. The gate that exists to
+          # catch "model changed, schema not regenerated" would pass regardless
+          # of whether the model changed.
+          command: "uv run python scripts/generate_contract_schemas.py --check"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["contract_artifacts_regenerate_clean"]
+    outputs:
+      result_keys:
+        - operation_coverage_model
+        - legacy_flat_field
+        - tested_vocabulary
+        - min_coverage_gate
+      artifacts:
+        - "packages/gen-eval/src/gen_eval/reports.py"
+        - "packages/gen-eval/src/gen_eval/evaluator.py"
+
+  # --------------------------------------------------------------- verifiers
+  - package_id: wp-subset-verifiers
+    title: "Implemented-surface subset verifiers for all three surfaces"
+    task_type: implementation
+    description: |
+      Tasks 4.1-4.6. argparse, FastAPI and MCP verifiers, each asserting the
+      implemented surface is a subset of its contract.
+
+      This is the excess-detection half of the chain. Without it,
+      unevaluated_interfaces == [] means "everything declared was tested",
+      never "everything that exists was tested".
+    role: python-engineer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-tool-descriptor, wp-service-descriptor]
+    locks:
+      files:
+        - "packages/gen-eval/src/gen_eval/verify/__init__.py"
+      keys:
+        - "feature:gen-eval-verify:subset"
+      ttl_minutes: 120
+      reason: "Subset verification surface"
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/gen_eval/verify/**"
+        - "packages/gen-eval/tests/test_subset_verifiers.py"
+      read_allow:
+        - "**"
+      deny:
+        - "packages/gen-eval/src/gen_eval/reports.py"
+    worktree:
+      name: ddfc-verifiers
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Subset verifier tests pass for all three surfaces"
+          kind: command
+          command: "uv run pytest tests/test_subset_verifiers.py -q"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["subset_verifier_tests"]
+        - name: "An undocumented surface element is reported"
+          kind: command
+          command: "uv run pytest tests/test_subset_verifiers.py -q -k 'undocumented'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["excess_detected"]
+    outputs:
+      result_keys:
+        - argparse_verifier
+        - fastapi_verifier
+        - mcp_verifier
+      artifacts:
+        - "packages/gen-eval/tests/test_subset_verifiers.py"
+
+  # ------------------------------------------------------------- integration
+  - package_id: wp-integration
+    title: "gen-eval self-migration, CI gates, downstream notice"
+    task_type: integration
+    description: |
+      Tasks 4.7 and 5.1-5.8 (including 5.4a/5.4b/5.4c/5.4d). Merge every
+      implementation worktree, wire the deprecation warning, migrate
+      evaluation/descriptor.yaml to a derived tool descriptor, author the
+      dogfood scenarios and exclusions that satisfy D11's completeness rule,
+      wire the argparse subset verifier plus both drift guards and
+      --min-coverage into the gen-eval-tests CI job, refresh DOWNSTREAM.md
+      (including DS-5), reclaim the ServiceDescriptor/ToolDescriptor exports and
+      bump CONTRACT_VERSION 2 -> 3 for that reclamation (task 5.8), update the
+      README.
+
+      TWO version bumps land across the pair, and this package owns the second.
+      The prerequisite rename takes 1 -> 2 for the renamed $defs titles; this
+      change takes 2 -> 3 because reclaiming a name is a distinct break — the
+      import keeps succeeding while the object is no longer what it was, which
+      no deprecation warning covers.
+
+      Task 4.7 lands here rather than in wp-subset-verifiers because it wires
+      CI: wp-subset-verifiers cannot write .github/workflows/ci.yml. Round 2
+      found 4.7 owned by no package at all, which left D11's named mitigation
+      for its own residual risk unimplementable.
+
+      Acceptance signal (design D11): `make dogfood` reports non-zero coverage
+      AND every contracted coverage unit is either exercised or carries a
+      written exclusion reason.
+
+      NOT the 80% floor. That percentage applies to the SERVICE archetype only;
+      gen-eval's own descriptor is a tool, where 80% is arithmetically
+      unreachable — 16 long flags, 5 exercised, 31.2%, and task 3.8 adds a
+      seventeenth. Asserting it here would ship a gate that can never pass,
+      which is the mirror of the gate that can never fail.
+
+      NOT "stopped reporting 0 interfaces" either: a non-empty declared surface
+      with an empty tested set still reports 0% coverage, which is the vacuous
+      signal this change exists to remove.
+    role: python-engineer
+    archetype: integrator
+    priority: 4
+    depends_on:
+      - wp-tool-descriptor
+      - wp-service-descriptor
+      - wp-coverage-model
+      - wp-subset-verifiers
+    locks:
+      files:
+        - ".github/workflows/ci.yml"
+        - "packages/gen-eval/evaluation/descriptor.yaml"
+      keys:
+        - "feature:gen-eval:integration"
+      ttl_minutes: 180
+      reason: "Cross-package merge plus CI wiring"
+    scope:
+      write_allow:
+        - "packages/gen-eval/**"
+        - ".github/workflows/ci.yml"
+        - "openspec/changes/derive-descriptors-from-contracts/DOWNSTREAM.md"
+      read_allow:
+        - "**"
+      deny: []
+    worktree:
+      name: ddfc-integration
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full gen-eval suite passes"
+          kind: command
+          command: "uv run pytest -q -m 'not e2e and not integration'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["full_suite"]
+        # The acceptance signal is coverage_pct, NOT declared_interfaces_non_empty.
+        # A non-empty declared set is satisfied by a run reporting 0% coverage —
+        # the same vacuous signal this change exists to remove. Asserting the
+        # coverage figure is what proves the vocabulary actually connects.
+        - name: "Dogfood reports real interface coverage above the floor"
+          kind: command
+          command: "make dogfood"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts:
+              - "packages/gen-eval/evaluation/.reports/gen-eval-report.json"
+            result_keys: ["dogfood_pass", "coverage_pct_above_floor"]
+        # D11: the tool archetype's gate is completeness, not a percentage. An
+        # 80% floor on gen-eval's own CLI is arithmetically unreachable (16 flags,
+        # 5 exercised = 31.2%), so asserting it would ship a gate that can never
+        # pass — the mirror of one that can never fail. Coverage is still
+        # asserted non-zero, because zero means the vocabularies never connected.
+        - name: "Every contracted coverage unit is exercised or excluded with a reason"
+          kind: command
+          command: "uv run python scripts/check_coverage_completeness.py evaluation/.reports/gen-eval-report.json"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["coverage_completeness_satisfied"]
+        - name: "Argparse subset verifier runs against the real parser in CI and can fail"
+          kind: command
+          command: "uv run pytest tests/test_subset_verifiers.py -q -k 'real_parser or negative_control'"
+          cwd: "packages/gen-eval"
+          evidence:
+            artifacts: []
+            result_keys: ["real_surface_excess_gate"]
+        # Task 5.8's gate. Asserts the reclaimed names do NOT resolve to the
+        # *Spec types they aliased before this change — that is what makes the
+        # reclamation real at the package boundary.
+        #
+        # Deliberately NOT `gen_eval.X is gen_eval.descriptor.X`. The archetypes
+        # land asymmetrically: ToolDescriptor in descriptor.py (superseding its
+        # own alias there), ServiceDescriptor in service_descriptor.py (so
+        # descriptor.ServiceDescriptor legitimately remains the alias). An
+        # identity check between the two would fail a correct implementation.
+        #
+        # Also deliberately not asserting the archetypes' field shape, which is
+        # not settled until tasks 1.4 and 2.2 are written. "Is not the thing it
+        # used to be" is the strongest claim available that cannot go stale.
+        - name: "Reclaimed names no longer resolve to the *Spec types, and CONTRACT_VERSION is 3"
+          kind: command
+          command: "cd packages/gen-eval && uv run python -c \"import gen_eval, pathlib, sys; from gen_eval.contracts import CONTRACT_VERSION\nsrc=pathlib.Path(gen_eval.__file__).resolve()\nsys.exit(f'reading an installed copy, not this tree: {src}') if pathlib.Path('src').resolve() not in src.parents else None\npairs=(('ToolDescriptor','McpToolSpec'),('ServiceDescriptor','ServiceSpec'))\nmissing=[n for n,_ in pairs if not hasattr(gen_eval,n)]\nsys.exit('not exported at package level: '+', '.join(missing)) if missing else None\nstale=[n for n,s in pairs if getattr(gen_eval,n) is getattr(gen_eval,s,None)]\nsys.exit('still resolves to the superseded type: '+', '.join(stale)) if stale else None\nsys.exit(f'CONTRACT_VERSION={CONTRACT_VERSION}, expected 3 after reclamation') if str(CONTRACT_VERSION)!='3' else print('reclamation verified: both names rebound, version 3')\""
+          evidence:
+            artifacts: []
+            result_keys: ["reclamation_exports_verified", "contract_version_3"]
+        - name: "Both drift guards pass in CI"
+          kind: ci
+          ci:
+            provider: github
+            workflow: "ci.yml"
+          evidence:
+            artifacts: []
+            result_keys: ["ci_drift_guards"]
+    outputs:
+      result_keys:
+        - derived_tool_descriptor
+        - ci_drift_gates
+        - downstream_notice
+      artifacts:
+        - "packages/gen-eval/evaluation/descriptor.yaml"
+        - "openspec/changes/derive-descriptors-from-contracts/DOWNSTREAM.md"

@@ -1,0 +1,52 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: `openspec/changes/derive-descriptors-from-contracts/work-packages.yaml:446-559` still carries the superseded round-8 B2 plan even though the delta spec and code now correctly keep the JSON Schema contract version at 2. I ran `cd packages/gen-eval && uv run python -c \"from gen_eval.contracts import CONTRACT_VERSION; import sys; sys.exit(f'CONTRACT_VERSION={CONTRACT_VERSION}, expected 3 after reclamation') if str(CONTRACT_VERSION)!='3' else print('reclamation verified: version 3')\"`; it exited 1 with `CONTRACT_VERSION=2, expected 3 after reclamation`. The same verification block also has a stale D11 command: I ran `cd packages/gen-eval && uv run python scripts/check_coverage_completeness.py evaluation/.reports/gen-eval-report.json`; it exited 2 with `error: unrecognized arguments: evaluation/.reports/gen-eval-report.json`. The actual Makefile gate is correct and green, so this is stale orchestration metadata, not a runtime failure.",
+      "resolution": "Update `work-packages.yaml` to match Phase 6: remove the `CONTRACT_VERSION 2 -> 3` language/result key and use `uv run python scripts/check_coverage_completeness.py --report evaluation/.reports/gen-eval-report.json --exclusions evaluation/coverage-exclusions.yaml`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml",
+      "line_range": {
+        "start": 446,
+        "end": 559
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Round-8 B1/B2/H1/M1/M2 fixes verified by execution. `make -C packages/gen-eval test` exited 0 with `1068 passed, 1 skipped, 12 deselected`; the exact CI selector `cd packages/gen-eval && uv run pytest -q -m \"not e2e and not integration\"` exited 0 with `1072 passed, 1 skipped, 8 deselected`, confirming the Makefile target is a documented subset that only omits slow tests CI still runs. Version checks printed `CONTRACT_VERSION 2`, `VERSION_file 2`, and all schemas at `2`; `openspec validate derive-descriptors-from-contracts --strict` printed `Change 'derive-descriptors-from-contracts' is valid`. Temporary flag-surface mutants for all five scenarios each exited nonzero with scenario status `fail` after removing the flag under test. Temporary descriptor probes showed missing `contract:` resolution and missing archetype markers both raise `ValueError`, while a no-contract legacy descriptor still loaded as `InterfaceDescriptor` with the same model dump and `all_interfaces()` as `InterfaceDescriptor.from_yaml()`.",
+      "resolution": "No change needed for these fixes.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: The new fail-closed gates actually go red. I ran a bad D11 report through `uv run python scripts/check_coverage_completeness.py --report <tmp>/bad-report.json --exclusions <tmp>/exclusions.yaml`; it exited 1 with `the report declares 1 coverage units but names 2 distinct ones`. I mutated `packages/gen-eval/evaluation/descriptor.yaml` to `executable: gen-eval-mutated` and ran `uv run python scripts/generate_tool_descriptor.py --check`; it exited 1 with a drift diff restoring `executable: gen-eval`. I mutated `build_parser()` to add `--round9-undocumented` and ran `uv run pytest -q tests/test_subset_verifiers.py::TestAgainstGenEvalsOwnContract::test_the_real_parser_declares_nothing_the_contract_omits`; it exited 1 reporting `cli:--round9-undocumented`. I restored the mutated files byte-for-byte, cleared `__pycache__`, and `git diff -- packages/gen-eval/evaluation/descriptor.yaml packages/gen-eval/src/gen_eval/__main__.py ...` printed no diff.",
+      "resolution": "No change needed for these gates.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "FYI: The literal command `openspec validate --strict` does not select a target in this non-interactive shell; it exited 1 with `Nothing to validate. Try one of: openspec validate --all ...`. The explicit change validation `openspec validate derive-descriptors-from-contracts --strict` exited 0 and printed `Change 'derive-descriptors-from-contracts' is valid`. The PostHog `ENOTFOUND edge.openspec.dev` messages appeared after validation and did not change the exit result.",
+      "resolution": "Use the explicit change target in reproducible review/CI commands, or document that bare `openspec validate --strict` is interactive-context dependent.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi"
+    }
+  ]
+}

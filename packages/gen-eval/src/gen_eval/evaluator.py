@@ -131,8 +131,16 @@ class Evaluator:
         # matching the format returned by InterfaceDescriptor.all_interfaces():
         #   HTTP  → "METHOD /path"  (e.g. "POST /locks/acquire")
         #   MCP   → "mcp:tool_name" (e.g. "mcp:check_locks")
-        #   CLI   → "cli:command"   (e.g. "cli:lock")
-        interfaces_tested = self._extract_interfaces(scenario.steps)
+        #   CLI   → "cli:command"   (e.g. "cli:lock"), and for a contracted
+        #           tool its coverage units (e.g. "cli:--descriptor")
+        #
+        # The declared surface is passed in so flag-level identifiers are drawn
+        # from the same vocabulary they will be matched against (D10).
+        interfaces_tested = self._extract_interfaces(
+            scenario.steps,
+            declared=set(self.descriptor.all_interfaces()),
+            aliases=self.descriptor.coverage_aliases(),
+        )
 
         return ScenarioVerdict(
             scenario_id=scenario.id,
@@ -402,6 +410,21 @@ class Evaluator:
                     "actual_body": result.body,
                 }
 
+        if expect.error_excludes is not None:
+            expected["error_excludes"] = expect.error_excludes
+            error_str = result.error or ""
+            body_str = str(result.body)
+            # Searched over the same two haystacks as error_contains, so the
+            # pair is exact opposites. Checking fewer would let a substring
+            # "pass" as absent merely because this branch never looked where
+            # error_contains would have found it.
+            if expect.error_excludes in error_str or expect.error_excludes in body_str:
+                diff["error_excludes"] = {
+                    "forbidden_substring": expect.error_excludes,
+                    "actual_error": result.error,
+                    "actual_body": result.body,
+                }
+
         if expect.not_empty is True:
             expected["not_empty"] = True
             if not result.body:
@@ -527,39 +550,118 @@ class Evaluator:
         return captured, None
 
     @staticmethod
-    def _extract_interfaces(steps: list[ActionStep]) -> list[str]:
+    def _is_flag(token: str) -> bool:
+        """Whether an argv token names a flag rather than carrying a value.
+
+        ``-1`` is a negative number, not a short flag. Without the alphabetic
+        check every numeric option value would be recorded as an interface.
+        """
+        if token.startswith("--"):
+            return len(token) > 2
+        return len(token) > 1 and token[0] == "-" and token[1].isalpha()
+
+    @staticmethod
+    def _cli_identifiers(
+        step: ActionStep,
+        declared: set[str] | None,
+        aliases: dict[str, str] | None = None,
+    ) -> list[str]:
+        """Identifiers for one CLI step, in the declared surface's vocabulary.
+
+        ``command`` and ``args`` are two spellings of one invocation, so both
+        are tokenised the same way. gen-eval's own scenarios use ``args``
+        exclusively; requiring ``command`` is why the dogfood run reported zero
+        interfaces while exercising eight.
+
+        A flat CLI declares one command with an empty name, so its coverage
+        units are its flags (D3). Those units are only emitted when a declared
+        surface is supplied, and only when they appear in it — an argv token
+        list interleaves flags with their values, and a value that happens to
+        start with a dash is indistinguishable from a flag by shape alone. The
+        declared surface is what makes the emitted vocabulary a subset of it
+        by construction, rather than by hoping the tokeniser guessed right.
+
+        ``aliases`` maps a unit's alternate spelling to the declared one — a
+        flag's ``short`` form. The map comes from the descriptor because the
+        contract is what knows that ``-v`` means ``--verbose``; nothing in an
+        argv token list says so. Defaults to none, which is exactly the
+        previous behaviour (Rule 4).
+        """
+        tokens = (step.command.strip().split() if step.command else []) + list(step.args or [])
+
+        # A bare "--" ends option parsing: everything after it is a value,
+        # however it is spelled. Without this the shape test below records a
+        # flag for a token the process passed straight through, and coverage
+        # reports an exercise that never happened.
+        try:
+            tokens = tokens[: tokens.index("--")]
+        except ValueError:
+            pass
+
+        # The command path is the leading run of non-flag tokens, as it has
+        # always been: "lock status --file-path x" → "lock status".
+        command_parts: list[str] = []
+        for token in tokens:
+            if Evaluator._is_flag(token):
+                break
+            command_parts.append(token)
+        command_name = " ".join(command_parts)
+
+        identifiers: list[str] = []
+        if command_name:
+            identifiers.append(f"cli:{command_name}")
+        if declared is None:
+            return identifiers
+
+        for token in tokens:
+            if not Evaluator._is_flag(token):
+                continue
+            # "--fail-threshold=0.5" names the same flag as "--fail-threshold 0.5".
+            flag = token.split("=", 1)[0]
+            unit = "cli:" + " ".join(part for part in (command_name, flag) if part)
+            unit = (aliases or {}).get(unit, unit)
+            if unit in declared:
+                identifiers.append(unit)
+        return identifiers
+
+    @staticmethod
+    def _extract_interfaces(
+        steps: list[ActionStep],
+        declared: set[str] | None = None,
+        aliases: dict[str, str] | None = None,
+    ) -> list[str]:
         """Extract endpoint-specific interface identifiers from steps.
 
         Produces names matching ``InterfaceDescriptor.all_interfaces()``:
           - HTTP steps  → ``"METHOD /path"`` (path stripped of query string)
           - MCP steps   → ``"mcp:tool_name"``
-          - CLI steps   → ``"cli:command subcommand"`` (words before first ``--`` flag)
+          - CLI steps   → ``"cli:command subcommand"``, plus ``"cli:<flag>"``
+            style coverage units when ``declared`` is supplied
           - DB/Wait     → omitted (not tracked as testable interfaces)
+
+        ``declared`` is the descriptor's declared surface. It defaults to None,
+        which reproduces the pre-D10 behaviour exactly: no flag-level
+        identifiers. HTTP and MCP identifiers are never filtered by it — an
+        endpoint a scenario actually called is evidence whether or not the
+        descriptor declares it, and suppressing it would hide the undocumented
+        surface that subset verification exists to report.
         """
         seen: set[str] = set()
         result: list[str] = []
         for step in steps:
-            iface: str | None = None
+            ifaces: list[str] = []
             if step.transport == "http" and step.method and step.endpoint:
                 # Strip query string for matching: /audit?limit=10 → /audit
                 path = step.endpoint.split("?")[0]
-                iface = f"{step.method.upper()} {path}"
+                ifaces = [f"{step.method.upper()} {path}"]
             elif step.transport == "mcp" and step.tool:
-                iface = f"mcp:{step.tool}"
-            elif step.transport == "cli" and step.command:
-                # Extract command + subcommand (words before the first --flag).
-                # E.g., "lock status --file-path x" → "lock status"
-                parts = step.command.strip().split()
-                cmd_parts = []
-                for part in parts:
-                    if part.startswith("--") or part.startswith("-"):
-                        break
-                    cmd_parts.append(part)
-                if cmd_parts:
-                    iface = f"cli:{' '.join(cmd_parts)}"
-            if iface and iface not in seen:
-                seen.add(iface)
-                result.append(iface)
+                ifaces = [f"mcp:{step.tool}"]
+            elif step.transport == "cli":
+                ifaces = Evaluator._cli_identifiers(step, declared, aliases)
+            for iface in ifaces:
+                if iface not in seen:
+                    seen.add(iface)
+                    result.append(iface)
         return result
 
     @staticmethod

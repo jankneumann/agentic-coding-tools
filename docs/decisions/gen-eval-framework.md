@@ -5,6 +5,127 @@
 
 ---
 
+## 2026-07-26 — rename-descriptor-model-levels
+
+### Phase: Implementation
+
+**Land tasks 1.2, 1.3, 1.4 and 2.2 as one commit** — They are separate tasks but not separable commits. Renaming the models breaks conftest.py and ten other test files until the aliases exist, and invalidates the checked-in schema until it is regenerated. Splitting them puts two red commits on main, and rebase-merge lands every commit individually, so a broken middle commit breaks git bisect.
+
+- Status: `active`
+- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D1)
+
+---
+
+## 2026-07-26 — rename-descriptor-model-levels
+
+### Phase: Implementation
+
+**The alias is deliberately not cached into globals()** — Caching the resolved type into the module dict would let the dict answer every access after the first, so only the first consumer to touch the name would ever see the DeprecationWarning. A test asserts two accesses produce two warnings specifically to forbid that implementation.
+
+- Status: `active`
+- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D2)
+
+---
+
+## 2026-07-26 — rename-descriptor-model-levels
+
+### Phase: Implementation
+
+**Deprecated names stay importable but leave __all__** — 'from gen_eval import *' should hand a new consumer only names that are not on their way out, while 'from gen_eval import ServiceDescriptor' keeps working for one release. PEP 562 __getattr__ supports both.
+
+- Status: `active`
+- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D3)
+
+---
+
+## 2026-07-26 — rename-descriptor-model-levels
+
+### Phase: Implementation
+
+**Published-schema naming assertions live in test_descriptor_naming.py** — They must spell the pre-rename names in order to assert their absence, and every test file except that one is scanned by a gate that fails on those literals. Placing them beside the other contract tests would make the gate unsatisfiable.
+
+- Status: `active`
+- Source: [openspec/changes/rename-descriptor-model-levels/session-log.md](/openspec/changes/rename-descriptor-model-levels/session-log.md) (D4)
+
+---
+
+## 2026-07-25 — 2026-07-28-derive-descriptors-from-contracts
+
+### Phase: Plan
+
+**Contract is the source; introspection is the verifier** — Direction is the whole design. If introspection populates the declared set, a broken or unreachable surface yields an empty set and unevaluated_interfaces == [] reports full coverage. PR #277 hit that class three times (UP-1 broken console script, UP-3 zero-scenario run, UP-4 health check that had to succeed). This INVERTS the existing normative statement in Requirement: Interface Descriptor, which currently mandates auto-discovery from tools/list and --help.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md](/openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md) (D1)
+
+---
+
+## 2026-07-25 — 2026-07-28-derive-descriptors-from-contracts
+
+### Phase: Plan
+
+**Every drift guard fails closed** — A byte-diff alone is satisfied by 'empty == empty' — both files can rot to nothing together and stay green. Guards assert non-emptiness and an operation-count match against the contract before diffing.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md](/openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md) (D2)
+
+---
+
+## 2026-07-25 — 2026-07-28-derive-descriptors-from-contracts
+
+### Phase: Plan
+
+**Extract the rename into its own change** — Freeing two names and reusing them in one DAG creates a state where a name's meaning depends on which wave ran; verification cannot assert a stable fact about it. Four blocking findings across three rounds all had that shape.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md](/openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md) (D2)
+
+---
+
+## 2026-07-25 — 2026-07-28-derive-descriptors-from-contracts
+
+### Phase: Plan
+
+**Coverage keyed on operation x surface, with exposure first-class** — The coordinator's 38 HTTP / 39 MCP / 37 CLI counts prove surfaces are genuinely partial, so 'not exposed on surface X' must be first-class or every derived descriptor carries permanent false gaps. Also fixes one operation tested once counting as two remaining gaps.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md](/openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md) (D3)
+
+---
+
+## 2026-07-25 — 2026-07-28-derive-descriptors-from-contracts
+
+### Phase: Plan
+
+**Reclamation is a distinct break from deprecation, and needs its own version bump plus notice** — A removed name fails loudly; a deprecated name warns; a reclaimed name does neither — the import succeeds and the object is not what it was. Hence CONTRACT_VERSION 1->2 in the rename and 2->3 for the reclamation.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md](/openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md) (D3)
+
+---
+
+## 2026-07-25 — 2026-07-28-derive-descriptors-from-contracts
+
+### Phase: Plan
+
+**Tool contracts get their own schema rather than reusing OpenAPI** — OpenAPI cannot express exit codes, and a tool's flags are process configuration rather than operation parameters. Forcing --fail-threshold into an OpenAPI operation would be the same category error UP-4 corrected in the lifecycle.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md](/openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md) (D4)
+
+---
+
+## 2026-07-25 — 2026-07-28-derive-descriptors-from-contracts
+
+### Phase: Plan
+
+**Tool-archetype coverage floor is completeness with declared exclusions, not a percentage** — 80% is arithmetically unreachable on gen-eval[REDACTED:high-entropy]s own dogfood run substitutes for smoke/e2e coverage of the CLI surface.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md](/openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts/session-log.md) (D4)
+
+---
+
 ## 2026-05-24 — extract-gen-eval-package
 
 ### Phase: Plan

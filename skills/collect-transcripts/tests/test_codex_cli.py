@@ -11,12 +11,19 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "codex_cli"
 sys.path.insert(0, str(SCRIPTS_DIR))
+
+# The adapter is imported inside each test, after the sys.path insert above.
+# This TYPE_CHECKING binding exists purely so the forward-reference
+# annotations below resolve for static analysis; it never runs.
+if TYPE_CHECKING:
+    from adapters.codex_cli import CodexCLIAdapter
 
 
 class TestCodexCLIDiscovery:
@@ -110,7 +117,7 @@ class TestCodexCLINormalization:
         assert len(tool_result_events) >= 1
 
     def test_reasoning_mapped_to_thinking(self, adapter: "CodexCLIAdapter") -> None:
-        from normalize import ContentType, EventRole
+        from normalize import ContentType
 
         events = adapter.normalize_session("sess-xyz789")
         thinking_events = [

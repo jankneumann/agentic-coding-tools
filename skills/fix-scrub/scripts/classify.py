@@ -9,7 +9,7 @@ from pathlib import Path
 # Add fix-scrub scripts to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fix_models import ClassifiedFinding, Finding, FixTier, severity_rank  # noqa: E402
+from fix_models import ClassifiedFinding, Finding, severity_rank  # noqa: E402
 
 # Ruff rules known to support --fix
 _RUFF_FIXABLE_PREFIXES = {

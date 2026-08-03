@@ -21,11 +21,9 @@ Usage:
 
 import argparse
 import json
-import os
 import re
-import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -33,10 +31,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import dal
 from dal import (
     LOG_LINES_DEFAULT,
-    ProgressTimer,
     RailwayContext,
-    _analyze_window,
-    _build_metrics_history,
     _format_uptime,
     _init_context,
     _safe_float,
@@ -46,7 +41,6 @@ from dal import (
     get_railway_status,
     get_recent_logs,
     progress,
-    run_railway_command,
     run_ssh_query,
 )
 
@@ -237,7 +231,7 @@ def parse_slowlog_get(raw: str) -> List[Dict[str, Any]]:
     (IPv4 or IPv6 with port) marks the end of each entry's arguments.
     """
     entries: List[Dict[str, Any]] = []
-    lines = [l.strip() for l in raw.strip().splitlines() if l.strip()]
+    lines = [ln.strip() for ln in raw.strip().splitlines() if ln.strip()]
     if not lines:
         return entries
 

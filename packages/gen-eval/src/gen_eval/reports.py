@@ -10,8 +10,130 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, computed_field
 
+from gen_eval.descriptor import InterfaceDescriptor
 from gen_eval.metrics import GenEvalMetrics
 from gen_eval.models import ScenarioVerdict
+
+#: The surfaces an operation may be published on (D4). Kept in step with
+#: ``service_descriptor.SURFACES``; spelled out here because the report model
+#: must describe descriptors that carry no operations at all.
+SURFACES = ("http", "mcp", "cli")
+
+#: Element-identifier prefixes that name their own surface. Anything else —
+#: ``"POST /locks/acquire"`` — is HTTP, which has no prefix.
+_PREFIXED_SURFACES = ("mcp", "cli", "browser")
+
+
+class SurfaceCoverage(BaseModel):
+    """Whether one surface publishes an operation, and whether it was exercised.
+
+    ``exposed`` and ``covered`` are deliberately independent booleans. A
+    surface that does not publish the operation is ``exposed=False`` and is
+    **not** a coverage gap — no run could ever cover it. A surface that
+    publishes it and was not exercised is ``exposed=True, covered=False``, and
+    is. The flat model could not tell those apart: both were simply absent
+    from the covered set.
+    """
+
+    exposed: bool = False
+    #: The surface-local element serving the operation — an HTTP
+    #: ``"METHOD /path"``, an ``"mcp:<tool>"``, a ``"cli:<command>"``. ``None``
+    #: exactly when the surface does not expose the operation.
+    element: str | None = None
+    covered: bool = False
+
+
+class OperationCoverage(BaseModel):
+    """Coverage for one operation across every surface (D4).
+
+    The operation is the unit. An operation published on three surfaces and
+    exercised through one is *covered*, with two exposed-but-uncovered
+    surfaces — not two gaps.
+    """
+
+    operation_id: str
+    surfaces: dict[str, SurfaceCoverage] = Field(default_factory=dict)
+
+    # ``computed_field`` so the derived flag is emitted by model_dump_json and
+    # documented in the published report schema, rather than being a Python-only
+    # convenience a JSON consumer has to reimplement.
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def covered(self) -> bool:
+        return any(surface.covered for surface in self.surfaces.values())
+
+    def exposed_elements(self) -> list[str]:
+        """Declared elements serving this operation, in surface order."""
+        return [s.element for s in self.surfaces.values() if s.exposed and s.element]
+
+    def uncovered_elements(self) -> list[str]:
+        """Exposed elements no scenario exercised. Unexposed surfaces excluded."""
+        return [
+            s.element
+            for s in self.surfaces.values()
+            if s.exposed and s.element and not s.covered
+        ]
+
+
+def _surface_of(element: str) -> str:
+    """Infer the surface an element identifier belongs to."""
+    prefix = element.split(":", 1)[0]
+    return prefix if prefix in _PREFIXED_SURFACES else "http"
+
+
+def build_operation_coverage(
+    descriptor: InterfaceDescriptor, covered_elements: set[str]
+) -> list[OperationCoverage]:
+    """Build the operation × surface coverage model for any descriptor archetype.
+
+    A service descriptor carries operations with surface bindings, so the model
+    is read straight off it. A tool descriptor and a hand-authored
+    :class:`InterfaceDescriptor` carry none — there each declared coverage unit
+    becomes its own single-surface operation, so every archetype produces the
+    same report structure and a consumer needs no branch (D6).
+
+    ``covered_elements`` is the set of *declared* element identifiers that
+    scenarios exercised, already resolved through template matching by the
+    orchestrator. Passing raw tested identifiers here would silently miss
+    parametric HTTP paths.
+    """
+    operations = getattr(descriptor, "operations", None)
+    if operations:
+        return [_from_operation(operation, covered_elements) for operation in operations]
+    return [_from_element(element, covered_elements) for element in descriptor.all_interfaces()]
+
+
+def _from_operation(operation: object, covered_elements: set[str]) -> OperationCoverage:
+    surfaces: dict[str, SurfaceCoverage] = {}
+    for surface in SURFACES:
+        # ``interface_id`` returns None when the surface does not expose the
+        # operation, which is the same condition as ``exposed=False``. Deriving
+        # both from one call keeps them from disagreeing.
+        element = operation.interface_id(surface)  # type: ignore[attr-defined]
+        surfaces[surface] = SurfaceCoverage(
+            exposed=element is not None,
+            element=element,
+            covered=element is not None and element in covered_elements,
+        )
+    return OperationCoverage(
+        operation_id=operation.operation_id,  # type: ignore[attr-defined]
+        surfaces=surfaces,
+    )
+
+
+def _from_element(element: str, covered_elements: set[str]) -> OperationCoverage:
+    surface = _surface_of(element)
+    return OperationCoverage(
+        operation_id=element,
+        surfaces={
+            name: SurfaceCoverage(
+                exposed=name == surface,
+                element=element if name == surface else None,
+                covered=name == surface and element in covered_elements,
+            )
+            for name in (*SURFACES, surface)
+        },
+    )
 
 
 class VisibilityBreakdown(BaseModel):
@@ -56,6 +178,21 @@ class GenEvalReport(BaseModel):
     per_category: dict[str, dict[str, int]]  # category -> {pass, fail, error, total}
     unevaluated_interfaces: list[str]
     cost_summary: dict[str, float]  # cli_calls, time_minutes, sdk_cost_usd
+    # Operation × surface coverage (D4). Additive: both fields default, so
+    # every existing constructor call keeps working and the published schema
+    # change is a new optional field rather than a contract bump.
+    per_operation: list[OperationCoverage] = Field(default_factory=list)
+    #: Operations no exposing surface exercised. Distinct from
+    #: ``unevaluated_interfaces``, which is per-element: an operation covered
+    #: on HTTP still leaves its untested MCP element in the flat list.
+    unevaluated_operations: list[str] = Field(default_factory=list)
+    #: How many units the descriptor declared. Without it nothing in this
+    #: report distinguishes "covered everything" from "declared nothing":
+    #: ``coverage_pct`` is 0.0, ``per_interface`` is ``{}`` and
+    #: ``unevaluated_interfaces`` is ``[]`` in both cases, so no threshold can
+    #: separate them. Defaults to 0, so every existing constructor keeps
+    #: working and the published schema gains an optional field.
+    declared_interface_count: int = 0
     iterations_completed: int
     # Visibility-grouped results (populated when manifest is available)
     per_visibility: dict[str, VisibilityBreakdown] = Field(default_factory=dict)

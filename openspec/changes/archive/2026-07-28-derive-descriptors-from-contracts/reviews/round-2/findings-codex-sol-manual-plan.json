@@ -1,0 +1,81 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: D9's final public API cannot satisfy its own alias promise. `tasks.md` task 0.1 requires all four old names, including `ToolDescriptor` and `ServiceDescriptor`, to remain warning deprecation aliases; tasks 1.4 and 2.2 then assign those exact names to the new document archetypes. The DAG probe printed `wp-tool-descriptor <- ['wp-contracts', 'wp-rename']` and `wp-service-descriptor <- ['wp-contracts', 'wp-rename']`, so the wp-rename alias gate runs before those aliases are overwritten and cannot prove final-state compatibility. The service package also cannot export its new type: its write_allow contains `service_descriptor.py` but not `gen_eval/__init__.py`, and no integration task owns that export. A symbol cannot simultaneously resolve to the legacy element type and the new document type.",
+      "resolution": "Keep the D9 naming choice, but state the real compatibility boundary: only non-reused old names may remain same-name aliases; `ToolDescriptor` and `ServiceDescriptor` are explicit breaking reuses covered by version 2. Update the spec, tests, alias gate, and DOWNSTREAM accordingly, and add an integration task that exports/wires both new document archetypes through `gen_eval/__init__.py` after both packages land.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/tasks.md"
+    },
+    {
+      "id": 2,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: wp-rename's new migration gate can pass with task 0.4 only half-done. The command scans only `EndpointDescriptor|CommandDescriptor`, although task 0.4 says to migrate all 11 test files off all four deprecated names. The repository scan printed `ServiceDescriptor files 13 occurrences 40` and `ToolDescriptor files 4 occurrences 11`; those legacy-semantic test usages are invisible to the gate. This omission is not justified by later name reuse because wp-rename is a DAG root and its gate runs before the new archetypes exist. The same command is also vacuous on an absent corpus: run from `/tmp` with no `src/` or `tests/` printed `no deprecated-name usage` and exited 0.",
+      "resolution": "At the wp-rename boundary, scan test files for all four old names, assert the candidate file set is non-empty, and exclude only the deliberate alias definitions in source. Add the task's stated `pytest -W error::DeprecationWarning` command as a package verification step.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 3,
+      "type": "behavioral_failure",
+      "criticality": "critical",
+      "description": "Critical: the planned 80% dogfood gate is unattainable with the scenarios the plan leaves in place. An AST/YAML probe printed 17 current long parser flags, only 6 distinct scenario flags (`--descriptor`, `--fail-threshold`, `--help`, `--openspec-change`, `--output-dir`, `--print-contract-version`), and `current_pct 35.3`. Task 3.8 adds `--min-coverage`, so the contracted parser surface becomes at least 18 flags; because subset verification requires every parser flag in the contract and `_extract_interfaces` counts scenario steps rather than the outer `make dogfood` invocation, coverage is at most 6/18 = 33.3% unless a scenario explicitly exercises the new flag. Tasks 3.5-3.8 connect the vocabularies, but no task adds the roughly nine additional exercised flags needed for 80%; task 5.4a therefore guarantees red rather than proving the feature.",
+      "resolution": "Add test-first dogfood scenario tasks that exercise at least 15 of the 18 contracted flags, including `--min-coverage`, or specify and test an explicit exclusion model before using a smaller denominator. Make task 5.4a depend on those scenarios.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/tasks.md"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: the D3 schema fix rejects the original full fixture, but still admits unnamed coverage units that defeat the same count-based guard. Validation printed `round1_full REJECT`, but also `empty_name_empty_positional PASS` for a flat command containing `positionals:[{\"name\":\"\",\"type\":\"string\"}]` and `whitespace_command PASS` for `{\"name\":\"   \"}`. In both cases the schema counts one positional or named subcommand, so non-zero and count-match assertions can pass while the derived identifier is empty or whitespace-only. The probe also confirmed `exit_codes_only_surface REJECT` and `empty_flag_name REJECT`; those portions are fixed.",
+      "resolution": "Require non-empty, non-whitespace identifiers for command names, positional names, tool name/executable, and operation_ids (using minLength plus an appropriate non-whitespace pattern). Add negative schema and generator fixtures proving these documents reject or fail derivation before count/byte checks.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/contracts/cli-contract.schema.json"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: task 4.7, added to close round-1's real-surface verifier gap, is not owned or verified by any work package. A package audit printed only `ci_capable wp-integration description_has_4.7 False verification_has_subset False`; wp-subset-verifiers explicitly owns tasks 4.1-4.6 and cannot write `.github/workflows/ci.yml`, while wp-integration can write CI but its description and verification cover drift guards and dogfood coverage only. Thus an implementation can complete every declared package while never wiring the argparse subset verifier against gen-eval's real parser.",
+      "resolution": "Assign task 4.7 explicitly to wp-integration, update its description/outputs, and add a verification step that runs the verifier against the real parser plus a negative-control test where an uncontracted parser flag causes non-zero status. Wire the same check into both CI and `make dogfood`.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 6,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: the new promotion gate proves only that some JSON file exists at the stable path and that its `$id` ends in `/schemas/cli-contract.schema.json`; it does not prove that task 1.9 promoted the reviewed schema. Extracting the command printed `promotion_check_mentions_change_source False` and `promotion_check_compares_bytes False`. A stale or arbitrary schema with the expected `$id` passes, while contract instances are validated only against the change-local source, so every wp-contracts step can be green with a different consumer-facing schema.",
+      "resolution": "Compare the promoted file byte-for-byte (or canonical JSON-for-JSON) with the change-local schema, run JSON Schema self-validation on the promoted file, and validate instances against the promoted copy. Include the promoted schema and instance paths in package outputs.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: published-schema regeneration is sequenced before, rather than after, the model changes that require it. `generate_contract_schemas.py` generates `eval-report.schema.json` from `GenEvalReport`; wp-coverage-model writes `reports.py` but its write_allow and outputs contain no `src/gen_eval/contracts/eval-report.schema.json`, and none of its verification steps runs `generate_contract_schemas.py --check`. wp-rename owns the schema generator check, but the DAG output places wp-rename before wp-coverage-model, so that check cannot cover the later report-shape change. wp-integration's broad scope and full-suite test may discover the drift, but no task owns regenerating the artifact.",
+      "resolution": "Either give wp-coverage-model ownership of `eval-report.schema.json` and add a regeneration/check task there, or add an explicit post-coverage integration task that runs the generator, checks all published artifacts, and records the regenerated schema as an output. Keep the already-owned version-2 bump as the version for the combined breaking change.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    }
+  ]
+}

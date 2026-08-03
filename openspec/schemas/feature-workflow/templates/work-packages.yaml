@@ -59,6 +59,25 @@ packages:
   #       - "contracts/**"
   #     deny:
   #       - "src/frontend/**"
+  #   # Optional. Declares which derived project-context surfaces this package
+  #   # may invalidate, so a reviewer can see what goes stale when it lands.
+  #   # Valid surfaces: capabilities, apis, architecture, decisions,
+  #   # documentation, semantic_code.
+  #   #
+  #   # Omit the block entirely and the gate reports the package as
+  #   # 'unmigrated', listing the surfaces it inferred so you can paste them in.
+  #   # Once the block is present it is checked strictly: any surface implied by
+  #   # the package's changed files that is neither declared nor rationalized
+  #   # fails validation. An empty `surfaces: []` is a real "affects nothing"
+  #   # assertion, not a placeholder.
+  #   context_impact:
+  #     surfaces:
+  #       - "apis"
+  #       - "semantic_code"
+  #     # rationale:
+  #     #   documentation:
+  #     #     reason: "Only test fixtures changed; no documented behavior moved."
+  #     #     approved_by: "reviewer-name"
   #   worktree:
   #     name: "wp-backend"
   #     mode: "isolated"

@@ -37,7 +37,13 @@ __all__ = [
 ]
 
 #: Contract version. Source of truth for the generated ``VERSION`` file.
-CONTRACT_VERSION = "1"
+#:
+#: 1 -> 2: the element/container models were renamed to the ``*Spec`` suffix
+#: (``EndpointSpec``, ``McpToolSpec``, ``CommandSpec``, ``ServiceSpec``), which
+#: changes the ``$defs`` keys and titles published in
+#: ``interface-descriptor.schema.json``. Consumers pinning ``$defs`` names must
+#: update; the Python names keep warning aliases for one release.
+CONTRACT_VERSION = "2"
 
 #: Logical schema name -> filename shipped in this package.
 SCHEMA_FILENAMES: dict[str, str] = {

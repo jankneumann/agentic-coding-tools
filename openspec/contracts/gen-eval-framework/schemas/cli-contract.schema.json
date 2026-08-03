@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json",
+  "title": "gen-eval CLI contract",
+  "description": "Contract for a tool descriptor's invocation surface. Ground truth for deriving a ToolDescriptor (design D1, D5). OpenAPI is deliberately not reused: a tool's flags are process configuration rather than operation parameters, and OpenAPI cannot express exit codes.",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "tool",
+    "commands"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "description": "Bumped on any breaking change to this contract's shape.",
+      "pattern": "^[0-9]+$"
+    },
+    "tool": {
+      "type": "object",
+      "required": [
+        "name",
+        "executable"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "executable": {
+          "type": "string",
+          "description": "Console-script name resolved from PATH. This is the published artifact, not a source module path.",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "description": "Invocation units. A flat flag-only CLI declares exactly one command with an empty name; its flags are the coverage units.",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    },
+    "exit_codes": {
+      "type": "array",
+      "description": "Documented process exit codes. OpenAPI has no equivalent, which is the primary reason this schema exists separately.",
+      "items": {
+        "$ref": "#/$defs/exitCode"
+      }
+    }
+  },
+  "$defs": {
+    "command": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "description": "A command contributes coverage units: its own name when non-empty, plus each flag and positional. A command with an empty name contributes none of its own, so it must declare at least one flag or positional (design D3).",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Subcommand path, space-separated (e.g. 'lock acquire'). Empty string for a flat CLI with no subcommands. Must not be whitespace-only: that would count as a named subcommand toward the coverage-unit total while deriving no identifier (design D3).",
+          "pattern": "^(|\\S(.*\\S)?)$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/flag"
+          }
+        },
+        "positionals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/positional"
+          }
+        },
+        "operation_ids": {
+          "type": "array",
+          "description": "Operations this command serves, when the CLI is a client of a contracted service. An array because one surface element may serve several operations (design D4) \u2014 the coordinator's check_locks serves both list_active_locks and get_lock_status. Absent for tool-only surfaces such as gen-eval's own CLI.",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "Fail-closed floor (design D3): a flat flag-only CLI declares one command with an empty name, so without this a contract of [{\"name\": \"\"}] would pass non-emptiness and count-match while deriving an empty surface.",
+          "if": {
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "const": ""
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "flags"
+                ],
+                "properties": {
+                  "flags": {
+                    "minItems": 1
+                  }
+                }
+              },
+              {
+                "required": [
+                  "positionals"
+                ],
+                "properties": {
+                  "positionals": {
+                    "minItems": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "flag": {
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Long form including leading dashes (e.g. '--descriptor').",
+          "pattern": "^--[a-z0-9][a-z0-9-]*$"
+        },
+        "short": {
+          "type": "string",
+          "pattern": "^-[a-zA-Z]$"
+        },
+        "type": {
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "path",
+            "enum"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "repeatable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Array parameters bind to repeated flags rather than a delimited value."
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Required when type is 'enum'."
+        },
+        "default": {},
+        "description": {
+          "type": "string"
+        },
+        "short_circuits": {
+          "type": "boolean",
+          "default": false,
+          "description": "Flag exits before required-argument enforcement (the --help / --version / --print-contract-version class). Derivation must not mark such a flag as requiring other flags."
+        },
+        "binds_to": {
+          "$ref": "#/$defs/binding",
+          "description": "How this flag maps onto an OpenAPI operation parameter. Absent for surface-local concerns such as --output-dir or --verbose."
+        }
+      }
+    },
+    "positional": {
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Positional argument name. Must contain a non-whitespace character \u2014 an unnamed positional is not a nameable coverage unit (design D3)."
+        },
+        "type": {
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "path"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "default": true
+        },
+        "variadic": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "type": "string"
+        },
+        "binds_to": {
+          "$ref": "#/$defs/binding"
+        }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "description": "The binding spec named in design D1's cons: an operation's (path, query, body) does not map mechanically onto argv.",
+      "required": [
+        "location",
+        "parameter"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "location": {
+          "enum": [
+            "path",
+            "query",
+            "body",
+            "header",
+            "env",
+            "stdin"
+          ]
+        },
+        "parameter": {
+          "type": "string",
+          "description": "Parameter name in the OpenAPI operation, or JSON pointer into the request body."
+        }
+      }
+    },
+    "exitCode": {
+      "type": "object",
+      "required": [
+        "code",
+        "meaning"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "meaning": {
+          "type": "string"
+        },
+        "sysexits_name": {
+          "type": "string",
+          "description": "BSD sysexits.h constant when applicable (e.g. EX_USAGE for 64)."
+        }
+      }
+    }
+  }
+}

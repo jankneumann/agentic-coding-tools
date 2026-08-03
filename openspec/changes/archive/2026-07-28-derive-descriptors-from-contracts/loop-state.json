@@ -1,0 +1,76 @@
+{
+  "blocking_findings": [
+    "round-7 BLOCKING: __main__.py:324 loads every descriptor with InterfaceDescriptor.from_yaml(), discarding ServiceDescriptor.operations and ToolDescriptor.commands/executable/contract. Verified: ToolDescriptor.from_yaml -> 17 interfaces, InterfaceDescriptor.from_yaml (same file) -> 0. No task in Phase 5 owns archetype-aware loading; tasks 5.1, 5.2 and 5.3 cannot meet their stated acceptance criteria without it. Requires a new task sequenced before 5.1."
+  ],
+  "change_id": "derive-descriptors-from-contracts",
+  "cli_review_enabled": true,
+  "current_phase": "DONE",
+  "error": null,
+  "escalation_reason": null,
+  "findings_trend": [
+    6,
+    15,
+    6,
+    4,
+    6,
+    25
+  ],
+  "force": false,
+  "gate_signals": {
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 6
+  },
+  "gate_verdict": "proceed",
+  "handoff_ids": [
+    "impl-review-8",
+    "impl-review-9",
+    "validation-1"
+  ],
+  "implementation_strategy": {},
+  "iteration": 5,
+  "last_handoff_id": "validation-1",
+  "max_phase_iterations": 8,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "phase_archetype": "runner",
+  "phase_history": [
+    {
+      "at": "2026-07-27T15:19:17.204289+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-07-27T16:40:08.055448+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-07-27T19:36:13.966276+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    }
+  ],
+  "phase_started_at": "2026-07-25T17:06:16.656806+00:00",
+  "plan_review_note": "PLAN_REVIEW exited by operator override, NOT by convergence. Round 6 was attempted twice and produced no vendor findings: attempt 1 crashed in checkpoint_findings._validate_finding (prompt specified severity/title/recommendation instead of the required id/type/criticality/description/disposition); attempt 2 was killed before any vendor returned. The last completed round is round-5, which reported 6 critical findings. Those were addressed in commit cfe4abda and independently re-verified here (bare-python3 gates, prerequisite detection, CONTRACT_VERSION ownership, package-level __all__ ownership), but no independent multi-vendor round has confirmed the current plan state. | ROUND 7 (IMPL_REVIEW, 4 vendors: codex/grok/antigravity/pi, claude excluded as author): 25 findings, 2 critical converging on one root cause (see reviews/round-7/synthesis.md). This is the first independent multi-vendor round to see any of the implementation.",
+  "previous_phase": "SUBMIT_PR",
+  "resume_note": "AUTOPILOT COMPLETE \u2014 STOPPED AT MERGE for human approval, per the autopilot contract. PR #315 is MERGEABLE / CLEAN with all 14 CI checks green: https://github.com/jankneumann/agentic-coding-tools/pull/315\n\nCI CAUGHT ONE THING NINE REVIEW ROUNDS DID NOT. context-drift-gate failed with two BLOCKING stale producers \u2014 api.contracts (docs/architecture-analysis/contracts-inventory.md, 12->13 schemas, staled by promoting openspec/contracts/gen-eval-framework/) and decisions.timeline (docs/decisions/gen-eval-framework.md). Neither file is in any write_allow and neither appears in the diff a reviewer reads, which is why the rounds missed it. Fixed by `make context-refresh` + `make decisions`, commit 18f39247. The gate's remaining openspec.projection entry is INFORMATIONAL (unarchived spec delta) and is resolved by /cleanup-feature after merge \u2014 do not try to fix it before then.\n\nOUTCOME: IMPL_REVIEW converged at round 9 (23 findings, zero blocking/critical/high). VALIDATE passed, having independently re-run every gate from a fresh detached checkout rather than trusting the handoff. 9 rounds total; claude excluded as author from every implementation round.\n\nDO NOT re-run any phase. The loop is finished. The remaining step is a human merge decision, then `/cleanup-feature derive-descriptors-from-contracts`.\n\nTWO THINGS THE MERGER MUST WEIGH (both stated in the PR body):\n  1. RESOLVED. The PR opened CONFLICTING (68 behind / 76 ahead). Rebased onto origin/main: 77 commits replayed, exactly ONE conflict \u2014 openspec/contracts/README.md, purely additive on both sides (main appended 4 promoted-schema rows, this branch 1 row + a paragraph); both kept. Now 0 behind, PR MERGEABLE, and the full gate battery was re-run on the rebased tree: 1068 passed, make test green, dogfood 13/13, ruff clean, drift guards clean, openspec valid. Force-pushed 8ade13f8. Pre-rebase tip was d0645cf2 if recovery is ever needed.\n  2. Phase 7 (commit 53c04696) landed AFTER round 9 converged and no multi-vendor round has seen it. It is scenario data, not mechanism, and every gate was re-run \u2014 but it is unreviewed by construction.\n\nFILED THIS RUN: #316 (coverage credits a flag for being PASSED not asserted \u2014 round-9 N1, reproduced; `--fail-threshold` still rides it, so 9 of 10 credited units are earned). #317 (_find_latest_report's cwd fallback overrides an explicit base_dir; bit the suite twice today). Comment on #286 with rounds 8+9 dispatcher evidence \u2014 antigravity then pi, both 'Invalid JSON output', neither re-dispatched, different vendor each time.\n\nSTILL OPEN, NON-BLOCKING (reviews/round-9/synthesis.md): N2 work-packages.yaml describes the superseded CONTRACT_VERSION 2->3 plan (archives as plan history, not a durable requirement \u2014 unlike B2, which was blocking because the delta spec archives into openspec/specs/). N3 uncoerced int() at check_coverage_completeness.py:67. N4 bare `openspec validate --strict` selects no target.\n\nDOWNSTREAM: trace-requirements-to-contracts (worktree .git-worktrees/trace-requirements-to-contracts, pushed, awaiting approval) is blocked on THIS change's CODE landing on main \u2014 not on PR #315 merely being open. See feedback_plan_pr_is_not_the_prerequisite.",
+  "schema_version": 4,
+  "started_at": "2026-07-25T17:06:16.656806+00:00",
+  "total_iterations": 5,
+  "val_review_enabled": false,
+  "vendor_availability": {
+    "antigravity": true,
+    "claude_code": true,
+    "codex": true,
+    "grok": true,
+    "pi": true
+  },
+  "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/315"
+}

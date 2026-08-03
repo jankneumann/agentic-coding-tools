@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/context-convergence-record.schema.json",
+  "title": "Main Context Convergence Record",
+  "description": "One tracked record of a single main context convergence performed by the authoritative main-synchronization sync point. Distinct from the refresh manifest, which records a durable operation and is deliberately kept untracked so a repeat refresh at the same revision produces no repository diff; this record is the git-native, reviewable claim that a convergence happened, pinning that manifest by content digest. Records are appended one per line to docs/merge-logs/context-convergence.jsonl and each line validates independently.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation_id",
+    "merged_revision",
+    "refresh_revision",
+    "refresh_status",
+    "producers",
+    "semantic_index",
+    "merged_pull_requests"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Contract version. Incremented only on a breaking change."
+    },
+    "operation_id": {
+      "type": "string",
+      "pattern": "^pcr-[0-9a-f]{24}$",
+      "description": "The ri-06 durable operation identity, derived from the repository id and the merged main revision. Two convergences that resolve the same id are the same convergence."
+    },
+    "merged_revision": {
+      "$ref": "context-refresh-types.schema.json#/$defs/GitRevision",
+      "description": "Main's HEAD after every merge in the pass, before the convergence commit. This is what the operation identity is keyed on."
+    },
+    "refresh_revision": {
+      "$ref": "context-refresh-types.schema.json#/$defs/GitRevision",
+      "description": "The revision the producers actually read. Equals merged_revision unless staged cleanup output was committed first, in which case it is that commit."
+    },
+    "convergence_commit": {
+      "oneOf": [
+        { "$ref": "context-refresh-types.schema.json#/$defs/GitRevision" },
+        { "type": "null" }
+      ],
+      "description": "The single follow-up commit this record landed in. Null only in a record emitted before the commit exists (an in-flight or aborted convergence)."
+    },
+    "manifest_path": {
+      "oneOf": [
+        { "$ref": "context-refresh-types.schema.json#/$defs/RepositoryPath" },
+        { "type": "null" }
+      ],
+      "description": "Repository-relative path of the untracked ri-07 manifest. Null when the refresh failed before emitting one."
+    },
+    "manifest_sha256": {
+      "oneOf": [
+        { "$ref": "context-refresh-types.schema.json#/$defs/Sha256" },
+        { "type": "null" }
+      ],
+      "description": "Content digest of the manifest at manifest_path. Pins an untracked file by content so the record remains verifiable in a fresh clone."
+    },
+    "refresh_status": {
+      "enum": ["succeeded", "degraded", "failed", "not-run"],
+      "description": "Terminal outcome of the refresh operation. 'not-run' records a convergence whose cleanup phase was committed but whose refresh never started (design D6, apparatus row)."
+    },
+    "producers": {
+      "type": "array",
+      "description": "Per-producer outcome joined with its canonical owner. The join is required because the ri-06 ProducerResult carries no owner field; ownership lives on the registry ProducerSpec.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["producer_id", "status"],
+        "properties": {
+          "producer_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "status": {
+            "enum": ["fresh", "degraded", "failed", "not-configured"]
+          },
+          "owner": {
+            "oneOf": [
+              { "type": "string", "minLength": 1, "maxLength": 300 },
+              { "type": "null" }
+            ]
+          }
+        }
+      }
+    },
+    "semantic_index": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "requested_revision"],
+      "description": "The enqueued index for the FINAL pushed revision. Deliberately a different revision from merged_revision: the convergence commit changes main's tip, and indexing the pre-convergence revision would immediately be stale.",
+      "properties": {
+        "status": {
+          "enum": ["not-configured", "pending", "running", "succeeded", "failed", "stale"],
+          "description": "Mirrors ri-06 SemanticIndexStatus. 'pending' is the expected value at convergence time: the request is enqueued, never awaited."
+        },
+        "requested_revision": {
+          "$ref": "context-refresh-types.schema.json#/$defs/GitRevision"
+        },
+        "operation_id": {
+          "oneOf": [
+            { "type": "string", "minLength": 1, "maxLength": 128 },
+            { "type": "null" }
+          ]
+        },
+        "fallback": {
+          "oneOf": [
+            { "type": "string", "minLength": 1, "maxLength": 500 },
+            { "type": "null" }
+          ],
+          "description": "The bounded degradation guidance carried by every non-succeeded reference, e.g. exact search."
+        }
+      }
+    },
+    "merged_pull_requests": {
+      "type": "array",
+      "description": "The merges that produced this main state. Length >= 1 for any real convergence; a pass that merged nothing performs no convergence and emits no record.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["number", "origin"],
+        "properties": {
+          "number": { "type": "integer", "minimum": 1 },
+          "origin": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "change_id": {
+            "oneOf": [
+              { "type": "string", "minLength": 1, "maxLength": 200 },
+              { "type": "null" }
+            ],
+            "description": "OpenSpec change id when the PR was OpenSpec-driven and cleanup-feature --post-merge ran for it."
+          },
+          "cleanup": {
+            "enum": ["completed", "declined", "failed", "not-applicable"],
+            "description": "Outcome of the cleanup-feature --post-merge phase for this PR."
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Non-blocking degradations recorded during the pass: coordinator lock unavailable, optional owner absent, semantic service unreachable.",
+      "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+    }
+  }
+}

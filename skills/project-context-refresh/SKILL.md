@@ -78,6 +78,38 @@ directory, with subcommands `list`, `generate <producer_id>`,
 and `refresh-check [--producer ID]`. Resolve the loaded skill directory first
 rather than hardcoding an install path.
 
+### Sync-point flags (ri-11)
+
+`refresh` carries two opt-in flags for the main-convergence sync point. Both
+default to **off**, so every existing invocation behaves exactly as before, and
+`refresh-check` accepts neither — it writes nothing and never indexes.
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--sync-point` | off | Authorizes the mutation from the shared checkout, reaching the checkout policy's `approved_sync_point` branch. |
+| `--defer-semantic-index` | off | Skips the inline index attempt and records the index as `pending` with an `exact-search` fallback. |
+
+`--sync-point` is a **caller** decision and is never inferred from the
+environment: an environment sniff would re-open shared-checkout writes for every
+skill that happens to run on `main`, which is the property the guard exists to
+protect. It authorizes the checkout classification only — the caller must still
+enforce its own clean-tree and active-agent guards, and its own pre-push
+compare-and-swap.
+
+`--defer-semantic-index` exists because a sync point refreshes a revision that is
+never main's final state: the convergence commit follows it, so an inline index
+would be stale on arrival and a correct system would then index a second time.
+The caller enqueues exactly one index for the final pushed revision instead.
+Deferral only ever weakens the recorded claim — `pending` is not a currency
+claim, so a deferred run **degrades** (exit 2) rather than reporting success, and
+deterministic producer output is byte-identical to a non-deferred run.
+
+```bash
+# What the convergence driver runs, on main, after the merges have landed.
+python3 <agent-skills-dir>/project-context-refresh/scripts/cli.py \
+  refresh --sync-point --defer-semantic-index
+```
+
 `--revision` must name the revision that is **actually checked out**: every
 producer reads the live working tree, so accepting another SHA would persist
 artifacts under a revision they did not come from. Use a worktree at the target

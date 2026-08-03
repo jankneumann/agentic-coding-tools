@@ -15,13 +15,13 @@ import pytest
 from gen_eval.config import BudgetTracker, GenEvalConfig, SDKBudget, TimeBudget
 from gen_eval.descriptor import (
     AuthConfig,
-    CommandDescriptor,
-    EndpointDescriptor,
+    CommandSpec,
+    EndpointSpec,
     InterfaceDescriptor,
-    ServiceDescriptor,
+    McpToolSpec,
+    ServiceSpec,
     StartupConfig,
     StateVerifier,
-    ToolDescriptor,
 )
 from gen_eval.models import (
     ActionStep,
@@ -42,23 +42,23 @@ def sample_auth_config() -> AuthConfig:
 
 
 @pytest.fixture
-def sample_endpoints() -> list[EndpointDescriptor]:
+def sample_endpoints() -> list[EndpointSpec]:
     return [
-        EndpointDescriptor(
+        EndpointSpec(
             path="/locks/acquire",
             method="POST",
             auth_required=True,
             description="Acquire a file lock",
             tags=["locks"],
         ),
-        EndpointDescriptor(
+        EndpointSpec(
             path="/locks/release",
             method="POST",
             auth_required=True,
             description="Release a file lock",
             tags=["locks"],
         ),
-        EndpointDescriptor(
+        EndpointSpec(
             path="/health",
             method="GET",
             auth_required=False,
@@ -69,26 +69,26 @@ def sample_endpoints() -> list[EndpointDescriptor]:
 
 
 @pytest.fixture
-def sample_tools() -> list[ToolDescriptor]:
+def sample_tools() -> list[McpToolSpec]:
     return [
-        ToolDescriptor(name="acquire_lock", description="Acquire a file lock"),
-        ToolDescriptor(name="release_lock", description="Release a file lock"),
+        McpToolSpec(name="acquire_lock", description="Acquire a file lock"),
+        McpToolSpec(name="release_lock", description="Release a file lock"),
     ]
 
 
 @pytest.fixture
-def sample_commands() -> list[CommandDescriptor]:
+def sample_commands() -> list[CommandSpec]:
     return [
-        CommandDescriptor(name="lock", subcommands=["acquire", "release", "status"]),
+        CommandSpec(name="lock", subcommands=["acquire", "release", "status"]),
     ]
 
 
 @pytest.fixture
 def sample_http_service(
     sample_auth_config: AuthConfig,
-    sample_endpoints: list[EndpointDescriptor],
-) -> ServiceDescriptor:
-    return ServiceDescriptor(
+    sample_endpoints: list[EndpointSpec],
+) -> ServiceSpec:
+    return ServiceSpec(
         name="coordination-api",
         type="http",
         base_url="http://localhost:8081",
@@ -98,8 +98,8 @@ def sample_http_service(
 
 
 @pytest.fixture
-def sample_mcp_service(sample_tools: list[ToolDescriptor]) -> ServiceDescriptor:
-    return ServiceDescriptor(
+def sample_mcp_service(sample_tools: list[McpToolSpec]) -> ServiceSpec:
+    return ServiceSpec(
         name="coordination-mcp",
         type="mcp",
         transport="sse",
@@ -109,8 +109,8 @@ def sample_mcp_service(sample_tools: list[ToolDescriptor]) -> ServiceDescriptor:
 
 
 @pytest.fixture
-def sample_cli_service(sample_commands: list[CommandDescriptor]) -> ServiceDescriptor:
-    return ServiceDescriptor(
+def sample_cli_service(sample_commands: list[CommandSpec]) -> ServiceSpec:
+    return ServiceSpec(
         name="coordination-cli",
         type="cli",
         command="coordination-cli",
@@ -142,9 +142,9 @@ def sample_startup_config() -> StartupConfig:
 
 @pytest.fixture
 def sample_descriptor(
-    sample_http_service: ServiceDescriptor,
-    sample_mcp_service: ServiceDescriptor,
-    sample_cli_service: ServiceDescriptor,
+    sample_http_service: ServiceSpec,
+    sample_mcp_service: ServiceSpec,
+    sample_cli_service: ServiceSpec,
     sample_state_verifier: StateVerifier,
     sample_startup_config: StartupConfig,
 ) -> InterfaceDescriptor:

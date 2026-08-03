@@ -26,7 +26,6 @@ from typing import Iterator
 
 import pytest
 
-import worktree
 from worktree import cmd_gc, cmd_setup, find_entry, load_registry, save_registry
 
 

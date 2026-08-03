@@ -1,0 +1,231 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: Archetype-aware descriptor loading now works correctly. Command: `uv run python -c \"from gen_eval.descriptor import load_descriptor; descriptor = load_descriptor('evaluation/descriptor.yaml'); print(type(descriptor).__name__)\"` showed 'ToolDescriptor' instead of 'InterfaceDescriptor'.",
+      "resolution": "The load_descriptor function now correctly identifies and loads the appropriate descriptor archetype based on the presence of contract-specific fields.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py",
+      "line_range": {
+        "start": 267,
+        "end": 317
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: Coverage percentage calculation is now operation-denominated per D4. Command: `cat evaluation/.reports/gen-eval-report.json | python -c \"import sys, json; data = json.load(sys.stdin); print(f'Coverage: {data[\\'coverage_pct\\']:.1f}%')\"` shows 58.8% based on 10/17 operations covered.",
+      "resolution": "The coverage calculation now correctly uses operations as the denominator instead of interface elements.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/orchestrator.py",
+      "line_range": {
+        "start": 404,
+        "end": 410
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: operations_for_element() for HTTP now works correctly. Command: `uv run python -c \"from gen_eval.service_descriptor import ServiceDescriptor, OperationSpec, SurfaceBinding; op = OperationSpec(operation_id='test_op', method='GET', path='/test', surfaces={'http': SurfaceBinding(exposed=True, element='GET /test')}); descriptor = ServiceDescriptor(project='test', version='1', operations=[op], services=[]); result = descriptor.operations_for_element('http', 'GET /test'); print(result)\"` shows '['test_op']' instead of '[]'.",
+      "resolution": "The operations_for_element method now correctly handles HTTP interface IDs by accepting both prefixed and unprefixed forms.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/service_descriptor.py",
+      "line_range": {
+        "start": 226,
+        "end": 255
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: OpenAPI $ref path items are now properly handled and fail closed when unresolved. Command: `uv run python -c \"import yaml; from gen_eval.openapi import iter_operations; doc = {'paths': {'/test': {'$ref': '#/components/pathItems/NonExistent'}}, 'components': {'pathItems': {}}}; list(iter_operations(doc))\"` raises ValueError with message about unresolved reference.",
+      "resolution": "The OpenAPI parser now correctly resolves $ref path items and raises appropriate errors when references cannot be resolved, ensuring fail-closed behavior.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/openapi.py",
+      "line_range": {
+        "start": 55,
+        "end": 85
+      }
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: Task 4.7's argparse subset gate now properly fails when uncontracted flags are present. Command: `uv run python -c \"import argparse; from gen_eval.descriptor import load_descriptor; from gen_eval.verify.surfaces import verify_argparse; descriptor = load_descriptor('evaluation/descriptor.yaml'); parser = argparse.ArgumentParser(); parser.add_argument('--descriptor', required=True); parser.add_argument('--uncontracted-flag'); violations = verify_argparse(parser, descriptor); print(len(violations))\"` shows 1 violation instead of 0.",
+      "resolution": "The argparse verification now correctly identifies and reports uncontracted flags as violations.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/verify/surfaces.py",
+      "line_range": {
+        "start": 50,
+        "end": 100
+      }
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "optional",
+      "description": "Optional: -- option terminator behavior needs verification. Command: `uv run python -c \"from gen_eval.__main__ import build_parser; parser = build_parser(); parser.parse_args(['--descriptor', 'evaluation/descriptor.yaml', '--', '--descriptor'])\"` fails with unrecognized arguments error, which may be correct behavior depending on intended use.",
+      "resolution": "Clarify intended behavior of -- option terminator and ensure it's properly documented and tested.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/__main__.py",
+      "line_range": {
+        "start": 180,
+        "end": 220
+      }
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: Short-flag aliasing now works correctly. Command: `uv run python -c \"from gen_eval.descriptor import load_descriptor; descriptor = load_descriptor('evaluation/descriptor.yaml'); aliases = descriptor.coverage_aliases(); print(aliases.get('cli:-v', 'Not found'))\"` shows 'cli:--verbose' when short flag is present in contract.",
+      "resolution": "The coverage aliasing system correctly maps short flag forms to their long equivalents for accurate coverage tracking.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py",
+      "line_range": {
+        "start": 150,
+        "end": 180
+      }
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: verify_argparse subparser descent now works correctly. Command: `uv run python -c \"import argparse; from gen_eval.descriptor import load_descriptor; from gen_eval.verify.surfaces import verify_argparse; descriptor = load_descriptor('evaluation/descriptor.yaml'); parser = argparse.ArgumentParser(); parser.add_argument('--descriptor'); subparsers = parser.add_subparsers(); subparser = subparsers.add_parser('test'); subparser.add_argument('--force'); violations = verify_argparse(parser, descriptor); print('Violations with --force:', len([v for v in violations if 'force' in v.message]))\"` shows violations for undocumented --force flag.",
+      "resolution": "The argparse verification now correctly descends into subparsers and identifies undocumented flags in subcommands.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/verify/surfaces.py",
+      "line_range": {
+        "start": 75,
+        "end": 100
+      }
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: Dogfood threshold is now reachable. Command: `make dogfood` completes successfully with coverage complete: 10 of 17 units exercised (58.8%), 7 excluded with reasons. The --min-coverage 1 setting in Makefile is appropriate for this tool archetype.",
+      "resolution": "The dogfood suite now properly exercises a meaningful subset of the CLI surface with appropriate exclusions for infeasible flags.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/Makefile",
+      "line_range": {
+        "start": 50,
+        "end": 80
+      }
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: CONTRACT_VERSION was correctly bumped from 1 to 2 for breaking schema changes. Command: `cat src/gen_eval/contracts/VERSION` shows '2' and `cat src/gen_eval/contracts/__init__.py | grep CONTRACT_VERSION` shows CONTRACT_VERSION = \"2\" with proper comment about model renames.",
+      "resolution": "The contract version was appropriately incremented for breaking changes and the changes were correctly documented.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/contracts/__init__.py",
+      "line_range": {
+        "start": 25,
+        "end": 35
+      }
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: _merge_schemas property conflicts now properly fail. Command: `uv run python -c \"from gen_eval.service_descriptor import _merge_schemas; _merge_schemas({'properties': {'name': {'type': 'string'}}, 'required': ['name']}, {'properties': {'name': {'type': 'integer'}}, 'required': ['name']}, element='test:element')\"` raises ValueError with message about incompatible schemas.",
+      "resolution": "Schema merging now correctly identifies and rejects incompatible property definitions, preventing silent clobbering of schemas.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/service_descriptor.py",
+      "line_range": {
+        "start": 380,
+        "end": 420
+      }
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: --min-coverage unit ambiguity is now resolved. Command: `uv run gen-eval --descriptor evaluation/descriptor.yaml --min-coverage 0.8 --fail-threshold 0 2>&1 | grep 'not a rate'` shows error message rejecting 0.8 as a rate instead of accepting it as 0.8%.",
+      "resolution": "The percentage validation now correctly rejects values between 0 and 1 to prevent accidental misinterpretation as rates.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/__main__.py",
+      "line_range": {
+        "start": 30,
+        "end": 50
+      }
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "optional",
+      "description": "Optional: Gates that cannot fail - check_coverage_completeness.py properly fails when exclusions name non-existent units. Command: `echo 'exclusions:\\n  - unit: cli:--nonexistent-flag\\n    reason: Test' | uv run python scripts/check_coverage_completeness.py --exclusions /dev/stdin` fails with message about exclusions naming units the contract does not declare.",
+      "resolution": "The completeness checker properly validates that exclusions refer to actual contracted units, preventing stale exclusions.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/scripts/check_coverage_completeness.py",
+      "line_range": {
+        "start": 80,
+        "end": 100
+      }
+    },
+    {
+      "id": 14,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "optional",
+      "description": "Optional: Fail-open paths - deprecation warnings fire correctly for hand-authored descriptors. Command: `echo 'project: test\\nversion: 1\\nservices:\\n- name: test\\n  type: cli\\n  command: test' > test.yaml && uv run python -c \"import warnings; from gen_eval.descriptor import load_descriptor; warnings.simplefilter('always'); load_descriptor('test.yaml')\" 2>&1 | grep 'declares no.*contract'` shows deprecation warning for descriptor without contract.",
+      "resolution": "The deprecation path correctly warns when descriptors lack contracts, ensuring drift detection.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "packages/gen-eval/src/gen_eval/descriptor.py",
+      "line_range": {
+        "start": 267,
+        "end": 280
+      }
+    }
+  ]
+}

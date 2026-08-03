@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 
 from sanitizer import sanitize_dict, sanitize_string, validate_no_secrets
 

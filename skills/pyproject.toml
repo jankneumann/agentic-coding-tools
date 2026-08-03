@@ -26,10 +26,20 @@ test = [
     "fastapi>=0.115",
     "httpx>=0.27",
     "PyJWT[crypto]>=2.13.0",
+    # Lint tooling lives here so CI can run `uv run ruff` from this directory.
+    # Pinned to the same floor as agent-coordinator so both trees are linted by
+    # one ruff version and cannot disagree about what is an error.
+    "ruff>=0.15.21",
 ]
 
 [tool.uv]
 override-dependencies = [
+    # CVE-2026-69247: cryptography 44.0.0-49.x reports the outcome of PKCS#7
+    # RecipientInfo decryption in distinguishable ways (and observably by
+    # timing), giving an attacker a Bleichenbacher oracle against the
+    # content-encryption key. Fixed in 50.0.0. Transitive here; force the
+    # patched version until an upstream parent floor covers it.
+    "cryptography>=50.0.0",
     # PYSEC-2026-3444: httplib2 < 0.32.0 performs unbounded decompression of
     # gzip/deflate response bodies, letting a malicious server OOM the client.
     # Brought in transitively via google-api-python-client / google-auth-httplib2
@@ -58,10 +68,19 @@ testpaths = [
     # Phase 0 scaffold:
     "tests/_shared",
     "tests/install_sh",
+    # Context-impact declarations (ri-08). Lives under tests/ rather than
+    # validate-packages/scripts/tests/ so install.sh does not ship it.
+    "tests/validate-packages",
     # Phase 1 new methodology skills (added per-skill by Phase 1 work packages):
     "tests/test-driven-development",
     "tests/debugging-and-error-recovery",
     "tests/context-engineering",
+    # `coordination-bridge/scripts/tests` (the in-skill legacy dir) was already
+    # listed, but `tests/coordination-bridge` was not — so everything there,
+    # including the pre-existing test_archetype_resolve.py, was invisible to the
+    # default CI sweep. A test CI never runs fails the same way as one that
+    # always passes.
+    "tests/coordination-bridge",
     "tests/source-driven-development",
     "tests/performance-optimization",
     "tests/frontend-ui-engineering",
@@ -89,3 +108,31 @@ testpaths = [
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+[tool.ruff.lint]
+# Declared EXPLICITLY rather than inheriting ruff's default. The default rule
+# set is not stable across ruff releases: 0.16 turned on UP, I, RUF, PLW and
+# EXE by default, which takes this tree from 0 errors to 1498 without a single
+# line of code changing. An implicit rule set means a routine tool bump lands as
+# a red gate full of unrelated findings, so the gate pins its own semantics.
+#
+# This is the historical default (pycodestyle subset + pyflakes) and is what the
+# tree was cleaned against. Broadening toward agent-coordinator's
+# ["E", "F", "I", "N", "W", "UP"] is deliberate follow-up work, done by fixing a
+# family at a time -- not by switching it on with a red baseline.
+select = ["E4", "E7", "E9", "F"]
+ignore = [
+    # E402 (module-level import not at top of file) is unavoidable here and is
+    # not debt. Skills are installed as standalone payloads and import their
+    # siblings by flat module name, which requires inserting the sibling's
+    # scripts/ directory onto sys.path *before* the import runs:
+    #
+    #     sys.path.insert(0, str(_RUNTIME_DIR))
+    #     from checkpoint import CheckpointManager
+    #
+    # Every one of the 84 occurrences is that pattern. Enforcing E402 would
+    # pressure authors to break a working convention, so it is ignored tree-wide
+    # rather than suppressed file-by-file with noqa comments that would need
+    # maintaining on every new skill.
+    "E402",
+]

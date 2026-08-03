@@ -24,6 +24,85 @@ python3 "<skill-base-dir>/scripts/validate_work_packages.py" <path-to-work-packa
 **Checks**: schema compliance, depends_on references, DAG cycles, lock key canonicalization
 **Exit codes**: 0 = VALID, 1 = INVALID (details on stderr)
 
+This script is deliberately git-free — it validates a file in isolation and is
+run against fixtures with no repository. Context-impact checking needs a diff,
+so it lives in a sibling script rather than here.
+
+### `<skill-base-dir>/scripts/validate_context_impact.py`
+
+Fails a work package that invalidates derived project context it never declared.
+
+**Usage**:
+```bash
+python3 "<skill-base-dir>/scripts/validate_context_impact.py" <path-to-work-packages.yaml> --base main
+python3 "<skill-base-dir>/scripts/validate_context_impact.py" <path> --changed-file docs/guide.md --json
+```
+
+**Exit codes**: 0 = VALID, 1 = INVALID, 2 = usage or rule-table error
+
+`--base` resolves changed files with `git diff --name-only <base>...HEAD`, so it
+sees **committed** changes only — which is what a pre-merge gate should judge.
+While iterating, pass `--changed-file` explicitly (repeatable) to classify
+working-tree paths; that path also takes no git dependency at all, which is how
+ri-09 will feed it a checkpoint's own file list.
+
+#### Context surfaces
+
+A package declares which surfaces it may invalidate in an optional
+`context_impact.surfaces` list. Each surface names the producer that owns
+refreshing it, so a declaration is directly actionable:
+
+| Surface | Owning producer / skill |
+|---|---|
+| `capabilities` | `openspec.projection` |
+| `apis` | `api.contracts` |
+| `architecture` | `refresh-architecture` |
+| `decisions` | `decisions.timeline` |
+| `documentation` | `documentation.inventory` |
+| `semantic_code` | `code-search` index |
+
+#### Enforcement
+
+The declaration is a *reviewable hint*, never evidence of completeness — a
+planner can omit it. The authoritative signal is the package's changed files
+(intersected with `scope.write_allow`, minus `scope.deny`) plus the change's
+`contracts.openapi.files`, classified by the glob rule table at
+`openspec/schemas/context-impact-rules.yaml`.
+
+Enforcement keys off whether the block exists, so the gate can be strict without
+a flag day:
+
+| Package state | Implied surface not declared | Result |
+|---|---|---|
+| has `context_impact` | no rationale | `undeclared` → **exit 1** |
+| has `context_impact` | rationale with `approved_by` | `rationalized` → pass |
+| has `context_impact` | nothing implied | `declared` → pass |
+| no `context_impact` | anything implied | `unmigrated` → pass, reports inferred surfaces |
+
+Declaring is opt-in but one-way: once the block is present it must be complete.
+An empty `surfaces: []` is a real "affects nothing" assertion, checked strictly —
+not a placeholder. A rationale needs both a non-empty `reason` and a non-empty
+`approved_by`, and a rationale for a surface the detector does *not* imply fails
+as `spurious_rationale`, so rationales cannot be pre-sprinkled.
+
+`--strict-legacy` promotes `unmigrated` to a failure, so the repository can flip
+to full enforcement in one flag once packages are migrated.
+
+#### Rule table
+
+`context-impact-rules.yaml` maps globs to surfaces and is deliberately data, not
+code — reviewability is the point of this gate. Every surface must have at least
+one rule; a surface with no rule silently stops being detectable, which the test
+suite pins. Loading fails on a missing file rather than yielding an empty rule
+set.
+
+#### Downstream scope resolution
+
+`context_impact.index_scopes(package)` resolves a package's `scope.read_allow`
+and `scope.deny` (deny wins) for semantic indexing and scoped context injection.
+It resolves rather than duplicates — adding a parallel copy of the globs under
+`context_impact` would create two sources of truth.
+
 ### `<skill-base-dir>/scripts/parallel_zones.py`
 
 Validates scope non-overlap for parallel work packages.

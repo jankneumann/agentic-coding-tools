@@ -26,6 +26,7 @@ Merge an approved PR, migrate any open tasks to coordinator issues or a follow-u
 Optional flags:
 - `--post-merge` - PR was already merged by `/merge-pull-requests`; skip PR merge and pre-merge validation stages, then archive/spec-sync/cleanup local remnants.
 - `--pr <number>` - PR number to verify when using `--post-merge`.
+- `--defer-commit` - **Off by default.** Only meaningful with `--post-merge`. Merge-driven mode: do all the cleanup work in the sync-point checkout, `git add` the result, and return without committing or pushing — the main-context convergence sync point makes the single commit. See Step 1.6.
 
 ## Prerequisites
 
@@ -115,6 +116,82 @@ gh pr view "$PR_NUMBER" --json number,state,mergedAt,headRefName,baseRefName
 - Skip Step 2, Step 2.5, Step 2.5a, Step 2.5b, Step 2.6, Step 3, and Step 3.5.
 - Continue at Step 4 to fetch latest main, then archive, validate, commit, push, and remove local branches/worktrees.
 - Treat local branch/worktree deletion as approval-scoped: remove only remnants for this `CHANGE_ID`; do not force-delete dirty worktrees or unmerged local branches unless the operator explicitly approves that separate action.
+
+**Which branch does post-merge cleanup land on?** `main`. The archive move, the
+merged spec deltas, and the regenerated decision index describe state that is
+already merged, so they belong on `main` rather than in a second review round.
+Historically this instruction said "commit and push" without naming a branch
+while Step 1 set up a scratch `--cleanup` worktree, which read as ambiguous. It is
+not: the destination is `main`, and Step 1.6 is the mode in which the sync point
+does the landing on this skill's behalf.
+
+### 1.6. Merge-Driven Deferred-Commit Mode (`--defer-commit`)
+
+`--defer-commit` is **off by default** and is only meaningful alongside
+`--post-merge`. Without `--defer-commit`, `--post-merge` behaves exactly as it
+always has: archive, validate, then commit and push that work itself. The default
+never moves, because a flag you would have to pass in order to *keep* today's
+behavior is a silent breaking change to every existing caller.
+
+Pass `--defer-commit` only when this skill is invoked **by the main-context
+convergence sync point** (`/merge-pull-requests`, Step 11.6 — Main Context
+Convergence). There, this skill is one of several cleanups running back to back
+over a single merged `main` state, and the sync point — not this skill — produces
+the single convergence commit that carries every cleanup's output together with
+the deterministic context-refresh output. Committing per change would produce
+N+1 commits for N archived changes.
+
+**What deferred-commit mode changes**
+
+- **No cleanup worktree.** Skip the Step 1 `worktree.py setup ... --agent-id
+  cleanup` block. Operate directly in the sync-point checkout, which is already on
+  `main` at the merged revision. Writing in that checkout is legitimate only
+  because the sync point holds the guards for it — active-agent check, coordinator
+  lock, and a pre-push compare-and-swap against `origin/main`. This skill does not
+  acquire them and must not assume them on its own.
+- **Stage, do not commit.** After the steps below, `git add` every path the
+  cleanup touched — the archived change directory, the merged
+  `openspec/specs/`, `docs/decisions/`, the session log, and any `tasks.md`
+  migration note. Then **return**. Commit nothing. Push nothing. Create no tag, no
+  branch, and no PR.
+- **Skip the local-remnant steps that assume a commit already landed.** Step 8.5
+  (worktree removal) and Step 9 (final verification on a clean tree) do not run in
+  this mode: the tree is deliberately dirty-then-staged when this skill returns,
+  and the sync point owns what happens next.
+- **Report what you staged.** Return the change-id, the archive destination path,
+  and the list of staged paths, so the sync point can compose one commit message
+  covering every change in the pass.
+
+**What deferred-commit mode does NOT change.** Steps 5 (open-task migration), 5b
+(session log), 6 (`openspec archive`, spec-delta merge, `make decisions`), and 7
+(`openspec validate --strict`) run exactly as in normal post-merge mode.
+`--defer-commit` changes **who commits**, not who archives: `cleanup-feature`
+remains the sole owner of OpenSpec task migration, `openspec archive`, and the
+spec-delta merge into `openspec/specs/`. The sync point never archives, never
+merges a spec delta, and never migrates a task.
+
+**Deferring the commit is NOT deferring the decision-index regeneration.** Run
+`make decisions` and stage its output in this mode too:
+
+```bash
+make decisions
+git add docs/decisions/
+```
+
+`docs/decisions/` is derived from `openspec/changes/archive/`, so the archive move
+performed moments earlier stales the committed index *immediately*. If the regen
+were left for the sync point to remember, the convergence commit could land an
+archive move with a stale index and `main` would fail the `validate-decision-index`
+CI job for every unrelated PR until someone bisected it — the exact 2026-05-12
+incident recorded in Common Rationalizations. The commit is deferred by one step;
+the regeneration is not deferred at all. Both land in the one convergence commit.
+
+**Partial failure.** If this skill fails partway through a multi-change cleanup
+pass, everything already staged by the changes that succeeded is committed by the
+sync point as a cleanup-only convergence commit and is **never discarded**. Do not
+`git reset`, `git checkout --`, or `git stash` on the way out of a failure. Report
+the failing change-id and the error, leave the index as it stands, and let the
+sync point stop the pass from a clean, pushed state.
 
 ### 2. Verify PR is Approved
 
@@ -245,11 +322,21 @@ If `CAN_MERGE_QUEUE=true`: `mark_merged(feature_id="<change-id>")` -- marks feat
 git fetch origin main
 ```
 
-After merge, refresh project-global architecture artifacts:
+After merge, refresh project-global architecture artifacts with the **staged**
+target:
 
 ```bash
-make architecture
+make architecture-refresh
 ```
+
+Use `make architecture-refresh`, never the bare `make architecture` generation
+target. Provenance is written only by the staged path (`run_staged` in
+`refresh-architecture/scripts/run_architecture.py`), and the deterministic
+architecture producer decides freshness by comparing *committed* provenance —
+missing or malformed provenance is routed to **drift**, not to "owner absent". So
+the full generation target can regenerate every artifact and still leave
+`make context-drift-gate` red. The staged target requires a committed HEAD, which
+holds here: this step runs after the merge has landed.
 
 ### 4.5. Fast-Forward Submodule Main Branches
 
@@ -571,6 +658,7 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 /validate-feature <change-id>   # Deploy + test → validation gate (optional)
 /cleanup-feature <change-id>    # Merge + archive → done
 /cleanup-feature <change-id> --post-merge --pr <number>  # Archive after /merge-pull-requests already merged
+/cleanup-feature <change-id> --post-merge --pr <number> --defer-commit  # Same, but stage only; the convergence sync point commits
 ```
 
 ## Common Rationalizations
@@ -583,6 +671,9 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 | "Latency went up 60%, but it's still within SLO — we'll keep going" | A 60% jump is a regression even when it's inside SLO. SLOs are the *floor*, not the rollback threshold. The rollback threshold is the threshold. |
 | "We can skip archiving until tomorrow" | The archive step closes the loop on spec drift. Postponing it leaves `openspec/changes/<id>/` and `openspec/specs/` out of sync, which silently breaks the next agent's view of the world. |
 | "`make decisions` is a separate cleanup — I'll regenerate `docs/decisions/` later" | Later never comes in the same commit. The archive move stales the index the instant it lands; a deferred regen means `main` fails `validate-decision-index` and blocks every unrelated PR until someone bisects it (this is exactly the 2026-05-12 incident). The regen costs one command — bind it to the archive commit. |
+| "I'm in `--defer-commit` mode, so the sync point will run `make decisions` for me" | `--defer-commit` defers the *commit* by one step, not the *regeneration*. The sync point commits whatever is staged; if the regen never ran, the convergence commit lands an archive move beside a stale index and reproduces the 2026-05-12 incident with an extra layer of indirection. Regenerate and `git add docs/decisions/` before returning. |
+| "Committing my own archive inside `--defer-commit` is harmless — the sync point can just add another commit" | That is the N+1 commits the mode exists to prevent, and it breaks the sync point's compare-and-swap: it keyed its operation on a `main` revision that your commit has already moved. Stage and return. |
+| "`make architecture` regenerated everything, so the architecture artifacts are fresh" | Freshness is decided by *committed provenance*, and provenance is written only by the staged `make architecture-refresh` path. The full generation target leaves provenance missing, which the producer routes to drift — every artifact current and the gate still red. |
 
 ## Red Flags
 
@@ -593,6 +684,12 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 - The OpenSpec change-id is archived but `openspec validate --strict` was not re-run after the archive.
 - The change was archived but `make decisions` was not run (or `docs/decisions/` was not staged into the archive commit) — `main` will fail `validate-decision-index` on the next PR.
 - Open tasks were silently dropped (no migration to coordinator issues or follow-up proposal).
+- A `--defer-commit` run created a commit, a push, a tag, or a branch of its own. That is N+1 commits for N archived changes, and it invalidates the sync point's pre-push compare-and-swap.
+- A `--defer-commit` run returned with `git diff --cached --name-only` empty while an archive directory moved — the work happened but was never staged, so the convergence commit will silently omit it.
+- A `--defer-commit` run staged an archive move without `docs/decisions/` alongside it — the regeneration was skipped or postponed, which is the deferred-regen failure in a new disguise.
+- A `--defer-commit` run set up its own `--cleanup` worktree instead of operating in the sync-point checkout, so its staged output is invisible to the commit the sync point is about to make.
+- A cleanup failed partway through a multi-change pass and the staged output of the changes that already succeeded was reset, stashed, or checked out — it must be preserved for the sync point.
+- The post-merge path ran `make architecture` rather than `make architecture-refresh` — provenance is unwritten, so `make context-drift-gate` stays red even though every artifact was regenerated.
 
 ## Verification
 
@@ -603,3 +700,7 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 4. The feature flag (or equivalent traffic gate) is identified by name in the session log, with the kill-switch procedure documented.
 5. If a rollback trigger fired during rollout, an issue tagged `rollback-postmortem` exists and the flag is currently at 0%.
 6. Open tasks from `tasks.md` are accounted for: either all checked, or migrated to coordinator issues / follow-up proposal with a Migration Notes line in the original `tasks.md`.
+7. The post-merge architecture step ran `make architecture-refresh` (the staged, provenance-writing target), not `make architecture`. Confirm the run wrote or updated the architecture provenance record.
+8. In `--defer-commit` mode: `git diff --cached --name-only` lists the archive destination, the merged `openspec/specs/` paths, and `docs/decisions/` — and `git log -1` on `main` is unchanged from before the cleanup ran (this skill created no commit of its own).
+9. In `--defer-commit` mode: `git status --short` shows no unstaged cleanup output left behind, and `make decisions && git diff --quiet -- docs/decisions/` is clean, proving the regeneration happened here rather than being left for the sync point.
+10. In `--defer-commit` mode after a partial failure: the staged index from the changes that already succeeded is intact — no `git reset`, `git stash`, or `git checkout --` appears in the cleanup transcript.

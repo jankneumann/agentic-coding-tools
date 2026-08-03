@@ -16,13 +16,67 @@ import sys
 import time
 from typing import Any, Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .approval import get_approval_service
 from .axi_output import list_envelope, probe_truncation
+from .code_search_runtime import (
+    CodeSearchOverloadedError,
+    code_search_enabled,
+    get_code_search_runtime,
+    principal_id_for_api_key,
+    start_code_search_runtime,
+    stop_code_search_runtime,
+)
 from .config import get_config
 from .port_allocator import get_port_allocator
+
+_CODE_SEARCH_PROBLEMS = {
+    401: {
+        "type": "urn:coordinator:authentication:required",
+        "title": "Authentication required",
+        "status": 401,
+        "detail": "A valid coordinator credential is required.",
+    },
+    403: {
+        "type": "urn:coordinator:code-search:forbidden",
+        "title": "Code-search scope is not authorized",
+        "status": 403,
+        "detail": "The principal has no code-search grant for this repository.",
+    },
+    404: {
+        "type": "urn:coordinator:code-search:disabled",
+        "title": "Code search disabled",
+        "status": 404,
+        "detail": "Semantic code search is disabled.",
+    },
+    422: {
+        "type": "urn:coordinator:code-search:invalid-request",
+        "title": "Invalid code-search request",
+        "status": 422,
+        "detail": "A full source revision and authoritative scope are required.",
+    },
+    429: {
+        "type": "urn:coordinator:code-search:overloaded",
+        "title": "Code search is busy",
+        "status": 429,
+        "detail": "Retry semantic search after the indicated delay.",
+    },
+}
+
+
+class _CodeSearchProblemError(Exception):
+    """Route-local problem response with optional transport headers."""
+
+    def __init__(self, status: int, *, headers: dict[str, str] | None = None) -> None:
+        self.status = status
+        self.headers = headers
+        super().__init__(_CODE_SEARCH_PROBLEMS[status]["detail"])
+
 
 # =============================================================================
 # Pydantic request / response models
@@ -558,6 +612,17 @@ def create_coordination_api() -> FastAPI:
                 exc_info=True,
             )
 
+        # Semantic search is optional and default-off. Its runtime owns the
+        # pool/provider in this serving loop; initialization failure never
+        # prevents the coordinator from starting.
+        try:
+            await start_code_search_runtime()
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).warning(
+                "Code-search startup failed — semantic search unavailable.",
+                exc_info=False,
+            )
+
         # Start event bus for status NOTIFY
         from .event_bus import get_event_bus
 
@@ -640,6 +705,10 @@ def create_coordination_api() -> FastAPI:
         except Exception:  # noqa: BLE001
             pass
         try:
+            await stop_code_search_runtime()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
             shutdown_langfuse()
         except Exception:  # noqa: BLE001
             pass
@@ -650,6 +719,31 @@ def create_coordination_api() -> FastAPI:
         version="0.2.0",
         lifespan=lifespan,
     )
+
+    @app.exception_handler(_CodeSearchProblemError)
+    async def code_search_problem_handler(
+        _request: Request,
+        exc: _CodeSearchProblemError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status,
+            content=_CODE_SEARCH_PROBLEMS[exc.status],
+            headers=exc.headers,
+            media_type="application/problem+json",
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_handler(
+        request: Request,
+        exc: RequestValidationError,
+    ) -> JSONResponse:
+        if request.url.path == "/search/code":
+            return JSONResponse(
+                status_code=422,
+                content=_CODE_SEARCH_PROBLEMS[422],
+                media_type="application/problem+json",
+            )
+        return await request_validation_exception_handler(request, exc)
 
     # CORS middleware — design decision D12.
     # Allows http://localhost:5173 (Vite dev) plus additional origins from
@@ -3320,34 +3414,74 @@ def create_coordination_api() -> FastAPI:
             raise
         return result
 
-    # --- code search (change: add-semantic-code-search) -------------------------------------
-    # Read-only (design D5): never locks/enqueues/indexes. Gated by CODE_SEARCH_ENABLED (D10):
-    # the route is always registered but returns 404 when the flag is off, so nothing depends on
-    # unproven retrieval quality until the spike gate (D9) is closed.
+    # --- fail-closed semantic code search (v2) ----------------------------------------------
+    @app.get("/search/code/status")
+    async def code_search_status_endpoint() -> dict[str, Any]:
+        from .code_search_runtime import CodeSearchStatus
+
+        if not code_search_enabled():
+            return CodeSearchStatus(
+                available=False,
+                state="disabled",
+                reason="disabled",
+                usable_index_count=0,
+            ).to_dict()
+        try:
+            return (await get_code_search_runtime().status()).to_dict()
+        except Exception:  # noqa: BLE001
+            return CodeSearchStatus(
+                available=False,
+                state="unavailable",
+                reason="registry_unavailable",
+                usable_index_count=0,
+            ).to_dict()
+
+    async def verify_code_search_principal(http_request: Request) -> dict[str, Any]:
+        """Apply the disabled gate before invoking the standard auth verifier."""
+
+        if not code_search_enabled():
+            raise _CodeSearchProblemError(404)
+        try:
+            return await verify_api_key(
+                x_api_key=http_request.headers.get("x-api-key"),
+                authorization=http_request.headers.get("authorization"),
+                x_coordinator_api_key=http_request.headers.get("x-coordinator-api-key"),
+            )
+        except HTTPException as exc:
+            if exc.status_code == 401:
+                raise _CodeSearchProblemError(401) from exc
+            raise
+
     @app.post("/search/code")
     async def search_code_endpoint(
         request: dict[str, Any],
-        principal: dict[str, Any] = Depends(optional_api_key),
+        principal: dict[str, Any] = Depends(verify_code_search_principal),
     ) -> dict[str, Any]:
-        from .code_search import CodeSearchError, code_search_enabled, get_code_search_service
+        from pydantic import ValidationError
+
+        from .code_search import CodeSearchError, CodeSearchRequest
+        from .code_search_runtime import _sanitized_unavailable
 
         if not code_search_enabled():
-            raise HTTPException(status_code=404, detail="code search is disabled")
-        if not request.get("query") or not request.get("repo"):
-            raise HTTPException(status_code=422, detail="query and repo are required")
+            raise _CodeSearchProblemError(404)
         try:
-            resp = await get_code_search_service().search(
-                query=request["query"],
-                repo=request["repo"],
-                limit=int(request.get("limit", 10)),
-                offset=int(request.get("offset", 0)),
-                languages=request.get("languages"),
-                paths=request.get("paths"),
-                scope=request.get("scope"),
+            validated = CodeSearchRequest.model_validate(request)
+        except ValidationError as exc:
+            raise _CodeSearchProblemError(422) from exc
+        try:
+            response = await get_code_search_runtime().search(
+                validated,
+                principal_id=principal_id_for_api_key(principal),
             )
+        except CodeSearchOverloadedError as exc:
+            raise _CodeSearchProblemError(429, headers={"Retry-After": "2"}) from exc
         except CodeSearchError as exc:
-            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
-        return resp.to_dict()
+            if exc.status == 403:
+                raise _CodeSearchProblemError(403) from exc
+            response = _sanitized_unavailable(validated)
+        except Exception:  # noqa: BLE001
+            response = _sanitized_unavailable(validated)
+        return response.to_dict()
 
     return app
 

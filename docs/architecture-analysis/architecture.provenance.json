@@ -1,0 +1,128 @@
+{
+  "artifacts": [
+    {
+      "path": "docs/architecture-analysis/architecture.diagnostics.json",
+      "required": false,
+      "sha256": "c60b1b9892f69c0c77ed7d9e38f7ecb0620fa2ef3a2c1764106adf508fff6799",
+      "size_bytes": 1076714
+    },
+    {
+      "path": "docs/architecture-analysis/architecture.graph.json",
+      "required": true,
+      "sha256": "8343aedb4de6142b022663ac7e956ed80d539ebaf773d8a911ec27d211f0f670",
+      "size_bytes": 877663
+    },
+    {
+      "path": "docs/architecture-analysis/architecture.report.md",
+      "required": false,
+      "sha256": "9e43eeaa1a9a317872d5b5e62b12d03506c62769fb9d7abcffe3267aee4cad0b",
+      "size_bytes": 55110
+    },
+    {
+      "path": "docs/architecture-analysis/architecture.summary.json",
+      "required": true,
+      "sha256": "2b09cab45442f6b815a76929375ece66ba121b47f752fe4ea05ad305a24b82b9",
+      "size_bytes": 22444
+    },
+    {
+      "path": "docs/architecture-analysis/comment_insights.json",
+      "required": false,
+      "sha256": "c90d60f45b14862f5da1895707bc23e1e7004b50c0dca46784d5bfbb2d023145",
+      "size_bytes": 3870
+    },
+    {
+      "path": "docs/architecture-analysis/parallel_zones.json",
+      "required": false,
+      "sha256": "9a408f138cb86936ff3498bcc9aca28ba75fbf72d400f1886e08d1846e47f8f5",
+      "size_bytes": 512392
+    },
+    {
+      "path": "docs/architecture-analysis/pattern_insights.json",
+      "required": false,
+      "sha256": "b5f8d95e23afb5f31278f81e2222901027b0cddacd0fbc1da3f5a6fe016088db",
+      "size_bytes": 2052
+    },
+    {
+      "path": "docs/architecture-analysis/postgres_analysis.json",
+      "required": false,
+      "sha256": "e60ba4525a43988e70edb45575349028bca00d5cf6470d61fc68c8f9147c0fa4",
+      "size_bytes": 73423
+    },
+    {
+      "path": "docs/architecture-analysis/python_analysis.json",
+      "required": false,
+      "sha256": "476dc423c808dd758f022a231053907ac7272f20fa6518d3487f965ec19ade68",
+      "size_bytes": 958227
+    },
+    {
+      "path": "docs/architecture-analysis/treesitter_enrichment.json",
+      "required": false,
+      "sha256": "6905fcc60966d4d2e991f1006f3fd4e19f3907d3c50bb664f164ab2b067d2c73",
+      "size_bytes": 185783
+    },
+    {
+      "path": "docs/architecture-analysis/ts_analysis.json",
+      "required": false,
+      "sha256": "57a21ae55604889d9c87901b3fe77c8b4bf7594f6d454d8aa7a3f69ae33f02e3",
+      "size_bytes": 61354
+    },
+    {
+      "path": "docs/architecture-analysis/views/.gitkeep",
+      "required": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "path": "docs/architecture-analysis/views/backend_components.mmd",
+      "required": false,
+      "sha256": "46441eebedc1ae1ea9e1d4fd0b94cc2db60be3e76e8f0e1c17260f584400c4c0",
+      "size_bytes": 12888
+    },
+    {
+      "path": "docs/architecture-analysis/views/containers.mmd",
+      "required": false,
+      "sha256": "da7ed40faebafedd1a73050c184923bc99b7135217f6fb1f03c65ab492143467",
+      "size_bytes": 122
+    },
+    {
+      "path": "docs/architecture-analysis/views/db_erd.mmd",
+      "required": false,
+      "sha256": "d9e229bdcffab17ffa9c022779390956346d9a9f3d0de92c42d3672bf8581aec",
+      "size_bytes": 8691
+    },
+    {
+      "path": "docs/architecture-analysis/views/frontend_components.mmd",
+      "required": false,
+      "sha256": "36a5497b4d301fe424d0dada885bec1850698dc290e3fd70db25c93687b3a12b",
+      "size_bytes": 144
+    }
+  ],
+  "generated_at": "2026-07-27T20:32:11+00:00",
+  "input_fingerprint": "4f9bb69122b73e9a2f125708e3bbf866b07501bcd784a784ecb2dd455b03173c",
+  "input_roots": [
+    "agent-coordinator/database/migrations",
+    "agent-coordinator/src",
+    "apps"
+  ],
+  "mode": "full",
+  "optional_tools": [
+    {
+      "available": true,
+      "name": "tree-sitter",
+      "version": "0.25.2"
+    }
+  ],
+  "producer": {
+    "producer_id": "architecture",
+    "producer_version": "1.0.0"
+  },
+  "repository_id": "cleanup",
+  "schema_version": 1,
+  "source_revision": "0d4f9bd688c777cf07faeb768e8ae316c9ed86a5",
+  "validation": {
+    "error_count": 0,
+    "status": "passed",
+    "warning_count": 0
+  },
+  "worktree_dirty": false
+}

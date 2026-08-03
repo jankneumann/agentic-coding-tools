@@ -25,6 +25,7 @@ def _state(**overrides: Any) -> dict[str, Any]:
         "CAN_FEATURE_REGISTRY": False,
         "CAN_MERGE_QUEUE": False,
         "CAN_ISSUES": False,
+        "CAN_CODE_SEARCH": False,
     }
     base.update(overrides)
     return base
@@ -106,6 +107,16 @@ def test_detect_coordination_partial_capabilities(monkeypatch) -> None:
             "/features/active": {"status_code": 404, "data": {}, "error": "not found"},
             "/merge-queue": {"status_code": 404, "data": {}, "error": "not found"},
             "/issues/list": {"status_code": 200, "data": {"success": True, "issues": [], "count": 0}, "error": None},
+            "/search/code/status": {
+                "status_code": 200,
+                "data": {
+                    "available": False,
+                    "state": "unavailable",
+                    "reason": "no_usable_index",
+                    "usable_index_count": 0,
+                },
+                "error": None,
+            },
         }
         return responses[path]
 
@@ -124,6 +135,7 @@ def test_detect_coordination_partial_capabilities(monkeypatch) -> None:
     assert result["CAN_FEATURE_REGISTRY"] is False
     assert result["CAN_MERGE_QUEUE"] is False
     assert result["CAN_ISSUES"] is True
+    assert result["CAN_CODE_SEARCH"] is False
 
 
 def test_try_lock_skips_when_capability_missing(monkeypatch) -> None:

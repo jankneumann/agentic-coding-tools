@@ -2,8 +2,35 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/packages/gen-eval/src/gen_eval/contracts/eval-report.schema.json",
   "title": "gen-eval report",
-  "x-gen-eval-contract-version": "1",
+  "x-gen-eval-contract-version": "2",
   "$defs": {
+    "OperationCoverage": {
+      "description": "Coverage for one operation across every surface (D4).\n\nThe operation is the unit. An operation published on three surfaces and\nexercised through one is *covered*, with two exposed-but-uncovered\nsurfaces \u2014 not two gaps.",
+      "properties": {
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "surfaces": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SurfaceCoverage"
+          },
+          "title": "Surfaces",
+          "type": "object"
+        },
+        "covered": {
+          "readOnly": true,
+          "title": "Covered",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "operation_id",
+        "covered"
+      ],
+      "title": "OperationCoverage",
+      "type": "object"
+    },
     "ScenarioVerdict": {
       "description": "Result of evaluating one scenario.",
       "properties": {
@@ -247,6 +274,35 @@
       "title": "StepVerdict",
       "type": "object"
     },
+    "SurfaceCoverage": {
+      "description": "Whether one surface publishes an operation, and whether it was exercised.\n\n``exposed`` and ``covered`` are deliberately independent booleans. A\nsurface that does not publish the operation is ``exposed=False`` and is\n**not** a coverage gap \u2014 no run could ever cover it. A surface that\npublishes it and was not exercised is ``exposed=True, covered=False``, and\nis. The flat model could not tell those apart: both were simply absent\nfrom the covered set.",
+      "properties": {
+        "exposed": {
+          "default": false,
+          "title": "Exposed",
+          "type": "boolean"
+        },
+        "element": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Element"
+        },
+        "covered": {
+          "default": false,
+          "title": "Covered",
+          "type": "boolean"
+        }
+      },
+      "title": "SurfaceCoverage",
+      "type": "object"
+    },
     "VisibilityBreakdown": {
       "description": "Pass/fail/error/skip counts for a single visibility bucket.",
       "properties": {
@@ -366,6 +422,25 @@
       },
       "title": "Cost Summary",
       "type": "object"
+    },
+    "per_operation": {
+      "items": {
+        "$ref": "#/$defs/OperationCoverage"
+      },
+      "title": "Per Operation",
+      "type": "array"
+    },
+    "unevaluated_operations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unevaluated Operations",
+      "type": "array"
+    },
+    "declared_interface_count": {
+      "default": 0,
+      "title": "Declared Interface Count",
+      "type": "integer"
     },
     "iterations_completed": {
       "title": "Iterations Completed",

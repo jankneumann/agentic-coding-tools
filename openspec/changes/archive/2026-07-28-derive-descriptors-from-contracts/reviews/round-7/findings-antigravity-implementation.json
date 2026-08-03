@@ -1,0 +1,35 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": "antigravity-001",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "packages/gen-eval/src/gen_eval/orchestrator.py:390 \u2014 `_build_report` calculates `coverage_pct` as `(len(covered) / len(all_interfaces) * 100)`. For a `ServiceDescriptor`, `all_interfaces()` returns all exposed element identifiers across every surface binding (e.g., HTTP, MCP, CLI), so an operation exposed on 3 surfaces produces 3 items in `all_interfaces`. `ServiceDescriptor.coverage_unit_count()` defines the operation as the coverage unit (`len(self.operations)`), and design decision D4 specifies that coverage is operation-keyed (an operation exercised on one surface is covered). By dividing `len(covered)` by `len(all_interfaces)` instead of using operation coverage, a multi-surface service with 100% operation coverage exercised via HTTP will report a `coverage_pct` of 33.3%, causing `--min-coverage` gates to fail incorrectly.",
+      "disposition": "fix"
+    },
+    {
+      "id": "antigravity-002",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "packages/gen-eval/src/gen_eval/evaluator.py:586 \u2014 `Evaluator._cli_identifiers` filters flag units against `declared` (`if unit in declared:`). When a scenario exercises an uncontracted flag, the flag unit is suppressed and excluded from `interfaces_tested`. This neutralizes `_attribute_interfaces`'s fallback mechanism in `orchestrator.py:326` (which explicitly maps uncontracted tested identifiers to themselves for visibility/reporting) and hides exercised contract omissions from report data and per-interface results.",
+      "disposition": "fix"
+    },
+    {
+      "id": "antigravity-003",
+      "type": "plan-risk",
+      "criticality": "medium",
+      "description": "openspec/changes/derive-descriptors-from-contracts/tasks.md:386 \u2014 Task 5.8 specifies bumping `CONTRACT_VERSION` from `2` to `3` when reclaiming `ServiceDescriptor` and `ToolDescriptor` package-level exports in `gen_eval/__init__.py`. However, `src/gen_eval/contracts/__init__.py` documents `CONTRACT_VERSION` as versioning published JSON Schema files (`interface-descriptor.schema.json`, etc.) which must only be bumped on breaking JSON schema changes. Reclaiming Python module export names is a Python API refactoring, not a breaking JSON Schema change. Bumping `CONTRACT_VERSION` in 5.8 violates repo contract versioning policy and falsely alerts schema consumers of breaking schema changes.",
+      "disposition": "fix"
+    },
+    {
+      "id": "antigravity-004",
+      "type": "plan-risk",
+      "criticality": "medium",
+      "description": "openspec/changes/derive-descriptors-from-contracts/tasks.md:364 \u2014 Task 5.4d specifies wiring `--min-coverage` into `make dogfood`. However, `make dogfood` runs `gen-eval` against `evaluation/descriptor.yaml` (a tool descriptor). Under design D11, tool descriptor acceptance is governed by the coverage-completeness rule (`check_coverage_completeness.py`, Task 5.4b) with explicit exclusions, whereas `--min-coverage` enforces a percentage floor (`coverage_pct`). Because dogfood scenarios cover ~29.4% (5 of 17 flags) of gen-eval's CLI surface, passing a non-zero `--min-coverage` floor in `make dogfood` will cause CI to fail.",
+      "disposition": "fix"
+    }
+  ]
+}

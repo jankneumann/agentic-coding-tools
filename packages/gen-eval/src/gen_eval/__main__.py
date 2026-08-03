@@ -22,6 +22,7 @@ from .openspec_seed import (  # noqa: F401  (InvalidChangeIdError re-exported fo
     InvalidChangeIdError,
     validate_change_id,
 )
+from .reports import GenEvalReport
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,43 @@ logger = logging.getLogger(__name__)
 # --openspec-change fails the regex validation. Argparse's default of 2
 # is not specific enough; the spec calls for 64.
 EX_USAGE = 64
+
+#: Default coverage floor: none (D10, Rule 4). A run that exits 0 today must
+#: keep exiting 0 after upgrading, and gen-eval's own dogfood reports 0%
+#: coverage until its descriptor is derived from its contract.
+DEFAULT_MIN_COVERAGE = 0.0
+
+
+def _percentage(value: str) -> float:
+    """argparse type= adapter for a 0-100 percentage.
+
+    Rejecting out-of-range values catches ``--min-coverage 800`` from someone
+    thinking in basis points. That mistake fails *closed*, which is why the
+    band just above zero needs its own check: ``--fail-threshold`` is a rate in
+    ``[0, 1]``, so ``--min-coverage 0.8`` from someone reading the two flags
+    alike is a legal 0.8% floor that any real suite clears. The run exits 0 and
+    the operator reads a green build as an enforced coverage gate — the exact
+    outcome the flag exists to prevent.
+
+    Nothing legitimate lives in ``(0, 1)``. Coverage is denominated in
+    operations, so the smallest non-zero reading is ``100/N`` and a sub-1%
+    floor cannot separate any two outcomes. ``0`` (no floor) and ``1`` (any
+    coverage at all) both remain available.
+    """
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"expected a number, got {value!r}") from exc
+    if not 0.0 <= number <= 100.0:
+        raise argparse.ArgumentTypeError(f"must be a percentage between 0 and 100, got {number}")
+    if 0.0 < number < 1.0:
+        raise argparse.ArgumentTypeError(
+            f"{number} is a percent, so it means {number}% — a floor every "
+            f"non-empty run clears, which would pass silently. If you meant "
+            f"{number * 100:g}%, pass {number * 100:g}. If you meant no floor "
+            f"at all, pass 0. Unlike --fail-threshold, this flag is not a rate."
+        )
+    return number
 
 
 def _argparse_change_id(value: str) -> str:
@@ -69,7 +107,16 @@ class _PrintContractVersionAction(argparse.Action):
         parser.exit(0)
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def build_parser() -> argparse.ArgumentParser:
+    """The CLI's argument parser, as an inspectable object.
+
+    Split out of :func:`parse_args` so the argparse subset verifier has the
+    *real* surface to check (D1, task 4.7). While the parser existed only as a
+    local, any gate had to rebuild one from the contract — a mirror of its own
+    reference, which stays green however far ``parse_args`` drifts.
+
+    Returns a fresh parser per call: callers verify by mutating it.
+    """
     parser = argparse.ArgumentParser(
         prog="gen-eval",
         description="Generator-Evaluator testing framework",
@@ -173,7 +220,27 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--fail-threshold",
         type=float,
         default=0.95,
-        help="Minimum pass rate to exit 0 (default: 0.95)",
+        help=(
+            "Minimum pass rate to exit 0, as a RATE in [0, 1] — 0.95 means "
+            "95%%. Note the asymmetry with --min-coverage, which is a percent: "
+            "`--fail-threshold 1.0 --min-coverage 1` is 100%% pass rate and a "
+            "1%% coverage floor, not two of the same number. The units differ "
+            "because this flag predates the coverage model and changing it now "
+            "would silently redefine every existing invocation (a rate of 1.0 "
+            "would become a 1%% floor). Default: 0.95."
+        ),
+    )
+    parser.add_argument(
+        "--min-coverage",
+        type=_percentage,
+        default=DEFAULT_MIN_COVERAGE,
+        help=(
+            "Minimum interface coverage to exit 0, as a PERCENT (0-100) — the "
+            "same number the report prints, unlike --fail-threshold which is a "
+            "rate. Checked independently of the pass rate: a suite that gets "
+            "every answer right on a tenth of the declared surface fails this "
+            "gate. Default: 0 (no coverage floor)."
+        ),
     )
     parser.add_argument(
         "--openspec-change",
@@ -186,7 +253,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "Effective only with --mode cli-augmented."
         ),
     )
-    return parser.parse_args(argv)
+    return parser
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse argv with the parser :func:`build_parser` defines.
+
+    Delegating rather than declaring is what keeps the verifier's subject and
+    the CLI's actual surface the same object.
+    """
+    return build_parser().parse_args(argv)
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -212,7 +288,7 @@ async def run(args: argparse.Namespace) -> int:
     from .clients.http_client import HttpClient
     from .clients.wait_client import WaitClient
     from .config import GenEvalConfig
-    from .descriptor import InterfaceDescriptor
+    from .descriptor import load_descriptor
     from .evaluator import Evaluator
     from .generator import TemplateGenerator
     from .hybrid_generator import HybridGenerator
@@ -285,8 +361,11 @@ async def run(args: argparse.Namespace) -> int:
     if args.verbose:
         print(f"gen-eval: loading descriptor from {args.descriptor}")
 
-    # 2. Load descriptor
-    descriptor = InterfaceDescriptor.from_yaml(args.descriptor)
+    # 2. Load descriptor — as its archetype, not as the base model. Loading
+    # through InterfaceDescriptor discards `operations` on a service descriptor
+    # and `commands`/`executable`/`contract` on a tool descriptor, which makes
+    # every derived descriptor inert at exactly this seam.
+    descriptor = load_descriptor(args.descriptor)
 
     if args.verbose:
         print(
@@ -384,24 +463,75 @@ async def run(args: argparse.Namespace) -> int:
     for path in output_paths:
         print(f"gen-eval: report written to {path}")
 
-    # 9. Exit code based on pass rate.
+    # 9. Exit code: pass rate and coverage, gated independently.
     #
-    # A run that evaluated nothing is never a pass. GenEvalReport.pass_rate is
-    # already 0.0 when total_scenarios == 0, which fails against any positive
-    # threshold — but --fail-threshold 0 would otherwise let an empty run exit
-    # 0 and read as green. Vacuous success is the failure mode a coverage gate
-    # exists to prevent, so guard it explicitly rather than leaving it to the
-    # threshold arithmetic.
-    if report.total_scenarios == 0:
-        print("gen-eval: FAIL (no scenarios were evaluated)")
-        return 1
+    # Read through getattr: run() is documented as callable from an existing
+    # event loop, so a caller assembling its own Namespace is a supported
+    # shape. Making a new attribute mandatory would break every such caller on
+    # upgrade; absent means "no coverage floor", which is what they get today
+    # (Rule 4).
+    code, message = exit_decision(
+        report,
+        fail_threshold=config.fail_threshold,
+        min_coverage=getattr(args, "min_coverage", DEFAULT_MIN_COVERAGE),
+    )
+    print(f"gen-eval: {message}")
+    return code
 
-    if report.pass_rate >= config.fail_threshold:
-        print(f"gen-eval: PASS ({report.pass_rate:.1%} >= {config.fail_threshold:.1%})")
-        return 0
-    else:
-        print(f"gen-eval: FAIL ({report.pass_rate:.1%} < {config.fail_threshold:.1%})")
-        return 1
+
+def exit_decision(
+    report: GenEvalReport,
+    *,
+    fail_threshold: float,
+    min_coverage: float,
+) -> tuple[int, str]:
+    """Decide the process exit code from a finished report (D10).
+
+    Returns ``(exit code, message)``. Pure, so the two gates can be asserted
+    without running a scenario.
+
+    The gates are independent. A pass rate says the scenarios that ran got the
+    right answers; coverage says how much of the declared surface ran at all. A
+    suite can be perfect at one and empty at the other — which is the vacuous
+    success a coverage floor exists to catch — so a failure of either fails the
+    run, and the message names every gate that tripped rather than only the
+    first. An operator told ``FAIL (100.0% < 95.0%)`` when the real problem is
+    coverage goes looking in the wrong place.
+
+    A run that evaluated nothing is never a pass. ``pass_rate`` is already 0.0
+    when ``total_scenarios == 0``, which fails any positive threshold — but
+    ``--fail-threshold 0`` would otherwise let an empty run exit 0 and read as
+    green, so the guard is explicit rather than left to threshold arithmetic.
+    """
+    if report.total_scenarios == 0:
+        return 1, "FAIL (no scenarios were evaluated)"
+
+    # An empty declared surface is not full coverage. `coverage_pct` is
+    # covered/declared, so a descriptor declaring nothing reports 0.0 and
+    # satisfies every floor at or below zero — the same exit as a suite that
+    # exercised everything. No threshold can separate the two, because both
+    # numerator and denominator are empty, so the guard is on the surface
+    # itself. gen-eval's own descriptor was in exactly this state until its
+    # migration to a contract-derived artifact.
+    if report.declared_interface_count == 0:
+        return 1, (
+            "FAIL (the descriptor declares no interfaces — coverage of nothing "
+            "is not coverage)"
+        )
+
+    failures: list[str] = []
+    if report.pass_rate < fail_threshold:
+        failures.append(f"pass rate {report.pass_rate:.1%} < {fail_threshold:.1%}")
+    if report.coverage_pct < min_coverage:
+        failures.append(f"coverage {report.coverage_pct:.1f}% < {min_coverage:.1f}%")
+
+    if failures:
+        return 1, "FAIL (" + "; ".join(failures) + ")"
+
+    summary = f"pass rate {report.pass_rate:.1%} >= {fail_threshold:.1%}"
+    if min_coverage > 0:
+        summary += f"; coverage {report.coverage_pct:.1f}% >= {min_coverage:.1f}%"
+    return 0, f"PASS ({summary})"
 
 
 def main() -> int:

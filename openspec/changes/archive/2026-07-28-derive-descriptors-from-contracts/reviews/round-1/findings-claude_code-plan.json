@@ -1,0 +1,139 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "The plan's two headline deliverables, `ServiceDescriptor` and `ToolDescriptor`, are names that are ALREADY TAKEN in the exact module the plan targets, with different meanings. Verified: `packages/gen-eval/src/gen_eval/descriptor.py:41` defines `class ToolDescriptor` = 'Description of a single MCP tool'; `descriptor.py:67` defines `class ServiceDescriptor` = 'A single testable service within a project'. `ServiceDescriptor` is re-exported from `src/gen_eval/__init__.py:14` and listed in `__all__` (line 50) \u2014 it is public API pinned by `tests/test_public_api_parity.py`. Worse, both names are `$defs` titles in the PUBLISHED versioned contract `src/gen_eval/contracts/interface-descriptor.schema.json` (`$defs.ServiceDescriptor` line 221, `$defs.ToolDescriptor` line 483, carrying `x-gen-eval-contract-version: 1`) \u2014 the schema UP-2 shipped for offline consumers. wp-tool-descriptor's write_allow is `descriptor.py` and it is tasked (1.4) with implementing 'the ToolDescriptor model' \u2014 a direct redefinition in the same namespace. wp-service-descriptor puts a NEW `ServiceDescriptor` in `service_descriptor.py` while being DENIED `descriptor.py`, and neither package has `src/gen_eval/__init__.py` in write_allow, so the new type cannot be exported and the existing export cannot be disambiguated. No task, design decision, or work package acknowledges the collision or plans a CONTRACT_VERSION bump.",
+      "resolution": "Choose distinct names for the new archetypes (e.g. `ContractServiceDescriptor` / `ContractToolDescriptor`, or `DerivedServiceDescriptor` / `CliToolDescriptor`), OR add an explicit rename+deprecation-alias task for the two existing models. Either way add: (a) a task covering `src/gen_eval/__init__.py` exports with `src/gen_eval/__init__.py` in a package's write_allow; (b) a task deciding whether `CONTRACT_VERSION` (`src/gen_eval/contracts/__init__.py:41`) must bump, since `$defs` titles in the published schema change meaning; (c) a note in DOWNSTREAM.md, since DS-2/DS-3 tell consumers to read that schema.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "The plan changes the DECLARED interface vocabulary but never the TESTED one, so the proving case (D8) cannot reach the coverage floor the spec delta mandates. Evidence, run against the branch: `Evaluator._extract_interfaces` (`src/gen_eval/evaluator.py:530`) is the sole producer of `interfaces_tested`, and for CLI steps it requires `step.command` to be truthy. gen-eval's 8 dogfood steps use `args: [...]` with no `command` \u2014 I executed the extractor over `evaluation/scenarios/*.yaml` and got `total dogfood steps: 8 / interfaces_tested: [] / steps with command set: 0`. Coverage is then pure string matching of tested-vs-declared (`orchestrator.py:376` `_match_interface_coverage`, `orchestrator.py:401` `unevaluated = sorted(all_interfaces - covered)`). So after task 5.3 makes the declared surface N contracted flags, `covered` stays empty: `coverage_pct` = 0.0 and all N flags land in `unevaluated_interfaces`. The MODIFIED Dogfood requirement in the spec delta says a dogfood descriptor with a non-empty declared surface 'MUST achieve 80%+ interface coverage' and that gen-eval 'MUST evaluate it as a blocking gate' \u2014 so the change converts a vacuous pass into a spec violation at 0%. Compounding this: gen-eval's CLI has NO coverage threshold at all (`__main__.py:399` exits on `report.pass_rate` only; grep for `--min-coverage`/coverage gating returns nothing), and `make dogfood` passes `--fail-threshold 1.0`, which is pass-rate. So the 80% floor is unenforceable and wp-integration's acceptance signal (`declared_interfaces_non_empty`) would go green on a run reporting 0% coverage. No task in tasks.md touches `evaluator.py` or `_extract_interfaces`; `evaluator.py` is in `deny` for wp-tool-descriptor and wp-service-descriptor and absent from wp-coverage-model's write_allow, so no implementation package is even permitted to fix it.",
+      "resolution": "Add Phase 3 tasks (and widen wp-coverage-model's write_allow to include `src/gen_eval/evaluator.py`, plus a DAG edge to wp-tool-descriptor) that: (a) extend `_extract_interfaces` to emit flag-level tested identifiers from `step.args` as well as `step.command` for the tool archetype, and operation ids for the service archetype; (b) add a `--min-coverage` gate (or make `--fail-threshold` cover coverage) so the spec's 80% floor has an enforcement mechanism; (c) wire that threshold into `make dogfood`. Change wp-integration's verification from `declared_interfaces_non_empty` to an assertion on `coverage_pct`, since non-emptiness of the declared set alone is the same vacuous signal the change exists to remove.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/tasks.md"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "D3's fail-closed guard counts the wrong unit for the tool archetype, leaving the exact vacuous-pass hole the change exists to close. D3 and the spec delta both phrase all three assertions in terms of OPERATIONS ('the guard SHALL fail when the generated artifact declares zero operations'; 'operation count differs from the contract's operation count'). But for a tool descriptor the coverage unit is the FLAG, per the spec scenario 'Flag-only tool surfaces are nameable' ('each contracted flag SHALL be a nameable coverage unit'). In `contracts/cli-contract.schema.json`, `commands` has `minItems: 1` while `flags` is entirely optional with no minimum. I validated `{\"contract_version\":\"1\",\"tool\":{\"name\":\"gen-eval\",\"executable\":\"gen-eval\"},\"commands\":[{\"name\":\"\"}]}` against the schema \u2014 it passes. That contract declares 1 command and 0 flags, so assertion (1) non-empty passes (1 != 0), assertion (2) count-match passes (1 == 1), assertion (3) byte-identical passes \u2014 all three green \u2014 while the derived declared surface is empty and coverage is once again vacuous. This is the same failure family the proposal cites for UP-1/UP-3, reintroduced inside the guard meant to prevent it.",
+      "resolution": "State the fail-closed assertions per archetype: for a tool contract, assert the count of derived COVERAGE UNITS (flags + positionals + named subcommands), not commands, is non-zero and equals the contract's. Add `minItems: 1` to `flags` for a command with an empty `name` (or a schema-level `oneOf` requiring at least one flag or positional when the CLI is flat), and add an explicit test task under 1.5 for the '1 command / 0 flags' fixture \u2014 currently the only fixtures named are 'empty' and 'count_mismatch'.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/design.md"
+    },
+    {
+      "id": 4,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "wp-contracts' second verification step is decoration \u2014 it cannot fail. The command is a list comprehension over `glob.glob('openspec/contracts/gen-eval-framework/cli/*.yaml')`. I ran it verbatim from an empty temp directory: it printed `validated files: 0` and exited 0. So if task 1.7 is skipped, the contract is written with a `.yml` extension, or it lands under a different capability path, the gate reports success having validated nothing. This directly violates the repo's own 'a gate must FAIL on an unmodified tree or it is decoration' rule, and it is the same vacuous-empty-set defect this entire change was written to eliminate. The first step (schema is valid JSON Schema) is genuine.",
+      "resolution": "Make the step assert a non-zero file count before validating, e.g. append `files=glob.glob(...); assert files, 'no CLI contract found'` and validate each, and glob `*.y*ml`. Apply the same non-emptiness pattern to any other verification step whose command iterates a discovered set.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The CLI contract schema's `$id` and the change's own contracts/README.md disagree on the promoted path, and no task performs the promotion. `contracts/cli-contract.schema.json:3` declares `$id: .../openspec/contracts/gen-eval-framework/cli/cli-contract.schema.json`. `contracts/README.md` states 'On archival this schema moves to `openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json`' and asserts 'Its `$id` already points at that destination' \u2014 it does not (`cli/` vs `schemas/`). Separately, the README says promotion happens 'on archival', which contradicts `openspec/contracts/README.md`'s own workflow ('promote it here ... Do this *before* archiving the change so no window of drift opens') \u2014 the rule that PR #265 exists to enforce. Grepping tasks.md for `openspec/contracts` returns only task 1.7 (authors the contract INSTANCE under `.../cli/`) and 1.8 (documents the sub-path). Nothing promotes the SCHEMA itself, so the `$id` URL will 404 and DS-3's instruction to ACA \u2014 'following `cli-contract.schema.json` (shipped with this change)' \u2014 points at a path inside a change directory that moves on archive.",
+      "resolution": "Pick one location (`cli/` matches D1's stated layout and task 1.7) and make the `$id`, contracts/README.md, and `openspec/contracts/README.md` agree. Add an explicit task to wp-contracts promoting `cli-contract.schema.json` to that path with the change still in flight, and add the row to the 'Current contents' table in `openspec/contracts/README.md` as part of task 1.8.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/contracts/README.md"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "D7's 'MCP tool per operation' projection is 1:1, but the real surface the proposal cites as its evidence is many-to-one, and the model has no way to express that. Verified against `agent-coordinator/evaluation/descriptors/agent-coordinator.yaml` (38 HTTP / 39 MCP / 37 CLI, counted programmatically): the MCP tool `check_locks` ('Check lock status for one or more file paths') covers BOTH `GET /locks/active` and `GET /locks/status/{path}`, which the CLI splits into `lock list` and `lock status`. The implementation confirms it \u2014 `agent-coordinator/src/coordination_mcp.py:165` `async def check_locks(file_paths: list[str] | None = None)` branches on `file_paths` being None. Under D4 a surface entry is only `{exposed, covered}`, and under D7 the generator emits one MCP tool per operation, so it would derive `list_active_locks` and `get_lock_status` as two contracted MCP tools. The MCP subset verifier (task 4.6) then compares the real `list_tools()` against the contract, finds `check_locks` absent from it, and reports a FALSE contract violation for a legitimately merged tool \u2014 while the two contracted tools are simultaneously reported as omissions. Also unmapped: `pre_merge_check` and `learn_procedure` exist on MCP with no HTTP or CLI counterpart, which `exposed: false` handles, but the many-to-one case it does not.",
+      "resolution": "Extend the operation-x-surface model so a surface entry can name the surface-local element that serves the operation (e.g. `mcp: { exposed: true, tool: check_locks }`), and allow one surface element to satisfy multiple operation ids. Make the MCP subset verifier compare against that binding set rather than against derived one-per-operation tool names. Add this case as an explicit test fixture under task 4.5, and record it in D7 as a third carve-out alongside resources/prompts.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/design.md"
+    },
+    {
+      "id": 7,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "The backward-compatibility story covers `unevaluated_interfaces` but not `per_interface`, which breaks the exact assertion DOWNSTREAM.md tells ACA to adopt. `per_interface` is built at `orchestrator.py:382-388` from `v.interfaces_tested` \u2014 per-surface strings from `_extract_interfaces`. D6 and task 3.4 only migrate `unevaluated_interfaces` to operation ids computed from the operation model. `reports.py:55,57` shows both fields are siblings in the published `GenEvalReport`. DS-1 recommends `declared = set(report[\"per_interface\"]) | set(report[\"unevaluated_interfaces\"])` \u2014 after this change that union mixes two namespaces (`\"GET /locks/acquire\"` from one half, `\"acquire_lock\"` from the other), so it no longer reconstructs the declared set and its cardinality is meaningless. wp-coverage-model's write_allow includes `reports.py` and `orchestrator.py` but no task mentions `per_interface`, and DS-2's compatibility section does not mention it either.",
+      "resolution": "Add a task under Phase 3 that migrates `per_interface` keys to the same operation-keyed vocabulary as `unevaluated_interfaces` (or explicitly documents that it stays surface-keyed and adds a separate `per_operation` map). Update DS-1's recommended snippet in DOWNSTREAM.md so the union it suggests remains valid post-change, and add `per_interface` to DS-2's list of caveats.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/DOWNSTREAM.md"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Excess detection ships with no gate that ever runs against a real surface, which leaves D3's residual hole open. The drift guards only prove generator-vs-contract consistency; they cannot detect a contract that has rotted to a subset of reality (a contract truncated from 12 flags to 1 passes non-emptiness, passes 1==1 count-match, and passes byte-identity after regeneration). The only mechanism that catches that is the subset verifier \u2014 implementation exposes a flag absent from the contract. But task 5.5 wires only 'both drift guards' into CI; nothing wires the verifiers. wp-subset-verifiers' verification runs `pytest tests/test_subset_verifiers.py`, which exercises the verifier logic against fixtures, not gen-eval's actual argparse parser. There is no task applying the argparse verifier to `gen_eval.__main__`'s real parser, even though gen-eval is designated the proving case (D8) and its own CLI is the one surface where the verifier could run without a deployed service. The spec requirement 'Implemented Surface Subset Verification' is therefore satisfiable by library code that never runs in anger.",
+      "resolution": "Extend task 5.5 (or add 5.5b) to wire the argparse subset verifier against gen-eval's real parser into the `gen-eval-tests` CI job and into `make dogfood`, and add a corresponding verification step to wp-integration. Add a test asserting the verifier FAILS when a flag is added to `__main__`'s parser but not to the CLI contract \u2014 per the plan's own note on task 1.5, an assertion that only passes on good input is decoration.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/tasks.md"
+    },
+    {
+      "id": 9,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The scenario that encodes D1's central claim has no covering task. Spec delta scenario 'Unreachable implementation does not shrink the declared surface' (specs/gen-eval-framework/spec.md:25-30) is the one assertion that distinguishes the selected approach from rejected Approach 2 \u2014 it is the whole fail-closed argument. Searching tasks.md, no task's **Spec scenarios** field names it: task 1.3 and 2.1 both map only to 'descriptor derives from a contract'. Since the derived path reads a static YAML file and never invokes the implementation, the property is easy to assert and easy to regress silently the moment someone adds a convenience fallback ('if the contract is missing, probe --help'). Separately, task 1.1's mapping is wrong: it is a CLI-contract-schema validation task but is mapped to 'Service And Tool Descriptor Archetypes (tool descriptor requires no lifecycle configuration)', a lifecycle scenario it does not test.",
+      "resolution": "Add a test task under Phase 1 asserting that loading a contract-referencing descriptor with the target executable absent from PATH and the service URL unreachable still yields the full contracted declared surface, mapped to 'Unreachable implementation does not shrink the declared surface'. Re-map task 1.1 to a scenario it actually covers (Descriptor Derivation Drift Guard, or drop the mapping since 1.1 is schema authoring).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/tasks.md"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Model changes in two packages invalidate the published JSON Schema contract, and no package can regenerate it. `tests/test_contract_schemas.py::TestNoDrift::test_generator_check_mode_passes` runs `scripts/generate_contract_schemas.py --check`, which regenerates `interface-descriptor.schema.json` from `descriptor.InterfaceDescriptor` and `eval-report.schema.json` from `reports.GenEvalReport` and diffs against the checked-in copies. wp-tool-descriptor writes `descriptor.py`; wp-coverage-model writes `reports.py` (adding operation-keyed structures and changing `unevaluated_interfaces` semantics). Neither package's write_allow includes `src/gen_eval/contracts/**` (wp-tool-descriptor lists 4 explicit files, wp-coverage-model lists 3), and neither package's verification runs `test_contract_schemas.py` \u2014 they run only their own test files. The failure therefore surfaces first at wp-integration's 'Full gen-eval suite passes' step, where there is no task to regenerate the artifacts or to decide the `CONTRACT_VERSION` question. Note the documented bump rule in `src/gen_eval/contracts/__init__.py` covers schema-shape breaks but not the semantic break here: `unevaluated_interfaces` stays `list[str]` while its VALUES change from per-surface strings to operation ids \u2014 invisible to schema validation, breaking to a consumer that matches on values.",
+      "resolution": "Add `src/gen_eval/contracts/**` to wp-tool-descriptor's and wp-coverage-model's write_allow (or add an explicit regeneration task to wp-integration running `make contracts`), and add a task deciding whether the value-semantics change to `unevaluated_interfaces` warrants a `CONTRACT_VERSION` bump \u2014 the current bump rule is shape-only and would say no, which under-signals the break DS-2 describes.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    },
+    {
+      "id": 11,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The MODIFIED Dogfood scenario replaces a falsifiable assertion with a tautology, and does not do what the proposal says it does. The base spec (`openspec/specs/gen-eval-framework/spec.md:296-309`) pins '35 HTTP API endpoints, 39 MCP tools, and 31 CLI commands' \u2014 stale, but falsifiable. The delta replaces it with 'the registered counts SHALL match the descriptor's declared counts' (spec delta lines 224-229), which asserts that loading a descriptor registers what the descriptor declares \u2014 a self-check that cannot fail regardless of how far the descriptor drifts from the coordinator. Meanwhile proposal.md line 128 states the deliverable as 'correct the stale 35/39/31 counts to the actual 38/39/37', and the actual counts are 38/39/37 (I counted them from `agent-coordinator/evaluation/descriptors/agent-coordinator.yaml`) \u2014 but the delta records no counts at all. No task covers this scenario either, and no existing test asserts the coordinator descriptor's counts (grep finds none). So the change removes the only anchor tying the dogfood descriptor to the coordinator's real surface while the coordinator migration is deferred, and the deferral's coherence rests on that descriptor staying accurate.",
+      "resolution": "Either restate the corrected 38/39/37 counts in the requirement as proposal.md promises, or \u2014 better, and consistent with D1 \u2014 make the scenario assert the descriptor's declared surface against the coordinator's introspected surface via the new subset verifiers, and add a task implementing it. A requirement whose scenario cannot fail should not replace one that could.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/specs/gen-eval-framework/spec.md"
+    },
+    {
+      "id": 12,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The work-package DAG has a missing edge and a scope gap around the coverage model's tool-archetype support. wp-coverage-model `depends_on: [wp-service-descriptor]` only, and its `deny` list includes `descriptor.py`. But the operation-keyed coverage model must also serve the TOOL archetype \u2014 D8 designates gen-eval's flag-only descriptor as the proving case, and the spec scenario 'Flag-only tool surfaces are nameable' lives under the Operation And Surface Coverage Model requirement. The declared set is produced by `InterfaceDescriptor.all_interfaces()` at `descriptor.py:167`, consumed at `orchestrator.py:372`; making that operation-aware requires editing `descriptor.py`, which only wp-tool-descriptor may write and which wp-coverage-model does not depend on. Additionally `feedback.py:126,185` and `llm_generator_base.py:91` also call `all_interfaces()`/`total_interface_count()` and appear in no implementation package's write_allow, so a signature or semantics change there is unowned until wp-integration. Write scopes across the four parallel packages are otherwise correctly disjoint.",
+      "resolution": "Add `wp-tool-descriptor` to wp-coverage-model's `depends_on`, and decide explicitly where the operation-aware declared-surface accessor lives \u2014 if it stays on `descriptor.py`, either move it into wp-tool-descriptor's task set or widen wp-coverage-model's write_allow and remove `descriptor.py` from its deny. Add `feedback.py` and `llm_generator_base.py` to whichever package owns the accessor change so their call sites are updated under a gate rather than at integration time.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "optional",
+      "file_path": "openspec/changes/derive-descriptors-from-contracts/work-packages.yaml"
+    }
+  ]
+}

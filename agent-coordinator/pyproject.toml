@@ -9,7 +9,7 @@ dependencies = [
     "fastmcp>=3.4.4,<4.0",
     "httpx>=0.28.1",
     "hvac>=2.4.0",
-    "jsonschema>=4.0",
+    "jsonschema>=4.26.0",
     "pydantic>=2.13.4",
     "pyyaml>=6.0.3",
     # Floor >=5.1.1: 5.1.0 and earlier are affected by CVE-2026-53533
@@ -23,6 +23,10 @@ dependencies = [
     # We install with the [mcp] extra so coordinator's MCP service surface
     # keeps working (it serves /gen-eval/* tools via gen_eval.mcp_service).
     "gen-eval[mcp]",
+    # Shared immutable-index query types and adapter. This is a non-editable
+    # monorepo dependency so local, test, and container installs use the same
+    # supported package boundary.
+    "code-search-pkg",
 ]
 
 [project.optional-dependencies]
@@ -45,7 +49,7 @@ postgres = [
     "asyncpg>=0.31.0",
 ]
 cedar = [
-    "cedarpy>=4.8.6",
+    "cedarpy>=4.8.7",
 ]
 sdk = [
     "anthropic>=0.117.0",
@@ -56,11 +60,11 @@ analysis = [
 ]
 observability = [
     "opentelemetry-api>=1.41.1",
-    "opentelemetry-sdk>=1.41.0",
+    "opentelemetry-sdk>=1.44.0",
     "opentelemetry-exporter-otlp>=1.20.0",
-    "opentelemetry-exporter-prometheus>=0.62b1",
+    "opentelemetry-exporter-prometheus>=0.65b0",
     "prometheus-client>=0.25.0",
-    "langfuse>=4.14.0,<5.0",
+    "langfuse>=4.14.1,<5.0",
 ]
 test = [
     "pytest>=9.1.1",
@@ -82,7 +86,7 @@ dev = [
     "mypy>=2.1.0",
     "types-PyYAML>=6.0",
     "asyncpg>=0.31.0",
-    "cedarpy>=4.8.6",
+    "cedarpy>=4.8.7",
 ]
 
 [project.scripts]
@@ -96,6 +100,12 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 override-dependencies = [
+    # CVE-2026-69247: cryptography 44.0.0-49.x reports the outcome of PKCS#7
+    # RecipientInfo decryption in distinguishable ways (and observably by
+    # timing), giving an attacker a Bleichenbacher oracle against the
+    # content-encryption key. Fixed in 50.0.0. Transitive here; force the
+    # patched version until an upstream parent floor covers it.
+    "cryptography>=50.0.0",
     # CVE-2026-53538/53539/53540: python-multipart < 0.0.31 has DoS and
     # parser-differential vulnerabilities (negative Content-Length unbounded
     # read; semicolon-separator quadratic scan; semicolon field-smuggling).
@@ -128,6 +138,7 @@ override-dependencies = [
 # self-contained inside .venv/lib/python3.X/site-packages/gen_eval/).
 [tool.uv.sources]
 gen-eval = { path = "../packages/gen-eval" }
+code-search-pkg = { path = "../packages/code-search" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

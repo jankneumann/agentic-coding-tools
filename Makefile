@@ -27,8 +27,14 @@ ARCH_DIR         ?= docs/architecture-analysis
 VIEWS_DIR        := $(ARCH_DIR)/views
 SCRIPTS_DIR      ?= skills/refresh-architecture/scripts
 PYTHON_SRC_DIR   ?= agent-coordinator/src
-TS_SRC_DIR       ?= web
-MIGRATIONS_DIR   ?= agent-coordinator/supabase/migrations
+# TypeScript sources live under apps/ (apps/kanban-viz). The previous default
+# `web` has never existed in this repository, which is why the committed
+# ts_analysis.json records zero modules, functions and components.
+TS_SRC_DIR       ?= apps
+# Migrations moved to database/migrations when the coordinator left Supabase for
+# ParadeDB; the supabase path no longer exists, so the postgres analyzer failed
+# with "Migrations directory not found" on every run.
+MIGRATIONS_DIR   ?= agent-coordinator/database/migrations
 
 GRAPH_FILE     := $(ARCH_DIR)/architecture.graph.json
 SUMMARY_FILE   := $(ARCH_DIR)/architecture.summary.json
@@ -50,8 +56,18 @@ PG_ANALYSIS    := $(ARCH_DIR)/postgres_analysis.json
 # Accept BASE_SHA for diff target, FEATURE for feature-slice target
 # These are set via the command line: make architecture-diff BASE_SHA=abc123
 
-# Python interpreter
-PYTHON         ?= python3
+# Python interpreter.
+#
+# The architecture producers and the context-drift gate MUST run under the same
+# interpreter. `optional_tools` in architecture.provenance.json records whether
+# tree-sitter was importable when the artifacts were produced, and the gate
+# compares that against what *it* can import. A refresh under bare `python3` and
+# a gate under `skills/.venv/bin/python` therefore disagree by construction, and
+# report permanent, unfixable drift.
+#
+# Prefer this repository's declared toolchain (pinned by skills/uv.lock) when it
+# is installed; fall back to `python3` so a bare checkout still works.
+PYTHON         ?= $(if $(wildcard skills/.venv/bin/python),skills/.venv/bin/python,python3)
 
 # ---------------------------------------------------------------------------
 # Phony targets
@@ -78,8 +94,8 @@ help: ## Show available make targets with descriptions
 	@echo ""
 	@echo "Variables:"
 	@echo "  PYTHON_SRC_DIR=<path>  Python source directory (default: agent-coordinator/src)"
-	@echo "  TS_SRC_DIR=<path>      TypeScript source directory (default: web)"
-	@echo "  MIGRATIONS_DIR=<path>  SQL migrations directory (default: agent-coordinator/supabase/migrations)"
+	@echo "  TS_SRC_DIR=<path>      TypeScript source directory (default: apps)"
+	@echo "  MIGRATIONS_DIR=<path>  SQL migrations directory (default: agent-coordinator/database/migrations)"
 	@echo "  ARCH_DIR=<path>        Output directory (default: docs/architecture-analysis)"
 	@echo "  BASE_SHA=<sha>         Git SHA for baseline diff comparison"
 	@echo "  FEATURE=<glob>         File list or glob for feature slice extraction"
@@ -431,3 +447,26 @@ refresh-project-context: ## Orchestrate every configured context producer into o
 
 refresh-project-context-check: ## Read-only orchestrated refresh drift check (exit 0 fresh / 2 drift / 1 failed)
 	@$(PYTHON) skills/project-context-refresh/scripts/cli.py refresh-check
+
+# Composed deterministic context drift gate (ri-10)
+#
+# The local reproduction of the blocking CI check, and the only thing CI runs --
+# so a failed build is reproduced verbatim here rather than approximated. It
+# composes the deterministic producers, architecture freshness against committed
+# provenance, and work-package context-impact validation scoped to the diff
+# against CONTEXT_GATE_BASE.
+#
+# Exit codes come from ri-10's classification, not from the refresh outcome:
+#   0  fresh, or only informational drift / absent optional owners
+#   2  blocking drift -- committed managed output is stale
+#   1  a producer failed, or the gate's apparatus could not run
+#
+# `--strict-legacy` is deliberately never passed: most work-package files predate
+# the context_impact contract, and ri-08's progressive enforcement keyed on
+# whether a declaration block exists is the intended migration path.
+
+CONTEXT_GATE_BASE ?= main
+
+.PHONY: context-drift-gate
+context-drift-gate: ## Composed deterministic context drift gate (exit 0 fresh / 2 blocking drift / 1 failure)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py gate --base $(CONTEXT_GATE_BASE)

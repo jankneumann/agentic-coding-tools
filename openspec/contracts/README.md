@@ -7,7 +7,28 @@ by capability:
 ```
 openspec/contracts/<capability>/schemas/*.schema.json
 openspec/contracts/<capability>/openapi/*.yaml
+openspec/contracts/<capability>/cli/*.yaml
 ```
+
+The three sub-paths hold different kinds of artifact, and the distinction is
+load-bearing:
+
+| Sub-path | Holds | Kind |
+|---|---|---|
+| `schemas/` | JSON Schema documents | the *schema* — what a valid instance looks like |
+| `openapi/` | OpenAPI descriptions of an HTTP surface | a contract *instance* |
+| `cli/` | CLI contracts for a tool's invocation surface | a contract *instance* |
+
+`cli/` is the tool-surface counterpart to `openapi/`. OpenAPI is deliberately
+not reused for command-line tools: a tool's flags are process configuration
+rather than operation parameters, and OpenAPI cannot express exit codes at all.
+A CLI contract instance under `cli/` validates against
+`gen-eval-framework/schemas/cli-contract.schema.json`.
+
+Note that a capability may contribute to both columns — `gen-eval-framework`
+publishes the CLI contract *schema* under `schemas/` and its own CLI contract
+*instance* under `cli/`, because gen-eval both defines the format and is
+described by it.
 
 ## Why this exists
 
@@ -40,6 +61,17 @@ live code references.
 | `prototyping` | `variant-descriptor.schema.json`, `synthesis-plan.schema.json` | `add-prototyping-stage` (archived 2026-05-04) |
 | `phase-record` | `phase-record.schema.json`, `handoff-local-fallback.schema.json` | `phase-record-compaction` (archived 2026-04-25) |
 | `project-context-refresh` | `context-refresh-manifest.schema.json`, `context-refresh-operation.schema.json`, `context-refresh-types.schema.json` | `add-durable-context-refresh-records` (archived 2026-07-25) |
+| `project-context-refresh` | `context-checkpoint.schema.json` | `add-branch-local-context-checkpoints` (ri-09) |
+| `project-context-refresh` | `context-drift-gate.schema.json` | `add-deterministic-context-drift-gates` (ri-10) |
+| `project-context-refresh` | `context-convergence-record.schema.json` | `integrate-main-context-convergence` (ri-11) |
+| `code-search` | `semantic-context-section.schema.json`, `semantic-context-hit.schema.json` | `inject-scoped-semantic-context-into-coding-jobs` (ri-12) |
+| `gen-eval-framework` | `schemas/cli-contract.schema.json`, `cli/gen-eval.yaml` | `derive-descriptors-from-contracts` (**in flight**) |
+
+`gen-eval-framework` is promoted while its change is still in flight rather than
+at archival. That is the workflow above applied literally: the schema's own
+`$id` resolves to the promoted path, so leaving it unpromoted would publish a
+`$id` that 404s, and `packages/gen-eval/tests/test_cli_contract_schema.py` reads
+the promoted copy precisely so the test cannot rot when the change archives.
 
 ## Contracts a skill also ships as install assets
 

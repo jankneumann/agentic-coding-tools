@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -32,7 +32,6 @@ class TestNeonBranchProtocolCompliance:
 
     def test_satisfies_test_environment(self) -> None:
         from environments.neon_branch import NeonBranchEnvironment
-        from environments.protocol import TestEnvironment
 
         env = NeonBranchEnvironment.__new__(NeonBranchEnvironment)
         assert callable(getattr(env, "start", None))

@@ -278,6 +278,20 @@ info "--- [1.3] TypeScript Analyzer ---"
 if [ ! -f "${SCRIPTS_DIR}/analyze_typescript.ts" ]; then
     warn "TypeScript analyzer script not found: ${SCRIPTS_DIR}/analyze_typescript.ts — skipping"
     skip "typescript_analyzer"
+elif [ ! -d "${TS_SRC_DIR}" ]; then
+    # Fail loudly on a misconfigured root instead of analysing nothing.
+    #
+    # The analyzer itself exits 0 on a missing directory and writes an artifact
+    # reading "Modules: 0, Components: 0, Functions: 0" — indistinguishable from
+    # a repository that genuinely has no TypeScript. That silence is how this
+    # repository shipped an all-zeros ts_analysis.json for five months while
+    # TS_SRC_DIR pointed at a `web` directory that never existed. A configured
+    # input root that is absent is a configuration error, not an empty result.
+    warn "TS_SRC_DIR does not exist: ${TS_SRC_DIR} — skipping TypeScript analyzer"
+    warn "Set TS_SRC_DIR to this repository's TypeScript root, or leave it unset if there is none."
+    warn "NOT writing an empty ${TS_ANALYSIS}: zero modules from a missing directory is a"
+    warn "configuration error, and recording it as a result would misreport it as analysis."
+    skip "typescript_analyzer"
 elif ! command -v npx >/dev/null 2>&1; then
     warn "npx not found — skipping TypeScript analyzer (install Node.js to enable)"
     skip "typescript_analyzer"
@@ -292,13 +306,33 @@ else
     fi
 
     if [ "$(_get_result typescript_analyzer)" != "SKIP" ]; then
-        if npx ts-node "${SCRIPTS_DIR}/analyze_typescript.ts" \
+        # Runner selection, most robust first.
+        #
+        # Node 23.6+ strips TypeScript types natively, so it runs the analyzer
+        # with no transpiler at all. That is preferred because `ts-node` couples
+        # the analyzer to whichever `typescript` happens to resolve: this repo
+        # has no root package.json, so node_modules is unmanaged, and ts-node
+        # 10.9.2 against the resolved typescript 7.x dies in its own config
+        # loader with "Cannot read properties of undefined (reading
+        # 'fileExists')". Native stripping has no such coupling.
+        TS_RUNNER=""
+        if node --experimental-strip-types -e '' >/dev/null 2>&1 \
+           || node -e 'process.exit(parseInt(process.versions.node,10) >= 23 ? 0 : 1)' >/dev/null 2>&1; then
+            TS_RUNNER="node"
+        elif npx ts-node --version >/dev/null 2>&1; then
+            TS_RUNNER="npx ts-node"
+        fi
+
+        if [ -z "${TS_RUNNER}" ]; then
+            warn "no usable TypeScript runner (need Node 23.6+ or a working ts-node) — skipping"
+            skip "typescript_analyzer"
+        elif ${TS_RUNNER} "${SCRIPTS_DIR}/analyze_typescript.ts" \
             "${TS_SRC_DIR}" \
             --output "${TS_ANALYSIS}" 2>&1; then
-            info "TypeScript analysis written to ${TS_ANALYSIS}"
+            info "TypeScript analysis written to ${TS_ANALYSIS} (runner: ${TS_RUNNER})"
             pass "typescript_analyzer"
         else
-            error "TypeScript analyzer failed (exit code $?)"
+            error "TypeScript analyzer failed (runner: ${TS_RUNNER}, exit code $?)"
             fail "typescript_analyzer"
         fi
     fi

@@ -48,4 +48,4 @@
       expect:
         exit_code: 0
         body:
-          result: 1
+          result: 2

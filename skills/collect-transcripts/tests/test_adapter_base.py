@@ -28,7 +28,7 @@ class TestAdapterBase:
 
     def test_subclass_must_implement_discover(self) -> None:
         from adapters.base import AdapterBase
-        from normalize import NormalizedEvent, SessionSummary
+        from normalize import NormalizedEvent
 
         class IncompleteAdapter(AdapterBase):
             HARNESS_ID = "test"
