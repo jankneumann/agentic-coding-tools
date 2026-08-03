@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from models import Effort, ItemStatus, Roadmap, RoadmapItem, RoadmapStatus
 from scaffolder import populate_change_ids, scaffold_change
 
