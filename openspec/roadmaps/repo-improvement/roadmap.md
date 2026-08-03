@@ -2,28 +2,27 @@
 
 > Source: `docs/proposals/repo-improvement-roadmap.md` | Status: **planning** | Items: 16
 
-
 <!-- GENERATED: begin phase-table -->
 ## Phase Table
 
 | Priority | Item | Effort | Status | Dependencies |
 |----------|------|--------|--------|--------------|
 | 1 | Gate drift with mirrors, hooks, and blocking CI | M | approved | - |
-| 1 | Build structured vendor result channel | M | approved | - |
-| 1 | Add live vendor capability and cost registry | M | approved | - |
-| 1 | Implement the task router (vendor x location x model) | L | approved | ri-04 |
-| 1 | Make the orchestrator obey the router | M | approved | ri-03, ri-05 |
+| 1 | Build structured vendor result channel | M | skipped | - |
+| 1 | Add live vendor capability and cost registry | M | skipped | - |
+| 1 | Implement the task router (vendor x location x model) | L | skipped | ri-04 |
+| 1 | Make the orchestrator obey the router | M | skipped | ri-03, ri-05 |
 | 2 | Harden the resume contract | S | approved | - |
-| 2 | Add scheduled continuation for self-resuming loops | M | candidate | ri-07, ri-06 |
-| 2 | Build the cloud lane as a routable target | L | candidate | ri-03, ri-05 |
+| 2 | Add scheduled continuation for self-resuming loops | M | blocked | ri-07 |
+| 2 | Build the cloud lane as a routable target | L | blocked | - |
 | 2 | Make human gates non-blocking | M | candidate | ri-08 |
 | 3 | Reconcile versions and stale docs to one truth | S | approved | - |
-| 3 | Use native fan-out for same-vendor parallel work | M | candidate | ri-03 |
+| 3 | Use native fan-out for same-vendor parallel work | M | blocked | - |
 | 3 | Schedule the learning pipeline | M | candidate | ri-08, ri-01 |
-| 3 | Feed routing decisions with outcome data | M | candidate | ri-05, ri-06, ri-12 |
+| 3 | Feed routing decisions with outcome data | M | blocked | ri-12 |
 | 3 | Enforce artifact freshness and automatic retrieval | M | candidate | ri-01 |
-| 4 | Decompose the coordinator monoliths | L | candidate | ri-04, ri-05 |
-| 4 | Evaluate the router with gen-eval and replay | M | candidate | ri-05, ri-13 |
+| 4 | Decompose the coordinator monoliths | L | blocked | - |
+| 4 | Evaluate the router with gen-eval and replay | M | blocked | ri-13 |
 <!-- GENERATED: end phase-table -->
 
 
@@ -52,20 +51,11 @@ graph TD
     ri-03 --> ri-06
     ri-05 --> ri-06
     ri-07 --> ri-08
-    ri-06 --> ri-08
-    ri-03 --> ri-09
-    ri-03 --> ri-10
-    ri-05 --> ri-10
     ri-08 --> ri-11
     ri-08 --> ri-12
     ri-01 --> ri-12
-    ri-05 --> ri-13
-    ri-06 --> ri-13
     ri-12 --> ri-13
     ri-01 --> ri-14
-    ri-04 --> ri-15
-    ri-05 --> ri-15
-    ri-05 --> ri-16
     ri-13 --> ri-16
 ```
 <!-- GENERATED: end dependency-dag -->
@@ -90,7 +80,7 @@ Add install.sh --check plus a CI job that fails when .claude/skills/ or .agents/
 
 ### ri-03: Build structured vendor result channel
 
-- **Status**: approved
+- **Status**: skipped
 - **Priority**: 1
 - **Effort**: M
 - **Change ID**: build-structured-vendor-result-channel
@@ -104,7 +94,7 @@ Switch every CLI adapter to its vendor's structured JSON output mode with typed 
 
 ### ri-04: Add live vendor capability and cost registry
 
-- **Status**: approved
+- **Status**: skipped
 - **Priority**: 1
 - **Effort**: M
 - **Change ID**: add-live-vendor-capability-and-cost-registry
@@ -118,7 +108,7 @@ Add a coordinator vendor_registry service holding static capabilities from agent
 
 ### ri-05: Implement the task router (vendor x location x model)
 
-- **Status**: approved
+- **Status**: skipped
 - **Priority**: 1
 - **Effort**: L
 - **Change ID**: implement-the-task-router-vendor-x-location-x-model
@@ -133,7 +123,7 @@ Add POST /route/task and a bridge function as a superset of /archetypes/resolve_
 
 ### ri-06: Make the orchestrator obey the router
 
-- **Status**: approved
+- **Status**: skipped
 - **Priority**: 1
 - **Effort**: M
 - **Change ID**: make-the-orchestrator-obey-the-router
@@ -161,10 +151,10 @@ Formalize and test that any fresh session can resume a loop via /autopilot <chan
 
 ### ri-08: Add scheduled continuation for self-resuming loops
 
-- **Status**: candidate
+- **Status**: blocked
 - **Priority**: 2
 - **Effort**: M
-- **Depends on**: `ri-07`, `ri-06`
+- **Depends on**: `ri-07`
 
 In the Claude dispatch adapter, replace in-session async-vendor polling with self-wakeups matched to registry turnaround times and one-shot triggers at known limit-reset times; add a nightly roadmap tick and hourly PR-babysit tick that fire fresh sessions running the resume entry points; give non-Claude harnesses the same contract via cron/CI, with pause-lock guard rails, idempotent trigger registration, and deregistration at roadmap archive.
 
@@ -175,10 +165,9 @@ In the Claude dispatch adapter, replace in-session async-vendor polling with sel
 
 ### ri-10: Build the cloud lane as a routable target
 
-- **Status**: candidate
+- **Status**: blocked
 - **Priority**: 2
 - **Effort**: L
-- **Depends on**: `ri-03`, `ri-05`
 
 Make location cloud a first-class router output - Claude cloud dispatch creates a fresh isolated session per task with a self-contained resume-contract prompt, results come back as PRs on conventional branches collected event-driven via PR activity subscriptions and the completion ledger, routing rules send independent FULL-parallel packages to cloud fan-out while secret- or Docker-dependent tasks stay local, and Codex cloud and Jules join the lane through structured harvesting.
 
@@ -217,10 +206,9 @@ Single-source the root VERSION into agent-coordinator, packages/gen-eval, skills
 
 ### ri-09: Use native fan-out for same-vendor parallel work
 
-- **Status**: candidate
+- **Status**: blocked
 - **Priority**: 3
 - **Effort**: M
-- **Depends on**: `ri-03`
 
 Run review-convergence fan-out and local-parallel work-package DAGs through native background subagents and workflow pipelines in the Claude adapter, with structured outputs schema-enforced against review-findings.schema.json at the tool-call layer, while keeping the subprocess CliVendorAdapter path for cross-vendor diversity; fix the known consensus_synthesizer.py line-range parser bug in the process.
 
@@ -244,10 +232,10 @@ Add a weekly trigger or CI cron running collect-transcripts --enable over the we
 
 ### ri-13: Feed routing decisions with outcome data
 
-- **Status**: candidate
+- **Status**: blocked
 - **Priority**: 3
 - **Effort**: M
-- **Depends on**: `ri-05`, `ri-06`, `ri-12`
+- **Depends on**: `ri-12`
 
 Compile a periodic routing scorecard (success rate, convergence rounds, cost, latency, limit-hit frequency per vendor x phase-archetype x location) from routing records, the dispatch ledger, and convergence metrics; render it into routing.yaml as human-reviewed advisory weights, replace replanner.py's regex ID-matching with scorecard- and learning-driven route/task signals, and give replan_required a real handler via a scheduled /plan-roadmap --replan pass.
 
@@ -272,10 +260,9 @@ Add staleness gates for docs/architecture-analysis/ and docs/factory-intelligenc
 
 ### ri-15: Decompose the coordinator monoliths
 
-- **Status**: candidate
+- **Status**: blocked
 - **Priority**: 4
 - **Effort**: L
-- **Depends on**: `ri-04`, `ri-05`
 
 Split coordination_api.py (3.3k LOC) and coordination_mcp.py (3.2k LOC) into per-domain routers and tool modules (locks, work, memory, approvals, merge-train, routing, vendors, kanban) over the existing service layer, preserving the Dockerfile-COPY contract checks.
 
@@ -286,10 +273,10 @@ Split coordination_api.py (3.3k LOC) and coordination_mcp.py (3.2k LOC) into per
 
 ### ri-16: Evaluate the router with gen-eval and replay
 
-- **Status**: candidate
+- **Status**: blocked
 - **Priority**: 4
 - **Effort**: M
-- **Depends on**: `ri-05`, `ri-13`
+- **Depends on**: `ri-13`
 
 Add gen-eval scenarios asserting routing decisions and fallback ladders for synthetic task profiles and registry states (vendor down, limit hit, cost ceiling, secrets-required), plus replay evaluation that runs historical dispatch records through proposed routing.yaml changes to show decision diffs before merge.
 
