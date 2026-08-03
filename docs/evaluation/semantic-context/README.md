@@ -316,15 +316,34 @@ schema cannot make — `cases_scored` against `cases_declared`, which is a sibli
 comparison, and `index.tier` against each gate's `min_index_tier`, which is an
 ordered one over an enum — and the `environment` block, whose `scope_adapter`
 and `code_search_enabled` are the composer's `apparatus_failure` and
-`service_disabled_during_measurement`. The derivation is one-way: a recorded
-`fail` over a body with nothing visibly wrong is legitimate, because
-`missing_required_gate` and a case the corpus never declared are decided against
-the corpus rather than against the document, and `report_describes_corpus` is
-what catches those. A degraded scope adapter is not one of them, though it was
-cited as one for a round: it is recorded in the report and required by the
-contract, so a `pass` over `scope_adapter: "degraded"` — a document the composer
-cannot produce, and honest drift rather than forgery — read as self-consistent
-to both consumers until the environment block was derived too.
+`service_disabled_during_measurement`. It also re-derives all three declared
+counts against the rows they describe, which is `missing_required_gate` — a
+declared gate that produced no row is `len(gates) != corpus.gates_declared`,
+two fields already in the file.
+
+The derivation is one-way: a recorded `fail` over a body with nothing visibly
+wrong is legitimate. **Exactly one** of the composer's reasons makes that
+possible — a case the corpus never declared. `_aligned` strips it before the
+report is built, so the document that reaches disk has every count agreeing and
+every row scored while the run correctly failed. Nothing catches that, including
+`report_describes_corpus`, which compares the document against the manifest and
+finds the stripped outcome in neither. Refusing such a document would make a
+real outcome unreportable, which is what one-wayness buys.
+
+Two reasons were called corpus-relative here and were not. A degraded scope
+adapter was cited for a round, and `missing_required_gate` for the round after
+that. Both were schema-required fields sitting in the document, and for as long
+as each went underived, a `pass` recorded over it — honest drift rather than
+forgery, since the composer cannot produce either — read as self-consistent to
+both consumers. The pattern is worth stating plainly: *the composer reads it
+from the manifest* is a fact about the composer, not about the report, and the
+two are the same question only when nobody checks.
+
+One route is open and named rather than claimed closed: rewriting a gate's
+`min_index_tier` from `live` to a lower tier defeats the
+`service_disabled_during_measurement` premise while every count still agrees.
+The declared tier lives in the manifest, so only a corpus-relative check can see
+it, and `report_describes_corpus` does not compare it today.
 
 Without `EMBEDDING_CONTRACT` the embedding fingerprint has nothing to be compared
 against, and that is an unmet condition rather than a skipped one: an unchecked

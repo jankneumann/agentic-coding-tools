@@ -633,30 +633,42 @@ class BodyConsistency:
     could have composed that conclusion. The converse is not — and the reason has
     to be stated exactly, because the approximate version of it was a hole.
 
-    Two of ``compose_verdict()``'s reasons are CORPUS-RELATIVE and cannot be
-    derived from this document at all. :data:`verdict.MISSING_REQUIRED_GATE`
-    needs the manifest's gate list to know that a declared gate produced no row,
-    and the undeclared-case half of :data:`verdict.DENOMINATOR_MISMATCH` needs
-    the manifest's case list to know that a reported case was never declared. A
-    run failing for either records a body with nothing visibly wrong, so refusing
-    it would make those outcomes unreportable. They are checked against the
-    corpus instead, by the enablement gate's ``report_describes_corpus``.
+    EXACTLY ONE of ``compose_verdict()``'s reasons is CORPUS-RELATIVE, and it is
+    the whole justification for one-wayness: the undeclared-case half of
+    :data:`verdict.DENOMINATOR_MISMATCH`. ``_aligned`` strips an outcome the
+    corpus never declared *before* ``build_report`` runs, so the document that
+    reaches disk has nothing visibly wrong — every count agrees, every row is
+    scored, and the body derives ``pass`` over a run the composer correctly
+    failed. Refusing that document would make the outcome unreportable, so the
+    derivation must permit ``derived == "pass"`` under a recorded ``fail``.
+
+    Note what this paragraph does NOT say. It does not claim the enablement
+    gate's ``report_describes_corpus`` catches this case — that claim was here
+    for one round and was false. ``_describes_corpus_condition`` compares the
+    document against the manifest, and the stripped outcome is absent from both.
+    Nothing catches it, which is precisely why one-wayness is required rather
+    than merely convenient.
 
     Every OTHER input the composer decides on is in this document, and every one
-    of them is re-derived below: the gate rows and the consumer rows, the scored
-    flags and the two declared counts, ``index.tier`` against each gate's
-    ``min_index_tier`` — and the ``environment`` block, whose ``scope_adapter``
-    and ``code_search_enabled`` are the composer's
-    :data:`verdict.APPARATUS_FAILURE` and
+    is re-derived below: the gate rows and the consumer rows, the scored flags,
+    all three declared counts against both the rows they describe and the scored
+    total, ``index.tier`` against each gate's ``min_index_tier`` — and the
+    ``environment`` block, whose ``scope_adapter`` and ``code_search_enabled``
+    are the composer's :data:`verdict.APPARATUS_FAILURE` and
     :data:`verdict.SERVICE_DISABLED_DURING_MEASUREMENT`.
 
-    That last one is why this paragraph is written as an enumeration rather than
-    as an example. The degraded scope adapter used to be cited HERE as the reason
-    one-wayness is necessary, and it was the wrong reason twice over: the field
-    is recorded in the report and it is schema-required, so it was never a reason
-    the document could not supply — it was a derivation nobody had written. For
-    as long as it was missing, a ``pass`` recorded over ``scope_adapter:
-    "degraded"`` read as self-consistent to everything that reads this file.
+    :data:`verdict.MISSING_REQUIRED_GATE` belongs to that second list, not the
+    first. It was described here as corpus-relative for one round, and it is not:
+    ``build_report`` writes ``corpus.gates_declared`` from the corpus and one row
+    per composed gate, both schema-required, so "a declared gate produced no row"
+    is ``len(gates) != corpus.gates_declared`` — two fields already in the file.
+
+    Twice now a reason was called underivable when the derivation had simply not
+    been written — first the degraded scope adapter, then the missing gate. Both
+    were schema-required fields sitting in the document. The lesson is in the
+    shape of the mistake: "the composer reads it from the manifest" is a fact
+    about the composer, not about the report, and the two are only the same
+    question when nobody checks.
     """
 
     derived_verdict: str
@@ -774,6 +786,37 @@ def body_consistency(document: Mapping[str, Any]) -> BodyConsistency:
         failures.append(f"{len(unscored)} declared cases carry no measurement: {unscored!r}")
 
     counts = document.get("corpus") or {}
+
+    # A declared row that produced no entry. ``compose_verdict`` learns this from
+    # the manifest (:data:`verdict.MISSING_REQUIRED_GATE`), which is why it was
+    # once described here as corpus-relative and underivable — but the document
+    # already carries both halves of the comparison. ``build_report`` writes each
+    # ``*_declared`` count from the corpus and one row per composed entry, and all
+    # three counts are schema-required, so a schema-valid document always answers
+    # this without the manifest.
+    #
+    # It also closes ONE of the two ways the live-tier premise above could be
+    # edited away. Dropping every gate row that declares a live index used to
+    # delete the premise along with the rows; the row counts now catch that. The
+    # other way is not closed and cannot be, from this document: rewriting a
+    # gate's `min_index_tier` from "live" to a lower tier defeats the premise
+    # while every count still agrees. The declared tier lives in the manifest, so
+    # only a corpus-relative check can see the rewrite, and the enablement gate's
+    # `report_describes_corpus` does not compare it today. Stated rather than
+    # claimed closed — asserting a closure nobody established is the mistake this
+    # very block exists to correct.
+    for key, rows, noun in (
+        ("gates_declared", gates, "gate"),
+        ("consumers_declared", _rows(document, "per_consumer"), "consumer"),
+        ("cases_declared", _rows(document, "cases"), "case"),
+    ):
+        declared_rows = counts.get(key)
+        if isinstance(declared_rows, int) and len(rows) != declared_rows:
+            failures.append(
+                f"it carries {len(rows)} {noun} rows against the "
+                f"{declared_rows} it declares"
+            )
+
     declared_cases = counts.get("cases_declared")
     scored_cases = counts.get("cases_scored")
     if isinstance(declared_cases, int) and isinstance(scored_cases, int):
