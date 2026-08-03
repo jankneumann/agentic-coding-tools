@@ -94,6 +94,10 @@
             "minLength": 1,
             "pattern": "\\S"
           }
+        },
+        "traceability": {
+          "$ref": "traceability.schema.json",
+          "description": "Requirement citations this command exists to serve, or an exclusion with a reason (design D1). Applies to the command's own coverage unit \u2014 its non-empty name (design D3); a command with an empty name contributes none of its own, so citations belong on its flags and positionals instead."
         }
       },
       "allOf": [
@@ -191,6 +195,10 @@
         "binds_to": {
           "$ref": "#/$defs/binding",
           "description": "How this flag maps onto an OpenAPI operation parameter. Absent for surface-local concerns such as --output-dir or --verbose."
+        },
+        "traceability": {
+          "$ref": "traceability.schema.json",
+          "description": "Requirement citations this flag exists to serve, or an exclusion with a reason (design D1). A flag is a coverage unit (design D3), so it is a valid citation target."
         }
       }
     },
@@ -229,6 +237,10 @@
         },
         "binds_to": {
           "$ref": "#/$defs/binding"
+        },
+        "traceability": {
+          "$ref": "traceability.schema.json",
+          "description": "Requirement citations this positional exists to serve, or an exclusion with a reason (design D1). A positional is a coverage unit (design D3), so it is a valid citation target."
         }
       }
     },

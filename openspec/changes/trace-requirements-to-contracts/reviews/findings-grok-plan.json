@@ -1,0 +1,128 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: D6's document-total forward commitment and D13's reverse opt-in switch are not reflected in D12's change-scoped touched set. design.md D12 (lines 368\u2013375) and specs/gen-eval-framework/spec.md \"Validation-time evaluation is scoped to the change\" define touched operations as only those whose contract *nodes* changed, and touched requirements as ADDED/MODIFIED/REMOVED/RENAMED plus those named by citations/exclusions the diff adds or changes. That means (a) adding the first `traceability`/`x-traceability` block to one operation opts the whole document into forward enforcement (D6 / scenario \"Declaring traceability commits the whole contract document\") while change-scope only fails the edited node\u2014sibling uncited operations in the same file are not touched and do not fail; (b) creating `traceability-exclusions.yaml` (possibly empty) opts the capability into reverse enforcement (D13) while change-scope only fails requirements named by that file or added by the change\u2014other uncited requirements stay non-blocking until the main sweep. This is exactly an \"opted in but not blocking on the newly enforced surface\" path at `/validate-feature`, which D6/D12/D13 claim to make impossible as a configuration outcome. tasks.md 3.15 only proves pre-existing gaps in already-traced surfaces, not opt-in transitions.",
+      "resolution": "Expand the touched set when opt-in status is newly established or widened: if any operation in a document gains a traceability block (or the document first becomes traced), treat every operation in that document as touched for forward checks; if `traceability-exclusions.yaml` is created or the capability first becomes reverse-enforced, treat every requirement in that capability's effective set as touched for reverse checks. Add scenarios and RED tests for both transitions in tasks 3.15/3.16 and the gen-eval-framework delta.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/design.md"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The gate's fail-closed posture for contracts is not mirrored for the reverse-opt-in artifact. specs/gen-eval-framework/spec.md \"The gate fails closed on malformed input\" and tasks.md 3.6 cover unparseable contracts, schema-invalid operation blocks, missing capability specs, and specs without contracts\u2014but neither the requirement nor tasks 3.4/3.6 specify behavior when `openspec/contracts/<capability>/traceability-exclusions.yaml` exists yet is unreadable, non-UTF8, invalid YAML, missing the required `exclusions` key, or schema-invalid. Under D13 that file's existence *is* reverse opt-in; treating a broken file as absent is fail-open (reverse not enforced while authors believe they opted in), and treating it as present with zero exclusions without validating shape is a different silent decision. check_coverage_completeness.py's load_exclusions already fails closed on bad exclusion files\u2014this change claims to reuse that shape but does not specify the same hardness for the reverse switch.",
+      "resolution": "Extend the malformed-input requirement and scenarios so a present-but-unparseable or schema-invalid exclusions file fails the gate naming the path and is never treated as \"not opted in\". Add matching RED tests in task 3.4 (or 3.6) covering invalid YAML, missing `exclusions`, blank reasons already covered, and unreadable path.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Critical: Two scenarios assign opposite exit behavior to the same capability shape. specs/gen-eval-framework/spec.md scenario \"A capability with a spec and no contracts is untraced\" (requirement \"The gate fails closed on malformed input\") requires the run SHALL NOT fail. Scenario \"The exclusions file's presence enforces reverse completeness\" (requirement \"Reverse enforcement is opt-in per capability via the exclusions file\") requires failure when any requirement is uncited and not excluded, with no contracts prerequisite. A capability that has a spec, zero contract documents, and a present `traceability-exclusions.yaml` (including `exclusions: []`) satisfies both WHEN clauses and cannot both pass and fail. Task 3.4's \"file present with empty list \u2192 every requirement must be cited\" and task 3.6's untraced-no-contracts case inherit the contradiction.",
+      "resolution": "State an explicit precedence rule: reverse opt-in dominates, so exclusions-file + no contracts evaluates reverse completeness (and fails unless every requirement is excluded); keep \"spec without contracts is untraced / non-failing\" only when the exclusions file is absent. Add a dedicated scenario for exclusions-file-present + zero contracts.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Critical: Cross-capability requirement exclusions are permitted by the schema but have no evaluation semantics. contracts/traceability-exclusions.schema.json (property `requirement`, lines 19\u201321) allows any `<capability>.<slug>` and says a cross-capability exclusion \"is permitted and appears in the cross-capability report.\" design.md D9 and the reverse-completeness scenarios only define credit for cross-capability *citations*, not exclusions. If capability A's exclusions file can excuse B's requirements toward B's reverse completeness, A can launder B's reverse gaps without B owning the triage\u2014the coupling D9 reports rather than fails for citations becomes a silent veto-free excuse for exclusions. If foreign ids do not count, the schema description is wrong and the gate should fail them as invalid/stale for this file.",
+      "resolution": "Pick one rule and encode it in D9/D13, the exclusions schema description, a scenario, and task 3.4/3.13 tests: either (recommended) an exclusions file may only name the owning capability's requirements (pattern or gate check), or foreign exclusions never credit the foreign capability's reverse completeness and are reported or failed as out-of-scope entries.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/contracts/traceability-exclusions.schema.json"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Critical: wp-wiring's DISPATCH PRECONDITION is prose-only and invisible to the package DAG. work-packages.yaml `wp-wiring` (description lines 384\u2013390) says do not dispatch before human tasks 4.1/4.2/4.2b land because RED demos for 5.6/5.7 mutate real gen-eval artifacts; `depends_on` is only `[wp-gate, wp-matrix]`. tasks.md 5.7 depends on 3.16 and 5.2 but not 4.2/4.2b, while 5.6 depends on 4.2 but not 4.2b\u2014so reverse flagship state required by the package text is not in either graph. The scheduler can legally dispatch wiring against fixtures only, which is the mirror-verification failure mode this change exists to end. Human tasks are intentionally excluded from packages (work-packages.yaml lines 440\u2013450), so there is no package edge that can express the precondition without a new mechanism.",
+      "resolution": "Either (a) add an explicit non-package gate/checklist field the implement-feature/autopilot scheduler honors (e.g. `blocked_on_tasks: [4.1, 4.2, 4.2b]` / `dispatch_after_human`), or (b) split a thin wp-wiring-forward package that may run after 4.2 and a wp-wiring-sweep package that depends on a recorded human checkpoint for 4.2b+5.2, and align tasks.md 5.6/5.7 dependency lists with that split. Do not leave the ordering only in package description prose.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/work-packages.yaml"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: Stale-exclusion wording does not match the operation-side schema. specs/gen-eval-framework/spec.md scenario \"A stale exclusion fails the gate\" (and the parent requirement text) says an exclusion naming \"a requirement identifier or operation that no longer exists\" fails. contracts/traceability.schema.json `excluded` only has `reason`\u2014it does not name an operation; the exclusion is attached to the operation node, so when the operation disappears the exclusion disappears with it. The stale check that D4/tasks.md 3.3 need is meaningful for requirement-side entries in traceability-exclusions.yaml (and for requirement ids that no longer resolve), not for a free-standing operation id in an exclusion list.",
+      "resolution": "Rewrite the stale-exclusion scenario/requirement to: (1) requirement exclusions naming an id not in the effective set fail; (2) drop or rephrase \"or operation\" unless you introduce a separate operation-id exclusion list. Keep operation-side coverage as blank-reason and valid-suppression only.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md"
+    },
+    {
+      "id": 7,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: contracts/README.md still claims splitting the coordinator surface \"costs nothing in rigour\" (section \"Not in this directory\", lines 58\u201361). design.md D10 (lines 298\u2013307) explicitly corrected that earlier claim: splitting stages *forward* only; reverse is whole-capability via D13 and was \"never split-stageable.\" The README wording is a pre-D13 leftover that can re-teach the wrong staging model to implementers of task 5.2.",
+      "resolution": "Align README with D10: splitting stages forward per document; reverse opt-in remains a separate per-capability switch via traceability-exclusions.yaml.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/contracts/README.md"
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "FYI: Verdict on D13 (directional opt-in). design.md D13, the reverse-opt-in requirement/scenarios, proposal acceptance outcomes, tasks 3.4/4.2b/5.2, and contracts/traceability-exclusions.schema.json are mutually consistent: forward opts in per document via block presence (D6); reverse opts in per capability via exclusions-file presence; empty list means full reverse strictness. The D12 distinction is real, not a rationalization\u2014D12 forbade a second switch for the *same* claim's blocking bit; D13 switches a different claim with a different owner. Grep of the change directory found no residual single-switch \"capability opts into both directions\" rule after plan-findings F1. The overloaded artifact does make one state inexpressible (record requirement-exclusion reasons without reverse enforcement); that is an intentional adoption cliff, mitigated by report-without-file for uncited requirements, and is acceptable for gen-eval-scale triage\u2014but only if finding #1's change-scope transition hole is fixed so \"create the file\" cannot mean \"opted in yet not fully checked at validation.\"",
+      "resolution": "Keep D13's dual use of the exclusions file; fix finding #1 so reverse opt-in cannot be half-enforced under change scope. Optionally document in D13 that draft exclusion notes without enforcement are out of scope by design.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "fyi",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/design.md"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The plan's refusal to widen wp-model write_allow for packages/gen-eval/src/gen_eval/contracts/** and evaluation/descriptor.yaml is correct on the merits. Empirically: (1) packages/gen-eval/scripts/generate_contract_schemas.py render() builds interface-descriptor.schema.json only from descriptor.InterfaceDescriptor (lines 80\u201385); InterfaceDescriptor.model_json_schema $defs contain AuthConfig/BudgetConfig/CommandSpec/EndpointSpec/FileInterfaceMapping/McpToolSpec/ServiceSpec/StartupConfig/StateVerifier and do *not* include FlagSpec, PositionalSpec, ToolCommandSpec, or OperationSpec\u2014verified via model_json_schema. ServiceSpec nests EndpointSpec/McpToolSpec/CommandSpec only; FlagSpec/PositionalSpec/ToolCommandSpec hang off ToolDescriptor.commands, and OperationSpec hangs off ServiceDescriptor.operations\u2014neither archetype-only tree is walked by --check (ci.yml ~411). (2) generate_tool_descriptor.py _flag_payload/_positional_payload/_command_payload use model_dump(mode=\"json\", exclude_defaults=True) (lines 114\u2013143); a default-None traceability field is omitted from dumps (verified), so evaluation/descriptor.yaml stays byte-identical under --check (ci.yml ~431) until a contract actually carries non-default citations\u2014which task 4.2 already requires regenerating as human work outside wp-model. Widening write_allow would be unnecessary surface area.",
+      "resolution": "No change to wp-model write_allow. Keep task 2.2's constraint (archetype-only models + absent default) and the package verification step that runs both --check commands as a regression guard.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/work-packages.yaml"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Gate falsifiability and RED protocol are unusually strong for a plan. tasks.md defines a concrete RED-demonstration protocol (lines 10\u201317); phase 3 maps failure modes to pytest files; tasks 3.1\u20133.6/3.9/3.11/3.13/3.15 each require non-zero exit and naming; task 4.3 mutates real flagship artifacts both forward and reverse; the final checkpoint requires recorded exit codes for both wired gates. Citation concentration is deterministic via CONCENTRATION_REPORT_SHARE (D7) so its test is not a self-mirror. Scope fail-closed (unresolvable merge base / missing --change) is specified and tasked. Residual gaps are the opt-in-transition and exclusions-file parse cases in findings 1\u20132, not a general \"gate only observed to pass\" problem.",
+      "resolution": "No change required for the RED framework itself; close findings 1\u20132 so every opt-in and reverse-switch failure mode has a documented mutation.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/tasks.md"
+    },
+    {
+      "id": 11,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "FYI: Adoption risk for unrelated work and day-one main is well controlled if only the flagship opts in. proposal.md / design.md D6+D13 keep untraced documents and capabilities without exclusions files report-only; task 5.2 is forward-only for the coordinator; reverse for 122 coordinator requirements is explicitly backlog. Day-one main red is bounded to gen-eval-framework after 4.2/4.2b\u2014and task 4.2b is correctly sized as the larger half of the retrofit (~20 archived + this change's ADDED + 4.1 flag requirements). Residual adoption risk is finding #1: a later capability could create a partial exclusions file or partial document opt-in under change-scope and only discover incompleteness on main.",
+      "resolution": "Accept the staged adoption model; rely on the opt-in-transition fix in finding #1 so validate-feature cannot green-wash a newly flipped switch.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "fyi",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/proposal.md"
+    }
+  ]
+}

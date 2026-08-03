@@ -1,0 +1,55 @@
+{
+  "handoff_id": "plan-review-20260731T195510Z",
+  "phase": "PLAN_REVIEW",
+  "change_id": "trace-requirements-to-contracts",
+  "iteration": 3,
+  "max_phase_iterations": 3,
+  "reviewer_vendor": "claude_code/opus-5",
+  "archetype": "reviewer",
+  "branch": "openspec/trace-requirements-to-contracts",
+  "commit_under_review": "7bcfeee14947aa12a289c90f1dab6f6de9fcf941",
+  "outcome": "not_converged",
+  "blocking_count": 3,
+  "findings_trend": [10, 6, 3],
+  "findings_file": "openspec/changes/trace-requirements-to-contracts/review-findings-plan.json",
+  "preserved_prior_round": "openspec/changes/trace-requirements-to-contracts/reviews/review-findings-plan-r2.json",
+  "summary": "Verification of the round-2 fix commit 7bcfeee1 rather than a re-derivation of the plan. Four of the six round-2 claims verify closed against the tree by command: C1 (spec delta now states blocking-on-merge-candidate plus non-blocking post-merge, matching D12's table), C2 (misplaced instance is a ratchet, and the fail-on-newly-added half is stated in task 3.6 where the wp-gate implementer will find it), C4 (structural identification confirmed — `tool` is genuinely top-level in gen-eval-framework/cli/gen-eval.yaml, `openapi` is top-level in code-search/v2.yaml, and the only other root file in the whole contracts tree is README.md), C6 (all three surfaces agree 5.7c is [human] and owned by no package). C5 is substantially closed — the DAG-enforcement falsehood is gone and the Phase B ordering it rests on checks out — with a residual overstatement filed as a nit. Both non-blocking fixes check out. openspec validate --strict is valid and validate_work_packages.py is VALID.\n\nC3 is the one that did not close, and it opened two further defects. All three blocking findings trace to it. The fix made an active change id mandatory for the blocking merge-candidate sweep, but (1) never said what that job does on a PR whose branch is not openspec/<change-id> — ci.yml triggers on unfiltered pull_request and merge_group, and git branch -r shows live dependabot/*, claude/*, chore/* and codex/* branches, so the job as planned reds every unrelated PR the day task 5.7 lands; (2) added two capability-scope resolution modes to spec.md without carrying them into task 3.16 (which still says only 'capability scope reads everything') or into wp-gate's closed test-file mapping, while assigning the new scenario to task 5.7, which lives in wp-wiring — a package whose write_allow excludes packages/gen-eval/scripts/check_traceability.py entirely; and (3) wrote a scenario clause, 'the sweep SHALL fail rather than run when no active change id is supplied', that no implementation can satisfy, because at capability scope the absence of --change is exactly the post-merge run's signature and no second discriminator exists anywhere in the plan.\n\nThe recurring shape across three rounds is now visible: each fix lands correctly in the artifact the finding named and is not propagated to the artifact that owns the consequence. Round 2 was spec.md; round 3 is the task and package decomposition. Recommend the human reviewing this escalation check the fix commit for the same propagation, specifically that task 3.16's note and wp-gate's test mapping change, not only spec.md.",
+  "blocking_findings": [
+    {
+      "id": 1,
+      "title": "The blocking pull_request sweep reds every PR whose branch is not openspec/<change-id>",
+      "file": "openspec/changes/trace-requirements-to-contracts/tasks.md",
+      "line_range": "577-596",
+      "evidence": ".github/workflows/ci.yml:3-7 triggers on unfiltered `pull_request:` and `merge_group:`. `git branch -r` returns origin/dependabot/pip/agent-coordinator/jsonschema-gte-4.26.0, origin/claude/tech-debt-analysis-skill-IdbCE, origin/chore/subagent-dispatch-authorization, origin/codex/explore-interactive-code-visualization-options among others. spec.md:509-511 requires the blocking run to fail rather than infer a change id; tasks.md:582-584 derives it from `openspec/<change-id>`. No artifact states the non-resolving case. Agent branches are `openspec/<id>--<agent-id>` (docs/guides/worktree-management.md:11), which also fails to resolve.",
+      "fix": "State the branch-to-change-id resolution rule (strip any trailing `--<agent-id>`) and the non-resolving behavior (printed SKIP and exit zero, or non-blocking union mode) in the requirement and in task 5.7, plus the job-level `if:` condition."
+    },
+    {
+      "id": 2,
+      "title": "The two capability-scope resolution modes have no implementing or testing task, and their scenario is owned by a package that cannot write the gate",
+      "file": "openspec/changes/trace-requirements-to-contracts/tasks.md",
+      "line_range": "432-441",
+      "evidence": "spec.md:509-517 adds both modes. Task 3.16 (wp-gate) says only 'Change scope requires --change <id> ... capability scope reads everything'. The only claim of scenario `blocking-sweep-requires-a-change-id` is tasks.md:578, task 5.7, in wp-wiring, whose write_allow (work-packages.yaml:453-461) excludes packages/gen-eval/scripts/check_traceability.py (wp-gate's, work-packages.yaml:241). wp-gate's test mapping is closed: 'test_change_scope.py <- 3.15. No fifth file.' (work-packages.yaml:260-262). wp-gate runs before wp-wiring, so it ships argparse first — and task 5.7c's acceptance command `--scope capability --change trace-requirements-to-contracts` (tasks.md:630) would then be rejected.",
+      "fix": "Put both modes into task 3.16's note, add a wp-gate test task (amending the 'No fifth file' mapping), and move the scenario claim from task 5.7 to that gate task."
+    },
+    {
+      "id": 3,
+      "title": "New scenario asserts a gate behavior no implementation can satisfy and that contradicts the post-merge run",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "543-551",
+      "evidence": "spec.md:548-551 'the sweep SHALL fail rather than run when no active change id is supplied' versus spec.md:512-514 'The post-merge run has no active change; it SHALL resolve against the archived specs shadowed by every spec delta present under openspec/changes/'. At capability scope the absence of --change IS the post-merge signature; no third discriminator appears anywhere (`grep -n -- '--scope|--change' spec.md design.md tasks.md`). Task 5.7's 'keep the invocation bare' note (tasks.md:601-604) forecloses adding one. No test can be written for a clause that must never fire.",
+      "fix": "Make the caller the subject of the clause ('the CI job running the blocking sweep SHALL supply the active change id'), leaving the fail-closed assertion with `unresolvable-scope-errors` (spec.md:483-489), which is correctly scoped to change-scoped runs."
+    }
+  ],
+  "non_blocking_findings": [
+    {"id": 4, "severity": "nit", "title": "Task 5.7's 'keep the invocation bare' note contradicts the mandatory --change <id> in the same task"},
+    {"id": 5, "severity": "nit", "title": "wp-wiring's PREFLIGHT is not the agent's first instruction, and in the local-parallel tier the package description never reaches the worker prompt (implement-feature SKILL.md:325-347 has no description slot); it does reach a coordinated-tier worker via dag_scheduler.py:139,175"},
+    {"id": 6, "severity": "nit", "title": "The ratchet's 'cannot grow' claim is enforced only at /validate-feature (local/pre-PR), not in CI"},
+    {"id": 7, "severity": "nit", "title": "D12's heading still states the position its own body refutes"}
+  ],
+  "verified_closed": ["C1", "C2", "C4", "C6", "C5 (substantively; residual filed as nit 5)", "task 2.0 api.contracts producer", "skill-workflow SKIP path"],
+  "gates_run": [
+    {"command": "npx @fission-ai/openspec validate trace-requirements-to-contracts --strict", "result": "Change 'trace-requirements-to-contracts' is valid"},
+    {"command": "agent-coordinator/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/trace-requirements-to-contracts/work-packages.yaml", "result": "VALID (schema, depends_on_refs, dag_cycles, lock_keys)"}
+  ],
+  "escalation_note": "max_phase_iterations reached with 3 blocking findings surviving verification. All three are edits to tasks.md, work-packages.yaml and specs/gen-eval-framework/spec.md; none require redesign, and none touch a decision the plan has already settled. Estimated as a single fix pass. The escalation exists because the round budget is exhausted, not because the remaining work is large or contested."
+}
