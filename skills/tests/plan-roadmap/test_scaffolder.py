@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 from models import Effort, ItemStatus, Roadmap, RoadmapItem, RoadmapStatus
-from scaffolder import populate_change_ids, scaffold_change
+from scaffolder import populate_change_ids, scaffold_change, scaffold_changes
 
 
 # ---------------------------------------------------------------------------
@@ -127,41 +129,87 @@ class TestScaffoldChange:
         assert (second / "tasks.md").exists()
 
 
-class TestSingleItemOnly:
-    """Scaffolding is per-item at pickup time — never the whole roadmap up front.
+class TestBulkScaffolding:
+    """Roadmap creation scaffolds every approved item, and each one validates.
 
-    Bulk scaffolding produced one `openspec validate --strict` failure per item,
-    because a change with an empty `specs/` directory has no delta. CI runs
-    `openspec validate --strict --all`, so an N-item roadmap turned CI red for
-    the whole life of the roadmap.
+    The earlier bug was not that bulk scaffolding existed — it is the intended
+    model — but that the scaffolder created `specs/` and never wrote a delta
+    into it. Git drops empty directories, so the change reached CI with no
+    specs at all and failed `openspec validate --strict` with "no deltas found".
     """
 
-    def test_scaffolds_only_the_requested_item(self, tmp_path: Path):
+    def test_scaffolds_every_candidate_item(self, tmp_path: Path):
         items = [
             _make_item("ri-01", "Feature Alpha", priority=1),
             _make_item("ri-02", "Feature Beta", priority=2),
         ]
         roadmap = _make_roadmap(items)
-        scaffold_change(roadmap, tmp_path, "ri-01")
-        changes = sorted(p.name for p in (tmp_path / "openspec" / "changes").iterdir())
-        assert changes == ["feature-alpha"]
+        created = scaffold_changes(roadmap, tmp_path)
+        assert len(created) == 2
+        assert sorted(p.name for p in created) == ["feature-alpha", "feature-beta"]
+
+    def test_skips_completed_items(self, tmp_path: Path):
+        items = [
+            _make_item("ri-01", "Active Feature", status=ItemStatus.CANDIDATE),
+            _make_item("ri-02", "Done Feature", status=ItemStatus.COMPLETED),
+        ]
+        roadmap = _make_roadmap(items)
+        assert len(scaffold_changes(roadmap, tmp_path)) == 1
+
+    def test_populates_change_ids_as_a_side_effect(self, tmp_path: Path):
+        item = _make_item()
+        roadmap = _make_roadmap([item])
+        scaffold_changes(roadmap, tmp_path)
+        assert item.change_id == "test-feature"
 
     def test_unknown_item_id_raises(self, tmp_path: Path):
         roadmap = _make_roadmap()
         with pytest.raises(KeyError):
             scaffold_change(roadmap, tmp_path, "ri-99")
 
-    def test_completed_item_raises(self, tmp_path: Path):
+    def test_completed_item_raises_for_single_scaffold(self, tmp_path: Path):
         item = _make_item("ri-01", "Done Feature", status=ItemStatus.COMPLETED)
         roadmap = _make_roadmap([item])
         with pytest.raises(ValueError, match="only candidate or approved"):
             scaffold_change(roadmap, tmp_path, "ri-01")
 
-    def test_no_bulk_entry_point_exists(self):
-        """A bulk API is the footgun; it must not come back."""
-        import scaffolder
 
-        assert not hasattr(scaffolder, "scaffold_changes")
+class TestScaffoldWritesSpecDeltas:
+    """The delta is what makes a scaffold valid — this is the missing function."""
+
+    def test_writes_a_spec_delta_file(self, tmp_path: Path):
+        roadmap = _make_roadmap()
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        deltas = list((created / "specs").rglob("spec.md"))
+        assert len(deltas) == 1
+
+    def test_specs_dir_is_never_empty(self, tmp_path: Path):
+        """Git does not track empty directories — an empty specs/ vanishes."""
+        roadmap = _make_roadmap()
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        assert list((created / "specs").rglob("*.md"))
+
+    def test_delta_declares_a_requirement_and_scenarios(self, tmp_path: Path):
+        roadmap = _make_roadmap()
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        text = (created / "specs" / "test-feature" / "spec.md").read_text()
+        assert "## ADDED Requirements" in text
+        assert "### Requirement: Test Feature" in text
+        assert text.count("#### Scenario:") == 2  # one per acceptance outcome
+
+    def test_every_acceptance_outcome_appears(self, tmp_path: Path):
+        roadmap = _make_roadmap()
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        text = (created / "specs" / "test-feature" / "spec.md").read_text()
+        for outcome in ["Tests pass", "Feature works"]:
+            assert outcome in text
+
+    def test_item_without_outcomes_still_produces_a_scenario(self, tmp_path: Path):
+        item = _make_item(acceptance_outcomes=[])
+        roadmap = _make_roadmap([item])
+        created = scaffold_change(roadmap, tmp_path, "ri-01")
+        text = (created / "specs" / "test-feature" / "spec.md").read_text()
+        assert "#### Scenario:" in text
 
 
 class TestPopulateChangeIds:
@@ -215,14 +263,37 @@ class TestPopulateChangeIds:
         assert created.name == assigned["ri-01"]
 
 
-class TestStubIsNotCommittable:
-    def test_specs_dir_has_no_deltas(self, tmp_path: Path):
-        """The stub is deliberately incomplete.
+class TestScaffoldPassesTheRealValidator:
+    """The invariant that matters, checked with the real tool rather than a proxy.
 
-        `openspec validate --strict` requires at least one delta file carrying a
-        `#### Scenario:` block. The scaffolder writes none, so the caller must
-        author spec deltas (normally via /plan-feature) before committing.
-        """
-        roadmap = _make_roadmap()
-        created = scaffold_change(roadmap, tmp_path, "ri-01")
-        assert list((created / "specs").iterdir()) == []
+    Every prior test here asserted the *shape* of the output — that files exist
+    and contain certain strings — and all of them passed while the scaffolder
+    emitted changes `openspec validate --strict` rejected. Only running the
+    actual validator catches that, which is the whole argument for ri-19.
+    """
+
+    @staticmethod
+    def _openspec_project(tmp_path: Path) -> Path:
+        """A minimal OpenSpec project the CLI will accept."""
+        (tmp_path / "openspec" / "specs").mkdir(parents=True)
+        (tmp_path / "openspec" / "project.md").write_text("# Project\n")
+        (tmp_path / "openspec" / "AGENTS.md").write_text("# Agents\n")
+        return tmp_path
+
+    def test_scaffolded_roadmap_validates(self, tmp_path: Path):
+        openspec = shutil.which("openspec")
+        if openspec is None:
+            pytest.skip("openspec CLI not available")
+
+        root = self._openspec_project(tmp_path)
+        items = [
+            _make_item("ri-01", "Feature Alpha", priority=1),
+            _make_item("ri-02", "Feature Beta", priority=2),
+        ]
+        scaffold_changes(_make_roadmap(items), root)
+
+        result = subprocess.run(
+            [openspec, "validate", "--strict", "--all"],
+            cwd=root, capture_output=True, text=True,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
