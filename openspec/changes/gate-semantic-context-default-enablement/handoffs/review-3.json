@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T22:58:03.099394+00:00",
+  "coordinator_error": {
+    "error_type": "not_attempted",
+    "message": "Local handoff only; round 1 recorded http_403 for this agent_id."
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "phase": "IMPL_REVIEW",
+    "iteration": 3,
+    "outcome": "not_converged",
+    "reviewed_revision": "6ec3ea43a6c55c4d75895fd696de7c0ba0140fdf",
+    "summary": "IMPL_REVIEW round 3 (FINAL) for gate-semantic-context-default-enablement at 6ec3ea43. Dispatched via review_dispatcher.py --mode alternative, claude_code excluded: antigravity/gemini-3.6-flash-medium (175s, 1 finding), codex/gpt-5.5 (380s, 1), grok/grok-4.5 (317s, 1); pi failed on OpenRouter HTTP 402 insufficient credits, the same account condition as rounds 1 and 2. The finding envelope (id/type/criticality/description/disposition, issue #341) was carried verbatim in the prompt and no dispatch was lost this round. OUTCOME not_converged on ONE blocking finding, reproduced independently by all three vendors and by this reviewer. R3's body_consistency() re-derives the composer's pass invariant from the ROWS and from the corpus COUNTS, and does not read the `environment` block at all -- yet compose_verdict() treats two of that block's four fields as hard run-level failures (scope_adapter == 'degraded' -> apparatus_failure; code_search_enabled false under a live-tier gate -> service_disabled_during_measurement). Both are recorded IN the report and both are schema-REQUIRED, so deriving them needs nothing outside the document -- they are strictly inside the shape body_consistency exists to cover, and outside the disclosed forgery limitation, which is about invented NUMBERS and about conditions that compare the artifact to something else in the repository. Demonstrated with the harness's OWN fixture: _document(corpus, _measurement(scope_adapter='degraded')) is composer-produced, records verdict fail / fail_reasons ['apparatus_failure'] with every gate, consumer and case row passing; the round-2 TWO-FIELD hand-edit (verdict fail->pass, delete fail_reasons) is accepted by validate_report, returns consistent=True from body_consistency, and makes enablement_gate.main() print all ten conditions met and exit 0 -- including verdict_consistent. context_eval check also exits 0. This is the honest-drift case the README claims is closed ('they make honest drift impossible to mistake for evidence'), not the accepted forgery case: nothing is fabricated. Notably, the exact document is the one the implementer built as evidence FOR the one-way choice (test_a_recorded_apparatus_failure_is_not_a_contradiction); only the permissive direction was asserted. The one-way choice itself is CORRECT and should be kept -- but for corpus-relative reasons (missing_required_gate, denominator_mismatch from an undeclared case), not for apparatus_failure. Everything else the orchestrator asked to attack held: d7cefa02's harness_source seam is genuinely unreachable from a shell and the mutation suite still drives the full main() path; 418dd412's *.py digest restriction is guarded and the guard fails loudly and by name; f51da73b's hand-updated harness.fingerprint equals report.harness_fingerprint() computed at tip; and no legitimate report is wrongly refused (index.tier, gates[].min_index_tier and gates[].required are all schema-required, so the new comparisons cannot fire on a schema-valid document the composer produced). One new decoration WAS found, non-blocking: each of the three new schema allOf clauses can be deleted individually with the full 360-test suite green. All baselines reproduce exactly; worktree untracked set unchanged.",
+    "blocking_findings": [
+      {
+        "id": 1,
+        "type": "correctness",
+        "criticality": "critical",
+        "severity": "critical",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/report.py",
+        "line_range": {
+          "start": 671,
+          "end": 747
+        },
+        "found_by": [
+          "claude(independently reproduced)",
+          "grok(critical)",
+          "antigravity(high)"
+        ],
+        "description": "body_consistency() re-derives four of the five run-level pass predicates in compose_verdict() and omits the fifth. compose_verdict() (verdict.py) returns FAIL when ANY of: (1) _aligned finds a declared case absent or an undeclared case present; (2) len(scored) != len(declared); (3) measurement.scope_adapter == DEGRADED -> APPARATUS_FAILURE; (4) any composed gate carries fail_reasons -- which includes the two preconditions _compose_gate applies side by side, INDEX_TIER_INSUFFICIENT and, for a live-tier gate, SERVICE_DISABLED_DURING_MEASUREMENT when measurement.code_search_enabled is false; (5) a declared gate no scorer composed -> MISSING_REQUIRED_GATE. body_consistency() covers (2) via unscored rows + the cases_scored/cases_declared sibling comparison, most of (4) via the gate/consumer row verdicts, and the index-tier half of the precondition pair via _tier_satisfies. (1) and (5) are corpus-relative and are covered in the gate by report_describes_corpus. (3) is covered by NOTHING, and the service-disabled half of (4) is covered by nothing either. body_consistency() never reads document['environment'], even though environment.scope_adapter and environment.code_search_enabled are both schema-REQUIRED and both are inputs compose_verdict is decided by. REPRODUCTION (mine, using the harness's own fixture builders so nothing is hand-invented): document = test_enablement_gate_mutation._document(corpus, _measurement(scope_adapter='degraded')). As composed: verdict 'fail', fail_reasons ['apparatus_failure'], environment.scope_adapter 'degraded', all 4 gates pass, all 6 consumers pass, all 19 cases scored. Apply the round-2 edit and nothing else -- document['verdict']='pass'; document.pop('fail_reasons'). Then: report.validate_report(document) ACCEPTS; report.body_consistency(document) returns consistent=True with derived_verdict='pass' and empty contradictions; enablement_gate.main(['--repository-root',<wt>,'--semantic-context',<helper with INJECTION_DEFAULT_ENABLED True>,'--report',<raw>,'--corpus',<corpus>,'--embedding-contract',<matching>]) prints ALL TEN conditions met -- including 'met: verdict_consistent: the recorded verdict pass is the one this body composes to' -- and returns EXIT 0; context_eval check on the same file returns 0. grok reproduced the identical construction end-to-end plus the code_search_enabled variant; antigravity reproduced it through __main__._check. WHY THIS IS NOT THE DISCLOSED LIMITATION: nothing is fabricated -- every number is the composer's own output from a real run -- and the missing condition is PURELY INTERNAL to the document, comparing the artifact against itself rather than against corpus/harness/git/contract. The disclosure's reasoning ('anyone who can edit the report can compute all of them') does not reach a derivation that reads only fields already in the file, which is exactly the shape the module docstring reserves for verdict_consistent: 'This one is entirely internal, and it is the only one that can notice a document nothing composed.' The disclosure's second claim -- that honest drift is now impossible to mistake for evidence -- is false for the drift that a degraded scope adapter IS. WHY IT SURVIVED: the CONTRADICTIONS corpus (7 entries) is the mechanism designed to find a MISSING condition, and it is correctly built (it imports nothing from CONDITIONS, verified by grep), but every one of its seven entries perturbs a gate row, a consumer row, a case row or a corpus count. None touches environment. test_a_recorded_apparatus_failure_is_not_a_contradiction constructs precisely the degraded document and asserts only that the permissive direction is allowed; the complementary assertion -- that flipping its verdict must NOT be allowed -- was never written.",
+        "resolution": "Add the missing run-level predicates to body_consistency()'s `failures` list, which preserves the one-way property rather than weakening it: (1) if document['environment']['scope_adapter'] == 'degraded', append a body failure mirroring compose_verdict's APPARATUS_FAILURE; (2) if document['environment']['code_search_enabled'] is not True and any gate declares min_index_tier == 'live', append a body failure mirroring SERVICE_DISABLED_DURING_MEASUREMENT (this is the sibling of the _tier_satisfies comparison already implemented, and the two preconditions sit on adjacent lines in _compose_gate). Both leave a recorded 'fail' legitimate -- derived fail == recorded fail is not a contradiction -- so the apparatus failure stays reportable and test_a_recorded_apparatus_failure_is_not_a_contradiction only needs its expected derived_verdict updated from 'pass' to 'fail'. Correct the two prose claims that the current shape makes: the one-way justification in BodyConsistency's docstring, in _consistent_verdict_condition's docstring and in the README should stop citing the degraded scope adapter (which becomes body-visible) and cite instead the reasons that genuinely cannot be derived from the document alone -- MISSING_REQUIRED_GATE and the undeclared-case half of DENOMINATOR_MISMATCH, both of which need the corpus. Add three CONTRADICTIONS entries, which is where they belong because the family exists to catch a missing condition: (a) a composer-produced apparatus report with only verdict and fail_reasons flipped; (b) a passing body with scope_adapter set to 'degraded'; (c) a passing body with code_search_enabled false. Also mirror (a) and (b) as schema allOf clauses in BOTH copies of context-eval-report.schema.json, per this change's own two-layer doctrine -- a passing verdict over environment.scope_adapter 'degraded' is a pure single-document constraint JSON Schema CAN express, unlike the tier ordering and the sibling count comparison. Finally, walk compose_verdict's reason sources once more and record, next to body_consistency, which of them are derivable from the document and which are corpus-relative -- the defect in all three rounds has been an incomplete enumeration, not a wrong comparison."
+      }
+    ],
+    "non_blocking_findings": [
+      {
+        "id": 2,
+        "type": "testing",
+        "criticality": "medium",
+        "severity": "optional",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "openspec/contracts/semantic-context-evaluation/schemas/context-eval-report.schema.json",
+        "line_range": {
+          "start": 305,
+          "end": 366
+        },
+        "found_by": [
+          "claude"
+        ],
+        "description": "THE ROUND-3 DECORATION. Each of the three new schema allOf clauses -- 'A passing report records no failing gate', '...no failing consumer', '...scored every case it reports' -- can be deleted INDIVIDUALLY from both schema copies with the full 360-test context-eval suite still green (measured: 360 passed for each of the three single-clause deletions). Only deleting all three together trips exactly one test, test_the_three_field_edit_of_the_committed_report_is_refused, because that edit happens to violate all three at once. The cause is structural and acknowledged in the code: test_the_body_derivation_rejects_every_contradiction asserts layer 2 per contradiction, and the corpus deliberately does not assert WHICH layer objects, so layer 1 has no per-clause counterpart at all. This matters more than pure redundancy because the schema is the SOLE guard for one case: a gate row with verdict 'fail' and required false under a recorded pass is refused by the schema (measured: exit 3 at schema_valid) and accepted by body_consistency, whose `gate.get('required') is not False` guard has no counterpart in compose_verdict, which never consults `required` when extending reasons. And the schema is a promoted, published contract with consumers that never run this suite.",
+        "resolution": "Add a parametrization over CONTRADICTIONS asserting the LAYER-1 answer where it exists -- a small table mapping each contradiction to expected schema-refused / schema-silent, mirroring test_the_body_derivation_rejects_every_contradiction. That keeps the 'which layer objects is not asserted' property for the end-to-end test while making each clause individually mutation-proven. Separately, drop the `required is not False` guard in body_consistency or justify it, since compose_verdict fails the run on any gate carrying fail_reasons regardless of `required`."
+      },
+      {
+        "id": 3,
+        "type": "correctness",
+        "criticality": "medium",
+        "severity": "optional",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/__main__.py",
+        "line_range": {
+          "start": 160,
+          "end": 215
+        },
+        "found_by": [
+          "codex",
+          "claude(independently reproduced)"
+        ],
+        "description": "The two consumers do not ask the same total question, though _check's docstring now reads as though they do. _check gained the body_consistency call and still has no counterpart to report_describes_corpus, so a schema-valid passing report that drops a declared gate, case or consumer row is refused by the enablement gate (exit 3, 'the corpus declares gates [...] that it does not report') and read as a PASSING measurement by context_eval check (exit 0). Measured both ways: my missinggate.json (two of four gate rows removed, corpus.gates_declared still 4) -> gate exit 3, check exit 0; codex reproduced the same for omitted gate, case and consumer rows including under --verify-corpus-digest. The corpus digest does not move, because the corpus was not edited. Non-blocking because CI's blocking job is `make semantic-enablement-gate`, not `context_eval check`.",
+        "resolution": "Either expose the corpus-description re-derivation from enablement_gate as a shared helper both consumers call (the same move that was made for body_consistency), or state in _check's docstring that it deliberately answers a narrower question and that the enablement gate is the authority."
+      },
+      {
+        "id": 4,
+        "type": "maintainability",
+        "criticality": "low",
+        "severity": "optional",
+        "axis": "correctness",
+        "disposition": "accept",
+        "file_path": "packages/context-eval/tests/test_enablement_gate_mutation.py",
+        "line_range": {
+          "start": 935,
+          "end": 955
+        },
+        "found_by": [
+          "claude"
+        ],
+        "description": "OBSERVATION, NOT A DEFECT -- probed and it behaves correctly. 418dd412's stated rationale for narrowing the digest to *.py is that a .DS_Store must not produce a false expiry, but test_the_harness_source_holds_nothing_the_digest_would_miss asserts the non-.py set equals exactly ['py.typed'], so a .DS_Store now fails the TEST SUITE instead of the gate. Measured: writing src/context_eval/thresholds.json fails the test with \"['py.typed', 'thresholds.json'] sit inside the harness source and are not covered by its fingerprint\"; writing src/context_eval/.DS_Store fails it the same way. Both restore clean. The noise moved from an operator-facing expiry to a developer-facing test failure, which is the right direction and fails loudly and by name, so this is recorded rather than raised. Confirmed separately that no non-.py file inside the package carries behaviour today: every read_text/read_bytes call in src/context_eval targets the corpus, a supplied contract, DEFAULT_SCHEMA_DIR (which resolves OUTSIDE the package, to openspec/contracts/semantic-context-evaluation/schemas) or packages/context-eval/pyproject.toml.",
+        "resolution": "Optional. Exempt dotfiles from the assertion, or note in the test docstring that it deliberately catches incidental files too."
+      }
+    ],
+    "confirmed_already_filed": [
+      {
+        "issue": "#334, #335, #336, #338, #339",
+        "note": "Deferred non-blocking in this change. Not raised by any round-3 reviewer. NOT re-filed."
+      },
+      {
+        "issue": "#333, #337",
+        "note": "Fixed. #337's residue (the two identity-override flags) is closed by d7cefa02 and verified: neither flag is on the parser, both SystemExit, evaluate() has no harness_version parameter, and main()'s harness_source is KEYWORD_ONLY. NOT re-filed."
+      },
+      {
+        "issue": "#157 (derived-artifact drift)",
+        "note": "make context-drift-gate exit 2 on decisions.timeline / docs/decisions/skill-workflow.md is pre-existing on origin/main. NOT re-filed."
+      },
+      {
+        "issue": "#341 (dispatcher discards vendor stdout on envelope mismatch)",
+        "note": "The id/type/criticality/description/disposition field list was carried verbatim in the round-3 prompt and all three succeeding vendors emitted a valid envelope. No dispatch lost. NOT re-filed."
+      },
+      {
+        "issue": "disclosed forgery limitation",
+        "note": "NOT filed. A fully fabricated coherent measurement still authorizes, and I confirmed it (my /tmp/ctx-r3/pass.json: hand-built, 19 cases scored with copied arms, 4 gates pass, 6 consumers pass, tier live, reachable revision -> all ten conditions met, exit 0). The accepted reasoning holds for that construction. Blocking finding 1 is deliberately NOT that construction."
+      }
+    ],
+    "orchestrator_questions_answered": [
+      {
+        "question": "1. Is body_consistency() correct, and is one-way right?",
+        "answer": "ONE-WAY IS RIGHT AND THE JUSTIFICATION IS WRONG, and the wrong justification is the hole. Keeping recorded-fail-over-clean-body legitimate is correct and must stay: MISSING_REQUIRED_GATE and the undeclared-case half of DENOMINATOR_MISMATCH are genuinely corpus-relative and cannot be derived from the document, so two-way equality would make them unreportable. But the reason actually cited -- the degraded scope adapter -- is recorded in the report, is schema-required, and is decisive for compose_verdict; it belongs in body_failures, and its absence is blocking finding 1. Enumerating compose_verdict's reason sources against body_consistency's derivation is what produced the finding: four of five covered, environment covered zero times."
+      },
+      {
+        "question": "2. Did the 5 fix commits break anything? Can a legitimate report be wrongly refused?",
+        "answer": "NO on both counts, checked deliberately because over-refusal is as bad as under-refusal. index.tier, gates[].min_index_tier and gates[].required are all schema-REQUIRED, so _tier_satisfies cannot fire on an absent field. A passing gate can never carry fail_reasons (compose_verdict sets verdict=FAIL whenever ordered reasons exist) and can never sit below its declared tier (_compose_gate appends index_tier_insufficient first), so no composer output trips a contradiction. Confirmed empirically: 360/360 pass including the positive controls test_a_current_passing_report_authorizes_an_enabled_default and test_the_authorizing_report_does_not_contradict_itself, and my own composer-derived passing document authorizes at exit 0."
+      },
+      {
+        "question": "3. Is harness_source unreachable from a shell, and does the mutation suite still drive main()?",
+        "answer": "YES and YES. grep over packages/context-eval, Makefile and .github/workflows/ci.yml shows harness_source appears only in the tests, in evaluate()/main() signatures and in prose; _parser() has no such flag, no parse_known_args, no env fallback, no console-script alternative, and with both flags gone no argparse prefix can abbreviate to them. The suite was NOT weakened: Invocation.run() calls enablement_gate.main(self.argv, harness_source=...) and _argv builds the full four-flag command line, so every one of the ten condition mutants still goes through argparse and the exit-code mapping. test_no_command_line_can_assert_either_half_of_the_harness_identity asserts all three ways it could come back."
+      },
+      {
+        "question": "4. Is the *.py digest guard sufficient, and does it fail loudly?",
+        "answer": "YES. Writing src/context_eval/thresholds.json makes test_the_harness_source_holds_nothing_the_digest_would_miss fail and NAME the file in the assertion message; same for a .DS_Store. There is no allowlist that would swallow a new type -- the assertion is an exact equality against ['py.typed']. And nothing inside the package is read as data today: every read_text/read_bytes in src/context_eval targets the corpus, a supplied contract, DEFAULT_SCHEMA_DIR (which resolves outside the package) or pyproject.toml. Recorded as non-blocking finding 4 only that the guard is stricter than the rationale it serves."
+      },
+      {
+        "question": "5. Is the hand-updated harness.fingerprint defensible?",
+        "answer": "YES. report.harness_fingerprint() computed at 6ec3ea43 returns a1c52e214f161e0a7aeee1bae3d5dbb098f93c22f33bcaaaf09a43138289fe3f and the committed report records exactly that -- verified, not taken on trust. The field is a deterministic function of the tree that the gate recomputes on every run, so a wrong value fails harness_fingerprint_current loudly and immediately; it is a checksum, not a claim, which is what distinguishes it from hand-editing a verdict or a measured value that nothing re-derives. The commit message additionally establishes rather than asserts the equivalence by running both harnesses over the report's own recorded inputs and showing a one-field diff. This does not re-create artifact drift; re-running here WOULD have, via the deferred working-tree baseline."
+      },
+      {
+        "question": "6. Is any check still decoration?",
+        "answer": "YES, ONE, and it is non-blocking: each of the three new schema allOf clauses is individually deletable with the suite green (finding 2). The CONDITIONS set itself is clean -- test_every_condition_the_gate_declares_is_mutated forces mutated == set(CONDITIONS) and I confirmed verdict_consistent's mutant (_gate_passing_below_its_declared_tier) is a real one the schema cannot catch. As in rounds 1 and 2, the blocking defect is again a MISSING derivation rather than an unproven check -- three for three."
+      }
+    ],
+    "vendor_dispatch": {
+      "mode": "alternative (tool + Bash access granted to reviewers)",
+      "excluded_vendor": "claude_code (all implementation and fix work ran on claude)",
+      "succeeded": [
+        "antigravity/gemini-3.6-flash-medium (175.0s, 1 finding, high)",
+        "codex/gpt-5.5 (380.2s, 1 finding, high)",
+        "grok/grok-4.5 (317.0s, 1 finding, critical)"
+      ],
+      "failed": [
+        "pi -- OpenRouter HTTP 402 insufficient credits (models tried: qwen/qwen3-coder); same account condition as rounds 1 and 2, not a review failure"
+      ],
+      "convergence": "2 of 3 vendors (grok, antigravity) plus this reviewer independently reproduced the environment-precondition hole, including both halves (scope_adapter and code_search_enabled); grok and I reached enablement_gate exit 0, antigravity reached check exit 0. codex found the adjacent _check/report_describes_corpus divergence (non-blocking finding 3), which this reviewer also reproduced. No vendor re-filed the disclosed forgery limitation and no vendor found a defect in the one-way choice itself.",
+      "raw_findings": [
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-3/findings-antigravity-implementation.json",
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-3/findings-codex-implementation.json",
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-3/findings-grok-implementation.json",
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-3/review-manifest.json"
+      ]
+    },
+    "baselines_reproduced": {
+      "packages/context-eval": "360 passed, 0 skipped",
+      "ruff check src/ tests/": "clean",
+      "mypy src/context_eval/ --strict": "Success: no issues found in 17 source files",
+      "make semantic-enablement-gate": "exit 0 (INJECTION_DEFAULT_ENABLED is False, so no evidence required)",
+      "openspec validate --strict": "Change 'gate-semantic-context-default-enablement' is valid",
+      "schema copies": "cmp exit 0 (byte-identical)",
+      "committed report": "0 schema errors; verdict fail; gates [retrieval_quality fail, coding_context_utility fail, scope_compliance pass, fail_closed_regression pass]; body_consistency consistent",
+      "committed report harness.fingerprint": "a1c52e21... equals report.harness_fingerprint() computed at 6ec3ea43",
+      "round-2 three-field edit": "still refused -- validate_report raises and body_consistency returns not consistent",
+      "make context-drift-gate": "exit 2 on decisions.timeline / docs/decisions/skill-workflow.md -- pre-existing on origin/main, issue #157, NOT this change's",
+      "worktree": "HEAD 6ec3ea43 unchanged; the 7 untracked paths (5 openspec/schemas/context-*.schema.json, loop-state.json, .dispatch-state.json) all still untracked; two temporary schema mutations and two temporary probe files were made and restored, verified by git status before and after"
+    },
+    "next_steps": [
+      "ESCALATE to a human operator: iteration cap reached with one blocking finding surviving. The finding is small and mechanical -- two predicates and their mutants -- but it is the third instance of the same category error, and the third fix should not be self-certified by the same loop.",
+      "The fix itself: add scope_adapter=='degraded' and (code_search_enabled false AND any live-tier gate) to body_consistency's failures list; both preserve the one-way property.",
+      "Correct the one-way justification in three places (BodyConsistency docstring, _consistent_verdict_condition docstring, docs/evaluation/semantic-context/README.md) to cite the corpus-relative reasons instead of the apparatus failure, and soften the README's 'honest drift impossible to mistake for evidence' claim until the environment block is derived.",
+      "Add the three missing CONTRADICTIONS entries -- that family is the mechanism for finding a missing condition and it currently perturbs only rows and counts, never environment.",
+      "Consider whether the recurrence itself is the signal: three rounds, three missing derivations, each found by enumerating what the composer decides on and diffing it against what the artifact-side check re-derives. A single test that walks compose_verdict's reason sources and asserts each is either derived by body_consistency or explicitly listed as corpus-relative would close the category rather than the instance.",
+      "Non-blocking findings 2 and 3 are independent and small; 2 is a real decoration on a published contract and is worth taking in the same pass."
+    ]
+  }
+}

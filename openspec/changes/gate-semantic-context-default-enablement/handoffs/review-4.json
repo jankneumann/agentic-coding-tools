@@ -1,0 +1,188 @@
+{
+ "schema_version": 1,
+ "written_at": "2026-08-02T16:28:32.173187+00:00",
+ "coordinator_error": {
+  "error_type": "not_attempted",
+  "message": "Local handoff only; round 1 recorded http_403 for this agent_id."
+ },
+ "payload": {
+  "agent_name": "claude_code",
+  "phase": "IMPL_REVIEW",
+  "iteration": 4,
+  "outcome": "not_converged",
+  "reviewed_revision": "bc9e18e267356bec3a0ed21a3be1f49d7bb51650",
+  "scope": "operator-scoped: Q1 enumeration exhaustiveness, Q2 the two new derivations plus one-wayness, Q3 schema-clause decoration. Not a full re-review.",
+  "summary": "IMPL_REVIEW round 4 (SCOPED, FINAL) for gate-semantic-context-default-enablement at bc9e18e2. Scope was the operator's three questions only; nothing else was re-litigated. Dispatched via review_dispatcher.py --mode alternative: antigravity/gemini-3.6-flash-medium (121s, 4 findings), codex/gpt-5.5 (244s, 4), grok/grok-4.5 (276s, 6), plus a claude_code reviewer the --exclude-vendor claude filter did not match (447s, 6); pi failed on OpenRouter HTTP 402, the same account condition as rounds 1-3. The first dispatch was lost to checkpoint_findings._validate_finding (criticality vocabulary is critical/high/medium/low and disposition is fix/regenerate/accept/escalate; the prompt had asked for blocking/important/minor) -- re-dispatched with the exact enums, nothing lost the second time. OUTCOME not_converged. Q1 (the reason this round exists): THE ENUMERATION IS NOT EXHAUSTIVE. Of the two reasons the new BodyConsistency docstring calls corpus-relative and underivable, exactly one is. MISSING_REQUIRED_GATE is derivable from the document alone: build_report writes corpus.gates_declared = len(corpus.gates) (report.py:540) and exactly one gates[] row per COMPOSED gate (report.py:543), so compose_verdict's `if missing` (verdict.py:291) is equivalent to len(document['gates']) != document['corpus']['gates_declared'] -- two schema-required fields already in the file, the exact shape of the cases_scored/cases_declared comparison body_consistency already makes. Measured: drop one gate row from an otherwise clean passing document and body_consistency returns derived='pass', consistent=True. All four vendors reproduced it independently (grok critical, codex high, claude_code high, antigravity medium). The claim is repeated verbatim in enablement_gate._consistent_verdict_condition and in README.md:317-327. Same defect class as round 3: a decisive composer input the document records and the derivation does not read, wrapped in prose asserting it could not be read -- in the commit whose own docstring says 'the reason has to be stated exactly, because the approximate version of it was a hole'. The other half of the same sentence is wrong too (grok): 'they are checked against the corpus instead, by report_describes_corpus' is false for the undeclared-case half, which _describes_corpus_condition cannot see at all -- _aligned strips the undeclared outcome (verdict.py:329-332) before build_report, so the document is indistinguishable from a clean run. That half is genuinely underivable AND genuinely uncaught, which is the real and only reason one-wayness is necessary. The by-products confirm clean: environment.semantic_context_injection and coordination_transport are written (report.py:525-526) and read by no composer path (measurement.* is read only at verdict.py:276, 415, 417), and CORPUS_DIGEST_MISMATCH / REVISION_MISMATCH appear only in their definitions and in FAIL_REASONS. The literal count of 8 growth sites is slightly short -- 411 (the ScoringError [UNMEASURED] fallback), 535 (_fail_closed_gate) and the scorers' result.fail_reasons at 454/465/490 also originate reasons -- but all funnel through 289 and force GateOutcome.verdict = FAIL, so each is recorded per row and IS derived; harmless, though the docstring should not read as a closed count. Q2: the two new derivations are faithful to verdict.py:276 and :417 for honest documents (scope_adapter's two-valued enum makes == DEGRADED exhaustive, `is not True` is fail-closed on a missing field, and the any() aggregation is right because one live gate with the service off fails the whole run), and one-wayness is preserved in the code. But two defects. First, the code-search derivation's premise is row-dependent where the composer's is declaration-dependent: deleting the live-tier rows deletes the premise (same root and same one-line fix as finding 1), and rewriting min_index_tier from 'live' to 'seeded' defeats it while report_describes_corpus stays met, because that condition re-derives only the denominator and never compares min_index_tier to the manifest. Second, and measured in both directions: ONE-WAYNESS HAS LOST ITS ONLY TEST. Mutating report.py:787 to contradict in both directions leaves the full suite GREEN (370 passed, __pycache__ cleared between runs); on a git-archive export of 6ec3ea43 the identical mutant turns test_a_recorded_apparatus_failure_is_not_a_contradiction RED. That test's derived_verdict 'pass' -> 'fail' change was right as a control for the new derivation, but it was also the sole guard on the asymmetry three docstrings and the README spend paragraphs justifying, and nothing replaced it. By this change's own standard -- 'a clause nothing can be watched refusing is decoration, and decoration is this change's subject' -- the one-way branch is now decoration, in the same commit that closes exactly that defect for three schema clauses. All four vendors found it independently. Q3: THE SCHEMA-CLAUSE DECORATION IS GONE, verified by experiment. Deleting each of the three body allOf clauses in turn from BOTH copies and running the suite gives exactly 1 failed / 369 passed, three times, failing only that clause's own parametrization of test_each_body_clause_is_the_only_thing_refusing_its_own_document; restored byte-for-byte, git status --short identical before and after, git diff clean. What is decoration is the first rationale in the comment at test_enablement_gate_mutation.py:1424-1429: GateResult.required is const:true and schema-required, so the 'required: false' asymmetry it cites is unreachable for any schema-valid document. The second rationale -- a promoted, published contract with consumers that never run this suite -- is the real one. 4/4 vendors. Everything the operator listed as already-confirmed reproduces exactly: 370 passed / 0 skipped, make semantic-enablement-gate exit 0, the committed report schema-valid and self-consistent with derived == recorded == 'fail', harness.fingerprint d8bcd8ea... equal to report.harness_fingerprint(None) at HEAD, and the two schema copies byte-identical. __main__._check does inherit the fix through the shared helper (__main__.py:195). The disclosed forgery limitation, #344 and the declared-count/row-count shadow in _check were treated as out of scope and are not re-filed. Tracked tree unchanged; the protected untracked set is unchanged except for the reviews/round-4/ directory this review wrote.",
+  "blocking_findings": [
+   {
+    "id": 1,
+    "type": "correctness",
+    "criticality": "critical",
+    "severity": "critical",
+    "axis": "correctness",
+    "disposition": "fix",
+    "file_path": "packages/context-eval/src/context_eval/report.py",
+    "line_range": {
+     "start": 636,
+     "end": 643
+    },
+    "also_at": [
+     "packages/context-eval/src/context_eval/enablement_gate.py:350-358",
+     "docs/evaluation/semantic-context/README.md:317-327"
+    ],
+    "found_by": [
+     "claude(independently reproduced)",
+     "grok(critical)",
+     "codex(high)",
+     "claude_code-vendor(high)",
+     "antigravity(medium)"
+    ],
+    "description": "THE ENUMERATION IS NOT EXHAUSTIVE. BodyConsistency's new docstring states that two of compose_verdict()'s reasons 'are CORPUS-RELATIVE and cannot be derived from this document at all', naming MISSING_REQUIRED_GATE ('needs the manifest's gate list to know that a declared gate produced no row') and the undeclared-case half of DENOMINATOR_MISMATCH. The first is false. build_report() writes corpus.gates_declared = len(corpus.gates) (report.py:540, schema-required) and one gates[] row per COMPOSED gate (report.py:543); compose_verdict appends MISSING_REQUIRED_GATE exactly when `missing` is non-empty (verdict.py:291-292), and len(composed.gates) + len(missing) == len(corpus.gates) by construction. So the composer's decision is equivalent to len(document['gates']) != document['corpus']['gates_declared'] -- two fields already in the file, needing nothing outside it, structurally identical to the cases_scored/cases_declared comparison body_consistency already makes at report.py:779-783. MEASURED: a document with every gate/consumer/case row clean and scored, verdict 'pass', index.tier 'live', environment resolved and enabled, minus gates[0] and with gates_declared left at 4, returns derived_verdict='pass', consistent=True, contradictions=(). gates has minItems 1, so a 3-of-4 document is schema-legal. THE SECOND HALF OF THE SAME SENTENCE IS ALSO WRONG (raised by grok): 'They are checked against the corpus instead, by the enablement gate's report_describes_corpus' is false for the undeclared-case half. _aligned() strips an undeclared run entry before build_report sees it (verdict.py:329-332) and _case_results() raises on one anyway (report.py:557-563), so the undeclared case appears nowhere in the document and _describes_corpus_condition -- which compares only case ids, gate ids, consumer names and three counts -- cannot see it. That half is genuinely underivable AND uncaught by any condition, which is the real and only reason one-wayness is necessary. The phrase 'a reported case was never declared' is also inaccurate: it is not reported. WHY IT MATTERS BEYOND PROSE: this is the round-3 defect class repeated -- a decisive composer input the document records and the derivation does not read, defended by a justification saying it could not be read. It is NOT a live authorization hole in the enablement gate: report_describes_corpus refuses a dropped gate row via absent_gates (enablement_gate.py:453-456). It IS live in `context_eval check`, which has no corpus-description check -- that consumer divergence is issue #344 and is not re-filed here. FIX: correct the claim in all three texts, and either make the derivation (one comparison of corpus.gates_declared against len(gates), which also closes finding 3's row-deletion variant) or state explicitly that the count comparison is deliberately left to report_describes_corpus and #344. Do not leave the text asserting underivability."
+   },
+   {
+    "id": 2,
+    "type": "test_gap",
+    "criticality": "high",
+    "severity": "high",
+    "axis": "testability",
+    "disposition": "fix",
+    "file_path": "packages/context-eval/tests/test_enablement_gate_mutation.py",
+    "line_range": {
+     "start": 1303,
+     "end": 1327
+    },
+    "found_by": [
+     "claude(independently reproduced, both directions)",
+     "claude_code-vendor(high)",
+     "grok(high)",
+     "codex(medium)",
+     "antigravity(medium)"
+    ],
+    "description": "ONE-WAYNESS HAS LOST ITS ONLY TEST, and it lost it in this commit. test_a_recorded_apparatus_failure_is_not_a_contradiction changed `assert consistency.derived_verdict == 'pass'` to `== 'fail'`. That change is correct as a control for the new apparatus derivation, but the old assertion was the sole thing pinning the deliberate asymmetry at report.py:787 (`if derived == FAIL and recorded == PASS`), and nothing replaced it. No test now constructs the shape one-wayness exists to permit: a recorded 'fail' over a body that derives 'pass'. MEASURED IN BOTH DIRECTIONS. Post-fix (bc9e18e2): inserting a symmetric branch (`if derived == PASS and recorded == FAIL: contradictions.append(...)`) before report.py:787 leaves the whole suite GREEN -- 370 passed, __pycache__ cleared between runs, source restored byte-for-byte. Pre-fix: the identical mutant on a `git archive 6ec3ea43` export turns test_a_recorded_apparatus_failure_is_not_a_contradiction RED (1 failed, versus 1 passed unmodified). The guard existed before this commit and does not exist after it. CONSEQUENCE: if the derivation were later made two-way, a legitimately composed report failing for the undeclared-case half of DENOMINATOR_MISMATCH -- the one reason that genuinely leaves no trace in the document, per finding 1 -- would be rejected as 'nothing composed it' by the enablement gate (verdict_consistent) and reported as EXIT_REPORT_UNUSABLE by `context_eval check`: an honest failing measurement reclassified as no evidence at all, with CI green. That is precisely the outcome three docstrings and the README argue must remain writable. By this change's own standard -- 'a clause nothing can be watched refusing is decoration, and decoration is this change's subject' -- the one-way branch is now decoration, in the same commit that closes exactly that defect for three schema clauses. FIX: add a control asserting the permissive half. The honest document is one where every gate, consumer and case row is clean and scored, the counts agree, environment is resolved and enabled, and the recorded verdict is 'fail' with fail_reasons ['denominator_mismatch'] -- the undeclared-case run. Assert consistent is True and derived_verdict == 'pass'. Do NOT build it by dropping a gate row: per finding 1 that document is derivable, so such a test would pin the wrong thing and would break the moment the count comparison is added."
+   },
+   {
+    "id": 3,
+    "type": "correctness",
+    "criticality": "high",
+    "severity": "high",
+    "axis": "correctness",
+    "disposition": "fix",
+    "file_path": "packages/context-eval/src/context_eval/report.py",
+    "line_range": {
+     "start": 724,
+     "end": 734
+    },
+    "found_by": [
+     "claude_code-vendor(high, measured)",
+     "codex(high)",
+     "grok(medium)",
+     "claude(agrees on mechanism)"
+    ],
+    "description": "The new SERVICE_DISABLED_DURING_MEASUREMENT derivation takes its premise from the document's gate ROWS while the composer takes it from the corpus DECLARATIONS, so the premise can be deleted or rewritten. verdict.py:417 fires when `declaration.min_index_tier == LIVE_TIER and not measurement.code_search_enabled`; report.py:724-726 fires when `any(gate.get('min_index_tier') == LIVE_TIER for gate in gates)`. Two divergent documents: (a) DELETE the live-tier gate rows -- any() is then false and no failure is derived; same root as finding 1, and the same one-line fix closes it, because comparing corpus.gates_declared to len(gates) makes a deleted row itself a derived failure. (b) REWRITE min_index_tier from 'live' to 'seeded' in every row, keeping all gate ids -- any() is false, _tier_satisfies is satisfied, and _describes_corpus_condition stays met because it re-derives only the denominator (case ids, gate ids, consumer names, three counts) and never compares min_index_tier, kind or thresholds against the manifest it is holding. Variant (b) is inherited rather than introduced -- the pre-existing _tier_satisfies comparison at report.py:751-756 has the identical dependency on a document-side min_index_tier -- so the new derivation is no weaker than its sibling. It is recorded because the commit's justification presents the derivation as the composer's condition re-derived, and for a document whose gate rows were touched it is not. FIX: at minimum make (a) impossible via the count comparison from finding 1, and say in the docstring that the live-tier premise is read from the row and is only as trustworthy as report_describes_corpus makes the row set. Extending _describes_corpus_condition to compare min_index_tier and kind against the manifest would close (b) and is the fuller fix."
+   }
+  ],
+  "non_blocking_findings": [
+   {
+    "id": 4,
+    "type": "documentation",
+    "criticality": "low",
+    "disposition": "fix",
+    "file_path": "packages/context-eval/tests/test_enablement_gate_mutation.py",
+    "line_range": {
+     "start": 1424,
+     "end": 1429
+    },
+    "found_by": [
+     "claude",
+     "grok",
+     "codex",
+     "claude_code-vendor",
+     "antigravity"
+    ],
+    "description": "The comment's first rationale for the schema clauses' non-redundancy is unreachable. It says 'A gate row with verdict: \"fail\" and required: false under a recorded pass is refused HERE and accepted THERE'. GateResult.required is `const: true` and is in GateResult's required list, so that document is refused by the const rather than by the allOf clause, and no schema-valid document occupies the region; every schema-valid failing-gate-under-pass document (required necessarily true) is caught by body_consistency as well. The second rationale on the following line -- a promoted, published contract with consumers that never run this suite -- is sound and sufficient. Delete or correct the first. The clauses themselves are load-bearing and were measured so."
+   },
+   {
+    "id": 5,
+    "type": "test_gap",
+    "criticality": "low",
+    "disposition": "fix",
+    "file_path": "packages/context-eval/src/context_eval/report.py",
+    "line_range": {
+     "start": 724,
+     "end": 726
+    },
+    "found_by": [
+     "claude_code-vendor(measured)"
+    ],
+    "description": "The LIVE_TIER guard inside the new code-search derivation is unpinned: replacing `gate.get('min_index_tier') == LIVE_TIER` with `True` leaves the suite green (370 passed). Nothing distinguishes the derivation from 'code_search_enabled is not True and there is at least one gate row'. Not reachable with the shipped corpus, which declares two live gates, but under the mutant a legitimately composed run taken with the service off against a corpus declaring no live gate would derive 'fail' against a recorded 'pass' -- a false contradiction, the one direction one-wayness cannot absorb. A case whose gate rows all declare none/seeded with code_search_enabled false, asserting consistent, kills it."
+   },
+   {
+    "id": 6,
+    "type": "documentation",
+    "criticality": "low",
+    "disposition": "escalate",
+    "file_path": "packages/context-eval/src/context_eval/report.py",
+    "line_range": {
+     "start": 557,
+     "end": 563
+    },
+    "found_by": [
+     "antigravity"
+    ],
+    "description": "PRE-EXISTING, outside this round's three questions, recorded for the parent to file or ignore. _case_results()'s comment says an undeclared case's result keeps the report 'writable so the evidence of the mismatch survives', but the code raises ReportError, so no report is written. The branch is in fact unreachable, because _aligned() strips undeclared outcomes before build_report is called. Untouched by this commit."
+   }
+  ],
+  "confirmed_not_defects": [
+   "Q3 primary: the three body allOf clauses are NOT decoration. Deleting each in turn from BOTH schema copies gives exactly 1 failed / 369 passed, three times, failing only that clause's own parametrization of test_each_body_clause_is_the_only_thing_refusing_its_own_document. Restored byte-for-byte; git status --short identical before and after; git diff empty.",
+   "Q1.4 by-products: environment.semantic_context_injection and environment.coordination_transport are written by build_report (report.py:525-526) and read by no composer path -- measurement.* is read only at verdict.py:276 (scope_adapter), 415 (index_tier via satisfies) and 417 (code_search_enabled). CORPUS_DIGEST_MISMATCH and REVISION_MISMATCH exist only as definitions (verdict.py:75-76) and members of FAIL_REASONS (89-90); no path appends either.",
+   "The two new derivations cannot fire on a document the composer produced: scope_adapter's enum is two-valued so == DEGRADED is exhaustive; `is not True` is fail-closed on a missing or null field; and a row's min_index_tier is copied verbatim from its declaration, so any() matches the composer for an untouched document. No legitimate report is wrongly refused.",
+   "One-wayness is preserved in the CODE (only derived==fail over recorded==pass contradicts); the defect is that nothing tests it (finding 2).",
+   "__main__._check inherits the fix through the shared report.body_consistency helper (__main__.py:195), returning EXIT_REPORT_UNUSABLE for the two new contradictions.",
+   "Baselines reproduce exactly: 370 passed / 0 skipped; make semantic-enablement-gate exit 0; the committed report is schema-valid with body_consistency derived == recorded == 'fail'; harness.fingerprint d8bcd8ea9f61bccedca9a31c79074dcf3bc4d0dbd9b97ee3a77f1f488d8c77cb equals report.harness_fingerprint(None) computed at HEAD; the two schema copies are byte-identical.",
+   "Out of scope and not re-filed, per the operator: the disclosed forgery limitation; #344 (_check vs the gate on a dropped declared row) and the declared-count/row-count shadow on that same surface; make context-drift-gate drift (#157); verdict 'fail' being correct per D11."
+  ],
+  "vendor_dispatch": {
+   "mode": "alternative",
+   "succeeded": [
+    {
+     "vendor": "antigravity",
+     "model": "gemini-3.6-flash-medium",
+     "seconds": 121.4,
+     "findings": 4
+    },
+    {
+     "vendor": "codex",
+     "model": "gpt-5.5",
+     "seconds": 244.4,
+     "findings": 4
+    },
+    {
+     "vendor": "grok",
+     "model": "grok-4.5",
+     "seconds": 276.0,
+     "findings": 6
+    },
+    {
+     "vendor": "claude_code",
+     "model": "(default)",
+     "seconds": 447.0,
+     "findings": 6,
+     "note": "--exclude-vendor claude did not match this agent id; same-vendor, not an independent voice"
+    }
+   ],
+   "failed": [
+    {
+     "vendor": "pi",
+     "error": "OpenRouter HTTP 402 insufficient credits (same as rounds 1-3)"
+    }
+   ],
+   "first_dispatch_lost": "checkpoint_findings._validate_finding rejected criticality 'important'; the enums are critical/high/medium/low and fix/regenerate/accept/escalate. Re-dispatched with the exact values, nothing lost the second time.",
+   "artifacts": "openspec/changes/gate-semantic-context-default-enablement/reviews/round-4/"
+  },
+  "tree_state": {
+   "tracked_diff": "empty",
+   "untracked_protected_set": "unchanged; only reviews/round-4/ added by this review",
+   "mutations_restored": "report.py and both schema copies restored byte-for-byte, sha256-verified, __pycache__ cleared"
+  }
+ }
+}
