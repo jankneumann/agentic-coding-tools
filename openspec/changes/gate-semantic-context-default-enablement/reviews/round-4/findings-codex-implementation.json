@@ -1,0 +1,35 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": "r4-01",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "packages/context-eval/src/context_eval/report.py:535 writes corpus.gates_declared and report.py:543 writes the produced gate rows, so MISSING_REQUIRED_GATE is derivable from the document by comparing that count to len(gates). body_consistency() at report.py:699 never makes that comparison; a schema-valid pass with one gate row removed still derives pass, so the BodyConsistency docstring at report.py:636 is false and the derivation is incomplete.",
+      "disposition": "fix"
+    },
+    {
+      "id": "r4-02",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "packages/context-eval/src/context_eval/report.py:724 derives service_disabled_during_measurement from the report's gate rows, but verdict.py:417 derives it from the corpus declarations. enablement_gate.py:453 only checks reported gate ids, so a forged report can keep all ids, change live min_index_tier rows to seeded, set code_search_enabled false, and remain schema-valid, report_describes_corpus-valid, and body_consistency-valid even though the composer would fail it.",
+      "disposition": "fix"
+    },
+    {
+      "id": "r4-03",
+      "type": "test_gap",
+      "criticality": "medium",
+      "description": "packages/context-eval/tests/test_enablement_gate_mutation.py:1303 no longer tests one-wayness meaningfully: the apparatus case now records fail and derives fail, so it would pass under a symmetric consistency check. The one-way control should use a clean-looking recorded fail for a truly underived reason, such as the pure undeclared-case DENOMINATOR_MISMATCH path.",
+      "disposition": "fix"
+    },
+    {
+      "id": "r4-04",
+      "type": "contract_rationale",
+      "criticality": "low",
+      "description": "packages/context-eval/tests/test_enablement_gate_mutation.py:1425 claims the gate schema clause is non-redundant because body_consistency accepts verdict fail with required false, but openspec/contracts/semantic-context-evaluation/schemas/context-eval-report.schema.json:423 makes GateResult.required const true and line 396 requires it. The per-clause deletion experiment does fail one test per clause, but this required:false asymmetry is unreachable for schema-valid documents.",
+      "disposition": "fix"
+    }
+  ]
+}

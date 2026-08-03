@@ -1,0 +1,49 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": "r4-01",
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "BodyConsistency (report.py:636-643) claims MISSING_REQUIRED_GATE cannot be derived from the report document at all and must stay one-way/corpus-relative. That is false and is the same hole class as the pre-fix environment gap. compose_verdict omits unbuilt gates from ComposedVerdict.gates (verdict.py:283-292) while build_report always writes corpus.gates_declared = len(corpus.gates) and gates = only composed rows (report.py:540,543). A real MISSING_REQUIRED_GATE report therefore has gates_declared > len(gates) with no missing_gates field. body_consistency never compares those fields (report.py:699-798). Experiment: a schema-valid hand edit that drops one gate row from a pass report leaves body_consistency.consistent True / derived_verdict pass, and context_eval check exits 0 \u2014 while compose_verdict cannot produce pass for a missing declared gate. The same false underivability claim is repeated in enablement_gate._consistent_verdict_condition (enablement_gate.py:350-357) and docs/evaluation/semantic-context/README.md:319-323. Enablement is still blocked by report_describes_corpus when that condition runs, but the enumeration/claim of this commit is wrong and check has no corpus body re-derivation.",
+      "disposition": "fix"
+    },
+    {
+      "id": "r4-02",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The same three texts claim report_describes_corpus catches both underived reasons. That is only true for missing gates (enablement_gate.py:453-456). The undeclared-case half of DENOMINATOR_MISMATCH is real and document-underivable: _aligned strips undeclared ids (verdict.py:327-332), build_report emits only the aligned cases, and a composed fail report with fail_reasons=['denominator_mismatch'] is schema-valid with a clean body (derived pass, consistent). Experiment: _describes_corpus_condition on that document returns met=True \u2014 it never sees the undeclared run entry. One-wayness is still necessary for that half, but the justification that report_describes_corpus catches it is false (report.py:640-643, enablement_gate.py:353-357, README.md:321-323). Also the BodyConsistency wording 'a reported case was never declared' is inaccurate: the undeclared case is not reported.",
+      "disposition": "fix"
+    },
+    {
+      "id": "r4-03",
+      "type": "test_gap",
+      "criticality": "high",
+      "description": "test_a_recorded_apparatus_failure_is_not_a_contradiction (test_enablement_gate_mutation.py:1303-1327) no longer tests one-wayness. After this commit it asserts derived_verdict == 'fail' agreeing with recorded fail (both dirty via environment.scope_adapter). That is a useful control that the apparatus derivation fires, but it no longer exercises the permitted half of one-wayness (recorded fail over a clean-looking body). No replacement test builds a legitimately composed MISSING_REQUIRED_GATE or undeclared-case DENOMINATOR_MISMATCH report and asserts consistent/derived pass. The docstring still calls this 'its control' for one-wayness (lines 1304-1318); that claim is now false.",
+      "disposition": "fix"
+    },
+    {
+      "id": "r4-04",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The new SERVICE_DISABLED derivation (report.py:724-734) is not fully equivalent to the composer. Composer applies the rule per declared gate in _compose_gate when declaration.min_index_tier == live and not code_search_enabled (verdict.py:417-418). body_consistency applies it over document gate rows with min_index_tier == live. For honest full-corpus reports this matches. A forger can set environment.code_search_enabled=false and rewrite every gate's min_index_tier away from live; body_consistency then derives pass while compose_verdict against the real corpus fails with service_disabled_during_measurement. Apparatus (report.py:719-723 vs verdict.py:276-277) is faithful. One-wayness itself is preserved (only derived fail + recorded pass is a contradiction).",
+      "disposition": "accept"
+    },
+    {
+      "id": "r4-05",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Q1.4 confirmed, not a defect of this commit: environment.semantic_context_injection and environment.coordination_transport are written by build_report (report.py:525-526) and never read by compose_verdict/_compose_gate (only declared on MeasurementContext at verdict.py:186-187). CORPUS_DIGEST_MISMATCH and REVISION_MISMATCH appear only in the closed vocabulary (verdict.py:75-76,89-90); no composer path appends them (rg over packages/context-eval).",
+      "disposition": "accept"
+    },
+    {
+      "id": "r4-06",
+      "type": "test_gap",
+      "criticality": "low",
+      "description": "Q3 experiment: deleting each of the three body allOf clauses in openspec/contracts/semantic-context-evaluation/schemas/context-eval-report.schema.json ('A passing report records no failing gate', '...consumer', '...scored every case') causes test_each_body_clause_is_the_only_thing_refusing_its_own_document to fail only for that clause (DID NOT RAISE ReportError); schemas restored byte-for-byte. Those three clauses are not decoration. Separately: GateResult.required is const true and required (schema ~line 424/399). body_consistency only counts a failing gate when required is not False (report.py:739). For any schema-valid document required is always true, so the optional-gate soft-pass and the test comment's non-redundancy story via required:false (test_enablement_gate_mutation.py:1425-1429) are unreachable for schema-valid documents \u2014 that asymmetry is decoration in substance, while the body clauses remain load-bearing for required:true failing gates under pass.",
+      "disposition": "accept"
+    }
+  ]
+}
