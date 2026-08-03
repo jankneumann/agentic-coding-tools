@@ -162,13 +162,26 @@ class CheckpointManager:
         self.save(checkpoint)
 
     def advance_to_next(self, checkpoint: Checkpoint, roadmap: Roadmap) -> str | None:
-        """Move to next ready item. Returns new item_id or None if roadmap is done/blocked."""
+        """Move to next ready item. Returns new item_id or None if roadmap is done/blocked.
+
+        The new item enters at ``PLANNING``, not ``IMPLEMENTING``. Its change
+        directory holds only the preliminary scaffold that ``plan-roadmap`` wrote
+        when the roadmap was created, so it needs a refinement pass
+        (``/plan-feature`` or ``/iterate-on-plan``) informed by what was learned
+        implementing its dependencies — which is the whole reason roadmap items are
+        planned one at a time rather than all at once up front.
+
+        Entering at ``IMPLEMENTING`` also made ``should_skip_phase`` report planning
+        as already complete for the freshly advanced item, because ``PLANNING``
+        sorts before ``IMPLEMENTING`` in the phase order. The refinement pass was
+        therefore skipped silently rather than deliberately.
+        """
         ready = roadmap.ready_items()
         if not ready:
             return None
         next_item = ready[0]
         checkpoint.current_item_id = next_item.item_id
-        checkpoint.phase = CheckpointPhase.IMPLEMENTING
+        checkpoint.phase = CheckpointPhase.PLANNING
         self.save(checkpoint)
         return next_item.item_id
 
