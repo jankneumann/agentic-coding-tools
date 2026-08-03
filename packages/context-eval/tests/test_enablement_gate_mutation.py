@@ -1184,6 +1184,34 @@ def _pass_with_the_code_search_service_disabled(document: dict[str, Any]) -> Non
     document["environment"]["code_search_enabled"] = False
 
 
+def _pass_over_a_dropped_gate_row(document: dict[str, Any]) -> None:
+    """A declared gate that produced no row, and a report that passed anyway.
+
+    `compose_verdict()` records `missing_required_gate` from the manifest, which
+    is why this was called corpus-relative and underivable for one round. It is
+    neither: `build_report` writes `corpus.gates_declared` from the corpus and one
+    row per composed gate, both schema-required, so the comparison is
+    `len(gates) != corpus.gates_declared` — two fields already in the file.
+    """
+    document["gates"].pop()
+
+
+def _pass_over_a_dropped_consumer_row(document: dict[str, Any]) -> None:
+    """The same edit one list over: a declared consumer nothing reports on."""
+    document["per_consumer"].pop()
+
+
+def _pass_over_a_dropped_case_row(document: dict[str, Any]) -> None:
+    """A declared case removed outright, rather than left present and unscored.
+
+    The complement of `_pass_over_unscored_cases`: that one keeps all nineteen ids
+    and empties them, this one deletes an id so the count and the rows disagree.
+    Both compose to the same recorded denominator, and until the row counts were
+    derived only the first was caught.
+    """
+    document["cases"].pop()
+
+
 #: Documents describing a measurement that did not happen. Deliberately NOT
 #: derived from `enablement_gate.CONDITIONS`, and deliberately asserting nothing
 #: about which layer refuses them.
@@ -1200,6 +1228,9 @@ CONTRADICTIONS: tuple[tuple[str, BodyMutation], ...] = (
         "a pass over a disabled code-search service",
         _pass_with_the_code_search_service_disabled,
     ),
+    ("a pass over a dropped gate row", _pass_over_a_dropped_gate_row),
+    ("a pass over a dropped consumer row", _pass_over_a_dropped_consumer_row),
+    ("a pass over a dropped case row", _pass_over_a_dropped_case_row),
 )
 
 
@@ -1325,6 +1356,51 @@ def test_a_recorded_apparatus_failure_is_not_a_contradiction(evidence: Evidence)
         f"the apparatus failure is not named in {consistency.body_failures!r}, so the "
         "derivation agreed with the recorded verdict for some other reason"
     )
+
+
+def test_a_run_failed_for_an_undeclared_case_derives_pass_and_is_not_a_contradiction(
+    evidence: Evidence,
+) -> None:
+    """One-wayness, tested on the ONLY shape that justifies it.
+
+    `test_a_recorded_apparatus_failure_is_not_a_contradiction` above is a correct
+    end-to-end assertion and is NOT this. Its document derives `fail` and records
+    `fail`; agreement is what it checks. A derivation rewritten to demand
+    `derived == recorded` would satisfy it unchanged, so it cannot distinguish
+    one-way from symmetric — which is exactly how it came to pin a hole in place
+    for a round.
+
+    This constructs the other shape, the one a symmetric derivation must refuse:
+    `_aligned` strips an outcome the corpus never declared *before*
+    `build_report` runs, so `compose_verdict()` records `denominator_mismatch`
+    while the document that reaches disk has nothing visibly wrong. Every count
+    agrees, every row is scored, every gate and consumer passes — the body
+    derives `pass` over a run that correctly failed, and nothing in the file
+    could have told it otherwise. `report_describes_corpus` does not catch this
+    either: the stripped outcome is absent from the document and from the
+    manifest alike.
+
+    Refusing this document would make a real outcome unreportable. Permitting it
+    is what one-wayness buys, and this is the test that goes red if anyone takes
+    it away.
+    """
+    document = deepcopy(evidence.passing)
+    document["verdict"] = "fail"
+    document["fail_reasons"] = ["denominator_mismatch"]
+
+    consistency = report_module.body_consistency(document)
+
+    assert consistency.recorded_verdict == "fail"
+    assert consistency.derived_verdict == "pass", (
+        "the body records nothing wrong, so a document-only derivation must "
+        f"derive 'pass'; it derived {consistency.derived_verdict!r} from "
+        f"{consistency.body_failures!r}"
+    )
+    assert consistency.consistent, (
+        "a run the corpus failed for a reason the document cannot show is not a "
+        f"self-contradiction: {consistency.contradictions!r}"
+    )
+    assert not consistency.body_failures
 
 
 def test_the_three_field_edit_of_the_committed_report_is_refused(
