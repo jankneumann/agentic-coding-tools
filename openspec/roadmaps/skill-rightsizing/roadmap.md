@@ -1,6 +1,6 @@
 # Roadmap: skill-rightsizing
 
-> Source: `docs/proposals/skill-rightsizing-roadmap.md` | Status: **planning** | Items: 19
+> Source: `docs/proposals/skill-rightsizing-roadmap.md` | Status: **planning** | Items: 20
 
 
 <!-- GENERATED: begin phase-table -->
@@ -17,6 +17,7 @@
 | 1 | Collapse the mechanical preamble into a session-start tool | L | candidate | ri-11 |
 | 1 | Run the sealed holdout and apply the pre-registered decision rule | M | candidate | ri-10, ri-12, ri-13, ri-14, ri-15 |
 | 1 | Assert in CI that skill-generated artifacts pass their own validators | S | candidate | - |
+| 1 | Collect the 25 test directories CI never runs | M | candidate | - |
 | 2 | Aggregate process telemetry into a comparable scorecard feed | M | candidate | - |
 | 2 | Record the /doctor context-cost baseline | S | candidate | - |
 | 2 | Measure validator recall with a seeded-defect harness | L | candidate | ri-01 |
@@ -54,6 +55,7 @@ graph TD
     ri-17["Run the sealed holdout and apply the pre"]
     ri-18["Invert the skill test suite from shape a"]
     ri-19["Assert in CI that skill-generated artifa"]
+    ri-20["Collect the 25 test directories CI never"]
     ri-02 --> ri-05
     ri-01 --> ri-06
     ri-05 --> ri-07
@@ -219,9 +221,24 @@ For every skill that emits a structured artifact — OpenSpec change directories
 
 **Acceptance outcomes**:
 - [ ] Every artifact-generating skill has a test that runs its artifact through the real validator, not a structural approximation.
-- [ ] Reverting the per-item scaffolder fix makes that test fail.
+- [ ] Bypassing the scaffolder's spec-delta writer makes that test fail.
 - [ ] The checks run in CI on every push and block merge on failure.
 - [ ] Each generator documents which validator is authoritative for its output.
+
+### ri-20: Collect the 25 test directories CI never runs
+
+- **Status**: candidate
+- **Priority**: 1
+- **Effort**: M
+- **Change ID**: collect-uncollected-skill-tests
+
+Resolve the bare-module-name collisions that make roughly half the skill test directories uncollectable in the default sweep, then add them to pytest testpaths so they run in CI.
+
+**Acceptance outcomes**:
+- [ ] Every directory under skills/tests/ containing test files is listed in testpaths.
+- [ ] The default sweep collects all of them without import errors.
+- [ ] Modules sharing a name across skills are namespaced or imported unambiguously.
+- [ ] The number of tests collected by the default sweep is recorded before and after.
 
 ### ri-03: Aggregate process telemetry into a comparable scorecard feed
 

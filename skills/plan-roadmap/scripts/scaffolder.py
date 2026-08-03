@@ -127,6 +127,62 @@ def _write_tasks(item: RoadmapItem, change_dir: Path) -> None:
     (change_dir / "tasks.md").write_text(content)
 
 
+def _scenario_title(outcome: str) -> str:
+    """Reduce an acceptance outcome to a short `#### Scenario:` heading."""
+    title = outcome.strip().rstrip(".")
+    # Headings stay scannable; the full outcome is preserved in the THEN clause.
+    if len(title) > 72:
+        title = title[:69].rsplit(" ", 1)[0] + "…"
+    return title
+
+
+def _write_specs(item: RoadmapItem, change_dir: Path) -> None:
+    """Write the spec delta that makes the scaffolded change valid.
+
+    This is what turns a scaffold into something `openspec validate --strict`
+    accepts. A change with a `specs/` directory but no delta file fails with
+    "no deltas found" — and Git does not track empty directories, so the
+    scaffold arrives at CI as a change with no `specs/` at all.
+
+    Each roadmap item becomes one `### Requirement:` and each of its
+    `acceptance_outcomes` becomes one `#### Scenario:`. Every item in every
+    committed roadmap carries acceptance outcomes, and they already read as
+    THEN clauses, so the mapping is close to 1:1.
+
+    The output is deliberately a *preliminary sketch*: the WHEN clause is
+    generic because the roadmap does not yet know the trigger. It validates,
+    which is the point — `/plan-feature` and `/iterate-on-plan` refine it once
+    the item's dependencies have landed and there is something concrete to say.
+    """
+    change_id = item.change_id or _derive_change_id(item)
+    capability_dir = change_dir / "specs" / change_id
+    capability_dir.mkdir(parents=True, exist_ok=True)
+
+    outcomes = item.acceptance_outcomes or [
+        "The deliverable described in this item is complete and observable."
+    ]
+
+    scenarios = "\n\n".join(
+        f"#### Scenario: {_scenario_title(outcome)}\n\n"
+        f"- **WHEN** the roadmap item is implemented\n"
+        f"- **THEN** {outcome.strip().rstrip('.')}"
+        for outcome in outcomes
+    )
+
+    content = f"""\
+## ADDED Requirements
+
+### Requirement: {item.title}
+
+The system SHALL deliver the outcomes below. This requirement is a preliminary
+sketch generated from roadmap item `{item.item_id}` and is refined by
+`/plan-feature` before implementation.
+
+{scenarios}
+"""
+    (capability_dir / "spec.md").write_text(content)
+
+
 def populate_change_ids(roadmap: Roadmap) -> dict[str, str]:
     """Derive and set ``change_id`` on every item that lacks one, in place.
 
@@ -174,20 +230,15 @@ def populate_change_ids(roadmap: Roadmap) -> dict[str, str]:
 def scaffold_change(roadmap: Roadmap, repo_root: Path, item_id: str) -> Path:
     """Create the OpenSpec change directory for a single roadmap item.
 
-    Scaffold **one item at a time, at the moment it is picked up for work** —
-    never the whole roadmap up front.
+    The result is a **preliminary sketch that validates**: a proposal, a tasks
+    skeleton, and a spec delta derived from the item's acceptance outcomes.
+    `openspec validate --strict` accepts it as-is, so a scaffolded roadmap can
+    be committed without turning `validate-specs` red. `/plan-feature` and
+    `/iterate-on-plan` refine it later, once the item's dependencies have
+    landed and there is something concrete to say.
 
-    The directory this writes is an intermediate stub: it has a `specs/`
-    directory with no delta files in it, and `openspec validate --strict`
-    rejects any change without at least one delta carrying a
-    `#### Scenario:` block. Scaffolding every item of an N-item roadmap
-    therefore lands N validation failures in `openspec validate --strict --all`,
-    which CI runs on every push.
-
-    The stub is only valid as the first step of authoring one change. The
-    caller must complete it — normally by running `/plan-feature`, which writes
-    the spec deltas — before committing. A scaffolded directory with an empty
-    `specs/` must never reach a commit.
+    Use :func:`scaffold_changes` to scaffold a whole roadmap at creation time;
+    this function exists for scaffolding or re-scaffolding one item.
 
     Args:
         roadmap: The roadmap containing the item.
@@ -224,11 +275,40 @@ def scaffold_change(roadmap: Roadmap, repo_root: Path, item_id: str) -> Path:
     change_dir = repo_root / "openspec" / "changes" / change_id
     change_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create specs directory — deliberately empty; the caller authors the deltas.
-    (change_dir / "specs").mkdir(exist_ok=True)
-
-    # Write proposal and tasks
+    # Write proposal, tasks, and the spec delta that makes the change valid.
     _write_proposal(item, roadmap.roadmap_id, change_dir)
     _write_tasks(item, change_dir)
+    _write_specs(item, change_dir)
 
     return change_dir
+
+
+def scaffold_changes(roadmap: Roadmap, repo_root: Path) -> list[Path]:
+    """Scaffold every candidate/approved item in the roadmap.
+
+    Called at roadmap-creation time. Each item gets a preliminary OpenSpec
+    setup — proposal, tasks, and a spec delta sketched from its acceptance
+    outcomes — that passes `openspec validate --strict` immediately and is
+    refined per item later by `/plan-feature` and `/iterate-on-plan`.
+
+    Items already carrying a `change_id` keep it, so re-running after
+    :func:`populate_change_ids` is stable. Completed and abandoned items are
+    skipped rather than raising, since a partially-executed roadmap is a normal
+    thing to re-scaffold.
+
+    Args:
+        roadmap: The roadmap to scaffold.
+        repo_root: Repository root where openspec/changes/ lives.
+
+    Returns:
+        The created change directory paths, in roadmap item order.
+    """
+    populate_change_ids(roadmap)
+
+    created: list[Path] = []
+    for item in roadmap.items:
+        if item.status not in (ItemStatus.CANDIDATE, ItemStatus.APPROVED):
+            continue
+        created.append(scaffold_change(roadmap, repo_root, item.item_id))
+
+    return created
