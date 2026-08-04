@@ -77,6 +77,12 @@ AGENTS = [
         "key_flag": "codex_remote_key",
         "label": "Codex (remote)",
     },
+    {
+        "id": "grok-remote",
+        "type": "grok",
+        "key_flag": "grok_remote_key",
+        "label": "Grok (remote)",
+    },
 ]
 
 
@@ -294,6 +300,7 @@ def main() -> None:
     parser.add_argument("--pi-local-key", help="pi local CLI key (generated if omitted)")
     parser.add_argument("--claude-remote-key", help="Claude remote/web key (generated if omitted)")
     parser.add_argument("--codex-remote-key", help="Codex cloud key (generated if omitted)")
+    parser.add_argument("--grok-remote-key", help="Grok cloud key (generated if omitted)")
     parser.add_argument("--railway", action="store_true", help="Push env vars to Railway")
     parser.add_argument("--railway-service", help="Railway service name (auto-detected if omitted)")
     parser.add_argument("--verify", action="store_true", help="Test /health after setup")
@@ -311,6 +318,7 @@ def main() -> None:
         "pi_local_key": args.pi_local_key or generate_key(),
         "claude_remote_key": args.claude_remote_key or generate_key(),
         "codex_remote_key": args.codex_remote_key or generate_key(),
+        "grok_remote_key": args.grok_remote_key or generate_key(),
     }
 
     identities = build_identities(keys)

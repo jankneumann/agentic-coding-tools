@@ -96,7 +96,7 @@ export COORDINATOR_PROFILE="$PROFILE"
 Read `agents.yaml` to determine which agents need configuration:
 
 - **MCP agents** (transport: mcp): generate vendor-specific MCP config via `get_mcp_env(agent_id)`
-- **HTTP agents** (transport: http): derive `COORDINATION_API_KEY_IDENTITIES` via `get_api_key_identities()`
+- **Keyed agents** (any agent declaring `api_key`): derive `COORDINATION_API_KEY_IDENTITIES` via `get_api_key_identities()`. This is not restricted to `transport: http` — local harnesses hold coordinator keys too, for the session hooks, the `http_proxy` fallback, and hosted-coordinator deployments where every agent talks HTTP
 
 ### 2. Validate Coordinator Runtime Prerequisites
 
