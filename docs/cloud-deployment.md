@@ -30,8 +30,13 @@ Deploy the Agent Coordination API to Railway with ParadeDB Postgres.
          (local/MCP)    (web/remote)   (cloud)
 ```
 
-- **Local agents** use MCP over stdio (no HTTP, no API key needed)
 - **Cloud agents** use HTTPS with `X-API-Key` header authentication
+- **Local agents** can use MCP over stdio against a local database, but against a
+  hosted coordinator they authenticate the same way — see
+  [Connection Modes](#connection-modes), where HTTP for all agents is the
+  recommendation. Even in MCP mode the session hooks (`register_agent`,
+  `report_status`, `precompact_handoff`) post over HTTPS, so **every harness
+  needs its own key**, local ones included
 - Both share the same Postgres state (locks, memory, work queue)
 
 ## Prerequisites
@@ -202,7 +207,9 @@ This sets the shared coordinator URL and provides per-agent aliases:
 ```bash
 ccc          # launches 'claude' with claude-local coordinator key
 ccodex       # launches 'codex' with codex-local coordinator key
-cgemini      # launches 'gemini' with gemini-local coordinator key
+cagy         # launches 'agy' with antigravity-local coordinator key
+cgrok        # launches 'grok' with grok-local coordinator key
+cpi          # launches 'pi' with pi-local coordinator key
 ```
 
 Each alias overrides `COORDINATION_API_KEY` with the agent-specific key so the coordinator can distinguish agents in audit logs and apply the correct trust level.
@@ -220,24 +227,39 @@ There are two ways local agents can connect to the Railway coordinator:
 
 ### 8a. Generate API Keys
 
-Generate one key per agent (or per agent type):
+`make cloud-setup` (above) generates the whole set for you. To do it by hand,
+generate one key per harness — one per *vendor × location*, since that pair is
+what the coordinator attributes locks, audit entries, and trust levels to:
 
 ```bash
-# One key per cloud agent
-CLAUDE_KEY=$(openssl rand -hex 32)
-CODEX_KEY=$(openssl rand -hex 32)
+# Local harnesses
+CLAUDE_LOCAL_KEY=$(openssl rand -hex 32)
+CODEX_LOCAL_KEY=$(openssl rand -hex 32)
+ANTIGRAVITY_LOCAL_KEY=$(openssl rand -hex 32)
+GROK_LOCAL_KEY=$(openssl rand -hex 32)
+PI_LOCAL_KEY=$(openssl rand -hex 32)
 
-echo "Claude: $CLAUDE_KEY"
-echo "Codex:  $CODEX_KEY"
+# Cloud harnesses
+CLAUDE_REMOTE_KEY=$(openssl rand -hex 32)
+CODEX_REMOTE_KEY=$(openssl rand -hex 32)
+GROK_REMOTE_KEY=$(openssl rand -hex 32)
 ```
+
+pi is local-only (it reaches OpenRouter models from the local CLI) and
+Antigravity is local-only, so neither has a cloud key. Grok has both.
 
 Set these on the Railway service as `COORDINATION_API_KEYS` (comma-separated) and `COORDINATION_API_KEY_IDENTITIES` (JSON map):
 
 ```bash
 # Railway environment variables
-COORDINATION_API_KEYS=<claude-key>,<codex-key>
-COORDINATION_API_KEY_IDENTITIES={"<claude-key>":{"agent_id":"claude-remote","agent_type":"claude_code"},"<codex-key>":{"agent_id":"codex-remote","agent_type":"codex"}}
+COORDINATION_API_KEYS=<claude-local-key>,<codex-local-key>,<antigravity-local-key>,<grok-local-key>,<pi-local-key>,<claude-remote-key>,<codex-remote-key>,<grok-remote-key>
+COORDINATION_API_KEY_IDENTITIES={"<claude-local-key>":{"agent_id":"claude-local","agent_type":"claude_code"},"<grok-local-key>":{"agent_id":"grok-local","agent_type":"grok"},"<pi-local-key>":{"agent_id":"pi-local","agent_type":"pi"},"<grok-remote-key>":{"agent_id":"grok-remote","agent_type":"grok"}}
 ```
+
+Both variables are derived automatically from `agents.yaml` when they are not
+set explicitly: every agent entry that declares `api_key: ${VAR}` and resolves
+it (from `.secrets.yaml` or OpenBao) becomes an identity row. Setting them
+explicitly, as above, overrides that derivation.
 
 ### 8b. Claude Code (CLI — HTTP mode, recommended)
 

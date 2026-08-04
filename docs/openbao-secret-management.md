@@ -115,14 +115,27 @@ Once OpenBao is running, populate it with secrets and AppRoles:
 ```bash
 # agent-coordinator/.secrets.yaml (gitignored — never commit this file)
 cat > agent-coordinator/.secrets.yaml << 'EOF'
+# Vendor model keys
 ANTHROPIC_API_KEY: sk-ant-your-key-here
 OPENAI_API_KEY: sk-your-openai-key-here
 GOOGLE_API_KEY: your-google-api-key
+OPENROUTER_API_KEY: your-openrouter-api-key
+
+# Coordinator keys — one per harness (vendor x location)
+CLAUDE_LOCAL_API_KEY: your-claude-local-key
+CODEX_LOCAL_API_KEY: your-codex-local-key
+ANTIGRAVITY_LOCAL_API_KEY: your-antigravity-local-key
+GROK_LOCAL_API_KEY: your-grok-local-key
+PI_LOCAL_API_KEY: your-pi-local-key
 CLAUDE_WEB_API_KEY: your-claude-web-key
 CODEX_API_KEY: your-codex-api-key
-OPENROUTER_API_KEY: your-openrouter-api-key
+GROK_REMOTE_API_KEY: your-grok-remote-key
 EOF
 ```
+
+The two groups are unrelated: vendor keys buy model tokens, coordinator keys
+buy a coordinator identity. `agents.yaml` interpolates the coordinator keys via
+`api_key: ${VAR}` and the vendor keys via `sdk.api_key_env`.
 
 ### 2. Run the Seed Script
 
@@ -142,7 +155,10 @@ BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token \
 
 The seed script:
 - Writes all keys from `.secrets.yaml` to `secret/coordinator` (KV v2)
-- Creates AppRoles for each HTTP-transport agent in `agents.yaml` (`claude-code-web`, `codex-cloud`)
+- Creates an AppRole for each agent in `agents.yaml` that declares an `api_key`
+  — local harnesses included, since they authenticate over HTTP too
+  (`claude-code-local`, `codex-local`, `antigravity-local`, `grok-local`,
+  `pi-local`, `claude-code-web`, `codex-cloud`, `grok-cloud`)
 - Each AppRole gets a read-only policy on the secrets path
 
 ### 3. Verify

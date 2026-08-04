@@ -115,7 +115,7 @@ class TestLoadAgentsConfig:
 
 
 class TestGetApiKeyIdentities:
-    def test_generates_from_http_agents(self) -> None:
+    def test_generates_from_keyed_agents(self) -> None:
         agents = [
             AgentEntry(
                 name="c1", type="codex", profile="p", trust_level=2,
@@ -129,6 +129,33 @@ class TestGetApiKeyIdentities:
         ]
         result = get_api_key_identities(agents)
         assert result == {"key1": {"agent_id": "c1", "agent_type": "codex"}}
+
+    def test_includes_mcp_agents_with_a_key(self) -> None:
+        """Local harnesses get identity rows — transport is not the filter.
+
+        An ``mcp`` agent still authenticates over HTTP: the session hooks post
+        to ``/status/report`` with ``X-API-Key``, ``http_proxy`` routes tool
+        calls when the local database is unreachable, and a hosted coordinator
+        serves local harnesses over HTTP for everything. Excluding them left
+        those keys unbound, so the only way for a local harness to authenticate
+        was to reuse a cloud agent's key.
+        """
+        agents = [
+            AgentEntry(
+                name="grok-local", type="grok", profile="grok_local",
+                trust_level=3, transport="mcp", capabilities=[], description="d",
+                api_key="grok-local-key",
+            ),
+            AgentEntry(
+                name="grok-remote", type="grok", profile="grok_remote",
+                trust_level=2, transport="http", capabilities=[], description="d",
+                api_key="grok-remote-key",
+            ),
+        ]
+        assert get_api_key_identities(agents) == {
+            "grok-local-key": {"agent_id": "grok-local", "agent_type": "grok"},
+            "grok-remote-key": {"agent_id": "grok-remote", "agent_type": "grok"},
+        }
 
     def test_skips_agents_without_key(self) -> None:
         agents = [
@@ -522,6 +549,39 @@ class TestCliConfig:
         vendors = {e.type for e in local_with_cli}
         assert vendors == {"claude_code", "codex", "antigravity", "grok", "pi"}
         assert "gemini" not in vendors
+
+    def test_real_agents_yaml_keys_every_harness(self) -> None:
+        """Every shipped agent carries a coordinator key, local ones included.
+
+        Location coverage is deliberate, not incidental: pi is local-only,
+        grok runs both local and cloud, antigravity is local-only. A harness
+        added without an ``api_key`` cannot be told apart from any other
+        caller by the coordinator, so this asserts the roster and its keys
+        together.
+        """
+        entries = load_agents_config()
+        by_name = {e.name: e for e in entries}
+
+        expected = {
+            "claude-local", "claude-remote",
+            "codex-local", "codex-remote",
+            "antigravity-local",
+            "grok-local", "grok-remote",
+            "pi-local",
+        }
+        assert set(by_name) == expected
+        assert "pi-remote" not in by_name
+        assert "antigravity-remote" not in by_name
+
+        # Keys may be unresolved ``${VAR}`` placeholders in a checkout without
+        # .secrets.yaml — what matters is that each agent declares one.
+        unkeyed = sorted(name for name, e in by_name.items() if not e.api_key)
+        assert unkeyed == [], f"agents without a coordinator key: {unkeyed}"
+
+        # Distinct variables — a shared key would collapse two agents into one
+        # identity in COORDINATION_API_KEY_IDENTITIES.
+        keys = [e.api_key for e in entries]
+        assert len(set(keys)) == len(keys)
 
     def test_cli_model_with_explicit_value(self, tmp_path: Path) -> None:
         """Agent with explicit model value (not null) parses correctly."""

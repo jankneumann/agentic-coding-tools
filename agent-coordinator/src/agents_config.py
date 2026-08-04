@@ -783,7 +783,18 @@ def _resolve_api_key_from_openbao(agent: AgentEntry) -> str | None:
 def get_api_key_identities(
     agents: list[AgentEntry] | None = None,
 ) -> dict[str, dict[str, str]]:
-    """Generate ``COORDINATION_API_KEY_IDENTITIES`` from HTTP agents.
+    """Generate ``COORDINATION_API_KEY_IDENTITIES`` from keyed agents.
+
+    Every agent that declares an ``api_key`` gets an identity row, whatever
+    its ``transport``. Transport describes how the agent registers for
+    coordination, not whether it ever calls the HTTP API: an ``mcp`` agent
+    still authenticates over HTTP through the session hooks
+    (``register_agent``, ``report_status``, ``precompact_handoff``), through
+    ``http_proxy`` when the local database is unreachable, and in the common
+    deployment where every harness points at a hosted coordinator instead of
+    a local MCP server. Filtering on ``transport == "http"`` left those calls
+    without an identity binding, so a local harness could only authenticate
+    by borrowing another agent's key.
 
     When OpenBao is enabled, attempts to resolve API keys from OpenBao
     for agents with ``openbao_role_id``. Falls back to static interpolation.
@@ -800,9 +811,6 @@ def get_api_key_identities(
 
     identities: dict[str, dict[str, str]] = {}
     for agent in agents:
-        if agent.transport != "http":
-            continue
-
         key = agent.api_key
         if openbao_enabled and agent.openbao_role_id:
             resolved = _resolve_api_key_from_openbao(agent)
