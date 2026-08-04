@@ -92,7 +92,7 @@ items:
     with the posture that authorized it.
 - item_id: ri-06
   title: Encode autopilot gates and goal gate in code
-  status: candidate
+  status: approved
   priority: 1
   effort: L
   depends_on:
@@ -478,4 +478,4 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-07-08T10:58:57.526611+00:00'
+updated_at: '2026-08-04T14:41:52.482677+00:00'

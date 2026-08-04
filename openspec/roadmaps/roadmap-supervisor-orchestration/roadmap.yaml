@@ -75,7 +75,7 @@ items:
     verified by inspecting the session after a two-item run.
 - item_id: ri-04
   title: Route supervise gates through the approval gate service
-  status: approved
+  status: blocked
   priority: 1
   effort: M
   depends_on:
@@ -96,6 +96,9 @@ items:
     evaluation log with the posture that was applied.
   - No gate decision in a supervised run bypasses approval_gate.py, verified by test
     or audit over a full run.
+  blocked_by:
+  - "roadmap-always-on-agent-automation:ri-06 (encode-autopilot-gates-and-goal-gate-in-code)\
+    \ must complete first \u2014 it creates the gate call sites this item routes"
 - item_id: ri-05
   title: Extend handoff document with supervisor record
   status: approved
@@ -337,4 +340,4 @@ items:
     nor reader, verified by grep.
   - If wired, a roadmap run persists learnings content into procedural memory and
     the replanner query returns it in a test.
-updated_at: '2026-08-04T14:24:38.558704+00:00'
+updated_at: '2026-08-04T14:41:52.528436+00:00'

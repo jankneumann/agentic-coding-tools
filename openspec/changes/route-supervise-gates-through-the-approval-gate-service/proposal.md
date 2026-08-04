@@ -13,6 +13,21 @@ Evaluate every gate the stack raises during supervised execution through `skills
 
 - `ri-03`
 
+**BLOCKED** — status is `blocked`, not `approved`, so `/autopilot-roadmap` will not
+select this item (`orchestrator.py` `_get_ready_items` admits only `approved` /
+`in_progress`). The blocker is cross-roadmap and therefore cannot be expressed in
+`depends_on`, which the DAG validator restricts to in-roadmap item ids:
+
+- `roadmap-always-on-agent-automation:ri-06` → change
+  `encode-autopilot-gates-and-goal-gate-in-code`, which moves the prose gates into
+  `autopilot.py` and creates the gate call sites this item routes through
+  `skills/shared/approval_gate.py`. Routing gates that do not yet exist as call
+  sites would mean inventing them here — exactly the duplication the ordering avoids.
+
+**To unblock:** once `encode-autopilot-gates-and-goal-gate-in-code` is completed,
+set this item's status to `approved` and clear `blocked_by` in
+`openspec/roadmaps/roadmap-supervisor-orchestration/roadmap.yaml`.
+
 ## Acceptance Outcomes
 
 - A single conversation takes a natural-language request to a merged PR with the human touched only at gates whose posture is not auto.
