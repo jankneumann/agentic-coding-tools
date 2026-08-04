@@ -273,7 +273,7 @@ requires `report.verdict == "pass"`. See design D11.
 - [x] 5.1 Write `test_spec_gate_artifact.py` — resolve the artifact the
       `code-search` Retrieval Quality Gate requirement names and assert it
       exists at a durable path and carries a verdict from the closed enum
-      **Spec scenarios**: `cs` — Retrieval Quality Gate / A waived evaluation is not a pass
+      **Spec scenarios**: `cs` — Semantic Context Enablement Gate (né Retrieval Quality Gate) / A waived evaluation is not a pass
       **Contracts**: `contracts/schemas/context-eval-report.schema.json`
       **Design decisions**: D13
       **Dependencies**: 4.5
@@ -331,7 +331,7 @@ requires `report.verdict == "pass"`. See design D11.
       and update `docs/guides/code-search.md`'s `## Retrieval-quality gate`
       section and `docs/guides/semantic-context-injection.md` to the durable
       procedure
-      **Spec scenarios**: `cs` — Retrieval Quality Gate / A waived evaluation is not a pass
+      **Spec scenarios**: `cs` — Semantic Context Enablement Gate (né Retrieval Quality Gate) / A waived evaluation is not a pass
       **Contracts**: none
       **Design decisions**: D13
       **Dependencies**: 5.1

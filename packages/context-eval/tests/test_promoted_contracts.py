@@ -47,10 +47,29 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 CHANGE_ID = "gate-semantic-context-default-enablement"
 CAPABILITY = "semantic-context-evaluation"
 
-CHANGE_LOCAL = REPO_ROOT / "openspec/changes" / CHANGE_ID / "contracts/schemas"
+
+def _change_dir() -> Path:
+    """The change directory, wherever archival has (not) moved it.
+
+    The authoring copy lives at ``openspec/changes/<id>/`` while the change is
+    active and at ``openspec/changes/archive/<date>-<id>/`` afterwards. The
+    byte-compare against the promoted copy is meaningful on both sides of the
+    archive operation, so resolve rather than pin.
+    """
+    active = REPO_ROOT / "openspec/changes" / CHANGE_ID
+    if active.is_dir():
+        return active
+    archived = sorted(
+        (REPO_ROOT / "openspec/changes/archive").glob(f"*-{CHANGE_ID}")
+    )
+    assert archived, f"change {CHANGE_ID} found neither active nor archived"
+    return archived[-1]
+
+
+CHANGE_LOCAL = _change_dir() / "contracts/schemas"
 PROMOTED = REPO_ROOT / "openspec/contracts" / CAPABILITY / "schemas"
 
-CHANGE_README = REPO_ROOT / "openspec/changes" / CHANGE_ID / "contracts/README.md"
+CHANGE_README = _change_dir() / "contracts/README.md"
 CONTRACTS_README = REPO_ROOT / "openspec/contracts/README.md"
 
 #: ri-12's promoted input contract (design D4). The report mirrors three of its

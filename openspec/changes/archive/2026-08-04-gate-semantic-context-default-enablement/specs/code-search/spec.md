@@ -2,9 +2,23 @@
 
 **Change ID**: `gate-semantic-context-default-enablement`
 
-## MODIFIED Requirements
+## REMOVED Requirements
 
 ### Requirement: Retrieval Quality Gate
+
+**Reason**: Superseded by `Semantic Context Enablement Gate` (ADDED below).
+The adoption-era scenario "Gate report exists before backend implementation"
+required `eval/spike-report.md` inside this capability's originating change
+directory; the successor requirement's own scenario forbids consumers
+referencing any path inside a change directory, so that scenario is
+intentionally dropped rather than carried forward. Expressed as
+REMOVED + ADDED (not MODIFIED) to record the drop explicitly, and renamed
+because the successor gates *default enablement*, not the original
+adoption spike.
+
+## ADDED Requirements
+
+### Requirement: Semantic Context Enablement Gate
 
 Default enablement of semantic context SHALL be gated on a recorded evaluation stored at a durable repository path, covering at least ten realistic retrieval tasks with hand-labeled expected files, run against the production query backend on this repository, and reporting top-5 hit rate and rendered-line cost against an exact-search baseline computed over the same tasks under the same context budget. The gate passes only if hit@5 is at least 7 of 10 including at least 2 tasks the exact-search baseline measurably missed. A blocked, waived, unmeasured, or absent evaluation is not a pass and SHALL NOT authorize enablement.
 
@@ -30,8 +44,6 @@ Default enablement of semantic context SHALL be gated on a recorded evaluation s
   other than the one serving requests
 - **THEN** the report SHALL record the backend it measured
 - **AND** the gate SHALL fail
-
-## ADDED Requirements
 
 ### Requirement: Evaluation Provenance For Enablement
 

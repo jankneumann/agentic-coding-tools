@@ -124,9 +124,13 @@ answer comes back 4/10.
   reviewable line the gate can read instead of an emergent property of an env
   lookup.
 - **Reconcile the unsatisfiable spec requirement.** `code-search`'s
-  `Retrieval Quality Gate` is MODIFIED to point at the durable report location
-  and the closed verdict enum, and to state that a waived, blocked, or
-  unmeasured evaluation is not a pass.
+  `Retrieval Quality Gate` is REMOVED and replaced by the ADDED
+  `Semantic Context Enablement Gate`, which points at the durable report
+  location and the closed verdict enum, and states that a waived, blocked, or
+  unmeasured evaluation is not a pass. (Expressed as REMOVED + ADDED rather
+  than MODIFIED because the old scenario mandating a change-directory path is
+  intentionally dropped, and the successor gates default enablement, not the
+  original adoption spike.)
 - **Attempt the measurement, and record whatever it says.** One work package
   provisions the environment, builds a real index at an exact revision, runs the
   harness, and commits the report — or commits the recorded apparatus failure.
@@ -158,8 +162,9 @@ answer comes back 4/10.
 - `semantic-context-evaluation` (new capability) — ADDED: the corpus contract,
   deterministic scoring, fail-closed verdict composition, the recorded report,
   per-consumer measurement, scope compliance, and index-tier requirements.
-- `code-search` — MODIFIED: `Retrieval Quality Gate`, reconciled to a durable,
-  machine-checkable report. ADDED: evaluation provenance and evidence expiry.
+- `code-search` — REMOVED: `Retrieval Quality Gate`; ADDED:
+  `Semantic Context Enablement Gate` (its successor, reconciled to a durable,
+  machine-checkable report), evaluation provenance, and evidence expiry.
 - `skill-workflow` — ADDED: the enablement condition on the injection default,
   and evidence expiry.
 

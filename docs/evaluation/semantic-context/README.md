@@ -412,6 +412,7 @@ carried forward.
   flag, the triggers, the budget, and the HTTP-only constraint.
 - [`openspec/contracts/semantic-context-evaluation/schemas/`](../../../openspec/contracts/semantic-context-evaluation/schemas)
   — the published report, corpus, and case schemas.
-- `openspec/specs/code-search/spec.md` — `Requirement: Retrieval Quality Gate`.
+- `openspec/specs/code-search/spec.md` — `Requirement: Semantic Context Enablement Gate`
+  (formerly `Retrieval Quality Gate`).
 - `openspec/specs/semantic-context-evaluation/spec.md` — the evaluation's own
   requirements, once this change is archived.

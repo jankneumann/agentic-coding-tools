@@ -1,4 +1,8 @@
-"""The artifact the `code-search` Retrieval Quality Gate names is durable and machine-read.
+"""The `code-search` Semantic Context Enablement Gate names a durable, machine-read artifact.
+
+(The requirement was named `Retrieval Quality Gate` until the
+`gate-semantic-context-default-enablement` archive replaced it via
+REMOVED + ADDED; the successor gates default enablement, so it was renamed.)
 
 The requirement this file guards used to be unsatisfiable in place. It demanded
 `eval/spike-report.md` exist "in the change directory" with "an explicit pass
@@ -68,7 +72,7 @@ DURABLE_REPORT_PATH = "docs/evaluation/semantic-context/report.json"
 
 LIVE_SPEC = REPO_ROOT / "openspec" / "specs" / "code-search" / "spec.md"
 ACTIVE_CHANGES = REPO_ROOT / "openspec" / "changes"
-REQUIREMENT_NAME = "Retrieval Quality Gate"
+REQUIREMENT_NAME = "Semantic Context Enablement Gate"
 
 REPORT_SCHEMA = (
     REPO_ROOT

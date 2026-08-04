@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-08-01 — gate-semantic-context-default-enablement
+## 2026-08-01 — 2026-08-04-gate-semantic-context-default-enablement
 
 ### Phase: Implementation
 
 **Mutation proof captured as a durable artifact, not just console output** — Design D14 requires showing the gate fail, not just asserting it would; wrote docs/evaluation/semantic-context/enablement-gate-mutation-proof.md recording both the raw module exit code (3) and make (2, with the real code in its Error line).
 
 - Status: `active`
-- Source: [openspec/changes/gate-semantic-context-default-enablement/session-log.md](/openspec/changes/gate-semantic-context-default-enablement/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-08-04-gate-semantic-context-default-enablement/session-log.md](/openspec/changes/archive/2026-08-04-gate-semantic-context-default-enablement/session-log.md) (D2)
 
 ---
 
