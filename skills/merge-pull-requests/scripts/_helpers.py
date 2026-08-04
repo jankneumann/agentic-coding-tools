@@ -87,6 +87,59 @@ def run_cmd(
     return result.stdout.strip()
 
 
+def capture_head() -> dict:
+    """Snapshot the checkout's HEAD state (branch name + SHA).
+
+    ``branch`` is None when HEAD is detached (``git branch --show-current``
+    prints nothing). Used to detect vendor CLIs mutating the shared
+    checkout during review dispatch (issue #349).
+    """
+    branch = run_cmd(["git", "branch", "--show-current"], check=False)
+    sha = run_cmd(["git", "rev-parse", "HEAD"], check=False)
+    return {"branch": branch or None, "sha": sha}
+
+
+def verify_and_restore_head(before: dict) -> dict:
+    """Compare HEAD against a prior capture_head() snapshot; restore on drift.
+
+    Returns a dict with ``drift_detected``, ``before``, ``after``,
+    ``restored``, and ``error``. Restoration only checks out the original
+    branch — it never discards working-tree changes; a failed restore is
+    reported, not forced.
+    """
+    after = capture_head()
+    drifted = after["branch"] != before["branch"] or after["sha"] != before["sha"]
+    result = {
+        "drift_detected": drifted,
+        "before": before,
+        "after": after,
+        "restored": False,
+        "error": None,
+    }
+    if not drifted:
+        return result
+
+    if before["branch"]:
+        try:
+            run_cmd(["git", "checkout", before["branch"]])
+            now = capture_head()
+            result["restored"] = (
+                now["branch"] == before["branch"] and now["sha"] == before["sha"]
+            )
+            if not result["restored"]:
+                result["error"] = (
+                    f"checked out {before['branch']} but HEAD is now "
+                    f"{now['sha']} (expected {before['sha']})"
+                )
+        except RuntimeError as e:
+            result["error"] = str(e)
+    else:
+        result["error"] = (
+            "HEAD was already detached before dispatch; no branch to restore"
+        )
+    return result
+
+
 def parse_pr_number(arg: str) -> int:
     """Parse and validate PR number from argument."""
     try:

@@ -286,6 +286,15 @@ The script:
 5. Synthesizes a consensus report from vendor findings
 6. Outputs JSON with eligibility status and review findings
 
+**HEAD-mutation guard (issue #349):** vendor CLIs run against the shared
+working tree and have detached HEAD mid-dispatch (`checkout FETCH_HEAD`).
+The script snapshots HEAD before dispatch, verifies it afterwards, restores
+the original branch on drift, and exits with code 2 whenever drift was
+detected — even if restored. On exit 2, stop and re-verify any local state
+gathered during the dispatch before continuing. `merge_pr.py` independently
+refuses to merge while the checkout is on a detached HEAD
+(`"reason": "detached_head"`).
+
 **Present findings to the operator** alongside the existing comment analysis in the interactive review step:
 
 ```

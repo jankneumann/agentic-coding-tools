@@ -19,7 +19,7 @@ import json
 import sys
 from pathlib import Path
 
-from _helpers import check_gh, run_gh
+from _helpers import capture_head, check_gh, run_gh, verify_and_restore_head
 
 # ---------------------------------------------------------------------------
 # Thresholds — PRs below these are "small" and skip vendor review
@@ -306,6 +306,12 @@ def dispatch_vendor_reviews(
     prompt = build_review_prompt(pr_number, pr_size)
     cwd = Path.cwd()
 
+    # Vendor CLIs run against the shared working tree with full ambient
+    # authority and have been observed checking out FETCH_HEAD, silently
+    # detaching the operator's HEAD (issue #349). Snapshot HEAD before
+    # dispatch and verify/restore after.
+    head_before = capture_head()
+
     results: list[ReviewResult] = orch.dispatch_and_wait(
         review_type="pr",
         dispatch_mode="review",
@@ -314,6 +320,16 @@ def dispatch_vendor_reviews(
         timeout_seconds=timeout_seconds,
         exclude_vendor="claude_code",
     )
+
+    head_guard = verify_and_restore_head(head_before)
+    if head_guard["drift_detected"]:
+        print(
+            f"WARNING: vendor review dispatch moved HEAD "
+            f"({head_before['branch'] or 'detached'}@{head_before['sha'][:8]} -> "
+            f"{head_guard['after']['branch'] or 'detached'}@{head_guard['after']['sha'][:8]}); "
+            f"restore {'succeeded' if head_guard['restored'] else 'FAILED: ' + str(head_guard['error'])}",
+            file=sys.stderr,
+        )
 
     # Collect successful vendor results for consensus
     vendor_results: list[VendorResult] = []
@@ -355,6 +371,7 @@ def dispatch_vendor_reviews(
         "dispatched": True,
         "vendors": vendor_summaries,
         "consensus": consensus_dict,
+        "head_guard": head_guard,
         "error": None,
     }
 
@@ -470,6 +487,12 @@ def main() -> int:
             f"# Vendor review failed: {review_result['error']}",
             file=sys.stderr,
         )
+
+    # Fail loudly when a vendor CLI mutated the checkout, even if HEAD was
+    # restored — the operator must know the shared tree was touched.
+    head_guard = review_result.get("head_guard")
+    if head_guard and head_guard.get("drift_detected"):
+        return 2
 
     return 0
 
