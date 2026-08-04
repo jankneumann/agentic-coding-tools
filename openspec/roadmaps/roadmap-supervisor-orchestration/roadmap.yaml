@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Add supervisor archetype and resolve crew manifest
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on: []
@@ -19,6 +19,7 @@ items:
   rationale: The supervisor is a promoted role, not a new runtime; the archetype is
     the routing anchor every later supervise capability resolves against, and the
     vestigial teams.yaml must stop looking load-bearing.
+  change_id: add-supervisor-archetype-and-resolve-crew-manifest
   acceptance_outcomes:
   - POST /archetypes/resolve_for_phase resolves the supervisor archetype with model
     tier frontier and write_capable false.
@@ -28,7 +29,7 @@ items:
     no unwired team model remains.
 - item_id: ri-02
   title: Create supervise skill with conversational intake
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on:
@@ -40,6 +41,7 @@ items:
   rationale: Establishes the missing layer above the orchestration stack, the persistent
     conversational counterpart (Mayor / First Mate role), so the human no longer invokes
     each skill by hand.
+  change_id: create-supervise-skill-with-conversational-intake
   acceptance_outcomes:
   - Invoking /supervise with a natural-language feature request produces an OpenSpec
     change or proposal stub slotted through /plan-roadmap without the human invoking
@@ -50,7 +52,7 @@ items:
     audit check over the session's file writes.
 - item_id: ri-03
   title: Wire supervise execution through the dispatch_fn seam
-  status: candidate
+  status: approved
   priority: 1
   effort: L
   depends_on:
@@ -62,6 +64,7 @@ items:
   rationale: Execution is the supervise skill's core verb; dispatching runs as background
     sub-agents keeps outcomes rather than transcripts in the supervisor's context
     and enables concurrent progress from one session.
+  change_id: wire-supervise-execution-through-the-dispatch-fn-seam
   acceptance_outcomes:
   - A supervise session drives a roadmap item through its autopilot phase machine
     via dispatch_fn with each phase run executing as a background sub-agent in its
@@ -72,7 +75,7 @@ items:
     verified by inspecting the session after a two-item run.
 - item_id: ri-04
   title: Route supervise gates through the approval gate service
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on:
@@ -85,6 +88,7 @@ items:
   rationale: Escalating only real decisions is a guiding principle; routing all human
     touchpoints through the existing trust posture and gate service is what lets a
     conversation reach a merged PR with minimal human interruption.
+  change_id: route-supervise-gates-through-the-approval-gate-service
   acceptance_outcomes:
   - A single conversation takes a natural-language request to a merged PR with the
     human touched only at gates whose posture is not auto.
@@ -94,7 +98,7 @@ items:
     or audit over a full run.
 - item_id: ri-05
   title: Extend handoff document with supervisor record
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on:
@@ -106,6 +110,7 @@ items:
   rationale: Makes the supervisor a rehydratable role rather than a resident process
     (Nondeterministic Idempotence); any fresh session that loads the handoff becomes
     the supervisor with no other context.
+  change_id: extend-handoff-document-with-supervisor-record
   acceptance_outcomes:
   - Killing the supervisor session mid-roadmap and starting a fresh one loses no state;
     the new session lists active changes, pending gates, and next actions from the
@@ -117,7 +122,7 @@ items:
     extension.
 - item_id: ri-06
   title: Route parked escalations through the escalate_resume gate
-  status: candidate
+  status: approved
   priority: 2
   effort: S
   depends_on:
@@ -131,6 +136,7 @@ items:
   rationale: Parked escalations discovered by accident are the failure mode the supervisor
     exists to eliminate; wiring them into the gate service closes that gap with existing
     machinery.
+  change_id: route-parked-escalations-through-the-escalate-resume-gate
   acceptance_outcomes:
   - A twice-failed phase dispatch produces an escalate_resume gate evaluation, never
     only a handoff note.
@@ -140,7 +146,7 @@ items:
     with its deadline.
 - item_id: ri-07
   title: Document and enforce work-queue truth/projection contract
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on: []
@@ -151,6 +157,7 @@ items:
   rationale: Git-is-truth is a guiding principle; a supervisor is only trustworthy
     if the projection can never masquerade as the source of record, matching the authority
     split coordinator-task-status-renderer already established.
+  change_id: document-and-enforce-work-queue-truth-projection-contract
   acceptance_outcomes:
   - The contract is stated in a docs/guides/ page and in skills/coordination-bridge/SKILL.md.
   - A grep-enforced test fails if any skill reads authoritative phase state from the
@@ -159,7 +166,7 @@ items:
     semantics for later enforcement.
 - item_id: ri-08
   title: Implement idempotent queue submission and outbox ordering
-  status: candidate
+  status: approved
   priority: 2
   effort: L
   depends_on:
@@ -171,6 +178,7 @@ items:
     local-parallel and sequential tiers stay coordinator-free.
   rationale: Enforces the truth/projection contract in code so crashes between state-write
     and enqueue reconcile cleanly, preserving the three-tier availability design.
+  change_id: implement-idempotent-queue-submission-and-outbox-ordering
   acceptance_outcomes:
   - Re-submitting the same (change_id, phase, iteration) is a no-op, covered by an
     integration test.
@@ -180,7 +188,7 @@ items:
     by existing tier tests still passing without a coordinator.
 - item_id: ri-09
   title: Mirror autopilot phase state into the work queue
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on:
@@ -191,6 +199,7 @@ items:
     since they drive autopilot through the same seam.
   rationale: Closes the observability gap; the queue projection only earns its keep
     if it reflects live execution, and kanban-viz is the frontend that proves it.
+  change_id: mirror-autopilot-phase-state-into-the-work-queue
   acceptance_outcomes:
   - kanban-viz reflects a live autopilot run's phase transitions within one poll interval.
   - Every mirrored queue entry is derivable from the corresponding loop-state.json,
@@ -198,7 +207,7 @@ items:
   - Killing and resuming a run leaves no orphaned or duplicate queue entries.
 - item_id: ri-10
   title: Write durable state-artifacts guide
-  status: candidate
+  status: approved
   priority: 2
   effort: S
   depends_on:
@@ -211,6 +220,7 @@ items:
     \ step (Phase 1) should be aligned to this order once both land."
   rationale: Makes the "throw sessions at the role" property real rather than folklore
     spread across five skill docs, underpinning supervisor rehydration.
+  change_id: write-durable-state-artifacts-guide
   acceptance_outcomes:
   - docs/guides/state-artifacts.md exists and covers all five artifact classes with
     holder, writer, and rehydration order.
@@ -220,7 +230,7 @@ items:
     ri-02 has landed.
 - item_id: ri-11
   title: Define canonical candidate-work schema
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on: []
@@ -232,6 +242,7 @@ items:
   rationale: "One artifact per concept \u2014 a single candidate-work shape is what\
     \ lets the discovery back-edge close into the roadmap without a human courier\
     \ or a fourth ad-hoc format."
+  change_id: define-canonical-candidate-work-schema
   acceptance_outcomes:
   - A JSON Schema for candidate-work stubs exists under openspec/schemas/ with provenance,
     effort/priority, and suggested change-id fields.
@@ -241,7 +252,7 @@ items:
     fixture.
 - item_id: ri-12
   title: Migrate discovery generators to emit candidate-work stubs
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on:
@@ -252,6 +263,7 @@ items:
     \ an approved stub enters `/plan-roadmap` as a roadmap item without hand-editing."
   rationale: Loops close only when every producer emits what the consumer reads; this
     completes the discovery back-edge the proposal exists to standardize.
+  change_id: migrate-discovery-generators-to-emit-candidate-work-stubs
   acceptance_outcomes:
   - All three generators emit stubs that validate against the canonical schema, covered
     by tests per generator.
@@ -261,7 +273,7 @@ items:
     generators.
 - item_id: ri-13
   title: Add supervisor candidate-work digest
-  status: candidate
+  status: approved
   priority: 3
   effort: S
   depends_on:
@@ -274,6 +286,7 @@ items:
   rationale: "The digest is the conversational surface of the standardized back-edge\
     \ \u2014 the supervisor, not a human courier, carries discovery findings into\
     \ roadmap decisions."
+  change_id: add-supervisor-candidate-work-digest
   acceptance_outcomes:
   - A supervise session produces a ranked digest of schema-valid candidate stubs on
     request or at its periodic checkpoint.
@@ -283,7 +296,7 @@ items:
     via the handoff record.
 - item_id: ri-14
   title: Extract shared review-findings schema
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on: []
@@ -295,6 +308,7 @@ items:
   rationale: Schema drift between a vendor adapter and the consensus layer reproduces
     the silent-false-consensus failure class already hit once (pi --no-tools); one
     canonical file eliminates the drift surface.
+  change_id: extract-shared-review-findings-schema
   acceptance_outcomes:
   - One canonical schema file exists; agents.yaml references it and the adapter inlines
     it at dispatch time.
@@ -304,7 +318,7 @@ items:
     into consensus, covered by a test.
 - item_id: ri-15
   title: Resolve memory-layer decision
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on: []
@@ -315,6 +329,7 @@ items:
   rationale: A three-layer cognitive architecture with two empty layers is documentation
     debt that misleads contributors and agents; the proposal requires an explicit
     decision either way.
+  change_id: resolve-memory-layer-decision
   acceptance_outcomes:
   - Procedural memory has both a writer and a reader in the roadmap loop, or the unused
     layers are removed from schema, bridge surface, and docs.
@@ -322,4 +337,4 @@ items:
     nor reader, verified by grep.
   - If wired, a roadmap run persists learnings content into procedural memory and
     the replanner query returns it in a test.
-updated_at: '2026-08-04T12:17:11.172673+00:00'
+updated_at: '2026-08-04T14:24:38.558704+00:00'
