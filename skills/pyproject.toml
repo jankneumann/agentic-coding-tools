@@ -102,6 +102,14 @@ testpaths = [
     "tests/parallel-infrastructure",
     "tests/project-context-runtime",
     "tests/project-context-refresh",
+    # NOT listed, deliberately: "tests/plan-roadmap" and "tests/roadmap-runtime".
+    # Their conftests sys.path-insert roadmap-runtime/scripts, which binds the bare
+    # module name `models` to the roadmap dataclasses for the rest of the session
+    # and breaks every suite expecting project-context-runtime's `models`
+    # (ImportError: cannot import name 'ChangeKind'). Five flat models.py modules
+    # compete for that name. Both suites pass standalone (126 tests):
+    #   pytest tests/plan-roadmap tests/roadmap-runtime
+    # Tracked separately; adding them here requires disambiguating `models` first.
     "expedite/scripts/tests",
 ]
 
