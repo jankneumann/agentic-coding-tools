@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-07-27T20:32:11+00:00  
-Git SHA: `0d4f9bd688c777cf07faeb768e8ae316c9ed86a5`
+Generated: 2026-08-04T14:34:23+00:00  
+Git SHA: `7fa4cbbc21d228b6ccc1083430199e2b154827c1`
 
 ## System Overview
 
@@ -13,14 +13,14 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1909 |
+| Total nodes | 1961 |
 | Total edges | 1160 |
 | Python modules | 102 |
 | Functions | 1104 (431 async) |
 | Classes | 242 |
 | Mcp Endpoints | 96 |
 | DB tables | 29 |
-| Python nodes | 1380 |
+| Python nodes | 1432 |
 | Sql nodes | 439 |
 | Typescript nodes | 90 |
 
@@ -142,20 +142,20 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 - `telemetry` — imported by 6 modules
 - `feature_registry` — imported by 5 modules
 - `profiles` — imported by 4 modules
-- `guardrails` — imported by 4 modules
 - `code_search` — imported by 4 modules
 - `event_bus` — imported by 4 modules
-- `merge_train` — imported by 3 modules
-- `locks` — imported by 3 modules
-- `help_service` — imported by 3 modules
-- `merge_queue` — imported by 3 modules
-- `work_queue` — imported by 3 modules
-- `agents_config` — imported by 3 modules
-- `refresh_rpc_client` — imported by 3 modules
-- `handoffs` — imported by 3 modules
+- `guardrails` — imported by 4 modules
 - `memory` — imported by 3 modules
-- `code_search_runtime` — imported by 3 modules
+- `agents_config` — imported by 3 modules
+- `merge_queue` — imported by 3 modules
+- `locks` — imported by 3 modules
+- `merge_train` — imported by 3 modules
+- `work_queue` — imported by 3 modules
 - `issue_service` — imported by 3 modules
+- `code_search_runtime` — imported by 3 modules
+- `refresh_rpc_client` — imported by 3 modules
+- `help_service` — imported by 3 modules
+- `handoffs` — imported by 3 modules
 
 ## Entry Points
 
@@ -328,11 +328,11 @@ Breakdown: 88 info, 8 warning.
 
 96 MCP routes have no frontend callers — expected (clients are AI agents).
 
-- Backend route 'remove_from_merge_queue_endpoint' has no frontend callers
+- Backend route 'coordinate_file_edit' has no frontend callers
+- Backend route 'query_audit' has no frontend callers
+- Backend route 'ready' has no frontend callers
+- Backend route 'discovery_register' has no frontend callers
 - Backend route 'help_topic' has no frontend callers
-- Backend route 'get_current_locks' has no frontend callers
-- Backend route 'get_task_endpoint' has no frontend callers
-- Backend route 'get_active_features_resource' has no frontend callers
 - ... and 91 more
 
 ## High-Impact Nodes
@@ -469,7 +469,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1216 independent groups** identified. The largest interconnected group has 528 modules; 1519 modules are leaf nodes (safe to modify in isolation).
+**1268 independent groups** identified. The largest interconnected group has 528 modules; 1571 modules are leaf nodes (safe to modify in isolation).
 
 **38 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -497,9 +497,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1519)
+### Leaf Modules (1571)
 
-1519 modules have no dependents — changes are fully isolated. 1194 of the 1216 groups are singletons.
+1571 modules have no dependents — changes are fully isolated. 1246 of the 1268 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -509,7 +509,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1380 nodes)"]
+    Backend["Backend (1432 nodes)"]
     Database["Database (439 nodes)"]
     Frontend["Frontend (90 nodes)"]
 ```
@@ -590,6 +590,7 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (10 symbols)"]
     telemetry["telemetry (20 symbols)"]
+    tests__test_architecture["tests.test_architecture (52 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
