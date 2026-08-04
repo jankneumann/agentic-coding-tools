@@ -11,6 +11,13 @@ permissions:
   contents: read
   pull-requests: read
 
+# Matches ci.yml: cancel only superseded pull_request runs. A push to main or a
+# merge_group entry always runs to completion — these are compliance/audit
+# gates and nothing re-runs them later.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   # Space-separated list of CVE/PYSEC IDs to ignore in pip-audit runs.
   # Each entry must have a written justification (disputed advisory, no fix

@@ -1,0 +1,170 @@
+# Post-merge tier: runs after a change lands on main, never blocks a PR.
+#
+# What belongs here:
+#   * checks that are currently red for reasons unrelated to the change under
+#     review (see QUARANTINED in skills/tests/run_isolated_suites.py), and
+#   * checks without enough of a track record to gate a merge on.
+#
+# What does not belong here: anything tied to a compliance or audit requirement.
+# secret-scan and the pip-audit jobs stay blocking in security.yml.
+#
+# Nothing here is `continue-on-error`. A post-merge job that cannot fail is the
+# bug this tier exists to fix. Failures land as a GitHub issue rather than a
+# blocked merge — deferred, not ignored. New checks start here and earn
+# promotion into ci.yml.
+name: CI (post-merge)
+
+on:
+  push:
+    branches: [main]
+  # Hand-runnable so a quarantined suite can be re-checked without waiting for a
+  # merge — that is how you find out an entry is ready for promotion.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TLA_TOOLS_VERSION: "1.8.0"
+
+jobs:
+  # TLA+ model check of the coordination spec.
+  #
+  # Previously in ci.yml, where it had never once invoked TLC: run_tlc.sh exited
+  # 0 on a missing tla2tools.jar and nothing ever supplied the jar, so it was a
+  # green check over an unexecuted model — and `continue-on-error: true` on top.
+  # run_tlc.sh now fetches the jar and treats absence as a hard error.
+  #
+  # Not blocking yet: the model has never run in CI, so its runtime and result
+  # are unmeasured. Promote into ci.yml after a few green runs on real content.
+  formal-coordination:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Unset on purpose: the checksum could not be computed where this was
+      # authored, and inventing one would be worse than leaving it open. The
+      # script prints the sha256 it downloaded on every run — copy it from the
+      # first green run into this value to pin the artifact.
+      TLA_TOOLS_SHA256: ""
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache tla2tools.jar
+        uses: actions/cache@v4
+        with:
+          path: .tools/tla2tools.jar
+          key: tla2tools-${{ env.TLA_TOOLS_VERSION }}
+
+      - name: Run TLA+ model check
+        run: .github/scripts/run_tlc.sh
+
+  # Skill suites quarantined out of the blocking tier because they are red for
+  # pre-existing reasons. Turning ~2,400 previously-unrun tests on at once would
+  # otherwise have spiked the pre-merge failure rate, which is the number this
+  # work exists to lower.
+  #
+  # The runner also fails when a quarantined suite *passes*, so an entry cannot
+  # outlive its reason.
+  test-skills-quarantined:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skills
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run quarantined skill suites
+        run: uv run python tests/run_isolated_suites.py --tier post-merge
+
+  # A post-merge failure has no PR to turn red, so it needs somewhere to land.
+  # One issue is reused: reopened and commented rather than duplicated, so a
+  # persistently broken check does not file an issue per push to main.
+  report-failure:
+    runs-on: ubuntu-latest
+    needs: [formal-coordination, test-skills-quarantined]
+    if: failure()
+
+    steps:
+      - name: File or update the tracking issue
+        uses: actions/github-script@v7
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        with:
+          script: |
+            const LABEL = 'post-merge-ci';
+            const needs = JSON.parse(process.env.NEEDS);
+            const failed = Object.entries(needs)
+              .filter(([, v]) => v.result === 'failure')
+              .map(([k]) => k);
+            if (failed.length === 0) {
+              core.info('No failed jobs to report.');
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const runUrl =
+              `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const body =
+              `Post-merge CI failed on \`${context.sha.slice(0, 7)}\`.\n\n` +
+              `Failing job(s): ${failed.map((f) => `\`${f}\``).join(', ')}\n\n` +
+              `Run: ${runUrl}\n\n` +
+              `This tier does not block merges, so this issue is the only ` +
+              `signal. See \`.github/workflows/ci-post-merge.yml\` for what ` +
+              `belongs in it.`;
+
+            // Make sure the label exists before filtering on it.
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: LABEL });
+            } catch {
+              await github.rest.issues.createLabel({
+                owner, repo, name: LABEL, color: 'b60205',
+                description: 'Failure in the non-blocking post-merge CI tier',
+              });
+            }
+
+            const existing = await github.rest.issues.listForRepo({
+              owner, repo, labels: LABEL, state: 'all', per_page: 20,
+            });
+
+            if (existing.data.length > 0) {
+              const issue = existing.data[0];
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: issue.number, body,
+              });
+              if (issue.state === 'closed') {
+                await github.rest.issues.update({
+                  owner, repo, issue_number: issue.number, state: 'open',
+                });
+              }
+              core.info(`Updated issue #${issue.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner, repo,
+                title: 'Post-merge CI tier is failing',
+                body,
+                labels: [LABEL],
+              });
+              core.info(`Filed issue #${created.data.number}`);
+            }

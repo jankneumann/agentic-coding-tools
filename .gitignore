@@ -275,3 +275,8 @@ skills/merge-pull-requests/scripts/docs/
 # the refresh operation (embeds operation id + created-at). Kept out of the
 # tracked tree so a repeat refresh at the same revision produces no repo diff.
 .git-context/
+
+# Third-party tool binaries fetched on demand — currently tla2tools.jar, pulled
+# by .github/scripts/run_tlc.sh and cached by the post-merge workflow. Fetched
+# rather than vendored so a ~10MB jar stays out of every clone.
+.tools/

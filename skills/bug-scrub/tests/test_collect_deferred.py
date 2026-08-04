@@ -12,8 +12,11 @@ Covers:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -363,6 +366,10 @@ class TestMalformedArtifacts:
         ]
         assert len(impl_findings) == 0
 
+    @pytest.mark.skipif(
+        hasattr(os, "geteuid") and os.geteuid() == 0,
+        reason="root bypasses file permissions, so chmod(0o000) stays readable",
+    )
     def test_unreadable_file_produces_warning(self, tmp_path: Path) -> None:
         change_dir = _make_active_change(tmp_path, "unreadable")
         fpath = change_dir / "impl-findings.md"

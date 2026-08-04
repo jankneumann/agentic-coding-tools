@@ -49,6 +49,14 @@ SCHEMA_PATH = (
 )
 
 
+# `axis` and `severity` are required by review-findings.schema.json but are not
+# read by the synthesizer — `Finding` has no such fields and `rank_findings`
+# orders on `criticality`. They are held constant here so schema validation
+# passes without giving the ranking assertions a second variable to move on.
+_SCHEMA_AXIS = "correctness"
+_SCHEMA_SEVERITY = "optional"
+
+
 def _scrutiny_finding(
     *, fid: int, criticality: str, vendor: str, file_path: str
 ) -> dict:
@@ -60,6 +68,8 @@ def _scrutiny_finding(
         "description": f"{vendor} finding {fid} in {file_path}",
         "disposition": "fix",
         "file_path": file_path,
+        "axis": _SCHEMA_AXIS,
+        "severity": _SCHEMA_SEVERITY,
     }
 
 
@@ -75,6 +85,8 @@ def _behavioral_finding(
         "disposition": "fix",
         "file_path": file_path,
         "line_range": {"start": line_start, "end": line_start + 5},
+        "axis": _SCHEMA_AXIS,
+        "severity": _SCHEMA_SEVERITY,
     }
 
 

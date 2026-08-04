@@ -1,3 +1,13 @@
+# Pre-merge tier: everything here blocks a PR.
+#
+# Admission rule for this file: a job earns a place by being fast, deterministic
+# and specific about what broke. Slow, environment-dependent or currently-red
+# checks belong in ci-post-merge.yml, which runs the same content after it lands
+# and files an issue instead of blocking a merge.
+#
+# Jobs run with no `needs:` edges, so wall-clock is the slowest single job rather
+# than the sum. Adding a job costs ~nothing until it becomes the longest one; as
+# of writing that is `test-infra-skills`.
 name: CI
 
 on:
@@ -8,6 +18,13 @@ on:
 
 permissions:
   contents: read
+
+# Superseded PR runs kept executing to completion (measured: 3 of 30 runs, up to
+# 84s of a 13-job fan-out each). Cancel only pull_request runs — a push to main
+# or a merge_group entry must always finish, since nothing re-runs them later.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -68,8 +85,26 @@ jobs:
       - name: Run infrastructure skill tests
         run: uv run pytest -v
 
-  test-skills:
+  # Per-skill suites that cannot share a pytest process with each other.
+  #
+  # Many skills ship their own `scripts/models.py`, `scripts/render_report.py`
+  # and friends, and their tests insert that scripts/ dir on sys.path before
+  # `from models import ...`. Two such suites in one process race for the
+  # `models` entry in sys.modules and the loser imports another skill's module.
+  # That is why `testpaths` in skills/pyproject.toml is a hand-maintained list:
+  # it is the subset that happens not to collide, and every suite outside it was
+  # simply never run — 47 directories, ~2,400 tests, when this job was added.
+  #
+  # This replaces a job that hardcoded two of those directories (bug-scrub and
+  # fix-scrub). It is a strict superset: the runner derives its work as the
+  # complement of `testpaths`, so a new skill is picked up without anyone
+  # remembering to edit a list. Suites that are currently red run in
+  # ci-post-merge.yml instead; see QUARANTINED in the runner.
+  test-skills-isolated:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skills
 
     steps:
       - uses: actions/checkout@v7
@@ -82,10 +117,9 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --all-extras
-        working-directory: agent-coordinator
 
-      - name: Run skills tests
-        run: agent-coordinator/.venv/bin/python -m pytest skills/bug-scrub/tests/ skills/fix-scrub/tests/ -v
+      - name: Run isolated skill suites (pre-merge tier)
+        run: uv run python tests/run_isolated_suites.py --tier pre-merge
 
   validate-specs:
     runs-on: ubuntu-latest
@@ -244,21 +278,11 @@ jobs:
           print('\\nAll module imports succeeded inside the built container.')
           "
 
-  formal-coordination:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Run TLA+ model checks (non-blocking)
-        run: .github/scripts/run_tlc.sh
+  # formal-coordination moved to ci-post-merge.yml. It had `continue-on-error:
+  # true` *and* a run_tlc.sh that exited 0 when tla2tools.jar was missing — and
+  # the jar was never present — so it reported success without ever running TLC.
+  # Both halves are fixed there; it stays out of the blocking tier until it has
+  # a track record of passing on real content.
 
   test-integration:
     runs-on: ubuntu-latest

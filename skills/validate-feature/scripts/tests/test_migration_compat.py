@@ -20,14 +20,14 @@ import pytest
 MIGRATIONS_DIR = (
     Path(__file__).resolve().parents[4]
     / "agent-coordinator"
-    / "supabase"
+    / "database"
     / "migrations"
 )
 
 SEED_SQL_PATH = (
     Path(__file__).resolve().parents[4]
     / "agent-coordinator"
-    / "supabase"
+    / "database"
     / "seed.sql"
 )
 

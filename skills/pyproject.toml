@@ -60,7 +60,6 @@ testpaths = [
     "worktree/scripts/tests",
     "coordination-bridge/scripts/tests",
     "validate-packages/scripts/tests",
-    "validate-flows/scripts/tests",
     "refresh-architecture/scripts/tests",
     "bao-vault/scripts/tests",
     "changelog-version/tests",
