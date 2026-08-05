@@ -1,28 +1,34 @@
 {
   "artifacts": [
     {
+      "path": "docs/architecture-analysis/architecture.behaviors.json",
+      "required": false,
+      "sha256": "aa5a8272268de6506607a09709620b80c9789f1cc195e0af5798a02ce603a831",
+      "size_bytes": 133988
+    },
+    {
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "00fc4aa9f613e86ae681f3a639bc85284f37417c9b83a0b0a4c0ccd7881a0970",
-      "size_bytes": 1076714
+      "sha256": "810f2d1d11fba3f704b0f57f5f2e91e45ccebb2eb8287ae1ba3acbb7e7c8f2f1",
+      "size_bytes": 1065199
     },
     {
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "54551a522efb9016494dfe14a9a380fb61c6da6f3aa564d78e3e096654d41ae6",
-      "size_bytes": 877663
+      "sha256": "101efc3c0a9d3561e5660bea72336779e63b1c177f973258868ff9352ba9596e",
+      "size_bytes": 871071
     },
     {
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "0534175962a9e9f34268ef50767227962eedb43704bea4af42101018e3cc5a76",
-      "size_bytes": 55080
+      "sha256": "6cfd25d2e8ff580b5793101038c7b9e08d3d4f8651f2329aea3e6f2f354e2861",
+      "size_bytes": 54938
     },
     {
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "69097d76000d17bb6d2d3ac39ec2ca73eb4e22f3c29a056ba2809fde937de5ce",
-      "size_bytes": 22444
+      "sha256": "751a64e9acb1b85a602a8d53fb427afafbf7e9a8d76683cbb40fb818d7751202",
+      "size_bytes": 22446
     },
     {
       "path": "docs/architecture-analysis/comment_insights.json",
@@ -33,8 +39,8 @@
     {
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "7287b35ea801d1b55f6ec675fa3675d5f2beaaf4b4202f73887cf63d7b7600e8",
-      "size_bytes": 512392
+      "sha256": "80c0754ed3f77cca4baa34711844ce9b64b4b22a2c607416ceab9c54cc2b46a4",
+      "size_bytes": 507684
     },
     {
       "path": "docs/architecture-analysis/pattern_insights.json",
@@ -75,14 +81,14 @@
     {
       "path": "docs/architecture-analysis/views/backend_components.mmd",
       "required": false,
-      "sha256": "46441eebedc1ae1ea9e1d4fd0b94cc2db60be3e76e8f0e1c17260f584400c4c0",
-      "size_bytes": 12888
+      "sha256": "67217ba71cbf7dace8b719c9a25890c711a596635f44f63ccdac23c563a9dcab",
+      "size_bytes": 12957
     },
     {
       "path": "docs/architecture-analysis/views/containers.mmd",
       "required": false,
-      "sha256": "da7ed40faebafedd1a73050c184923bc99b7135217f6fb1f03c65ab492143467",
-      "size_bytes": 122
+      "sha256": "b85d3dbe18cc742a6d3cf15d6144c55f0abd7aae88ebf6df91e995156a1e9e4d",
+      "size_bytes": 86
     },
     {
       "path": "docs/architecture-analysis/views/db_erd.mmd",
@@ -93,11 +99,17 @@
     {
       "path": "docs/architecture-analysis/views/frontend_components.mmd",
       "required": false,
-      "sha256": "36a5497b4d301fe424d0dada885bec1850698dc290e3fd70db25c93687b3a12b",
-      "size_bytes": 144
+      "sha256": "01f76d9fa260195ae27b887cbc0c7e98ca4ca9ca2ec6905b4fc78a3beea1dac9",
+      "size_bytes": 52
+    },
+    {
+      "path": "docs/architecture-analysis/views/handbook.html",
+      "required": false,
+      "sha256": "abcb6f5a4fe1adcfcd840174d6bc0d761a78bdf253a4f90d64eafdf8f21b1b20",
+      "size_bytes": 298434
     }
   ],
-  "generated_at": "2026-07-26T16:40:54+00:00",
+  "generated_at": "2026-08-04T00:31:58+00:00",
   "input_fingerprint": "4f9bb69122b73e9a2f125708e3bbf866b07501bcd784a784ecb2dd455b03173c",
   "input_roots": [
     "agent-coordinator/database/migrations",
@@ -116,9 +128,9 @@
     "producer_id": "architecture",
     "producer_version": "1.0.0"
   },
-  "repository_id": "add-deterministic-context-drift-gates",
+  "repository_id": "agentic-coding-tools",
   "schema_version": 1,
-  "source_revision": "fa2ce9508c97a94abbb4b2b22b4fae98769a9482",
+  "source_revision": "991b2e479f4973b5ed8c264f5ec05bdfee8cf69d",
   "validation": {
     "error_count": 0,
     "status": "passed",

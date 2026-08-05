@@ -83,6 +83,9 @@ _OWNED_TOP_LEVEL: tuple[tuple[str, bool], ...] = (
     ("architecture.graph.json", True),
     ("architecture.summary.json", True),
     ("architecture.diagnostics.json", False),
+    # Layer 2.5 behavior handbook. Optional so a repo without a committed map is
+    # fresh-by-absence rather than permanently stale.
+    ("architecture.behaviors.json", False),
     ("parallel_zones.json", False),
     ("architecture.report.md", False),
     ("python_analysis.json", False),

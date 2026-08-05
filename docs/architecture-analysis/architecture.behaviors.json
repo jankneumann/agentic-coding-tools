@@ -1,0 +1,3600 @@
+{
+  "snapshot": {
+    "generated_at": "2026-08-04T00:31:58+00:00",
+    "git_sha": "991b2e479f4973b5ed8c264f5ec05bdfee8cf69d",
+    "handbook_version": "1.0.0",
+    "backend": "offline",
+    "model_id": "none",
+    "prompt_hash": "sha256:offline",
+    "scope": [
+      "agent-coordinator/src"
+    ]
+  },
+  "system_flows": [
+    {
+      "id": "fl:coordination-api",
+      "title": "Coordination api",
+      "entry": "py:coordination_api.create_coordination_api.acquire_lock",
+      "stages": [
+        "agents_config",
+        "approval",
+        "audit",
+        "axi_output",
+        "code_search",
+        "code_search_runtime"
+      ],
+      "state_handoffs": [],
+      "terminal_actions": [],
+      "behavior_count": 45
+    },
+    {
+      "id": "fl:coordination-mcp",
+      "title": "Coordination mcp",
+      "entry": "py:coordination_mcp.get_active_features_resource",
+      "stages": [
+        "audit",
+        "coordination_mcp",
+        "feature_registry",
+        "guardrails",
+        "handoffs",
+        "locks"
+      ],
+      "state_handoffs": [],
+      "terminal_actions": [],
+      "behavior_count": 9
+    }
+  ],
+  "behavior_units": [
+    {
+      "id": "bh:coordination-api-create-coordination-api-acquire-lock",
+      "title": "Coordination api create coordination api acquire lock",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.acquire_lock.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:approval.get_approval_service",
+        "py:config.get_config",
+        "py:coordination_api.authorize_operation",
+        "py:coordination_api.create_coordination_api.acquire_lock",
+        "py:coordination_api.create_coordination_api.check_guardrails",
+        "py:coordination_api.create_coordination_api.check_policy",
+        "py:coordination_api.create_coordination_api.claim_work",
+        "py:coordination_api.create_coordination_api.complete_work",
+        "py:coordination_api.create_coordination_api.compose_train_endpoint",
+        "py:coordination_api.create_coordination_api.deregister_feature_endpoint",
+        "py:coordination_api.create_coordination_api.discovery_cleanup",
+        "py:coordination_api.create_coordination_api.discovery_heartbeat",
+        "py:coordination_api.create_coordination_api.discovery_register",
+        "py:coordination_api.create_coordination_api.eject_from_train_endpoint",
+        "py:coordination_api.create_coordination_api.enqueue_merge_endpoint",
+        "py:coordination_api.create_coordination_api.gen_eval_create",
+        "py:coordination_api.create_coordination_api.gen_eval_run",
+        "py:coordination_api.create_coordination_api.gen_eval_validate",
+        "py:coordination_api.create_coordination_api.get_my_profile",
+        "py:coordination_api.create_coordination_api.get_task_endpoint",
+        "py:coordination_api.create_coordination_api.list_policy_versions_endpoint",
+        "py:coordination_api.create_coordination_api.mark_merged_endpoint",
+        "py:coordination_api.create_coordination_api.register_feature_endpoint",
+        "py:coordination_api.create_coordination_api.release_lock",
+        "py:coordination_api.create_coordination_api.remove_from_merge_queue_endpoint",
+        "py:coordination_api.create_coordination_api.report_spec_result_endpoint",
+        "py:coordination_api.create_coordination_api.request_approval_endpoint",
+        "py:coordination_api.create_coordination_api.request_permission_endpoint",
+        "py:coordination_api.create_coordination_api.rollback_policy_endpoint",
+        "py:coordination_api.create_coordination_api.run_pre_merge_checks_endpoint",
+        "py:coordination_api.create_coordination_api.store_memory",
+        "py:coordination_api.create_coordination_api.submit_work",
+        "py:coordination_api.create_coordination_api.validate_cedar_policy",
+        "py:coordination_api.resolve_identity",
+        "py:coordination_api.resolve_trust_level",
+        "py:discovery.get_discovery_service",
+        "py:feature_registry.get_feature_registry_service",
+        "py:guardrails.get_guardrails_service",
+        "py:locks.get_lock_service",
+        "py:memory.get_memory_service",
+        "py:merge_queue.get_merge_queue_service",
+        "py:merge_train_service.get_merge_train_service",
+        "py:policy_engine.get_policy_engine",
+        "py:profiles.get_profiles_service",
+        "py:session_grants.get_session_grant_service",
+        "py:work_queue.get_work_queue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-affected-tests-endpoint",
+      "title": "Coordination api create coordination api affected tests endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.affected_tests_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.affected_tests_endpoint",
+        "py:refresh_rpc_client.compute_affected_tests"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-allocate-ports",
+      "title": "Coordination api create coordination api allocate ports",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.allocate_ports.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.allocate_ports",
+        "py:port_allocator.get_port_allocator"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-analyze-feature-conflicts-endpoint",
+      "title": "Coordination api create coordination api analyze feature conflicts endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.analyze_feature_conflicts_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.analyze_feature_conflicts_endpoint",
+        "py:feature_registry.get_feature_registry_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-blocked-issues-early",
+      "title": "Coordination api create coordination api blocked issues early",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.blocked_issues_early.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.blocked_issues_early",
+        "py:issue_service.get_issue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-check-approval-endpoint",
+      "title": "Coordination api create coordination api check approval endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.check_approval_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:approval.get_approval_service",
+        "py:coordination_api.create_coordination_api.check_approval_endpoint"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-check-lock-status",
+      "title": "Coordination api create coordination api check lock status",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.check_lock_status.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.check_lock_status",
+        "py:locks.get_lock_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-close-issue",
+      "title": "Coordination api create coordination api close issue",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.close_issue.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.close_issue",
+        "py:issue_service.get_issue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-code-search-status-endpoint",
+      "title": "Coordination api create coordination api code search status endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.code_search_status_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:code_search.CodeSearchResponse.to_dict",
+        "py:code_search.code_search_enabled",
+        "py:code_search_runtime.get_code_search_runtime",
+        "py:coordination_api.create_coordination_api.code_search_status_endpoint"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-comment-issue",
+      "title": "Coordination api create coordination api comment issue",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.comment_issue.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.comment_issue",
+        "py:issue_service.get_issue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-create-issue",
+      "title": "Coordination api create coordination api create issue",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.create_issue.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.create_issue",
+        "py:issue_service.get_issue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-decide-approval",
+      "title": "Coordination api create coordination api decide approval",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.decide_approval.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:approval.get_approval_service",
+        "py:coordination_api.create_coordination_api.decide_approval"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-discovery-agents",
+      "title": "Coordination api create coordination api discovery agents",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.discovery_agents.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.discovery_agents",
+        "py:discovery.get_discovery_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-force-release-lock",
+      "title": "Coordination api create coordination api force release lock",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.force_release_lock.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:audit.get_audit_service",
+        "py:config.get_config",
+        "py:coordination_api.create_coordination_api.force_release_lock",
+        "py:coordination_api.create_coordination_api.kick_agent",
+        "py:coordination_api.create_coordination_api.patch_issue_labels",
+        "py:db.create_db_client",
+        "py:db.get_db",
+        "py:locks.get_lock_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-get-agent-dispatch-configs",
+      "title": "Coordination api create coordination api get agent dispatch configs",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.get_agent_dispatch_configs.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:agents_config._default_agents_path",
+        "py:agents_config._default_secrets_path",
+        "py:agents_config.get_agents_config",
+        "py:agents_config.get_dispatch_configs",
+        "py:agents_config.load_agents_config",
+        "py:agents_config.load_agents_config._parse_mode",
+        "py:coordination_api.create_coordination_api.get_agent_dispatch_configs",
+        "py:profile_loader._load_secrets_file",
+        "py:profile_loader.interpolate",
+        "py:teams.TeamsConfig.validate"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-get-feature-endpoint",
+      "title": "Coordination api create coordination api get feature endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.get_feature_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.get_feature_endpoint",
+        "py:feature_registry.get_feature_registry_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-get-merge-queue-endpoint",
+      "title": "Coordination api create coordination api get merge queue endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.get_merge_queue_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:axi_output.list_envelope",
+        "py:axi_output.truncation_hint",
+        "py:coordination_api.create_coordination_api.get_merge_queue_endpoint",
+        "py:merge_queue.get_merge_queue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-get-next-merge-endpoint",
+      "title": "Coordination api create coordination api get next merge endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.get_next_merge_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.get_next_merge_endpoint",
+        "py:merge_queue.get_merge_queue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-get-train-status-endpoint",
+      "title": "Coordination api create coordination api get train status endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.get_train_status_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.get_train_status_endpoint",
+        "py:merge_train_service.get_merge_train_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-github-prs",
+      "title": "Coordination api create coordination api github prs",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.github_prs.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.github_prs",
+        "py:github_prs_api._fetch_prs_for_repo",
+        "py:github_prs_api._fetch_prs_for_repo._guarded_fetch",
+        "py:github_prs_api._fetch_reviews",
+        "py:github_prs_api._parse_repos",
+        "py:github_prs_api.derive_pr_status",
+        "py:github_prs_api.get_prs",
+        "py:github_prs_api.reduce_reviews"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-health",
+      "title": "Coordination api create coordination api health",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.health.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:config.get_config",
+        "py:coordination_api.create_coordination_api._database_health",
+        "py:coordination_api.create_coordination_api.health",
+        "py:coordination_api.create_coordination_api.ready"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-help-overview",
+      "title": "Coordination api create coordination api help overview",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.help_overview.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.help_overview",
+        "py:help_service.get_help_overview"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-help-topic",
+      "title": "Coordination api create coordination api help topic",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.help_topic.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.help_topic",
+        "py:help_service.get_help_topic",
+        "py:help_service.list_topic_names"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-list-active-features-endpoint",
+      "title": "Coordination api create coordination api list active features endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.list_active_features_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:axi_output.list_envelope",
+        "py:axi_output.truncation_hint",
+        "py:coordination_api.create_coordination_api.list_active_features_endpoint",
+        "py:feature_registry.get_feature_registry_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-list-issues",
+      "title": "Coordination api create coordination api list issues",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.list_issues.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.list_issues",
+        "py:issue_service.get_issue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-list-pending-approvals",
+      "title": "Coordination api create coordination api list pending approvals",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.list_pending_approvals.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:approval.get_approval_service",
+        "py:coordination_api.create_coordination_api._approval_to_dict",
+        "py:coordination_api.create_coordination_api.list_pending_approvals"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-merge-train-metrics-endpoint",
+      "title": "Coordination api create coordination api merge train metrics endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.merge_train_metrics_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:audit.get_audit_service",
+        "py:coordination_api.create_coordination_api.merge_train_metrics_endpoint"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-mint-events-token",
+      "title": "Coordination api create coordination api mint events token",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.mint_events_token.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.mint_events_token",
+        "py:event_stream._get_signing_key"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-notifications-status",
+      "title": "Coordination api create coordination api notifications status",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.notifications_status.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.notifications_status",
+        "py:event_bus.get_event_bus"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-openspec-proposals",
+      "title": "Coordination api create coordination api openspec proposals",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.openspec_proposals.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.openspec_proposals",
+        "py:github_openspec_fetcher._b64decode",
+        "py:github_openspec_fetcher._count_outside_changes",
+        "py:github_openspec_fetcher._do_fetch",
+        "py:github_openspec_fetcher._github_headers",
+        "py:github_openspec_fetcher._make_warning",
+        "py:github_openspec_fetcher._now_iso",
+        "py:github_openspec_fetcher._parse_h1_title",
+        "py:github_openspec_fetcher._probe_branch",
+        "py:github_openspec_fetcher.fetch_proposals_from_github",
+        "py:openspec_proposals_api._combine_status",
+        "py:openspec_proposals_api._count_code_changes_outside_proposal",
+        "py:openspec_proposals_api._detect_impl_state",
+        "py:openspec_proposals_api._enumerate_proposals",
+        "py:openspec_proposals_api._fetch_github_with_cache",
+        "py:openspec_proposals_api._get_proposals_implicit_local",
+        "py:openspec_proposals_api._get_proposals_multi_source",
+        "py:openspec_proposals_api._get_repo_root",
+        "py:openspec_proposals_api._git_log_iso",
+        "py:openspec_proposals_api._has_git_dir",
+        "py:openspec_proposals_api._resolve_branch",
+        "py:openspec_proposals_api._resolve_local_repo",
+        "py:openspec_proposals_api._run_git",
+        "py:openspec_proposals_api.get_proposals",
+        "py:openspec_sources._walk_local_source",
+        "py:openspec_sources.derive_local_repo",
+        "py:openspec_sources.get_or_walk_local",
+        "py:openspec_sources.invalidate_local_walk_cache",
+        "py:openspec_sources.parse_sources"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-port-status",
+      "title": "Coordination api create coordination api port status",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.port_status.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.port_status",
+        "py:port_allocator.get_port_allocator"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-post-kanban-audit",
+      "title": "Coordination api create coordination api post kanban audit",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.post_kanban_audit.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:audit.get_audit_service",
+        "py:code_search_runtime._grant_resolver_from_env.resolve",
+        "py:config._default_workdir_root",
+        "py:config.get_config",
+        "py:config.resolve_workdir_path",
+        "py:coordination_api.create_coordination_api.post_kanban_audit",
+        "py:coordination_api.create_coordination_api.put_saved_view",
+        "py:kanban_viz_files._atomic_write",
+        "py:kanban_viz_files._git_sha",
+        "py:kanban_viz_files._validate_against",
+        "py:kanban_viz_files._validate_slug",
+        "py:kanban_viz_files.write_audit_event",
+        "py:kanban_viz_files.write_saved_view"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-query-audit",
+      "title": "Coordination api create coordination api query audit",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.query_audit.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:audit.get_audit_service",
+        "py:axi_output.list_envelope",
+        "py:axi_output.probe_truncation",
+        "py:axi_output.truncation_hint",
+        "py:config.get_config",
+        "py:coordination_api.authorize_operation",
+        "py:coordination_api.create_coordination_api.query_audit",
+        "py:coordination_api.create_coordination_api.query_memories",
+        "py:coordination_api.resolve_identity",
+        "py:memory.get_memory_service",
+        "py:policy_engine.get_policy_engine"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-read-handoff",
+      "title": "Coordination api create coordination api read handoff",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.read_handoff.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:axi_output.list_envelope",
+        "py:axi_output.truncation_hint",
+        "py:coordination_api.create_coordination_api.read_handoff",
+        "py:handoffs.get_handoff_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-ready-issues",
+      "title": "Coordination api create coordination api ready issues",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.ready_issues.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.ready_issues",
+        "py:issue_service.get_issue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-release-ports",
+      "title": "Coordination api create coordination api release ports",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.release_ports.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.release_ports",
+        "py:port_allocator.get_port_allocator"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-report-status",
+      "title": "Coordination api create coordination api report status",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.report_status.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.report_status",
+        "py:coordination_api.resolve_identity",
+        "py:discovery.get_discovery_service",
+        "py:event_bus.classify_urgency",
+        "py:event_bus.get_event_bus"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-resolve-archetype-for-phase-endpoint",
+      "title": "Coordination api create coordination api resolve archetype for phase endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:audit.get_audit_service",
+        "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-search-code-endpoint",
+      "title": "Coordination api create coordination api search code endpoint",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.search_code_endpoint.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:code_search.code_search_enabled",
+        "py:code_search_runtime._sanitized_unavailable",
+        "py:code_search_runtime.get_code_search_runtime",
+        "py:code_search_runtime.principal_id_for_api_key",
+        "py:coordination_api.create_coordination_api.search_code_endpoint"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-search-issues",
+      "title": "Coordination api create coordination api search issues",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.search_issues.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.search_issues",
+        "py:issue_service.get_issue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-show-issue",
+      "title": "Coordination api create coordination api show issue",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.show_issue.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.show_issue",
+        "py:issue_service.get_issue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-stream-work-events",
+      "title": "Coordination api create coordination api stream work events",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.stream_work_events.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.get_active_worktrees",
+        "py:coordination_api.create_coordination_api.stream_work_events",
+        "py:event_bus.get_event_bus",
+        "py:event_stream._build_snapshot",
+        "py:event_stream._get_signing_key",
+        "py:event_stream._signing_key_or_503",
+        "py:event_stream.sse_event_generator",
+        "py:event_stream.sse_event_generator._make_audit",
+        "py:event_stream.sse_event_generator._make_transition",
+        "py:event_stream.sse_event_generator._normalize_status",
+        "py:event_stream.validate_events_token"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-test-notification",
+      "title": "Coordination api create coordination api test notification",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.test_notification.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.test_notification",
+        "py:event_bus.get_event_bus"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-update-issue",
+      "title": "Coordination api create coordination api update issue",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.update_issue.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.update_issue",
+        "py:issue_service.get_issue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-api-create-coordination-api-write-handoff",
+      "title": "Coordination api create coordination api write handoff",
+      "responsibility": "Behavior rooted at py:coordination_api.create_coordination_api.write_handoff.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_api.create_coordination_api.write_handoff",
+        "py:coordination_api.resolve_identity",
+        "py:handoffs.get_handoff_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-mcp-get-active-features-resource",
+      "title": "Coordination mcp get active features resource",
+      "responsibility": "Behavior rooted at py:coordination_mcp.get_active_features_resource.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_mcp.get_active_features_resource",
+        "py:feature_registry.get_feature_registry_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-mcp-get-current-locks",
+      "title": "Coordination mcp get current locks",
+      "responsibility": "Behavior rooted at py:coordination_mcp.get_current_locks.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_mcp.get_current_locks",
+        "py:locks.get_lock_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-mcp-get-current-profile",
+      "title": "Coordination mcp get current profile",
+      "responsibility": "Behavior rooted at py:coordination_mcp.get_current_profile.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_mcp.get_current_profile",
+        "py:profiles.get_profiles_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-mcp-get-guardrail-patterns",
+      "title": "Coordination mcp get guardrail patterns",
+      "responsibility": "Behavior rooted at py:coordination_mcp.get_guardrail_patterns.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_mcp.get_guardrail_patterns",
+        "py:guardrails.get_guardrails_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-mcp-get-merge-queue-resource",
+      "title": "Coordination mcp get merge queue resource",
+      "responsibility": "Behavior rooted at py:coordination_mcp.get_merge_queue_resource.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_mcp.get_merge_queue_resource",
+        "py:merge_queue.get_merge_queue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-mcp-get-pending-work",
+      "title": "Coordination mcp get pending work",
+      "responsibility": "Behavior rooted at py:coordination_mcp.get_pending_work.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_mcp.get_pending_work",
+        "py:work_queue.get_work_queue_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-mcp-get-recent-audit",
+      "title": "Coordination mcp get recent audit",
+      "responsibility": "Behavior rooted at py:coordination_mcp.get_recent_audit.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:audit.get_audit_service",
+        "py:coordination_mcp.get_recent_audit"
+      ]
+    },
+    {
+      "id": "bh:coordination-mcp-get-recent-handoffs",
+      "title": "Coordination mcp get recent handoffs",
+      "responsibility": "Behavior rooted at py:coordination_mcp.get_recent_handoffs.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_mcp.get_recent_handoffs",
+        "py:handoffs.get_handoff_service"
+      ]
+    },
+    {
+      "id": "bh:coordination-mcp-get-recent-memories",
+      "title": "Coordination mcp get recent memories",
+      "responsibility": "Behavior rooted at py:coordination_mcp.get_recent_memories.",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "member_nodes": [
+        "py:coordination_mcp.get_recent_memories",
+        "py:memory.get_memory_service"
+      ]
+    }
+  ],
+  "unit_details": {
+    "bh:coordination-api-create-coordination-api-acquire-lock": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.acquire_lock"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.acquire_lock",
+          "evidence": [
+            {
+              "node_id": "py:approval.get_approval_service",
+              "file": "agent-coordinator/src/approval.py",
+              "span": {
+                "start": 199,
+                "end": 204
+              },
+              "content_digest": "sha256:f8f03d06f385251e3399e5fddb9383be1aae42b954819554f6d5766d0b460d04",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:config.get_config",
+              "file": "agent-coordinator/src/config.py",
+              "span": {
+                "start": 723,
+                "end": 728
+              },
+              "content_digest": "sha256:9a48de8159df4ef8977f9be2fcb050501db83142306c9fa1dc10ee5d31929e7f",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.authorize_operation",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 535,
+                "end": 553
+              },
+              "content_digest": "sha256:920db1b8296ebe7971a4aaccbf33c5a16b234cd77f56cb408d917bc74aaa5534",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [
+        {
+          "summary": "broad_except handled in agent-coordinator/src/coordination_api.py",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.resolve_trust_level",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 556,
+                "end": 569
+              },
+              "content_digest": "sha256:220ed4ba46e80cc3d1da41f292f9d6b4caa290128282768d112b3d456bda18de",
+              "role": "exception_path"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.acquire_lock",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 802,
+            "end": 836
+          },
+          "content_digest": "sha256:160759046061edb49f2355cc4c3863d5c3971e9355b8a37a2cd08c7bf5b1d5e3",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-affected-tests-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.affected_tests_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.affected_tests_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.affected_tests_endpoint",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2179,
+                "end": 2195
+              },
+              "content_digest": "sha256:8cd96221ceca0567b8fc36a4da27706ef5d0b14614eedc6a51072845e77b1bc0",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:refresh_rpc_client.compute_affected_tests",
+              "file": "agent-coordinator/src/refresh_rpc_client.py",
+              "span": {
+                "start": 277,
+                "end": 363
+              },
+              "content_digest": "sha256:70d49ebf422c7e9ca53f05061d70bf435f268e0dc827cab10b568d49d40aa92d",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.affected_tests_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2179,
+            "end": 2195
+          },
+          "content_digest": "sha256:8cd96221ceca0567b8fc36a4da27706ef5d0b14614eedc6a51072845e77b1bc0",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-allocate-ports": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.allocate_ports"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.allocate_ports",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.allocate_ports",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1577,
+                "end": 1596
+              },
+              "content_digest": "sha256:e799c72441ebf85785c0f08ad219e7be474513fbb2915f5fd5eec4f9c830d30f",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:port_allocator.get_port_allocator",
+              "file": "agent-coordinator/src/port_allocator.py",
+              "span": {
+                "start": 178,
+                "end": 186
+              },
+              "content_digest": "sha256:8c1cdcce2795517efab58c51faa01351b892dcd16458821b7333805e1a202f65",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.allocate_ports",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1577,
+            "end": 1596
+          },
+          "content_digest": "sha256:e799c72441ebf85785c0f08ad219e7be474513fbb2915f5fd5eec4f9c830d30f",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-analyze-feature-conflicts-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.analyze_feature_conflicts_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.analyze_feature_conflicts_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.analyze_feature_conflicts_endpoint",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1833,
+                "end": 1850
+              },
+              "content_digest": "sha256:c09ed743efb50d8786fa3c44c1e7c46a980e63e8a0e787ed5471cf05ab905160",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:feature_registry.get_feature_registry_service",
+              "file": "agent-coordinator/src/feature_registry.py",
+              "span": {
+                "start": 320,
+                "end": 325
+              },
+              "content_digest": "sha256:d5deb9803bf0388e460b6bff908f14572114bb5f6f78c140f50ffdd94177453d",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.analyze_feature_conflicts_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1833,
+            "end": 1850
+          },
+          "content_digest": "sha256:c09ed743efb50d8786fa3c44c1e7c46a980e63e8a0e787ed5471cf05ab905160",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-blocked-issues-early": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.blocked_issues_early"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.blocked_issues_early",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.blocked_issues_early",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1179,
+                "end": 1193
+              },
+              "content_digest": "sha256:d2fa331cd9fe0e580d188cbb054934bd36e769dda05c4dac5d666fe0df8cc949",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:issue_service.get_issue_service",
+              "file": "agent-coordinator/src/issue_service.py",
+              "span": {
+                "start": 594,
+                "end": 599
+              },
+              "content_digest": "sha256:423fc9af20b3d7a28d70b0ead98d42c8e9919c802b7b30b777312966eeed752e",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.blocked_issues_early",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1179,
+            "end": 1193
+          },
+          "content_digest": "sha256:d2fa331cd9fe0e580d188cbb054934bd36e769dda05c4dac5d666fe0df8cc949",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-check-approval-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.check_approval_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.check_approval_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:approval.get_approval_service",
+              "file": "agent-coordinator/src/approval.py",
+              "span": {
+                "start": 199,
+                "end": 204
+              },
+              "content_digest": "sha256:f8f03d06f385251e3399e5fddb9383be1aae42b954819554f6d5766d0b460d04",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.check_approval_endpoint",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2818,
+                "end": 2843
+              },
+              "content_digest": "sha256:736cb801b7211d1453e2f62e9e07be6622668f594c56c96cfc3882f56edc5582",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.check_approval_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2818,
+            "end": 2843
+          },
+          "content_digest": "sha256:736cb801b7211d1453e2f62e9e07be6622668f594c56c96cfc3882f56edc5582",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-check-lock-status": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.check_lock_status"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.check_lock_status",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 868,
+                "end": 886
+              },
+              "content_digest": "sha256:24cf018c72550936129e0b440e2545c7e5b4b44aa7b7d94ac3da1fd944dbb862",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:locks.get_lock_service",
+              "file": "agent-coordinator/src/locks.py",
+              "span": {
+                "start": 465,
+                "end": 470
+              },
+              "content_digest": "sha256:124fb447a57f11b91fd7aa0491d00ad81bafbb0e8d205794c4b865e568beac72",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 868,
+            "end": 886
+          },
+          "content_digest": "sha256:24cf018c72550936129e0b440e2545c7e5b4b44aa7b7d94ac3da1fd944dbb862",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-close-issue": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.close_issue"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.close_issue",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.close_issue",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1245,
+                "end": 1274
+              },
+              "content_digest": "sha256:4cd3bad898613d19fcb48a33e5296438cab97cfe0043ed7e85936f408ff6c569",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:issue_service.get_issue_service",
+              "file": "agent-coordinator/src/issue_service.py",
+              "span": {
+                "start": 594,
+                "end": 599
+              },
+              "content_digest": "sha256:423fc9af20b3d7a28d70b0ead98d42c8e9919c802b7b30b777312966eeed752e",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.close_issue",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1245,
+            "end": 1274
+          },
+          "content_digest": "sha256:4cd3bad898613d19fcb48a33e5296438cab97cfe0043ed7e85936f408ff6c569",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-code-search-status-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.code_search_status_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.code_search_status_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:code_search.CodeSearchResponse.to_dict",
+              "file": "agent-coordinator/src/code_search.py",
+              "span": {
+                "start": 253,
+                "end": 254
+              },
+              "content_digest": "sha256:11d1ed7aa21e277904c7d27ae7518ce94abeaeaf39690a6afd905a0bf84ea07b",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:code_search.code_search_enabled",
+              "file": "agent-coordinator/src/code_search.py",
+              "span": {
+                "start": 53,
+                "end": 61
+              },
+              "content_digest": "sha256:fcf61067a654e4bc95133f104034ddee12863f18b9b765a784a26920d3e1f396",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:code_search_runtime.get_code_search_runtime",
+              "file": "agent-coordinator/src/code_search_runtime.py",
+              "span": {
+                "start": 548,
+                "end": 551
+              },
+              "content_digest": "sha256:eeef05f3764b0923c86c100b78a2b2e3f2c5acb4d6f6d69c588b06b4dd7897a1",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.code_search_status_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 3419,
+            "end": 3437
+          },
+          "content_digest": "sha256:df85fb4b38fa263ae42e85b35f9f08586098d896fea288340e84f7144d7a7382",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-comment-issue": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.comment_issue"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.comment_issue",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.comment_issue",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1277,
+                "end": 1292
+              },
+              "content_digest": "sha256:5e347e399374be5a2a7bb639c865c6d173c4e092e5fc284262af4dda43ca4998",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:issue_service.get_issue_service",
+              "file": "agent-coordinator/src/issue_service.py",
+              "span": {
+                "start": 594,
+                "end": 599
+              },
+              "content_digest": "sha256:423fc9af20b3d7a28d70b0ead98d42c8e9919c802b7b30b777312966eeed752e",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.comment_issue",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1277,
+            "end": 1292
+          },
+          "content_digest": "sha256:5e347e399374be5a2a7bb639c865c6d173c4e092e5fc284262af4dda43ca4998",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-create-issue": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.create_issue"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.create_issue",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.create_issue",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1118,
+                "end": 1149
+              },
+              "content_digest": "sha256:6af2f942d7fd9755a63ad7bb9f05d9f77e1c0c5f0ac0234eef4e060a1dc39310",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:issue_service.get_issue_service",
+              "file": "agent-coordinator/src/issue_service.py",
+              "span": {
+                "start": 594,
+                "end": 599
+              },
+              "content_digest": "sha256:423fc9af20b3d7a28d70b0ead98d42c8e9919c802b7b30b777312966eeed752e",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.create_issue",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1118,
+            "end": 1149
+          },
+          "content_digest": "sha256:6af2f942d7fd9755a63ad7bb9f05d9f77e1c0c5f0ac0234eef4e060a1dc39310",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-decide-approval": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.decide_approval"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.decide_approval",
+          "evidence": [
+            {
+              "node_id": "py:approval.get_approval_service",
+              "file": "agent-coordinator/src/approval.py",
+              "span": {
+                "start": 199,
+                "end": 204
+              },
+              "content_digest": "sha256:f8f03d06f385251e3399e5fddb9383be1aae42b954819554f6d5766d0b460d04",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.decide_approval",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1659,
+                "end": 1679
+              },
+              "content_digest": "sha256:8853fcce5c445817239689d0c696e92f9188c5849720e03d15afa47f7f3386ad",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.decide_approval",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1659,
+            "end": 1679
+          },
+          "content_digest": "sha256:8853fcce5c445817239689d0c696e92f9188c5849720e03d15afa47f7f3386ad",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-discovery-agents": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.discovery_agents"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.discovery_agents",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.discovery_agents",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2493,
+                "end": 2524
+              },
+              "content_digest": "sha256:a193321101c0e01d9eb9c9d7c8ae2f8a9cc170fbf4b3c4b8110cbf3252332f04",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:discovery.get_discovery_service",
+              "file": "agent-coordinator/src/discovery.py",
+              "span": {
+                "start": 309,
+                "end": 314
+              },
+              "content_digest": "sha256:88116c4a55e1c5a2d8c9d08605b0440fd8bc4b5d18d2edf91da1905656528d31",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.discovery_agents",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2493,
+            "end": 2524
+          },
+          "content_digest": "sha256:a193321101c0e01d9eb9c9d7c8ae2f8a9cc170fbf4b3c4b8110cbf3252332f04",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-force-release-lock": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.force_release_lock"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.force_release_lock",
+          "evidence": [
+            {
+              "node_id": "py:audit.get_audit_service",
+              "file": "agent-coordinator/src/audit.py",
+              "span": {
+                "start": 237,
+                "end": 242
+              },
+              "content_digest": "sha256:35e361216dbe0147c4e75484e83aa3f6b32d56c861cb6012e8c1f690f71ef465",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:config.get_config",
+              "file": "agent-coordinator/src/config.py",
+              "span": {
+                "start": 723,
+                "end": 728
+              },
+              "content_digest": "sha256:9a48de8159df4ef8977f9be2fcb050501db83142306c9fa1dc10ee5d31929e7f",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.force_release_lock",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 3075,
+                "end": 3108
+              },
+              "content_digest": "sha256:e5eae12ceb008514b239332a00ed95a45616487c9fee04e4743051dad43abb9e",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.force_release_lock",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 3075,
+            "end": 3108
+          },
+          "content_digest": "sha256:e5eae12ceb008514b239332a00ed95a45616487c9fee04e4743051dad43abb9e",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-get-agent-dispatch-configs": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.get_agent_dispatch_configs"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.get_agent_dispatch_configs",
+          "evidence": [
+            {
+              "node_id": "py:agents_config._default_agents_path",
+              "file": "agent-coordinator/src/agents_config.py",
+              "span": {
+                "start": 597,
+                "end": 598
+              },
+              "content_digest": "sha256:488ecc9538cb685d2e41acdf0a6457fa0dc43004c0fa008b69b955e6b58419dc",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:agents_config._default_secrets_path",
+              "file": "agent-coordinator/src/agents_config.py",
+              "span": {
+                "start": 601,
+                "end": 602
+              },
+              "content_digest": "sha256:0f91fd518596decbac844a1caef4c4d3a5ed931c44fe19b9eaee0812ad1536b0",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:agents_config.get_agents_config",
+              "file": "agent-coordinator/src/agents_config.py",
+              "span": {
+                "start": 878,
+                "end": 891
+              },
+              "content_digest": "sha256:b7c67764e58b09ee2473bf0aab07f9f73fa9e28f56b390661d42a090dafc809c",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.get_agent_dispatch_configs",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1375,
+            "end": 1382
+          },
+          "content_digest": "sha256:6854ecf2ab1fcb763bd6303d05a965a8753059301c761fbe4f81eacbbbbc16e1",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-get-feature-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.get_feature_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.get_feature_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.get_feature_endpoint",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1779,
+                "end": 1800
+              },
+              "content_digest": "sha256:bf8ed7a22f419d0744a5b360575d9a0533da3e172a5c16cd9897db2ec28fd77a",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:feature_registry.get_feature_registry_service",
+              "file": "agent-coordinator/src/feature_registry.py",
+              "span": {
+                "start": 320,
+                "end": 325
+              },
+              "content_digest": "sha256:d5deb9803bf0388e460b6bff908f14572114bb5f6f78c140f50ffdd94177453d",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.get_feature_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1779,
+            "end": 1800
+          },
+          "content_digest": "sha256:bf8ed7a22f419d0744a5b360575d9a0533da3e172a5c16cd9897db2ec28fd77a",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-get-merge-queue-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.get_merge_queue_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.get_merge_queue_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:axi_output.list_envelope",
+              "file": "agent-coordinator/src/axi_output.py",
+              "span": {
+                "start": 44,
+                "end": 72
+              },
+              "content_digest": "sha256:ce252a7d83836136d4a7cedcf4a2d64c504ec6d22434f8ed9a64b4b720f7b755",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:axi_output.truncation_hint",
+              "file": "agent-coordinator/src/axi_output.py",
+              "span": {
+                "start": 39,
+                "end": 41
+              },
+              "content_digest": "sha256:320ba00cadf8d28b33915952d7e2e1ddab01ae873ebdd96b655ee6e92f46c8ec",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.get_merge_queue_endpoint",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1890,
+                "end": 1916
+              },
+              "content_digest": "sha256:a6be1843a88f0e273876252b4c163da7f6c0a992162fb5d37cd20031d9b81c23",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.get_merge_queue_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1890,
+            "end": 1916
+          },
+          "content_digest": "sha256:a6be1843a88f0e273876252b4c163da7f6c0a992162fb5d37cd20031d9b81c23",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-get-next-merge-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.get_next_merge_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.get_next_merge_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.get_next_merge_endpoint",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1919,
+                "end": 1937
+              },
+              "content_digest": "sha256:fe6937e0796b4ca6332d418e765a57ee8e30ab73a386ca91d9bdf8b3da0c2b67",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:merge_queue.get_merge_queue_service",
+              "file": "agent-coordinator/src/merge_queue.py",
+              "span": {
+                "start": 417,
+                "end": 422
+              },
+              "content_digest": "sha256:f768a1eed352e04296a4ae122e715dbee7fe4ca0af43d6fd1ee1bcce72d68a42",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.get_next_merge_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1919,
+            "end": 1937
+          },
+          "content_digest": "sha256:fe6937e0796b4ca6332d418e765a57ee8e30ab73a386ca91d9bdf8b3da0c2b67",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-get-train-status-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.get_train_status_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.get_train_status_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.get_train_status_endpoint",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2110,
+                "end": 2137
+              },
+              "content_digest": "sha256:65b770f9a3d8f7ce088f77193968afae8ccea940e6d6f41b7c7b398eac99af7a",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:merge_train_service.get_merge_train_service",
+              "file": "agent-coordinator/src/merge_train_service.py",
+              "span": {
+                "start": 396,
+                "end": 401
+              },
+              "content_digest": "sha256:2b957fc09742bbb189be798fcfa33b871fa6cce7ce1d0f1595448891e9433ac9",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.get_train_status_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2110,
+            "end": 2137
+          },
+          "content_digest": "sha256:65b770f9a3d8f7ce088f77193968afae8ccea940e6d6f41b7c7b398eac99af7a",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-github-prs": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.github_prs"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.github_prs",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.github_prs",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 3333,
+                "end": 3370
+              },
+              "content_digest": "sha256:86de0d9b1686081481471b48cf52602562cc5c21c63339c4c3dea6ce02a3f26a",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:github_prs_api._fetch_prs_for_repo",
+              "file": "agent-coordinator/src/github_prs_api.py",
+              "span": {
+                "start": 155,
+                "end": 229
+              },
+              "content_digest": "sha256:cace9c0347e522797dae45e74c4743aa2f74a02f65d2d05dc6862b16528092b4",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:github_prs_api._fetch_prs_for_repo._guarded_fetch",
+              "file": "agent-coordinator/src/github_prs_api.py",
+              "span": {
+                "start": 190,
+                "end": 195
+              },
+              "content_digest": "sha256:e818085f93f7f5ad0eb653992f9d98cda844309d59c84175168e5b5ba8f167dd",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.github_prs",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 3333,
+            "end": 3370
+          },
+          "content_digest": "sha256:86de0d9b1686081481471b48cf52602562cc5c21c63339c4c3dea6ce02a3f26a",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-health": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.health"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.health",
+          "evidence": [
+            {
+              "node_id": "py:config.get_config",
+              "file": "agent-coordinator/src/config.py",
+              "span": {
+                "start": 723,
+                "end": 728
+              },
+              "content_digest": "sha256:9a48de8159df4ef8977f9be2fcb050501db83142306c9fa1dc10ee5d31929e7f",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api._database_health",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2849,
+                "end": 2870
+              },
+              "content_digest": "sha256:7483240bca0db42566a2004e67d94782448ef04284212fd61cbbcf5cd8f89570",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.health",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 3322,
+                "end": 3326
+              },
+              "content_digest": "sha256:837bb97def2763d6e402db9c45458ee76e1b1a2402e954d95969e26bb9a13c28",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [
+        {
+          "summary": "broad_except handled in agent-coordinator/src/coordination_api.py",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.health",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 3322,
+                "end": 3326
+              },
+              "content_digest": "sha256:837bb97def2763d6e402db9c45458ee76e1b1a2402e954d95969e26bb9a13c28",
+              "role": "exception_path"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.health",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 3322,
+            "end": 3326
+          },
+          "content_digest": "sha256:837bb97def2763d6e402db9c45458ee76e1b1a2402e954d95969e26bb9a13c28",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-help-overview": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.help_overview"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.help_overview",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.help_overview",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2877,
+                "end": 2884
+              },
+              "content_digest": "sha256:a70524972f211ae721ad3d476bea909db008a95df0ddb15b400bef285a90d4a8",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:help_service.get_help_overview",
+              "file": "agent-coordinator/src/help_service.py",
+              "span": {
+                "start": 611,
+                "end": 629
+              },
+              "content_digest": "sha256:ceb4609890194f859ce0cee5556e546b68d9929b984bfab582a3035962feb421",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.help_overview",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2877,
+            "end": 2884
+          },
+          "content_digest": "sha256:a70524972f211ae721ad3d476bea909db008a95df0ddb15b400bef285a90d4a8",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-help-topic": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.help_topic"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.help_topic",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.help_topic",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2887,
+                "end": 2907
+              },
+              "content_digest": "sha256:578c423f8b4cdab6cfda8416d6bbc7ffda0a30e33ec5308f9e458f2dde7a8bb9",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:help_service.get_help_topic",
+              "file": "agent-coordinator/src/help_service.py",
+              "span": {
+                "start": 632,
+                "end": 652
+              },
+              "content_digest": "sha256:d1d14ae89e1f34ba3b00151a7934430c3d585513fdbe4b5ba5d8145aa1f2738a",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:help_service.list_topic_names",
+              "file": "agent-coordinator/src/help_service.py",
+              "span": {
+                "start": 655,
+                "end": 657
+              },
+              "content_digest": "sha256:28b0d51328de9b03a7a4c3f1c99c6f1d4d75fcda4c9270e5a1970681533f22c6",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.help_topic",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2887,
+            "end": 2907
+          },
+          "content_digest": "sha256:578c423f8b4cdab6cfda8416d6bbc7ffda0a30e33ec5308f9e458f2dde7a8bb9",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-list-active-features-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.list_active_features_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.list_active_features_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:axi_output.list_envelope",
+              "file": "agent-coordinator/src/axi_output.py",
+              "span": {
+                "start": 44,
+                "end": 72
+              },
+              "content_digest": "sha256:ce252a7d83836136d4a7cedcf4a2d64c504ec6d22434f8ed9a64b4b720f7b755",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:axi_output.truncation_hint",
+              "file": "agent-coordinator/src/axi_output.py",
+              "span": {
+                "start": 39,
+                "end": 41
+              },
+              "content_digest": "sha256:320ba00cadf8d28b33915952d7e2e1ddab01ae873ebdd96b655ee6e92f46c8ec",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.list_active_features_endpoint",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1803,
+                "end": 1830
+              },
+              "content_digest": "sha256:ae8d12b087d0d42ebaec3e35c80ff165d7558d88f321d32394d80f7b6d6ef034",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.list_active_features_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1803,
+            "end": 1830
+          },
+          "content_digest": "sha256:ae8d12b087d0d42ebaec3e35c80ff165d7558d88f321d32394d80f7b6d6ef034",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-list-issues": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.list_issues"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.list_issues",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.list_issues",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1152,
+                "end": 1176
+              },
+              "content_digest": "sha256:674c1c74b84c899dc576d00ff2417e45062cb9d908e8734af247b3652666519c",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:issue_service.get_issue_service",
+              "file": "agent-coordinator/src/issue_service.py",
+              "span": {
+                "start": 594,
+                "end": 599
+              },
+              "content_digest": "sha256:423fc9af20b3d7a28d70b0ead98d42c8e9919c802b7b30b777312966eeed752e",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.list_issues",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1152,
+            "end": 1176
+          },
+          "content_digest": "sha256:674c1c74b84c899dc576d00ff2417e45062cb9d908e8734af247b3652666519c",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-list-pending-approvals": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.list_pending_approvals"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.list_pending_approvals",
+          "evidence": [
+            {
+              "node_id": "py:approval.get_approval_service",
+              "file": "agent-coordinator/src/approval.py",
+              "span": {
+                "start": 199,
+                "end": 204
+              },
+              "content_digest": "sha256:f8f03d06f385251e3399e5fddb9383be1aae42b954819554f6d5766d0b460d04",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api._approval_to_dict",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1630,
+                "end": 1645
+              },
+              "content_digest": "sha256:2aec00b3fc671d1af1ba531f086d75d3403f8d668f32063b129a40f348c3e1c7",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.list_pending_approvals",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1648,
+                "end": 1656
+              },
+              "content_digest": "sha256:4ddfc67197ee723a49001540189660bf79f27aeac09a200b97d766e39dc4a52c",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.list_pending_approvals",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1648,
+            "end": 1656
+          },
+          "content_digest": "sha256:4ddfc67197ee723a49001540189660bf79f27aeac09a200b97d766e39dc4a52c",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-merge-train-metrics-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.merge_train_metrics_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.merge_train_metrics_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:audit.get_audit_service",
+              "file": "agent-coordinator/src/audit.py",
+              "span": {
+                "start": 237,
+                "end": 242
+              },
+              "content_digest": "sha256:35e361216dbe0147c4e75484e83aa3f6b32d56c861cb6012e8c1f690f71ef465",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.merge_train_metrics_endpoint",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2202,
+                "end": 2231
+              },
+              "content_digest": "sha256:71dd237886a0eebdc662cae18dab552eb7586164cc00e9e4f63aced70f9a3e6d",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.merge_train_metrics_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2202,
+            "end": 2231
+          },
+          "content_digest": "sha256:71dd237886a0eebdc662cae18dab552eb7586164cc00e9e4f63aced70f9a3e6d",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-mint-events-token": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.mint_events_token"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.mint_events_token",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.mint_events_token",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2939,
+                "end": 2969
+              },
+              "content_digest": "sha256:48754558ba181fb3705f81c4c29ae66958f36e4962210ca43fe97903ff4a2f15",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:event_stream._get_signing_key",
+              "file": "agent-coordinator/src/event_stream.py",
+              "span": {
+                "start": 46,
+                "end": 48
+              },
+              "content_digest": "sha256:baeb401c5162d565d5a23de2696b0aa81ecf4465747afc0ce09cf6fa9e30c608",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.mint_events_token",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2939,
+            "end": 2969
+          },
+          "content_digest": "sha256:48754558ba181fb3705f81c4c29ae66958f36e4962210ca43fe97903ff4a2f15",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-notifications-status": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.notifications_status"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.notifications_status",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.notifications_status",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2445,
+                "end": 2455
+              },
+              "content_digest": "sha256:3fbd7238f9529800a3fdbb61eede441e3d84720000b7cd9d04eb1c0c77f96bc1",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:event_bus.get_event_bus",
+              "file": "agent-coordinator/src/event_bus.py",
+              "span": {
+                "start": 343,
+                "end": 348
+              },
+              "content_digest": "sha256:00095cbd1129c802f1f79f861dbf79bd0b637dce672b2aff82645c25eaf699c0",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.notifications_status",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2445,
+            "end": 2455
+          },
+          "content_digest": "sha256:3fbd7238f9529800a3fdbb61eede441e3d84720000b7cd9d04eb1c0c77f96bc1",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-openspec-proposals": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.openspec_proposals"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.openspec_proposals",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.openspec_proposals",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 3373,
+                "end": 3415
+              },
+              "content_digest": "sha256:c16255778187cce520d15217c3c8644ad7fbd2c920896e4cbe134e15ca7db049",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:github_openspec_fetcher._b64decode",
+              "file": "agent-coordinator/src/github_openspec_fetcher.py",
+              "span": {
+                "start": 53,
+                "end": 56
+              },
+              "content_digest": "sha256:c6899a6d90c511f854ae04b00229821fdc178cefd9bbd55f2498bb37052126f9",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:github_openspec_fetcher._count_outside_changes",
+              "file": "agent-coordinator/src/github_openspec_fetcher.py",
+              "span": {
+                "start": 319,
+                "end": 347
+              },
+              "content_digest": "sha256:715b0f67c73fd20ede0cb9622275c05f63dd48efdfe7fc93d5ddb757f8e202c2",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.openspec_proposals",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 3373,
+            "end": 3415
+          },
+          "content_digest": "sha256:c16255778187cce520d15217c3c8644ad7fbd2c920896e4cbe134e15ca7db049",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-port-status": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.port_status"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.port_status",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.port_status",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1608,
+                "end": 1624
+              },
+              "content_digest": "sha256:6d9bdd0aa89d36f9fc1d73e42fb11bd3243e15802ca865278a77c77510f8b2fb",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:port_allocator.get_port_allocator",
+              "file": "agent-coordinator/src/port_allocator.py",
+              "span": {
+                "start": 178,
+                "end": 186
+              },
+              "content_digest": "sha256:8c1cdcce2795517efab58c51faa01351b892dcd16458821b7333805e1a202f65",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.port_status",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1608,
+            "end": 1624
+          },
+          "content_digest": "sha256:6d9bdd0aa89d36f9fc1d73e42fb11bd3243e15802ca865278a77c77510f8b2fb",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-post-kanban-audit": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.post_kanban_audit"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.post_kanban_audit",
+          "evidence": [
+            {
+              "node_id": "py:audit.get_audit_service",
+              "file": "agent-coordinator/src/audit.py",
+              "span": {
+                "start": 237,
+                "end": 242
+              },
+              "content_digest": "sha256:35e361216dbe0147c4e75484e83aa3f6b32d56c861cb6012e8c1f690f71ef465",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:code_search_runtime._grant_resolver_from_env.resolve",
+              "file": "agent-coordinator/src/code_search_runtime.py",
+              "span": {
+                "start": 677,
+                "end": 683
+              },
+              "content_digest": "sha256:6169e96ff9b70fff0570612d30f5b7fe6a9ca663631697f983b51aed265c6544",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:config._default_workdir_root",
+              "file": "agent-coordinator/src/config.py",
+              "span": {
+                "start": 591,
+                "end": 603
+              },
+              "content_digest": "sha256:d876376a122b4093254619059a611b16a28e4867c5cc6b6acd2d574eabf544fe",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.post_kanban_audit",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 3269,
+            "end": 3302
+          },
+          "content_digest": "sha256:271310ac7e68f442d7d654ab08dd8f6722f9b926e0050c71631dedaddcdd1437",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-query-audit": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.query_audit"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.query_audit",
+          "evidence": [
+            {
+              "node_id": "py:audit.get_audit_service",
+              "file": "agent-coordinator/src/audit.py",
+              "span": {
+                "start": 237,
+                "end": 242
+              },
+              "content_digest": "sha256:35e361216dbe0147c4e75484e83aa3f6b32d56c861cb6012e8c1f690f71ef465",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:axi_output.list_envelope",
+              "file": "agent-coordinator/src/axi_output.py",
+              "span": {
+                "start": 44,
+                "end": 72
+              },
+              "content_digest": "sha256:ce252a7d83836136d4a7cedcf4a2d64c504ec6d22434f8ed9a64b4b720f7b755",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:axi_output.probe_truncation",
+              "file": "agent-coordinator/src/axi_output.py",
+              "span": {
+                "start": 25,
+                "end": 36
+              },
+              "content_digest": "sha256:0d91568c4126b4dd9abf48dd61ab7fabc479a72bb51c8b5bacc1df24b341ab91",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.query_audit",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1389,
+            "end": 1442
+          },
+          "content_digest": "sha256:8b4fe90d4de833539df967a89e2514efd54ea09f8020d4d2f0c5c37ffb1887d3",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-read-handoff": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.read_handoff"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.read_handoff",
+          "evidence": [
+            {
+              "node_id": "py:axi_output.list_envelope",
+              "file": "agent-coordinator/src/axi_output.py",
+              "span": {
+                "start": 44,
+                "end": 72
+              },
+              "content_digest": "sha256:ce252a7d83836136d4a7cedcf4a2d64c504ec6d22434f8ed9a64b4b720f7b755",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:axi_output.truncation_hint",
+              "file": "agent-coordinator/src/axi_output.py",
+              "span": {
+                "start": 39,
+                "end": 41
+              },
+              "content_digest": "sha256:320ba00cadf8d28b33915952d7e2e1ddab01ae873ebdd96b655ee6e92f46c8ec",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.read_handoff",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1478,
+                "end": 1512
+              },
+              "content_digest": "sha256:25964f658de13beb9cb212c727c2c2f5bea70e253bef92ef8ef42122270240be",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.read_handoff",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1478,
+            "end": 1512
+          },
+          "content_digest": "sha256:25964f658de13beb9cb212c727c2c2f5bea70e253bef92ef8ef42122270240be",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-ready-issues": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.ready_issues"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.ready_issues",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.ready_issues",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2714,
+                "end": 2730
+              },
+              "content_digest": "sha256:b18900e381464afb96d0ceaa49ff316e6af16a3068003d6617280b59b9cf47ff",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:issue_service.get_issue_service",
+              "file": "agent-coordinator/src/issue_service.py",
+              "span": {
+                "start": 594,
+                "end": 599
+              },
+              "content_digest": "sha256:423fc9af20b3d7a28d70b0ead98d42c8e9919c802b7b30b777312966eeed752e",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.ready_issues",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2714,
+            "end": 2730
+          },
+          "content_digest": "sha256:b18900e381464afb96d0ceaa49ff316e6af16a3068003d6617280b59b9cf47ff",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-release-ports": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.release_ports"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.release_ports",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.release_ports",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1599,
+                "end": 1605
+              },
+              "content_digest": "sha256:e17ed22b7a54313cb1312187ffd1acee5a8f2ad403d7b6d8fa6e4300fe6da05c",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:port_allocator.get_port_allocator",
+              "file": "agent-coordinator/src/port_allocator.py",
+              "span": {
+                "start": 178,
+                "end": 186
+              },
+              "content_digest": "sha256:8c1cdcce2795517efab58c51faa01351b892dcd16458821b7333805e1a202f65",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.release_ports",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1599,
+            "end": 1605
+          },
+          "content_digest": "sha256:e17ed22b7a54313cb1312187ffd1acee5a8f2ad403d7b6d8fa6e4300fe6da05c",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-report-status": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.report_status"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.report_status",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.report_status",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2315,
+                "end": 2401
+              },
+              "content_digest": "sha256:7627d456c16cc66decc38c6e8a97b44a30bfe9396d9eef40c7dde18d5f701d77",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.resolve_identity",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 505,
+                "end": 532
+              },
+              "content_digest": "sha256:d7ebd61b6c029b8441c0a4b8dde0dfebc4e38d969526c714c6693ed797089d04",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:discovery.get_discovery_service",
+              "file": "agent-coordinator/src/discovery.py",
+              "span": {
+                "start": 309,
+                "end": 314
+              },
+              "content_digest": "sha256:88116c4a55e1c5a2d8c9d08605b0440fd8bc4b5d18d2edf91da1905656528d31",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.report_status",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2315,
+            "end": 2401
+          },
+          "content_digest": "sha256:7627d456c16cc66decc38c6e8a97b44a30bfe9396d9eef40c7dde18d5f701d77",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-resolve-archetype-for-phase-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:audit.get_audit_service",
+              "file": "agent-coordinator/src/audit.py",
+              "span": {
+                "start": 237,
+                "end": 242
+              },
+              "content_digest": "sha256:35e361216dbe0147c4e75484e83aa3f6b32d56c861cb6012e8c1f690f71ef465",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2238,
+                "end": 2308
+              },
+              "content_digest": "sha256:652d8aaa6e83d29a6504f8f97140e8af88e04c928f2c2d0bafd89736f2be81e9",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2238,
+            "end": 2308
+          },
+          "content_digest": "sha256:652d8aaa6e83d29a6504f8f97140e8af88e04c928f2c2d0bafd89736f2be81e9",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-search-code-endpoint": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.search_code_endpoint"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.search_code_endpoint",
+          "evidence": [
+            {
+              "node_id": "py:code_search.code_search_enabled",
+              "file": "agent-coordinator/src/code_search.py",
+              "span": {
+                "start": 53,
+                "end": 61
+              },
+              "content_digest": "sha256:fcf61067a654e4bc95133f104034ddee12863f18b9b765a784a26920d3e1f396",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:code_search_runtime._sanitized_unavailable",
+              "file": "agent-coordinator/src/code_search_runtime.py",
+              "span": {
+                "start": 593,
+                "end": 631
+              },
+              "content_digest": "sha256:243b0487875fed1d1c572e3aabeafaf155409caed485d805554b45b4d71c1943",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:code_search_runtime.get_code_search_runtime",
+              "file": "agent-coordinator/src/code_search_runtime.py",
+              "span": {
+                "start": 548,
+                "end": 551
+              },
+              "content_digest": "sha256:eeef05f3764b0923c86c100b78a2b2e3f2c5acb4d6f6d69c588b06b4dd7897a1",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.search_code_endpoint",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 3456,
+            "end": 3484
+          },
+          "content_digest": "sha256:760d1cff21e098652a0dcf375312b6455d238b0cbcf1cce53cc1c408a4fcf4d1",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-search-issues": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.search_issues"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.search_issues",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.search_issues",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2698,
+                "end": 2711
+              },
+              "content_digest": "sha256:06e84f9441e263c80e1ca7716fa8514d0849dd7b6098f97c5080eaf10b99b979",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:issue_service.get_issue_service",
+              "file": "agent-coordinator/src/issue_service.py",
+              "span": {
+                "start": 594,
+                "end": 599
+              },
+              "content_digest": "sha256:423fc9af20b3d7a28d70b0ead98d42c8e9919c802b7b30b777312966eeed752e",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.search_issues",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2698,
+            "end": 2711
+          },
+          "content_digest": "sha256:06e84f9441e263c80e1ca7716fa8514d0849dd7b6098f97c5080eaf10b99b979",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-show-issue": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.show_issue"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.show_issue",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.show_issue",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1196,
+                "end": 1210
+              },
+              "content_digest": "sha256:82cad8ccdedcb67a9ad0839a399fa0e7548b144411d73556f71771a913556f40",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:issue_service.get_issue_service",
+              "file": "agent-coordinator/src/issue_service.py",
+              "span": {
+                "start": 594,
+                "end": 599
+              },
+              "content_digest": "sha256:423fc9af20b3d7a28d70b0ead98d42c8e9919c802b7b30b777312966eeed752e",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.show_issue",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1196,
+            "end": 1210
+          },
+          "content_digest": "sha256:82cad8ccdedcb67a9ad0839a399fa0e7548b144411d73556f71771a913556f40",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-stream-work-events": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.stream_work_events"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.stream_work_events",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.get_active_worktrees",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2927,
+                "end": 2936
+              },
+              "content_digest": "sha256:2c282442dfe0c96f63dca6746ea5e120adfba283451341aa92f6c48383d4d078",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.create_coordination_api.stream_work_events",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2972,
+                "end": 3020
+              },
+              "content_digest": "sha256:c45886397b99ab45135443fb3352252499abfd5595e134b9ee2794b04e999bcc",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:event_bus.get_event_bus",
+              "file": "agent-coordinator/src/event_bus.py",
+              "span": {
+                "start": 343,
+                "end": 348
+              },
+              "content_digest": "sha256:00095cbd1129c802f1f79f861dbf79bd0b637dce672b2aff82645c25eaf699c0",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.stream_work_events",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2972,
+            "end": 3020
+          },
+          "content_digest": "sha256:c45886397b99ab45135443fb3352252499abfd5595e134b9ee2794b04e999bcc",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-test-notification": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.test_notification"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.test_notification",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.test_notification",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 2408,
+                "end": 2442
+              },
+              "content_digest": "sha256:962a5164f5e6d154fe604b2e3a07b5f003fc586e40068256f4fd62d17f7605de",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:event_bus.get_event_bus",
+              "file": "agent-coordinator/src/event_bus.py",
+              "span": {
+                "start": 343,
+                "end": 348
+              },
+              "content_digest": "sha256:00095cbd1129c802f1f79f861dbf79bd0b637dce672b2aff82645c25eaf699c0",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.test_notification",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 2408,
+            "end": 2442
+          },
+          "content_digest": "sha256:962a5164f5e6d154fe604b2e3a07b5f003fc586e40068256f4fd62d17f7605de",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-update-issue": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.update_issue"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.update_issue",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.update_issue",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1213,
+                "end": 1242
+              },
+              "content_digest": "sha256:657a2884b42ca56fee8c97881d51825e12d80980e4f3fa952fcf74b769ab94a5",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:issue_service.get_issue_service",
+              "file": "agent-coordinator/src/issue_service.py",
+              "span": {
+                "start": 594,
+                "end": 599
+              },
+              "content_digest": "sha256:423fc9af20b3d7a28d70b0ead98d42c8e9919c802b7b30b777312966eeed752e",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.update_issue",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1213,
+            "end": 1242
+          },
+          "content_digest": "sha256:657a2884b42ca56fee8c97881d51825e12d80980e4f3fa952fcf74b769ab94a5",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-api-create-coordination-api-write-handoff": {
+      "triggers": [
+        "py:coordination_api.create_coordination_api.write_handoff"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_api.create_coordination_api.write_handoff",
+          "evidence": [
+            {
+              "node_id": "py:coordination_api.create_coordination_api.write_handoff",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 1449,
+                "end": 1475
+              },
+              "content_digest": "sha256:3d8258d61299139051ae292b408b5547dc89c24edb3e9064b71ff587608673d4",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_api.resolve_identity",
+              "file": "agent-coordinator/src/coordination_api.py",
+              "span": {
+                "start": 505,
+                "end": 532
+              },
+              "content_digest": "sha256:d7ebd61b6c029b8441c0a4b8dde0dfebc4e38d969526c714c6693ed797089d04",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:handoffs.get_handoff_service",
+              "file": "agent-coordinator/src/handoffs.py",
+              "span": {
+                "start": 264,
+                "end": 269
+              },
+              "content_digest": "sha256:b42fbdf96ecc952548c363a3d83666e1797acb9f587f2eb92f4b1b18da54200c",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_api.create_coordination_api.write_handoff",
+          "file": "agent-coordinator/src/coordination_api.py",
+          "span": {
+            "start": 1449,
+            "end": 1475
+          },
+          "content_digest": "sha256:3d8258d61299139051ae292b408b5547dc89c24edb3e9064b71ff587608673d4",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-mcp-get-active-features-resource": {
+      "triggers": [
+        "py:coordination_mcp.get_active_features_resource"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_mcp.get_active_features_resource",
+          "evidence": [
+            {
+              "node_id": "py:coordination_mcp.get_active_features_resource",
+              "file": "agent-coordinator/src/coordination_mcp.py",
+              "span": {
+                "start": 2778,
+                "end": 2806
+              },
+              "content_digest": "sha256:db410f054bda962b4920eb596e89f9548268f558c45bd4449ccc3a38d42fdfd0",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:feature_registry.get_feature_registry_service",
+              "file": "agent-coordinator/src/feature_registry.py",
+              "span": {
+                "start": 320,
+                "end": 325
+              },
+              "content_digest": "sha256:d5deb9803bf0388e460b6bff908f14572114bb5f6f78c140f50ffdd94177453d",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_mcp.get_active_features_resource",
+          "file": "agent-coordinator/src/coordination_mcp.py",
+          "span": {
+            "start": 2778,
+            "end": 2806
+          },
+          "content_digest": "sha256:db410f054bda962b4920eb596e89f9548268f558c45bd4449ccc3a38d42fdfd0",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-mcp-get-current-locks": {
+      "triggers": [
+        "py:coordination_mcp.get_current_locks"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_mcp.get_current_locks",
+          "evidence": [
+            {
+              "node_id": "py:coordination_mcp.get_current_locks",
+              "file": "agent-coordinator/src/coordination_mcp.py",
+              "span": {
+                "start": 2555,
+                "end": 2577
+              },
+              "content_digest": "sha256:32fe34ef80450b5d90b15fb6fb919848c7f8dd2196e0157c7b4107995a2dfec8",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:locks.get_lock_service",
+              "file": "agent-coordinator/src/locks.py",
+              "span": {
+                "start": 465,
+                "end": 470
+              },
+              "content_digest": "sha256:124fb447a57f11b91fd7aa0491d00ad81bafbb0e8d205794c4b865e568beac72",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_mcp.get_current_locks",
+          "file": "agent-coordinator/src/coordination_mcp.py",
+          "span": {
+            "start": 2555,
+            "end": 2577
+          },
+          "content_digest": "sha256:32fe34ef80450b5d90b15fb6fb919848c7f8dd2196e0157c7b4107995a2dfec8",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-mcp-get-current-profile": {
+      "triggers": [
+        "py:coordination_mcp.get_current_profile"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_mcp.get_current_profile",
+          "evidence": [
+            {
+              "node_id": "py:coordination_mcp.get_current_profile",
+              "file": "agent-coordinator/src/coordination_mcp.py",
+              "span": {
+                "start": 2713,
+                "end": 2745
+              },
+              "content_digest": "sha256:1050f7f53c71057a6723edc4cf5224fe54de18dfbdde7a98656a6fb3b24559c4",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:profiles.get_profiles_service",
+              "file": "agent-coordinator/src/profiles.py",
+              "span": {
+                "start": 237,
+                "end": 242
+              },
+              "content_digest": "sha256:36b51590c8d95145ff18f2e77e065a4e52f3142352adc0498ad5e25a96035354",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_mcp.get_current_profile",
+          "file": "agent-coordinator/src/coordination_mcp.py",
+          "span": {
+            "start": 2713,
+            "end": 2745
+          },
+          "content_digest": "sha256:1050f7f53c71057a6723edc4cf5224fe54de18dfbdde7a98656a6fb3b24559c4",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-mcp-get-guardrail-patterns": {
+      "triggers": [
+        "py:coordination_mcp.get_guardrail_patterns"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_mcp.get_guardrail_patterns",
+          "evidence": [
+            {
+              "node_id": "py:coordination_mcp.get_guardrail_patterns",
+              "file": "agent-coordinator/src/coordination_mcp.py",
+              "span": {
+                "start": 2683,
+                "end": 2709
+              },
+              "content_digest": "sha256:432613165f1137fe161a172b93599e3a94d9799286e81160fb7afd386615c2ce",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:guardrails.get_guardrails_service",
+              "file": "agent-coordinator/src/guardrails.py",
+              "span": {
+                "start": 459,
+                "end": 464
+              },
+              "content_digest": "sha256:a12fef8d0a33158c3a78a89aa4eb18f27d1357e3e980cbbc3da79ace21f824c1",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_mcp.get_guardrail_patterns",
+          "file": "agent-coordinator/src/coordination_mcp.py",
+          "span": {
+            "start": 2683,
+            "end": 2709
+          },
+          "content_digest": "sha256:432613165f1137fe161a172b93599e3a94d9799286e81160fb7afd386615c2ce",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-mcp-get-merge-queue-resource": {
+      "triggers": [
+        "py:coordination_mcp.get_merge_queue_resource"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_mcp.get_merge_queue_resource",
+          "evidence": [
+            {
+              "node_id": "py:coordination_mcp.get_merge_queue_resource",
+              "file": "agent-coordinator/src/coordination_mcp.py",
+              "span": {
+                "start": 2810,
+                "end": 2831
+              },
+              "content_digest": "sha256:cf9ff247fe7baff4a97628cbe9fa53cf1399153e80f3a5838c8e0fc60bd9c6ed",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:merge_queue.get_merge_queue_service",
+              "file": "agent-coordinator/src/merge_queue.py",
+              "span": {
+                "start": 417,
+                "end": 422
+              },
+              "content_digest": "sha256:f768a1eed352e04296a4ae122e715dbee7fe4ca0af43d6fd1ee1bcce72d68a42",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_mcp.get_merge_queue_resource",
+          "file": "agent-coordinator/src/coordination_mcp.py",
+          "span": {
+            "start": 2810,
+            "end": 2831
+          },
+          "content_digest": "sha256:cf9ff247fe7baff4a97628cbe9fa53cf1399153e80f3a5838c8e0fc60bd9c6ed",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-mcp-get-pending-work": {
+      "triggers": [
+        "py:coordination_mcp.get_pending_work"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_mcp.get_pending_work",
+          "evidence": [
+            {
+              "node_id": "py:coordination_mcp.get_pending_work",
+              "file": "agent-coordinator/src/coordination_mcp.py",
+              "span": {
+                "start": 2622,
+                "end": 2650
+              },
+              "content_digest": "sha256:eef05c889d63e40a50eef08e553c5033306cb8fd4e67aef05fd45bf2b2ebf43d",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:work_queue.get_work_queue_service",
+              "file": "agent-coordinator/src/work_queue.py",
+              "span": {
+                "start": 832,
+                "end": 837
+              },
+              "content_digest": "sha256:805afbab5633ff73008702fbd4fabb77dcef1bfbd67dbe12ada00fa39a0cc6e9",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_mcp.get_pending_work",
+          "file": "agent-coordinator/src/coordination_mcp.py",
+          "span": {
+            "start": 2622,
+            "end": 2650
+          },
+          "content_digest": "sha256:eef05c889d63e40a50eef08e553c5033306cb8fd4e67aef05fd45bf2b2ebf43d",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-mcp-get-recent-audit": {
+      "triggers": [
+        "py:coordination_mcp.get_recent_audit"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_mcp.get_recent_audit",
+          "evidence": [
+            {
+              "node_id": "py:audit.get_audit_service",
+              "file": "agent-coordinator/src/audit.py",
+              "span": {
+                "start": 237,
+                "end": 242
+              },
+              "content_digest": "sha256:35e361216dbe0147c4e75484e83aa3f6b32d56c861cb6012e8c1f690f71ef465",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:coordination_mcp.get_recent_audit",
+              "file": "agent-coordinator/src/coordination_mcp.py",
+              "span": {
+                "start": 2749,
+                "end": 2774
+              },
+              "content_digest": "sha256:18d43ad174b2e985b91587f6300d3455aa82a11730d3d4d13f1165bcf4ac270b",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_mcp.get_recent_audit",
+          "file": "agent-coordinator/src/coordination_mcp.py",
+          "span": {
+            "start": 2749,
+            "end": 2774
+          },
+          "content_digest": "sha256:18d43ad174b2e985b91587f6300d3455aa82a11730d3d4d13f1165bcf4ac270b",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-mcp-get-recent-handoffs": {
+      "triggers": [
+        "py:coordination_mcp.get_recent_handoffs"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_mcp.get_recent_handoffs",
+          "evidence": [
+            {
+              "node_id": "py:coordination_mcp.get_recent_handoffs",
+              "file": "agent-coordinator/src/coordination_mcp.py",
+              "span": {
+                "start": 2581,
+                "end": 2618
+              },
+              "content_digest": "sha256:4282b6bcada438ae31dc5b0efe0dfae48efbac6b48b12016bc26b50ed856625f",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:handoffs.get_handoff_service",
+              "file": "agent-coordinator/src/handoffs.py",
+              "span": {
+                "start": 264,
+                "end": 269
+              },
+              "content_digest": "sha256:b42fbdf96ecc952548c363a3d83666e1797acb9f587f2eb92f4b1b18da54200c",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_mcp.get_recent_handoffs",
+          "file": "agent-coordinator/src/coordination_mcp.py",
+          "span": {
+            "start": 2581,
+            "end": 2618
+          },
+          "content_digest": "sha256:4282b6bcada438ae31dc5b0efe0dfae48efbac6b48b12016bc26b50ed856625f",
+          "role": "member"
+        }
+      ]
+    },
+    "bh:coordination-mcp-get-recent-memories": {
+      "triggers": [
+        "py:coordination_mcp.get_recent_memories"
+      ],
+      "state_changes": [],
+      "execution_paths": [
+        {
+          "summary": "Primary flow from py:coordination_mcp.get_recent_memories",
+          "evidence": [
+            {
+              "node_id": "py:coordination_mcp.get_recent_memories",
+              "file": "agent-coordinator/src/coordination_mcp.py",
+              "span": {
+                "start": 2654,
+                "end": 2679
+              },
+              "content_digest": "sha256:2881a1c4049c17c8eacd914cfb281b41a2e435499afddf0cdb7cbb16b4ea6500",
+              "role": "execution_path"
+            },
+            {
+              "node_id": "py:memory.get_memory_service",
+              "file": "agent-coordinator/src/memory.py",
+              "span": {
+                "start": 235,
+                "end": 240
+              },
+              "content_digest": "sha256:86be86c8c251212c5894ec2eb507c8fb19e22e3d8431ad058b2969fea83a88ea",
+              "role": "execution_path"
+            }
+          ]
+        }
+      ],
+      "exception_paths": [],
+      "evidence": [
+        {
+          "node_id": "py:coordination_mcp.get_recent_memories",
+          "file": "agent-coordinator/src/coordination_mcp.py",
+          "span": {
+            "start": 2654,
+            "end": 2679
+          },
+          "content_digest": "sha256:2881a1c4049c17c8eacd914cfb281b41a2e435499afddf0cdb7cbb16b4ea6500",
+          "role": "member"
+        }
+      ]
+    }
+  },
+  "uncovered": [
+    {
+      "node_id": "py:coordination_api.create_coordination_api.gen_eval_list_scenarios",
+      "kind": "route",
+      "path": "/gen-eval/scenarios",
+      "reason": "no_traced_flow"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.get_active_worktrees",
+      "kind": "route",
+      "path": "/worktrees/active",
+      "reason": "no_traced_flow"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.get_sync_points_status",
+      "kind": "route",
+      "path": "/sync-points/status",
+      "reason": "no_traced_flow"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.live",
+      "kind": "route",
+      "path": "/live",
+      "reason": "no_traced_flow"
+    },
+    {
+      "node_id": "py:coordination_mcp.coordinate_file_edit",
+      "kind": "route",
+      "path": "coordinate_file_edit",
+      "reason": "no_traced_flow"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_gen_eval_coverage",
+      "kind": "route",
+      "path": "gen-eval://coverage",
+      "reason": "no_traced_flow"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_gen_eval_report",
+      "kind": "route",
+      "path": "gen-eval://report",
+      "reason": "no_traced_flow"
+    },
+    {
+      "node_id": "py:coordination_mcp.start_work_session",
+      "kind": "route",
+      "path": "start_work_session",
+      "reason": "no_traced_flow"
+    }
+  ],
+  "seed_summary": {
+    "clusters": 54,
+    "uncovered_entrypoints": 8,
+    "clustered_nodes": 188,
+    "scope": [
+      "agent-coordinator/src"
+    ],
+    "flows_omitted_from_l1": 0
+  },
+  "budget_estimate": {
+    "l1": 136,
+    "l2_cards": 54,
+    "l2_max_card": 145,
+    "l2_total": 5923,
+    "l3_max_unit": 402
+  }
+}

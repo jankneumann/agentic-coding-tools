@@ -8,6 +8,8 @@ The system SHALL produce a behavior handbook artifact `architecture.behaviors.js
 
 - Level 1 (`system_flows[]`) SHALL describe end-to-end request flows: entry, ordered stages, state handoffs between stages, and terminal actions
 - Level 2 (`behavior_units[]`) SHALL describe named behavior units with `id` (stable, format `bh:{kebab-name}`), `title`, `responsibility`, `inputs[]`, `outputs[]`, `depends_on[]` (other behavior unit IDs), and `member_nodes[]` (canonical graph node IDs)
+- The Level 2 *card* served to a consumer SHALL project `member_nodes[]` to a count plus a bounded preview rather than inlining full membership; full membership is an index for validation and localization ranking, not narrative a reader loads
+- Level 1 SHALL be a system overview rather than an index of every entrypoint: flows SHALL be grouped by the module a request enters through, and a bounded number of groups SHALL be named individually with the remainder counted
 - Level 3 (`unit_details{}`) SHALL, per behavior unit, describe `triggers[]`, `state_changes[]`, `execution_paths[]`, `exception_paths[]`, and `evidence[]`
 - Every `member_nodes[]` entry and every `evidence[]` entry SHALL reference node IDs that exist in `architecture.graph.json`; the handbook SHALL NOT define structural facts of its own
 - The artifact SHALL carry a `snapshot` block with `generated_at` (ISO 8601, derived from `SOURCE_DATE_EPOCH`), `git_sha`, and `handbook_version`
@@ -24,7 +26,9 @@ The system SHALL produce a behavior handbook artifact `architecture.behaviors.js
 
 ### Requirement: Verified Evidence Locators
 
-Every Level 3 evidence entry SHALL carry a verifiable locator binding the claim to source: `node_id`, `file`, `span` (start/end lines), and `content_digest` (SHA-256 of the spanned source at synthesis time), and the system SHALL provide a locator resolver that re-verifies locators against the working tree.
+Every Level 3 evidence entry SHALL carry a verifiable locator binding the claim to source: `node_id`, `file` (repository-relative), `span` (start/end lines), and `content_digest` (SHA-256 of the spanned source at synthesis time), and the system SHALL provide a locator resolver that re-verifies locators against the working tree.
+
+- Because Layer 1 analyzers record paths relative to their own source root, synthesis SHALL resolve each node's path to a repository-relative path before stamping a locator, so evidence is openable and re-readable from the repository root
 
 - The resolver SHALL classify each locator as `verified` (digest matches), `drifted` (file and symbol resolve but digest differs), or `unresolvable` (file or symbol missing)
 - `drifted` and `unresolvable` locators SHALL be recorded as findings in `architecture.diagnostics.json` with the owning behavior unit ID

@@ -41,6 +41,14 @@ SUMMARY_FILE   := $(ARCH_DIR)/architecture.summary.json
 DIAG_FILE      := $(ARCH_DIR)/architecture.diagnostics.json
 ZONES_FILE     := $(ARCH_DIR)/parallel_zones.json
 
+# Layer 2.5 — behavior handbook (see docs/architecture-artifacts.md)
+HANDBOOK_FILE  := $(ARCH_DIR)/architecture.behaviors.json
+SEEDS_FILE     := $(ARCH_DIR)/behavior_seeds.json
+IMPACT_FILE    := $(ARCH_DIR)/high_impact_nodes.json
+HANDBOOK_HTML  := $(VIEWS_DIR)/handbook.html
+# Scope for handbook synthesis. Repeatable prefixes, space separated.
+HANDBOOK_SCOPE ?= agent-coordinator/src
+
 # Tree-sitter enrichment outputs
 ENRICHMENT_FILE  := $(ARCH_DIR)/treesitter_enrichment.json
 COMMENT_FILE     := $(ARCH_DIR)/comment_insights.json
@@ -75,6 +83,8 @@ PYTHON         ?= $(if $(wildcard skills/.venv/bin/python),skills/.venv/bin/pyth
 
 .PHONY: architecture architecture-setup scripts-setup architecture-diff architecture-feature \
         architecture-validate architecture-views architecture-report architecture-clean \
+        architecture-handbook architecture-handbook-synthesize architecture-handbook-validate \
+        architecture-handbook-verify architecture-handbook-html \
         gen-eval gen-eval-augmented \
         help _analyze-python _analyze-postgres _analyze-typescript \
         _compile _validate _views _parallel-zones _report \
@@ -246,6 +256,61 @@ _pattern-reporter:
 	else \
 		echo "[INFO] No enrichment data — skipping pattern reporter"; \
 	fi
+
+# ---------------------------------------------------------------------------
+# Behavior handbook (Layer 2.5)
+#
+# Synthesis is an explicit event because it may use a nondeterministic
+# structuring backend; its output is reviewed and committed like source.
+# Verification is continuous and deterministic, so architecture-refresh and
+# architecture-check can depend on it without breaking reproducibility.
+# ---------------------------------------------------------------------------
+
+architecture-handbook-synthesize: ## Synthesize architecture.behaviors.json (explicit, committed)
+	@echo "--- Behavior handbook synthesis ---"
+	@if [ ! -f "$(GRAPH_FILE)" ]; then \
+		echo "ERROR: $(GRAPH_FILE) not found. Run 'make architecture' first."; \
+		exit 1; \
+	fi
+	@$(PYTHON) $(SCRIPTS_DIR)/synthesize_behaviors.py \
+		--graph $(GRAPH_FILE) \
+		--repo-root . \
+		--output $(HANDBOOK_FILE) \
+		--high-impact $(IMPACT_FILE) \
+		--enrichment $(ENRICHMENT_FILE) \
+		--git-sha "$$(git rev-parse HEAD 2>/dev/null || echo unknown)" \
+		$(foreach s,$(HANDBOOK_SCOPE),--scope $(s))
+
+architecture-handbook-validate: ## Validate the committed handbook against the canonical graph
+	@echo "--- Behavior handbook validation ---"
+	@if [ ! -f "$(HANDBOOK_FILE)" ]; then \
+		echo "[INFO] No handbook committed — nothing to validate"; \
+	else \
+		$(PYTHON) $(SCRIPTS_DIR)/handbook_schema.py \
+			--handbook $(HANDBOOK_FILE) \
+			--graph $(GRAPH_FILE); \
+	fi
+
+architecture-handbook-verify: ## Re-verify handbook evidence locators against the working tree
+	@echo "--- Behavior handbook locator verification ---"
+	@$(PYTHON) $(SCRIPTS_DIR)/verify_locators.py \
+		--handbook $(HANDBOOK_FILE) \
+		--repo-root . \
+		--diagnostics $(DIAG_FILE)
+
+architecture-handbook-html: ## Render the three-level handbook drill-down
+	@echo "--- Behavior handbook view ---"
+	@if [ ! -f "$(HANDBOOK_FILE)" ]; then \
+		echo "[INFO] No handbook committed — skipping drill-down"; \
+	else \
+		mkdir -p $(VIEWS_DIR); \
+		$(PYTHON) $(SCRIPTS_DIR)/reports/generate_handbook_html.py \
+			--handbook $(HANDBOOK_FILE) \
+			--graph $(GRAPH_FILE) \
+			--output $(HANDBOOK_HTML); \
+	fi
+
+architecture-handbook: architecture-handbook-validate architecture-handbook-verify architecture-handbook-html ## Validate, verify, and render the handbook
 
 architecture-enrichment: ## Run tree-sitter enrichment pass (requires scripts venv)
 	@echo "=== Tree-sitter Architecture Enrichment ==="

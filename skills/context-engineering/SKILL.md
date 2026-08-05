@@ -131,6 +131,36 @@ block should include:
 2. The matching design decisions referenced by that entry (e.g. "Design decisions: D2, D4").
 3. The matching spec scenarios listed in the entry.
 
+#### Behavior handbook — packing by disclosure level
+
+`docs/architecture-analysis/architecture.behaviors.json` is a behavior-centric map
+over the canonical graph. Its value for packing is that it is **budgeted per level**,
+so you can pick a depth deliberately instead of dumping the graph.
+
+| Need | Command | Cost |
+|---|---|---|
+| Orient a fresh worker | `--level l1` | ~400 tok |
+| Reviewer scoped to a diff | `--level l2 --files a.py,b.py` | ~150 tok/card |
+| **Locate where a change goes** | `--locate "<request text>"` | ranked cards only |
+| Open the one unit that matters | `--level l3 --unit bh:<id>` | ≤1500 tok |
+
+```bash
+python3 skills/refresh-architecture/scripts/handbook_query.py \
+  --handbook docs/architecture-analysis/architecture.behaviors.json \
+  --repo-root . --locate "acquire a file lock for an agent"
+```
+
+**Effective:** `--locate` the request, then pack L3 for the single winning unit.
+The response carries verified `file:span` locators, so the worker edits against
+evidence rather than a guess.
+
+**Wasteful:** packing `architecture.graph.json` (1900+ nodes) and asking the worker
+to infer which nodes implement the behavior — that is the reconstruction the
+handbook exists to amortize.
+
+Evidence entries returned at L3 carry a `status`. Treat `drifted` as unverified —
+the narrative may be stale even though the symbol still resolves.
+
 ### Level 3: Relevant Source Files
 
 Before editing a file, read it. Before implementing a pattern, find an existing example

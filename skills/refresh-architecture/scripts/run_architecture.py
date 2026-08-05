@@ -126,6 +126,41 @@ def _required_outputs_present(staging: Path) -> bool:
     return all((staging / name).is_file() for name in _REQUIRED_STAGED)
 
 
+def _verify_handbook(target_dir: Path, dest: Path) -> int:
+    """Validate and re-verify the committed behavior handbook after promotion.
+
+    Runs on every staged refresh so the handbook's claims are checked against the
+    freshly analyzed tree, and its findings land in the promoted diagnostics file
+    *before* provenance digests it. Verification is deterministic and LLM-free —
+    synthesis is the separate, explicit step (design D2).
+
+    A repo with no committed handbook is fresh-by-absence, not an error.
+    """
+    handbook_path = dest / "architecture.behaviors.json"
+    if not handbook_path.is_file():
+        return 0
+
+    from handbook_schema import validate_handbook
+    from verify_locators import _merge_into_diagnostics, verify_handbook
+
+    handbook = json.loads(handbook_path.read_text(encoding="utf-8"))
+    graph = json.loads((dest / "architecture.graph.json").read_text(encoding="utf-8"))
+
+    schema_dc = validate_handbook(handbook, graph)
+    if schema_dc.exit_code != 0:
+        for item in schema_dc.errors:
+            print(f"[{item.code}] {item.message}", file=sys.stderr)
+        print("committed handbook failed schema validation", file=sys.stderr)
+        return 1
+
+    report = verify_handbook(handbook, target_dir)
+    _merge_into_diagnostics(dest / "architecture.diagnostics.json", report)
+    if report.exit_code != 0:
+        for item in report.diagnostics.errors:
+            print(f"[{item.code}] {item.message}", file=sys.stderr)
+    return report.exit_code
+
+
 def _promote(staging: Path, dest: Path) -> None:
     """Copy every staged file into *dest* atomically (byte-identical no-ops skip)."""
     from arch_utils.provenance import _atomic_write_bytes  # canonical primitive
@@ -175,6 +210,16 @@ def run_staged(target_dir: Path, args: argparse.Namespace) -> int:
         _promote(staging, dest)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
+
+    # Verify after promotion so locators resolve against the promoted graph, and
+    # before provenance so the diagnostics digest covers the handbook findings.
+    if _verify_handbook(target_dir, dest) != 0:
+        print(
+            "behavior handbook has unresolvable evidence — re-run "
+            "'make architecture-handbook-synthesize'",
+            file=sys.stderr,
+        )
+        return 1
 
     # Record the roots the analyzers were actually pointed at. `env` carries the
     # --python-src-dir/--ts-src-dir/--migrations-dir overrides; os.environ does
