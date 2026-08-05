@@ -131,3 +131,15 @@ both exist with **no consumers** outside `skills/shared/` and their tests. That 
 expected — always-on **ri-06** is the wiring change and has not run — but it means two
 completed items currently deliver no runtime behavior. Worth stating plainly so
 "completed" is not misread as "in effect".
+
+### Follow-up: folded into always-on ri-03
+
+The unarchived-change finding above triggered a rescope of always-on **ri-03**, which
+previously read *"Finish and archive factory-missions-architecture-alignment (51/53)
+and extract-gen-eval-package (38/43)"*. A sweep of `openspec/changes/` found that list
+was stale in both directions: `extract-gen-eval-package` had reached 43/43, and eight
+further changes now have every task checked. ri-03 is retitled *"Sweep the
+implemented-not-archived change backlog"*, effort S → M, and its acceptance outcomes
+now require a **deterministic detector plus a recurrence guard** rather than naming
+changes — a hand-maintained list re-rots between every roadmap edit, which is exactly
+how the original pair went stale.
