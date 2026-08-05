@@ -1,7 +1,7 @@
 """End-to-end sample fixture test for the Playwright validator.
 
 Exercises the full pipeline against
-``packages/gen-eval/tests/fixtures/sample-descriptor.yaml`` per the spec scenario
+``packages/gen-eval/tests/fixtures/sample-frontend/`` per the spec scenario
 "Sample frontend exercise validates the full path".
 
 Skipped when ``npx`` is not on PATH so CI without Node stays green; the
@@ -21,8 +21,11 @@ from cli import main as cli_main
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DESCRIPTOR = REPO_ROOT / "evaluation" / "gen_eval" / "descriptors" / "sample-frontend.yaml"
-SPECS_DIR = REPO_ROOT / "evaluation" / "gen_eval" / "fixtures" / "sample-frontend" / "specs"
+_SAMPLE_FIXTURE = (
+    REPO_ROOT / "packages" / "gen-eval" / "tests" / "fixtures" / "sample-frontend"
+)
+DESCRIPTOR = _SAMPLE_FIXTURE / "descriptor.yaml"
+SPECS_DIR = _SAMPLE_FIXTURE / "specs"
 
 
 def test_dry_run_emits_test_script(tmp_path: Path):
@@ -91,13 +94,22 @@ def test_full_pipeline_runs_against_sample_frontend(tmp_path: Path):
     - ``findings-playwright.json`` is emitted and schema-valid.
     """
     # Sanity: Playwright CLI version probe.
-    probe = subprocess.run(
-        ["npx", "playwright", "--version"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
+    #
+    # `--no-install` matters. A bare `npx playwright` on a machine without
+    # Playwright installed silently fetches it from the registry, which can
+    # outrun the timeout below and surface as a TimeoutExpired error rather
+    # than the intended skip — turning "Playwright isn't installed here" into
+    # a red build. With --no-install the probe fails immediately instead.
+    try:
+        probe = subprocess.run(
+            ["npx", "--no-install", "playwright", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        pytest.skip(f"npx playwright probe failed: {exc}")
     if probe.returncode != 0:
         pytest.skip("npx playwright not available")
 

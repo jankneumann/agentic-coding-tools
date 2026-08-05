@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "skills/session-log/scripts"))
@@ -132,12 +134,25 @@ class TestPromptScaffold:
 
 
 class TestWorktreeIsolation:
-    """isolation: worktree only for IMPLEMENT (D7)."""
+    """isolation: worktree for every write-capable phase.
 
-    def test_implement_uses_worktree_isolation(self) -> None:
+    This class previously asserted IMPLEMENT was the *only* isolated phase,
+    treating IMPL_REVIEW and VALIDATE as read-mostly. That stopped being true
+    once those phases started writing review checkpoints and validation
+    evidence: `_WORKTREE_PHASES` in phase_agent.py now lists all eleven
+    write-capable phases, and `tests/autopilot/test_build_phase_dispatch_kwargs.py`
+    asserts exactly that. The two suites contradicted each other for as long as
+    this one was outside CI.
+    """
+
+    @pytest.mark.parametrize(
+        "phase",
+        ["IMPLEMENT", "IMPL_REVIEW", "VALIDATE", "PLAN", "VAL_FIX"],
+    )
+    def test_write_capable_phases_use_worktree_isolation(self, phase: str) -> None:
         runner = _CapturingRunner()
         run_phase_subagent(
-            phase="IMPLEMENT",
+            phase=phase,
             state_dict={"change_id": "ch-1"},
             incoming_handoff=_incoming(),
             subagent_runner=runner,
@@ -145,22 +160,12 @@ class TestWorktreeIsolation:
         opts = runner.calls[0]["options"]
         assert opts.get("isolation") == "worktree"
 
-    def test_impl_review_runs_in_shared_checkout(self) -> None:
+    @pytest.mark.parametrize("phase", ["INIT", "SUBMIT_PR"])
+    def test_state_only_phases_run_in_shared_checkout(self, phase: str) -> None:
+        """The negative case — without it the assertion above proves nothing."""
         runner = _CapturingRunner()
         run_phase_subagent(
-            phase="IMPL_REVIEW",
-            state_dict={"change_id": "ch-1"},
-            incoming_handoff=_incoming(),
-            subagent_runner=runner,
-        )
-        opts = runner.calls[0]["options"]
-        # IMPL_REVIEW is read-mostly; no worktree isolation
-        assert opts.get("isolation") != "worktree"
-
-    def test_validate_runs_in_shared_checkout(self) -> None:
-        runner = _CapturingRunner()
-        run_phase_subagent(
-            phase="VALIDATE",
+            phase=phase,
             state_dict={"change_id": "ch-1"},
             incoming_handoff=_incoming(),
             subagent_runner=runner,

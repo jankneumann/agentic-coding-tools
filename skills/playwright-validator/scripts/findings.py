@@ -120,6 +120,14 @@ class BehavioralFinding:
     criticality: str = "high"
     disposition: str = "fix"
     type: str = "behavioral_failure"
+    # Required by review-findings.schema.json. Defaults match
+    # gen_eval.findings_emitter.BehavioralFinding so the two producers stay
+    # shape-identical; omitting them made every finding this module emitted
+    # fail validation, and consensus_synthesizer.load_behavioral_findings
+    # raises ConsensusInputError on a schema violation — so Playwright
+    # findings could never reach the synthesizer at all.
+    axis: str = "correctness"
+    severity: str = "critical"
     file_path: str | None = None
     line_start: int | None = None
     line_end: int | None = None
@@ -132,6 +140,8 @@ class BehavioralFinding:
             "criticality": self.criticality,
             "description": self.description,
             "disposition": self.disposition,
+            "axis": self.axis,
+            "severity": self.severity,
         }
         if self.file_path:
             out["file_path"] = self.file_path

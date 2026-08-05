@@ -82,15 +82,11 @@ EXCLUDED: dict[str, str] = {
 # broken, and an entry whose suite goes green must be deleted (the post-merge
 # job fails on an unexpected pass, so it cannot rot silently).
 QUARANTINED: dict[str, str] = {
-    "tests/docs": (
-        "asserts CLAUDE.md inlines /prototype-feature and "
-        "--prototype-context; CLAUDE.md was refactored into docs/guides/* "
-        "link stubs, so the assertions target content that moved"
-    ),
-    "tests/agent-coordinator": "2 failures, untriaged",
-    "tests/autopilot": "8 failures, untriaged",
-    "tests/phase-record-compaction": "5 failures, untriaged",
-    "tests/playwright-validator": "6 failures, untriaged",
+    # Empty, and worth keeping that way. The 24 failures this ledger was
+    # created to hold were triaged rather than parked: 20 were tests lagging
+    # deliberate changes, and 4 pointed at two real defects (the
+    # playwright-validator emitter omitted schema-required fields; the
+    # PhaseRecord retrofit had skipped cleanup-feature).
 }
 
 

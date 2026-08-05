@@ -66,18 +66,22 @@ def coordinator_with_v2_archetypes(
           architect:
             model: opus
             system_prompt: "You are an architect."
+            write_capable: true
           implementer:
             model: sonnet
             system_prompt: "You are an implementer."
+            write_capable: true
             escalation:
               escalate_to: opus
               loc_threshold: 100
           reviewer:
             model: opus
             system_prompt: "You are a reviewer."
+            write_capable: true
           runner:
             model: haiku
             system_prompt: "Execute and report."
+            write_capable: false
         phase_mapping:
           PLAN:        {archetype: architect, signals: [capabilities_touched]}
           IMPLEMENT:   {archetype: implementer, signals: [loc_estimate]}

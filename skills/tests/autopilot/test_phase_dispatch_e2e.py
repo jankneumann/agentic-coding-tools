@@ -66,18 +66,26 @@ _ARCHETYPES_YAML = textwrap.dedent("""
       architect:
         model: opus
         system_prompt: "You are a software architect."
-      analyst:
+        write_capable: true
+      # VALIDATE writes validation evidence and a handoff, so its archetype has
+      # to be write_capable — resolve_for_phase rejects the mapping otherwise.
+      # Mirrors the `validator` archetype in agent-coordinator/archetypes.yaml.
+      validator:
         model: sonnet
-        system_prompt: "You are a codebase analyst."
+        system_prompt: "You are a validator."
+        write_capable: true
       implementer:
         model: sonnet
         system_prompt: "You are a focused implementer."
+        write_capable: true
       reviewer:
         model: opus
         system_prompt: "You are a code reviewer."
+        write_capable: true
       runner:
         model: haiku
         system_prompt: "Execute the requested command and report results."
+        write_capable: false
     phase_mapping:
       INIT:         {archetype: runner}
       PLAN:         {archetype: architect, signals: [capabilities_touched]}
@@ -88,7 +96,7 @@ _ARCHETYPES_YAML = textwrap.dedent("""
       IMPL_ITERATE: {archetype: implementer, signals: [iteration_count, write_allow]}
       IMPL_REVIEW:  {archetype: reviewer,  signals: [files_changed, lines_changed]}
       IMPL_FIX:     {archetype: implementer, signals: [findings_severity, findings_count]}
-      VALIDATE:     {archetype: analyst,   signals: [test_count, suite_duration]}
+      VALIDATE:     {archetype: validator, signals: [test_count, suite_duration]}
       VAL_REVIEW:   {archetype: reviewer,  signals: [findings_severity]}
       VAL_FIX:      {archetype: implementer, signals: [findings_severity]}
       SUBMIT_PR:    {archetype: runner}
@@ -114,7 +122,7 @@ _EXPECTED_MODEL_BY_PHASE: dict[str, str] = {
     "IMPLEMENT":    "sonnet",    # implementer
     "IMPL_ITERATE": "sonnet",    # implementer
     "IMPL_REVIEW":  "opus",      # reviewer
-    "VALIDATE":     "sonnet",    # analyst
+    "VALIDATE":     "sonnet",    # validator
     "VAL_REVIEW":   "opus",      # reviewer
 }
 
@@ -126,7 +134,7 @@ _EXPECTED_ARCHETYPE_BY_PHASE: dict[str, str] = {
     "IMPLEMENT":    "implementer",
     "IMPL_ITERATE": "implementer",
     "IMPL_REVIEW":  "reviewer",
-    "VALIDATE":     "analyst",
+    "VALIDATE":     "validator",
     "VAL_REVIEW":   "reviewer",
     "SUBMIT_PR":    "runner",
 }
@@ -284,14 +292,21 @@ class MockAgentRunner:
 # ---------------------------------------------------------------------------
 
 
-def _seed_loop_state(repo_root: Path, change_id: str) -> Path:
-    """Pre-create ``loop-state.json`` so build_phase_dispatch_kwargs has a state."""
+def _seed_loop_state(
+    repo_root: Path, change_id: str, current_phase: str = "INIT"
+) -> Path:
+    """Pre-create ``loop-state.json`` so build_phase_dispatch_kwargs has a state.
+
+    ``current_phase`` matters to callers that drive a single phase directly:
+    ``apply_phase_outcome`` refuses an outcome for a phase that is not the
+    current one, since it applies outcomes rather than transitioning phases.
+    """
     change_dir = repo_root / "openspec" / "changes" / change_id
     change_dir.mkdir(parents=True, exist_ok=True)
     state: dict[str, Any] = {
         "schema_version": 3,
         "change_id": change_id,
-        "current_phase": "INIT",
+        "current_phase": current_phase,
         "iteration": 0,
         "total_iterations": 0,
         "max_phase_iterations": 3,
@@ -420,11 +435,15 @@ def test_full_autopilot_loop_dispatches_each_phase_with_resolved_archetype(
             f"phase {phase!r}: cache file must exist at the moment Agent() "
             f"is invoked (between build-dispatch and apply-outcome)"
         )
-        # Worktree isolation only on IMPLEMENT.
-        if phase == "IMPLEMENT":
-            assert call["isolation"] == "worktree"
-        else:
-            assert call["isolation"] is None or call["isolation"] != "worktree"
+        # Every Agent-dispatched phase is write-capable — it produces
+        # artifacts, review checkpoints or validation evidence — so all of
+        # them run isolated. This used to assert IMPLEMENT was the only one,
+        # which stopped being true when the review and validate phases were
+        # added to _WORKTREE_PHASES in phase_agent.py.
+        assert call["isolation"] == "worktree", (
+            f"phase {phase!r} dispatches to a write-capable archetype and "
+            f"must run under worktree isolation"
+        )
 
 
 def test_init_phase_records_runner_archetype_without_agent_call(
@@ -475,7 +494,9 @@ def test_cache_file_lifecycle_between_phases(
     import phase_agent  # type: ignore[import-not-found]
 
     change_id = "wire-autopilot-cache-life"
-    _seed_loop_state(chdir_tmp, change_id)
+    # This test drives IMPLEMENT directly rather than running the loop, so the
+    # seeded current_phase has to be IMPLEMENT for apply_phase_outcome to accept it.
+    _seed_loop_state(chdir_tmp, change_id, current_phase="IMPLEMENT")
     cache_path = (
         chdir_tmp / "openspec" / "changes" / change_id / ".phase-resolution-cache.json"
     )

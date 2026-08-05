@@ -1,0 +1,39 @@
+# Frontend descriptor for the Playwright validator's sample fixture.
+#
+# Conforms to
+# openspec/changes/factory-missions-architecture-alignment/contracts/frontend-descriptor.schema.json
+# and drives skills/tests/playwright-validator/test_e2e_sample.py against the
+# index.html sitting beside this file.
+#
+# The selector aliases below are the vocabulary specs/sample.spec.md writes its
+# scenarios in ("the user fills username_field"). Keeping scenarios in aliases
+# rather than literal CSS is the point of the selectors map: the markup can move
+# without touching a single scenario.
+schema_version: "1"
+name: sample-frontend
+
+base_url: http://127.0.0.1:8000
+
+lifecycle:
+  # `python3 -m http.server` is enough to serve a single static page, and the
+  # explicit --bind keeps the fixture off every other interface. The pipeline
+  # rejects a startup_command with no localhost bind unless bind_address says
+  # otherwise, so these two have to agree.
+  startup_command: python3 -m http.server 8000 --bind 127.0.0.1
+  startup_cwd: packages/gen-eval/tests/fixtures/sample-frontend
+  bind_address: 127.0.0.1
+  health_check:
+    url: http://127.0.0.1:8000/index.html
+    expected_status: 200
+    timeout_seconds: 30
+    retries: 5
+
+selectors:
+  username_field: "#username"
+  password_field: "#password"
+  login_button: "#login-button"
+  welcome_message: "#welcome"
+  login_form: "#login-form"
+
+browsers:
+  - chromium

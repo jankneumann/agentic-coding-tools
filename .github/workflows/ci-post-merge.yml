@@ -12,6 +12,10 @@
 # bug this tier exists to fix. Failures land as a GitHub issue rather than a
 # blocked merge — deferred, not ignored. New checks start here and earn
 # promotion into ci.yml.
+#
+# The skill quarantine is currently empty: the suites it held were triaged and
+# fixed rather than parked, so they all block PRs again. The job below stays so
+# the next red suite has somewhere to go that is not "delete the test".
 name: CI (post-merge)
 
 on:
@@ -70,13 +74,13 @@ jobs:
       - name: Run TLA+ model check
         run: .github/scripts/run_tlc.sh
 
-  # Skill suites quarantined out of the blocking tier because they are red for
-  # pre-existing reasons. Turning ~2,400 previously-unrun tests on at once would
-  # otherwise have spiked the pre-merge failure rate, which is the number this
-  # work exists to lower.
+  # Skill suites quarantined out of the blocking tier. Currently none — this
+  # job is the landing place for the next one, and a no-op until then.
   #
-  # The runner also fails when a quarantined suite *passes*, so an entry cannot
-  # outlive its reason.
+  # The runner fails when a quarantined suite *passes*, so an entry cannot
+  # outlive its reason: the four suites originally parked here were fixed and
+  # the ledger emptied precisely because this job started reporting them as
+  # unexpected passes.
   test-skills-quarantined:
     runs-on: ubuntu-latest
     defaults:

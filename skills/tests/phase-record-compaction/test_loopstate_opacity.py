@@ -71,9 +71,14 @@ class TestBoundedStateDelta:
 
         assert outcome == "continue"
 
-        # Compute the delta — only last_handoff_id and handoff_ids changed.
+        # Compute the delta. The point of this assertion is that the callback
+        # writes a *bounded* set of fields rather than scribbling arbitrary
+        # state — so the expected set grows only when a field is deliberately
+        # added. `phase_archetype` is one such addition (LoopState schema v3):
+        # make_phase_callback propagates the resolved archetype name onto the
+        # state so the driver can record which archetype ran the phase.
         diff_keys = {k for k in before if before[k] != after[k]}
-        assert diff_keys == {"last_handoff_id", "handoff_ids"}
+        assert diff_keys == {"last_handoff_id", "handoff_ids", "phase_archetype"}
 
         # last_handoff_id is the new id
         assert after["last_handoff_id"] == "h-NEW"

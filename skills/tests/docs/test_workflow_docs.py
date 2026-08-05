@@ -5,14 +5,15 @@ Spec scenarios covered:
 - skill-workflow.WorkflowDocumentationUpdates.claude-md-workflow-diagram-updated
 
 These tests don't validate semantics — they verify that the *visible
-references* a future reader needs are present. The CLAUDE.md and
-docs/skills-workflow.md flow diagrams are the canonical "where to look
-next" pointers; missing /prototype-feature here would mean the new
+references* a future reader needs are present. The workflow docs
+reachable from CLAUDE.md and docs/skills-workflow.md are the canonical
+"where to look next" pointers; missing /prototype-feature here would mean the new
 skill is invisible to operators even though it's installed.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -29,7 +30,29 @@ def workflow_doc() -> str:
 
 @pytest.fixture(scope="module")
 def claude_md() -> str:
-    return CLAUDE_MD.read_text()
+    """CLAUDE.md plus the guides it links to.
+
+    CLAUDE.md used to inline the workflow diagram; it is now a link hub whose
+    sections delegate to ``docs/guides/*.md``. Asserting against the hub alone
+    would fail on content that merely *moved* — and, worse, would start passing
+    again only if someone re-inlined it. What these tests actually care about is
+    what a reader starting at CLAUDE.md can reach, so resolve one hop of links
+    and assert against that.
+
+    Concatenation order follows link order in CLAUDE.md, which keeps the
+    ordering assertion below meaningful.
+    """
+    body = CLAUDE_MD.read_text()
+    parts = [body]
+    seen: set[str] = set()
+    for rel in re.findall(r"docs/guides/[A-Za-z0-9._-]+\.md", body):
+        if rel in seen:
+            continue
+        seen.add(rel)
+        guide = REPO_ROOT / rel
+        if guide.is_file():
+            parts.append(guide.read_text())
+    return "\n".join(parts)
 
 
 class TestSkillsWorkflowDocReferencesPrototypeFeature:
@@ -96,15 +119,15 @@ class TestClaudeMdWorkflowDiagramUpdated:
         self, claude_md: str
     ) -> None:
         assert "/prototype-feature" in claude_md, (
-            "CLAUDE.md workflow diagram must reference /prototype-feature"
+            "CLAUDE.md or a guide it links to must reference /prototype-feature"
         )
 
     def test_iterate_on_plan_prototype_context_in_claude_md(
         self, claude_md: str
     ) -> None:
         assert "--prototype-context" in claude_md, (
-            "CLAUDE.md must reference /iterate-on-plan --prototype-context "
-            "as the convergence mechanism"
+            "CLAUDE.md or a guide it links to must reference /iterate-on-plan "
+            "--prototype-context as the convergence mechanism"
         )
 
     def test_prototype_step_appears_after_plan_before_implement(
@@ -118,6 +141,6 @@ class TestClaudeMdWorkflowDiagramUpdated:
         implement_pos = claude_md.find("/implement-feature")
         assert plan_pos != -1 and prototype_pos != -1 and implement_pos != -1
         assert plan_pos < prototype_pos < implement_pos, (
-            "in CLAUDE.md workflow diagram, /prototype-feature must appear "
-            "between /plan-feature and /implement-feature"
+            "in the workflow docs reachable from CLAUDE.md, /prototype-feature "
+            "must appear between /plan-feature and /implement-feature"
         )

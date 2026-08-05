@@ -19,8 +19,12 @@ from descriptor import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+# The sample fixture moved under packages/gen-eval/ when gen-eval was extracted
+# into its own package; the descriptor is co-located with the index.html and
+# specs/ it describes.
 SAMPLE_DESCRIPTOR = (
-    REPO_ROOT / "evaluation" / "gen_eval" / "descriptors" / "sample-frontend.yaml"
+    REPO_ROOT / "packages" / "gen-eval" / "tests" / "fixtures"
+    / "sample-frontend" / "descriptor.yaml"
 )
 SCHEMA_PATH = (
     REPO_ROOT
