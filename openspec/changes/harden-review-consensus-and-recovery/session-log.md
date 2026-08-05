@@ -663,3 +663,65 @@ The extra IMPL_FIX cycle completed without changing orchestrator state. Implemen
 
 ### Context
 Operator-authorized implementation-review round 4 reached final external quorum 0/5 and did not converge. Four premium CLI routes timed out at the bounded vendor deadline and Pi exhausted its schema-invalid recovery chain. Independent source verification found nine critical contract and recovery blockers, including a still-accepted false-zero consensus report.
+
+---
+
+## Phase: Escalation Continuation Handoff (2026-08-05)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Sync with current main before another fix cycle** `architectural: skill-workflow` — Main contains overlapping consensus-matcher and PR-dispatch changes; continuing on the stale base would create avoidable rework and review results against obsolete integration code.
+2. **Keep implementation and validation review gates enabled** `architectural: skill-workflow` — No implementation-review waiver was authorized, quorum was 0/5, and nine source reproductions remain merge-blocking.
+3. **Use round-4 findings as the remediation baseline** `architectural: skill-workflow` — tasks.md is administratively complete and the green validation report predates the final source audit; round-4 findings are the authoritative open-work record until each reproduction is rerun after main integration.
+
+### Alternatives Considered
+- Continue fixing on commit 08cea348 without syncing main: rejected because origin/main has 91 intervening commits and overlapping changes in the exact review paths
+- Treat the mainline matcher fix as automatically resolving round-4 matcher findings: rejected because it improves matching reachability but does not prove vendor-independent grouping or the other trust-boundary invariants
+
+### Trade-offs
+- Accepted a deliberate rebase/conflict-resolution checkpoint over immediate source edits because the three known conflicts should be reconciled once before writing new regressions and fixes
+
+### Capability Gaps Observed
+- **quorum_lost**: Round 4 produced four bounded vendor timeouts and one schema-invalid recovery exhaustion, leaving external quorum at 0/5. (skill: parallel-review-implementation, severity: critical)
+- **contract_integrity**: Consensus validation, eligibility, deterministic grouping, adjudication, deadline, routing provenance, and copied-install boundaries remain incomplete. (skill: parallel-infrastructure, severity: critical)
+
+### Open Questions
+- [ ] Will the operator authorize another IMPL_FIX to IMPL_REVIEW cycle after the branch is synchronized with main?
+
+### Completed Work
+- Verified local HEAD and remote feature head are identical at 08cea348.
+- Fetched origin/main at d384a208 and measured drift: 91 main-only commits and 46 feature-only commits from merge base 247bc201.
+- Confirmed loop state is ESCALATE at iteration 4/4 with findings trend 13, 11, 12, 9 and both review gates enabled.
+- Confirmed all five untracked context-refresh schema files are byte-identical to the now-tracked origin/main versions.
+- Confirmed the two nested work-package worktrees have clean tracked state and pushed heads; only the same five schema copies are untracked in each.
+- Simulated main integration and identified three conflict paths: vendor_review.py, consensus_synthesizer.py, and test_consensus_synthesizer.py.
+
+### In Progress
+- Nine round-4 critical findings remain unresolved.
+- Autopilot is paused in ESCALATE pending an operator-authorized remediation cycle.
+
+### Next Steps
+- Before rebasing, protect then remove the five byte-identical untracked schema copies from this worktree so tracked origin/main files can be checked out; do not delete the nested work-package worktrees.
+- Rebase the feature branch onto origin/main d384a208 and resolve the three known conflicts while preserving both the feature trust contracts and mainline matcher/HEAD-guard changes.
+- Rerun all nine round-4 reproductions after rebase; update the authoritative blocker set instead of assuming overlapping main changes fixed them.
+- Fix consensus validation by recomputing policy, blocker counts, eligible vendors, compatibility aliases, and source membership from canonical evidence.
+- Require validated terminal attempt provenance at the synthesizer and PR compatibility boundaries; deduplicate vendors and align or version the PR review_type contract.
+- Make grouping vendor-independent and deterministic, and reject duplicate adjudication keys atomically before applying any waiver.
+- Enforce logical deadlines from worker threads without surviving owned work, preserve routing tier/source/fallback provenance, and resolve the installed review-findings schema portably.
+- Run the focused reproductions, expanded review suites, coordinator tests, Ruff, install check, strict OpenSpec validation, schema parity, and git diff checks.
+- Only after a newly authorized and converged IMPL_REVIEW may the run proceed to VALIDATE; read validate-feature/SKILL.md before that phase.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/loop-state.json` — authoritative ESCALATE state and review cap
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/round-4/review-findings.json` — authoritative nine-blocker remediation set
+- `openspec/changes/harden-review-consensus-and-recovery/reviews/round-4/review-manifest.json` — final five-vendor attempt evidence and 0/5 quorum
+- `openspec/changes/harden-review-consensus-and-recovery/validation-report.md` — last green local gates; insufficient to override the later source audit
+- `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — findings 1, 2, 5, and 6 plus a known mainline rebase conflict
+- `skills/merge-pull-requests/scripts/vendor_review.py` — findings 3 and 4 plus a known mainline rebase conflict
+- `skills/parallel-infrastructure/scripts/review_attempts.py` — worker-thread deadline blocker
+- `skills/parallel-infrastructure/scripts/review_routing.py` — routing tier and provenance blocker
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — copied-install review-findings schema blocker
+
+### Context
+The pushed feature branch remains in ESCALATE after implementation-review round 4. Nine source-verified critical blockers remain and external quorum was 0/5. Before further remediation, sync the branch with current main: its merge base is 247bc201, origin/main is 91 commits ahead, and the feature is 46 commits ahead. Validation and PR submission remain prohibited.
