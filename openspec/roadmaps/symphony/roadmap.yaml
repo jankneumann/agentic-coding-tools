@@ -208,20 +208,21 @@ items:
     \ \u2014 see supersession-audit.md"
 - item_id: trust-posture-binding
   title: Trust-posture artifact and deployment-profile binding
-  status: skipped
+  status: approved
   priority: 12
   effort: M
   depends_on:
   - workflow-md-contract
-  description: Require symphony/TRUST_POSTURE.md per deployment declaring approval
-    policy, sandbox mode, network allowlist, coordinator trust level, guardrail posture.
-    Bind to profiles.py and policy_engine.py so posture is enforceable, not just documented.
+  description: 'RESIDUAL SCOPE ONLY. The per-gate half shipped as always-on ri-04
+    (add-trust-posture-contract-file), whose proposal explicitly excludes deployment-level
+    posture and names this item as its owner. Remaining scope: declare sandbox mode,
+    network allowlist, coordinator trust level, and guardrail posture per deployment,
+    and bind them to agent-coordinator/src/profiles.py and policy_engine.py so the
+    posture is enforceable rather than declarative. Neither module references trust
+    posture today. Does NOT re-deliver TRUST_POSTURE.md gate dispositions or skills/shared/trust_posture.py.'
   acceptance_outcomes:
   - Daemon refuses to dispatch when posture fields missing or contradictory
   - Posture changes are audited
-  blocked_by:
-  - "SUPERSEDED BY roadmap-always-on-agent-automation:ri-04 (add-trust-posture-contract-file,\
-    \ completed) \u2014 see supersession-audit.md"
 - item_id: coordinator-integration
   title: Daemon and coordinator peer integration
   status: blocked
@@ -290,4 +291,4 @@ items:
   - Report flags at least the five prerequisite categories with actionable hints
   - Integrates with existing bug-scrub report format
 created_at: '2026-04-24T06:24:27.457690+00:00'
-updated_at: '2026-08-04T17:19:21.310608+00:00'
+updated_at: '2026-08-05T08:40:56.665679+00:00'
