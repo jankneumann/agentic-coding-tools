@@ -1,0 +1,55 @@
+## MODIFIED Requirements
+
+### Requirement: Agent Backend Abstraction
+
+The system SHALL define an `AgentBackend` protocol allowing different agent implementations to be benchmarked through a uniform interface.
+
+The framework SHALL ship one backend per first-class provider in the supported roster: Claude Code, Codex, antigravity, grok, pi, and prime. It SHALL NOT ship a Gemini/Jules backend.
+
+#### Scenario: Agent backend submits task
+- **WHEN** the harness submits a task to an agent backend
+- **THEN** the backend SHALL accept task description, affected files, and coordination configuration
+- **AND** return task result including output, timing, token usage, and success indicator
+
+#### Scenario: Claude Code backend
+- **WHEN** the Claude Code backend receives a task
+- **THEN** it SHALL execute the task via Claude Code CLI or Task() invocation
+- **AND** capture all coordination metrics from the instrumented primitives
+
+#### Scenario: Codex backend
+- **WHEN** the Codex backend receives a task
+- **THEN** it SHALL execute the task via Codex CLI
+- **AND** return results in the standard backend result format
+
+#### Scenario: antigravity backend
+- **WHEN** the antigravity backend receives a task
+- **THEN** it SHALL execute the task via the `agy` CLI in headless mode
+- **AND** return results in the standard backend result format
+
+#### Scenario: grok backend
+- **WHEN** the grok backend receives a task
+- **THEN** it SHALL execute the task via the `grok` CLI with `--output-format json`
+- **AND** parse the structured JSON envelope rather than scraping stdout
+- **AND** return results in the standard backend result format
+
+#### Scenario: pi backend
+- **WHEN** the pi backend receives a task
+- **THEN** it SHALL execute the task via the `pi` CLI with `--provider openrouter`
+- **AND** return results in the standard backend result format
+
+#### Scenario: prime backend
+- **WHEN** the prime backend receives a task
+- **THEN** it SHALL execute the task via the `prime-agent` CLI in `--mode json`
+- **AND** stream-parse the NDJSON event stream for the final assistant output rather than scraping stdout
+- **AND** return results in the standard backend result format
+- **AND** leave no resident `prime-agent` worker process after the task completes
+
+#### Scenario: Gemini/Jules backend
+- **WHEN** the backend registry is enumerated
+- **THEN** no Gemini or Jules backend SHALL be exported (the Gemini/Jules backend is retired)
+- **AND** requesting one SHALL raise a structured error naming the supported roster
+
+#### Scenario: Backend comparison run
+- **WHEN** evaluation is configured with multiple agent backends
+- **THEN** the harness SHALL run identical tasks through each backend
+- **AND** produce a cross-backend comparison table in the report
