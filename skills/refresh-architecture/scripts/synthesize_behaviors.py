@@ -17,11 +17,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 from arch_utils.determinism import generated_at_iso
 from arch_utils.graph_io import load_graph, save_json
@@ -41,14 +42,21 @@ class StructuringError(RuntimeError):
 
 
 class StructuringBackend(Protocol):
-    """Names and narrates seed clusters. Must not widen membership."""
+    """Names, groups, and narrates seed clusters. Must not widen membership.
+
+    A backend may return either shape (:func:`_normalize_structuring` accepts
+    both): the legacy 1:1 ``{cluster_id: {title, ...}}`` (what
+    :class:`OfflineBackend` emits), or a grouping
+    ``{"units": [{"seed_ids": [...], title, ...}]}`` that merges/splits clusters.
+    Members always come from the referenced seeds; invented ids are dropped.
+    """
 
     name: str
     model_id: str
     prompt_hash: str
 
     def structure(self, seeds: dict[str, Any]) -> dict[str, Any]:
-        """Return ``{cluster_id: {title, responsibility, ...}}``."""
+        """Return a legacy 1:1 dict or a ``{"units": [...]}`` grouping."""
 
 
 #: Level 1 is a *system* overview, not an index of every entrypoint. Flows are
@@ -155,6 +163,194 @@ class OfflineBackend:
         return out
 
 
+# --------------------------------------------------------------------------- #
+# LLM structuring backend
+# --------------------------------------------------------------------------- #
+def _extract_json(text: str) -> dict[str, Any]:
+    """Parse the first JSON object out of a model response.
+
+    Tolerates the common wrappers a chat model adds — code fences and
+    surrounding prose — by slicing from the first ``{`` to the last ``}``.
+    Raises ``ValueError`` if no JSON object is present (e.g. a refusal),
+    which :func:`synthesize` turns into a :class:`StructuringError`.
+    """
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError("no JSON object found in structuring response")
+    return json.loads(text[start : end + 1])
+
+
+#: The structuring instruction. Its hash is recorded in the handbook snapshot so
+#: a change in prompting is visible in provenance and diffs.
+_CLAUDE_SYSTEM_PROMPT = (
+    "You are a software-architecture analyst. You are given deterministic "
+    "clusters of code, each rooted at an entrypoint. Group them into a small "
+    "number of coherent, human-meaningful behavior units and describe each.\n"
+    "Rules:\n"
+    "- Reference clusters only by the seed_ids provided; never invent one.\n"
+    "- A cluster belongs to at most one unit.\n"
+    "- evidence_nodes must be node ids drawn only from the provided member "
+    "nodes; never invent a node id.\n"
+    "- Merge trivial clusters into a larger behavior; split a sprawling "
+    "cluster only if it clearly serves two behaviors.\n"
+    'Return only JSON: {"units": [{"seed_ids": [...], "title": "...", '
+    '"responsibility": "...", "inputs": [...], "outputs": [...], '
+    '"triggers": [...], "state_changes": [...], '
+    '"execution_paths": [{"summary": "...", "evidence_nodes": [...]}], '
+    '"exception_paths": [{"summary": "...", "evidence_nodes": [...]}]}]}'
+)
+
+_CLAUDE_PROMPT_VERSION = "1"
+
+
+class ClaudeStructuringBackend:
+    """LLM structuring backend (deferred #1) — merges/splits seed clusters.
+
+    Unlike :class:`OfflineBackend`, this can regroup clusters into
+    human-meaningful behavior units, which is what the localization benchmark
+    needs (the offline path's 1:1 renaming leaves granularity unchanged).
+
+    The API call is injectable via ``complete`` so the whole pipeline is
+    testable without network or credentials. The default completion function
+    uses the Anthropic SDK and Claude Opus 5; it has NOT been exercised against
+    a live model in the build sandbox (egress is restricted), so treat it as
+    best-effort until run in an environment with API access.
+    """
+
+    name = "claude"
+
+    def __init__(
+        self,
+        *,
+        model: str = "claude-opus-5",
+        complete: Callable[[str], str] | None = None,
+        chunk_size: int = 20,
+        effort: str = "high",
+    ) -> None:
+        self.model_id = model
+        self.effort = effort
+        self.chunk_size = max(1, chunk_size)
+        self._complete = complete or self._default_complete
+        self.prompt_hash = _prompt_hash(
+            f"{_CLAUDE_PROMPT_VERSION}\n{_CLAUDE_SYSTEM_PROMPT}"
+        )
+
+    def _cluster_view(self, cluster: dict[str, Any]) -> dict[str, Any]:
+        """The projection of a cluster the model is allowed to reason over."""
+        return {
+            "seed_id": cluster["id"],
+            "root": cluster["root"],
+            "member_nodes": cluster.get("member_nodes") or [],
+            "files": cluster.get("member_files") or [],
+            "hubs": cluster.get("hubs") or [],
+            "exception_patterns": [
+                {"node_id": p.get("node_id"), "file": p.get("file"),
+                 "type": p.get("exception_type")}
+                for p in cluster.get("exception_patterns") or []
+            ],
+        }
+
+    def _user_prompt(self, clusters: list[dict[str, Any]]) -> str:
+        views = [self._cluster_view(c) for c in clusters]
+        return "Clusters:\n" + json.dumps(views, indent=2, sort_keys=True)
+
+    def structure(self, seeds: dict[str, Any]) -> dict[str, Any]:
+        clusters = sorted(
+            seeds.get("clusters") or [], key=lambda c: str(c.get("id"))
+        )
+        units: list[dict[str, Any]] = []
+        for i in range(0, len(clusters), self.chunk_size):
+            chunk = clusters[i : i + self.chunk_size]
+            parsed = _extract_json(self._complete(self._user_prompt(chunk)))
+            chunk_units = parsed.get("units")
+            if not isinstance(chunk_units, list):
+                raise ValueError("structuring response has no 'units' list")
+            units.extend(u for u in chunk_units if isinstance(u, dict))
+        return {"units": units}
+
+    def _default_complete(self, prompt: str) -> str:  # pragma: no cover - needs network
+        """Call Claude via the Anthropic SDK. Unverified in the build sandbox."""
+        import anthropic  # lazy: only needed when actually synthesizing
+
+        client = anthropic.Anthropic()
+        response = client.messages.create(
+            model=self.model_id,
+            max_tokens=16000,
+            system=_CLAUDE_SYSTEM_PROMPT,
+            thinking={"type": "adaptive"},
+            output_config={"effort": self.effort},
+            messages=[{"role": "user", "content": prompt}],
+        )
+        if getattr(response, "stop_reason", None) == "refusal":
+            raise ValueError("structuring request was refused by the model")
+        return "".join(
+            block.text for block in response.content
+            if getattr(block, "type", None) == "text"
+        )
+
+
+def _normalize_structuring(
+    structured: Any, seeds: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Turn either backend shape into an ordered list of unit specs.
+
+    A *spec* is a grouping of one or more seed clusters into a single behavior
+    unit: ``{unit_id, cluster_ids, member_nodes, hubs, root, content}``. The
+    legacy 1:1 dict shape yields one spec per cluster (preserving byte-identical
+    offline output); the grouping shape merges clusters, drops invented
+    ``seed_ids``, assigns each cluster to at most one unit (first-wins), and
+    gives any unclaimed cluster its own unit so no entrypoint coverage is lost.
+    """
+    clusters = seeds.get("clusters") or []
+    by_id = {c["id"]: c for c in clusters}
+
+    def make_spec(cluster_ids: list[str], content: Any) -> dict[str, Any]:
+        cluster_ids = sorted(cid for cid in cluster_ids if cid in by_id)
+        members: set[str] = set()
+        hubs: set[str] = set()
+        roots: list[str] = []
+        for cid in cluster_ids:
+            cluster = by_id[cid]
+            members.update(cluster.get("member_nodes") or [])
+            hubs.update(cluster.get("hubs") or [])
+            roots.append(cluster["root"])
+        slug = cluster_ids[0].split(":", 1)[-1]
+        return {
+            "unit_id": f"bh:{slug}",
+            "cluster_ids": cluster_ids,
+            "member_nodes": sorted(members),
+            "hubs": sorted(hubs),
+            "root": sorted(roots)[0] if roots else None,
+            "content": content if isinstance(content, dict) else {},
+        }
+
+    specs: list[dict[str, Any]] = []
+
+    if isinstance(structured, dict) and isinstance(structured.get("units"), list):
+        claimed: set[str] = set()
+        for unit in structured["units"]:
+            if not isinstance(unit, dict):
+                continue
+            seed_ids = [
+                s for s in (unit.get("seed_ids") or [])
+                if s in by_id and s not in claimed
+            ]
+            if not seed_ids:
+                continue
+            claimed.update(seed_ids)
+            specs.append(make_spec(seed_ids, unit))
+        for cluster in clusters:
+            if cluster["id"] not in claimed:
+                specs.append(make_spec([cluster["id"]], {}))
+    else:
+        for cluster in clusters:
+            content = structured.get(cluster["id"]) if isinstance(structured, dict) else None
+            specs.append(make_spec([cluster["id"]], content))
+
+    specs.sort(key=lambda s: s["unit_id"])
+    return specs
+
+
 def _stamp_locator(
     node_id: str,
     nodes: dict[str, dict[str, Any]],
@@ -249,27 +445,28 @@ def synthesize(
 
     behavior_units: list[dict[str, Any]] = []
     unit_details: dict[str, Any] = {}
-    system_flows: list[dict[str, Any]] = []
+    cluster_title: dict[str, str] = {}
 
-    for cluster in seeds["clusters"]:
-        content = structured.get(cluster["id"])
-        if not isinstance(content, dict):
-            content = {}
-        slug = cluster["id"].split(":", 1)[-1]
-        unit_id = f"bh:{slug}"
-        member_nodes = set(cluster["member_nodes"])
+    # Membership comes from the seed skeleton, never the backend: each spec is a
+    # grouping of one or more clusters, and its member nodes are their union.
+    for spec in _normalize_structuring(structured, seeds):
+        content = spec["content"]
+        unit_id = spec["unit_id"]
+        slug = unit_id.split(":", 1)[-1]
+        member_nodes = set(spec["member_nodes"])
+        title = str(content.get("title") or _titleize(slug))
 
         behavior_units.append(
             {
                 "id": unit_id,
-                "title": str(content.get("title") or _titleize(slug)),
+                "title": title,
                 "responsibility": str(
-                    content.get("responsibility") or f"Behavior rooted at {cluster['root']}."
+                    content.get("responsibility") or f"Behavior rooted at {spec['root']}."
                 ),
                 "inputs": [str(x) for x in content.get("inputs") or []],
                 "outputs": [str(x) for x in content.get("outputs") or []],
                 "depends_on": [],
-                "member_nodes": cluster["member_nodes"],  # skeleton is authoritative
+                "member_nodes": spec["member_nodes"],  # skeleton is authoritative
             }
         )
 
@@ -277,14 +474,14 @@ def synthesize(
             loc
             for loc in (
                 _stamp_locator(n, nodes, repo_root, "member", source_roots)
-                for n in cluster["hubs"]
+                for n in spec["hubs"]
             )
             if loc is not None
         ]
         if not evidence:
-            # Fall back to the flow's own entrypoint, then to any groundable
+            # Fall back to the unit's own entrypoint, then to any groundable
             # member, so every unit carries at least one verifiable locator.
-            for candidate in [cluster["root"], *cluster["member_nodes"]]:
+            for candidate in [spec["root"], *spec["member_nodes"]]:
                 root_locator = _stamp_locator(
                     candidate, nodes, repo_root, "member", source_roots
                 )
@@ -306,12 +503,11 @@ def synthesize(
             "evidence": evidence,
         }
 
+        for cluster_id in spec["cluster_ids"]:
+            cluster_title[cluster_id] = title
+
     system_flows, omitted_flows = _build_system_flows(
-        seeds["clusters"],
-        {
-            cluster["id"]: unit["title"]
-            for cluster, unit in zip(seeds["clusters"], behavior_units)
-        },
+        seeds["clusters"], cluster_title
     )
 
     handbook: dict[str, Any] = {
@@ -379,8 +575,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--backend",
         default="offline",
-        choices=["offline"],
-        help="Structuring backend (offline is deterministic and credential-free)",
+        choices=["offline", "claude"],
+        help="Structuring backend: 'offline' is deterministic and credential-free "
+        "(the default and CI path); 'claude' calls the Anthropic API to merge and "
+        "narrate clusters (requires ANTHROPIC_API_KEY; output is committed and "
+        "reviewed like source).",
+    )
+    parser.add_argument(
+        "--model",
+        default="claude-opus-5",
+        help="Model id for --backend claude (default: claude-opus-5)",
     )
     args = parser.parse_args(argv)
 
@@ -400,11 +604,17 @@ def main(argv: list[str] | None = None) -> int:
             deterministic_epoch(args.repo_root, revision)
         )
 
+    backend: StructuringBackend = (
+        ClaudeStructuringBackend(model=args.model)
+        if args.backend == "claude"
+        else OfflineBackend()
+    )
+
     try:
         handbook = synthesize(
             graph,
             args.repo_root,
-            backend=OfflineBackend(),
+            backend=backend,
             high_impact=load_graph(Path(args.high_impact), quiet=True) if args.high_impact else None,
             enrichment=load_graph(Path(args.enrichment), quiet=True) if args.enrichment else None,
             scope=args.scope,

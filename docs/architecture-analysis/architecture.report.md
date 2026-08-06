@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-04T00:31:58+00:00  
-Git SHA: `991b2e479f4973b5ed8c264f5ec05bdfee8cf69d`
+Generated: 2026-08-05T09:21:08+00:00  
+Git SHA: `fc8ab3827b818f620af1956d875ac9bf8c379523`
 
 ## System Overview
 
@@ -144,17 +144,17 @@ This is a **Python MCP server** with 75 modules exposing **96 MCP endpoints** (8
 - `event_bus` — imported by 4 modules
 - `guardrails` — imported by 4 modules
 - `profiles` — imported by 4 modules
-- `work_queue` — imported by 3 modules
-- `issue_service` — imported by 3 modules
-- `refresh_rpc_client` — imported by 3 modules
-- `locks` — imported by 3 modules
 - `agents_config` — imported by 3 modules
-- `handoffs` — imported by 3 modules
-- `code_search_runtime` — imported by 3 modules
+- `locks` — imported by 3 modules
+- `work_queue` — imported by 3 modules
+- `refresh_rpc_client` — imported by 3 modules
 - `memory` — imported by 3 modules
-- `merge_queue` — imported by 3 modules
+- `handoffs` — imported by 3 modules
 - `help_service` — imported by 3 modules
 - `merge_train` — imported by 3 modules
+- `merge_queue` — imported by 3 modules
+- `issue_service` — imported by 3 modules
+- `code_search_runtime` — imported by 3 modules
 
 ## Entry Points
 
@@ -327,11 +327,11 @@ Breakdown: 88 info, 8 warning.
 
 96 MCP routes have no frontend callers — expected (clients are AI agents).
 
-- Backend route 'health' has no frontend callers
-- Backend route 'report_status' has no frontend callers
-- Backend route 'request_permission_endpoint' has no frontend callers
-- Backend route 'ready' has no frontend callers
-- Backend route 'get_merge_queue_resource' has no frontend callers
+- Backend route 'notifications_status' has no frontend callers
+- Backend route 'decide_approval' has no frontend callers
+- Backend route 'list_policy_versions_endpoint' has no frontend callers
+- Backend route 'enqueue_merge_endpoint' has no frontend callers
+- Backend route 'get_next_merge_endpoint' has no frontend callers
 - ... and 91 more
 
 ## High-Impact Nodes

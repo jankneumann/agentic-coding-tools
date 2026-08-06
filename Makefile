@@ -48,6 +48,9 @@ IMPACT_FILE    := $(ARCH_DIR)/high_impact_nodes.json
 HANDBOOK_HTML  := $(VIEWS_DIR)/handbook.html
 # Scope for handbook synthesis. Repeatable prefixes, space separated.
 HANDBOOK_SCOPE ?= agent-coordinator/src
+# Structuring backend: 'offline' (deterministic, credential-free, the default)
+# or 'claude' (merges/narrates clusters via the Anthropic API; needs ANTHROPIC_API_KEY).
+HANDBOOK_BACKEND ?= offline
 
 # Tree-sitter enrichment outputs
 ENRICHMENT_FILE  := $(ARCH_DIR)/treesitter_enrichment.json
@@ -278,6 +281,7 @@ architecture-handbook-synthesize: ## Synthesize architecture.behaviors.json (exp
 		--output $(HANDBOOK_FILE) \
 		--high-impact $(IMPACT_FILE) \
 		--enrichment $(ENRICHMENT_FILE) \
+		--backend $(HANDBOOK_BACKEND) \
 		--git-sha "$$(git rev-parse HEAD 2>/dev/null || echo unknown)" \
 		$(foreach s,$(HANDBOOK_SCOPE),--scope $(s))
 

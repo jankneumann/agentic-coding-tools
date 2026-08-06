@@ -146,9 +146,18 @@ and its output is reviewed and committed like source. Every refresh then runs
 only the deterministic verify step. This preserves the pipeline's
 byte-identical-repeat-refresh invariant.
 
+Two backends exist:
+
+- **`offline`** (default) — deterministic and credential-free; renames the seed
+  clusters 1:1. This is the CI path and the committed artifact.
+- **`claude`** — calls the Anthropic API (`claude-opus-5`) to **merge and split**
+  clusters into human-meaningful behavior units and narrate them. Needs
+  `ANTHROPIC_API_KEY`; run it explicitly and review the diff before committing.
+
 The structuring backend can never widen the skeleton: membership comes from the
-deterministic seeder alone, and any narrative that cannot be grounded in at
-least one resolvable locator is dropped rather than published.
+deterministic seeder alone (a grouping references clusters by `seed_id`; invented
+ids and nodes are dropped), and any narrative that cannot be grounded in at least
+one resolvable locator is dropped rather than published.
 
 ### Commands
 
@@ -161,6 +170,9 @@ make architecture-handbook              # validate + verify + render
 
 # Scope the synthesis (default: agent-coordinator/src)
 make architecture-handbook-synthesize HANDBOOK_SCOPE="agent-coordinator/src apps"
+
+# Use the LLM backend to merge/narrate clusters (needs ANTHROPIC_API_KEY)
+make architecture-handbook-synthesize HANDBOOK_BACKEND=claude
 ```
 
 `make architecture-refresh` runs validation + locator verification automatically

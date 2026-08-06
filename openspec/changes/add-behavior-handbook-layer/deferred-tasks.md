@@ -3,20 +3,30 @@
 Ordered by what most likely closes the −21 pp F1 gap in `validation-report.md`.
 Items 1–3 are prerequisites for lifting the D7 expansion gate.
 
-## 1. LLM structuring backend (highest value — the paper's actual mechanism)
+## 1. LLM structuring backend — ✅ LANDED (verification pending live API)
 
-`OfflineBackend` renames deterministic reachability clusters; it does not group,
-split, or name behaviors. The paper's gains come from LLM-assisted behavioral
-structuring over the skeleton, which is unimplemented.
+`ClaudeStructuringBackend` is implemented in `synthesize_behaviors.py` behind the
+existing `StructuringBackend` protocol, with `_normalize_structuring` extending
+the assembler to accept a merge/split grouping (`{"units": [{"seed_ids": ...}]}`)
+in addition to the legacy 1:1 dict shape.
 
-- Add a structuring backend behind the existing `StructuringBackend` protocol
-  (`synthesize_behaviors.py`) — the seam already exists and is tested.
-- The backend must respect the D4 contract: it may merge, split, name, and
-  narrate seed clusters, but never add a member node.
-- Record `model_id` and `prompt_hash` in `snapshot` (already wired).
-- Keep `offline` as the CI/default path so tests stay credential-free and
-  deterministic.
-- Re-run the benchmark; the gate is `f1_delta_pp > 0` at `k=3`.
+- Respects the D4 contract: members come from the referenced seeds only; invented
+  `seed_ids` and node ids are dropped; ungrounded narrative is discarded.
+- `model_id` and `prompt_hash` recorded in `snapshot`.
+- `offline` stays the default/CI path; its output is byte-identical after the
+  refactor (verified: structural content unchanged, only the provenance snapshot
+  tracks HEAD).
+- Exposed via `make architecture-handbook-synthesize HANDBOOK_BACKEND=claude`.
+
+**Still open — the benchmark has NOT been re-run against a live model.** This
+build sandbox's network policy blocks `api.anthropic.com`, so `_default_complete`
+is unexercised end-to-end (the whole pipeline is tested via an injected
+completion fn). Remaining work:
+- Run `HANDBOOK_BACKEND=claude` synthesis in an environment with `ANTHROPIC_API_KEY`.
+- Re-run `packages/agent-scenarios/scenarios/behavior-localization/benchmark.py`
+  against the LLM-synthesized handbook; the D7 gate is `f1_delta_pp > 0` at `k=3`.
+- Verify `_default_complete` against the installed SDK version (the `output_config`
+  / `thinking` kwargs assume the current API surface).
 
 ## 2. Fix cluster granularity (bimodal distribution)
 
