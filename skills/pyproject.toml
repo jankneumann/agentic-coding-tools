@@ -105,6 +105,10 @@ testpaths = [
     # top-level scripts/models.py). Fixing that is issue-tracked separately; this
     # entry closes only the directory this change depends on.
     "tests/validate-feature",
+    # cite-requirements walkthrough (trace-requirements-to-contracts): the
+    # deterministic text-manipulation core; resolution glue needs the gen-eval
+    # venv and is exercised by use, not by this suite.
+    "tests/cite-requirements",
     "expedite/scripts/tests",
 ]
 

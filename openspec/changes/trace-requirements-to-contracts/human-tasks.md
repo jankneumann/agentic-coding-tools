@@ -10,6 +10,18 @@ Nothing here is coding. It is triage, and its output is YAML.
 
 ---
 
+## Guided mode (recommended for Track A)
+
+`skills/cite-requirements/` walks Track A one judgement call at a time: each
+card quotes the contract entry and every effective requirement **verbatim**
+(with `file:line` provenance), appends clearly-fenced interpretation
+(including semantic annotations from two cheap models of different vendors),
+records your decision, and writes the YAML itself — fail-closed on
+unresolvable ids, double decisions, and blank reasons, with every decision
+journalled to `traceability-decisions.yaml`. Invoke it with this change-id;
+see its SKILL.md. The manual commands below remain valid and are what the
+skill runs under the hood.
+
 ## Shared setup
 
 All gate commands run from `packages/gen-eval`:
