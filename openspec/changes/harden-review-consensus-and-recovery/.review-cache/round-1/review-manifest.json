@@ -1,0 +1,247 @@
+{
+  "schema_version": 2,
+  "change_id": "harden-review-consensus-and-recovery",
+  "review_type": "implementation",
+  "created_at": "2026-08-07T07:49:07Z",
+  "target": "harden-review-consensus-and-recovery",
+  "dispatches": [
+    {
+      "logical_request_id": "implementation:antigravity-local",
+      "requested_vendor": "antigravity",
+      "requested_routing": {
+        "archetype": "reviewer",
+        "tier": "premium",
+        "phase": null,
+        "source": "coordinator_local",
+        "fallback_reason": null
+      },
+      "deadline_at": "2026-08-07T07:53:55.775102+00:00",
+      "budget": {
+        "corrective_max": 1,
+        "replacement_max": 1,
+        "fallback_models": [
+          "gemini-3.6-flash-low"
+        ]
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "vendor": "antigravity",
+          "transport": "cli",
+          "reason": "initial",
+          "terminal": true,
+          "success": false,
+          "elapsed_seconds": 0.3527599999215454,
+          "parser_stage": null,
+          "validation_status": "not_reached",
+          "error_class": "unknown",
+          "error_detail": "ERROR: logging before google.Init: E0807 03:48:56.114320       1 main.go:352] Failed to redirect output for CLI: creating log file: opening log file: open /Users/jankneumann/.gemini/antigravity-cli/log/cli-20260807_034856.log: operation not permitted\nERROR: logging before google.Init: I0807 03:48:56.116774       1 resolver.go:85] Model ID gemini-3.6-flash-high not in local config, defaulting to CCPA\nERROR: logging before google.Init: I0807 03:48:56.116778       1 resolver.go:111] Model resolved ",
+          "stdout_excerpt": null,
+          "stderr_excerpt": null,
+          "diagnostics_truncated": false,
+          "resolved_execution": {
+            "model": "gemini-3.6-flash-high",
+            "requested_thinking": null,
+            "applied_thinking": null,
+            "thinking_translation": "not_requested",
+            "fallback_reason": null
+          }
+        }
+      ],
+      "terminal_outcome": "unknown",
+      "terminal_vendor": "antigravity",
+      "quorum_eligible": false
+    },
+    {
+      "logical_request_id": "implementation:claude-local",
+      "requested_vendor": "claude_code",
+      "requested_routing": {
+        "archetype": "reviewer",
+        "tier": "premium",
+        "phase": null,
+        "source": "coordinator_local",
+        "fallback_reason": null
+      },
+      "deadline_at": "2026-08-07T07:53:56.141135+00:00",
+      "budget": {
+        "corrective_max": 1,
+        "replacement_max": 1,
+        "fallback_models": [
+          "claude-sonnet-4-6"
+        ]
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "vendor": "claude_code",
+          "transport": "cli",
+          "reason": "initial",
+          "terminal": true,
+          "success": false,
+          "elapsed_seconds": 5.030457624932751,
+          "parser_stage": null,
+          "validation_status": "not_reached",
+          "error_class": "unknown",
+          "error_detail": "Unknown error",
+          "stdout_excerpt": null,
+          "stderr_excerpt": null,
+          "diagnostics_truncated": false,
+          "resolved_execution": {
+            "model": "opus",
+            "requested_thinking": null,
+            "applied_thinking": null,
+            "thinking_translation": "not_requested",
+            "fallback_reason": null
+          }
+        }
+      ],
+      "terminal_outcome": "unknown",
+      "terminal_vendor": "claude_code",
+      "quorum_eligible": false
+    },
+    {
+      "logical_request_id": "implementation:codex-local",
+      "requested_vendor": "codex",
+      "requested_routing": {
+        "archetype": "reviewer",
+        "tier": "premium",
+        "phase": null,
+        "source": "coordinator_local",
+        "fallback_reason": null
+      },
+      "deadline_at": "2026-08-07T07:54:01.174562+00:00",
+      "budget": {
+        "corrective_max": 1,
+        "replacement_max": 1,
+        "fallback_models": [
+          "gpt-5.4",
+          "gpt-5.4-mini"
+        ]
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "vendor": "codex",
+          "transport": "cli",
+          "reason": "initial",
+          "terminal": true,
+          "success": false,
+          "elapsed_seconds": 0.24896970798727125,
+          "parser_stage": null,
+          "validation_status": "not_reached",
+          "error_class": "unknown",
+          "error_detail": "WARNING: proceeding, even though we could not create PATH aliases: Operation not permitted (os error 1)\nReading additional input from stdin...\nError: failed to initialize in-process app-server client: Operation not permitted (os error 1)\n",
+          "stdout_excerpt": null,
+          "stderr_excerpt": null,
+          "diagnostics_truncated": false,
+          "resolved_execution": {
+            "model": "gpt-5.6-sol",
+            "requested_thinking": "medium",
+            "applied_thinking": "model_reasoning_effort=medium",
+            "thinking_translation": "applied",
+            "fallback_reason": null
+          }
+        }
+      ],
+      "terminal_outcome": "unknown",
+      "terminal_vendor": "codex",
+      "quorum_eligible": false
+    },
+    {
+      "logical_request_id": "implementation:grok-local",
+      "requested_vendor": "grok",
+      "requested_routing": {
+        "archetype": "reviewer",
+        "tier": "premium",
+        "phase": null,
+        "source": "coordinator_local",
+        "fallback_reason": null
+      },
+      "deadline_at": "2026-08-07T07:54:01.426646+00:00",
+      "budget": {
+        "corrective_max": 1,
+        "replacement_max": 1,
+        "fallback_models": []
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "vendor": "grok",
+          "transport": "cli",
+          "reason": "initial",
+          "terminal": true,
+          "success": false,
+          "elapsed_seconds": 4.669827000005171,
+          "parser_stage": null,
+          "validation_status": "not_reached",
+          "error_class": "unknown",
+          "error_detail": "Error: Couldn't create session: Permission denied.: {\n  \"code\": \"FS_PERMISSION_DENIED\",\n  \"detail\": \"Operation not permitted (os error 1)\"\n}\n",
+          "stdout_excerpt": null,
+          "stderr_excerpt": null,
+          "diagnostics_truncated": false,
+          "resolved_execution": {
+            "model": "grok-4.5",
+            "requested_thinking": "high",
+            "applied_thinking": "high",
+            "thinking_translation": "applied",
+            "fallback_reason": null
+          }
+        }
+      ],
+      "terminal_outcome": "unknown",
+      "terminal_vendor": "grok",
+      "quorum_eligible": false
+    },
+    {
+      "logical_request_id": "implementation:pi-local",
+      "requested_vendor": "pi",
+      "requested_routing": {
+        "archetype": "reviewer",
+        "tier": "premium",
+        "phase": null,
+        "source": "coordinator_local",
+        "fallback_reason": null
+      },
+      "deadline_at": "2026-08-07T07:54:06.105732+00:00",
+      "budget": {
+        "corrective_max": 1,
+        "replacement_max": 1,
+        "fallback_models": [
+          "qwen/qwen3-coder-flash"
+        ]
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "vendor": "pi",
+          "transport": "cli",
+          "reason": "initial",
+          "terminal": true,
+          "success": false,
+          "elapsed_seconds": 0.8944705839967355,
+          "parser_stage": null,
+          "validation_status": "not_reached",
+          "error_class": "unknown",
+          "error_detail": "No API key found for openrouter.\n\nUse /login to log into a provider via OAuth or API key. See:\n  /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/docs/providers.md\n  /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/docs/models.md\n",
+          "stdout_excerpt": null,
+          "stderr_excerpt": null,
+          "diagnostics_truncated": false,
+          "resolved_execution": {
+            "model": "qwen/qwen3-coder-plus",
+            "requested_thinking": null,
+            "applied_thinking": null,
+            "thinking_translation": "not_requested",
+            "fallback_reason": null
+          }
+        }
+      ],
+      "terminal_outcome": "unknown",
+      "terminal_vendor": "pi",
+      "quorum_eligible": false
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 0,
+  "round_state": "final",
+  "vendors": []
+}
