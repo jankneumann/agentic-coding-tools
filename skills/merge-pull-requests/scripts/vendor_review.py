@@ -200,7 +200,7 @@ Review checklist:
 
 For each finding, output JSON conforming to this structure:
 {{
-  "review_type": "pr",
+  "review_type": "implementation",
   "target": "PR #{pr_number}",
   "reviewer_vendor": "<your-vendor-name>",
   "findings": [
@@ -211,6 +211,8 @@ For each finding, output JSON conforming to this structure:
       "description": "What the issue is",
       "resolution": "How to fix it",
       "disposition": "fix|accept",
+      "axis": "correctness|readability|architecture|security|performance",
+      "severity": "critical|nit|optional|fyi|none",
       "file_path": "path/to/file",
       "line_range": {{"start": 10, "end": 20}}
     }}
@@ -268,7 +270,10 @@ def dispatch_vendor_reviews(
             ConsensusSynthesizer,
             Finding,
             VendorResult,
+            validate_consensus_payload,
         )
+        from review_attempts import sanitize_diagnostic, validate_review_attempt_chain
+        from review_result_policy import is_quorum_eligible
     except ImportError as e:
         return {
             "dispatched": False,
@@ -313,7 +318,7 @@ def dispatch_vendor_reviews(
     head_before = capture_head()
 
     results: list[ReviewResult] = orch.dispatch_and_wait(
-        review_type="pr",
+        review_type="implementation",
         dispatch_mode="review",
         prompt=prompt,
         cwd=cwd,
@@ -334,26 +339,59 @@ def dispatch_vendor_reviews(
     # Collect successful vendor results for consensus
     vendor_results: list[VendorResult] = []
     vendor_summaries = []
+    seen_terminal_vendors: set[str] = set()
     for r in results:
+        logical_result = {
+            "logical_request_id": r.logical_request_id,
+            "requested_vendor": r.requested_vendor,
+            "requested_routing": r.requested_routing,
+            "deadline_at": r.deadline_at,
+            "budget": r.budget,
+            "attempts": r.attempts,
+            "terminal_outcome": r.terminal_outcome,
+            "terminal_vendor": r.terminal_vendor,
+            "quorum_eligible": r.quorum_eligible,
+        }
+        valid_chain = False
+        if r.attempts:
+            try:
+                validate_review_attempt_chain(logical_result)
+                valid_chain = True
+            except (TypeError, ValueError):
+                pass
+        eligible = valid_chain and is_quorum_eligible(logical_result)
+        terminal_vendor = r.terminal_vendor if isinstance(r.terminal_vendor, str) else r.vendor
+        distinct_eligible = eligible and terminal_vendor not in seen_terminal_vendors
+        if distinct_eligible:
+            seen_terminal_vendors.add(terminal_vendor)
+        sanitized_error, _error_truncated = sanitize_diagnostic(r.error)
         summary = {
             "vendor": r.vendor,
-            "success": r.success,
+            "success": distinct_eligible,
             "model_used": r.model_used,
             "elapsed_seconds": r.elapsed_seconds,
-            "error": r.error,
+            "error": sanitized_error,
             "findings_count": len(r.findings.get("findings", [])) if r.findings else 0,
+            "logical_request_id": r.logical_request_id if valid_chain else None,
+            "requested_vendor": r.requested_vendor if valid_chain else None,
+            "requested_routing": dict(r.requested_routing or {}) if valid_chain else {},
+            "attempts": list(r.attempts) if valid_chain else [],
+            "terminal_outcome": r.terminal_outcome if valid_chain else None,
+            "terminal_vendor": r.terminal_vendor if valid_chain else None,
+            "quorum_eligible": eligible,
         }
         vendor_summaries.append(summary)
 
-        if r.success and r.findings:
+        if distinct_eligible and r.findings is not None:
             findings = [
-                Finding.from_dict(f, vendor=r.vendor)
+                Finding.from_dict(f, vendor=terminal_vendor)
                 for f in r.findings.get("findings", [])
             ]
             vendor_results.append(VendorResult(
-                vendor=r.vendor,
+                vendor=terminal_vendor,
                 findings=findings,
                 elapsed_seconds=r.elapsed_seconds,
+                logical_result=logical_result,
             ))
 
     # Synthesize consensus if we have results
@@ -361,11 +399,12 @@ def dispatch_vendor_reviews(
     if vendor_results:
         synth = ConsensusSynthesizer(quorum=1)  # quorum=1 since single vendor is acceptable for PR review
         report = synth.synthesize(
-            review_type="pr",
+            review_type="implementation",
             target=f"PR #{pr_number}",
             vendor_results=vendor_results,
         )
         consensus_dict = synth.to_dict(report)
+        validate_consensus_payload(consensus_dict)
 
     return {
         "dispatched": True,

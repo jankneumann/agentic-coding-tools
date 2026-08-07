@@ -50,6 +50,7 @@
         "vendor": {"type": "string", "minLength": 1},
         "agent_id": {"type": "string", "minLength": 1},
         "success": {"type": "boolean"},
+        "source_eligible": {"type": "boolean"},
         "findings_count": {"type": "integer", "minimum": 0},
         "elapsed_seconds": {"type": "number", "minimum": 0},
         "error": {"type": ["string", "null"]}

@@ -55,7 +55,7 @@ def _make_review_result(
     if success:
         result.logical_request_id = f"implementation:{vendor}"
         result.requested_vendor = vendor
-        result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None}
+        result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None, "source": "test", "fallback_reason": None}
         result.deadline_at = "2026-08-01T00:00:00+00:00"
         result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
         result.attempts = [{
@@ -74,7 +74,7 @@ def _make_review_result(
     else:
         result.logical_request_id = f"implementation:{vendor}"
         result.requested_vendor = vendor
-        result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None}
+        result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None, "source": "test", "fallback_reason": None}
         result.deadline_at = "2026-08-01T00:00:00+00:00"
         result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
         result.attempts = [{
@@ -108,8 +108,8 @@ def _make_consensus_report(
         review_type="implementation",
         target="test-change",
         reviewers=[
-            {"vendor": "vendor_a", "agent_id": "vendor_a", "success": True, "elapsed_seconds": 0.0},
-            {"vendor": "vendor_b", "agent_id": "vendor_b", "success": True, "elapsed_seconds": 0.0},
+            {"vendor": "vendor_a", "agent_id": "vendor_a", "success": True, "source_eligible": True, "elapsed_seconds": 0.0},
+            {"vendor": "vendor_b", "agent_id": "vendor_b", "success": True, "source_eligible": True, "elapsed_seconds": 0.0},
         ],
         quorum_met=quorum_met,
         quorum_requested=2,
@@ -132,23 +132,38 @@ def _make_consensus_finding(
     disposition: str = "fix",
 ) -> ConsensusFinding:
     """Create a ConsensusFinding."""
+    disagreement = status == "disagreement"
+    policy_status = {
+        "confirmed": "confirmed",
+        "unconfirmed": "provisional",
+        "disagreement": "disagreement",
+    }[status]
+    dispositions = (
+        {"vendor_a": "fix", "vendor_b": "accept"}
+        if disagreement
+        else {"vendor_a": disposition}
+    )
+    integration_blocking = disagreement or status == "confirmed"
+    convergence_blocking = disagreement or criticality in {"medium", "high", "critical"}
     return ConsensusFinding(
         id=id,
         status=status,
-        policy_status={"confirmed": "confirmed", "unconfirmed": "provisional", "disagreement": "disagreement"}[status],
+        policy_status=policy_status,
         primary_vendor="vendor_a",
         primary_finding_id=id,
-        matched_findings=[],
+        matched_findings=([
+            {"vendor": "vendor_b", "finding_id": id + 100},
+        ] if disagreement else []),
         match_score=0.9,
         agreed_type="correctness",
         agreed_criticality=criticality,
-        recommended_disposition=disposition,
+        recommended_disposition="escalate" if disagreement else disposition,
         description=f"Test finding {id}",
         group_id=f"cg-{id:016x}",
-        vendor_dispositions={"vendor_a": disposition},
-        integration_blocking=True,
-        convergence_blocking=True,
-        effective_blocking=True,
+        vendor_dispositions=dispositions,
+        integration_blocking=integration_blocking,
+        convergence_blocking=convergence_blocking,
+        effective_blocking=integration_blocking or convergence_blocking,
     )
 
 
@@ -297,7 +312,7 @@ class TestQuorumLost:
         invalid = _make_review_result("vendor_a", success=True, findings=[])
         invalid.logical_request_id = "implementation:vendor_a"
         invalid.requested_vendor = "vendor_a"
-        invalid.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None}
+        invalid.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None, "source": "test", "fallback_reason": None}
         invalid.deadline_at = "2026-08-01T00:00:00+00:00"
         invalid.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
         invalid.attempts = [{

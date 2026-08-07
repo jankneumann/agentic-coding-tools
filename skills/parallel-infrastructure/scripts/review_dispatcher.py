@@ -44,6 +44,7 @@ from review_attempts import (
     select_replacement_vendor,
     validate_review_attempt_chain,
 )
+from review_result_policy import is_quorum_eligible
 from review_routing import RoutingContext, Resolver, resolve_review_routing, translate_thinking
 
 logger = logging.getLogger(__name__)
@@ -460,11 +461,22 @@ class CliVendorAdapter:
     @staticmethod
     def _find_review_findings_schema() -> Path:
         """Locate a repository schema in both source and copied-skill installs."""
+        portable = (
+            Path(__file__).resolve().parent.parent
+            / "install_assets" / "openspec" / "schemas" / "review-findings.schema.json"
+        )
+        if portable.is_file():
+            return portable
         roots = [Path.cwd(), *Path(__file__).resolve().parents]
         for root in roots:
-            candidate = root / "openspec" / "schemas" / "review-findings.schema.json"
-            if candidate.is_file():
-                return candidate
+            for relative in (
+                Path("skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json"),
+                Path("install_assets/openspec/schemas/review-findings.schema.json"),
+                Path("openspec/schemas/review-findings.schema.json"),
+            ):
+                candidate = root / relative
+                if candidate.is_file():
+                    return candidate
         raise FileNotFoundError("review-findings.schema.json is unavailable")
 
     @staticmethod
@@ -1603,6 +1615,8 @@ class ReviewOrchestrator:
             "archetype": routing.archetype if routing else None,
             "tier": routing.tier if routing else None,
             "phase": routing.phase if routing else None,
+            "source": routing.source if routing else "static",
+            "fallback_reason": routing.fallback_reason if routing else "routing_not_requested",
         }
 
     @staticmethod
@@ -1761,6 +1775,7 @@ class ReviewOrchestrator:
                 fallback_models=[],
                 timeout_seconds=timeout_seconds,
                 requested_routing=self._routing_payload(routing),
+                invoke_owns_deadline=True,
                 invoke=lambda *_args: {
                     "transport": "sdk",
                     "validation_status": "not_reached",
@@ -1899,6 +1914,7 @@ class ReviewOrchestrator:
             timeout_seconds=timeout_seconds,
             requested_routing=requested_routing,
             retain_terminal_response=True,
+            invoke_owns_deadline=True,
         )
         # The core owns bounded retries; the adapter owns the provider-specific
         # translation recorded on every concrete execution.
@@ -1970,6 +1986,7 @@ class ReviewOrchestrator:
             timeout_seconds=timeout_seconds,
             requested_routing=requested_routing,
             retain_terminal_response=True,
+            invoke_owns_deadline=True,
         )
         for attempt in chain["attempts"]:
             execution = attempt["resolved_execution"]
@@ -2133,6 +2150,7 @@ class ReviewOrchestrator:
                             fallback_models=[],
                             timeout_seconds=timeout_seconds,
                             requested_routing=self._routing_payload(routing),
+                            invoke_owns_deadline=True,
                             invoke=lambda *_args: {
                                 "transport": "sdk",
                                 "validation_status": "not_reached",
@@ -2505,7 +2523,7 @@ def main() -> int:
     def checkpoint_terminal(_result: ReviewResult, partial: list[ReviewResult]) -> None:
         vendors_index: list[dict[str, Any]] = []
         for item in partial:
-            eligible = item.quorum_eligible if item.attempts else item.success
+            eligible = is_quorum_eligible(item)
             if eligible and item.findings is not None:
                 findings_array = item.findings.get("findings", [])
                 _cf_write_vendor_findings(
@@ -2546,7 +2564,7 @@ def main() -> int:
     # caller while preserving everything legacy callers parse.
     vendors_index: list[dict[str, Any]] = []
     for result in results:
-        quorum_eligible = result.quorum_eligible if result.attempts else result.success
+        quorum_eligible = is_quorum_eligible(result)
         if quorum_eligible and result.findings:
             findings_array = result.findings.get("findings", [])
             _cf_write_vendor_findings(
@@ -2580,7 +2598,7 @@ def main() -> int:
     )
     print(f"\nManifest: {manifest_path}")
 
-    succeeded = sum(1 for r in results if (r.quorum_eligible if r.attempts else r.success))
+    succeeded = sum(1 for result in results if is_quorum_eligible(result))
     print(f"Results: {succeeded}/{len(results)} vendors succeeded")
     return 0 if succeeded > 0 else 1
 

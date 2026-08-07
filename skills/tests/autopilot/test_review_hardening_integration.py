@@ -14,6 +14,17 @@ from review_attempts import run_vendor_recovery
 from review_result_policy import is_quorum_eligible
 
 
+def _eligible_chain(vendor: str) -> dict[str, object]:
+    return run_vendor_recovery(
+        logical_request_id=f"integration:{vendor}",
+        vendor=vendor,
+        primary_model="test-model",
+        fallback_models=[],
+        timeout_seconds=30,
+        invoke=lambda *_args: {"validation_status": "schema_valid"},
+    )
+
+
 def test_unmatched_actionable_finding_cannot_create_a_false_zero() -> None:
     fixture = Path(__file__).parent / "fixtures" / "review-hardening" / "false-zero.json"
     data = json.loads(fixture.read_text())
@@ -23,8 +34,16 @@ def test_unmatched_actionable_finding_cannot_create_a_false_zero() -> None:
         review_type="implementation",
         target="review-hardening",
         vendor_results=[
-            VendorResult(vendor="codex", findings=[finding]),
-            VendorResult(vendor="grok", findings=[]),
+            VendorResult(
+                vendor="codex",
+                findings=[finding],
+                logical_result=_eligible_chain("codex"),
+            ),
+            VendorResult(
+                vendor="grok",
+                findings=[],
+                logical_result=_eligible_chain("grok"),
+            ),
         ],
     )
 

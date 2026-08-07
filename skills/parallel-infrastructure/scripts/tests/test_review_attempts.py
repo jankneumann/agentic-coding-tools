@@ -64,7 +64,13 @@ def _chain(attempts: list[dict[str, object]]) -> dict[str, object]:
     return {
         "logical_request_id": "round-1-alpha",
         "requested_vendor": "alpha",
-        "requested_routing": {"archetype": "reviewer", "tier": "premium", "phase": "review"},
+        "requested_routing": {
+            "archetype": "reviewer",
+            "tier": "premium",
+            "phase": "review",
+            "source": "test",
+            "fallback_reason": None,
+        },
         "deadline_at": (datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat(),
         "budget": {"corrective_max": 1, "replacement_max": 1, "fallback_models": ["fallback"]},
         "attempts": attempts,
@@ -213,6 +219,98 @@ def test_blocking_invoke_cannot_hold_recovery_past_remaining_deadline() -> None:
     assert result["terminal_outcome"] == "timeout"
     assert result["quorum_eligible"] is False
     assert not any(thread.name == "review-attempt-invoke" for thread in threading.enumerate())
+
+
+def test_worker_thread_rejects_unmanaged_invocation_without_forking() -> None:
+    observed: dict[str, object] = {}
+    gate = threading.Lock()
+    gate.acquire()
+    invoked = threading.Event()
+
+    def unsafe_invoke(*_args: object) -> dict[str, object]:
+        invoked.set()
+        with gate:
+            return {"validation_status": "schema_valid"}
+
+    def run() -> None:
+        started = time.monotonic()
+        observed["result"] = run_vendor_recovery(
+            logical_request_id="worker-blocking",
+            vendor="alpha",
+            primary_model="primary",
+            fallback_models=[],
+            timeout_seconds=0.3,
+            invoke=unsafe_invoke,
+        )
+        observed["elapsed"] = time.monotonic() - started
+
+    worker = threading.Thread(target=run, name="review-recovery-caller")
+    worker.start()
+    worker.join(timeout=0.15)
+    gate.release()
+
+    assert not worker.is_alive()
+    assert float(observed["elapsed"]) < 0.15
+    assert observed["result"]["terminal_outcome"] == "configuration"
+    assert not invoked.is_set()
+
+
+def test_worker_thread_receives_large_response_without_false_timeout() -> None:
+    observed: dict[str, object] = {}
+
+    def run() -> None:
+        observed["result"] = run_vendor_recovery(
+            logical_request_id="worker-large-response",
+            vendor="alpha",
+            primary_model="primary",
+            fallback_models=[],
+            timeout_seconds=1,
+            invoke_owns_deadline=True,
+            invoke=lambda *_args: {
+                "validation_status": "schema_valid",
+                "stdout": "x" * (128 * 1024),
+            },
+        )
+
+    worker = threading.Thread(target=run, name="review-large-response-caller")
+    worker.start()
+    worker.join(timeout=2)
+
+    assert not worker.is_alive()
+    assert observed["result"]["terminal_outcome"] == "success"
+
+
+def test_worker_thread_unmanaged_invocation_cannot_spawn_descendant(tmp_path: Path) -> None:
+    pid_file = tmp_path / "descendant.pid"
+    observed: dict[str, object] = {}
+
+    def invoke(*_args: object) -> dict[str, object]:
+        child = subprocess.Popen([
+            sys.executable,
+            "-c",
+            "import time; time.sleep(10)",
+        ])
+        pid_file.write_text(str(child.pid), encoding="utf-8")
+        time.sleep(10)
+        return {"validation_status": "schema_valid"}
+
+    def run() -> None:
+        observed["result"] = run_vendor_recovery(
+            logical_request_id="worker-descendant",
+            vendor="alpha",
+            primary_model="primary",
+            fallback_models=[],
+            timeout_seconds=0.2,
+            invoke=invoke,
+        )
+
+    worker = threading.Thread(target=run, name="review-descendant-caller")
+    worker.start()
+    worker.join(timeout=1)
+
+    assert not worker.is_alive()
+    assert observed["result"]["terminal_outcome"] == "configuration"
+    assert not pid_file.exists()
 
 
 @pytest.mark.parametrize("terminal_class", ["transient", "timeout", "configuration", "unknown", "auth"])

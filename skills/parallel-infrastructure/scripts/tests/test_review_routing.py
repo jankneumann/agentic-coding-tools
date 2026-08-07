@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from review_routing import RoutingContext, _local_routing, resolve_review_routing, translate_thinking
+from types import SimpleNamespace
+
+from review_routing import (
+    RoutingContext,
+    _local_routing,
+    default_reviewer_resolver,
+    resolve_review_routing,
+    translate_thinking,
+)
 
 
 def _resolved(phase: str | None, vendor: str) -> RoutingContext:
@@ -61,6 +69,29 @@ def test_public_local_resolver_preserves_archetype_tier_and_provider_model() -> 
     assert result.archetype == "reviewer"
     assert result.tier == "premium"
     assert result.model == "qwen/qwen3-coder-plus"
+
+
+def test_http_resolver_derives_missing_canonical_tier(monkeypatch) -> None:
+    bridge = SimpleNamespace(
+        try_resolve_archetype_for_phase=lambda *_args, **_kwargs: {
+            "archetype": "reviewer",
+            "model": "gpt-test",
+            "thinking": "high",
+        },
+    )
+    spec = SimpleNamespace(
+        name="test_coordination_bridge",
+        loader=SimpleNamespace(exec_module=lambda _module: None),
+    )
+    monkeypatch.setattr("review_routing.importlib.util.spec_from_file_location", lambda *_args: spec)
+    monkeypatch.setattr("review_routing.importlib.util.module_from_spec", lambda _spec: bridge)
+
+    result = default_reviewer_resolver("IMPL_REVIEW", "codex")
+
+    assert result.archetype == "reviewer"
+    assert result.tier == "premium"
+    assert result.source == "coordinator_http"
+    assert result.fallback_reason == "tier_derived_from_archetype"
 
 
 def test_quick_mode_keeps_static_routing() -> None:

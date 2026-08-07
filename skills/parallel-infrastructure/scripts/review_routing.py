@@ -29,6 +29,15 @@ class RoutingContext:
 
 Resolver = Callable[[str | None, str], RoutingContext]
 
+_DEFAULT_ARCHETYPE_TIERS = {
+    "architect": "premium",
+    "reviewer": "premium",
+    "gatekeeper": "premium",
+    "implementer": "standard",
+    "analyst": "standard",
+    "runner": "economy",
+}
+
 
 def _load_local_resolver() -> object:
     """Load the coordinator's public resolver from a source checkout."""
@@ -59,6 +68,19 @@ def _local_routing(phase: str | None, vendor: str) -> RoutingContext:
     )
 
 
+def _canonical_tier(archetype_name: str | None) -> str | None:
+    if not archetype_name:
+        return None
+    try:
+        module = _load_local_resolver()
+        archetype = module.get_archetype(archetype_name)
+        if archetype is not None and archetype.model in module.ALL_MODEL_TIERS:
+            return str(archetype.model)
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
+    return _DEFAULT_ARCHETYPE_TIERS.get(archetype_name)
+
+
 def default_reviewer_resolver(phase: str | None, vendor: str) -> RoutingContext:
     """Resolve routing through the coordinator's portable public bridge.
 
@@ -77,13 +99,20 @@ def default_reviewer_resolver(phase: str | None, vendor: str) -> RoutingContext:
         spec.loader.exec_module(bridge)
         resolved = bridge.try_resolve_archetype_for_phase(phase or "IMPL_REVIEW", {}, provider=vendor)
         if isinstance(resolved, dict):
+            archetype_name = resolved.get("archetype") if isinstance(resolved.get("archetype"), str) else None
+            resolved_tier = resolved.get("tier") if isinstance(resolved.get("tier"), str) else None
+            tier = resolved_tier or _canonical_tier(archetype_name)
             return RoutingContext(
-                archetype=resolved.get("archetype") if isinstance(resolved.get("archetype"), str) else None,
-                tier=resolved.get("tier") if isinstance(resolved.get("tier"), str) else None,
+                archetype=archetype_name,
+                tier=tier,
                 phase=phase,
                 model=resolved.get("model") if isinstance(resolved.get("model"), str) else None,
                 thinking=resolved.get("thinking") if isinstance(resolved.get("thinking"), str) else None,
                 source="coordinator_http",
+                fallback_reason=(
+                    "tier_derived_from_archetype"
+                    if resolved_tier is None and tier is not None else None
+                ),
             )
     except (ImportError, OSError, RuntimeError, ValueError):
         pass

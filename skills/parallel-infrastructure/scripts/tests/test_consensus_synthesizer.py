@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -10,8 +11,9 @@ import consensus_synthesizer as consensus_module
 
 from consensus_synthesizer import (
     ConsensusSynthesizer,
+    ConsensusInputError,
     Finding,
-    VendorResult,
+    VendorResult as VendorResultModel,
     _jaccard,
     _paths_match,
     _tokenize,
@@ -45,6 +47,55 @@ def _finding(
         line_start=line_start, line_end=line_end,
         affected_symbol=affected_symbol, requirement_id=requirement_id,
     )
+
+
+def _logical_result(vendor: str, *, success: bool) -> dict[str, object]:
+    return {
+        "logical_request_id": f"test-{vendor}",
+        "requested_vendor": vendor,
+        "requested_routing": {
+            "archetype": "reviewer",
+            "tier": "premium",
+            "phase": "IMPL_REVIEW",
+            "source": "test",
+            "fallback_reason": None,
+        },
+        "deadline_at": "2026-08-05T00:01:00+00:00",
+        "budget": {"corrective_max": 1, "replacement_max": 1, "fallback_models": []},
+        "attempts": [{
+            "attempt_index": 1,
+            "vendor": vendor,
+            "transport": "cli",
+            "reason": "initial",
+            "terminal": True,
+            "success": success,
+            "elapsed_seconds": 0.1,
+            "parser_stage": "schema" if success else None,
+            "validation_status": "schema_valid" if success else "not_reached",
+            "error_class": None if success else "auth",
+            "error_detail": None if success else "unavailable",
+            "stdout_excerpt": None,
+            "stderr_excerpt": None,
+            "diagnostics_truncated": False,
+            "resolved_execution": {
+                "model": "test-model",
+                "requested_thinking": None,
+                "applied_thinking": None,
+                "thinking_translation": "not_requested",
+                "fallback_reason": None,
+            },
+        }],
+        "terminal_outcome": "success" if success else "auth",
+        "terminal_vendor": vendor,
+        "quorum_eligible": success,
+    }
+
+
+def VendorResult(*args: object, **kwargs: object) -> VendorResultModel:
+    vendor = str(kwargs.get("vendor", args[0] if args else "test"))
+    success = bool(kwargs.get("success", True))
+    kwargs.setdefault("logical_result", _logical_result(vendor, success=success))
+    return VendorResultModel(*args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +315,7 @@ class TestCrossVendorFormatSkew:
         """Vendors agreeing through format skew must produce confirmed findings."""
         synth = ConsensusSynthesizer()
         result = synth.synthesize(
-            review_type="pr",
+            review_type="implementation",
             target="PR #281",
             vendor_results=[
                 VendorResult(vendor="codex", findings=[
@@ -300,6 +351,115 @@ class TestCrossVendorFormatSkew:
 # ---------------------------------------------------------------------------
 
 class TestConsensusSynthesizer:
+    def test_success_only_vendor_result_is_audit_only(self) -> None:
+        report = ConsensusSynthesizer(quorum=1).synthesize(
+            "implementation",
+            "target",
+            [VendorResultModel(vendor="legacy", findings=[_finding(vendor="legacy")])],
+        )
+
+        assert report.quorum_received == 0
+        assert report.consensus_findings == []
+
+    def test_duplicate_wrappers_for_one_terminal_vendor_count_once(self) -> None:
+        first_chain = _logical_result("codex", success=True)
+        first_chain["logical_request_id"] = "slot-alpha"
+        second_chain = _logical_result("codex", success=True)
+        second_chain["logical_request_id"] = "slot-beta"
+        finding = _finding(vendor="codex")
+
+        report = ConsensusSynthesizer(quorum=2).synthesize(
+            "implementation",
+            "target",
+            [
+                VendorResultModel(vendor="alpha", findings=[finding], logical_result=first_chain),
+                VendorResultModel(vendor="beta", findings=[finding], logical_result=second_chain),
+            ],
+        )
+
+        assert report.quorum_received == 1
+        assert report.quorum_met is False
+        assert [reviewer["vendor"] for reviewer in report.reviewers if reviewer["success"]] == ["codex"]
+
+    def test_duplicate_logical_request_ids_are_rejected(self) -> None:
+        chain = _logical_result("codex", success=True)
+
+        with pytest.raises(ConsensusInputError, match="duplicate logical review request"):
+            ConsensusSynthesizer().synthesize(
+                "implementation",
+                "target",
+                [
+                    VendorResultModel(
+                        vendor="alpha",
+                        findings=[_finding(vendor="codex")],
+                        logical_result=chain,
+                    ),
+                    VendorResultModel(
+                        vendor="beta",
+                        findings=[_finding(vendor="codex")],
+                        logical_result=chain,
+                    ),
+                ],
+            )
+
+    def test_requested_quorum_uses_logical_slots_not_wrapper_names(self) -> None:
+        codex = _logical_result("codex", success=True)
+        codex["logical_request_id"] = "slot-codex"
+        grok = _logical_result("grok", success=True)
+        grok["logical_request_id"] = "slot-grok"
+
+        report = ConsensusSynthesizer(quorum=2).synthesize(
+            "implementation",
+            "target",
+            [
+                VendorResultModel(vendor="same-wrapper", findings=[], logical_result=codex),
+                VendorResultModel(vendor="same-wrapper", findings=[], logical_result=grok),
+            ],
+        )
+
+        assert report.quorum_requested == 2
+        assert report.quorum_received == 2
+        assert report.quorum_met is True
+
+    def test_manifest_loader_indexes_only_eligible_terminal_vendors(self, tmp_path: Path) -> None:
+        eligible = _logical_result("codex", success=True)
+        ineligible = _logical_result("grok", success=False)
+        manifest = tmp_path / "review-manifest.json"
+        manifest.write_text(
+            json.dumps({"dispatches": [ineligible, eligible]}),
+            encoding="utf-8",
+        )
+
+        indexed = consensus_module._load_manifest_logical_results(manifest)
+
+        assert indexed == {"codex": [eligible]}
+
+    def test_cli_counts_manifest_slot_with_zero_findings(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        eligible = _logical_result("codex", success=True)
+        (tmp_path / "review-manifest.json").write_text(
+            json.dumps({"dispatches": [eligible]}),
+            encoding="utf-8",
+        )
+        output = tmp_path / "consensus.json"
+        monkeypatch.setattr(sys, "argv", [
+            "consensus_synthesizer.py",
+            "--review-type", "implementation",
+            "--target", "target",
+            "--input-dir", str(tmp_path),
+            "--output", str(output),
+            "--quorum", "1",
+        ])
+
+        assert consensus_module.main() == 0
+        payload = json.loads(output.read_text(encoding="utf-8"))
+        assert payload["quorum_received"] == 1
+        assert payload["quorum_met"] is True
+        assert payload["summary"]["total_unique_findings"] == 0
+
     def test_matching_total_work_is_bounded(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(consensus_module, "MAX_MATCH_COMPARISONS", 1)
         findings = [
@@ -539,6 +699,101 @@ class TestConsensusSynthesizer:
         ])
         assert forward.consensus_findings[0].group_id == reverse.consensus_findings[0].group_id
 
+    def test_grouping_is_stable_when_vendor_identities_are_permuted(self) -> None:
+        concerns = [
+            _finding(id=1, description="alpha beta gamma delta"),
+            _finding(id=2, description="alpha beta gamma epsilon"),
+            _finding(id=3, description="beta gamma epsilon zeta"),
+        ]
+
+        def synthesize(vendors: tuple[str, str, str]) -> list[tuple[str, tuple[str, ...]]]:
+            results = [
+                VendorResult(
+                    vendor=vendor,
+                    findings=[Finding(**{**concern.__dict__, "vendor": vendor})],
+                )
+                for vendor, concern in zip(vendors, concerns, strict=True)
+            ]
+            report = ConsensusSynthesizer(match_threshold=0.45).synthesize(
+                "implementation", "target", results,
+            )
+            return sorted(
+                (finding.group_id, tuple(finding.concern_fingerprints))
+                for finding in report.consensus_findings
+            )
+
+        assert synthesize(("alpha", "beta", "gamma")) == synthesize(("gamma", "alpha", "beta"))
+
+    def test_fingerprint_is_stable_across_absolute_and_relative_paths(self) -> None:
+        relative = _finding(file_path="skills/example/check.py", line_start=9)
+        absolute = _finding(file_path="/tmp/repo/skills/example/check.py", line_start=9)
+
+        assert ConsensusSynthesizer._concern_fingerprint(relative) == ConsensusSynthesizer._concern_fingerprint(absolute)
+
+    def test_duplicate_adjudication_groups_are_rejected_before_mutation(self) -> None:
+        synth = ConsensusSynthesizer()
+        report = synth.synthesize(
+            "implementation", "target", [VendorResult(vendor="codex", findings=[_finding()])],
+        )
+        finding = report.consensus_findings[0]
+        first = {
+            "group_id": finding.group_id,
+            "concern_fingerprints": finding.concern_fingerprints,
+            "adjudication": {
+                "status": "false_positive",
+                "rationale": "verified out of scope",
+                "evidence": ["scope-proof.json"],
+            },
+            "recorded_at": "2026-08-05T00:00:00Z",
+        }
+        second = {
+            **first,
+            "adjudication": {
+                "status": "fixed",
+                "rationale": "covered by regression",
+                "evidence": ["test-output.txt"],
+            },
+        }
+
+        with pytest.raises(ConsensusInputError, match="duplicate adjudication"):
+            synth._apply_adjudications(
+                report.consensus_findings,
+                adjudication_ledger=[first, second],
+                trusted_approval_resolver=None,
+            )
+
+        assert finding.adjudication == {"status": "unreviewed"}
+
+    def test_validator_rejects_duplicate_applied_adjudications(self) -> None:
+        synth = ConsensusSynthesizer()
+        report = synth.synthesize(
+            "implementation",
+            "target",
+            [VendorResult(vendor="codex", findings=[_finding()])],
+        )
+        finding = report.consensus_findings[0]
+        entry = {
+            "group_id": finding.group_id,
+            "concern_fingerprints": finding.concern_fingerprints,
+            "adjudication": {
+                "status": "false_positive",
+                "rationale": "verified out of scope",
+                "evidence": ["scope-proof.json"],
+            },
+            "recorded_at": "2026-08-05T00:00:00Z",
+        }
+        report = synth.synthesize(
+            "implementation",
+            "target",
+            [VendorResult(vendor="codex", findings=[_finding()])],
+            adjudication_ledger=[entry],
+        )
+        payload = synth.to_dict(report)
+        payload["applied_adjudications"].append(dict(entry))
+
+        with pytest.raises(ConsensusInputError, match="duplicate or inconsistent"):
+            validate_consensus_payload(payload)
+
     def test_criticality_takes_highest(self) -> None:
         """Confirmed finding uses highest criticality from matched vendors."""
         synth = ConsensusSynthesizer()
@@ -615,6 +870,83 @@ class TestConsensusSynthesizer:
         assert output.exists()
         data = json.loads(output.read_text())
         assert data["schema_version"] == 2
+
+    def test_write_report_preserves_trusted_accepted_risk(self, tmp_path: Path) -> None:
+        synth = ConsensusSynthesizer()
+        initial = synth.synthesize(
+            "implementation",
+            "target",
+            [VendorResult(vendor="codex", findings=[_finding()])],
+        )
+        finding = initial.consensus_findings[0]
+        ledger = [{
+            "group_id": finding.group_id,
+            "concern_fingerprints": finding.concern_fingerprints,
+            "adjudication": {
+                "status": "accepted_risk",
+                "rationale": "approved by the repository owner",
+                "authorization": {
+                    "actor_id": "owner",
+                    "actor_type": "human",
+                    "mechanism": "github_approval",
+                    "authorized_at": "2026-08-05T00:00:00Z",
+                    "approval_ref": "PR-123",
+                },
+            },
+            "recorded_at": "2026-08-05T00:00:00Z",
+        }]
+        def resolver(authorization: dict[str, object]) -> bool:
+            return authorization.get("approval_ref") == "PR-123"
+        report = synth.synthesize(
+            "implementation",
+            "target",
+            [VendorResult(vendor="codex", findings=[_finding()])],
+            adjudication_ledger=ledger,
+            trusted_approval_resolver=resolver,
+        )
+
+        output = tmp_path / "consensus.json"
+        synth.write_report(report, output, trusted_approval_resolver=resolver)
+
+        assert json.loads(output.read_text(encoding="utf-8"))["summary"]["blocking_count"] == 0
+
+    def test_validator_recomputes_policy_and_rejects_false_zero(self) -> None:
+        synth = ConsensusSynthesizer()
+        report = synth.synthesize(
+            "implementation", "target", [VendorResult(vendor="codex", findings=[_finding()])],
+        )
+        payload = synth.to_dict(report)
+        finding = payload["consensus_findings"][0]
+        finding["policy"] = {
+            "integration_blocking": False,
+            "convergence_blocking": False,
+            "effective_blocking": False,
+        }
+        for key in (
+            "integration_blocking_count",
+            "convergence_blocking_count",
+            "effective_blocking_count",
+            "blocking_count",
+        ):
+            payload["summary"][key] = 0
+
+        with pytest.raises(ConsensusInputError, match="canonical blocking policy"):
+            validate_consensus_payload(payload)
+
+    def test_validator_rejects_false_quorum_and_source_membership(self) -> None:
+        synth = ConsensusSynthesizer()
+        report = synth.synthesize(
+            "implementation", "target", [VendorResult(vendor="codex", findings=[_finding()])],
+        )
+        payload = synth.to_dict(report)
+        payload["reviewers"][0]["success"] = False
+        with pytest.raises(ConsensusInputError, match="eligible vendors"):
+            validate_consensus_payload(payload)
+
+        payload = synth.to_dict(report)
+        payload["consensus_findings"][0]["source_findings"][0]["vendor"] = "invented"
+        with pytest.raises(ConsensusInputError, match="source membership"):
+            validate_consensus_payload(payload)
 
     def test_finding_from_dict(self) -> None:
         """Finding.from_dict parses review-findings format."""

@@ -58,7 +58,7 @@ def _review_result(vendor: str, findings: list[dict[str, Any]]) -> ReviewResult:
     )
     result.logical_request_id = f"plan:{vendor}"
     result.requested_vendor = vendor
-    result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None}
+    result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None, "source": "test", "fallback_reason": None}
     result.deadline_at = "2026-08-01T00:00:00+00:00"
     result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
     result.attempts = [{
@@ -79,7 +79,16 @@ def _review_result(vendor: str, findings: list[dict[str, Any]]) -> ReviewResult:
 
 def _empty_consensus_report() -> dict[str, Any]:
     return {
-        "schema_version": 2, "review_type": "plan", "target": "test-feature", "reviewers": [],
+        "schema_version": 2,
+        "review_type": "plan",
+        "target": "test-feature",
+        "reviewers": [{
+            "vendor": "codex",
+            "agent_id": "codex",
+            "success": True,
+            "source_eligible": True,
+            "elapsed_seconds": 0.0,
+        }],
         "quorum_requested": 1, "quorum_received": 1, "quorum_met": True,
         "quorum": {"requested": 1, "received": 1, "minimum_required": 1,
                    "eligible_vendors": ["codex"], "met": True},
@@ -127,7 +136,7 @@ def _failed_review_result(vendor: str, error: str = "vendor unreachable") -> Rev
     )
     result.logical_request_id = f"plan:{vendor}"
     result.requested_vendor = vendor
-    result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None}
+    result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None, "source": "test", "fallback_reason": None}
     result.deadline_at = "2026-08-01T00:00:00+00:00"
     result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
     result.attempts = [{

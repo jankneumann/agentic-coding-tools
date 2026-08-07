@@ -218,7 +218,9 @@ def _review_results_to_vendor_results(
     vendor_results: list[VendorResult] = []
     for r in results:
         findings: list[Finding] = []
-        if r.success and r.findings:
+        logical_result = _logical_result_payload(r)
+        eligible = logical_result is not None and is_quorum_eligible(logical_result)
+        if eligible and r.findings:
             for f_data in r.findings.get("findings", []):
                 try:
                     findings.append(Finding.from_dict(f_data, vendor=r.vendor))
@@ -230,9 +232,10 @@ def _review_results_to_vendor_results(
         vendor_results.append(VendorResult(
             vendor=r.vendor,
             findings=findings,
-            success=r.success,
+            success=eligible,
             elapsed_seconds=r.elapsed_seconds,
             error=r.error,
+            logical_result=logical_result,
         ))
     return vendor_results
 

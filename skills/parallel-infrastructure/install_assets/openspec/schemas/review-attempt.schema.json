@@ -106,11 +106,13 @@
     "RequestedRouting": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["archetype", "tier", "phase"],
+      "required": ["archetype", "tier", "phase", "source", "fallback_reason"],
       "properties": {
         "archetype": {"type": ["string", "null"]},
         "tier": {"type": ["string", "null"]},
-        "phase": {"type": ["string", "null"]}
+        "phase": {"type": ["string", "null"]},
+        "source": {"type": ["string", "null"]},
+        "fallback_reason": {"type": ["string", "null"]}
       }
     },
     "ResolvedExecution": {

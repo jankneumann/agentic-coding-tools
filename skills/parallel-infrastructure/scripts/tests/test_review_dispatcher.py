@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -26,6 +28,49 @@ from review_routing import RoutingContext
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def test_requested_routing_preserves_resolution_provenance() -> None:
+    routing = RoutingContext(
+        archetype="reviewer",
+        tier="premium",
+        phase="IMPL_REVIEW",
+        model="gpt-test",
+        thinking="high",
+        source="coordinator_http",
+        fallback_reason="tier_missing_from_response",
+    )
+
+    assert ReviewOrchestrator._routing_payload(routing) == {
+        "archetype": "reviewer",
+        "tier": "premium",
+        "phase": "IMPL_REVIEW",
+        "source": "coordinator_http",
+        "fallback_reason": "tier_missing_from_response",
+    }
+
+
+def test_copied_install_validates_findings_from_colocated_schema(tmp_path: Path) -> None:
+    source = Path(__file__).resolve().parents[1]
+    copied_skill = tmp_path / "parallel-infrastructure"
+    shutil.copytree(source, copied_skill / "scripts")
+    shutil.copytree(source.parent / "install_assets", copied_skill / "install_assets")
+    program = (
+        "import json,sys; sys.path.insert(0, sys.argv[1]); "
+        "from review_dispatcher import CliVendorAdapter; "
+        "payload={'review_type':'implementation','target':'x','reviewer_vendor':'codex','findings':[]}; "
+        "assert CliVendorAdapter._validate_findings(payload)"
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", program, str(copied_skill / "scripts")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert completed.returncode == 0, completed.stderr
 
 def _cli_config(
     command: str = "codex",
@@ -205,13 +250,17 @@ class TestCanDispatch:
 # ---------------------------------------------------------------------------
 
 class TestDispatch:
-    def test_schema_lookup_supports_copied_skill_runtime(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_schema_lookup_prefers_packaged_contract_over_cwd(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         schema = tmp_path / "openspec" / "schemas" / "review-findings.schema.json"
         schema.parent.mkdir(parents=True)
         source_schema = Path(__file__).resolve().parents[4] / "openspec" / "schemas" / "review-findings.schema.json"
         schema.write_text(source_schema.read_text())
         monkeypatch.chdir(tmp_path)
-        assert CliVendorAdapter._find_review_findings_schema() == schema
+        expected = (
+            Path(__file__).resolve().parents[2]
+            / "install_assets" / "openspec" / "schemas" / "review-findings.schema.json"
+        )
+        assert CliVendorAdapter._find_review_findings_schema() == expected
 
     def test_schema_invalid_findings_are_rejected(self) -> None:
         invalid = json.loads(VALID_FINDINGS_JSON)
@@ -495,6 +544,7 @@ class TestOrchestrator:
         assert result.model_used == "review-model"
         assert result.requested_routing == {
             "archetype": "reviewer", "tier": "premium", "phase": "PLAN_REVIEW",
+            "source": "test", "fallback_reason": None,
         }
         assert result.quorum_eligible is True
         assert [attempt["reason"] for attempt in result.attempts] == [
@@ -577,6 +627,7 @@ class TestOrchestrator:
         assert result.attempts[-1]["error_class"] == "auth"
         assert result.requested_routing == {
             "archetype": "reviewer", "tier": "premium", "phase": "IMPL_REVIEW",
+            "source": "test", "fallback_reason": None,
         }
 
     def test_sdk_transient_log_is_redacted_and_bounded(

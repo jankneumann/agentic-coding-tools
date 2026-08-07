@@ -227,13 +227,16 @@ def select_replacement_vendor(
 
 def _invoke_with_deadline(
     invoke: Callable[[str, str, float, str], Mapping[str, Any]], *, vendor: str,
-    model: str, remaining: float, reason: str,
+    model: str, remaining: float, reason: str, invoke_owns_deadline: bool,
 ) -> Mapping[str, Any]:
     """Invoke synchronously under an interrupting logical deadline.
 
-    The dispatcher adapters also receive ``remaining`` and apply it to owned
-    subprocesses and SDK clients.  The POSIX timer is the final cooperative
-    cancellation boundary, so no abandoned worker thread/process survives.
+    Dispatcher adapters receive ``remaining`` and apply it to owned
+    subprocesses and SDK clients.  The main thread adds a POSIX interrupting
+    timer. Worker threads may invoke only adapters that explicitly own a
+    cancellable deadline; arbitrary callbacks fail closed because Python
+    cannot safely interrupt them without leaking a thread or forking unsafe
+    multithreaded state.
     """
     class DeadlineExpired(Exception):
         pass
@@ -242,6 +245,15 @@ def _invoke_with_deadline(
         raise DeadlineExpired
 
     use_timer = threading.current_thread() is threading.main_thread()
+    if not use_timer and not invoke_owns_deadline:
+        return {
+            "error_class": "configuration",
+            "error_detail": (
+                "worker-thread review invocation must use an adapter-owned "
+                "cancellable deadline"
+            ),
+        }
+
     previous_handler = signal.getsignal(signal.SIGALRM) if use_timer else None
     try:
         if use_timer:
@@ -274,11 +286,14 @@ def run_vendor_recovery(
     requested_routing: Mapping[str, object] | None = None,
     now: Callable[[], float] = time.monotonic,
     retain_terminal_response: bool = False,
+    invoke_owns_deadline: bool = False,
 ) -> dict[str, object]:
     """Execute the bounded primary/corrective/fallback state machine.
 
     ``invoke`` receives only the remaining monotonic budget, allowing every
     adapter to use this implementation without importing subprocess details.
+    Set ``invoke_owns_deadline`` only for adapters that synchronously cancel
+    their owned subprocess or SDK request when that budget expires.
     """
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be positive")
@@ -295,7 +310,12 @@ def run_vendor_recovery(
         else:
             started = now()
             response = _invoke_with_deadline(
-                invoke, vendor=vendor, model=model, remaining=remaining, reason=reason,
+                invoke,
+                vendor=vendor,
+                model=model,
+                remaining=remaining,
+                reason=reason,
+                invoke_owns_deadline=invoke_owns_deadline,
             )
             elapsed = now() - started
             if now() >= deadline:
@@ -335,7 +355,13 @@ def run_vendor_recovery(
     result: dict[str, object] = {
         "logical_request_id": logical_request_id,
         "requested_vendor": vendor,
-        "requested_routing": dict(requested_routing or {"archetype": None, "tier": None, "phase": None}),
+        "requested_routing": dict(requested_routing or {
+            "archetype": None,
+            "tier": None,
+            "phase": None,
+            "source": "static",
+            "fallback_reason": "routing_not_requested",
+        }),
         "deadline_at": (datetime.now(timezone.utc) + timedelta(seconds=max(0.0, deadline - now()))).isoformat(),
         "budget": {"corrective_max": 1, "replacement_max": 1, "fallback_models": ordered_fallbacks},
         "attempts": attempts,

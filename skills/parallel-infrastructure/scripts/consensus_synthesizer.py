@@ -26,6 +26,7 @@ import logging
 import os
 import re
 import sys
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from consensus_policy import TrustedApprovalResolver, evaluate_blocking, is_valid_non_blocking_adjudication
+from review_result_policy import is_quorum_eligible
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +60,11 @@ def _consensus_schema_path() -> Path:
     raise ConsensusInputError("consensus-report schema is unavailable")
 
 
-def validate_consensus_payload(payload: dict[str, Any]) -> None:
+def validate_consensus_payload(
+    payload: dict[str, Any],
+    *,
+    trusted_approval_resolver: TrustedApprovalResolver | None = None,
+) -> None:
     """Validate schema plus all producer/consumer trust aliases."""
     try:
         schema = json.loads(_consensus_schema_path().read_text(encoding="utf-8"))
@@ -69,7 +75,13 @@ def validate_consensus_payload(payload: dict[str, Any]) -> None:
     quorum = payload.get("quorum")
     findings = payload.get("consensus_findings")
     summary = payload.get("summary")
-    if not isinstance(quorum, dict) or not isinstance(findings, list) or not isinstance(summary, dict):
+    reviewers = payload.get("reviewers")
+    if (
+        not isinstance(quorum, dict)
+        or not isinstance(findings, list)
+        or not isinstance(summary, dict)
+        or not isinstance(reviewers, list)
+    ):
         raise ConsensusInputError("consensus report is missing canonical sections")
     if payload.get("quorum_requested") != quorum.get("requested") or payload.get("quorum_received") != quorum.get("received") or payload.get("quorum_met") != quorum.get("met"):
         raise ConsensusInputError("consensus quorum aliases disagree")
@@ -79,11 +91,31 @@ def validate_consensus_payload(payload: dict[str, Any]) -> None:
             or quorum.get("received") > quorum.get("requested")
             or quorum.get("met") != (quorum.get("received") >= quorum.get("minimum_required"))):
         raise ConsensusInputError("consensus quorum is inconsistent")
+    reviewer_vendors = [reviewer.get("vendor") for reviewer in reviewers if isinstance(reviewer, dict)]
+    successful_vendors = [
+        reviewer.get("vendor")
+        for reviewer in reviewers
+        if isinstance(reviewer, dict) and reviewer.get("success") is True
+    ]
+    source_eligible_vendors = {
+        reviewer.get("vendor")
+        for reviewer in reviewers
+        if isinstance(reviewer, dict)
+        and reviewer.get("source_eligible", reviewer.get("success")) is True
+    }
+    if (
+        len(reviewer_vendors) != len(reviewers)
+        or any(not isinstance(vendor, str) or not vendor for vendor in reviewer_vendors)
+        or len(reviewer_vendors) != len(set(reviewer_vendors))
+        or set(vendors) != set(successful_vendors)
+    ):
+        raise ConsensusInputError("consensus eligible vendors disagree with reviewer success")
     if summary.get("total_unique_findings") != len(findings) or summary.get("provisional_count") != summary.get("unconfirmed_count") or summary.get("blocking_count") != summary.get("effective_blocking_count"):
         raise ConsensusInputError("consensus summary aliases disagree")
     expected = {"confirmed_count": 0, "unconfirmed_count": 0, "disagreement_count": 0,
                 "integration_blocking_count": 0, "convergence_blocking_count": 0,
                 "effective_blocking_count": 0}
+    finding_groups: dict[str, tuple[list[str], dict[str, Any]]] = {}
     for finding in findings:
         if not isinstance(finding, dict):
             raise ConsensusInputError("consensus finding is invalid")
@@ -98,18 +130,98 @@ def validate_consensus_payload(payload: dict[str, Any]) -> None:
             raise ConsensusInputError("consensus finding match aliases disagree")
         source = finding.get("source_findings")
         dispositions = finding.get("vendor_dispositions")
-        if not isinstance(source, list) or not isinstance(dispositions, dict) or any(
-            item.get("disposition") != dispositions.get(item.get("vendor")) for item in source if isinstance(item, dict)
-        ):
+        if not isinstance(source, list) or not source or not isinstance(dispositions, dict):
             raise ConsensusInputError("consensus source dispositions disagree")
+        if any(not isinstance(item, dict) for item in source):
+            raise ConsensusInputError("consensus source membership is invalid")
+        source_pairs = [(item.get("vendor"), item.get("finding_id")) for item in source]
+        if (
+            len(source_pairs) != len(set(source_pairs))
+            or any(not isinstance(vendor, str) or not isinstance(finding_id, int) for vendor, finding_id in source_pairs)
+            or set(dispositions) != {vendor for vendor, _finding_id in source_pairs}
+            or any(item.get("disposition") != dispositions.get(item.get("vendor")) for item in source)
+            or not {vendor for vendor, _finding_id in source_pairs}.issubset(source_eligible_vendors)
+        ):
+            raise ConsensusInputError("consensus source membership or dispositions disagree")
+        primary = (finding.get("primary_vendor"), finding.get("primary_finding_id"))
+        matched = finding.get("matched_findings")
+        matched_pairs = [
+            (item.get("vendor"), item.get("finding_id"))
+            for item in matched if isinstance(item, dict)
+        ] if isinstance(matched, list) else []
+        if (
+            primary not in source_pairs
+            or not isinstance(matched, list)
+            or len(matched_pairs) != len(matched)
+            or sorted(source_pairs) != sorted([primary, *matched_pairs])
+        ):
+            raise ConsensusInputError("consensus source membership aliases disagree")
+        unique_dispositions = set(dispositions.values())
+        canonical_recommendation = (
+            next(iter(unique_dispositions)) if len(unique_dispositions) == 1 else "escalate"
+        )
+        if finding.get("recommended_disposition") != canonical_recommendation:
+            raise ConsensusInputError("consensus recommended disposition disagrees with sources")
         policy = finding.get("policy")
-        if not isinstance(policy, dict) or policy.get("effective_blocking") != bool(policy.get("integration_blocking") or policy.get("convergence_blocking")):
-            raise ConsensusInputError("consensus effective-blocking policy is inconsistent")
+        adjudication = finding.get("adjudication")
+        if not isinstance(policy, dict) or not isinstance(adjudication, dict):
+            raise ConsensusInputError("consensus canonical blocking policy is missing")
+        decision = evaluate_blocking(
+            policy_status=str(policy_status),
+            criticality=str(finding.get("agreed_criticality")),
+            vendor_dispositions={str(key): str(value) for key, value in dispositions.items()},
+            adjudication=adjudication,
+            trusted_approval_resolver=trusted_approval_resolver,
+        )
+        canonical_policy = {
+            "integration_blocking": decision.integration_blocking,
+            "convergence_blocking": decision.convergence_blocking,
+            "effective_blocking": decision.effective_blocking,
+        }
+        if policy != canonical_policy:
+            raise ConsensusInputError("consensus canonical blocking policy disagrees with evidence")
         expected[f"{status}_count"] += 1
         for key in ("integration_blocking_count", "convergence_blocking_count", "effective_blocking_count"):
-            expected[key] += int(bool(policy[key.removesuffix("_count")]))
+            expected[key] += int(canonical_policy[key.removesuffix("_count")])
+        group_id = finding.get("group_id")
+        fingerprints = sorted(item.get("concern_fingerprint") for item in source)
+        if (
+            not isinstance(group_id, str)
+            or not group_id
+            or any(not isinstance(value, str) or not value for value in fingerprints)
+            or group_id in finding_groups
+        ):
+            raise ConsensusInputError("consensus group or source fingerprints are invalid")
+        finding_groups[group_id] = (fingerprints, adjudication)
     if any(summary.get(key) != value for key, value in expected.items()):
         raise ConsensusInputError("consensus summary counts are inconsistent")
+
+    applied = payload.get("applied_adjudications")
+    if not isinstance(applied, list) or any(not isinstance(entry, dict) for entry in applied):
+        raise ConsensusInputError("applied adjudications are invalid")
+    seen_adjudications: set[tuple[str, tuple[str, ...]]] = set()
+    applied_groups: set[str] = set()
+    for entry in applied:
+        group_id = entry.get("group_id")
+        fingerprints = entry.get("concern_fingerprints")
+        key = (
+            group_id if isinstance(group_id, str) else "",
+            tuple(fingerprints) if isinstance(fingerprints, list) else (),
+        )
+        if (
+            key in seen_adjudications
+            or key[0] in applied_groups
+            or key[0] not in finding_groups
+            or list(key[1]) != finding_groups[key[0]][0]
+            or entry.get("adjudication") != finding_groups[key[0]][1]
+            or not isinstance(entry.get("recorded_at"), str)
+        ):
+            raise ConsensusInputError("duplicate or inconsistent applied adjudication")
+        seen_adjudications.add(key)
+        applied_groups.add(key[0])
+    for group_id, (_fingerprints, adjudication) in finding_groups.items():
+        if adjudication.get("status") != "unreviewed" and group_id not in applied_groups:
+            raise ConsensusInputError("consensus adjudication lacks an applied ledger entry")
 
 
 def _coerce_line_number(value: Any) -> int | None:
@@ -188,6 +300,8 @@ class VendorResult:
     success: bool = True
     elapsed_seconds: float = 0.0
     error: str | None = None
+    logical_result: object | None = None
+    trusted_internal: bool = False
 
 
 @dataclass
@@ -368,6 +482,15 @@ def _normalize_identity(value: str | None) -> str | None:
     return normalized or None
 
 
+def _canonical_fingerprint_path(value: str | None) -> str:
+    """Return a location suffix stable across absolute and repo-relative paths."""
+    normalized = _normalize_path(value)
+    if not normalized:
+        return ""
+    parts = normalized.split("/")
+    return "/".join(parts[-3:])
+
+
 def _jaccard(a: set[str], b: set[str]) -> float:
     """Jaccard similarity between two token sets."""
     if not a or not b:
@@ -462,9 +585,6 @@ class ConsensusSynthesizer:
         trusted_approval_resolver: TrustedApprovalResolver | None = None,
     ) -> ConsensusReport:
         """Produce a consensus report from multiple vendor results."""
-        vendors = [result.vendor for result in vendor_results]
-        if len(vendors) != len(set(vendors)):
-            raise ConsensusInputError("vendor_results must contain distinct vendors")
         for vendor_result in vendor_results:
             if len(vendor_result.findings) > MAX_FINDINGS_PER_VENDOR:
                 raise ConsensusInputError(
@@ -480,25 +600,84 @@ class ConsensusSynthesizer:
                 )
         if sum(len(result.findings) for result in vendor_results) > MAX_TOTAL_FINDINGS:
             raise ConsensusInputError(f"review exceeds {MAX_TOTAL_FINDINGS} total findings")
-        successful = [vr for vr in vendor_results if vr.success]
-        quorum_met = len(successful) >= self.quorum
+
+        def logical_id(result: VendorResult) -> str:
+            value = result.logical_result
+            if isinstance(value, Mapping):
+                identifier = value.get("logical_request_id")
+            else:
+                identifier = getattr(value, "logical_request_id", None)
+            return identifier if isinstance(identifier, str) else ""
+
+        def logical_terminal_vendor(result: VendorResult) -> str | None:
+            value = result.logical_result
+            if isinstance(value, Mapping):
+                terminal = value.get("terminal_vendor")
+            else:
+                terminal = getattr(value, "terminal_vendor", None)
+            return terminal if isinstance(terminal, str) and terminal else None
+
+        eligible_by_vendor: dict[str, VendorResult] = {}
+        requested_slot_ids: set[str] = set()
+        duplicate_slot_ids: set[str] = set()
+        for result in sorted(vendor_results, key=lambda item: (item.vendor, logical_id(item))):
+            if not result.trusted_internal:
+                slot_id = logical_id(result) or f"audit-only:{result.vendor}"
+                if slot_id in requested_slot_ids and logical_id(result):
+                    duplicate_slot_ids.add(slot_id)
+                requested_slot_ids.add(slot_id)
+            if is_quorum_eligible(result.logical_result):
+                terminal_vendor = logical_terminal_vendor(result)
+                if terminal_vendor is None:
+                    continue
+                if any(finding.vendor != terminal_vendor for finding in result.findings):
+                    raise ConsensusInputError(
+                        "eligible findings must belong to the validated terminal vendor"
+                    )
+                eligible_by_vendor.setdefault(terminal_vendor, result)
+        if duplicate_slot_ids:
+            raise ConsensusInputError("duplicate logical review request id")
+        for result in vendor_results:
+            if result.trusted_internal and any(
+                finding.vendor != result.vendor for finding in result.findings
+            ):
+                raise ConsensusInputError("trusted internal findings must retain source identity")
+        eligible = list(eligible_by_vendor.values())
+        included = [*eligible, *(
+            result for result in vendor_results
+            if result.trusted_internal and result.vendor not in eligible_by_vendor
+        )]
+        quorum_met = len(eligible) >= self.quorum and len(eligible) <= len(requested_slot_ids)
 
         # Build reviewer metadata
         reviewers = [
             {
-                "vendor": vr.vendor,
-                "agent_id": vr.vendor,
-                "success": vr.success,
-                "findings_count": len(vr.findings),
-                "elapsed_seconds": vr.elapsed_seconds,
-                "error": vr.error,
+                "vendor": vendor,
+                "agent_id": vendor,
+                "success": vendor in eligible_by_vendor,
+                "source_eligible": selected is not None and (
+                    vendor in eligible_by_vendor or selected.trusted_internal
+                ),
+                "findings_count": len(selected.findings) if selected else 0,
+                "elapsed_seconds": selected.elapsed_seconds if selected else 0.0,
+                "error": None if vendor in eligible_by_vendor else next(
+                    (result.error for result in vendor_results if result.vendor == vendor and result.error),
+                    "ineligible or missing terminal attempt provenance",
+                ),
             }
-            for vr in vendor_results
+            for vendor in sorted({
+                *(result.vendor for result in vendor_results),
+                *eligible_by_vendor,
+            })
+            for selected in [eligible_by_vendor.get(vendor) or next(
+                (result for result in vendor_results if result.vendor == vendor and result.trusted_internal),
+                None,
+            )]
         ]
 
         # Collect all findings across vendors
         all_findings: list[Finding] = []
-        for vr in successful:
+        for vr in included:
             all_findings.extend(vr.findings)
 
         # Match findings cross-vendor
@@ -525,8 +704,8 @@ class ConsensusSynthesizer:
             target=target,
             reviewers=reviewers,
             quorum_met=quorum_met,
-            quorum_requested=len(vendor_results),
-            quorum_received=len(successful),
+            quorum_requested=len(requested_slot_ids),
+            quorum_received=len(eligible),
             consensus_findings=consensus_findings,
             total_unique=len(consensus_findings),
             confirmed_count=confirmed,
@@ -540,16 +719,28 @@ class ConsensusSynthesizer:
         return report
 
     def _match_all(self, findings: list[Finding]) -> list[FindingMatch]:
-        """Build deterministic clique groups from bounded evidence buckets."""
-        ordered = sorted(findings, key=lambda f: (f.vendor, f.id, f.description))
-        grouped: list[list[int]] = []
-        buckets: dict[str, set[int]] = {}
+        """Build vendor-independent complete-link groups from bounded edges."""
+
+        def stable_key(finding: Finding) -> tuple[str, str, str, str, int, int]:
+            return (
+                self._concern_fingerprint(finding),
+                _type_family(finding.type),
+                _canonical_fingerprint_path(finding.file_path),
+                " ".join(finding.description.lower().split()),
+                finding.line_start or 0,
+                finding.line_end or 0,
+            )
+
+        ordered = sorted(findings, key=lambda finding: (*stable_key(finding), finding.vendor, finding.id))
+        buckets: dict[str, list[int]] = {}
+        candidate_pairs: set[tuple[int, int]] = set()
+        score_cache: dict[tuple[int, int], tuple[float, str]] = {}
         comparisons = 0
 
         def keys(finding: Finding) -> set[str]:
             family = _type_family(finding.type)
             result = {f"term:{family}:{token}" for token in _tokenize(finding.description)}
-            path = _normalize_path(finding.file_path)
+            path = _canonical_fingerprint_path(finding.file_path)
             symbol = _normalize_identity(finding.affected_symbol)
             requirement = _normalize_identity(finding.requirement_id)
             if path:
@@ -561,36 +752,68 @@ class ConsensusSynthesizer:
             return result
 
         for index, candidate in enumerate(ordered):
-            candidate_keys = keys(candidate)
-            candidate_groups = sorted({group for key in candidate_keys for group in buckets.get(key, set())})
-            for group_index in candidate_groups:
-                members = grouped[group_index]
-                # Admission requires an edge to the stable anchor AND every
-                # existing member. This prevents a weak A-B/B-C bridge from
-                # merging A and C when A-C itself is below threshold.
-                if any(ordered[member].vendor == candidate.vendor for member in members):
-                    continue
-                comparisons += len(members)
+            for key in sorted(keys(candidate)):
+                for other in buckets.get(key, []):
+                    if ordered[other].vendor != candidate.vendor:
+                        candidate_pairs.add((other, index))
+                buckets.setdefault(key, []).append(index)
+
+        def score_for(left: int, right: int) -> tuple[float, str]:
+            nonlocal comparisons
+            pair = (left, right) if left < right else (right, left)
+            if pair not in score_cache:
+                comparisons += 1
                 if comparisons > MAX_MATCH_COMPARISONS:
                     raise ConsensusInputError("consensus matching exceeded bounded work budget")
-                if all(match_score(ordered[member], candidate)[0] >= self.match_threshold for member in members):
-                    members.append(index)
-                    for key in candidate_keys:
-                        buckets.setdefault(key, set()).add(group_index)
-                    break
-            else:
-                grouped.append([index])
-                group_index = len(grouped) - 1
-                for key in candidate_keys:
-                    buckets.setdefault(key, set()).add(group_index)
+                score_cache[pair] = match_score(ordered[pair[0]], ordered[pair[1]])
+            return score_cache[pair]
+
+        edges = [
+            (*score_for(left, right), left, right)
+            for left, right in sorted(candidate_pairs)
+            if score_for(left, right)[0] >= self.match_threshold
+        ]
+        edges.sort(key=lambda edge: (
+            -edge[0], stable_key(ordered[edge[2]]), stable_key(ordered[edge[3]]),
+        ))
+
+        groups: dict[int, set[int]] = {index: {index} for index in range(len(ordered))}
+        group_of = {index: index for index in range(len(ordered))}
+        for _score, _basis, left, right in edges:
+            left_group = group_of[left]
+            right_group = group_of[right]
+            if left_group == right_group:
+                continue
+            left_members = groups[left_group]
+            right_members = groups[right_group]
+            if {ordered[index].vendor for index in left_members}.intersection(
+                ordered[index].vendor for index in right_members
+            ):
+                continue
+            if not all(
+                score_for(left_index, right_index)[0] >= self.match_threshold
+                for left_index in left_members
+                for right_index in right_members
+            ):
+                continue
+            merged = left_members | right_members
+            target = min(merged, key=lambda index: stable_key(ordered[index]))
+            groups.pop(left_group)
+            groups.pop(right_group)
+            groups[target] = merged
+            for index in merged:
+                group_of[index] = target
+
         matches: list[FindingMatch] = []
-        for indexes in sorted(grouped, key=lambda members: tuple(
-            (ordered[index].vendor, ordered[index].id) for index in members
-        )):
-            members = sorted(indexes)
+        grouped = sorted(
+            groups.values(),
+            key=lambda members: tuple(sorted(stable_key(ordered[index]) for index in members)),
+        )
+        for indexes in grouped:
+            members = sorted(indexes, key=lambda index: (*stable_key(ordered[index]), ordered[index].vendor, ordered[index].id))
             primary = ordered[members[0]]
             edges = [
-                (*match_score(ordered[left], ordered[right]), left, right)
+                (*score_for(left, right), left, right)
                 for offset, left in enumerate(members)
                 for right in members[offset + 1:]
             ]
@@ -668,7 +891,7 @@ class ConsensusSynthesizer:
         )
         value = "\0".join((
             _type_family(finding.type),
-            _normalize_path(finding.file_path) or "",
+            _canonical_fingerprint_path(finding.file_path),
             str(finding.line_start or ""),
             str(finding.line_end or ""),
             _normalize_identity(finding.affected_symbol) or "",
@@ -707,7 +930,9 @@ class ConsensusSynthesizer:
     ) -> list[dict[str, Any]]:
         entries = self._load_adjudication_ledger(adjudication_ledger)
         by_group = {finding.group_id: finding for finding in findings}
-        applied: list[dict[str, Any]] = []
+        prepared: list[tuple[dict[str, Any], ConsensusFinding, dict[str, Any]]] = []
+        seen_groups: set[str] = set()
+        seen_keys: set[tuple[str, tuple[str, ...]]] = set()
         for entry in entries:
             group_id = entry.get("group_id")
             fingerprints = entry.get("concern_fingerprints")
@@ -722,6 +947,11 @@ class ConsensusSynthesizer:
                 or not isinstance(entry.get("recorded_at"), str)
             ):
                 raise ConsensusInputError("stale or malformed adjudication ledger entry")
+            key = (group_id, tuple(fingerprints))
+            if group_id in seen_groups or key in seen_keys:
+                raise ConsensusInputError("duplicate adjudication ledger key")
+            seen_groups.add(group_id)
+            seen_keys.add(key)
             status = adjudication.get("status")
             if status not in {"unreviewed", "fixed", "false_positive", "accepted_risk", "deferred"}:
                 raise ConsensusInputError("adjudication ledger contains an unknown status")
@@ -731,6 +961,10 @@ class ConsensusSynthesizer:
             ):
                 raise ConsensusInputError("adjudication ledger entry lacks valid evidence or authorization")
             finding = by_group[group_id]
+            prepared.append((entry, finding, adjudication))
+
+        applied: list[dict[str, Any]] = []
+        for entry, finding, adjudication in prepared:
             finding.adjudication = dict(adjudication)
             decision = evaluate_blocking(
                 policy_status=finding.policy_status,
@@ -763,7 +997,7 @@ class ConsensusSynthesizer:
             "schema_version": 2,
             "review_type": report.review_type,
             "target": report.target,
-            "reviewers": report.reviewers,
+            "reviewers": [dict(reviewer) for reviewer in report.reviewers],
             "quorum_met": report.quorum_met,
             "quorum_requested": report.quorum_requested,
             "quorum_received": report.quorum_received,
@@ -838,10 +1072,19 @@ class ConsensusSynthesizer:
             "applied_adjudications": list(report.applied_adjudications),
         }
 
-    def write_report(self, report: ConsensusReport, output_path: Path) -> None:
+    def write_report(
+        self,
+        report: ConsensusReport,
+        output_path: Path,
+        *,
+        trusted_approval_resolver: TrustedApprovalResolver | None = None,
+    ) -> None:
         """Validate then atomically persist a consensus report."""
         payload = self.to_dict(report)
-        validate_consensus_payload(payload)
+        validate_consensus_payload(
+            payload,
+            trusted_approval_resolver=trusted_approval_resolver,
+        )
         output_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = output_path.with_suffix(output_path.suffix + ".tmp")
         try:
@@ -983,6 +1226,29 @@ def format_vendor_counts(per_vendor_counts: dict[str, int]) -> str:
     return "merged: " + ", ".join(parts)
 
 
+def _load_manifest_logical_results(path: Path | None) -> dict[str, list[dict[str, Any]]]:
+    """Index validated terminal attempt chains by terminal vendor."""
+    if path is None or not path.is_file():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConsensusInputError(f"cannot load review manifest {path}: {exc}") from exc
+    dispatches = payload.get("dispatches") if isinstance(payload, dict) else None
+    if not isinstance(dispatches, list):
+        raise ConsensusInputError("review manifest is missing dispatch attempt chains")
+    indexed: dict[str, list[dict[str, Any]]] = {}
+    for dispatch in dispatches:
+        if not isinstance(dispatch, dict) or not is_quorum_eligible(dispatch):
+            continue
+        terminal_vendor = dispatch.get("terminal_vendor")
+        if isinstance(terminal_vendor, str) and terminal_vendor:
+            indexed.setdefault(terminal_vendor, []).append(dispatch)
+    for chains in indexed.values():
+        chains.sort(key=lambda chain: str(chain.get("logical_request_id", "")))
+    return indexed
+
+
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
@@ -1019,6 +1285,10 @@ def main() -> int:
         ),
     )
     parser.add_argument("--output", required=True, help="Output consensus JSON path")
+    parser.add_argument(
+        "--manifest",
+        help="Review manifest containing validated terminal attempt chains",
+    )
     parser.add_argument("--quorum", type=int, default=2, help="Minimum reviewers")
     parser.add_argument(
         "--threshold", type=float, default=MATCH_THRESHOLD,
@@ -1044,6 +1314,19 @@ def main() -> int:
                 continue
             findings_paths.append(path)
 
+    manifest_path = Path(args.manifest) if args.manifest else None
+    if manifest_path is None and args.input_dir:
+        candidate = Path(args.input_dir) / "review-manifest.json"
+        manifest_path = candidate if candidate.is_file() else None
+    if manifest_path is None and findings_paths:
+        parents = {path.parent.resolve() for path in findings_paths}
+        if len(parents) == 1:
+            candidate = next(iter(parents)) / "review-manifest.json"
+            manifest_path = candidate if candidate.is_file() else None
+    logical_results = _load_manifest_logical_results(manifest_path)
+    manifest_loaded = manifest_path is not None and manifest_path.is_file()
+    seen_findings_vendors: set[str] = set()
+
     for p in findings_paths:
         if not p.exists():
             print(f"Warning: {p} not found, skipping", file=sys.stderr)
@@ -1058,11 +1341,42 @@ def main() -> int:
         if default_vendor.startswith("findings-"):
             default_vendor = default_vendor[len("findings-"):]
         vendor = data.get("reviewer_vendor", default_vendor)
+        if not isinstance(vendor, str) or not vendor:
+            raise ConsensusInputError(f"{p}: reviewer_vendor must be a non-empty string")
+        if vendor in seen_findings_vendors:
+            raise ConsensusInputError(f"duplicate findings association for terminal vendor {vendor}")
+        seen_findings_vendors.add(vendor)
         findings = [
             Finding.from_dict(f, vendor=vendor)
             for f in data.get("findings", [])
         ]
-        vendor_results.append(VendorResult(vendor=vendor, findings=findings))
+        chains = logical_results.get(vendor, [])
+        if manifest_loaded and len(chains) != 1:
+            raise ConsensusInputError(
+                f"findings for {vendor} require exactly one eligible manifest attempt chain"
+            )
+        logical_result = chains.pop(0) if chains else None
+        vendor_results.append(VendorResult(
+            vendor=vendor,
+            findings=findings,
+            success=logical_result is not None,
+            logical_result=logical_result,
+            error=None if logical_result is not None else "missing eligible manifest attempt chain",
+        ))
+
+    for terminal_vendor, chains in sorted(logical_results.items()):
+        if not chains:
+            continue
+        if len(chains) != 1:
+            raise ConsensusInputError(
+                f"terminal vendor {terminal_vendor} has duplicate eligible manifest attempt chains"
+            )
+        vendor_results.append(VendorResult(
+            vendor=terminal_vendor,
+            findings=[],
+            success=True,
+            logical_result=chains[0],
+        ))
 
     # Additive behavioral source: load findings-gen-eval.json from
     # --input-dir (if provided). Missing file is not an error.
@@ -1076,6 +1390,7 @@ def main() -> int:
         if behavioral_findings:
             vendor_results.append(VendorResult(
                 vendor="gen-eval", findings=behavioral_findings,
+                success=False, trusted_internal=True,
             ))
 
     synth = ConsensusSynthesizer(
