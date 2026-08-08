@@ -923,3 +923,25 @@ literal the test author invented.
 - **THEN** its output SHALL contain the canonical citation-claim line
 - **AND** it SHALL NOT apply `implemented`, `satisfied`, or `verified` to a
   requirement as subject
+
+### Requirement: Pass-rate gating governs exit status
+
+A run SHALL exit 0 only when the evaluated pass rate meets a configurable
+minimum pass-rate threshold (default: 0.95), and a run that evaluated zero
+scenarios SHALL exit non-zero regardless of the configured threshold.
+
+Threshold arithmetic alone cannot distinguish a vacuous run from a perfect
+one — zero failures over zero scenarios meets any threshold — so vacuous
+success is guarded explicitly rather than left to the ratio.
+
+<!-- Scenario ID: gen-eval-framework.pass-rate-gates-exit -->
+#### Scenario: Pass rate below the threshold fails the run
+
+- **WHEN** a run evaluates scenarios and the pass rate falls below the
+  configured threshold
+- **THEN** the run SHALL exit non-zero
+
+#### Scenario: A vacuous run fails regardless of threshold
+
+- **WHEN** a run evaluates zero scenarios
+- **THEN** the run SHALL exit non-zero

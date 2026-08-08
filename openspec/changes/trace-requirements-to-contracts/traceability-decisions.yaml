@@ -1,0 +1,129 @@
+decisions:
+- at: '2026-08-08T17:55:02+00:00'
+  kind: cite
+  flag: --print-contract-version
+  requirements:
+  - gen-eval-framework.descriptor-reclamation-is-announced
+  note: 'Operator selection: the flag prints the published JSON Schema contract version,
+    whose semantics (version tracks the schema, not export names) this requirement
+    governs.'
+- at: '2026-08-08T17:57:07+00:00'
+  kind: cite
+  flag: --descriptor
+  requirements:
+  - gen-eval-framework.interface-descriptor
+  - gen-eval-framework.contract-as-descriptor-source-of-truth
+  - gen-eval-framework.service-and-tool-descriptor-archetypes
+  note: 'Operator selection: the required descriptor path is the surface the interface-descriptor
+    requirement mandates accepting; the descriptor is contract-derived and loads as
+    either archetype.'
+- at: '2026-08-08T18:07:55+00:00'
+  kind: cite
+  flag: --mode
+  requirements:
+  - gen-eval-framework.scenario-generation
+  note: 'Operator selection: the flag selects among the three generation modes the
+    scenario-generation requirement mandates.'
+- at: '2026-08-08T18:08:14+00:00'
+  kind: cite
+  flag: --cli-command
+  requirements:
+  - gen-eval-framework.scenario-generation
+  note: 'Operator selection: configures the subscription-covered CLI tool used by
+    cli-augmented generation.'
+- at: '2026-08-08T18:08:44+00:00'
+  kind: cite
+  flag: --time-budget
+  requirements:
+  - gen-eval-framework.budget-management
+  note: 'Operator selection: the configurable wall-clock time budget for cli-augmented
+    mode, default 60, as budget-management mandates.'
+- at: '2026-08-08T18:09:07+00:00'
+  kind: cite
+  flag: --sdk-budget
+  requirements:
+  - gen-eval-framework.budget-management
+  note: 'Operator selection: the configurable USD budget cap for sdk-only mode, as
+    budget-management mandates.'
+- at: '2026-08-08T18:09:44+00:00'
+  kind: cite
+  flag: --max-iterations
+  requirements:
+  - gen-eval-framework.feedback-loop
+  note: 'Operator selection: configures the multiple-iteration feedback loop (default
+    1) that feedback-loop mandates.'
+- at: '2026-08-08T18:10:03+00:00'
+  kind: cite
+  flag: --parallel
+  requirements:
+  - gen-eval-framework.orchestration
+  note: 'Operator selection: the configurable concurrency limit (default 5) for parallel
+    scenario execution that orchestration mandates.'
+- at: '2026-08-08T18:10:58+00:00'
+  kind: cite
+  flag: --changed-features-ref
+  requirements:
+  - gen-eval-framework.orchestration
+  - gen-eval-framework.scenario-generation
+  note: 'Operator selection: supplies the git ref for orchestration''s changed-feature
+    detection and feeds scenario-generation''s changed-feature focus areas.'
+- at: '2026-08-08T18:17:31+00:00'
+  kind: cite
+  flag: --categories
+  requirements:
+  - gen-eval-framework.scenario-model
+  - gen-eval-framework.scenario-generation
+  note: 'Operator selection: filters on the category tags scenario-model mandates
+    and feeds scenario-generation''s category focus areas.'
+- at: '2026-08-08T18:18:47+00:00'
+  kind: cite
+  flag: --report-format
+  requirements:
+  - gen-eval-framework.orchestration
+  note: 'Operator selection: selects among the structured report formats (markdown/JSON)
+    orchestration mandates.'
+- at: '2026-08-08T18:19:06+00:00'
+  kind: cite
+  flag: --output-dir
+  requirements:
+  - gen-eval-framework.orchestration
+  note: 'Operator selection: directs where the structured reports orchestration mandates
+    are written.'
+- at: '2026-08-08T18:19:56+00:00'
+  kind: exclude-flag
+  flag: --verbose
+  reason: Diagnostic output only; serves no contracted behaviour. Neither annotation
+    model nor the operator found a governing requirement.
+- at: '2026-08-08T18:20:34+00:00'
+  kind: cite
+  flag: --no-services
+  requirements:
+  - gen-eval-framework.orchestration
+  - gen-eval-framework.interface-descriptor
+  note: 'Operator selection: runtime switch over the orchestration lifecycle (skip
+    startup/teardown, keep health check), paired with interface-descriptor''s optional
+    service lifecycle.'
+- at: '2026-08-08T18:24:35+00:00'
+  kind: cite
+  flag: --fail-threshold
+  requirements:
+  - gen-eval-framework.pass-rate-gating-governs-exit-status
+  note: 'Operator: new requirement needed — pass-rate gating and the vacuous-run guard
+    are contracted CLI behaviour no existing requirement covered; drafted into this
+    change''s spec delta and cited.'
+- at: '2026-08-08T18:38:43+00:00'
+  kind: cite
+  flag: --min-coverage
+  requirements:
+  - gen-eval-framework.operation-and-surface-coverage-model
+  - gen-eval-framework.orchestration
+  note: 'Operator selection: the coverage threshold operation-and-surface-coverage-model
+    mandates (independent of pass rate), gating the coverage percentage orchestration''s
+    report emits.'
+- at: '2026-08-08T18:39:58+00:00'
+  kind: cite
+  flag: --openspec-change
+  requirements:
+  - gen-eval-framework.multi-source-scenario-bootstrap
+  note: 'Operator selection: supplies the OpenSpec change whose Requirement+Scenario
+    blocks bootstrap cli-augmented generation, per multi-source-scenario-bootstrap.'
