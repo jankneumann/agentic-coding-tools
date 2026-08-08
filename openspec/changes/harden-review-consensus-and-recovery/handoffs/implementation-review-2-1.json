@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T23:27:27.354660+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-reviewer",
+    "session_id": null,
+    "summary": "Implementation review did not converge. All five configured premium reviewer routes produced ineligible terminal results (four 299-second timeouts and Pi invalid-output exhaustion), so true external quorum was 0/5. Independent source-and-contract audits confirmed 11 merge-blocking defects despite 131 focused tests passing, including installed-runtime path/routing failures, non-preemptive deadlines, delayed persistence, incomplete chain and consensus validation, unsanitized diagnostics, eligibility drift, and unstable consensus identity.",
+    "completed_work": [
+      "Dispatched the approved implementation diff and OpenSpec artifacts to Antigravity, Claude Code, Codex, Grok, and Pi using reviewer/premium routing and 300-second vendor-local bounds.",
+      "Validated all five persisted attempt chains against Draft 2020-12 review-attempt.schema.json and validate_review_attempt_chain(); quorum remained 0/5.",
+      "Ran 131 focused dispatcher, attempt, routing, consensus, convergence, and golden-regression tests successfully.",
+      "Ran skills/install.sh --check and reproduced the review_routing.py coordinator-boundary failure.",
+      "Produced a schema-valid source-verified synthesis with 11 critical findings at reviews/round-2/review-findings.json."
+    ],
+    "in_progress": [
+      "Targeted remediation is required before a further implementation-review round can converge."
+    ],
+    "decisions": [
+      {
+        "title": "Return not_converged",
+        "rationale": "External quorum was lost and source-verified contract violations remain merge-blocking.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Do not infer success from focused tests",
+        "rationale": "The focused suite passed, but skills/install.sh --check failed and the normative cross-field/runtime contracts remain unsatisfied.",
+        "capability": "review-recovery",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Repair portable schema/routing discovery and make the install portability gate pass.",
+      "Enforce cancellable outer deadlines and progressive terminal checkpoint persistence across CLI, async, and SDK transports.",
+      "Apply full attempt-chain and consensus schemas plus complete relational validators before persistence or quorum decisions; sanitize error_detail.",
+      "Remove success-only eligibility fallbacks and stabilize structured matching/group identifiers independently of vendor and finding ID.",
+      "Rerun focused tests, skills/install.sh --check, and IMPL_REVIEW with a true two-vendor schema-valid quorum."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/reviews/round-2/review-manifest.json",
+        "description": "five-vendor terminal attempt evidence and 0/5 quorum"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/reviews/round-2/review-findings.json",
+        "description": "schema-valid source-verified synthesis with 11 critical findings"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "description": "runtime portability, timeout, and persistence defects"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_attempts.py",
+        "description": "chain validation and diagnostic redaction defects"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/consensus_synthesizer.py",
+        "description": "producer validation, matching, and stable identity defects"
+      },
+      {
+        "path": "skills/autopilot/scripts/convergence_loop.py",
+        "description": "consensus relational validation and quorum eligibility defects"
+      }
+    ]
+  }
+}

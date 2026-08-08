@@ -1,0 +1,79 @@
+{
+  "review_type": "plan",
+  "target": "harden-review-consensus-and-recovery",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: The frozen revision-2 consensus contract is a breaking replacement, not the additive migration promised by the plan. It removes the required reviewers array, replaces the flat quorum_met/quorum_requested/quorum_received fields with a quorum object, and removes legacy per-finding fields such as agreed_type and recommended_disposition. Existing consumers such as scripts/impl_review_driver.py still read agreed_type, yet no task or package migrates that consumer and the proposal labels only final-round convergence as breaking.",
+      "resolution": "Either retain the legacy top-level and per-finding fields as deprecated compatibility aliases for the revision-2 transition, or explicitly declare the report contract breaking and enumerate/migrate every reader, including scripts/impl_review_driver.py and impl_review_handoff.py. Add old-producer/new-consumer and new-producer/old-consumer fixtures before freezing the contract.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json",
+      "line_range": {"start": 7, "end": 30},
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: The consensus contract can validate a false quorum signal: quorum has only requested, received, and an unconstrained met boolean, so documents such as requested=3, received=0, met=true validate. It also omits the configured minimum required reviewer count used by the convergence requirement, and does not constrain received to the distinct-vendor/request bound. This recreates the exact false-convergence class the change is intended to eliminate at the frozen trust boundary.",
+      "resolution": "Add the configured minimum_required value (or an equivalent immutable policy reference) to the quorum contract and define application invariants met == (received >= minimum_required), received <= requested, and received equals the count of distinct eligible terminal vendors. Add negative contract/application fixtures for false met, received greater than requested, and duplicate-vendor receipt.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json",
+      "line_range": {"start": 12, "end": 21},
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: review-attempt.schema.json advertises a bounded attempt chain but does not validate the bound. An attempts array may contain unlimited corrective_redispatch and replacement_vendor entries, duplicate fallback-model attempts, duplicate/non-monotonic attempt_index values, arbitrary extra vendors, or a successful non-terminal attempt followed by a terminal failure and still satisfy the schema. The budget object merely records maxima and is not tied to the attempts.",
+      "resolution": "Enforce every expressible bound in JSON Schema (max one corrective and replacement attempt, exactly one initial attempt, and terminal success semantics) and add a named application validator for ordering, unique/monotonic indexes, configured fallback membership/deduplication, deadline, vendor transitions, and no attempts after success. Require all producers/consumers to call it and add negative fixtures for each currently-valid invalid chain.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json",
+      "line_range": {"start": 16, "end": 39},
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: wp-consensus-policy owns and writes test_consensus_policy.py, but its only test command runs test_consensus_synthesizer.py. The package can therefore report consensus_tests_passed without executing the new pure blocker/adjudication policy tests required by task 1.4.",
+      "resolution": "Add skills/parallel-infrastructure/scripts/tests/test_consensus_policy.py to the wp-consensus-policy verification command and retain a result key that represents both suites.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml",
+      "line_range": {"start": 74, "end": 88},
+      "axis": "architecture",
+      "severity": "nit"
+    },
+    {
+      "id": 5,
+      "type": "performance",
+      "criticality": "low",
+      "description": "Optional: The 2 MiB limit is still specified only after parsing, so a CLI/SDK adapter can buffer and JSON-decode arbitrarily large output before the matcher rejects it. This bounds pairwise matching but not dispatcher memory or parse time.",
+      "resolution": "Apply a byte cap while capturing output and before JSON decoding, retain only bounded redacted diagnostics on overflow, and add an oversized-stream fixture; otherwise document the residual pre-parse resource risk.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/specs/skill-workflow/spec.md",
+      "line_range": {"start": 75, "end": 100},
+      "axis": "performance",
+      "severity": "optional"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The revised plan correctly makes matching non-authoritative, preserves disposition per source finding, and explicitly prevents one replacement vendor from satisfying multiple round slots.",
+      "resolution": "Retain these fail-closed invariants and their regression scenarios during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/harden-review-consensus-and-recovery/design.md",
+      "line_range": {"start": 38, "end": 114},
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

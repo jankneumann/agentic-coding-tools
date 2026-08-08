@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from review_dispatcher import (
     CliConfig,
@@ -16,12 +20,57 @@ from review_dispatcher import (
     ReviewResult,
     SdkConfig,
     SdkVendorAdapter,
+    _SdkTransientError,
     classify_error,
 )
+from review_routing import RoutingContext
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def test_requested_routing_preserves_resolution_provenance() -> None:
+    routing = RoutingContext(
+        archetype="reviewer",
+        tier="premium",
+        phase="IMPL_REVIEW",
+        model="gpt-test",
+        thinking="high",
+        source="coordinator_http",
+        fallback_reason="tier_missing_from_response",
+    )
+
+    assert ReviewOrchestrator._routing_payload(routing) == {
+        "archetype": "reviewer",
+        "tier": "premium",
+        "phase": "IMPL_REVIEW",
+        "source": "coordinator_http",
+        "fallback_reason": "tier_missing_from_response",
+    }
+
+
+def test_copied_install_validates_findings_from_colocated_schema(tmp_path: Path) -> None:
+    source = Path(__file__).resolve().parents[1]
+    copied_skill = tmp_path / "parallel-infrastructure"
+    shutil.copytree(source, copied_skill / "scripts")
+    shutil.copytree(source.parent / "install_assets", copied_skill / "install_assets")
+    program = (
+        "import json,sys; sys.path.insert(0, sys.argv[1]); "
+        "from review_dispatcher import CliVendorAdapter; "
+        "payload={'review_type':'implementation','target':'x','reviewer_vendor':'codex','findings':[]}; "
+        "assert CliVendorAdapter._validate_findings(payload)"
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", program, str(copied_skill / "scripts")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert completed.returncode == 0, completed.stderr
 
 def _cli_config(
     command: str = "codex",
@@ -60,7 +109,7 @@ VALID_FINDINGS_JSON = json.dumps({
     "reviewer_vendor": "test",
     "findings": [
         {"id": 1, "type": "security", "criticality": "high",
-         "description": "test", "disposition": "fix"},
+         "description": "test", "disposition": "fix", "axis": "security", "severity": "critical"},
     ],
 })
 
@@ -201,6 +250,24 @@ class TestCanDispatch:
 # ---------------------------------------------------------------------------
 
 class TestDispatch:
+    def test_schema_lookup_prefers_packaged_contract_over_cwd(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        schema = tmp_path / "openspec" / "schemas" / "review-findings.schema.json"
+        schema.parent.mkdir(parents=True)
+        source_schema = Path(__file__).resolve().parents[4] / "openspec" / "schemas" / "review-findings.schema.json"
+        schema.write_text(source_schema.read_text())
+        monkeypatch.chdir(tmp_path)
+        expected = (
+            Path(__file__).resolve().parents[2]
+            / "install_assets" / "openspec" / "schemas" / "review-findings.schema.json"
+        )
+        assert CliVendorAdapter._find_review_findings_schema() == expected
+
+    def test_schema_invalid_findings_are_rejected(self) -> None:
+        invalid = json.loads(VALID_FINDINGS_JSON)
+        invalid["findings"][0]["axis"] = "unsupported-axis"
+
+        assert CliVendorAdapter._extract_findings(invalid) is None
+
     @patch("review_dispatcher.subprocess.run")
     def test_successful_dispatch(self, mock_run: MagicMock, tmp_path: Path) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
@@ -388,6 +455,261 @@ class TestDispatch:
 # ---------------------------------------------------------------------------
 
 class TestOrchestrator:
+    def test_invalid_output_uses_one_undispatched_replacement_slot(
+        self, tmp_path: Path,
+    ) -> None:
+        """A replacement consumes its own slot and contributes only once."""
+        adapters = {
+            "alpha": _adapter("alpha", "alpha", command="alpha"),
+            "beta": _adapter("beta", "beta", command="beta"),
+        }
+        orch = ReviewOrchestrator(adapters)
+
+        def logical(vendor: str, agent_id: str, response: dict[str, object]) -> ReviewResult:
+            from review_attempts import run_vendor_recovery
+
+            chain = run_vendor_recovery(
+                logical_request_id=f"plan:{agent_id}", vendor=vendor,
+                primary_model="review-model", fallback_models=[], timeout_seconds=60,
+                invoke=lambda *_args: response,
+            )
+            source = ReviewResult(
+                vendor=vendor, success=response.get("validation_status") == "schema_valid",
+                findings=json.loads(VALID_FINDINGS_JSON) if response.get("validation_status") == "schema_valid" else None,
+            )
+            return ReviewOrchestrator._logical_result(
+                vendor=vendor, chain=chain, attempt_results=[source],
+            )
+
+        exhausted = logical("alpha", "alpha", {"validation_status": "invalid"})
+        replacement = logical("beta", "beta", {"validation_status": "schema_valid"})
+        with patch("shutil.which", return_value="/usr/bin/mock"), patch.object(
+            orch, "_dispatch_cli_review", side_effect=[exhausted, replacement],
+        ) as dispatch:
+            results = orch.dispatch_and_wait(
+                review_type="plan", dispatch_mode="review", prompt="review", cwd=tmp_path,
+            )
+
+        assert dispatch.call_count == 2
+        assert len(results) == 1
+        assert results[0].vendor == "beta"
+        assert results[0].requested_vendor == "alpha"
+        assert [attempt["reason"] for attempt in results[0].attempts] == [
+            "initial", "corrective_redispatch", "replacement_vendor",
+        ]
+        assert results[0].replacement_allocation == {
+            "replaced_vendor": "alpha", "replacement_vendor": "beta", "action": "transferred",
+        }
+        output = tmp_path / "reviews" / "review-manifest.json"
+        orch.write_manifest(results, output, "plan", "test-feature")
+        manifest = json.loads(output.read_text())
+        assert manifest["quorum_requested"] == manifest["quorum_received"] == 1
+        assert manifest["dispatches"][0]["replacement_allocation"]["replacement_vendor"] == "beta"
+
+    @patch("review_dispatcher.subprocess.run")
+    @patch("shutil.which", return_value="/usr/bin/codex")
+    def test_review_dispatch_recovers_invalid_output_with_resolved_routing(
+        self,
+        _which: MagicMock,
+        mock_run: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """A review-mode CLI call uses one shared recovery chain and routing."""
+        mock_run.side_effect = [
+            subprocess.CompletedProcess(args=[], returncode=0, stdout="not json", stderr=""),
+            subprocess.CompletedProcess(args=[], returncode=0, stdout=VALID_FINDINGS_JSON, stderr=""),
+        ]
+        orch = ReviewOrchestrator({
+            "codex-local": _adapter(
+                "codex-local", "codex", model="static-model",
+            ),
+        })
+
+        def resolver(phase: str | None, vendor: str) -> RoutingContext:
+            assert phase == "PLAN_REVIEW"
+            assert vendor == "codex"
+            return RoutingContext(
+                archetype="reviewer", tier="premium", phase=phase,
+                model="review-model", thinking=None, source="test",
+            )
+
+        results = orch.dispatch_and_wait(
+            review_type="plan", dispatch_mode="review", prompt="review",
+            cwd=tmp_path, phase="PLAN_REVIEW", routing_resolver=resolver,
+        )
+
+        assert len(results) == 1
+        result = results[0]
+        assert result.success is True
+        assert result.model_used == "review-model"
+        assert result.requested_routing == {
+            "archetype": "reviewer", "tier": "premium", "phase": "PLAN_REVIEW",
+            "source": "test", "fallback_reason": None,
+        }
+        assert result.quorum_eligible is True
+        assert [attempt["reason"] for attempt in result.attempts] == [
+            "initial", "corrective_redispatch",
+        ]
+        assert mock_run.call_args_list[0].args[0][-3:-1] == ["-m", "review-model"]
+
+    @patch("review_dispatcher.subprocess.run")
+    @patch("shutil.which", return_value="/usr/bin/codex")
+    def test_unsupported_thinking_fails_before_cli_invocation(
+        self,
+        _which: MagicMock,
+        mock_run: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        orch = ReviewOrchestrator({
+            "codex-local": _adapter("codex-local", "codex", model="review-model"),
+        })
+        routing = RoutingContext(
+            archetype="reviewer", tier="premium", phase=None,
+            model="review-model", thinking="xhigh", source="test",
+        )
+
+        results = orch.dispatch_and_wait(
+            review_type="plan", dispatch_mode="review", prompt="review",
+            cwd=tmp_path, routing_context=routing,
+        )
+
+        assert results[0].success is False
+        assert results[0].terminal_outcome == "configuration"
+        assert results[0].attempts[0]["resolved_execution"]["thinking_translation"] == "unsupported"
+        mock_run.assert_not_called()
+
+    @patch("api_key_resolver.ApiKeyResolver")
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_sdk_review_recovers_invalid_output_once(
+        self,
+        mock_call: MagicMock,
+        mock_resolver: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """SDK reviews use the shared corrective-retry chain and provenance."""
+        mock_resolver.return_value.resolve.return_value = "sk-test"
+        mock_call.side_effect = [None, json.loads(VALID_FINDINGS_JSON)]
+        adapter = _sdk_adapter("claude-remote", "claude_code")
+        orch = ReviewOrchestrator({}, {"claude-remote": adapter})
+
+        with patch.object(adapter, "can_dispatch", return_value=True):
+            results = orch.dispatch_and_wait(
+                review_type="plan", dispatch_mode="review", prompt="review",
+                cwd=tmp_path,
+            )
+
+        assert results[0].success is True
+        assert results[0].quorum_eligible is True
+        assert [attempt["reason"] for attempt in results[0].attempts] == [
+            "initial", "corrective_redispatch",
+        ]
+        assert results[0].attempts[-1]["transport"] == "sdk"
+
+    @patch("api_key_resolver.ApiKeyResolver")
+    def test_sdk_no_key_is_terminal_validated_attempt_chain(
+        self, mock_resolver: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_resolver.return_value.resolve.return_value = None
+        adapter = _sdk_adapter("claude-remote", "claude_code")
+        orch = ReviewOrchestrator({}, {"claude-remote": adapter})
+        routing = RoutingContext(
+            archetype="reviewer", tier="premium", phase="IMPL_REVIEW",
+            model="opus", thinking=None, source="test",
+        )
+        with patch.object(adapter, "can_dispatch", return_value=True):
+            result = orch.dispatch_and_wait(
+                review_type="implementation", dispatch_mode="review", prompt="review",
+                cwd=tmp_path, routing_context=routing,
+            )[0]
+        assert result.success is False
+        assert result.terminal_outcome == "auth"
+        assert result.attempts[-1]["terminal"] is True
+        assert result.attempts[-1]["error_class"] == "auth"
+        assert result.requested_routing == {
+            "archetype": "reviewer", "tier": "premium", "phase": "IMPL_REVIEW",
+            "source": "test", "fallback_reason": None,
+        }
+
+    def test_sdk_transient_log_is_redacted_and_bounded(
+        self, caplog: pytest.LogCaptureFixture, tmp_path: Path,
+    ) -> None:
+        adapter = _sdk_adapter()
+        leaked = "token=SUPERSECRET Bearer abcdefghijklmnop api_key=ALSOSECRET " + ("x" * 5000)
+        with patch.object(adapter, "_call_sdk", side_effect=_SdkTransientError(leaked)):
+            with caplog.at_level("WARNING"):
+                result = adapter.dispatch("review", "prompt", tmp_path, api_key="configured")
+        assert "SUPERSECRET" not in caplog.text
+        assert "abcdefghijklmnop" not in caplog.text
+        assert "ALSOSECRET" not in caplog.text
+        assert len(caplog.text) < 4500
+        assert "SUPERSECRET" not in (result.error or "")
+
+    @patch("api_key_resolver.ApiKeyResolver")
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_sdk_rejects_unsupported_thinking_before_invocation(
+        self,
+        mock_call: MagicMock,
+        mock_resolver: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        mock_resolver.return_value.resolve.return_value = "sk-test"
+        adapter = _sdk_adapter("claude-remote", "claude_code")
+        orch = ReviewOrchestrator({}, {"claude-remote": adapter})
+        routing = RoutingContext(
+            archetype="reviewer", tier="premium", phase=None,
+            model="claude-sonnet", thinking="high", source="test",
+        )
+
+        with patch.object(adapter, "can_dispatch", return_value=True):
+            results = orch.dispatch_and_wait(
+                review_type="plan", dispatch_mode="review", prompt="review",
+                cwd=tmp_path, routing_context=routing,
+            )
+
+        result = results[0]
+        assert result.success is False
+        assert result.terminal_outcome == "configuration"
+        assert result.quorum_eligible is False
+        assert result.attempts[0]["resolved_execution"]["thinking_translation"] == "unsupported"
+        mock_call.assert_not_called()
+
+    @patch("api_key_resolver.ApiKeyResolver")
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_sdk_applies_configured_thinking(
+        self,
+        mock_call: MagicMock,
+        mock_resolver: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        mock_resolver.return_value.resolve.return_value = "sk-test"
+        mock_call.return_value = json.loads(VALID_FINDINGS_JSON)
+        adapter = _sdk_adapter("claude-remote", "claude_code")
+        adapter.sdk_config.thinking_parameter = "reasoning_effort"
+        adapter.sdk_config.thinking_values = {"high": "high"}
+        orch = ReviewOrchestrator({}, {"claude-remote": adapter})
+        routing = RoutingContext(
+            archetype="reviewer", tier="premium", phase=None,
+            model="claude-sonnet", thinking="high", source="test",
+        )
+
+        with patch.object(adapter, "can_dispatch", return_value=True):
+            results = orch.dispatch_and_wait(
+                review_type="plan", dispatch_mode="review", prompt="review",
+                cwd=tmp_path, routing_context=routing,
+            )
+
+        assert results[0].success is True
+        assert results[0].attempts[0]["resolved_execution"]["applied_thinking"] == "high"
+        assert mock_call.call_args.kwargs["thinking_parameter"] == "reasoning_effort"
+        assert mock_call.call_args.kwargs["thinking_value"] == "high"
+
+    def test_auth_is_preserved_in_recovery_payload(self) -> None:
+        response = ReviewOrchestrator._result_response(
+            ReviewResult(vendor="codex", success=False, error_class=ErrorClass.AUTH), "cli",
+        )
+
+        assert response["error_class"] == "auth"
+
     def test_from_config_dict_propagates_prompt_via_flag(self) -> None:
         """prompt_via_flag must survive from_config_dict into the CliConfig so
         antigravity's prompt is dispatched as ``--prompt <value>`` (E7), not a
@@ -435,6 +757,7 @@ class TestOrchestrator:
         assert reviewers[0].vendor == "grok"
 
     def test_write_manifest(self, tmp_path: Path) -> None:
+        """Legacy success flags cannot be persisted as quorum evidence."""
         orch = ReviewOrchestrator({})
         results = [
             ReviewResult(vendor="codex", success=True, model_used="gpt-5.4",
@@ -444,13 +767,8 @@ class TestOrchestrator:
                         models_attempted=["(default)", "grok-4.5"]),
         ]
         output = tmp_path / "reviews" / "review-manifest.json"
-        orch.write_manifest(results, output, "plan", "test-feature")
-        assert output.exists()
-        data = json.loads(output.read_text())
-        assert data["quorum_requested"] == 2
-        assert data["quorum_received"] == 1
-        assert data["dispatches"][0]["success"] is True
-        assert data["dispatches"][1]["error_class"] == "capacity_exhausted"
+        with pytest.raises(ValueError, match="attempt-chain evidence"):
+            orch.write_manifest(results, output, "plan", "test-feature")
 
 
 # ---------------------------------------------------------------------------

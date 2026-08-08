@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T21:55:31.880179+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Completed bounded SDK recovery and the remaining compatibility, integration, documentation, and validation work. Existing completed package tasks were reconciled in tasks.md with final evidence recorded.",
+    "completed_work": [
+      "SDK review recovery and PR SDK-only compatibility",
+      "Golden false-zero and valid-empty quorum regression coverage",
+      "Typed result compatibility documentation and final quality evidence"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Reuse the shared recovery core for SDK reviews",
+        "rationale": "Keeps SDK retries, deadlines, provenance, and quorum eligibility aligned with CLI and async dispatch.",
+        "capability": "review-recovery",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run implementation review and validation phases against the pushed feature branch."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "description": "shared CLI and SDK recovery dispatch"
+      },
+      {
+        "path": "skills/tests/autopilot/test_review_hardening_integration.py",
+        "description": "golden regression coverage"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/validation-report.md",
+        "description": "final validation evidence"
+      }
+    ]
+  }
+}

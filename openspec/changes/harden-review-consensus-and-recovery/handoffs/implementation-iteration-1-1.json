@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T22:01:55.613797+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Refined fail-closed review routing and convergence checkpoint quorum handling. SDK reviews now reject unsupported thinking before execution, while checkpoint quorum preserves and evaluates logical attempt-chain evidence.",
+    "completed_work": [
+      "Rejected unsupported SDK thinking before any SDK invocation and retained a configuration attempt artifact.",
+      "Applied shared logical-result quorum eligibility during convergence checkpointing and quorum checks.",
+      "Added regressions for SDK thinking rejection and malformed-chain quorum exclusion.",
+      "Passed 145 targeted tests, 50 coordinator routing tests, focused Ruff, schema parity, and strict OpenSpec validation."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Reject unsupported SDK thinking before dispatch",
+        "rationale": "A successful SDK response must not silently omit a requested reviewer thinking setting.",
+        "capability": "review-recovery",
+        "supersedes": null
+      },
+      {
+        "title": "Use attempt-chain eligibility for recovery-aware convergence",
+        "rationale": "A legacy success flag cannot override malformed or ineligible logical review evidence.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": [
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "description": "SDK review recovery routing"
+      },
+      {
+        "path": "skills/autopilot/scripts/convergence_loop.py",
+        "description": "attempt-aware checkpoint quorum"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py",
+        "description": "SDK thinking regression"
+      },
+      {
+        "path": "skills/autopilot/scripts/tests/test_convergence_loop.py",
+        "description": "malformed-chain quorum regression"
+      }
+    ]
+  }
+}

@@ -27,6 +27,10 @@ Work package execution protocol for coordinated-tier worker agents.
 ### `<skill-base-dir>/scripts/review_dispatcher.py`
 
 Multi-vendor review dispatch — sends review prompts to configured vendor CLIs and collects findings.
+Its `ReviewResult` output is backward-compatible (`success`, `findings`, and
+`model_used`) and adds bounded attempt provenance for CLI, SDK, and async
+transports. Use `review_result_policy.is_quorum_eligible()` for quorum decisions;
+do not infer quorum from whether `findings` is non-empty.
 
 ### `<skill-base-dir>/scripts/consensus_synthesizer.py`
 

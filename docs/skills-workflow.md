@@ -469,6 +469,16 @@ Consumes the bug-scrub report and applies remediation. Classifies findings into 
 
 ## Roadmap Orchestration
 
+### Typed review-result compatibility
+
+Review dispatch returns the established `ReviewResult` shape to all workflow
+callers. The legacy `success`, `findings`, and `model_used` fields remain
+available, while review transports also expose an attempt chain and terminal
+provenance. Consumers that decide quorum must call the shared
+`is_quorum_eligible()` policy rather than treating a non-empty findings list as
+a successful vote; a schema-valid empty review is eligible, while malformed or
+unattributable output is not.
+
 The core workflow above handles **one OpenSpec change at a time**. For larger initiatives — long markdown proposals from Claude Chat, Perplexity, or ChatGPT Pro that describe multiple capabilities — the roadmap layer decomposes and orchestrates multiple changes.
 
 ```

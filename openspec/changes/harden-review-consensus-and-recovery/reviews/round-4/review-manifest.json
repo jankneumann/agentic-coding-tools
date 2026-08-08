@@ -1,0 +1,283 @@
+{
+  "schema_version": 2,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-08-02T16:04:56Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "logical_request_id": "implementation:antigravity-local",
+      "requested_vendor": "antigravity",
+      "requested_routing": {
+        "archetype": "reviewer",
+        "tier": null,
+        "phase": null
+      },
+      "deadline_at": "2026-08-02T15:49:57.159173+00:00",
+      "budget": {
+        "corrective_max": 1,
+        "replacement_max": 1,
+        "fallback_models": [
+          "gemini-3.6-flash-low"
+        ]
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "vendor": "antigravity",
+          "transport": "cli",
+          "reason": "initial",
+          "terminal": true,
+          "success": false,
+          "elapsed_seconds": 299.0137910839403,
+          "parser_stage": null,
+          "validation_status": "not_reached",
+          "error_class": "timeout",
+          "error_detail": "Timeout after 299s",
+          "stdout_excerpt": null,
+          "stderr_excerpt": null,
+          "diagnostics_truncated": false,
+          "resolved_execution": {
+            "model": "gemini-3.6-flash-high",
+            "requested_thinking": null,
+            "applied_thinking": null,
+            "thinking_translation": "not_requested",
+            "fallback_reason": null
+          }
+        }
+      ],
+      "terminal_outcome": "timeout",
+      "terminal_vendor": "antigravity",
+      "quorum_eligible": false
+    },
+    {
+      "logical_request_id": "implementation:claude-local",
+      "requested_vendor": "claude_code",
+      "requested_routing": {
+        "archetype": "reviewer",
+        "tier": null,
+        "phase": null
+      },
+      "deadline_at": "2026-08-02T15:54:56.329986+00:00",
+      "budget": {
+        "corrective_max": 1,
+        "replacement_max": 1,
+        "fallback_models": [
+          "claude-sonnet-4-6"
+        ]
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "vendor": "claude_code",
+          "transport": "cli",
+          "reason": "initial",
+          "terminal": true,
+          "success": false,
+          "elapsed_seconds": 299.038866625051,
+          "parser_stage": null,
+          "validation_status": "not_reached",
+          "error_class": "timeout",
+          "error_detail": "Timeout after 299s",
+          "stdout_excerpt": null,
+          "stderr_excerpt": null,
+          "diagnostics_truncated": false,
+          "resolved_execution": {
+            "model": "opus",
+            "requested_thinking": null,
+            "applied_thinking": null,
+            "thinking_translation": "not_requested",
+            "fallback_reason": null
+          }
+        }
+      ],
+      "terminal_outcome": "timeout",
+      "terminal_vendor": "claude_code",
+      "quorum_eligible": false
+    },
+    {
+      "logical_request_id": "implementation:codex-local",
+      "requested_vendor": "codex",
+      "requested_routing": {
+        "archetype": "reviewer",
+        "tier": null,
+        "phase": null
+      },
+      "deadline_at": "2026-08-02T15:59:55.551996+00:00",
+      "budget": {
+        "corrective_max": 1,
+        "replacement_max": 1,
+        "fallback_models": [
+          "gpt-5.4",
+          "gpt-5.4-mini"
+        ]
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "vendor": "codex",
+          "transport": "cli",
+          "reason": "initial",
+          "terminal": true,
+          "success": false,
+          "elapsed_seconds": 299.0154128340073,
+          "parser_stage": null,
+          "validation_status": "not_reached",
+          "error_class": "timeout",
+          "error_detail": "Timeout after 299s",
+          "stdout_excerpt": null,
+          "stderr_excerpt": null,
+          "diagnostics_truncated": false,
+          "resolved_execution": {
+            "model": "gpt-5.6-sol",
+            "requested_thinking": "medium",
+            "applied_thinking": "model_reasoning_effort=medium",
+            "thinking_translation": "applied",
+            "fallback_reason": null
+          }
+        }
+      ],
+      "terminal_outcome": "timeout",
+      "terminal_vendor": "codex",
+      "quorum_eligible": false
+    },
+    {
+      "logical_request_id": "implementation:grok-local",
+      "requested_vendor": "grok",
+      "requested_routing": {
+        "archetype": "reviewer",
+        "tier": null,
+        "phase": null
+      },
+      "deadline_at": "2026-08-02T16:04:54.756921+00:00",
+      "budget": {
+        "corrective_max": 1,
+        "replacement_max": 1,
+        "fallback_models": []
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "vendor": "grok",
+          "transport": "cli",
+          "reason": "initial",
+          "terminal": true,
+          "success": false,
+          "elapsed_seconds": 299.0202225840185,
+          "parser_stage": null,
+          "validation_status": "not_reached",
+          "error_class": "timeout",
+          "error_detail": "Timeout after 299s",
+          "stdout_excerpt": null,
+          "stderr_excerpt": null,
+          "diagnostics_truncated": false,
+          "resolved_execution": {
+            "model": "grok-4.5",
+            "requested_thinking": "high",
+            "applied_thinking": "high",
+            "thinking_translation": "applied",
+            "fallback_reason": null
+          }
+        }
+      ],
+      "terminal_outcome": "timeout",
+      "terminal_vendor": "grok",
+      "quorum_eligible": false
+    },
+    {
+      "logical_request_id": "implementation:pi-local",
+      "requested_vendor": "pi",
+      "requested_routing": {
+        "archetype": "reviewer",
+        "tier": null,
+        "phase": null
+      },
+      "deadline_at": "2026-08-02T16:09:53.954273+00:00",
+      "budget": {
+        "corrective_max": 1,
+        "replacement_max": 1,
+        "fallback_models": [
+          "qwen/qwen3-coder-flash"
+        ]
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "vendor": "pi",
+          "transport": "cli",
+          "reason": "initial",
+          "terminal": false,
+          "success": false,
+          "elapsed_seconds": 0.9385197920491919,
+          "parser_stage": "json",
+          "validation_status": "invalid",
+          "error_class": "invalid_output",
+          "error_detail": "Invalid JSON output",
+          "stdout_excerpt": "{\"type\":\"session\",\"version\":3,\"id\":\"019fc338-9ab6-75bc-8f52-7013428fdf3d\",\"timestamp\":\"2026-08-02T16:04:54.582Z\",\"cwd\":\"/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/harden-review-consensus-and-recovery\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"# Independent implementation review: harden-review-consensus-and-recovery\\n\\nAct as a read-only code reviewer. Review the implementation on the current branch against base commit `247bc201cbfab7ee4a1441f0d293ad16031247a5` and the OpenSpec change `harden-review-consensus-and-recovery`.\\n\\nInspect the complete feature diff with:\\n\\n```bash\\ngit diff 247bc201cbfab7ee4a1441f0d293ad16031247a5...HEAD\\n```\\n\\nRead these requirements and contracts:\\n\\n- `openspec/changes/harden-review-consensus-and-recovery/proposal.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/design.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/specs/skill-workflow/spec.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/specs/agent-archetypes/spec.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/tasks.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml`\\n- `openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json`\\n- `openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json`\\n\\nFocus on correctness, security, performance, architecture, readability, compatibility, and exact contract/spec compliance. Pay special attention to fail-closed behavior, deterministic consensus grouping, adjudication semantics, attempt-chain bounds, monotonic deadline handling, vendor replacement/deduplication, quorum eligibility, routing precedence, thinking translation, provenance, redaction, checkpoint durability, and legacy caller compatibility. Do not modify any files.\\n\\nReturn only one JSON object. It must have this shape:\\n\\n```json\\n{\\n  \\\"review_type\\\": \\\"implementation\\\",\\n  \\\"target\\\": \\\"whole-branch\\\",\\n  \\\"reviewer_vendor\\\": \\\"your vendor/model identifier\\\",\\n  \\\"findings\\\": [\\n    {\\n      \\\"id\\\": 1,\\n      \\\"axis\\\": \\\"correctness\\\",\\n      \\\"severity\\\": \\\"critical\\\",\\n      \\\"type\\\": \\\"correctness\\\",\\n      \\\"criticality\\\": \\\"critical\\\",\\n      \\\"description\\\": \\\"Critical: path/to/file.py:42 concise issue and impact\\\",\\n      \\\"resolution\\\": \\\"Specific required fix\\\",\\n      \\\"disposition\\\": \\\"fix\\\",\\n      \\\"package_id\\\": \\\"whole-branch\\\",\\n      \\\"file_path\\\": \\\"path/to/file.py\\\",\\n      \\\"line_range\\\": {\\\"start\\\": 42, \\\"end\\\": 44}\\n    }\\n  ]\\n}\\n```\\n\\nAllowed `axis`: `correctness`, `readability`, `architecture`, `security`, `performance`.\\n\\nAllowed `severity`: `critical`, `nit`, `optional`, `fyi`, `none`. The description must start with the matching marker `Critical:`, `Nit:`, `Optional:`, `FYI:`, or `none:`. Use `critical` only for merge-blocking defects. Critical findings must use disposition `fix` or `escalate`. Security findings must not use `accept`. Positive observations may use severity `none` and disposition `accept`.\\n\\nAllowed `type`: `spec_gap`, `contract_mismatch`, `architecture`, `security`, `performance`, `style`, `correctness`, `observability`, `compatibility`, `resilience`.\\n\\nAllowed `disposition`: `fix`, `regenerate`, `accept`, `escalate`.\\n\\nEvery code-level finding must include an accurate repo-relative `file_path` and `line_range`. Split distinct issues into separate findings. If there are no defects, include at least one `none` positive observation demonstrating that the diff was inspected.\\n\"}],\"timestamp\":1785686694646}}\n{\"type\":\"message_end\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"# Independent implementation review: harden-review-consensus-and-recovery\\n\\nAct as a read-only code reviewer. Review the implementation on the current branch against base commit `247bc201cbfab7ee4a1441f0d293ad16031247a5` and the OpenSpec change `harden-review-consensus-and-recovery`.\\n\\nInspect the complete feature diff with:\\n\\n```bash\\ngit diff 247",
+          "stderr_excerpt": "",
+          "diagnostics_truncated": true,
+          "resolved_execution": {
+            "model": "qwen/qwen3-coder-plus",
+            "requested_thinking": null,
+            "applied_thinking": null,
+            "thinking_translation": "not_requested",
+            "fallback_reason": null
+          }
+        },
+        {
+          "attempt_index": 2,
+          "vendor": "pi",
+          "transport": "cli",
+          "reason": "corrective_redispatch",
+          "terminal": false,
+          "success": false,
+          "elapsed_seconds": 0.6757142500719056,
+          "parser_stage": "json",
+          "validation_status": "invalid",
+          "error_class": "invalid_output",
+          "error_detail": "Invalid JSON output",
+          "stdout_excerpt": "{\"type\":\"session\",\"version\":3,\"id\":\"019fc338-9d8a-748f-9192-582469c3f05a\",\"timestamp\":\"2026-08-02T16:04:55.306Z\",\"cwd\":\"/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/harden-review-consensus-and-recovery\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"# Independent implementation review: harden-review-consensus-and-recovery\\n\\nAct as a read-only code reviewer. Review the implementation on the current branch against base commit `247bc201cbfab7ee4a1441f0d293ad16031247a5` and the OpenSpec change `harden-review-consensus-and-recovery`.\\n\\nInspect the complete feature diff with:\\n\\n```bash\\ngit diff 247bc201cbfab7ee4a1441f0d293ad16031247a5...HEAD\\n```\\n\\nRead these requirements and contracts:\\n\\n- `openspec/changes/harden-review-consensus-and-recovery/proposal.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/design.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/specs/skill-workflow/spec.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/specs/agent-archetypes/spec.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/tasks.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml`\\n- `openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json`\\n- `openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json`\\n\\nFocus on correctness, security, performance, architecture, readability, compatibility, and exact contract/spec compliance. Pay special attention to fail-closed behavior, deterministic consensus grouping, adjudication semantics, attempt-chain bounds, monotonic deadline handling, vendor replacement/deduplication, quorum eligibility, routing precedence, thinking translation, provenance, redaction, checkpoint durability, and legacy caller compatibility. Do not modify any files.\\n\\nReturn only one JSON object. It must have this shape:\\n\\n```json\\n{\\n  \\\"review_type\\\": \\\"implementation\\\",\\n  \\\"target\\\": \\\"whole-branch\\\",\\n  \\\"reviewer_vendor\\\": \\\"your vendor/model identifier\\\",\\n  \\\"findings\\\": [\\n    {\\n      \\\"id\\\": 1,\\n      \\\"axis\\\": \\\"correctness\\\",\\n      \\\"severity\\\": \\\"critical\\\",\\n      \\\"type\\\": \\\"correctness\\\",\\n      \\\"criticality\\\": \\\"critical\\\",\\n      \\\"description\\\": \\\"Critical: path/to/file.py:42 concise issue and impact\\\",\\n      \\\"resolution\\\": \\\"Specific required fix\\\",\\n      \\\"disposition\\\": \\\"fix\\\",\\n      \\\"package_id\\\": \\\"whole-branch\\\",\\n      \\\"file_path\\\": \\\"path/to/file.py\\\",\\n      \\\"line_range\\\": {\\\"start\\\": 42, \\\"end\\\": 44}\\n    }\\n  ]\\n}\\n```\\n\\nAllowed `axis`: `correctness`, `readability`, `architecture`, `security`, `performance`.\\n\\nAllowed `severity`: `critical`, `nit`, `optional`, `fyi`, `none`. The description must start with the matching marker `Critical:`, `Nit:`, `Optional:`, `FYI:`, or `none:`. Use `critical` only for merge-blocking defects. Critical findings must use disposition `fix` or `escalate`. Security findings must not use `accept`. Positive observations may use severity `none` and disposition `accept`.\\n\\nAllowed `type`: `spec_gap`, `contract_mismatch`, `architecture`, `security`, `performance`, `style`, `correctness`, `observability`, `compatibility`, `resilience`.\\n\\nAllowed `disposition`: `fix`, `regenerate`, `accept`, `escalate`.\\n\\nEvery code-level finding must include an accurate repo-relative `file_path` and `line_range`. Split distinct issues into separate findings. If there are no defects, include at least one `none` positive observation demonstrating that the diff was inspected.\\n\"}],\"timestamp\":1785686695351}}\n{\"type\":\"message_end\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"# Independent implementation review: harden-review-consensus-and-recovery\\n\\nAct as a read-only code reviewer. Review the implementation on the current branch against base commit `247bc201cbfab7ee4a1441f0d293ad16031247a5` and the OpenSpec change `harden-review-consensus-and-recovery`.\\n\\nInspect the complete feature diff with:\\n\\n```bash\\ngit diff 247",
+          "stderr_excerpt": "",
+          "diagnostics_truncated": true,
+          "resolved_execution": {
+            "model": "qwen/qwen3-coder-plus",
+            "requested_thinking": null,
+            "applied_thinking": null,
+            "thinking_translation": "not_requested",
+            "fallback_reason": null
+          }
+        },
+        {
+          "attempt_index": 3,
+          "vendor": "pi",
+          "transport": "cli",
+          "reason": "model_fallback",
+          "terminal": true,
+          "success": false,
+          "elapsed_seconds": 0.6993758749449626,
+          "parser_stage": "json",
+          "validation_status": "invalid",
+          "error_class": "invalid_output",
+          "error_detail": "Invalid JSON output",
+          "stdout_excerpt": "{\"type\":\"session\",\"version\":3,\"id\":\"019fc338-a032-77db-8eba-6f6149a0e125\",\"timestamp\":\"2026-08-02T16:04:55.986Z\",\"cwd\":\"/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/harden-review-consensus-and-recovery\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"# Independent implementation review: harden-review-consensus-and-recovery\\n\\nAct as a read-only code reviewer. Review the implementation on the current branch against base commit `247bc201cbfab7ee4a1441f0d293ad16031247a5` and the OpenSpec change `harden-review-consensus-and-recovery`.\\n\\nInspect the complete feature diff with:\\n\\n```bash\\ngit diff 247bc201cbfab7ee4a1441f0d293ad16031247a5...HEAD\\n```\\n\\nRead these requirements and contracts:\\n\\n- `openspec/changes/harden-review-consensus-and-recovery/proposal.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/design.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/specs/skill-workflow/spec.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/specs/agent-archetypes/spec.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/tasks.md`\\n- `openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml`\\n- `openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json`\\n- `openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json`\\n\\nFocus on correctness, security, performance, architecture, readability, compatibility, and exact contract/spec compliance. Pay special attention to fail-closed behavior, deterministic consensus grouping, adjudication semantics, attempt-chain bounds, monotonic deadline handling, vendor replacement/deduplication, quorum eligibility, routing precedence, thinking translation, provenance, redaction, checkpoint durability, and legacy caller compatibility. Do not modify any files.\\n\\nReturn only one JSON object. It must have this shape:\\n\\n```json\\n{\\n  \\\"review_type\\\": \\\"implementation\\\",\\n  \\\"target\\\": \\\"whole-branch\\\",\\n  \\\"reviewer_vendor\\\": \\\"your vendor/model identifier\\\",\\n  \\\"findings\\\": [\\n    {\\n      \\\"id\\\": 1,\\n      \\\"axis\\\": \\\"correctness\\\",\\n      \\\"severity\\\": \\\"critical\\\",\\n      \\\"type\\\": \\\"correctness\\\",\\n      \\\"criticality\\\": \\\"critical\\\",\\n      \\\"description\\\": \\\"Critical: path/to/file.py:42 concise issue and impact\\\",\\n      \\\"resolution\\\": \\\"Specific required fix\\\",\\n      \\\"disposition\\\": \\\"fix\\\",\\n      \\\"package_id\\\": \\\"whole-branch\\\",\\n      \\\"file_path\\\": \\\"path/to/file.py\\\",\\n      \\\"line_range\\\": {\\\"start\\\": 42, \\\"end\\\": 44}\\n    }\\n  ]\\n}\\n```\\n\\nAllowed `axis`: `correctness`, `readability`, `architecture`, `security`, `performance`.\\n\\nAllowed `severity`: `critical`, `nit`, `optional`, `fyi`, `none`. The description must start with the matching marker `Critical:`, `Nit:`, `Optional:`, `FYI:`, or `none:`. Use `critical` only for merge-blocking defects. Critical findings must use disposition `fix` or `escalate`. Security findings must not use `accept`. Positive observations may use severity `none` and disposition `accept`.\\n\\nAllowed `type`: `spec_gap`, `contract_mismatch`, `architecture`, `security`, `performance`, `style`, `correctness`, `observability`, `compatibility`, `resilience`.\\n\\nAllowed `disposition`: `fix`, `regenerate`, `accept`, `escalate`.\\n\\nEvery code-level finding must include an accurate repo-relative `file_path` and `line_range`. Split distinct issues into separate findings. If there are no defects, include at least one `none` positive observation demonstrating that the diff was inspected.\\n\"}],\"timestamp\":1785686696031}}\n{\"type\":\"message_end\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"# Independent implementation review: harden-review-consensus-and-recovery\\n\\nAct as a read-only code reviewer. Review the implementation on the current branch against base commit `247bc201cbfab7ee4a1441f0d293ad16031247a5` and the OpenSpec change `harden-review-consensus-and-recovery`.\\n\\nInspect the complete feature diff with:\\n\\n```bash\\ngit diff 247",
+          "stderr_excerpt": "",
+          "diagnostics_truncated": true,
+          "resolved_execution": {
+            "model": "qwen/qwen3-coder-flash",
+            "requested_thinking": null,
+            "applied_thinking": null,
+            "thinking_translation": "not_requested",
+            "fallback_reason": "invalid_output"
+          }
+        }
+      ],
+      "terminal_outcome": "invalid_output_exhausted",
+      "terminal_vendor": "pi",
+      "quorum_eligible": false
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 0,
+  "round_state": "final",
+  "vendors": []
+}

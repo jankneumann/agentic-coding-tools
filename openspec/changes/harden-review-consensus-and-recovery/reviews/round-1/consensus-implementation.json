@@ -1,0 +1,1090 @@
+{
+  "schema_version": 2,
+  "review_type": "implementation",
+  "target": "harden-review-consensus-and-recovery",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 9,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 17,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "quorum": {
+    "requested": 2,
+    "received": 2,
+    "minimum_required": 2,
+    "eligible_vendors": [
+      "codex",
+      "grok"
+    ],
+    "met": true
+  },
+  "consensus_findings": [
+    {
+      "id": 1,
+      "group_id": "cg-d86c7f46d4b7d3f0",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_dispatcher.py:1539 marks any non-null parsed findings object as schema_valid; _extract_findings only checks for a findings key, so schema-invalid vendor output can bypass invalid-output recovery and count toward quorum.",
+      "vendor_dispositions": {
+        "codex": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 1,
+          "concern_fingerprint": "cg-d86c7f46d4b7d3f0",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 2,
+      "group_id": "cg-ae60db6ea198e1aa",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_routing.py:48 defaults review-mode dispatch to static routing whenever no resolver is explicitly passed, so direct CLI, pull-request review, and autopilot calls do not resolve the required reviewer archetype/premium model mapping.",
+      "vendor_dispositions": {
+        "codex": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 2,
+          "concern_fingerprint": "cg-ae60db6ea198e1aa",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 3,
+      "group_id": "cg-22d25ad76b9625e2",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_attempts.py:180 stops after primary corrective and same-provider fallback attempts; the orchestrator never dispatches the spec-required one not-yet-dispatched replacement vendor after local exhaustion.",
+      "vendor_dispositions": {
+        "codex": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 3,
+          "concern_fingerprint": "cg-22d25ad76b9625e2",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 4,
+      "group_id": "cg-b2d8bd784b54f15b",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_attempts.py:166 checks the deadline only before invoke() and accepts a successful response even if the call returns after the monotonic per-vendor deadline, so an over-budget fallback can still become quorum-eligible.",
+      "vendor_dispositions": {
+        "codex": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 4,
+          "concern_fingerprint": "cg-b2d8bd784b54f15b",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 5,
+      "group_id": "cg-6a2e3c15896f2862",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_dispatcher.py:1926 writes only legacy dispatch fields and recomputes quorum from r.success, dropping the bounded attempt chain, redacted diagnostics, terminal outcome, and shared quorum predicate from CLI manifests.",
+      "vendor_dispositions": {
+        "codex": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 5,
+          "concern_fingerprint": "cg-6a2e3c15896f2862",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 6,
+      "group_id": "cg-c510ae49a0212afe",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "criticality": "critical",
+      "description": "Critical: skills/autopilot/scripts/convergence_loop.py:516 converts the consensus report to a dict and immediately uses it without the required validate_consensus_report() relational checks, and no implementation of that validator exists in the changed code.",
+      "vendor_dispositions": {
+        "codex": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 6,
+          "concern_fingerprint": "cg-c510ae49a0212afe",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 7,
+      "group_id": "cg-1b4f776dfba196dc",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/consensus_policy.py:29 treats any accepted_risk object with actor_type=human and approval_ref as authorized, allowing fabricated waiver data to suppress convergence blockers without a trusted human approval resolver.",
+      "vendor_dispositions": {
+        "codex": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 7,
+          "concern_fingerprint": "cg-1b4f776dfba196dc",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 8,
+      "group_id": "cg-80e3b35cd28f7d90",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "codex",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/consensus_synthesizer.py:332 builds connected components with union-find, so weak A-B/B-C transitive bridges merge even when A and C do not meet the threshold, violating deterministic grouping semantics and undercounting distinct blockers.",
+      "vendor_dispositions": {
+        "codex": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 8,
+          "concern_fingerprint": "cg-80e3b35cd28f7d90",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 9,
+      "group_id": "cg-74b8566b07fc12fa",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "codex",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/consensus_synthesizer.py:323 runs quadratic cross-vendor matching with no 500-finding or 2 MiB parsed-output limit, so over-limit vendor output is not classified invalid_output before expensive matching.",
+      "vendor_dispositions": {
+        "codex": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 9,
+          "concern_fingerprint": "cg-74b8566b07fc12fa",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 10,
+      "group_id": "cg-5d516a9aacf3efc7",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "criticality": "critical",
+      "description": "Critical: skills/autopilot/scripts/convergence_loop.py:429 and skills/merge-pull-requests/scripts/vendor_review.py:309 call dispatch_and_wait() without phase/routing_resolver/routing_context. With resolver=None, resolve_review_routing immediately returns static fallback (null model), so production reviews never apply the reviewer archetype / premium mapping required by agent-archetypes (e.g. Pi reviewer/premium). Routing is only exercised by unit tests that inject a resolver.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 1,
+          "concern_fingerprint": "cg-5d516a9aacf3efc7",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 11,
+      "group_id": "cg-1786d9732e9d67c9",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "criticality": "high",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_dispatcher.py:53 defines ErrorClass.AUTH='auth_required', but _result_response (1547-1551) only accepts contract enum value 'auth'. Auth failures are rewritten to error_class='unknown', so terminal_outcome becomes 'unknown' instead of the required 'auth' and auth provenance is lost for recovery/quorum diagnostics.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 2,
+          "concern_fingerprint": "cg-1786d9732e9d67c9",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 12,
+      "group_id": "cg-3f057fc3417545c2",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "criticality": "high",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_attempts.py:140 defines select_replacement_vendor and attempt-chain validation accepts reason=replacement_vendor, but review_dispatcher never runs a replacement-vendor chain after invalid_output/capacity exhaustion, never transfers/cancels the replacement's original logical slot, and never records allocation in the round manifest. Spec scenarios for replacement success, no-double-vote, and unavailable replacement are unimplemented on the production path.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 3,
+          "concern_fingerprint": "cg-3f057fc3417545c2",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 13,
+      "group_id": "cg-c6710737800edcd2",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "criticality": "high",
+      "description": "Critical: skills/parallel-infrastructure/scripts/consensus_synthesizer.py:307-337 builds groups with union-find over all edges \u2265 threshold. Location chain A\u2194B and B\u2194C merges A+B+C even when A does not match C (reproduced: one group of 3). Spec requires description-only grouping to admit members only when they match the anchor and every existing member, forbidding weak A-B/B-C transitive bridges; over-grouping can also attach a future adjudication to unrelated concerns.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 4,
+          "concern_fingerprint": "cg-c6710737800edcd2",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 14,
+      "group_id": "cg-3c07f43f9c3d62dd",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "criticality": "high",
+      "description": "Critical: validate_consensus_report() is required by skill-workflow (alias equality, nested/flat quorum invariants, false-quorum rejection) and design D7, but no such function exists. consensus_synthesizer.to_dict writes revision-2 fields and write_report/convergence persist without relational validation, so malformed or aliased-disagreeing reports are not fail-closed.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 5,
+          "concern_fingerprint": "cg-3c07f43f9c3d62dd",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 15,
+      "group_id": "cg-8ae14998d5df7013",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "criticality": "high",
+      "description": "Critical: skills/parallel-infrastructure/scripts/consensus_synthesizer.py:387 always evaluates adjudication={'status':'unreviewed'} and to_dict always emits applied_adjudications=[] (487). There is no ledger parameter, fingerprint matching, stale rejection, or trusted accepted_risk resolver. Evidence-backed fixed/false_positive/accepted_risk and deferred tracking requirements cannot be applied by synthesis, so convergence cannot clear blockers via adjudication as specified.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 6,
+          "concern_fingerprint": "cg-8ae14998d5df7013",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 16,
+      "group_id": "cg-9712a269b82d2f44",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "criticality": "high",
+      "description": "High: skills/parallel-infrastructure/scripts/consensus_synthesizer.py:198-199 still hard-fails match_score when a.type != b.type, so exact same-location findings with compatible type-family differences never group. Design D3 and the deterministic-match requirement state exact location may cross type-family boundaries (taxonomy lowers confidence but is not an absolute veto).",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 7,
+          "concern_fingerprint": "cg-9712a269b82d2f44",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 17,
+      "group_id": "cg-6db04921aada9f29",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "criticality": "high",
+      "description": "High: skills/parallel-infrastructure/scripts/consensus_synthesizer.py:451-458 sets every source_findings[].concern_fingerprint to the group_id hash rather than a per-finding normalized concern fingerprint. Spec/ledger require entries keyed by group_id and exact sorted concern fingerprints; identical fingerprints destroy stale-regroup detection and make ledger attach/reject semantics non-auditable.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 8,
+          "concern_fingerprint": "cg-6db04921aada9f29",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 18,
+      "group_id": "cg-3b96acdd4d6527e7",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "criticality": "high",
+      "description": "High: skills/parallel-infrastructure/scripts/review_dispatcher.py:1695 treats any non-null routing.thinking as configuration_failure for SDK, ignoring SdkConfig.thinking_parameter/thinking_values loaded from agents.yaml (1295-1296, 166-167). Agent-archetypes requires CLI/SDK/async to apply resolved thinking via provider configuration; codex SDK config declares thinking_parameter but is never used.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 10,
+          "concern_fingerprint": "cg-3b96acdd4d6527e7",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 19,
+      "group_id": "cg-dd4e69159f5d05d0",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "criticality": "medium",
+      "description": "High: Matcher never enforces the required pre-match input limits (\u2264500 findings and \u22642 MiB parsed output per vendor). Oversized vendor results can force quadratic pairwise work in _match_all (324+) instead of being classified invalid_output before matching.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 9,
+          "concern_fingerprint": "cg-dd4e69159f5d05d0",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 20,
+      "group_id": "cg-6d38306354646958",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "criticality": "medium",
+      "description": "High: skills/parallel-infrastructure/scripts/review_dispatcher.py:1926-1946 write_manifest still serializes legacy success-only dispatches and sets quorum_received=sum(r.success), dropping attempt chains and shared is_quorum_eligible. Spec requires dispatch metadata retain the complete bounded attempt chain and quorum_received from the shared predicate.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 11,
+          "concern_fingerprint": "cg-6d38306354646958",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 21,
+      "group_id": "cg-eed4f1858c63370f",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "criticality": "medium",
+      "description": "High: skills/autopilot/scripts/convergence_loop.py:533-537 escalates whenever status=='disagreement', ignoring policy.convergence_blocking / adjudication. Spec says a valid non-blocking adjudication resolves the blocker without erasing historical disagreement; this path would still escalate after fixed/false_positive/accepted_risk once the ledger exists.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 12,
+          "concern_fingerprint": "cg-eed4f1858c63370f",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 22,
+      "group_id": "cg-ab477ff4f51a2fc0",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "criticality": "medium",
+      "description": "High: skills/parallel-infrastructure/scripts/consensus_policy.py:27-36 accepts accepted_risk when authorization has actor_type=='human' plus actor_id/approval_ref strings. Spec requires only a trusted human approval resolver (coordinator_audit/github_approval/signed_local_record) and rejection of fabricated actor strings without a trusted approval record; schema mechanism/authorized_at fields are not checked.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 13,
+          "concern_fingerprint": "cg-ab477ff4f51a2fc0",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 23,
+      "group_id": "cg-3db3bb48696ae153",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 14,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "criticality": "medium",
+      "description": "High: Design/spec require progressive terminal persistence as each vendor finishes (so a slow/timed-out vendor cannot hide later state). review_dispatcher.dispatch_and_wait still collects all results in-memory (1789+) and convergence checkpoints only after the full sequential loop (convergence_loop.py:441+). Whole-chain timeout with later-vendor continuation is present at process level, but intermediate terminal artifacts are not durably written per vendor.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 14,
+          "concern_fingerprint": "cg-3db3bb48696ae153",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 24,
+      "group_id": "cg-f305a649c7ca938a",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 15,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "criticality": "medium",
+      "description": "Nit: Deterministic structured matching (type-family aliases, synonym map, location/symbol/requirement bucketing, algorithm version provenance beyond a constant string) is largely absent. match_score remains the prior type-gated lexical scorer; algorithm_version is hard-coded 'structured-v1' without structured evidence objects. Spec D3 scenarios for taxonomy aliases and structured-first evidence are only partially met by order-sorted union-find.",
+      "vendor_dispositions": {
+        "grok": "fix"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 15,
+          "concern_fingerprint": "cg-f305a649c7ca938a",
+          "disposition": "fix"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": true,
+        "effective_blocking": true
+      }
+    },
+    {
+      "id": 25,
+      "group_id": "cg-fb7377d2006303f2",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 16,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "criticality": "low",
+      "description": "none: Fail-closed core policy is correctly implemented for unadjudicated findings: evaluate_blocking treats provisional medium+ fix/regenerate/escalate as convergence-blocking; synthesizer preserves source dispositions; summary aliases set blocking_count==effective_blocking_count and provisional_count==unconfirmed_count; convergence_loop no longer relaxes unconfirmed findings in the final round and returns max_rounds with escalate_findings.",
+      "vendor_dispositions": {
+        "grok": "accept"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 16,
+          "concern_fingerprint": "cg-fb7377d2006303f2",
+          "disposition": "accept"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": false,
+        "effective_blocking": false
+      }
+    },
+    {
+      "id": 26,
+      "group_id": "cg-37b1cb72426a67f8",
+      "algorithm_version": "structured-v1",
+      "status": "unconfirmed",
+      "policy_status": "provisional",
+      "primary_vendor": "grok",
+      "primary_finding_id": 17,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "criticality": "low",
+      "description": "none: Bounded vendor-local recovery for invalid_output (initial \u2192 one corrective \u2192 deduped model fallbacks under one monotonic deadline), capacity skip of corrective, auth non-retry (once class mapping is fixed), sanitize_diagnostic redaction/truncation, and shared is_quorum_eligible for empty schema-valid findings are present and covered by attempt-core tests.",
+      "vendor_dispositions": {
+        "grok": "accept"
+      },
+      "source_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 17,
+          "concern_fingerprint": "cg-37b1cb72426a67f8",
+          "disposition": "accept"
+        }
+      ],
+      "match": {
+        "method": "single",
+        "score": 0.0,
+        "evidence": []
+      },
+      "adjudication": {
+        "status": "unreviewed"
+      },
+      "policy": {
+        "integration_blocking": false,
+        "convergence_blocking": false,
+        "effective_blocking": false
+      }
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 26,
+    "confirmed_count": 0,
+    "provisional_count": 26,
+    "unconfirmed_count": 26,
+    "disagreement_count": 0,
+    "integration_blocking_count": 0,
+    "convergence_blocking_count": 24,
+    "effective_blocking_count": 24,
+    "blocking_count": 24
+  },
+  "applied_adjudications": []
+}

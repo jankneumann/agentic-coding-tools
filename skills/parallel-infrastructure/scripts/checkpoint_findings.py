@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 # Manifest schema version. Bump if the manifest layout changes; readers
 # must refuse unknown versions.
-MANIFEST_SCHEMA_VERSION = 1
+MANIFEST_SCHEMA_VERSION = 2
 
 # Path-safety constants.
 _VENDOR_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -239,6 +239,16 @@ def read_vendor_findings(out_dir: Path) -> dict[str, list[dict[str, Any]]]:
                 f"Manifest vendors[].name {name!r} fails path-safety regex"
             )
         relpath = entry["findings_path"]
+        # A schema-valid empty review has no findings file to read, but it is
+        # still a durable, quorum-eligible index entry.  Keep it enumerable so
+        # replay can reproduce the original quorum without inventing a file.
+        if relpath is None:
+            if entry.get("quorum_eligible") is not True or entry.get("finding_count") != 0:
+                raise ValueError(
+                    "findings_path may be null only for an eligible zero-finding vendor"
+                )
+            out[name] = []
+            continue
         if "/" in relpath or "\\" in relpath or ".." in relpath:
             raise ValueError(
                 f"Manifest findings_path {relpath!r} contains path "
@@ -287,29 +297,36 @@ def write_manifest(
     vendors: list[dict[str, Any]],
     change_id: str | None = None,
     dispatches: list[dict[str, Any]] | None = None,
+    logical_slots: int | None = None,
     quorum_requested: int | None = None,
     quorum_received: int | None = None,
+    round_state: str = "final",
 ) -> Path:
     """Write the review-cache manifest with the superset schema.
 
-    Keyword-only after ``out_dir``. ``change_id`` defaults to None for CLI
-    callers; in-process callers populate it. ``dispatches`` defaults to ``[]``
-    when not supplied. ``quorum_requested`` defaults to ``len(vendors)``;
-    ``quorum_received`` defaults to count of ``dispatches[].success=True``,
-    or ``len(vendors)`` when ``dispatches`` is empty (in-process callers
-    have no per-dispatch metadata, so all listed vendors count as received).
+    Quorum is derived only from validated terminal attempt chains.  An omitted
+    ``dispatches`` argument preserves legacy index-only manifests as audit
+    data, but those entries contribute zero quorum votes. ``logical_slots``
+    records the stable scheduled allocation, and ``round_state`` distinguishes
+    crash-recoverable partial checkpoints from reconciled final manifests.
     """
     if review_type not in _REVIEW_TYPES:
         raise ValueError(
             f"Unknown review_type {review_type!r}; expected one of "
             f"{sorted(_REVIEW_TYPES)}"
         )
+    if round_state not in {"partial", "final"}:
+        raise ValueError("round_state must be 'partial' or 'final'")
+    vendor_names: set[str] = set()
     for v in vendors:
         name = v.get("name", "")
         if not _VENDOR_NAME_RE.match(name):
             raise ValueError(
                 f"vendors[].name {name!r} fails path-safety regex"
             )
+        if name in vendor_names:
+            raise ValueError(f"duplicate vendors[].name {name!r}")
+        vendor_names.add(name)
         # The contract schema (review-cache-layout.schema.json line 81)
         # requires every vendors[] entry to include name, findings_path,
         # AND finding_count. Enforcing those at write time ensures the
@@ -322,18 +339,29 @@ def write_manifest(
                 f"'findings_path' field"
             )
         findings_path = v["findings_path"]
-        if not isinstance(findings_path, str):
+        quorum_eligible = v.get("quorum_eligible", True)
+        if not isinstance(quorum_eligible, bool):
+            raise ValueError(
+                f"vendors[].quorum_eligible for {name!r} must be a boolean"
+            )
+        if findings_path is None:
+            if v.get("finding_count") != 0 or quorum_eligible is not True:
+                raise ValueError(
+                    f"vendors[].findings_path for {name!r} may be null only "
+                    "for an eligible zero-finding result"
+                )
+        elif not isinstance(findings_path, str):
             raise ValueError(
                 f"vendors[].findings_path for {name!r} must be a string, "
                 f"got {type(findings_path).__name__}"
             )
-        if "/" in findings_path or "\\" in findings_path or ".." in findings_path:
+        if isinstance(findings_path, str) and ("/" in findings_path or "\\" in findings_path or ".." in findings_path):
             raise ValueError(
                 f"vendors[].findings_path {findings_path!r} for {name!r} "
                 f"contains path separator or '..'"
             )
         # Mirror the schema's pattern: findings-{vendor}-{plan|implementation}.json
-        if not _FINDINGS_PATH_RE.match(findings_path):
+        if isinstance(findings_path, str) and not _FINDINGS_PATH_RE.match(findings_path):
             raise ValueError(
                 f"vendors[].findings_path {findings_path!r} for {name!r} "
                 f"does not match required pattern "
@@ -356,20 +384,41 @@ def write_manifest(
                 f"got {finding_count}"
             )
 
+    normalized_vendors = [dict(v) for v in vendors]
+    for vendor in normalized_vendors:
+        vendor.setdefault("quorum_eligible", True)
+    dispatches_list = list(dispatches) if dispatches is not None else []
+    from review_attempts import validate_review_attempt_chain
+    from review_result_policy import is_quorum_eligible
+
+    for dispatch in dispatches_list:
+        if "attempts" not in dispatch:
+            raise ValueError("manifest dispatches require review-attempt evidence")
+        validate_review_attempt_chain(dispatch)
+    eligible_vendors = {
+        str(dispatch["terminal_vendor"])
+        for dispatch in dispatches_list if is_quorum_eligible(dispatch)
+    }
+    derived_requested = (
+        (len(dispatches_list) if dispatches is not None else len(normalized_vendors))
+        if logical_slots is None else logical_slots
+    )
+    if isinstance(derived_requested, bool) or not isinstance(derived_requested, int) or derived_requested < 0:
+        raise ValueError("logical_slots must be a non-negative integer")
+    if len(dispatches_list) > derived_requested:
+        raise ValueError("completed dispatches exceed the logical-slot allocation")
+    derived_received = len(eligible_vendors)
+    if quorum_requested is not None and quorum_requested != derived_requested:
+        raise ValueError("caller quorum_requested contradicts logical-slot allocation")
+    if quorum_received is not None and quorum_received != derived_received:
+        raise ValueError("caller quorum_received contradicts eligible terminal vendors")
+    if dispatches is not None and vendor_names != eligible_vendors:
+        raise ValueError("vendors index must exactly match distinct eligible terminal vendors")
+    quorum_requested = derived_requested
+    quorum_received = derived_received
+
     safe_dir = Path(out_dir).resolve(strict=False)
     safe_dir.mkdir(parents=True, exist_ok=True)
-
-    dispatches_list = list(dispatches) if dispatches is not None else []
-
-    if quorum_requested is None:
-        quorum_requested = len(vendors)
-    if quorum_received is None:
-        if dispatches_list:
-            quorum_received = sum(
-                1 for d in dispatches_list if d.get("success")
-            )
-        else:
-            quorum_received = len(vendors)
 
     manifest = {
         "schema_version": MANIFEST_SCHEMA_VERSION,
@@ -380,7 +429,8 @@ def write_manifest(
         "dispatches": dispatches_list,
         "quorum_requested": quorum_requested,
         "quorum_received": quorum_received,
-        "vendors": list(vendors),
+        "round_state": round_state,
+        "vendors": normalized_vendors,
     }
     mpath = safe_dir / "review-manifest.json"
     _atomic_write_json(mpath, manifest)
@@ -411,6 +461,8 @@ def read_manifest(out_dir: Path) -> dict[str, Any]:
             f"this reader only accepts schema_version={MANIFEST_SCHEMA_VERSION}. "
             f"Upgrade the reader or regenerate the manifest."
         )
+    if data.get("round_state") not in {"partial", "final"}:
+        raise ValueError(f"Manifest at {mpath} is missing a valid round_state marker")
     return data
 
 

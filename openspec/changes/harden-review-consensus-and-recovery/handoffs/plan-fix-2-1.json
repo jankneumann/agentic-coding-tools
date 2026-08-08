@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T20:58:04.464620+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Remediated the four actionable second-round findings and incorporated the observed dispatcher timeout overrun into the normative recovery contract. The plan remains fail-closed because the current dispatcher produced zero independent vendor results; implementation must repair the bound before external convergence can be demonstrated.",
+    "completed_work": [
+      "Added revision-2/legacy consensus compatibility aliases and validation scenarios.",
+      "Added minimum-required, distinct-vendor, and false-quorum invariants.",
+      "Added attempt schema bounds plus mandatory validate_review_attempt_chain application checks.",
+      "Added whole-chain timeout, progressive persistence, and later-vendor continuation requirements.",
+      "Added the missing consensus-policy test to package verification.",
+      "Passed strict OpenSpec, contract meta-schema, package DAG, and parallel overlap checks."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Keep revision-2 consensus additive",
+        "rationale": "Canonical policy fields ship beside validated legacy aliases so existing readers do not silently change behavior.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Validate relational trust invariants in named application validators",
+        "rationale": "JSON Schema enforces structural bounds, while consensus and attempt validators own equality, ordering, distinct-vendor, deadline, and transition rules.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Bound the complete vendor model chain",
+        "rationale": "The public timeout is one monotonic per-vendor deadline and terminal state persists before the next vendor runs.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Persist and push PLAN_FIX evidence.",
+      "Do not rerun the same broken external dispatcher indefinitely; implementation must first land the bounded dispatch path or an independently bounded vendor route must be used."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/reviews/review-manifest.json",
+        "description": "zero-quorum timeout evidence"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json",
+        "description": "additive report and quorum invariants"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json",
+        "description": "bounded attempt-chain shape"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/specs/skill-workflow/spec.md",
+        "description": "normative validators and whole-chain timeout"
+      }
+    ]
+  }
+}

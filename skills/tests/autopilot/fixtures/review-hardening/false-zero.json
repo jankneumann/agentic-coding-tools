@@ -1,0 +1,12 @@
+{
+  "vendor": "codex",
+  "finding": {
+    "id": 1,
+    "type": "correctness",
+    "criticality": "high",
+    "description": "The retry result is dropped before quorum evaluation.",
+    "disposition": "fix",
+    "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+    "line_range": {"start": 1, "end": 1}
+  }
+}

@@ -1,0 +1,453 @@
+schema_version: 1
+
+feature:
+  id: harden-review-consensus-and-recovery
+  title: "Fail-closed review consensus, bounded vendor recovery, reviewer-tier routing"
+  plan_revision: 2
+  created_by: codex-autopilot
+  created_at: "2026-08-01T00:00:00Z"
+
+# This change has no HTTP surface. The schema-contract slot carries the two
+# internal JSON contracts that freeze the package boundaries.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json"
+    files:
+      - "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json"
+      - "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-consensus-policy
+    title: "Consensus policy, schema, deterministic grouping"
+    task_type: implementation
+    description: |
+      Tasks 1.1-1.5. Characterize the false-zero behavior,
+      extend both consensus-report schema copies, preserve reviewer dispositions,
+      implement evidence-backed adjudication, derive explicit policy counts, and
+      replace primary-order greedy matching with deterministic structured groups.
+    role: trust-layer-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: [wp-review-attempt-core]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/consensus_policy.py"
+        - "openspec/schemas/consensus-report.schema.json"
+      keys:
+        - "contract:review-consensus-policy"
+      ttl_minutes: 120
+      reason: "Consensus schema plus blocker policy are one atomic trust boundary and consume shared quorum eligibility"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/consensus_policy.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_consensus_policy.py"
+        - "skills/parallel-infrastructure/scripts/tests/fixtures/review-hardening/consensus/**"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/consensus-report.schema.json"
+        - "openspec/schemas/consensus-report.schema.json"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/autopilot/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: review-hardening-consensus
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Consensus synthesizer tests pass"
+          kind: command
+          command: "uv run --project skills pytest skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py skills/parallel-infrastructure/scripts/tests/test_consensus_policy.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["consensus_tests_passed"]
+        - name: "Consensus schema assets are byte-identical"
+          kind: command
+          command: "cmp openspec/schemas/consensus-report.schema.json skills/parallel-infrastructure/install_assets/openspec/schemas/consensus-report.schema.json"
+          evidence:
+            artifacts: []
+            result_keys: ["consensus_schemas_synced"]
+    metadata:
+      loc_estimate: 520
+      complexity: high
+      package_kind: algorithm
+    inputs:
+      task_ids: ["1.1", "1.2", "1.3", "1.4", "1.5"]
+      contracts:
+        - "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json"
+    outputs:
+      result_keys: ["consensus_tests_passed", "consensus_schemas_synced"]
+      artifacts:
+        - "openspec/schemas/consensus-report.schema.json"
+
+  - package_id: wp-review-attempt-core
+    title: "Review attempt, diagnostics, recovery, and quorum core"
+    task_type: implementation
+    description: |
+      Tasks 2.1, 2.3, and 2.4. Build dependency-neutral logical-attempt,
+      diagnostic/redaction, quorum, checkpoint, and bounded recovery helpers.
+      Include deterministic one-replacement selection and exact deadline/budget
+      tests without modifying transport adapters.
+    role: coordination-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_attempts.py"
+        - "skills/parallel-infrastructure/scripts/review_result_policy.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+      keys:
+        - "contract:review-attempt-provenance"
+        - "feature:harden-review-consensus-and-recovery:attemptcore"
+      ttl_minutes: 180
+      reason: "Attempt and quorum invariants are a dependency-neutral shared boundary"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_attempts.py"
+        - "skills/parallel-infrastructure/scripts/review_result_policy.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_attempts.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/tests/fixtures/review-hardening/attempts/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/review_routing.py"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/autopilot/**"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: review-hardening-attempt-core
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Review attempt and checkpoint tests pass"
+          kind: command
+          command: "uv run --project skills pytest skills/parallel-infrastructure/scripts/tests/test_review_attempts.py skills/parallel-infrastructure/scripts/tests/test_checkpoint_findings.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["attempt_core_tests_passed"]
+    metadata:
+      loc_estimate: 360
+      complexity: high
+      package_kind: integration
+    inputs:
+      task_ids: ["2.1", "2.3", "2.4"]
+      contracts:
+        - "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"
+    outputs:
+      result_keys: ["attempt_core_tests_passed"]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/review_attempts.py"
+        - "skills/parallel-infrastructure/scripts/review_result_policy.py"
+
+  - package_id: wp-review-routing
+    title: "Reviewer routing and thinking translation"
+    task_type: implementation
+    description: |
+      Tasks 2.2 and 2.5. Add provider-configured thinking translation and a
+      pure routing helper implementing explicit > phase > review default >
+      static precedence. Keep transport wiring out of this package.
+    role: routing-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_routing.py"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/agents.yaml"
+      keys:
+        - "feature:harden-review-consensus-and-recovery:routing"
+      ttl_minutes: 120
+      reason: "Routing resolution and provider flag translation form one config boundary"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_routing.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_routing.py"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/tests/test_archetype_routing.py"
+        - "agent-coordinator/tests/test_agents_config.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/review_attempts.py"
+        - "skills/autopilot/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: review-hardening-routing
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Routing helper tests pass"
+          kind: command
+          command: "uv run --project skills pytest skills/parallel-infrastructure/scripts/tests/test_review_routing.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["routing_helper_tests_passed"]
+        - name: "Coordinator routing tests pass"
+          kind: command
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests/test_archetype_routing.py agent-coordinator/tests/test_agents_config.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["coordinator_routing_tests_passed"]
+    metadata:
+      loc_estimate: 300
+      complexity: high
+      package_kind: config
+    inputs:
+      task_ids: ["2.2", "2.5"]
+      contracts:
+        - "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"
+    outputs:
+      result_keys: ["routing_helper_tests_passed", "coordinator_routing_tests_passed"]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/review_routing.py"
+
+  - package_id: wp-review-dispatcher-integration
+    title: "Review dispatcher transport and caller integration"
+    task_type: implementation
+    description: |
+      Task 2.6. Integrate the frozen attempt/recovery and routing helpers into
+      CLI, SDK, and async transports; verify direct review, autopilot,
+      merge-pull-requests, and quick-task compatibility without duplicating policy.
+    role: integration-engineer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-review-attempt-core, wp-review-routing]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      keys:
+        - "feature:harden-review-consensus-and-recovery:dispatcherintegration"
+      ttl_minutes: 180
+      reason: "Transport wiring consumes both frozen helper boundaries"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+        - "skills/merge-pull-requests/scripts/tests/test_vendor_review.py"
+        - "skills/quick-task/scripts/quick_task.py"
+        - "skills/quick-task/tests/test_quick_task.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: review-hardening-dispatcher-integration
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Dispatcher and compatibility tests pass"
+          kind: command
+          command: "uv run --project skills pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/merge-pull-requests/scripts/tests/test_vendor_review.py skills/quick-task/tests/test_quick_task.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["dispatcher_integration_tests_passed"]
+    metadata:
+      loc_estimate: 360
+      complexity: high
+      package_kind: integration
+    inputs:
+      task_ids: ["2.6"]
+      contracts:
+        - "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"
+    outputs:
+      result_keys: ["dispatcher_integration_tests_passed"]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+
+  - package_id: wp-fail-closed-convergence
+    title: "Fail-closed convergence consumer"
+    task_type: implementation
+    description: |
+      Tasks 3.1-3.3. Consume explicit convergence-blocking
+      and quorum policy, remove the final-round relaxation, preserve disagreement
+      escalation, return inconclusive outcomes at exhaustion, and update recovery
+      guidance for attempt artifacts plus evidence-backed adjudication.
+    role: workflow-engineer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-consensus-policy, wp-review-dispatcher-integration]
+    locks:
+      files:
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/tests/autopilot/test_convergence_checkpoint.py"
+      keys:
+        - "feature:harden-review-consensus-and-recovery:convergence"
+      ttl_minutes: 120
+      reason: "Convergence adopts the frozen consensus and attempt contracts"
+    scope:
+      write_allow:
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/autopilot/scripts/tests/test_convergence_loop.py"
+        - "skills/tests/autopilot/test_convergence_checkpoint.py"
+        - "skills/autopilot/references/convergence-recovery.md"
+        - "docs/parallel-agentic-development.md"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces:
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: review-hardening-convergence
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Convergence loop tests pass"
+          kind: command
+          command: "uv run --project skills pytest skills/autopilot/scripts/tests/test_convergence_loop.py skills/tests/autopilot/test_convergence_checkpoint.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["convergence_tests_passed"]
+    metadata:
+      loc_estimate: 340
+      complexity: medium
+      package_kind: integration
+    inputs:
+      task_ids: ["3.1", "3.2", "3.3"]
+      contracts:
+        - "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json"
+        - "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"
+    outputs:
+      result_keys: ["convergence_tests_passed"]
+      artifacts:
+        - "skills/autopilot/scripts/convergence_loop.py"
+
+  - package_id: wp-integration
+    title: "Review-hardening integration evidence"
+    task_type: validation
+    description: |
+      Tasks 4.1-4.3. Add the archived false-zero golden regression, prove the
+      write_allow refutation is represented as a false-positive adjudication,
+      verify invalid Pi output cannot silently reduce quorum, confirm reviewer
+      model provenance, document typed-result compatibility, and run final gates.
+    role: integration-engineer
+    archetype: analyst
+    priority: 3
+    depends_on:
+      - wp-consensus-policy
+      - wp-review-attempt-core
+      - wp-review-routing
+      - wp-review-dispatcher-integration
+      - wp-fail-closed-convergence
+    locks:
+      files:
+        - "skills/tests/autopilot/test_review_hardening_integration.py"
+      keys:
+        - "feature:harden-review-consensus-and-recovery:integration"
+      ttl_minutes: 120
+      reason: "Cross-package evidence after all implementation packages merge"
+    scope:
+      write_allow:
+        - "skills/tests/autopilot/test_review_hardening_integration.py"
+        - "skills/tests/autopilot/fixtures/review-hardening/**"
+        - "docs/script-skill-dependencies.md"
+        - "docs/skills-workflow.md"
+        - "skills/parallel-infrastructure/SKILL.md"
+        - "openspec/changes/harden-review-consensus-and-recovery/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "agent-coordinator/src/**"
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: review-hardening-integration
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: "Review hardening integration test passes"
+          kind: command
+          command: "uv run --project skills pytest skills/tests/autopilot/test_review_hardening_integration.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["integration_test_passed"]
+        - name: "OpenSpec change validates strictly"
+          kind: command
+          command: "openspec validate harden-review-consensus-and-recovery --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: integration
+    inputs:
+      task_ids: ["4.1", "4.2", "4.3"]
+      contracts:
+        - "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json"
+        - "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json"
+    outputs:
+      result_keys: ["integration_test_passed", "openspec_valid"]
+      artifacts:
+        - "skills/tests/autopilot/test_review_hardening_integration.py"
+        - "openspec/changes/harden-review-consensus-and-recovery/validation-report.md"

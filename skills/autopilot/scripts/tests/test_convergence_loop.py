@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 # Ensure the convergence_loop module can find its dependencies
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent)
 _PARALLEL_DIR = str(
@@ -21,6 +23,7 @@ from consensus_synthesizer import (
     ConsensusFinding,
     ConsensusReport,
 )
+from convergence_loop import validate_consensus_report
 from convergence_loop import (
     _is_blocking,
     build_review_prompt,
@@ -41,7 +44,7 @@ def _make_review_result(
     findings_dict = None
     if findings is not None:
         findings_dict = {"findings": findings}
-    return ReviewResult(
+    result = ReviewResult(
         vendor=vendor,
         success=success,
         findings=findings_dict,
@@ -49,6 +52,44 @@ def _make_review_result(
         models_attempted=["test-model"],
         elapsed_seconds=1.0,
     )
+    if success:
+        result.logical_request_id = f"implementation:{vendor}"
+        result.requested_vendor = vendor
+        result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None, "source": "test", "fallback_reason": None}
+        result.deadline_at = "2026-08-01T00:00:00+00:00"
+        result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
+        result.attempts = [{
+            "attempt_index": 1, "vendor": vendor, "transport": "cli", "reason": "initial",
+            "terminal": True, "success": True, "elapsed_seconds": 0.0,
+            "parser_stage": "schema", "validation_status": "schema_valid",
+            "error_class": None, "error_detail": None, "stdout_excerpt": None,
+            "stderr_excerpt": None, "diagnostics_truncated": False,
+            "resolved_execution": {"model": "test-model", "requested_thinking": None,
+                                   "applied_thinking": None, "thinking_translation": "not_requested",
+                                   "fallback_reason": None},
+        }]
+        result.terminal_outcome = "success"
+        result.terminal_vendor = vendor
+        result.quorum_eligible = True
+    else:
+        result.logical_request_id = f"implementation:{vendor}"
+        result.requested_vendor = vendor
+        result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None, "source": "test", "fallback_reason": None}
+        result.deadline_at = "2026-08-01T00:00:00+00:00"
+        result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
+        result.attempts = [{
+            "attempt_index": 1, "vendor": vendor, "transport": "cli", "reason": "initial",
+            "terminal": True, "success": False, "elapsed_seconds": 0.0,
+            "parser_stage": None, "validation_status": "not_reached",
+            "error_class": "timeout", "error_detail": "timed out", "stdout_excerpt": None,
+            "stderr_excerpt": None, "diagnostics_truncated": False,
+            "resolved_execution": {"model": "test-model", "requested_thinking": None,
+                                   "applied_thinking": None, "thinking_translation": "not_requested",
+                                   "fallback_reason": None},
+        }]
+        result.terminal_outcome = "timeout"
+        result.terminal_vendor = vendor
+    return result
 
 
 def _make_consensus_report(
@@ -60,10 +101,16 @@ def _make_consensus_report(
     confirmed = sum(1 for f in findings if f.status == "confirmed")
     unconfirmed = sum(1 for f in findings if f.status == "unconfirmed")
     disagreement = sum(1 for f in findings if f.status == "disagreement")
+    integration_blocking = sum(f.integration_blocking for f in findings)
+    convergence_blocking = sum(f.convergence_blocking for f in findings)
+    effective_blocking = sum(f.effective_blocking for f in findings)
     return ConsensusReport(
         review_type="implementation",
         target="test-change",
-        reviewers=[],
+        reviewers=[
+            {"vendor": "vendor_a", "agent_id": "vendor_a", "success": True, "source_eligible": True, "elapsed_seconds": 0.0},
+            {"vendor": "vendor_b", "agent_id": "vendor_b", "success": True, "source_eligible": True, "elapsed_seconds": 0.0},
+        ],
         quorum_met=quorum_met,
         quorum_requested=2,
         quorum_received=2,
@@ -72,7 +119,9 @@ def _make_consensus_report(
         confirmed_count=confirmed,
         unconfirmed_count=unconfirmed,
         disagreement_count=disagreement,
-        blocking_count=0,
+        blocking_count=effective_blocking,
+        integration_blocking_count=integration_blocking,
+        convergence_blocking_count=convergence_blocking,
     )
 
 
@@ -83,17 +132,38 @@ def _make_consensus_finding(
     disposition: str = "fix",
 ) -> ConsensusFinding:
     """Create a ConsensusFinding."""
+    disagreement = status == "disagreement"
+    policy_status = {
+        "confirmed": "confirmed",
+        "unconfirmed": "provisional",
+        "disagreement": "disagreement",
+    }[status]
+    dispositions = (
+        {"vendor_a": "fix", "vendor_b": "accept"}
+        if disagreement
+        else {"vendor_a": disposition}
+    )
+    integration_blocking = disagreement or status == "confirmed"
+    convergence_blocking = disagreement or criticality in {"medium", "high", "critical"}
     return ConsensusFinding(
         id=id,
         status=status,
+        policy_status=policy_status,
         primary_vendor="vendor_a",
         primary_finding_id=id,
-        matched_findings=[],
+        matched_findings=([
+            {"vendor": "vendor_b", "finding_id": id + 100},
+        ] if disagreement else []),
         match_score=0.9,
-        agreed_type="bug",
+        agreed_type="correctness",
         agreed_criticality=criticality,
-        recommended_disposition=disposition,
+        recommended_disposition="escalate" if disagreement else disposition,
         description=f"Test finding {id}",
+        group_id=f"cg-{id:016x}",
+        vendor_dispositions=dispositions,
+        integration_blocking=integration_blocking,
+        convergence_blocking=convergence_blocking,
+        effective_blocking=integration_blocking or convergence_blocking,
     )
 
 
@@ -127,6 +197,29 @@ def _setup_converge(
         "synthesizer": mock_synthesizer,
         "to_dict_returns": to_dict_returns,
     }
+
+
+def test_consensus_validation_rejects_false_quorum() -> None:
+    report = __import__("consensus_synthesizer", fromlist=["ConsensusSynthesizer"]).ConsensusSynthesizer().to_dict(
+        _make_consensus_report([])
+    )
+    report["quorum"]["received"] = 0
+    report["quorum"]["eligible_vendors"] = []
+    report["quorum_received"] = 0
+
+    with pytest.raises(ValueError, match="quorum is inconsistent"):
+        validate_consensus_report(report)
+
+
+def test_consensus_validation_rejects_required_finding_alias_mismatch() -> None:
+    finding = _make_consensus_finding(1)
+    report = __import__("consensus_synthesizer", fromlist=["ConsensusSynthesizer"]).ConsensusSynthesizer().to_dict(
+        _make_consensus_report([finding])
+    )
+    report["consensus_findings"][0]["criticality"] = "low"
+
+    with pytest.raises(ValueError, match="criticality aliases"):
+        validate_consensus_report(report)
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +306,59 @@ class TestQuorumLost:
         assert result.converged is False
         assert result.reason == "quorum_lost"
         assert result.rounds == 1
+
+    def test_rejects_success_flag_without_eligible_attempt_chain(self, tmp_path: Path) -> None:
+        """A malformed logical result cannot satisfy quorum by claiming success."""
+        invalid = _make_review_result("vendor_a", success=True, findings=[])
+        invalid.logical_request_id = "implementation:vendor_a"
+        invalid.requested_vendor = "vendor_a"
+        invalid.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None, "source": "test", "fallback_reason": None}
+        invalid.deadline_at = "2026-08-01T00:00:00+00:00"
+        invalid.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
+        invalid.attempts = [{
+            "attempt_index": 1,
+            "vendor": "vendor_a",
+            "transport": "cli",
+            "reason": "initial",
+            "terminal": True,
+            "success": False,
+            "elapsed_seconds": 0.0,
+            "parser_stage": "json",
+            "validation_status": "invalid",
+            "error_class": "invalid_output",
+            "error_detail": "malformed output",
+            "stdout_excerpt": None,
+            "stderr_excerpt": None,
+            "diagnostics_truncated": False,
+            "resolved_execution": {
+                "model": "test-model",
+                "requested_thinking": None,
+                "applied_thinking": None,
+                "thinking_translation": "not_requested",
+                "fallback_reason": None,
+            },
+        }]
+        invalid.terminal_outcome = "invalid_output_exhausted"
+        invalid.terminal_vendor = "vendor_a"
+        invalid.quorum_eligible = False
+        valid = _make_review_result("vendor_b", success=True, findings=[])
+
+        artifacts_dir = tmp_path / "artifacts"
+        artifacts_dir.mkdir()
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.dispatch_and_wait.return_value = [invalid, valid]
+
+        result = converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=artifacts_dir,
+            worktree_path=tmp_path,
+            orchestrator=mock_orchestrator,
+            min_quorum=2,
+        )
+
+        assert result.converged is False
+        assert result.reason == "quorum_lost"
 
 
 class TestMaxRoundsNotConverged:
@@ -377,10 +523,10 @@ class TestDisagreementEscalate:
         assert len(result.escalate_findings) == 1
 
 
-class TestUnconfirmedRelaxedFinalRound:
-    """Unconfirmed medium finding in final round (round 3) → converged."""
+class TestUnconfirmedFinalRound:
+    """Unconfirmed medium findings remain fail-closed in the final round."""
 
-    def test_relaxed_final_round(self, tmp_path: Path) -> None:
+    def test_final_round_remains_blocking(self, tmp_path: Path) -> None:
         # Rounds 1-2: confirmed medium findings (blocking)
         # Round 3: only unconfirmed medium (relaxed in final round)
         results_per_round = []
@@ -411,7 +557,7 @@ class TestUnconfirmedRelaxedFinalRound:
         f2_unconfirmed = _make_consensus_finding(2, status="unconfirmed", criticality="medium")
         reports_per_round.append(_make_consensus_report(findings=[f2_unconfirmed]))
 
-        # Round 3 (final): only unconfirmed medium → relaxed
+        # Round 3 (final): unconfirmed medium remains actionable.
         results_per_round.append([
             _make_review_result("vendor_a", success=True, findings=[]),
             _make_review_result("vendor_b", success=True, findings=[
@@ -434,15 +580,16 @@ class TestUnconfirmedRelaxedFinalRound:
                 max_rounds=3,
             )
 
-        assert result.converged is True
+        assert result.converged is False
+        assert result.reason in {"max_rounds", "stalled"}
         assert result.rounds == 3
 
 
 class TestUnconfirmedBlocksEarlyRounds:
-    """Unconfirmed medium finding blocks early rounds but relaxes in final."""
+    """Unconfirmed medium findings block every round until adjudicated."""
 
-    def test_unconfirmed_blocks_early_relaxes_final(self, tmp_path: Path) -> None:
-        """Unconfirmed medium blocks rounds 1-2 (fix dispatched), relaxed in round 3."""
+    def test_unconfirmed_blocks_through_final_round(self, tmp_path: Path) -> None:
+        """Unconfirmed medium blocks all rounds, including the final one."""
         finding = _make_consensus_finding(1, status="unconfirmed", criticality="medium")
 
         # 3 rounds of the same unconfirmed finding
@@ -473,10 +620,9 @@ class TestUnconfirmedBlocksEarlyRounds:
                 fix_callback=fix_cb,
             )
 
-        # Rounds 1-2: unconfirmed medium blocks, fix_callback called
         assert fix_cb.call_count == 2
-        # Round 3 (final): unconfirmed relaxed, 0 blocking, converged
-        assert result.converged is True
+        assert result.converged is False
+        assert result.reason == "stalled"
         assert result.rounds == 3
 
     def test_unconfirmed_blocks_round_1(self, tmp_path: Path) -> None:
@@ -644,11 +790,11 @@ class TestIsBlocking:
     def test_unconfirmed_medium_blocks_by_default(self) -> None:
         assert _is_blocking({"status": "unconfirmed", "agreed_criticality": "medium"}) is True
 
-    def test_unconfirmed_medium_relaxed(self) -> None:
+    def test_unconfirmed_medium_is_not_relaxed(self) -> None:
         assert _is_blocking(
             {"status": "unconfirmed", "agreed_criticality": "medium"},
             relax_unconfirmed=True,
-        ) is False
+        ) is True
 
     def test_confirmed_high_not_relaxed(self) -> None:
         assert _is_blocking(

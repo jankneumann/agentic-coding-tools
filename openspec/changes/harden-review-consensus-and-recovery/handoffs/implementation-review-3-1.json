@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-02T00:06:48.187853+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-reviewer",
+    "session_id": null,
+    "summary": "Final implementation-review iteration did not converge. All five configured premium external reviewer routes produced ineligible terminal results (four bounded 299-second timeouts and Pi invalid-output exhaustion), so true external quorum was 0/5. Independent read-only source audits reproduced 12 merge-blocking contract, correctness, resilience, security, and performance defects despite 152 focused tests, install portability check, lint, strict OpenSpec validation, and all five persisted attempt chains passing their current validators.",
+    "completed_work": [
+      "Dispatched the approved whole-branch implementation review to Antigravity, Claude Code, Codex, Grok, and Pi with 300-second vendor-local bounds.",
+      "Validated all five durable terminal attempt chains; quorum remained 0/5.",
+      "Ran 152 focused tests, skills/install.sh --check, focused ruff, strict OpenSpec validation, and git diff checks successfully.",
+      "Produced a schema-valid source-verified review with 12 critical findings at reviews/round-3/review-findings.json."
+    ],
+    "in_progress": [
+      "Operator-directed remediation is required because the implementation-review iteration cap is exhausted."
+    ],
+    "decisions": [
+      {
+        "title": "Return max_iter",
+        "rationale": "This is iteration 3 of 3; external quorum was lost and source-verified merge blockers remain.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Do not infer convergence from green focused tests",
+        "rationale": "The current tests do not cover false-zero schema types, ineligible synthesis inputs, copied attempt schemas, async cancellation, malformed quorum persistence, or raw SDK log redaction.",
+        "capability": "review-recovery",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Treat reviews/round-3/review-findings.json as the merge-blocking remediation set.",
+      "Fix the shared consensus validator/schema, eligible-result synthesis, structured matching, portable attempt contract, bounded cancellation, progressive convergence checkpoints, manifest invariants, diagnostic redaction, and routing provenance before validation."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/reviews/round-3/review-manifest.json",
+        "description": "five-vendor bounded attempt evidence and 0/5 quorum"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/reviews/round-3/review-findings.json",
+        "description": "schema-valid source-verified findings with 12 blockers"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_attempts.py",
+        "description": "portable schema, transition, and cancellation defects"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/consensus_synthesizer.py",
+        "description": "schema and structured-matching defects"
+      },
+      {
+        "path": "skills/autopilot/scripts/convergence_loop.py",
+        "description": "eligibility and progressive-checkpoint defects"
+      }
+    ]
+  }
+}

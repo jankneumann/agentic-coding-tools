@@ -176,6 +176,7 @@ def test_canonical_install_syncs_required_openspec_schemas(tmp_path: Path) -> No
 
     expected = [
         "schemas/review-findings.schema.json",
+        "schemas/review-attempt.schema.json",
         "schemas/consensus-report.schema.json",
         "schemas/work-packages.schema.json",
         "schemas/work-queue-result.schema.json",

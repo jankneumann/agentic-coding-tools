@@ -19,3 +19,17 @@ The replay accepts `line_range` as a mapping, a string such as `97-102`, or
 `null`. Inspect the generated consensus before resuming the phase. Checkpoint
 durability supports postmortem and manual recovery; it does not imply an
 automatic subprocess fallback.
+
+## Fail-closed review recovery
+
+Treat `summary.convergence_blocking_count` as the authoritative convergence
+gate. A medium-or-higher actionable finding remains blocking even when it is
+unmatched, and the final review round does not relax it. At exhaustion, keep
+the checkpoint and escalate an inconclusive outcome rather than declaring
+convergence.
+
+Malformed or failed vendor output is not quorum evidence. Inspect its bounded,
+redacted attempt chain, then verify that any corrective redispatch, model
+fallback, or replacement reached a schema-valid terminal result. A valid empty
+finding list may count toward quorum; a malformed, unattributable, or failed
+attempt may not.

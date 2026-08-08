@@ -31,7 +31,10 @@ class FakeTransport:
 # content with the same extractor as the CLI/SDK adapters, which requires a
 # top-level ``findings`` key. Tests that only care about dispatch mechanics
 # (routing, gen-id, fallback) use this default.
-_FINDINGS_JSON = '{"review_type": "pr", "findings": []}'
+_FINDINGS_JSON = (
+    '{"review_type":"implementation","target":"adapter-test",'
+    '"reviewer_vendor":"openrouter","findings":[]}'
+)
 
 
 def _ok(content=_FINDINGS_JSON, gen_id="gen-abc123"):
@@ -69,7 +72,12 @@ def test_dispatch_routes_to_base_url_and_captures_generation_id():
     assert result.success
     assert result.generation_id == "gen-xyz"
     assert result.model_used == "qwen/qwen3-coder"
-    assert result.findings == {"review_type": "pr", "findings": []}
+    assert result.findings == {
+        "review_type": "implementation",
+        "target": "adapter-test",
+        "reviewer_vendor": "openrouter",
+        "findings": [],
+    }
     assert tr.calls[0]["url"] == "https://openrouter.ai/api/v1/chat/completions"
 
 
