@@ -310,6 +310,25 @@ def _default_architecture_producer(
         else ""
         for reason in outcome.reasons
     ]
+
+    # A producer-identity or input-fingerprint mismatch is repository-level: it
+    # carries no path because no single artifact is at fault — the identity or
+    # the inputs that produced *all* of them changed, so every recorded artifact
+    # is unverifiable. Naming them is what lets the gate report this as drift
+    # with a precise stale list instead of reclassifying it as an apparatus
+    # failure whose message names nothing a reader can act on.
+    if any(
+        not reason.path and reason.code not in provenance_codes
+        for reason in outcome.reasons
+    ):
+        recorded = [
+            art["path"]
+            for art in (outcome.provenance or {}).get("artifacts", [])
+            if art.get("path")
+        ]
+        # The provenance document itself as the floor: an empty stale list is the
+        # one output this branch must never produce.
+        drifted_paths.extend(recorded or [provenance_rel])
     validations = [
         R.failed_validation(
             R.vid("architecture", reason.code, reason.path or ""),

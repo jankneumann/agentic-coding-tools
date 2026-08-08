@@ -98,7 +98,8 @@
     }
   ],
   "generated_at": "2026-08-04T14:34:23+00:00",
-  "input_fingerprint": "08e64a3b3fcd1abc337fcece44f4505a3d33b83650b2b1eb8341bb4fb127a43d",
+  "input_enumeration": "git",
+  "input_fingerprint": "ed44e9a03efac386bc45a981daa3c847e8b219be68aeaafce007a512da16ad70",
   "input_roots": [
     "agent-coordinator/database/migrations",
     "agent-coordinator/src",
@@ -114,7 +115,7 @@
   ],
   "producer": {
     "producer_id": "architecture",
-    "producer_version": "1.0.0"
+    "producer_version": "1.1.0"
   },
   "repository_id": "agentic-coding-tools",
   "schema_version": 1,
