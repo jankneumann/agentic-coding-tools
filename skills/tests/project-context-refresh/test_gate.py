@@ -284,6 +284,22 @@ class TestExitCodes:
         assert [d["producer_id"] for d in result.report["failed"]] == ["architecture"]
         assert result.report["blocking_drift"] == []
 
+    def test_unnameable_drift_still_reports_the_producer_s_own_reason(self, tmp_path):
+        """Refusing to name an artifact is not a reason to discard the reason.
+
+        The generic "reported drift without naming any artifact" message used to
+        *replace* the producer's failed validations, leaving a reader with a
+        report that named neither a stale file nor a drift code — the gate's own
+        verdict became the least actionable thing in it. The guard stays; the
+        diagnostic rides along.
+        """
+        result = _run_gate(
+            tmp_path,
+            _drift_without_artifacts("architecture", "INPUT_FINGERPRINT_MISMATCH: inputs moved"),
+        )
+        reason = result.report["failed"][0]["reason"]
+        assert "INPUT_FINGERPRINT_MISMATCH: inputs moved" in reason
+
     def test_exit_code_field_matches_the_process_exit_code(self, tmp_path):
         for producers, expected in (
             ((_fresh(DOCUMENTATION_INVENTORY),), 0),
