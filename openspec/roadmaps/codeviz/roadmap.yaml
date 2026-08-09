@@ -224,6 +224,51 @@ items:
   - Every changed node and edge MUST carry a change_kind tag from {refactoring, micro-change, contract-change,
     test-impact, runtime-risk, ordinary}; entries that match no specific class fall back to ordinary.
   - A fixture commit that renames a private function MUST be classified as refactoring, not contract-change.
+- item_id: callstack-scenario-diff
+  title: Call-stack scenario diffs (behavior-shape snapshots)
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - diff-graph-artifact
+  description: 'Diff rooted, ordered, nested call trees per named scenario rather than the unordered edge
+    set: a codeviz.scenarios.yaml manifest declares entry points (symbol ID, title, max depth); a deterministic
+    projector runs a depth-limited DFS over the CALLS edges in architecture.graph.json with stable child
+    ordering and repeated-subtree collapsing, committing per-scenario snapshot artifacts under docs/architecture-analysis/callstacks/<scenario>.json.
+    make architecture-diff emits callstack-diff/<commit-sha>/<scenario>.json for changed trees plus a rendered
+    unified tree diff (+/- frames, unchanged subtrees collapsed) suitable for PR comments — a snapshot test
+    on behavior shape that surfaces ordering/branching changes invisible in edge-set diffs. Static projection
+    is v1 (deterministic, offline); runtime traces become an alternative tree source (evidence_kind=runtime-observed)
+    once runtime-incident-correlation lands. Frame alignment reuses RENAMED_FROM rename evidence; change_kind
+    classification is shared with diff-graph-artifact. Registers a callstack lens under the Change view
+    once lens-framework lands.'
+  acceptance_outcomes:
+  - codeviz.scenarios.yaml MUST declare named entry points (symbol ID + scenario title + max depth); at
+    least eight scenarios MUST be seeded for this repo.
+  - The projector MUST emit per-scenario call trees from architecture.graph.json CALLS edges with stable
+    child ordering and repeated-subtree collapsing; the same input MUST produce byte-identical output,
+    committed under docs/architecture-analysis/callstacks/<scenario>.json with the mandatory artifact header.
+  - make architecture-diff MUST additionally emit callstack-diff/<commit-sha>/<scenario>.json for every
+    scenario whose tree changed, plus a rendered unified tree diff (markdown, unchanged subtrees collapsed
+    to a single line) suitable for a PR comment.
+  - Every added, removed, or moved frame MUST carry a change_kind tag reusing the diff-graph classification
+    vocabulary; a frame relocation with an identical subtree MUST be classified refactoring, never removed+added.
+  - Frame alignment across commits MUST reuse the rename-detection evidence (RENAMED_FROM confidence output
+    plus codeviz.rename-map.yaml); below-threshold renames MUST render as removed+added subtrees with explanatory
+    provenance, never phantom moves.
+  - Frames reached through heuristic call resolution (dynamic dispatch, callbacks) MUST carry confidence
+    and evidence_kind=static-heuristic and MUST be visually hedged in the rendered diff.
+  - Scenarios unchanged between base and head MUST be reported as one summary line each ("tree identical")
+    so reviewers can skip them with confidence.
+  - When runtime evidence is available, the projector MUST accept recorded traces as an alternative tree
+    source, tagging frames evidence_kind=runtime-observed, with a documented normalization pipeline (volatile-frame
+    pruning, async stitching via logical task IDs, repeated-subtree collapse) keeping runtime snapshots
+    diff-stable.
+  - The architecture-fitness rule engine MUST be able to target scenario trees (e.g. no new frame tagged
+    runtime-risk enters a scenario without an allowlist entry).
+  - Once lens-framework lands, a callstack lens MUST register under the Change view rendering the tree
+    diff with the same change_kind color mapping as the diff overlay; ghost-overlay mode MUST be able to
+    preview the projected tree for agent-proposed patches.
 - item_id: diff-overlay-render
   title: Diff overlay rendering in SPA
   status: candidate
@@ -798,4 +843,4 @@ items:
     for downstream tooling.'
   - A fixture suite MUST verify ingestion across all supported tools and catch SARIF schema regressions.
 created_at: '2026-05-12T09:04:37.603266+00:00'
-updated_at: '2026-05-29T00:00:00+00:00'
+updated_at: '2026-08-09T00:00:00+00:00'
