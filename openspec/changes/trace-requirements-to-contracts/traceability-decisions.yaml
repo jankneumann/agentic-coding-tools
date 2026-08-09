@@ -127,3 +127,118 @@ decisions:
   - gen-eval-framework.multi-source-scenario-bootstrap
   note: 'Operator selection: supplies the OpenSpec change whose Requirement+Scenario
     blocks bootstrap cli-augmented generation, per multi-source-scenario-bootstrap.'
+- at: '2026-08-09T12:14:33+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.evaluation
+  reason: Served by the framework engine; the CLI contract exposes no flag surface
+    for this behaviour — it is exercised by every run, not configured by any flag.
+- at: '2026-08-09T12:14:51+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.transport-clients
+  reason: Served by the framework engine; the CLI contract exposes no flag surface
+    for this behaviour — it is exercised by every run, not configured by any flag.
+- at: '2026-08-09T12:14:51+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.integration
+  reason: Served by the framework engine; the CLI contract exposes no flag surface
+    for this behaviour — it is exercised by every run, not configured by any flag.
+- at: '2026-08-09T12:14:51+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.scenario-pack-manifest
+  reason: Served by the framework engine; the CLI contract exposes no flag surface
+    for this behaviour — it is exercised by every run, not configured by any flag.
+- at: '2026-08-09T12:14:51+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.visibility-aware-scenario-execution
+  reason: Served by the framework engine; the CLI contract exposes no flag surface
+    for this behaviour — it is exercised by every run, not configured by any flag.
+- at: '2026-08-09T12:14:52+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.dtu-scaffold-from-public-docs
+  reason: Served by the framework engine; the CLI contract exposes no flag surface
+    for this behaviour — it is exercised by every run, not configured by any flag.
+- at: '2026-08-09T12:14:52+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.descriptor-derivation-drift-guard
+  reason: Served by the framework engine; the CLI contract exposes no flag surface
+    for this behaviour — it is exercised by every run, not configured by any flag.
+- at: '2026-08-09T12:14:52+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.implemented-surface-subset-verification
+  reason: Served by the framework engine; the CLI contract exposes no flag surface
+    for this behaviour — it is exercised by every run, not configured by any flag.
+- at: '2026-08-09T12:14:52+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.dogfood
+  reason: Served by the framework engine; the CLI contract exposes no flag surface
+    for this behaviour — it is exercised by every run, not configured by any flag.
+- at: '2026-08-09T12:14:52+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.contracted-operations-cite-the-requirements-they-serve
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:52+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.requirement-identifiers-are-stable-and-fail-closed
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:52+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.traceability-completeness-is-enforced-in-both-directions
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:53+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.traceability-exclusions-state-a-reason
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:53+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.forward-enforcement-is-opt-in-per-contract-document
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:53+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.reverse-enforcement-is-opt-in-per-capability-via-the-exclusions-file
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:53+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.the-gate-reports-citation-concentration-deterministically
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:53+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.citations-may-name-requirements-in-another-capability
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:53+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.completeness-is-evaluated-per-capability
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:53+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.the-active-change-s-spec-delta-shadows-the-archived-spec
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:53+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.validation-time-evaluation-is-scoped-to-the-change
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:54+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.the-full-sweep-blocks-opted-in-surfaces-and-reports-the-rest
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:54+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.the-gate-fails-closed-on-malformed-input
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-09T12:14:54+00:00'
+  kind: exclude-requirement
+  requirement: gen-eval-framework.the-gate-makes-no-claim-that-a-requirement-is-satisfied
+  reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
+    not by the gen-eval CLI; this contract exposes no surface for it.

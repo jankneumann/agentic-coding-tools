@@ -479,7 +479,7 @@ Tasks 4.1, 4.2, and 4.2b are `[human]`: they decide which requirement each
 flag serves, which is the judgement D1 says no agent may guess. Task 4.3 is
 scripted verification of the human-authored artifacts.
 
-- [ ] 4.1 `[human]` Add flag-level requirements to the gen-eval spec `[M]`
+- [x] 4.1 `[human]` Add flag-level requirements to the gen-eval spec `[M]`
   **Design decisions**: D1
   **Dependencies**: 3.7
   **Note**: the spec names three flags today, none of them among the 17 in the
@@ -487,7 +487,7 @@ scripted verification of the human-authored artifacts.
   that justifies neither is a finding about the flag, not about this task —
   record it, do not delete the flag here.
 
-- [ ] 4.2 `[human]` Add citations to `openspec/contracts/gen-eval-framework/cli/gen-eval.yaml` `[S]`
+- [x] 4.2 `[human]` Add citations to `openspec/contracts/gen-eval-framework/cli/gen-eval.yaml` `[S]`
   **Design decisions**: D1, D6
   **Dependencies**: 4.1, 2.0
   **Note**: opting this contract document in commits all 17 flags (D6).
@@ -495,7 +495,7 @@ scripted verification of the human-authored artifacts.
   `generate_tool_descriptor.py --check` runs in CI and will fail on the
   un-regenerated artifact.
 
-- [ ] 4.2b `[human]` Author `openspec/contracts/gen-eval-framework/traceability-exclusions.yaml` `[M]`
+- [x] 4.2b `[human]` Author `openspec/contracts/gen-eval-framework/traceability-exclusions.yaml` `[M]`
   **Design decisions**: D13, D4
   **Dependencies**: 4.2
   **Note**: this is the flagship's REVERSE opt-in, and it is the larger half
