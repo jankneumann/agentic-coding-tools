@@ -506,7 +506,7 @@ scripted verification of the human-authored artifacts.
   file flips reverse enforcement for the capability (D13), so it lands last
   in the phase, when the requirement set is already triaged.
 
-- [ ] 4.3 Demonstrate the gate fails on gen-eval's own contract `[S]`
+- [x] 4.3 Demonstrate the gate fails on gen-eval's own contract `[S]`
   **Spec scenarios**: Traceability Completeness Is Enforced In Both Directions (an uncited operation fails the gate)
   **Design decisions**: D3
   **Dependencies**: 4.2b
@@ -519,6 +519,30 @@ scripted verification of the human-authored artifacts.
   **Note**: confirm the failing run reads the mutated YAML and not a stale
   derived artifact — the descriptor regenerated in 4.2 is the staleness
   hazard here, not Python bytecode.
+  **Evidence (2026-08-10, IMPLEMENT round 1, wp-wiring)**: both mutations run
+  against the real, committed `openspec/contracts/gen-eval-framework/`
+  artifacts from this worktree, with `--repo-root`/roots defaulting to it —
+  not a fixture. Command for both:
+  `cd packages/gen-eval && uv run python scripts/check_traceability.py --scope capability --change trace-requirements-to-contracts`.
+  (a) removed the `traceability:` block (sole citation
+  `gen-eval-framework.budget-management`) from `--time-budget` in
+  `openspec/contracts/gen-eval-framework/cli/gen-eval.yaml` → **exit 1**,
+  `forward failures: - ...gen-eval.yaml: cli:--time-budget cites no
+  requirement and carries no exclusion` → `git checkout --` restored the file
+  → re-run **exit 0** (`16 operations cite 12 requirements`). (b) removed the
+  `gen-eval-framework.dogfood` entry from
+  `openspec/contracts/gen-eval-framework/traceability-exclusions.yaml` →
+  **exit 1**, `reverse failures: - gen-eval-framework:
+  gen-eval-framework.dogfood ('Dogfood') is cited by no operation` →
+  restored via `git checkout --` → re-run **exit 0**. Both runs read the
+  mutated YAML directly (the gate parses contracts itself; there is no
+  derived-descriptor step in its path), so the staleness hazard the note
+  warns about does not apply to this gate — confirmed by (a) naming the
+  exact mutated flag and (b) naming the exact mutated requirement, in both
+  cases from the freshly-read file, not a cached descriptor. `__pycache__`
+  cleared before the second (GREEN) run of each pair as an extra precaution.
+  Both real artifacts left byte-identical to `HEAD` (`git status` clean)
+  after the demonstration.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
