@@ -907,11 +907,26 @@ be meaningful.
   section describes 5.7's design, not yet a landed fact. Re-check this
   section's wording once 5.7 lands.
 
-- [ ] 5.9 Refresh `DOWNSTREAM.md` for consumers with their own contracts `[S]`
+- [x] 5.9 Refresh `DOWNSTREAM.md` for consumers with their own contracts `[S]`
   **Dependencies**: 5.6, 5.7
   **Note**: ACA's tool contract is affected only if they opt in (D6/D13). Say
   so explicitly — the previous notice's DS-2 had to be rewritten at
   implementation time because it promised a change that did not ship.
+  **Evidence (2026-08-10, IMPLEMENT round 1, wp-wiring)**: no persistent
+  `packages/gen-eval/DOWNSTREAM.md` existed yet (prior notices for this
+  package lived per-change at `openspec/changes/<id>/DOWNSTREAM.md` and were
+  archived with their change); created it at the path this package's
+  `write_allow` names. Content: states up front that both opt-ins (forward
+  per-document, reverse per-capability via the exclusions file's existence)
+  are opt-in and nothing in this change flips either for a downstream
+  consumer's own contract; explicitly separates what is committed as of this
+  commit (the promoted schemas, the gate script, the `/validate-feature`
+  change-scoped wiring) from what is NOT yet landed (the full-capability CI
+  sweep, task 5.7, still dependency-blocked on human task 5.2 as of this
+  IMPLEMENT round) — applying the DS-2 lesson directly: do not describe
+  pending work as shipped. Points ACA at the fully-opted-in
+  `gen-eval-framework/cli/gen-eval.yaml` as a worked example per its own
+  `derive-descriptors-from-contracts` DS-3 migration path.
 
 - [ ] Final checkpoint: full suite green, `openspec validate --strict` passes,
   and both wired gates demonstrated per the RED protocol — the change-scoped
