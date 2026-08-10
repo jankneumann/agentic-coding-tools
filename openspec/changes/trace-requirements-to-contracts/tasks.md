@@ -876,12 +876,36 @@ be meaningful.
   defer the reverse opt-in to a follow-up change — NOT to weaken the gate or
   to write exclusions whose reason is a placeholder.
 
-- [ ] 5.8 Update `packages/gen-eval/README.md` with the four-edge chain `[S]`
+- [x] 5.8 Update `packages/gen-eval/README.md` with the four-edge chain `[S]`
   **Dependencies**: 5.6, 5.7
   **Note**: the README documents contract → descriptor → verify. State the edge
   above it, and state plainly what the gate does NOT claim (D5) — a reader who
   takes "traceability gate: pass" for "requirements are implemented" has been
   misled by the documentation, not by the gate.
+  **Evidence (2026-08-10, IMPLEMENT round 1, wp-wiring)**: added a new
+  top-level `## Requirement traceability` section to
+  `packages/gen-eval/README.md`, placed before `## Contract-derived
+  descriptors` so the read order follows the chain: requirement → contract
+  (new) → descriptor → verify (existing). States both directions
+  (forward: per-document opt-in; reverse: per-capability opt-in keyed on
+  the exclusions file's existence, fail-closed on unreadable/unparseable),
+  the D1 never-inferred rule, the D5 non-claim verbatim from the gate's own
+  report line, and the two `--scope` invocation forms with a one-line
+  description of each's blocking/non-blocking role. Links to the promoted
+  `openspec/contracts/gen-eval-framework/schemas/traceability{,-exclusions}.schema.json`
+  rather than a nonexistent `openspec/contracts/README.md` traceability
+  section (checked: that file has no such section as of this commit).
+  **Note on the stated dependency on 5.7**: this task ran per the
+  orchestrator's explicit IMPLEMENT-round-1 scope (4.3, 5.6, 5.8, 5.9) ahead
+  of 5.7, which remains dependency-blocked on human task 5.2 (splitting the
+  coordinator contract). The README content describes the `--scope
+  capability [--change <id>]` invocation form and its blocking/non-blocking
+  roles from the already-fully-specified design (task 5.7's own text and D12)
+  rather than from anything 5.7 would newly decide, so nothing here is
+  speculative about undecided behavior — but the CI wiring itself does not
+  exist yet, so the "every BLOCKING CI invocation" language in the new
+  section describes 5.7's design, not yet a landed fact. Re-check this
+  section's wording once 5.7 lands.
 
 - [ ] 5.9 Refresh `DOWNSTREAM.md` for consumers with their own contracts `[S]`
   **Dependencies**: 5.6, 5.7
