@@ -616,7 +616,7 @@ be meaningful.
   populated by hand" has no owner other than this task; wp-matrix carries a
   verification step that fails while either template still says to hand-fill it.
 
-- [ ] 5.6 Wire the change-scoped gate into `/validate-feature` `[M]`
+- [x] 5.6 Wire the change-scoped gate into `/validate-feature` `[M]`
   **Spec scenarios**: Validation-Time Evaluation Is Scoped To The Change (a pre-existing gap does not fail a change that did not create it); skill-workflow delta: Validation-Time Requirement Traceability Gate (all four scenarios)
   **Design decisions**: D12
   **Dependencies**: 3.16, 4.2
@@ -636,6 +636,40 @@ be meaningful.
   downstream. The skill's existing gen-eval phase already does detect-then-
   print-SKIP — copy that shape. Test the SKIP path, not just the run path: an
   unprinted skip and a passing gate are indistinguishable in a log.
+  **Evidence (2026-08-10, IMPLEMENT round 1, wp-wiring)**: added section
+  7.0b "Requirement-to-Contract Traceability Gate" to
+  `skills/validate-feature/SKILL.md`, between the pre-existing 7.0 task-drift
+  gate and 7.1's per-requirement live verification — CRITICAL within the
+  non-critical Spec Compliance phase, same treatment as 7.0. Detects
+  `packages/gen-eval/scripts/check_traceability.py` and
+  `openspec/contracts/` and prints an explicit `SKIP: requirement-traceability
+  gate unavailable (<path> not found)` naming whichever is missing, mirroring
+  the Gen-Eval phase's (4b) detect-then-SKIP shape. When present, invokes
+  `check_traceability.py --scope change --change "$CHANGE_ID"` bare (command
+  substitution captures stdout, `$?` is read immediately after, never through
+  a pipe), prints the gate's own output, and sets `TRACE_RESULT` to
+  `skip`/`pass`/`fail`; a `fail` result propagates the gate's own exit code
+  from the fragment. Validation Report template (section 11) gained a
+  `Traceability` phase-result line (skip/pass/fail forms). New test file
+  `skills/tests/validate-feature/test_validate_feature_gate.py` (4 tests,
+  pattern-matched on `test_gen_eval_mode_selection.py`) extracts the fragment
+  and drives it against a hermetic stub `check_traceability.py` (no real
+  gen_eval/pydantic/yaml dependency): absent script → SKIP naming the script
+  path, exit 0; script present but `openspec/contracts/` absent → SKIP naming
+  the contracts path, exit 0; stub exit 0 → asserts the real argv
+  (`--scope change --change trace-requirements-to-contracts`) was built and
+  `PASS` printed; stub exit 1 with a violation-naming stdout line → `FAIL:
+  ... exited 1` printed, the violation line captured in output, fragment
+  exit 1. Verified: `skills/.venv/bin/python -m pytest
+  skills/tests/validate-feature -q` → **9 passed** (5 pre-existing + 4 new).
+  Full bare suite from `skills/` (`skills/.venv/bin/python -m pytest -q`,
+  matching CI's `uv run pytest -v`): **2368 passed, 1 failed** — the one
+  failure (`tests/cite-requirements/test_walkthrough.py::
+  test_real_contract_insertion_is_reversible_for_every_flag`) is pre-existing
+  and out of wp-wiring's scope (Track A's `cite-requirements` skill; the real
+  contract now has a citation for every flag post-4.2, which the test's
+  "insert one" fixture doesn't anticipate) — confirmed unrelated to this
+  task's files by inspection, not touched here.
 
 - [ ] 5.7 Wire the full-capability sweep into CI `[S]`
   **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (a pull request that was not planned through OpenSpec skips); (a pull request touching two change directories fails as ambiguous); (an unresolvable base fails rather than skipping); (a merge group batching two changes is evaluated once per change); (a merge group is not evaluated against changes outside the batch); (an archive pull request derives no change id); (the run on the integration branch cannot fail); (the job is not guarded off any declared event)
