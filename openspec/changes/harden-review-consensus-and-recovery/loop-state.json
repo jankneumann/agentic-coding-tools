@@ -43,11 +43,12 @@
     "implementation-review-4-1.json",
     "escalation-continuation-handoff-1.json",
     "implementation-review-5-1.json",
-    "implementation-review-5-2.json"
+    "implementation-review-5-2.json",
+    "escalation-continuation-handoff-2.json"
   ],
   "implementation_strategy": {},
   "iteration": 5,
-  "last_handoff_id": "implementation-review-5-2.json",
+  "last_handoff_id": "escalation-continuation-handoff-2.json",
   "max_phase_iterations": 5,
   "memory_ids": [],
   "package_authors": {},
@@ -168,6 +169,12 @@
       "at": "2026-08-07T12:09:46.960880+00:00",
       "outcome": "max_iter",
       "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-08-11T12:29:18+00:00",
+      "note": "Continuation handoff records draft PR #363, the non-converged 0/4 external review, the three Aug 8 CI failures, current local reproduction results, and the ordered restart plan; ESCALATE and both review gates remain unchanged.",
+      "outcome": "continuation_handoff",
+      "phase": "ESCALATE"
     }
   ],
   "phase_started_at": "2026-08-07T12:09:46.960880+00:00",

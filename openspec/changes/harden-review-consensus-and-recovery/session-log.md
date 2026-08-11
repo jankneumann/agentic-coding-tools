@@ -725,3 +725,55 @@ Operator-authorized implementation-review round 4 reached final external quorum 
 
 ### Context
 The pushed feature branch remains in ESCALATE after implementation-review round 4. Nine source-verified critical blockers remain and external quorum was 0/5. Before further remediation, sync the branch with current main: its merge base is 247bc201, origin/main is 91 commits ahead, and the feature is 46 commits ahead. Validation and PR submission remain prohibited.
+
+---
+
+## Phase: Escalation Continuation Handoff 2 (2026-08-11)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Keep PR #363 in draft and preserve review gates** `architectural: skill-workflow` — The operator approved creating the PR but did not waive implementation-review quorum or validation review. Draft status exposes CI without presenting the branch as merge-ready.
+2. **Do not repeat the exhausted external reviewer chain unchanged** `resilience: review-recovery` — The authorized retry produced zero eligible results after bounded schema-invalid, fallback, replacement, and timeout attempts. Another cycle is useful only after reviewer reliability or routing changes and requires new operator authorization.
+3. **Treat Aug 8 CI as a diagnostic baseline, not current proof** `quality: repo-quality-gates` — The run tested implementation head 4f64bb1c with floating dependencies. OpenSpec 1.7.0 now validates the committed tree strictly, and the handoff commit will create a new head and check suite.
+
+### Capability Gaps Observed
+- **quorum_lost**: The operator-approved round-5 retry ended with external quorum 0/4; no reviewer produced a schema-valid terminal result. (skill: parallel-review-implementation, severity: critical)
+- **legacy_fixture_drift**: Eight dispatcher-migration tests create review manifests without the newly mandatory terminal attempt-chain evidence. (skill: parallel-infrastructure, severity: high)
+- **context_provenance_drift**: The decision timeline is stale and the architecture producer reports unverifiable drift without naming a precise artifact. (skill: project-context-refresh, severity: high)
+
+### Completed Work
+- Rebased onto current main, remediated all nine round-4 source blockers, and pushed implementation/review evidence through commit 4f64bb1c.
+- Completed the explicitly approved external review retry with four logical slots, eleven bounded attempts, and quorum 0/4; no review waiver was granted.
+- Created draft PR #363 and inspected its Aug 8 CI run: thirteen jobs passed, while test-infra-skills, validate-specs, and context-drift-gate failed.
+- Localized test-infra-skills to eight legacy migration failures raising `ValueError: review manifests require terminal attempt-chain evidence`.
+- Localized context drift to stale decision artifacts plus unverifiable architecture provenance.
+- Verified `openspec validate --strict --all` passes 67/67 with OpenSpec 1.7.0 both in the managed worktree and from a clean `git archive`; the Aug 8 OpenSpec failure is not currently reproducible.
+- Restored and pinned the managed feature worktree for clean-context continuation.
+
+### In Progress
+- Autopilot remains in ESCALATE at implementation-review iteration 5/5 with both review gates enabled.
+- Draft PR #363 needs a fresh CI run and remediation of any failures that remain reproducible.
+- Generated untracked `openspec/schemas/review-attempt.schema.json` is intentionally excluded from this handoff commit pending ownership analysis.
+
+### Next Steps
+- Resume in `.git-worktrees/harden-review-consensus-and-recovery`; inspect status and preserve the untracked schema until its generation path is understood.
+- Repair terminal attempt-chain evidence in the eight migration fixtures or their compatibility boundary, then run `cd skills && uv run pytest tests/parallel-infrastructure/test_review_dispatcher_migration.py -q`.
+- Run `make decisions` and `make context-drift-gate`; use refresh-architecture if architecture provenance remains unverifiable.
+- Run strict OpenSpec validation and the relevant infrastructure suite, push scoped fixes, and inspect the new PR #363 checks.
+- Request another IMPL_REVIEW only after reviewer reliability materially changes and with explicit operator authorization; do not waive quorum.
+- After implementation review converges and CI is green, run validate-feature and validation review before marking the PR ready.
+
+### Relevant Files
+- `openspec/changes/harden-review-consensus-and-recovery/loop-state.json` — authoritative ESCALATE state and handoff pointer
+- `openspec/changes/harden-review-consensus-and-recovery/handoffs/implementation-review-5-2.json` — final 0/4 external-review retry summary
+- `openspec/changes/harden-review-consensus-and-recovery/.review-cache/round-1/review-manifest.json` — complete attempt-chain evidence
+- `skills/tests/parallel-infrastructure/test_review_dispatcher_migration.py` — eight failing migration tests
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — terminal-evidence enforcement boundary
+- `docs/decisions/agent-archetypes.md` — stale decision timeline artifact
+- `docs/decisions/skill-workflow.md` — stale decision timeline artifact
+- `.github/workflows/ci.yml` — PR gate definitions and floating OpenSpec installation
+- `openspec/schemas/review-attempt.schema.json` — generated untracked file excluded pending ownership analysis
+
+### Context
+Draft PR #363 is open and mergeable at the Git level but remains blocked and intentionally draft. All known source blockers are fixed; the unresolved control-plane blocker is external review reliability (0/4 quorum), while the Aug 8 CI baseline exposes migration-fixture and context-provenance work. The current OpenSpec CLI validates the clean committed tree, so its historical CI failure must be re-evaluated on the next run.
