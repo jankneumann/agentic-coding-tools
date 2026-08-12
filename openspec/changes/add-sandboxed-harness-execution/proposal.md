@@ -148,7 +148,11 @@ holds mint authority, workers hold leaves.
 
 ### Selected Approach
 
-<!-- Filled after Gate 1 direction approval. -->
+**Approach 1** selected at Gate 1 (2026-08-12), as recommended, with no
+modifications: `ExecutionBackend` seam under the pinned isolation contract,
+push-model credential brokering from the tailnet-resident dispatcher, and gateway
+virtual keys for inference. Credential brokering is Phase 2, ahead of the cloud
+sandbox backend that depends on it.
 
 ## Impact
 
