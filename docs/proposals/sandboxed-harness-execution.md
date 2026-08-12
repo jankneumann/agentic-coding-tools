@@ -254,6 +254,78 @@ matures first) as an additional renderer + backend, if placement rules keep enou
 sensitive work local that srt's boundary is insufficient. Explicitly a re-evaluation
 point, not a commitment — the seam is the deliverable that keeps it cheap.
 
+## Deployment topology: the always-on GX10 behind Tailscale
+
+The always-on host (GX10) is the development backbone: supervisor sessions, the
+symphony dispatcher daemon, the coordinator, OpenBao, and the local validation stack
+all live there, and the host is reachable only over Tailscale. The cloud lane must
+preserve that invariant. The governing rule:
+
+> **The cloud lane requires zero inbound paths to the tailnet.** Every link is
+> outbound-from-GX10 or outbound-from-sandbox to a public endpoint we already trust.
+
+Concretely, four links, all outbound:
+
+1. **Dispatcher → Daytona API** (sandbox create/exec/teardown): outbound HTTPS from
+   GX10. Whitelisting the provider's API domain in GX10's egress policy is necessary
+   but not the security-relevant allowlist — the sandbox-side egress policy is.
+2. **Sandbox → coordinator**: via the existing cloudflared named tunnel
+   (`coord.rotkohl.ai`) — an *outbound* connection from GX10 to Cloudflare's edge, so
+   the tailnet-only posture is untouched. Harden with Cloudflare Access service
+   tokens plus the per-dispatch coordinator API keys from the credentials section.
+   Ledger writes and heartbeats flow sandbox → tunnel → GX10; nothing connects
+   inbound to the tailnet directly.
+3. **Sandbox → git**: GitHub, with the dispatch-minted repo-scoped token.
+4. **Sandbox → inference**: through the LLM gateway (below), not raw vendor endpoints,
+   wherever the CLI supports a base-URL override.
+
+**Do not give sandboxes OpenBao reachability.** Exposing the secret store beyond the
+tailnet (a second tunnel, or tailnet ephemeral nodes inside sandboxes) inverts the
+supervisor/worker privilege model: it places a credential *for the credential store*
+in the highest-prompt-injection-surface location in the system. The dispatcher on the
+GX10 is the secrets gateway: it authenticates to OpenBao locally (AppRole with a
+minimal read policy), resolves what the dispatch needs, and **pushes** the material
+into the sandbox at creation. Sandboxes hold leaf credentials only — never the means
+to mint more. (Tailnet ephemeral nodes with ACL-scoped tags remain a documented
+fallback if the coordinator tunnel is ever deemed unacceptable, but they re-couple
+cloud capacity to home bandwidth and are not the default.)
+
+**The exfiltration gateway question resolves into two different gateways:**
+
+- *Credential gateway — yes, and it is already planned.* `add-coordinator-llm-gateway`
+  (LiteLLM data plane) exists to fix exactly this: "agents still hold raw provider
+  keys and call models directly." Cloud sandboxes receive a short-lived gateway
+  virtual key; the gateway (on GX10, exposed via the same tunnel pattern) holds the
+  real vendor keys, enforces spend ceilings inline, and gives per-dispatch revocation
+  for free. This is the correct answer to "vendor API keys are long-lived": stop
+  shipping them anywhere. Per-CLI base-URL override support (`ANTHROPIC_BASE_URL`,
+  OpenAI-compatible endpoints for codex/grok/pi via the existing
+  `OpenAICompatAdapter` path) is a Phase 2 spike item; a vendor CLI that cannot be
+  pointed at the gateway gets a dedicated per-lane vendor key with a spend cap as the
+  fallback, so revocation stays cheap.
+- *Egress gateway — provider-first, proxy only on demonstrated need.* The sandbox
+  egress allowlist (coordinator tunnel hostname, GitHub, gateway hostname) is
+  rendered from `network_policies.py` into the provider's network controls. Only if
+  the Phase 2 spike shows the provider cannot express a domain allowlist does a
+  dedicated egress proxy enter — and it runs *in the cloud adjacent to the sandboxes*,
+  never on the GX10. Routing sandbox traffic through the home box would make the
+  tailnet-only host an internet-facing proxy and re-couple cloud throughput to
+  residential bandwidth: worse on both axes it is meant to protect.
+
+**OpenBao work items** to support the broker model (all host-side, none change the
+skills layer):
+
+- Graduate from dev-mode to persistent storage with TLS on the listener and an audit
+  device enabled — the broker makes OpenBao load-bearing for every cloud dispatch.
+- A dispatcher AppRole whose policy grants read on exactly the vendor-key and
+  GitHub-App paths, nothing else; CIDR-bind its token issuance to the tailnet.
+- Store the GitHub App private key in KV; the dispatcher mints ~1h repo-scoped
+  installation tokens per dispatch (OpenBao has no first-class GitHub App engine, so
+  minting lives in the dispatcher beside the other renderers).
+- Once the LLM gateway lands, vendor keys in KV become gateway-only reads; the
+  dispatcher provisions gateway virtual keys per dispatch instead of reading vendor
+  keys at all.
+
 ## Non-goals
 
 - A coordinator-owned sandbox control plane (unchanged from dispatch-governance).
