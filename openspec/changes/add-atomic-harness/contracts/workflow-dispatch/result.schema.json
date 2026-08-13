@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "workflow-dispatch-result.schema.json",
+  "title": "WorkflowDispatchResult",
+  "description": "Normalized result of one headless Atomic workflow dispatch, derived from the terminal workflow.run.end NDJSON event (empirical finding A14). Produced by skills/parallel-infrastructure/scripts/workflow_dispatch.py.",
+  "type": "object",
+  "required": ["run_id", "status", "workflow_name", "duration_ms", "exit_code"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Full 36-character UUID of the Atomic workflow run.",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "failed", "blocked"],
+      "description": "Terminal status from workflow.run.end. 'blocked' is retryable after reauth/provider recovery; 'failed' is terminal for the attempt."
+    },
+    "workflow_name": {
+      "type": "string",
+      "description": "Name of the dispatched workflow definition (builtin or .atomic/workflows/*.ts)."
+    },
+    "result": {
+      "type": ["object", "null"],
+      "description": "The workflow's typed output object as declared by its outputs schema; null when the run did not complete."
+    },
+    "error_message": {
+      "type": ["string", "null"],
+      "description": "Error text extracted from the stream (stopReason:'error' errorMessage, finding A5) or the failed run.end payload; null on success. Secret-redacted before persistence."
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "durationMs from workflow.run.end, or wall-clock fallback when absent."
+    },
+    "exit_code": {
+      "type": "integer",
+      "description": "Subprocess exit code of the atomic invocation (0 expected on completed, finding A14)."
+    },
+    "reauth_hint": {
+      "type": ["string", "null"],
+      "description": "Present iff status='blocked' and the block is auth-shaped: 'set OPENROUTER_API_KEY in the environment or run interactive /login' (finding A6, decision D3)."
+    },
+    "worktree_path": {
+      "type": ["string", "null"],
+      "description": "Managed worktree the run executed in (finding A19: worktree isolation is mandatory)."
+    },
+    "provider": {
+      "type": "string",
+      "description": "Explicitly pinned provider (always set per finding A10; 'openrouter' in this change)."
+    },
+    "model": {
+      "type": "string",
+      "description": "Explicitly pinned model slug (always set per finding A10)."
+    }
+  }
+}
