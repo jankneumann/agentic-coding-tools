@@ -258,14 +258,22 @@ def test_real_contract_flags_all_located() -> None:
 
 def test_real_contract_insertion_is_reversible_for_every_flag(tmp_path: Path) -> None:
     """Insert + parse for each real flag on a throwaway copy; the original
-    file is never touched, and every insertion yields valid YAML."""
+    file is never touched, and every insertion yields valid YAML.
+
+    Whether a flag already carries a traceability block depends on branch
+    state (all 17 do since tasks 4.1/4.2 landed), so derive `replace` from
+    the artifact instead of assuming either state."""
     text = REAL_CONTRACT.read_text(encoding="utf-8")
-    for name in w.contract_flag_names(text.splitlines(keepends=True)):
+    lines = text.splitlines(keepends=True)
+    for name in w.contract_flag_names(lines):
+        start, end = w.locate_flag_block(lines, name)
+        has_block = w.flag_traceability_span(lines, start, end) is not None
         new_text = "".join(
             w.insert_traceability(
-                text.splitlines(keepends=True),
+                lines,
                 name,
                 w.render_citation_block(["gen-eval-framework.evaluation"]),
+                replace=has_block,
             )
         )
         w.validate_contract_text(new_text, name)
