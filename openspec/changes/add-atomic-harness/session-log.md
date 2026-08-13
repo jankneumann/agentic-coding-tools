@@ -38,3 +38,10 @@
 ### Context
 Planned integration of the atomic harness (bastani-inc/atomic, a pi fork with a durable TypeScript workflow engine) as the first experimental-tier vendor, plus a scoped workflow-executor pilot in fix-scrub. An empirical CLI probe (A1-A20) was run before any config was drafted; all artifacts validate strictly and Gate 1 selected Approach 2.
 
+
+### Plan phase addendum — Gate outcomes and seeding (2026-08-13)
+
+- **Gate 1 (Direction)**: Approach 2 selected — experimental-vendor tier + scoped workflow-executor pilot.
+- **Gate 2 (Plan)**: Approved — proceed to implementation (`/implement-feature add-atomic-harness` after `add-frontier-model-tier` merges).
+- **Issue seeding**: `seed_tasks_from_md.py` ran twice and reported `created=27 existing=0` both times — the seeder is currently non-idempotent (response-envelope key mismatch in the seeder + new issues invisible to coordinator list/search). ~54 duplicate task issues exist server-side but are unenumerable until visibility is fixed. Filed coordinator bug `7b25af0c-4bc8-42a1-88fe-2c11bcb6021e` with full diagnosis and cleanup instructions; dedupe by `(change:add-atomic-harness, task:<key>)` label pair keeping the older of each pair.
+- **Lock claims**: planning claims skipped (`unauthorized` despite `CAN_LOCK=true` probe); implement-time package agents must acquire locks themselves.
