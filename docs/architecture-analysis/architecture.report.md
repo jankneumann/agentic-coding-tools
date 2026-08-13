@@ -2,27 +2,26 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-04T14:34:23+00:00  
-Git SHA: `7fa4cbbc21d228b6ccc1083430199e2b154827c1`
+Generated: 2026-08-13T07:54:35+00:00  
+Git SHA: `d8d2f29f2c54d850bcb709e82f348b2bb6cd1f80`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **29 Postgres tables**. The codebase contains 1104 functions (431 async) and 242 classes.
+This is a **Python MCP server** with 75 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **29 Postgres tables**. The codebase contains 1063 functions (431 async) and 242 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1961 |
+| Total nodes | 1871 |
 | Total edges | 1160 |
-| Python modules | 102 |
-| Functions | 1104 (431 async) |
+| Python modules | 75 |
+| Functions | 1063 (431 async) |
 | Classes | 242 |
 | Mcp Endpoints | 96 |
 | DB tables | 29 |
 | Python nodes | 1432 |
 | Sql nodes | 439 |
-| Typescript nodes | 90 |
 
 ## Module Responsibility Map
 
@@ -141,21 +140,21 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 - `policy_engine` — imported by 6 modules
 - `telemetry` — imported by 6 modules
 - `feature_registry` — imported by 5 modules
-- `profiles` — imported by 4 modules
 - `code_search` — imported by 4 modules
-- `event_bus` — imported by 4 modules
+- `profiles` — imported by 4 modules
 - `guardrails` — imported by 4 modules
-- `memory` — imported by 3 modules
-- `agents_config` — imported by 3 modules
+- `event_bus` — imported by 4 modules
+- `handoffs` — imported by 3 modules
 - `merge_queue` — imported by 3 modules
+- `work_queue` — imported by 3 modules
+- `agents_config` — imported by 3 modules
+- `issue_service` — imported by 3 modules
+- `memory` — imported by 3 modules
+- `refresh_rpc_client` — imported by 3 modules
+- `code_search_runtime` — imported by 3 modules
+- `help_service` — imported by 3 modules
 - `locks` — imported by 3 modules
 - `merge_train` — imported by 3 modules
-- `work_queue` — imported by 3 modules
-- `issue_service` — imported by 3 modules
-- `code_search_runtime` — imported by 3 modules
-- `refresh_rpc_client` — imported by 3 modules
-- `help_service` — imported by 3 modules
-- `handoffs` — imported by 3 modules
 
 ## Entry Points
 
@@ -276,29 +275,29 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2878 findings** across 5 categories:
+**2688 findings** across 5 categories:
 
-### Orphan — 1273
+### Orphan — 1185
 
-1273 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1185 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'approval' is unreachable from any entrypoint or test
 - 'assurance' is unreachable from any entrypoint or test
 - 'audit' is unreachable from any entrypoint or test
-- ... and 1268 more
+- ... and 1180 more
 
-### Pattern Consistency — 45
+### Pattern Consistency — 6
 
-45 unclassified findings.
+6 unclassified findings.
 
-- 'relativeTime' uses camelCase but most functions use snake_case
-- 'emitHighlight' uses camelCase but most functions use snake_case
-- 'useHighlightState' uses camelCase but most functions use snake_case
-- 'shortForm' uses camelCase but most functions use snake_case
-- 'loadFromStorage' uses camelCase but most functions use snake_case
-- ... and 40 more
+- 'IF' uses PascalCase but most columns use snake_case
+- 'IF' uses PascalCase but most columns use snake_case
+- 'IF' uses PascalCase but most columns use snake_case
+- 'IF' uses PascalCase but most columns use snake_case
+- 'CONSTRAINT' uses PascalCase but most columns use snake_case
+- ... and 1 more
 
 ### Reachability — 96
 
@@ -313,26 +312,26 @@ Breakdown: 88 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 91 more
 
-### Test Coverage — 1368
+### Test Coverage — 1305
 
-1368 functions lack test references — consider adding tests for critical paths.
+1305 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1363 more
+- ... and 1300 more
 
 ### Disconnected Flow (expected) — 96
 
 96 MCP routes have no frontend callers — expected (clients are AI agents).
 
-- Backend route 'coordinate_file_edit' has no frontend callers
-- Backend route 'query_audit' has no frontend callers
-- Backend route 'ready' has no frontend callers
-- Backend route 'discovery_register' has no frontend callers
-- Backend route 'help_topic' has no frontend callers
+- Backend route 'merge_train_metrics_endpoint' has no frontend callers
+- Backend route 'discovery_cleanup' has no frontend callers
+- Backend route 'patch_issue_labels' has no frontend callers
+- Backend route 'release_lock' has no frontend callers
+- Backend route 'get_current_profile' has no frontend callers
 - ... and 91 more
 
 ## High-Impact Nodes
@@ -469,7 +468,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1268 independent groups** identified. The largest interconnected group has 528 modules; 1571 modules are leaf nodes (safe to modify in isolation).
+**1178 independent groups** identified. The largest interconnected group has 528 modules; 1481 modules are leaf nodes (safe to modify in isolation).
 
 **38 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -497,9 +496,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1571)
+### Leaf Modules (1481)
 
-1571 modules have no dependents — changes are fully isolated. 1246 of the 1268 groups are singletons.
+1481 modules have no dependents — changes are fully isolated. 1156 of the 1178 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -511,7 +510,6 @@ Functions called by the most other functions — changes here have wide blast ra
 flowchart TB
     Backend["Backend (1432 nodes)"]
     Database["Database (439 nodes)"]
-    Frontend["Frontend (90 nodes)"]
 ```
 
 ### Backend Components
@@ -791,8 +789,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    kanban_h_viz_s_src["kanban-viz/src (89 symbols)"]
-    kanban_h_viz_s_vite__config__ts["kanban-viz/vite.config.ts (1 symbols)"]
+    empty["No TypeScript nodes found"]
 ```
 
 ### Database ERD
