@@ -3,26 +3,26 @@
     {
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "38f051207d3d8f9769622e5efda576f3e8d58910616f3cd2228b9a0d9bdde1aa",
-      "size_bytes": 1076714
+      "sha256": "fa08d1e66840f778329fe967efc778b1df56661f2e536453c6091d10381d08ed",
+      "size_bytes": 1007165
     },
     {
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "b4fb4e69820d812aef18ae6f49a711ab446f18eb48a994627f1bb4c6a65fda9c",
-      "size_bytes": 900124
+      "sha256": "8d23c8482e54de48d2675d9481d5b8fc8b79bf7275c35e67d3ffa5b44ef90dcb",
+      "size_bytes": 871071
     },
     {
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "23b4db0e7aa10305f45762406325e6a51fccf65798b4f15d63cabb1a10287374",
-      "size_bytes": 55139
+      "sha256": "fb87e27a91e274c53ea261c5790d95a3c3580a984570b6b4f364af1ce845d339",
+      "size_bytes": 54957
     },
     {
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "8bec399f4f8f325e2a25e6da9a09dcc00a81785bd74aa4d87bdc5c7c1eaf6dcb",
-      "size_bytes": 22494
+      "sha256": "9d17c5b055859797feea8a0d65167cc15f68bf3181eda05762c4af913563716f",
+      "size_bytes": 22446
     },
     {
       "path": "docs/architecture-analysis/comment_insights.json",
@@ -33,8 +33,8 @@
     {
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "afcc484ce4f01de5193b2113e42919c010daa140b508650e1a5bc915b7d640fb",
-      "size_bytes": 534826
+      "sha256": "a0518b0da3819f166f2105a246c81bbdc065fc748bb5adfb8ca827fbb219fbb4",
+      "size_bytes": 507684
     },
     {
       "path": "docs/architecture-analysis/pattern_insights.json",
@@ -81,8 +81,8 @@
     {
       "path": "docs/architecture-analysis/views/containers.mmd",
       "required": false,
-      "sha256": "ccf040f5b91883f12a700cd42f49ca3f75c98d3c0046246d1aec56543d1614f9",
-      "size_bytes": 122
+      "sha256": "b85d3dbe18cc742a6d3cf15d6144c55f0abd7aae88ebf6df91e995156a1e9e4d",
+      "size_bytes": 86
     },
     {
       "path": "docs/architecture-analysis/views/db_erd.mmd",
@@ -93,12 +93,12 @@
     {
       "path": "docs/architecture-analysis/views/frontend_components.mmd",
       "required": false,
-      "sha256": "36a5497b4d301fe424d0dada885bec1850698dc290e3fd70db25c93687b3a12b",
-      "size_bytes": 144
+      "sha256": "01f76d9fa260195ae27b887cbc0c7e98ca4ca9ca2ec6905b4fc78a3beea1dac9",
+      "size_bytes": 52
     }
   ],
-  "generated_at": "2026-08-04T14:34:23+00:00",
-  "input_fingerprint": "08e64a3b3fcd1abc337fcece44f4505a3d33b83650b2b1eb8341bb4fb127a43d",
+  "generated_at": "2026-08-13T07:54:35+00:00",
+  "input_fingerprint": "4f9bb69122b73e9a2f125708e3bbf866b07501bcd784a784ecb2dd455b03173c",
   "input_roots": [
     "agent-coordinator/database/migrations",
     "agent-coordinator/src",
@@ -118,7 +118,7 @@
   },
   "repository_id": "agentic-coding-tools",
   "schema_version": 1,
-  "source_revision": "7fa4cbbc21d228b6ccc1083430199e2b154827c1",
+  "source_revision": "d8d2f29f2c54d850bcb709e82f348b2bb6cd1f80",
   "validation": {
     "error_count": 0,
     "status": "passed",

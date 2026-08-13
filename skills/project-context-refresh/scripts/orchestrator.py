@@ -298,17 +298,16 @@ def _default_architecture_producer(
             ),
         )
 
-    # A reason that carries a path names an owned artifact; a provenance-level
-    # reason names the provenance document itself, which is the artifact that is
-    # actually wrong when there is no committed baseline to compare against.
-    provenance_codes = (provenance.PROVENANCE_MISSING, provenance.PROVENANCE_INVALID)
+    # A reason that carries a path names an owned artifact; every pathless
+    # reason names the provenance document itself. That covers the no-baseline
+    # codes (missing/malformed provenance) and equally the whole-baseline
+    # disagreements — INPUT_FINGERPRINT_MISMATCH and PRODUCER_IDENTITY_MISMATCH
+    # carry no path by construction, yet the artifact whose recorded claim is
+    # stale is exactly the provenance document. Leaving them unnamed made the
+    # gate report "drift without naming any artifact" as an apparatus failure,
+    # which is unactionable and hid the `make architecture-refresh` remediation.
     drifted_paths = [
-        reason.path
-        if reason.path
-        else provenance_rel
-        if reason.code in provenance_codes
-        else ""
-        for reason in outcome.reasons
+        reason.path if reason.path else provenance_rel for reason in outcome.reasons
     ]
     validations = [
         R.failed_validation(

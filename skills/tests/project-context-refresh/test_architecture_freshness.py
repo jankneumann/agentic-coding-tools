@@ -244,6 +244,58 @@ class TestStaleProvenanceBlocks:
         paths = {a.path for a in result.artifacts}
         assert f"{ARCH_DIR}/architecture.graph.json" in paths
 
+    def test_pathless_input_drift_names_the_provenance_document(
+        self, arch_repo: tuple[Path, str]
+    ) -> None:
+        """INPUT_FINGERPRINT_MISMATCH carries no path; the drifted artifact is
+        the provenance document whose recorded fingerprint no longer matches.
+
+        Regression: unnamed drift was reported by the gate as an apparatus
+        failure ("drift without naming any artifact"), hiding the
+        ``make architecture-refresh`` remediation. Seen on main after commits
+        changed input-root files without regenerating provenance.
+        """
+        repo, head = arch_repo
+        _commit_fresh_provenance(repo)
+        (repo / "src" / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
+
+        result = _run(repo, head)
+
+        assert arch_provenance.INPUT_FINGERPRINT_MISMATCH in _codes(result)
+        assert {a.path for a in result.artifacts} == {PROVENANCE_REL}
+
+    def test_pathless_identity_drift_names_the_provenance_document(
+        self, arch_repo: tuple[Path, str]
+    ) -> None:
+        """PRODUCER_IDENTITY_MISMATCH is equally pathless and equally must
+        surface a named artifact rather than an empty stale list."""
+        repo, head = arch_repo
+        doc = _commit_fresh_provenance(repo)
+        doc["optional_tools"] = [
+            {"name": "tree-sitter", "available": True, "version": "0.0.0-other"}
+        ]
+        arch_provenance.write_provenance(repo, doc)
+
+        result = _run(repo, head)
+
+        assert result.status is ProducerStatus.DEGRADED
+        assert arch_provenance.PRODUCER_IDENTITY_MISMATCH in _codes(result)
+        assert PROVENANCE_REL in {a.path for a in result.artifacts}
+
+    def test_every_drift_result_names_at_least_one_artifact(
+        self, arch_repo: tuple[Path, str]
+    ) -> None:
+        """The gate-level invariant this producer must uphold: a drift verdict
+        with an empty artifact list is unactionable by construction."""
+        repo, head = arch_repo
+        _commit_fresh_provenance(repo)
+        (repo / "src" / "app.py").write_text("VALUE = 3\n", encoding="utf-8")
+
+        result = _run(repo, head)
+
+        assert result.status is ProducerStatus.DEGRADED
+        assert result.artifacts
+
 
 # --------------------------------------------------------------------------- #
 # Committed, matching provenance is fresh
