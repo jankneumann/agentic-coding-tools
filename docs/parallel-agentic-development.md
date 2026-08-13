@@ -73,7 +73,7 @@ Cloud Agents (Claude Web, Codex Cloud)
 | **Work Queue** | [`work_queue.py`](../agent-coordinator/src/work_queue.py) | Task assignment with priority + DAG dependencies | `submit_work`, `get_work`, `complete_work`, `get_task` |
 | **Discovery** | [`discovery.py`](../agent-coordinator/src/discovery.py) | Agent registration, heartbeat, dead agent cleanup | `register_session`, `discover_agents`, `heartbeat`, `cleanup_dead_agents` |
 | **Handoffs** | [`handoffs.py`](../agent-coordinator/src/handoffs.py) | Session context preservation across sessions | `write_handoff`, `read_handoff` |
-| **Memory** | [`memory.py`](../agent-coordinator/src/memory.py) | Episodic + procedural memory with relevance scoring | `remember`, `recall` |
+| **Memory** | [`memory.py`](../agent-coordinator/src/memory.py) | Episodic memory with relevance scoring and time-decay | `remember`, `recall` |
 | **Guardrails** | [`guardrails.py`](../agent-coordinator/src/guardrails.py) | Destructive operation detection (git force-push, rm -rf, DROP TABLE) | `check_guardrails` |
 | **Profiles** | [`profiles.py`](../agent-coordinator/src/profiles.py) | Agent trust levels 0–4, operation allow/block lists | `get_my_profile` |
 | **Policy Engine** | [`policy_engine.py`](../agent-coordinator/src/policy_engine.py) | Authorization via Native profiles or AWS Cedar PARC model | `check_policy`, `validate_cedar_policy` |
