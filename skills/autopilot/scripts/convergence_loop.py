@@ -43,14 +43,17 @@ if _PARALLEL_INFRA_DIR not in sys.path:
     sys.path.insert(0, _PARALLEL_INFRA_DIR)
 
 from consensus_synthesizer import (  # noqa: E402
+    ConsensusInputError,
     ConsensusSynthesizer,
     Finding,
     VendorResult,
+    validate_consensus_payload,
 )
 from review_dispatcher import (  # noqa: E402
     ReviewOrchestrator,
     ReviewResult,
 )
+from review_result_policy import is_quorum_eligible  # noqa: E402
 
 # Module-level aliases so tests can monkeypatch the checkpoint helpers via
 # ``convergence_loop.cf_write_vendor_findings``. The bare imports also make
@@ -68,6 +71,71 @@ _BLOCKING_CRITICALITIES = {"medium", "high", "critical"}
 
 # Default stall detection window (number of data points to compare)
 _DEFAULT_STALL_WINDOW = 3
+
+
+def validate_consensus_report(report: dict[str, Any]) -> None:
+    """Use the producer's complete schema-plus-relational trust boundary."""
+    try:
+        validate_consensus_payload(report)
+    except ConsensusInputError as exc:
+        raise ValueError(str(exc)) from exc
+
+
+def _logical_result_payload(result: ReviewResult) -> dict[str, Any] | None:
+    """Return a shared-policy payload for recovery-aware dispatches.
+
+    A raw ``success`` flag is not evidence. Only a complete, validated logical
+    attempt chain can contribute to a quorum or reach synthesis.
+    """
+    if not result.attempts or result.terminal_outcome is None:
+        return None
+    return {
+        "logical_request_id": result.logical_request_id,
+        "requested_vendor": result.requested_vendor,
+        "requested_routing": result.requested_routing,
+        "deadline_at": result.deadline_at,
+        "budget": result.budget,
+        "attempts": result.attempts,
+        "terminal_outcome": result.terminal_outcome,
+        "terminal_vendor": result.terminal_vendor,
+        "quorum_eligible": result.quorum_eligible,
+    }
+
+
+def _is_quorum_eligible_result(result: ReviewResult) -> bool:
+    payload = _logical_result_payload(result)
+    return payload is not None and is_quorum_eligible(payload)
+
+
+def _eligible_distinct_results(results: list[ReviewResult]) -> list[ReviewResult]:
+    """Return one validated terminal result per terminal vendor, in order."""
+    eligible: list[ReviewResult] = []
+    seen: set[str] = set()
+    for result in results:
+        if not _is_quorum_eligible_result(result):
+            continue
+        terminal_vendor = result.terminal_vendor
+        if not isinstance(terminal_vendor, str) or terminal_vendor in seen:
+            continue
+        seen.add(terminal_vendor)
+        eligible.append(result)
+    return eligible
+
+
+def _checkpoint_dispatch(result: ReviewResult) -> dict[str, Any]:
+    """Serialize one result without discarding its logical-attempt evidence."""
+    payload = _logical_result_payload(result)
+    if payload is not None:
+        return payload
+    return {
+        "vendor": result.vendor,
+        "success": result.success,
+        "model_used": result.model_used,
+        "models_attempted": result.models_attempted,
+        "elapsed_seconds": result.elapsed_seconds,
+        "error": result.error,
+        "error_class": result.error_class.value if result.error_class else None,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +218,9 @@ def _review_results_to_vendor_results(
     vendor_results: list[VendorResult] = []
     for r in results:
         findings: list[Finding] = []
-        if r.success and r.findings:
+        logical_result = _logical_result_payload(r)
+        eligible = logical_result is not None and is_quorum_eligible(logical_result)
+        if eligible and r.findings:
             for f_data in r.findings.get("findings", []):
                 try:
                     findings.append(Finding.from_dict(f_data, vendor=r.vendor))
@@ -162,9 +232,10 @@ def _review_results_to_vendor_results(
         vendor_results.append(VendorResult(
             vendor=r.vendor,
             findings=findings,
-            success=r.success,
+            success=eligible,
             elapsed_seconds=r.elapsed_seconds,
             error=r.error,
+            logical_result=logical_result,
         ))
     return vendor_results
 
@@ -175,17 +246,22 @@ def _is_blocking(
     relax_unconfirmed: bool = False,
     blocking_criticalities: set[str] | None = None,
 ) -> bool:
-    """Determine if a consensus finding is blocking.
+    """Determine if a consensus finding blocks convergence.
 
-    Blocking = medium+ criticality AND (confirmed or unconfirmed).
-    In the final round, unconfirmed findings are relaxed (not blocking).
+    Revision-2 consensus reports carry the fail-closed policy decision.  The
+    legacy fallback remains only for reports produced by older synthesizers.
 
     Args:
         cf: Consensus finding dict.
-        relax_unconfirmed: If True, unconfirmed findings are not blocking.
+        relax_unconfirmed: Deprecated compatibility argument; ignored for
+            revision-2 policy decisions.
         blocking_criticalities: Custom set of criticalities that count as
             blocking. Defaults to ``_BLOCKING_CRITICALITIES``.
     """
+    policy = cf.get("policy")
+    if isinstance(policy, dict) and "convergence_blocking" in policy:
+        return bool(policy["convergence_blocking"])
+
     effective_criticalities = (
         blocking_criticalities if blocking_criticalities is not None
         else _BLOCKING_CRITICALITIES
@@ -199,7 +275,7 @@ def _is_blocking(
     if status == "confirmed":
         return True
 
-    if status == "unconfirmed" and not relax_unconfirmed:
+    if status == "unconfirmed":
         return True
 
     return False
@@ -319,6 +395,7 @@ def converge(
     orchestrator: ReviewOrchestrator | None = None,
     post_fix_validator: Callable[[Path], list[str]] | None = None,
     escalation_callback: Callable[[dict[str, Any]], None] | None = None,
+    trusted_approval_resolver: Callable[[dict[str, Any]], bool] | None = None,
     blocking_criticalities: set[str] | None = None,
     stall_window: int = _DEFAULT_STALL_WINDOW,
 ) -> ConvergenceResult:
@@ -344,6 +421,8 @@ def converge(
             the loop exits without converging (reason is "max_rounds",
             "disagreement", or "stalled"). The summary includes unresolved
             findings, iteration history, and vendor agreement rate.
+        trusted_approval_resolver: Verifies accepted-risk approval references
+            against a trusted human approval source.
         blocking_criticalities: Set of criticality levels that count as
             blocking. Defaults to ``{"medium", "high", "critical"}``.
         stall_window: Number of data points for stall detection.
@@ -375,35 +454,23 @@ def converge(
             "Convergence round %d/%d for %s", round_num, max_rounds, change_id,
         )
 
-        # 2a. Dispatch reviews
+        # 2a. Dispatch reviews. Install the durable callback before the first
+        # vendor starts so a later adapter crash cannot erase completed slots.
         prompt = build_review_prompt(artifacts_dir, round_num)
-        results = orchestrator.dispatch_and_wait(
-            review_type=review_type,
-            dispatch_mode="review",
-            prompt=prompt,
-            cwd=worktree_path,
-        )
-
-        # 2aa. Durably checkpoint vendor findings BEFORE synthesis. This is
-        # the load-bearing write of the proposal: if synthesizer.synthesize()
-        # below raises, the data is already on disk and recoverable. The
-        # narrow try/except around the writes only logs and re-raises; it
-        # does not swallow.
         checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
-        try:
+        discover = getattr(orchestrator, "discover_reviewers", None)
+        scheduled_slots = 0
+        if callable(discover):
+            scheduled_slots = len({
+                reviewer.vendor for reviewer in discover(dispatch_mode="review")
+                if getattr(reviewer, "available", False)
+            })
+
+        def checkpoint_results(partial: list[ReviewResult], *, round_state: str) -> None:
+            eligible_results = _eligible_distinct_results(partial)
             vendors_index: list[dict[str, Any]] = []
-            dispatches: list[dict[str, Any]] = []
-            for r in results:
-                dispatches.append({
-                    "vendor": r.vendor,
-                    "success": r.success,
-                    "model_used": r.model_used,
-                    "models_attempted": r.models_attempted,
-                    "elapsed_seconds": r.elapsed_seconds,
-                    "error": r.error,
-                    "error_class": r.error_class.value if r.error_class else None,
-                })
-                if r.success and r.findings:
+            for r in eligible_results:
+                if r.findings is not None:
                     findings_array = r.findings.get("findings", [])
                     cf_write_vendor_findings(
                         checkpoint_dir,
@@ -417,20 +484,32 @@ def converge(
                         "name": r.vendor,
                         "findings_path": f"findings-{r.vendor}-{review_type}.json",
                         "finding_count": len(findings_array),
+                        "quorum_eligible": True,
                     })
+            logical_slots = scheduled_slots or len(partial)
+            logical_slots -= sum(bool(r.replacement_allocation) for r in partial)
             cf_write_manifest(
                 checkpoint_dir,
                 review_type=review_type,
                 target=change_id,
                 vendors=vendors_index,
                 change_id=change_id,
-                dispatches=dispatches,
-                # quorum_requested = total vendors dispatched (incl. failures);
-                # vendors_index only lists successful reviews, so passing it
-                # implicitly via the default would understate intent.
-                quorum_requested=len(results),
-                quorum_received=sum(1 for r in results if r.success),
+                dispatches=[_checkpoint_dispatch(r) for r in partial],
+                logical_slots=logical_slots,
+                round_state=round_state,
             )
+
+        try:
+            results = orchestrator.dispatch_and_wait(
+                review_type=review_type,
+                dispatch_mode="review",
+                prompt=prompt,
+                cwd=worktree_path,
+                on_terminal_result=lambda _result, partial: checkpoint_results(
+                    partial, round_state="partial"
+                ),
+            )
+            checkpoint_results(results, round_state="final")
         except (OSError, PermissionError) as exc:
             cf_safe_log_error(
                 "convergence.checkpoint_write_failed",
@@ -445,7 +524,7 @@ def converge(
         latest_checkpoint_dir = checkpoint_dir.resolve()
 
         # 2b. Check quorum
-        successful = [r for r in results if r.success]
+        successful = _eligible_distinct_results(results)
         if len(successful) < min_quorum:
             logger.warning(
                 "Quorum lost: %d/%d (need %d)",
@@ -467,13 +546,19 @@ def converge(
         # ORIGINAL exception unmodified. NOT a fallback — the caller still
         # sees the failure.
         try:
-            vendor_results = _review_results_to_vendor_results(results)
+            vendor_results = _review_results_to_vendor_results(successful)
+            adjudication_ledger = artifacts_dir / "adjudications.json"
             report = synthesizer.synthesize(
                 review_type=review_type,
                 target=change_id,
                 vendor_results=vendor_results,
+                adjudication_ledger=(
+                    adjudication_ledger if adjudication_ledger.exists() else None
+                ),
+                trusted_approval_resolver=trusted_approval_resolver,
             )
             consensus_dict = synthesizer.to_dict(report)
+            validate_consensus_report(consensus_dict)
         except Exception as exc:
             cf_safe_log_error(
                 "convergence.synthesis_failed_with_checkpoint",
@@ -490,6 +575,10 @@ def converge(
         disagreement_findings = [
             cf for cf in consensus_dict.get("consensus_findings", [])
             if cf.get("status") == "disagreement"
+            and (
+                not isinstance(cf.get("policy"), dict)
+                or bool(cf["policy"].get("convergence_blocking"))
+            )
         ]
         if disagreement_findings:
             logger.info(
@@ -529,15 +618,12 @@ def converge(
                 )))
             return disagreement_result
 
-        # 2g. Filter blocking findings (medium+ confirmed/unconfirmed)
-        is_final_round = round_num == max_rounds
-
-        # 2h. Relax unconfirmed in final round
+        # 2g. Filter the explicit fail-closed policy count.  Do not relax
+        # unadjudicated findings in the final round: exhaustion escalates.
         blocking = [
             cf for cf in consensus_dict.get("consensus_findings", [])
             if _is_blocking(
                 cf,
-                relax_unconfirmed=is_final_round,
                 blocking_criticalities=blocking_criticalities,
             )
         ]

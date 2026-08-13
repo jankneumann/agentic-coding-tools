@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T20:52:43.134871+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator unavailable; local phase handoff",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "reviewer",
+    "session_id": null,
+    "summary": "Plan review remains fail-closed and did not converge. The Codex review found three critical blockers: the revision-2 consensus artifact breaks legacy readers without a migration package, its quorum object can validate met=true with no eligible results, and the attempt schema does not enforce its advertised recovery budget. External multi-vendor review was explicitly approved and attempted, but the sequential dispatcher exceeded its documented 600-second per-vendor bound inside Antigravity's model loop; Claude Code, Grok, and Pi were never reached. External quorum is therefore 0/4 and no external finding may count toward consensus.",
+    "completed_work": [
+      "Reviewed proposal, design, tasks, both specification deltas, both frozen contracts, work-package ownership, and existing consensus consumers.",
+      "Recorded 6 schema-valid Codex findings: 3 critical, 1 nit, 1 optional, and 1 positive observation.",
+      "Attempted approved external dispatch to Antigravity, Claude Code, Grok, and Pi; durably recorded the Antigravity timeout and the three undispatched vendors with quorum_received=0.",
+      "Generated a local-only consensus artifact; rejected its legacy blocking_count=0 signal because quorum was not met and three critical actionable findings remain.",
+      "Passed strict OpenSpec validation, Draft 2020-12 checks for both frozen contract schemas, review-findings schema validation, and git diff whitespace checks."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Fail closed on missing independent reviewer quorum",
+        "rationale": "No external reviewer completed and the legacy synthesizer reported quorum not met, so the phase cannot converge regardless of its compatibility blocker count.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Treat the dispatcher overrun as a timeout failure",
+        "rationale": "The CLI documents --timeout as per-vendor, but the implementation applies 600 seconds per model attempt and has no outer deadline; the run remained blocked after the documented bound.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Require another PLAN_FIX round",
+        "rationale": "The frozen contracts currently admit false quorum and unbounded attempt chains, while the revision-2 report shape breaks a known consumer outside all package scopes.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN_FIX: preserve or explicitly migrate the legacy consensus report shape, including scripts/impl_review_driver.py and other flat quorum/per-finding readers.",
+      "PLAN_FIX: add minimum-required and distinct-vendor quorum invariants plus false-met negative fixtures.",
+      "PLAN_FIX: enforce attempt-chain bounds and ordering through schema constraints plus a mandatory application validator with negative fixtures.",
+      "PLAN_FIX: run test_consensus_policy.py in the wp-consensus-policy verification gate.",
+      "Rerun PLAN_REVIEW after fixing the dispatcher outer-deadline behavior or route vendors independently so one timeout cannot starve all remaining reviewers."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/review-findings-plan.json",
+        "description": "schema-valid primary findings"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/reviews/review-manifest.json",
+        "description": "durable external timeout and zero-quorum evidence"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/reviews/consensus-plan.json",
+        "description": "local-only consensus showing quorum not met"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/contracts/consensus-policy.schema.json",
+        "description": "false-quorum and compatibility blockers"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json",
+        "description": "unenforced attempt-budget blocker"
+      }
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T20:17:05.140815+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator unavailable; local phase handoff",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "reviewer",
+    "session_id": null,
+    "summary": "Plan review did not converge: six medium-or-higher actionable findings remain. The highest-risk defects are false quorum when a replacement vendor is later dispatched in its own slot, and an attempt contract that accepts unattributable successes. External multi-vendor dispatch was blocked before execution because repository artifacts could not be sent to external vendor services without explicit data-egress approval; vendor participation was Codex only, with zero malformed vendor outputs because no external attempt ran.",
+    "completed_work": [
+      "Completed a schema-valid Codex plan review across proposal, design, tasks, specifications, frozen contracts, work packages, and relevant implementation boundaries.",
+      "Recorded 8 findings: 4 critical, 2 nit, 1 optional, and 1 positive observation.",
+      "Validated review-findings-plan.json against review-findings.schema.json.",
+      "Validated the OpenSpec change strictly, both frozen contracts against Draft 2020-12, and the work-package DAG/scope/lock checks."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Do not declare convergence from compatibility blocking_count",
+        "rationale": "Six live medium-or-higher fix dispositions and missing independent quorum require a fail-closed PLAN_FIX round.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Do not circumvent external-vendor data-egress denial",
+        "rationale": "No repository artifacts were sent after the approval reviewer rejected external CLI dispatch.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN_FIX: define one-vendor/one-vote replacement scheduling so a replacement cannot also satisfy its original logical slot.",
+      "PLAN_FIX: tighten successful-attempt attribution and preserve disposition per source finding.",
+      "PLAN_FIX: add the convergence checkpoint test to package write scope and verification.",
+      "PLAN_FIX: align provisional status vocabulary and add non-invalid-output recovery tests.",
+      "Rerun PLAN_REVIEW; obtain explicit data-egress approval first if multi-vendor quorum is required."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/review-findings-plan.json",
+        "description": "schema-valid primary findings"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/reviews/review-prompt.md",
+        "description": "prepared external review prompt; not dispatched"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/contracts/review-attempt.schema.json",
+        "description": "unattributable-success contract gap"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/work-packages.yaml",
+        "description": "convergence checkpoint scope gap"
+      }
+    ]
+  }
+}

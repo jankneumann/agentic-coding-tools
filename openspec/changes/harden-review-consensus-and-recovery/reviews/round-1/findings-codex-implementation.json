@@ -1,0 +1,151 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_dispatcher.py:1539 marks any non-null parsed findings object as schema_valid; _extract_findings only checks for a findings key, so schema-invalid vendor output can bypass invalid-output recovery and count toward quorum.",
+      "resolution": "Validate parsed vendor output against review-findings.schema.json before setting validation_status=schema_valid; classify malformed, non-array, over-limit, or schema-invalid payloads as invalid_output.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 1539,
+        "end": 1545
+      }
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_routing.py:48 defaults review-mode dispatch to static routing whenever no resolver is explicitly passed, so direct CLI, pull-request review, and autopilot calls do not resolve the required reviewer archetype/premium model mapping.",
+      "resolution": "Wire a default local/coordinator archetype resolver into ReviewOrchestrator construction and dispatch; use static routing only after both coordinator and local reviewer resolution fail, recording that fallback reason.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_routing.py",
+      "line_range": {
+        "start": 48,
+        "end": 57
+      }
+    },
+    {
+      "id": 3,
+      "axis": "resilience",
+      "severity": "critical",
+      "type": "resilience",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_attempts.py:180 stops after primary corrective and same-provider fallback attempts; the orchestrator never dispatches the spec-required one not-yet-dispatched replacement vendor after local exhaustion.",
+      "resolution": "Implement round-level replacement allocation: select the first eligible undispatched vendor in configured order, transfer/cancel its original slot, run its bounded local chain, and ensure it contributes at most one logical quorum unit.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_attempts.py",
+      "line_range": {
+        "start": 180,
+        "end": 200
+      }
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "resilience",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_attempts.py:166 checks the deadline only before invoke() and accepts a successful response even if the call returns after the monotonic per-vendor deadline, so an over-budget fallback can still become quorum-eligible.",
+      "resolution": "Re-check the monotonic deadline immediately after each invocation, convert overrun results to terminal timeout, and avoid rounding tiny remaining budgets into a fresh one-second subprocess timeout.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_attempts.py",
+      "line_range": {
+        "start": 166,
+        "end": 174
+      }
+    },
+    {
+      "id": 5,
+      "axis": "observability",
+      "severity": "critical",
+      "type": "observability",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_dispatcher.py:1926 writes only legacy dispatch fields and recomputes quorum from r.success, dropping the bounded attempt chain, redacted diagnostics, terminal outcome, and shared quorum predicate from CLI manifests.",
+      "resolution": "Serialize the full logical attempt payload for recovery-aware ReviewResult objects and derive quorum_received with is_quorum_eligible; keep legacy fields only as aliases.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 1926,
+        "end": 1947
+      }
+    },
+    {
+      "id": 6,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: skills/autopilot/scripts/convergence_loop.py:516 converts the consensus report to a dict and immediately uses it without the required validate_consensus_report() relational checks, and no implementation of that validator exists in the changed code.",
+      "resolution": "Implement validate_consensus_report() to enforce legacy/canonical alias equality, nested/flat quorum invariants, and blocker-count consistency; call it before persistence and before convergence decisions.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/convergence_loop.py",
+      "line_range": {
+        "start": 516,
+        "end": 519
+      }
+    },
+    {
+      "id": 7,
+      "axis": "security",
+      "severity": "critical",
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/consensus_policy.py:29 treats any accepted_risk object with actor_type=human and approval_ref as authorized, allowing fabricated waiver data to suppress convergence blockers without a trusted human approval resolver.",
+      "resolution": "Validate accepted_risk through a trusted approval source, reject untrusted or edited artifact authorization, and keep the finding effective-blocking on validation failure.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/consensus_policy.py",
+      "line_range": {
+        "start": 29,
+        "end": 35
+      }
+    },
+    {
+      "id": 8,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/consensus_synthesizer.py:332 builds connected components with union-find, so weak A-B/B-C transitive bridges merge even when A and C do not meet the threshold, violating deterministic grouping semantics and undercounting distinct blockers.",
+      "resolution": "For description-only groups, compare every candidate against the stable anchor and all existing members before merging; also add the required taxonomy/type-family aliases for structured same-location grouping.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/consensus_synthesizer.py",
+      "line_range": {
+        "start": 332,
+        "end": 337
+      }
+    },
+    {
+      "id": 9,
+      "axis": "performance",
+      "severity": "critical",
+      "type": "performance",
+      "criticality": "critical",
+      "description": "Critical: skills/parallel-infrastructure/scripts/consensus_synthesizer.py:323 runs quadratic cross-vendor matching with no 500-finding or 2 MiB parsed-output limit, so over-limit vendor output is not classified invalid_output before expensive matching.",
+      "resolution": "Enforce the contract limits during vendor-result validation before synthesis, classify over-limit results as invalid_output, and avoid entering _match_all for rejected inputs.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/consensus_synthesizer.py",
+      "line_range": {
+        "start": 323,
+        "end": 331
+      }
+    }
+  ]
+}

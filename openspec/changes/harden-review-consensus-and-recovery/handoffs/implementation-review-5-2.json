@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-07T12:09:00+00:00",
+  "coordinator_error": {
+    "error_type": "review_quorum_lost",
+    "message": "operator-approved external implementation-review retry completed with zero eligible results across four logical slots",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-reviewer",
+    "session_id": null,
+    "summary": "The operator-approved unsandboxed retry of implementation-review round 5 completed with external quorum 0/4. Antigravity exhausted three schema-invalid attempts before its Claude Code replacement timed out; Codex and Grok each emitted schema-invalid initial output before their corrective attempt timed out; Pi exhausted its initial, corrective, and model-fallback attempts with schema-invalid output. No terminal chain is quorum-eligible. The nine prior source-audited blockers remain fixed, but autopilot cannot advance to validation without a converged implementation review.",
+    "completed_work": [
+      "Recorded explicit operator approval to transmit the existing round-5 review payload to the five configured external vendor services outside the sandbox.",
+      "Dispatched the implementation review through the documented inline fallback because coordinator archetype resolution remained unavailable.",
+      "Persisted a final review manifest with four logical slots, eleven bounded attempts, quorum_requested=4, and quorum_received=0.",
+      "Preserved exact model, thinking, fallback, validation, timeout, replacement-vendor, and terminal provenance for every attempt."
+    ],
+    "in_progress": [
+      "Implementation review remains unconverged because no external reviewer produced a schema-valid terminal result."
+    ],
+    "decisions": [
+      {
+        "title": "Return max_iter after the approved retry",
+        "rationale": "Iteration 5 is the configured cap, all bounded recovery paths were exhausted, and no quorum waiver was granted.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Keep validation and PR submission blocked",
+        "rationale": "A green local test suite and internal source audits do not substitute for the required external multi-vendor quorum.",
+        "capability": "review-recovery",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Repair or reconfigure the external reviewer output contract so at least two vendors return schema-valid implementation findings within their logical deadlines.",
+      "Request a new operator-authorized review cycle only after reviewer output reliability has changed; do not repeat the exhausted attempt chain unchanged.",
+      "After a future IMPL_REVIEW converges, read validate-feature/SKILL.md and proceed to VALIDATE."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/.review-cache/round-1/review-manifest.json",
+        "description": "final operator-approved external retry evidence with 0/4 quorum"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/loop-state.json",
+        "description": "authoritative iteration-5 phase and gate state"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/handoffs/implementation-review-5-1.json",
+        "description": "pre-approval sandboxed review handoff superseded by this authorized retry"
+      }
+    ]
+  }
+}

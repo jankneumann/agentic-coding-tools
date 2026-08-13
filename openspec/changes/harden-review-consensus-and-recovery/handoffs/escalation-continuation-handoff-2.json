@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-11T12:29:18+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "local continuation handoff requested",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Draft PR #363 is open for openspec/harden-review-consensus-and-recovery. The pushed implementation head is 4f64bb1c; all nine round-4 source blockers were remediated, but the operator-approved round-5 retry still produced external quorum 0/4, so autopilot remains in ESCALATE without a review waiver. The Aug 8 PR run had three failing jobs: eight legacy dispatcher-migration tests omit newly required terminal attempt-chain evidence, context drift reports a stale decision timeline plus unverifiable architecture provenance, and strict OpenSpec validation marked this change invalid. The OpenSpec failure is not reproducible with CLI 1.7.0 on a clean archive (67/67 pass), so it must be rechecked on the next CI run. The managed worktree has been restored and pinned for continuation.",
+    "completed_work": [
+      "Rebased the feature onto origin/main, remediated all nine round-4 source-audited blockers, and pushed the implementation and review evidence through commit 4f64bb1c.",
+      "Ran the explicitly approved external implementation-review retry without waiving quorum; four logical reviewer slots produced eleven bounded attempts and no schema-valid terminal result, leaving quorum at 0/4.",
+      "Created draft PR #363 (https://github.com/jankneumann/agentic-coding-tools/pull/363); GitHub reports the head as mergeable but the PR as BLOCKED because it is draft and required gates have not passed.",
+      "Inspected CI run 31259496482 at implementation head 4f64bb1c: thirteen jobs passed and test-infra-skills, validate-specs, and context-drift-gate failed.",
+      "Localized test-infra-skills to eight failures in tests/parallel-infrastructure/test_review_dispatcher_migration.py, all raising ValueError: review manifests require terminal attempt-chain evidence.",
+      "Localized context-drift-gate to blocking decisions.timeline drift for docs/decisions/agent-archetypes.md and docs/decisions/skill-workflow.md plus an architecture producer failure that reported drift without naming an artifact.",
+      "Re-ran openspec validate --strict --all with OpenSpec 1.7.0 both in the managed worktree and from a clean git archive; both passed 67/67, so the Aug 8 validate-specs failure is currently non-reproducible and likely tool-version-sensitive.",
+      "Recreated and pinned the managed worktree at .git-worktrees/harden-review-consensus-and-recovery so a clean-context continuation has a stable checkout."
+    ],
+    "in_progress": [
+      "Autopilot remains in ESCALATE at implementation-review iteration 5/5 because no external reviewer produced quorum-eligible output; implementation and validation review gates remain enabled.",
+      "Draft PR #363 requires a new CI run after this handoff commit and remediation of any reproducible failures before it can be marked ready.",
+      "The restored worktree contains generated untracked openspec/schemas/review-attempt.schema.json; it is intentionally excluded from this handoff commit and must not be deleted or staged without first determining its ownership and generation path."
+    ],
+    "decisions": [
+      {
+        "title": "Keep PR #363 in draft and preserve review gates",
+        "rationale": "The operator approved creating the PR but did not waive implementation-review quorum or validation review. Draft status accurately exposes CI while preventing the branch from being presented as merge-ready.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Do not repeat the exhausted external reviewer chain unchanged",
+        "rationale": "The authorized retry produced zero eligible results after bounded schema-invalid, fallback, replacement, and timeout attempts. Another cycle is useful only after reviewer output reliability or routing changes and requires new operator authorization.",
+        "capability": "review-recovery",
+        "supersedes": null
+      },
+      {
+        "title": "Treat Aug 8 CI as a diagnostic baseline, not current proof",
+        "rationale": "The CI run tested 4f64bb1c with floating tool dependencies. OpenSpec 1.7.0 now validates the same committed tree strictly, and pushing this handoff creates a new head and check suite that must be evaluated independently.",
+        "capability": "repo-quality-gates",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Resume in /Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/harden-review-consensus-and-recovery and inspect git status before editing; preserve the untracked openspec/schemas/review-attempt.schema.json until its ownership is resolved.",
+      "Update the eight legacy dispatcher-migration fixtures or the compatibility boundary so every review manifest carries validated terminal attempt-chain evidence, then run: cd skills && uv run pytest tests/parallel-infrastructure/test_review_dispatcher_migration.py -q.",
+      "Run make decisions and make context-drift-gate; regenerate the decision timeline and use the refresh-architecture skill if the architecture producer remains unverifiable instead of masking the provenance failure.",
+      "Run openspec validate --strict --all and the relevant infrastructure test suite, commit only scoped fixes, push, and inspect the new PR #363 checks.",
+      "Do not request another IMPL_REVIEW cycle until external reviewer output reliability or routing has materially changed; any additional cycle requires explicit operator authorization and must not waive quorum.",
+      "After a future implementation review converges and CI is green, read validate-feature/SKILL.md and proceed through VALIDATE and validation review before marking the PR ready."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/loop-state.json",
+        "description": "authoritative ESCALATE state, iteration cap, review gates, and handoff pointer"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/handoffs/implementation-review-5-2.json",
+        "description": "final external-review retry evidence summary with quorum 0/4"
+      },
+      {
+        "path": "openspec/changes/harden-review-consensus-and-recovery/.review-cache/round-1/review-manifest.json",
+        "description": "complete four-slot, eleven-attempt terminal provenance for the authorized retry"
+      },
+      {
+        "path": "skills/tests/parallel-infrastructure/test_review_dispatcher_migration.py",
+        "description": "eight failing legacy migration tests that omit terminal attempt-chain evidence"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "description": "manifest writer enforcing terminal attempt-chain evidence"
+      },
+      {
+        "path": "docs/decisions/agent-archetypes.md",
+        "description": "decision timeline artifact reported stale by context-drift-gate"
+      },
+      {
+        "path": "docs/decisions/skill-workflow.md",
+        "description": "decision timeline artifact reported stale by context-drift-gate"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "description": "floating OpenSpec install and the three PR quality-gate jobs requiring recheck"
+      },
+      {
+        "path": "openspec/schemas/review-attempt.schema.json",
+        "description": "generated untracked schema in the restored worktree; excluded from the handoff commit pending ownership analysis"
+      }
+    ]
+  }
+}

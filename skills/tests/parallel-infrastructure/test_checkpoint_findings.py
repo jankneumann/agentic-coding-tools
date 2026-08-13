@@ -18,6 +18,7 @@ import pytest
 
 # checkpoint_findings is on sys.path via conftest.py's SKILL_SCRIPTS injection
 import checkpoint_findings  # type: ignore[import-untyped]
+from review_attempts import run_vendor_recovery  # type: ignore[import-untyped]
 from checkpoint_findings import (  # type: ignore[import-untyped]
     MANIFEST_SCHEMA_VERSION,
     _atomic_write_json,
@@ -57,6 +58,49 @@ def good_finding_with_optionals(good_finding: dict[str, Any]) -> dict[str, Any]:
         "vendor": "claude_code",
     })
     return out
+
+
+def _logical_dispatch(vendor: str, *, success: bool = True) -> dict[str, Any]:
+    response = {"validation_status": "schema_valid"} if success else {
+        "error_class": "timeout", "error_detail": "timed out",
+    }
+    return run_vendor_recovery(
+        logical_request_id=f"plan:{vendor}", vendor=vendor, primary_model="model",
+        fallback_models=[], invoke=lambda *_args: response, timeout_seconds=5,
+    )
+
+
+def test_manifest_rejects_contradictory_quorum_and_duplicate_vendor_index(tmp_path: Path) -> None:
+    dispatch = _logical_dispatch("codex")
+    vendor = {"name": "codex", "findings_path": None, "finding_count": 0}
+    with pytest.raises(ValueError, match="quorum_requested contradicts"):
+        write_manifest(
+            tmp_path, review_type="plan", target="x", vendors=[vendor],
+            dispatches=[dispatch], logical_slots=1, quorum_requested=2,
+        )
+    with pytest.raises(ValueError, match="duplicate"):
+        write_manifest(
+            tmp_path, review_type="plan", target="x", vendors=[vendor, dict(vendor)],
+            dispatches=[dispatch], logical_slots=1,
+        )
+
+
+def test_manifest_marks_partial_and_final_with_stable_scheduled_slots(tmp_path: Path) -> None:
+    first = _logical_dispatch("codex")
+    second = _logical_dispatch("grok", success=False)
+    vendor = {"name": "codex", "findings_path": None, "finding_count": 0}
+    write_manifest(
+        tmp_path, review_type="plan", target="x", vendors=[vendor],
+        dispatches=[first], logical_slots=2, round_state="partial",
+    )
+    assert read_manifest(tmp_path)["round_state"] == "partial"
+    assert read_manifest(tmp_path)["quorum_requested"] == 2
+    write_manifest(
+        tmp_path, review_type="plan", target="x", vendors=[vendor],
+        dispatches=[first, second], logical_slots=2, round_state="final",
+    )
+    assert read_manifest(tmp_path)["round_state"] == "final"
+    assert read_manifest(tmp_path)["quorum_requested"] == 2
 
 
 # ---------------------------------------------------------------------------
@@ -163,31 +207,14 @@ def test_read_uses_manifest_index_not_glob(tmp_path: Path, good_finding: dict[st
 
 
 def test_manifest_has_legacy_fields(tmp_path: Path) -> None:
-    write_manifest(
-        tmp_path,
-        review_type="plan",
-        target="cli-dispatch",
-        vendors=[],
-        dispatches=[
-            {"vendor": "claude_code", "success": True, "model_used": "opus", "elapsed_seconds": 1.2},
-            {"vendor": "codex", "success": False, "error_class": "Timeout"},
-        ],
-        quorum_requested=2,
-        quorum_received=1,
-    )
-    manifest = read_manifest(tmp_path)
-    # Legacy fields preserved
-    assert manifest["review_type"] == "plan"
-    assert manifest["target"] == "cli-dispatch"
-    assert len(manifest["dispatches"]) == 2
-    assert manifest["dispatches"][0]["vendor"] == "claude_code"
-    assert manifest["dispatches"][1]["error_class"] == "Timeout"
-    assert manifest["quorum_requested"] == 2
-    assert manifest["quorum_received"] == 1
-    # Plus new superset fields
-    assert manifest["schema_version"] == MANIFEST_SCHEMA_VERSION
-    assert "created_at" in manifest
-    assert "vendors" in manifest
+    with pytest.raises(ValueError, match="attempt.*evidence"):
+        write_manifest(
+            tmp_path,
+            review_type="plan",
+            target="cli-dispatch",
+            vendors=[],
+            dispatches=[{"vendor": "claude_code", "success": True}],
+        )
 
 
 def test_manifest_change_id_optional_null(tmp_path: Path) -> None:
@@ -233,28 +260,20 @@ def test_in_process_caller_no_dispatch_metadata(tmp_path: Path) -> None:
     )
     manifest = read_manifest(tmp_path)
     assert manifest["dispatches"] == []
-    # Defaults derived from vendors[]
+    # Index-only legacy manifests are audit-only and cannot claim quorum.
     assert manifest["quorum_requested"] == 2
-    assert manifest["quorum_received"] == 2
+    assert manifest["quorum_received"] == 0
 
 
 def test_quorum_received_derived_from_dispatch_success(tmp_path: Path) -> None:
-    write_manifest(
-        tmp_path,
-        review_type="plan",
-        target="x",
-        vendors=[],
-        dispatches=[
-            {"vendor": "a", "success": True},
-            {"vendor": "b", "success": False},
-            {"vendor": "c", "success": True},
-        ],
-    )
-    manifest = read_manifest(tmp_path)
-    # quorum_received = count of success=True
-    assert manifest["quorum_received"] == 2
-    # quorum_requested defaults to len(vendors), which is 0 here
-    assert manifest["quorum_requested"] == 0
+    with pytest.raises(ValueError, match="attempt.*evidence"):
+        write_manifest(
+            tmp_path,
+            review_type="plan",
+            target="x",
+            vendors=[],
+            dispatches=[{"vendor": "a", "success": True}],
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -465,7 +484,7 @@ def test_read_vendor_findings_rejects_path_traversal(tmp_path: Path) -> None:
     """Manifest references a findings_path with '..' — read_vendor_findings refuses."""
     # Hand-craft a manifest with a malicious path; bypass our writer's validation
     bad_manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "change_id": None,
         "review_type": "plan",
         "created_at": "2026-05-08T00:00:00Z",
@@ -473,6 +492,7 @@ def test_read_vendor_findings_rejects_path_traversal(tmp_path: Path) -> None:
         "dispatches": [],
         "quorum_requested": 1,
         "quorum_received": 1,
+        "round_state": "final",
         "vendors": [{"name": "claude_code", "findings_path": "../escape.json", "finding_count": 1}],
     }
     (tmp_path / "review-manifest.json").write_text(json.dumps(bad_manifest))
@@ -631,8 +651,8 @@ def test_safe_log_error_swallows_handler_exception() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_schema_version_is_one() -> None:
-    assert MANIFEST_SCHEMA_VERSION == 1
+def test_schema_version_is_two() -> None:
+    assert MANIFEST_SCHEMA_VERSION == 2
 
 
 # ---------------------------------------------------------------------------
@@ -649,15 +669,15 @@ def _write_raw_manifest(out_dir: Path, payload: dict[str, Any]) -> None:
     )
 
 
-def test_read_manifest_rejects_unknown_schema_version_v2(tmp_path: Path) -> None:
-    """Future v2 manifests MUST be refused; the contract docstring at the
+def test_read_manifest_rejects_unknown_schema_version_v3(tmp_path: Path) -> None:
+    """Future v3 manifests MUST be refused; the contract docstring at the
     top of checkpoint_findings.py declares this and the JSON Schema
     'description' field on schema_version says 'Readers MUST refuse unknown
     versions.'"""
     _write_raw_manifest(
         tmp_path,
         {
-            "schema_version": 2,
+            "schema_version": 3,
             "review_type": "implementation",
             "target": "x",
             "vendors": [],
@@ -697,6 +717,15 @@ def test_read_manifest_rejects_missing_schema_version(tmp_path: Path) -> None:
         },
     )
     with pytest.raises(ValueError, match="schema_version"):
+        checkpoint_findings.read_manifest(tmp_path)
+
+
+def test_read_manifest_rejects_missing_partial_final_marker(tmp_path: Path) -> None:
+    _write_raw_manifest(
+        tmp_path,
+        {"schema_version": 2, "review_type": "implementation", "target": "x", "vendors": []},
+    )
+    with pytest.raises(ValueError, match="round_state"):
         checkpoint_findings.read_manifest(tmp_path)
 
 

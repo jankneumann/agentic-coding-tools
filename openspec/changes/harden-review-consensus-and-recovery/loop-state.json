@@ -1,0 +1,187 @@
+{
+  "blocking_findings": [],
+  "change_id": "harden-review-consensus-and-recovery",
+  "cli_review_enabled": true,
+  "current_phase": "ESCALATE",
+  "error": null,
+  "escalation_reason": "The operator-approved unsandboxed retry of IMPL_REVIEW iteration 5 completed with external quorum 0/4. Antigravity, Codex, and Grok exhausted schema-invalid and timeout recovery paths, while Pi exhausted schema-invalid initial, corrective, and fallback attempts. All prior source blockers remain fixed, but validation and PR submission are prohibited until reviewer output reliability changes and a newly authorized implementation review converges.",
+  "findings_trend": [
+    13,
+    11,
+    12,
+    9
+  ],
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 3,
+    "total_loc_estimate": 1840
+  },
+  "gate_verdict": "proceed_with_review",
+  "handoff_ids": [
+    "gatekeeper-harden-review-consensus-recovery-1",
+    "plan-iteration-1-1",
+    "plan-review-1",
+    "plan_review-1",
+    "implementation-partial-1",
+    "implementation-2",
+    "implementation-iteration-1-1",
+    "implementation-review-1",
+    "implementation-fix-1-1.json",
+    "implementation-iteration-2-1.json",
+    "implementation-review-2-1.json",
+    "implementation-fix-3-1.json",
+    "implementation-review-3-1.json",
+    "implementation-fix-4-1.json",
+    "implementation-review-4-1.json",
+    "escalation-continuation-handoff-1.json",
+    "implementation-review-5-1.json",
+    "implementation-review-5-2.json",
+    "escalation-continuation-handoff-2.json"
+  ],
+  "implementation_strategy": {},
+  "iteration": 5,
+  "last_handoff_id": "escalation-continuation-handoff-2.json",
+  "max_phase_iterations": 5,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "phase_archetype": null,
+  "phase_history": [
+    {
+      "at": "2026-08-01T19:50:48.787501+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-08-01T20:10:37.277844+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-08-01T20:17:50.620886+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-08-01T20:53:39.267839+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-08-01T21:25:57.680009+00:00",
+      "note": "Bootstrap-only quorum waiver; IMPL_REVIEW and VAL_REVIEW remain enabled",
+      "outcome": "operator_waiver",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-08-01T21:44:51.419119+00:00",
+      "outcome": "failed",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-08-01T21:56:48.081084+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-08-01T22:02:51.714712+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-08-01T22:41:14.397482+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-08-01T22:52:07.812995+00:00",
+      "outcome": "stuck",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-08-01T23:02:57.704357+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-08-01T23:28:54.621396+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-08-01T23:41:45.000463+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-08-02T00:07:55.290733+00:00",
+      "outcome": "max_iter",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-08-02T15:16:38.236454+00:00",
+      "note": "Operator approved exactly one additional IMPL_FIX -> IMPL_REVIEW cycle beyond the configured cap; IMPL_REVIEW and VAL_REVIEW remain enabled and no review quorum waiver was granted.",
+      "outcome": "operator_override_extra_cycle",
+      "phase": "ESCALATE"
+    },
+    {
+      "at": "2026-08-02T15:42:06.306841+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-08-02T16:08:14.667311+00:00",
+      "outcome": "max_iter",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-08-05T17:12:17.809885+00:00",
+      "note": "Continuation handoff records current main drift, known integration conflicts, nine remaining blockers, and the ordered restart plan; ESCALATE and both review gates remain unchanged.",
+      "outcome": "continuation_handoff",
+      "phase": "ESCALATE"
+    },
+    {
+      "at": "2026-08-05T18:00:00+00:00",
+      "note": "Operator supplied the continuation handoff; main was rebased, all nine blockers were remediated, and review gates remain enabled without a quorum waiver.",
+      "outcome": "operator_override_extra_cycle",
+      "phase": "ESCALATE"
+    },
+    {
+      "at": "2026-08-07T07:52:18.022040+00:00",
+      "outcome": "max_iter",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-08-07T11:52:17.054708+00:00",
+      "note": "Operator explicitly approved transmitting the existing round-5 implementation-review payload to the five configured external vendor services outside the sandbox. This retries iteration 5 without adding a cycle or waiving quorum.",
+      "outcome": "operator_approved_external_dispatch_retry",
+      "phase": "ESCALATE"
+    },
+    {
+      "at": "2026-08-07T12:09:46.960880+00:00",
+      "outcome": "max_iter",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-08-11T12:29:18+00:00",
+      "note": "Continuation handoff records draft PR #363, the non-converged 0/4 external review, the three Aug 8 CI failures, current local reproduction results, and the ordered restart plan; ESCALATE and both review gates remain unchanged.",
+      "outcome": "continuation_handoff",
+      "phase": "ESCALATE"
+    }
+  ],
+  "phase_started_at": "2026-08-07T12:09:46.960880+00:00",
+  "previous_phase": "IMPL_REVIEW",
+  "schema_version": 4,
+  "started_at": "2026-08-01T19:49:19.418681+00:00",
+  "total_iterations": 20,
+  "val_review_enabled": true,
+  "vendor_availability": {}
+}

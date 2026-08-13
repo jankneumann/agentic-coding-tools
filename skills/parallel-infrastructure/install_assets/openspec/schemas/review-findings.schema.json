@@ -22,6 +22,8 @@
           "disposition": { "type": "string", "enum": ["fix", "regenerate", "accept", "escalate"] },
           "package_id": { "type": "string" },
           "file_path": { "type": "string", "description": "File path the finding relates to (optional, enables cross-vendor matching)" },
+          "affected_symbol": { "type": "string", "description": "Stable function, class, command, or schema symbol identity" },
+          "requirement_id": { "type": "string", "description": "Stable requirement or acceptance-scenario identity" },
           "line_range": {
             "type": "object",
             "properties": {

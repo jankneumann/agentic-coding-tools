@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from convergence_loop import converge  # type: ignore[import-untyped]
+from convergence_loop import _eligible_distinct_results, converge  # type: ignore[import-untyped]
 # Importing convergence_loop above puts parallel-infrastructure on sys.path,
 # so checkpoint_findings + review_dispatcher are now importable.
 from checkpoint_findings import read_manifest, read_vendor_findings  # type: ignore[import-untyped]
@@ -44,7 +44,7 @@ def _vendor_finding(idx: int, criticality: str = "low") -> dict[str, Any]:
 
 
 def _review_result(vendor: str, findings: list[dict[str, Any]]) -> ReviewResult:
-    return ReviewResult(
+    result = ReviewResult(
         vendor=vendor,
         success=True,
         model_used="test-model",
@@ -56,10 +56,77 @@ def _review_result(vendor: str, findings: list[dict[str, Any]]) -> ReviewResult:
             "findings": findings,
         },
     )
+    result.logical_request_id = f"plan:{vendor}"
+    result.requested_vendor = vendor
+    result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None, "source": "test", "fallback_reason": None}
+    result.deadline_at = "2026-08-01T00:00:00+00:00"
+    result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
+    result.attempts = [{
+        "attempt_index": 1, "vendor": vendor, "transport": "cli", "reason": "initial",
+        "terminal": True, "success": True, "elapsed_seconds": 0.0,
+        "parser_stage": "schema", "validation_status": "schema_valid",
+        "error_class": None, "error_detail": None, "stdout_excerpt": None,
+        "stderr_excerpt": None, "diagnostics_truncated": False,
+        "resolved_execution": {"model": "test-model", "requested_thinking": None,
+                               "applied_thinking": None, "thinking_translation": "not_requested",
+                               "fallback_reason": None},
+    }]
+    result.terminal_outcome = "success"
+    result.terminal_vendor = vendor
+    result.quorum_eligible = True
+    return result
+
+
+def _empty_consensus_report() -> dict[str, Any]:
+    return {
+        "schema_version": 2,
+        "review_type": "plan",
+        "target": "test-feature",
+        "reviewers": [{
+            "vendor": "codex",
+            "agent_id": "codex",
+            "success": True,
+            "source_eligible": True,
+            "elapsed_seconds": 0.0,
+        }],
+        "quorum_requested": 1, "quorum_received": 1, "quorum_met": True,
+        "quorum": {"requested": 1, "received": 1, "minimum_required": 1,
+                   "eligible_vendors": ["codex"], "met": True},
+        "consensus_findings": [],
+        "summary": {"total_unique_findings": 0, "confirmed_count": 0, "provisional_count": 0,
+                    "unconfirmed_count": 0, "disagreement_count": 0,
+                    "integration_blocking_count": 0, "convergence_blocking_count": 0,
+                    "effective_blocking_count": 0, "blocking_count": 0},
+        "applied_adjudications": [],
+    }
+
+
+def _blocking_consensus_report() -> dict[str, Any]:
+    report = _empty_consensus_report()
+    report["consensus_findings"] = [{
+        "id": 1, "group_id": "cg-0000000000000001", "algorithm_version": "structured-v1",
+        "status": "confirmed", "policy_status": "confirmed", "primary_vendor": "codex",
+        "primary_finding_id": 1, "matched_findings": [], "match_score": 1.0,
+        "agreed_type": "correctness", "agreed_criticality": "high", "criticality": "high",
+        "recommended_disposition": "fix", "description": "Finding 1",
+        "vendor_dispositions": {"codex": "fix"},
+        "source_findings": [{"vendor": "codex", "finding_id": 1,
+                             "concern_fingerprint": "0" * 16, "disposition": "fix"}],
+        "match": {"method": "single", "score": 1.0, "evidence": ["fixture"]},
+        "adjudication": {"status": "unreviewed"},
+        "policy": {"integration_blocking": True, "convergence_blocking": True,
+                   "effective_blocking": True},
+    }]
+    report["summary"] = {"total_unique_findings": 1, "confirmed_count": 1,
+                         "provisional_count": 0, "unconfirmed_count": 0,
+                         "disagreement_count": 0, "integration_blocking_count": 1,
+                         "convergence_blocking_count": 1, "effective_blocking_count": 1,
+                         "blocking_count": 1}
+    return report
 
 
 def _failed_review_result(vendor: str, error: str = "vendor unreachable") -> ReviewResult:
-    return ReviewResult(
+    result = ReviewResult(
         vendor=vendor,
         success=False,
         model_used=None,
@@ -67,6 +134,24 @@ def _failed_review_result(vendor: str, error: str = "vendor unreachable") -> Rev
         elapsed_seconds=0.5,
         error=error,
     )
+    result.logical_request_id = f"plan:{vendor}"
+    result.requested_vendor = vendor
+    result.requested_routing = {"archetype": "reviewer", "tier": "premium", "phase": None, "source": "test", "fallback_reason": None}
+    result.deadline_at = "2026-08-01T00:00:00+00:00"
+    result.budget = {"corrective_max": 1, "replacement_max": 1, "fallback_models": []}
+    result.attempts = [{
+        "attempt_index": 1, "vendor": vendor, "transport": "cli", "reason": "initial",
+        "terminal": True, "success": False, "elapsed_seconds": 0.0,
+        "parser_stage": None, "validation_status": "not_reached",
+        "error_class": "timeout", "error_detail": error, "stdout_excerpt": None,
+        "stderr_excerpt": None, "diagnostics_truncated": False,
+        "resolved_execution": {"model": "test-model", "requested_thinking": None,
+                               "applied_thinking": None, "thinking_translation": "not_requested",
+                               "fallback_reason": None},
+    }]
+    result.terminal_outcome = "timeout"
+    result.terminal_vendor = vendor
+    return result
 
 
 class _FakeOrchestrator:
@@ -79,6 +164,31 @@ class _FakeOrchestrator:
         return self._results
 
 
+def test_convergence_checkpoints_completed_vendor_before_later_crash(tmp_path: Path) -> None:
+    completed = _review_result("codex", [_vendor_finding(1)])
+
+    class CrashAfterOne:
+        def dispatch_and_wait(self, **kwargs: Any) -> list[ReviewResult]:
+            kwargs["on_terminal_result"](completed, [completed])
+            raise RuntimeError("later vendor crashed")
+
+    with pytest.raises(RuntimeError, match="later vendor crashed"):
+        converge(
+            change_id="test-feature", review_type="plan", artifacts_dir=tmp_path,
+            worktree_path=tmp_path, orchestrator=CrashAfterOne(), max_rounds=1,
+        )
+    manifest = read_manifest(tmp_path / ".review-cache" / "round-1")
+    assert manifest["round_state"] == "partial"
+    assert manifest["quorum_received"] == 1
+
+
+def test_eligible_result_set_rejects_duplicates_and_success_without_chain() -> None:
+    codex = _review_result("codex", [])
+    duplicate = _review_result("codex", [])
+    legacy = ReviewResult(vendor="grok", success=True, findings={"findings": []})
+    assert _eligible_distinct_results([codex, duplicate, legacy]) == [codex]
+
+
 class _FakeSynthesizer:
     """Synthesizer that returns a canned report with no blocking findings."""
 
@@ -89,10 +199,7 @@ class _FakeSynthesizer:
         return _FakeReport()
 
     def to_dict(self, _report: Any) -> dict[str, Any]:
-        return {
-            "consensus_findings": [],
-            "summary": {"confirmed_count": 0, "unconfirmed_count": 0},
-        }
+        return _empty_consensus_report()
 
 
 class _FakeReport:
@@ -144,7 +251,7 @@ def test_success_path_writes_checkpoint(
     manifest = read_manifest(result.checkpoint_dir)
     assert manifest["change_id"] == "test-feature"
     assert manifest["review_type"] == "plan"
-    assert manifest["schema_version"] == 1
+    assert manifest["schema_version"] == 2
     # Per-vendor files round-trip through read_vendor_findings
     loaded = read_vendor_findings(result.checkpoint_dir)
     assert set(loaded) == {"claude_code", "codex"}
@@ -233,7 +340,7 @@ def test_empty_round_quorum_lost_no_crash(
     monkeypatch.setattr(
         "convergence_loop.ConsensusSynthesizer", _FakeSynthesizer
     )
-    failed = ReviewResult(vendor="claude_code", success=False, error="timeout")
+    failed = _failed_review_result("claude_code", "timeout")
     orch = _FakeOrchestrator([failed])
     result = converge(
         change_id="test-feature",
@@ -392,18 +499,8 @@ class _BlockingThenClearSynthesizer:
     def to_dict(self, _report: Any) -> dict[str, Any]:
         type(self)._call += 1
         if type(self)._call == 1:
-            return {
-                "consensus_findings": [{
-                    "id": 1,
-                    "status": "confirmed",
-                    "agreed_criticality": "high",
-                }],
-                "summary": {"confirmed_count": 1, "unconfirmed_count": 0},
-            }
-        return {
-            "consensus_findings": [],
-            "summary": {"confirmed_count": 0, "unconfirmed_count": 0},
-        }
+            return _blocking_consensus_report()
+        return _empty_consensus_report()
 
 
 def test_multi_round_writes_separate_checkpoints(

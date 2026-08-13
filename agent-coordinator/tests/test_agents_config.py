@@ -108,6 +108,32 @@ class TestLoadAgentsConfig:
         local = next(a for a in agents if a.name == "test-local")
         assert local.api_key is None
 
+    def test_loads_configured_thinking_translation(self, tmp_path: Path) -> None:
+        agents_file = tmp_path / "agents.yaml"
+        _write(agents_file, """\
+agents:
+  test-reviewer:
+    type: codex
+    profile: codex_cli
+    trust_level: 3
+    transport: mcp
+    capabilities: [lock]
+    description: Test reviewer
+    cli:
+      command: codex
+      dispatch_modes:
+        review:
+          args: [exec]
+      model_flag: -m
+      thinking_flag: -c
+      thinking_values:
+        medium: model_reasoning_effort=medium
+""")
+        agent = load_agents_config(agents_file, secrets_path=tmp_path / "none")[0]
+        assert agent.cli is not None
+        assert agent.cli.thinking_flag == "-c"
+        assert agent.cli.thinking_values == {"medium": "model_reasoning_effort=medium"}
+
 
 # ---------------------------------------------------------------------------
 # get_api_key_identities
