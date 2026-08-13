@@ -111,37 +111,6 @@ The system SHALL store episodic memories (experiences and their outcomes) to ena
 
 ---
 
-### Requirement: Working Memory
-
-The system SHALL maintain active context for current tasks through working memory.
-
-- Working memory SHALL track current task context
-- The system SHALL support compression when context exceeds token budget
-- Working memory SHALL be session-scoped
-
-#### Scenario: Agent updates working memory
-- **WHEN** agent calls working memory update with current context
-- **THEN** the context is stored and associated with the current session
-
-#### Scenario: Working memory compression
-- **WHEN** working memory exceeds configured token budget
-- **THEN** the system SHALL compress older context while preserving recent critical information
-
----
-
-### Requirement: Procedural Memory
-
-The system SHALL store learned skills and patterns with effectiveness tracking.
-
-- Procedural memories SHALL track success rate
-- Skills SHALL be retrievable based on task type
-
-#### Scenario: Procedural skill tracking
-- **WHEN** agent completes a task using a specific skill/pattern
-- **THEN** the system SHALL update the skill's effectiveness score
-
----
-
 ### Requirement: Work Queue
 
 The system SHALL provide task assignment, tracking, and dependency management through a work queue.
@@ -3009,8 +2978,6 @@ alone MUST NOT establish capability.
 | Table | Purpose | Migration |
 |-------|---------|-----------|
 | `memory_episodic` | Experiences and their outcomes | `004_memory_tables.sql` |
-| `memory_working` | Active context for current tasks | `004_memory_tables.sql` |
-| `memory_procedural` | Learned skills and patterns | `004_memory_tables.sql` |
 | `handoff_documents` | Session continuity between agents | `002_handoff_documents.sql` |
 | `agent_discovery` | Agent heartbeat and discovery | `003_agent_discovery.sql` |
 
