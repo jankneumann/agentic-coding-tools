@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/candidate-work.schema.json",
+  "title": "Candidate Work Stub",
+  "description": "Canonical stub for one unit of candidate work surfaced by a discovery generator (bug-scrub, improve-harness, explore-feature). Carries enough provenance, sizing, and framing for prioritize-proposals to rank it and scaffold an OpenSpec change from it. This is the single agreed shape the generators emit (migration tracked separately); consumers validate against it before ranking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "title",
+    "description",
+    "rationale",
+    "provenance",
+    "effort",
+    "priority",
+    "suggested_change_id"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable name for the candidate work item."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the work entails — the concrete change or capability proposed."
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Why this work is worth doing — the evidence or motivation behind the candidate."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_artifact", "finding_ids"],
+      "description": "Traceability back to the discovery artifact and findings that surfaced this candidate.",
+      "properties": {
+        "source_artifact": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative path (or URI) to the artifact that produced this candidate, e.g. a bug-scrub report or explore-feature opportunities.json."
+        },
+        "finding_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Identifiers of the originating findings within source_artifact (e.g. 'marker-TODO-src/auth.py:42'). May be empty when the artifact has no finding-level granularity."
+        },
+        "generator": {
+          "type": "string",
+          "enum": ["bug-scrub", "improve-harness", "explore-feature"],
+          "description": "Which discovery generator emitted this candidate."
+        }
+      }
+    },
+    "effort": {
+      "type": "string",
+      "enum": ["XS", "S", "M", "L", "XL"],
+      "description": "Estimated implementation effort. Aligned with roadmap.schema.json item effort."
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Priority estimate (1 = highest). A relative ordering hint the consumer may re-rank."
+    },
+    "suggested_change_id": {
+      "type": "string",
+      "pattern": "^(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "Proposed OpenSpec change-id, prefixed with add-/update-/remove-/refactor- per repo convention."
+    },
+    "depends_on": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional change-ids or candidate identifiers that must land before this one."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional free-form classification tags (e.g. bucket labels, lenses)."
+    }
+  }
+}
