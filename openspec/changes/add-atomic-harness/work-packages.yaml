@@ -1,0 +1,384 @@
+schema_version: 1
+
+feature:
+  id: add-atomic-harness
+  title: "Add atomic as the first experimental-tier harness with a workflow-executor pilot"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-atomic-harness/contracts/README.md"
+    files:
+      - "openspec/changes/add-atomic-harness/contracts/README.md"
+      - "openspec/changes/add-atomic-harness/contracts/workflow-dispatch/result.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+# Five packages mirroring the proven add-agy-grok-pi-harnesses decomposition:
+# discovery head → coordinator ‖ skills → frontend → shared docs/integration tail.
+# Disjoint write sets via the deny-then-reassign pattern; wp-docs-finalize is the
+# only shared worktree.
+
+packages:
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-empirical — verify probe rows + gated live re-probe (tasks 1.1-1.2)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-empirical
+    title: "Empirical atomic CLI facts — verify A1-A17, live re-probe A18, fix model slugs"
+    task_type: backend
+    description: |
+      Re-verify probe rows A1-A17 against the pinned atomic version in the
+      implementation environment and run the network-permitted A18 live re-probe
+      that fixes final OpenRouter tier-map slugs (distinct from pi). Records all
+      evidence in design.md. Gates the config packages so nothing is written
+      against a guessed flag or slug (D7/D8). Implements tasks 1.1-1.2.
+    role: runner
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/add-atomic-harness/design.md"
+      keys:
+        - "contract:empirical-atomic-findings"
+      ttl_minutes: 60
+      reason: "Records empirical atomic CLI facts consumed by all config packages"
+    scope:
+      write_allow:
+        - "openspec/changes/add-atomic-harness/design.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: atomic-harness-wp-empirical
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "atomic CLI is on PATH"
+          kind: command
+          command: "command -v atomic"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["atomic_on_path"]
+        - name: "Human review: A1-A18 rows resolved, final slugs recorded (task 1.2)"
+          kind: manual
+          manual_instructions: >
+            Open design.md § Empirical CLI findings. Rows A1-A17 must read
+            confirmed or refuted with command + output evidence from the
+            implementation environment. Row A18 must be resolved by the live
+            re-probe, and D8 must list the final OpenRouter slugs with evidence
+            that each slug served a real completion. Reject rows whose evidence
+            could not have come from running the CLI.
+          evidence:
+            artifacts: ["openspec/changes/add-atomic-harness/design.md"]
+            result_keys: ["empirical_rows_confirmed", "final_model_slugs"]
+    # A18 requires OPENROUTER_API_KEY and permitted egress; dry-run rows may complete without it.
+    metadata:
+      loc_estimate: 0
+      complexity: medium
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["empirical_rows_confirmed", "final_model_slugs"]
+      artifacts: ["openspec/changes/add-atomic-harness/design.md"]
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-coordinator — experimental provider class + atomic entry (tasks 2.1-2.5)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-coordinator
+    title: "Coordinator: experimental provider class, atomic-local entry, tier-map seam"
+    task_type: backend
+    description: |
+      Implements the experimental provider class in agents_config.py
+      (experimental flag, experimental_providers tier maps, fail-loud unknown
+      providers), adds the atomic-local agents.yaml entry with pinned
+      openrouter dispatch modes and counts_toward_quorum: false, and documents
+      the experimental seam beside the untouched closed first-class schema.
+      Implements tasks 2.1-2.5.
+    role: implementer
+    priority: 2
+    depends_on: [wp-empirical]
+    locks:
+      files:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+      keys:
+        - "contract:agents-yaml-roster"
+        - "contract:experimental-provider-class"
+      ttl_minutes: 120
+      reason: "Experimental provider class and atomic roster entry"
+    scope:
+      write_allow:
+        - "agent-coordinator/**"
+        - "openspec/schemas/provider-model-map.schema.json"
+      deny:
+        - "agent-coordinator/database/migrations/**"
+        - "agent-coordinator/README.md"
+        - "agent-coordinator/CLAUDE.md"
+        - "agent-coordinator/evaluation/backends/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: atomic-harness-wp-coordinator
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coordinator suite passes"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["coordinator_tests_green"]
+        - name: "First-class provider-model-map enum still holds exactly five keys"
+          kind: command
+          command: "test -z \"$(git grep -l 'atomic' -- openspec/schemas/provider-model-map.schema.json | xargs -r grep -l '\\\"enum\\\".*atomic')\""
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["closed_enum_untouched"]
+        - name: "No eval backend added for atomic (experimental exemption)"
+          kind: command
+          command: "test ! -e agent-coordinator/evaluation/backends/atomic.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["no_eval_backend"]
+    metadata:
+      loc_estimate: 320
+      complexity: high
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["experimental_class_landed"]
+      artifacts: ["agent-coordinator/agents.yaml"]
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-skills — dispatcher, pilot adapter, fix-scrub, transcripts (tasks 3.1-3.10)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-skills
+    title: "Skills: review dispatch, workflow_dispatch.py pilot, fix-scrub opt-in, atomic_cli adapter"
+    task_type: backend
+    description: |
+      Adds atomic to review_dispatcher (discovery, NDJSON parse reuse, reauth
+      hint, experimental quorum exclusion), implements the workflow-executor
+      dispatch adapter parsing workflow.run.end events per the result-envelope
+      contract, wires the fix-scrub --executor atomic-workflow opt-in, ships
+      the atomic_cli transcript adapter with fixtures, and extends the manual
+      provider smoke path for experimental selectors. Implements tasks 3.1-3.10.
+    role: implementer
+    priority: 2
+    depends_on: [wp-empirical]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/workflow_dispatch.py"
+        - "skills/fix-scrub/scripts/vendor_dispatch.py"
+      keys:
+        - "contract:supported-providers"
+        - "contract:workflow-dispatch-result"
+        - "contract:transcript-adapters"
+      ttl_minutes: 120
+      reason: "Atomic dispatch surfaces and workflow-executor pilot"
+    scope:
+      write_allow:
+        - "skills/**"
+      deny:
+        - "skills/*/SKILL.md"
+        - "skills/tests/agent-coordinator/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: atomic-harness-wp-skills
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Skills suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests skills/parallel-infrastructure/scripts/tests skills/parallel-infrastructure/tests skills/collect-transcripts/tests skills/autopilot/scripts/tests skills/fix-scrub/scripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["skills_tests_green"]
+        - name: "Workflow dispatch results validate against the envelope contract"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests -k workflow_dispatch -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: ["openspec/changes/add-atomic-harness/contracts/workflow-dispatch/result.schema.json"]
+            result_keys: ["envelope_contract_asserted"]
+    metadata:
+      loc_estimate: 640
+      complexity: high
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["dispatch_surfaces_landed", "pilot_adapter_landed"]
+      artifacts: ["skills/parallel-infrastructure/scripts/workflow_dispatch.py"]
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-frontend — kanban experimental badge (tasks 4.1-4.2)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-frontend
+    title: "Kanban-viz: atomic vendor entry with experimental badge"
+    task_type: frontend
+    description: |
+      Adds atomic to the vendor color/label map with an experimental badge in
+      apps/kanban-viz. Implements tasks 4.1-4.2.
+    role: implementer
+    priority: 3
+    depends_on: [wp-coordinator, wp-skills]
+    locks:
+      files:
+        - "apps/kanban-viz/src/components/VendorSwimlanes.tsx"
+      keys:
+        - "contract:kanban-vendor-map"
+      ttl_minutes: 60
+      reason: "Vendor visualization entry for atomic"
+    scope:
+      write_allow:
+        - "apps/kanban-viz/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: atomic-harness-wp-frontend
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Frontend build and tests pass"
+          kind: command
+          command: "cd apps/kanban-viz && npm ci && npm test -- --run"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["frontend_green"]
+    metadata:
+      loc_estimate: 40
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["frontend_badge_landed"]
+      artifacts: []
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-docs-finalize — docs, SKILL.md prose, mirrors, integration (tasks 5.1-6.3)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-docs-finalize
+    title: "Docs, SKILL.md prose, runtime mirrors, full-gate integration"
+    task_type: backend
+    description: |
+      Writes the files denied to other packages (README/CLAUDE.md roster prose,
+      SKILL.md updates, runtime mirrors), runs the full gate suites and strict
+      OpenSpec validation, executes the dry-run atomic smoke as evidence, and
+      records pilot activation criteria. Implements tasks 5.1-6.3.
+    role: integrator
+    priority: 6
+    depends_on: [wp-coordinator, wp-skills, wp-frontend]
+    locks:
+      files:
+        - "README.md"
+      keys:
+        - "contract:supported-vendor-roster"
+        - "contract:runtime-skill-mirrors"
+      ttl_minutes: 120
+      reason: "Roster prose, mirrors, and final integration gates"
+    scope:
+      write_allow:
+        - "README.md"
+        - "docs/**"
+        - "agent-coordinator/README.md"
+        - "agent-coordinator/CLAUDE.md"
+        - "skills/*/SKILL.md"
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+        - "skills/tests/agent-coordinator/**"
+        - "openspec/changes/add-atomic-harness/**"
+      deny:
+        - "docs/merge-logs/**"
+        - "docs/decisions/**"
+        - "docs/archive/**"
+        - "docs/feature-discovery/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: atomic-harness-wp-docs-finalize
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Strict OpenSpec validation passes"
+          kind: command
+          command: "openspec validate add-atomic-harness --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict_green"]
+        - name: "Coordinator + skills suites pass on the integrated tree"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q && skills/.venv/bin/python -m pytest skills/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["integrated_gates_green"]
+        - name: "Dry-run atomic smoke passes (task 6.2)"
+          kind: command
+          command: "skills/.venv/bin/python skills/autopilot/scripts/smoke_provider_dispatch.py --provider atomic --dry-run --json"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["atomic_smoke_dry_green"]
+        - name: "Human review: pilot activation criteria recorded (task 6.3)"
+          kind: manual
+          manual_instructions: >
+            Confirm design.md records the pilot activation criteria (live
+            re-probe complete + one successful fix-scrub --executor
+            atomic-workflow run) and that a promotion/retire follow-up proposal
+            stub is filed.
+          evidence:
+            artifacts: ["openspec/changes/add-atomic-harness/design.md"]
+            result_keys: ["pilot_criteria_recorded"]
+    metadata:
+      loc_estimate: 200
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["change_integrated"]
+      artifacts: ["openspec/changes/add-atomic-harness/"]
