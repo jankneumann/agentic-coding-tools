@@ -52,13 +52,20 @@ SCHEMA_PATH = (
 def _scrutiny_finding(
     *, fid: int, criticality: str, vendor: str, file_path: str
 ) -> dict:
-    """Build a scrutiny-style finding dict (correctness type)."""
+    """Build a scrutiny-style finding dict (correctness type).
+
+    Includes ``axis``/``severity`` — required by the canonical
+    review-findings schema, which the synthesizer now enforces on every
+    per-vendor findings file it loads.
+    """
     return {
         "id": fid,
         "type": "correctness",
         "criticality": criticality,
         "description": f"{vendor} finding {fid} in {file_path}",
         "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
         "file_path": file_path,
     }
 

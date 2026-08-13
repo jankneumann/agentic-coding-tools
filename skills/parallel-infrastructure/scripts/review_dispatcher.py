@@ -40,6 +40,64 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Canonical review-findings schema access (single source of truth). Imported
+# lazily so the dispatcher still imports in environments that vendor only this
+# file, and located by file path when the scripts dir is not on sys.path.
+# ---------------------------------------------------------------------------
+
+def _schema_mod() -> Any:
+    """Return the ``review_findings_schema`` module, or ``None`` if absent."""
+    try:
+        import review_findings_schema  # type: ignore[import-untyped]
+
+        return review_findings_schema
+    except ImportError:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "review_findings_schema",
+            Path(__file__).parent / "review_findings_schema.py",
+        )
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(mod)  # type: ignore[union-attr]
+                return mod
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("review_findings_schema load failed: %s", exc)
+                return None
+        return None
+
+
+def _validate_findings_or_error(
+    findings: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Validate parsed vendor findings against the canonical schema.
+
+    Returns ``(findings, None)`` when valid (or when validation is
+    unavailable), and ``(None, error)`` when the findings violate the schema —
+    so a drifted finding fails loudly here rather than flowing downstream into
+    the consensus synthesizer as if it conformed.
+    """
+    if findings is None:
+        return None, None
+    mod = _schema_mod()
+    if mod is None:
+        return findings, None
+    try:
+        errors = mod.validate_findings_payload(findings)
+    except Exception as exc:  # noqa: BLE001 — never let validation crash dispatch
+        logger.warning("review-findings validation error (skipping): %s", exc)
+        return findings, None
+    if errors:
+        detail = "; ".join(errors[:5])
+        msg = f"Findings failed review-findings schema validation: {detail}"
+        print(f"[WARN] {msg}", file=sys.stderr)
+        return None, msg
+    return findings, None
+
+
+# ---------------------------------------------------------------------------
 # Error classification
 # ---------------------------------------------------------------------------
 
@@ -215,6 +273,44 @@ class CliVendorAdapter:
             return False
         return shutil.which(self.cli_config.command) is not None
 
+    def _resolve_args(self, args: list[str]) -> list[str]:
+        """Expand config placeholders in a mode's args.
+
+        The grok schema sentinel (``@review-findings-schema``) is replaced with
+        the schema derived from the canonical ``review-findings.schema.json``.
+        This is what keeps agents.yaml from carrying a hand-copied — and
+        drift-prone — ``--json-schema`` blob: the schema is injected here from
+        the single canonical file at dispatch time. If the schema cannot be
+        resolved, both the sentinel and its preceding ``--json-schema`` flag are
+        dropped so the CLI still runs (degrading to schema-less output) rather
+        than passing a literal placeholder the vendor would reject.
+        """
+        mod = _schema_mod()
+        sentinel = getattr(mod, "GROK_SCHEMA_SENTINEL", "@review-findings-schema")
+        if sentinel not in args:
+            return list(args)
+
+        schema_arg: str | None = None
+        if mod is not None:
+            try:
+                schema_arg = mod.grok_schema_arg()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "could not inject canonical review-findings schema: %s", exc
+                )
+
+        resolved: list[str] = []
+        for arg in args:
+            if arg != sentinel:
+                resolved.append(arg)
+                continue
+            if schema_arg is not None:
+                resolved.append(schema_arg)
+            elif resolved and resolved[-1] == "--json-schema":
+                # Drop the dangling --json-schema flag we just appended.
+                resolved.pop()
+        return resolved
+
     def build_command(
         self,
         mode: str,
@@ -230,7 +326,7 @@ class CliVendorAdapter:
         trailing positional nor sent via stdin.
         """
         mode_config = self.cli_config.dispatch_modes[mode]
-        cmd = [self.cli_config.command, *mode_config.args]
+        cmd = [self.cli_config.command, *self._resolve_args(mode_config.args)]
         effective_model = model or self.cli_config.model
         if effective_model:
             cmd.extend([self.cli_config.model_flag, effective_model])
@@ -287,8 +383,12 @@ class CliVendorAdapter:
                 elapsed = time.monotonic() - start
 
                 if result.returncode == 0:
-                    # Try to parse JSON from stdout
+                    # Try to parse JSON from stdout, then validate against the
+                    # canonical review-findings schema so a drifted finding
+                    # fails here instead of silently reaching consensus.
                     findings = self._parse_findings(result.stdout)
+                    parse_error = None if findings else "Invalid JSON output"
+                    findings, schema_error = _validate_findings_or_error(findings)
                     return ReviewResult(
                         vendor=self.vendor,
                         success=findings is not None,
@@ -296,7 +396,7 @@ class CliVendorAdapter:
                         model_used=model_name,
                         models_attempted=models_attempted,
                         elapsed_seconds=elapsed,
-                        error=None if findings else "Invalid JSON output",
+                        error=schema_error or parse_error,
                     )
 
                 # Non-zero exit — classify error
@@ -667,14 +767,19 @@ class CliVendorAdapter:
                 )
 
             if success_re.search(combined):
-                # Task completed — try to extract findings from output
+                # Task completed — try to extract findings from output, then
+                # validate against the canonical review-findings schema.
                 findings = self._parse_findings(result.stdout)
+                parse_error = (
+                    None if findings else "Task completed but no findings JSON in output"
+                )
+                findings, schema_error = _validate_findings_or_error(findings)
                 return ReviewResult(
                     vendor=self.vendor,
                     success=findings is not None,
                     findings=findings,
                     elapsed_seconds=time.monotonic() - start,
-                    error=None if findings else "Task completed but no findings JSON in output",
+                    error=schema_error or parse_error,
                     task_id=task_id,
                 )
 
@@ -767,6 +872,8 @@ class SdkVendorAdapter:
                     api_key=api_key,
                     timeout=timeout_seconds,
                 )
+                parse_error = None if findings else "Invalid JSON in SDK response"
+                findings, schema_error = _validate_findings_or_error(findings)
                 return ReviewResult(
                     vendor=self.vendor,
                     success=findings is not None,
@@ -774,7 +881,7 @@ class SdkVendorAdapter:
                     model_used=model,
                     models_attempted=models_attempted,
                     elapsed_seconds=time.monotonic() - dispatch_start,
-                    error=None if findings else "Invalid JSON in SDK response",
+                    error=schema_error or parse_error,
                 )
             except _SdkCapacityError:
                 logger.info(

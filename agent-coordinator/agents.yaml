@@ -261,10 +261,13 @@ agents:
           # under `text`, structuredOutput is absent, the unwrap returns None,
           # and the dispatcher reports "Invalid JSON output".
           #
-          # This is the "--json-schema ... inlined by the adapter" step noted in
-          # the E6 comment above, which was never implemented adapter-side.
-          # Carrying it here makes the vendor work with the dispatcher as it
-          # already exists — no code change required.
+          # The schema VALUE is NOT hand-copied here. The "@review-findings-schema"
+          # sentinel is replaced at dispatch time by CliVendorAdapter._resolve_args,
+          # which loads openspec/schemas/review-findings.schema.json (the single
+          # canonical file) and injects the derived {findings:[...]} output schema.
+          # This is the "--json-schema ... inlined by the adapter" step from the
+          # E6 comment above, now implemented adapter-side so the schema can never
+          # drift from the canonical definition (ri-14).
           #
           # --always-approve matches the other modes: a reviewer must be able to
           # read files and run commands. Read-only-ness is a property of the
@@ -276,20 +279,7 @@ agents:
             - "json"
             - "--always-approve"
             - "--json-schema"
-            - >-
-              {"type":"object","required":["findings"],"properties":{"findings":
-              {"type":"array","items":{"type":"object","required":["id","type",
-              "criticality","description","disposition","axis","severity"],
-              "properties":{"id":{"type":"integer"},"type":{"enum":["spec_gap",
-              "contract_mismatch","architecture","security","performance","style",
-              "correctness","observability","compatibility","resilience",
-              "behavioral_failure"]},"criticality":{"enum":["low","medium","high",
-              "critical"]},"description":{"type":"string"},"resolution":
-              {"type":"string"},"disposition":{"enum":["fix","regenerate","accept",
-              "escalate"]},"axis":{"enum":["correctness","readability",
-              "architecture","security","performance"]},"severity":{"enum":
-              ["critical","nit","optional","fyi","none"]},"file_path":
-              {"type":"string"}}}}}}
+            - "@review-findings-schema"
         alternative:
           args: ["--prompt-file", "/dev/stdin", "--always-approve"]
         quick:
