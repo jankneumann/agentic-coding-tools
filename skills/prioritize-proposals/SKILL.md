@@ -45,6 +45,27 @@ RETAIN_N=30    # keep 30 most recent dated-run dirs in openspec/priorities/; old
 # --retain 50 → RETAIN_N=50
 ```
 
+### 1.5. Validate Candidate-Work Input (if provided)
+
+Discovery generators (`bug-scrub`, `improve-harness`, `explore-feature`) hand this
+skill **candidate-work stubs** — proposed units of work not yet scaffolded into
+`openspec/changes/`. Every stub MUST conform to the canonical schema at
+`openspec/schemas/candidate-work.schema.json`. Validate before ranking; reject
+non-conforming input with a clear per-field error rather than silently ranking a
+malformed stub.
+
+```bash
+# Deterministic (no LLM) validation. Exit 0 = all stubs valid; exit 1 = schema
+# violation(s) printed to stderr with the JSON pointer to each offending field;
+# exit 2 = file missing / not JSON.
+python3 "<skill-base-dir>/scripts/validate_candidate_work.py" <path-to-candidate-work.json>
+```
+
+The file may hold a single stub object or a JSON array of stubs. Do not proceed to
+scoring with input that fails this gate — fix the generator output or drop the
+offending stub first. Programmatic callers can import
+`validate_candidate_work` / `load_candidate_work` from the same module.
+
 ### 2. Inventory Active Proposals
 
 List all active OpenSpec change proposals and gather metadata:
