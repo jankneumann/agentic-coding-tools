@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-08-13T07:54:35+00:00",
-      "git_sha": "d8d2f29f2c54d850bcb709e82f348b2bb6cd1f80",
+      "generated_at": "2026-08-13T08:24:44+00:00",
+      "git_sha": "689848f82e024285cc67c2ae4a17a62118d06964",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -994,8 +994,8 @@
       "name": "PollConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 413,
-        "end": 427
+        "start": 421,
+        "end": 435
       },
       "tags": [],
       "signatures": {}
@@ -1007,8 +1007,8 @@
       "name": "ModeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 431,
-        "end": 436
+        "start": 439,
+        "end": 444
       },
       "tags": [],
       "signatures": {}
@@ -1020,8 +1020,8 @@
       "name": "CliConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 440,
-        "end": 456
+        "start": 448,
+        "end": 464
       },
       "tags": [],
       "signatures": {}
@@ -1033,8 +1033,8 @@
       "name": "SdkConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 460,
-        "end": 473
+        "start": 468,
+        "end": 481
       },
       "tags": [],
       "signatures": {}
@@ -1046,8 +1046,8 @@
       "name": "AgentEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 477,
-        "end": 492
+        "start": 485,
+        "end": 500
       },
       "tags": [],
       "signatures": {}
@@ -1059,8 +1059,8 @@
       "name": "EscalationConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 500,
-        "end": 510
+        "start": 508,
+        "end": 518
       },
       "tags": [],
       "signatures": {}
@@ -1072,8 +1072,8 @@
       "name": "ArchetypeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 514,
-        "end": 525
+        "start": 522,
+        "end": 533
       },
       "tags": [],
       "signatures": {}
@@ -1085,8 +1085,8 @@
       "name": "PhaseMappingEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 529,
-        "end": 539
+        "start": 537,
+        "end": 547
       },
       "tags": [],
       "signatures": {}
@@ -1098,8 +1098,8 @@
       "name": "ModelSpec",
       "file": "agents_config.py",
       "span": {
-        "start": 543,
-        "end": 553
+        "start": 551,
+        "end": 561
       },
       "tags": [],
       "signatures": {}
@@ -1111,8 +1111,8 @@
       "name": "ResolvedArchetype",
       "file": "agents_config.py",
       "span": {
-        "start": 557,
-        "end": 570
+        "start": 565,
+        "end": 578
       },
       "tags": [],
       "signatures": {}
@@ -1124,8 +1124,8 @@
       "name": "ProviderModelMappingError",
       "file": "agents_config.py",
       "span": {
-        "start": 573,
-        "end": 590
+        "start": 581,
+        "end": 598
       },
       "tags": [],
       "signatures": {}
@@ -4017,27 +4017,27 @@
       "signatures": {}
     },
     {
-      "id": "py:teams.AgentDefinition",
+      "id": "py:teams.RoleAssignment",
       "kind": "class",
       "language": "python",
-      "name": "AgentDefinition",
+      "name": "RoleAssignment",
       "file": "teams.py",
       "span": {
-        "start": 48,
-        "end": 54
+        "start": 68,
+        "end": 72
       },
       "tags": [],
       "signatures": {}
     },
     {
-      "id": "py:teams.TeamsConfig",
+      "id": "py:teams.CrewManifest",
       "kind": "class",
       "language": "python",
-      "name": "TeamsConfig",
+      "name": "CrewManifest",
       "file": "teams.py",
       "span": {
-        "start": 58,
-        "end": 173
+        "start": 76,
+        "end": 226
       },
       "tags": [],
       "signatures": {}
@@ -4140,8 +4140,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 576,
-        "end": 590
+        "start": 584,
+        "end": 598
       },
       "tags": [
         "dunder"
@@ -4155,8 +4155,8 @@
       "name": "_default_agents_path",
       "file": "agents_config.py",
       "span": {
-        "start": 597,
-        "end": 598
+        "start": 605,
+        "end": 606
       },
       "tags": [
         "private"
@@ -4170,8 +4170,8 @@
       "name": "_default_secrets_path",
       "file": "agents_config.py",
       "span": {
-        "start": 601,
-        "end": 602
+        "start": 609,
+        "end": 610
       },
       "tags": [
         "private"
@@ -4185,8 +4185,8 @@
       "name": "load_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 605,
-        "end": 725
+        "start": 613,
+        "end": 733
       },
       "tags": [
         "db_access"
@@ -4200,8 +4200,8 @@
       "name": "_parse_mode",
       "file": "agents_config.py",
       "span": {
-        "start": 658,
-        "end": 680
+        "start": 666,
+        "end": 688
       },
       "tags": [
         "private",
@@ -4216,8 +4216,8 @@
       "name": "_resolve_api_key_from_openbao",
       "file": "agents_config.py",
       "span": {
-        "start": 732,
-        "end": 780
+        "start": 740,
+        "end": 788
       },
       "tags": [
         "private",
@@ -4232,8 +4232,8 @@
       "name": "get_api_key_identities",
       "file": "agents_config.py",
       "span": {
-        "start": 783,
-        "end": 833
+        "start": 791,
+        "end": 841
       },
       "tags": [
         "db_access"
@@ -4247,8 +4247,8 @@
       "name": "get_mcp_env",
       "file": "agents_config.py",
       "span": {
-        "start": 840,
-        "end": 868
+        "start": 848,
+        "end": 876
       },
       "tags": [
         "db_access"
@@ -4262,8 +4262,8 @@
       "name": "get_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 878,
-        "end": 891
+        "start": 886,
+        "end": 899
       },
       "tags": [],
       "signatures": {}
@@ -4275,8 +4275,8 @@
       "name": "get_agent_config",
       "file": "agents_config.py",
       "span": {
-        "start": 894,
-        "end": 899
+        "start": 902,
+        "end": 907
       },
       "tags": [],
       "signatures": {}
@@ -4288,8 +4288,8 @@
       "name": "reset_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 902,
-        "end": 905
+        "start": 910,
+        "end": 913
       },
       "tags": [],
       "signatures": {}
@@ -4301,8 +4301,8 @@
       "name": "get_dispatch_configs",
       "file": "agents_config.py",
       "span": {
-        "start": 912,
-        "end": 972
+        "start": 920,
+        "end": 980
       },
       "tags": [],
       "signatures": {}
@@ -4314,8 +4314,8 @@
       "name": "get_agent_isolation",
       "file": "agents_config.py",
       "span": {
-        "start": 979,
-        "end": 988
+        "start": 987,
+        "end": 996
       },
       "tags": [],
       "signatures": {}
@@ -4327,8 +4327,8 @@
       "name": "_default_archetypes_path",
       "file": "agents_config.py",
       "span": {
-        "start": 995,
-        "end": 996
+        "start": 1003,
+        "end": 1004
       },
       "tags": [
         "private"
@@ -4342,8 +4342,8 @@
       "name": "load_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 999,
-        "end": 1075
+        "start": 1007,
+        "end": 1096
       },
       "tags": [
         "db_access"
@@ -4357,8 +4357,8 @@
       "name": "get_archetype",
       "file": "agents_config.py",
       "span": {
-        "start": 1083,
-        "end": 1094
+        "start": 1104,
+        "end": 1115
       },
       "tags": [
         "db_access"
@@ -4372,8 +4372,8 @@
       "name": "get_phase_mapping",
       "file": "agents_config.py",
       "span": {
-        "start": 1097,
-        "end": 1106
+        "start": 1118,
+        "end": 1127
       },
       "tags": [],
       "signatures": {}
@@ -4385,8 +4385,8 @@
       "name": "reset_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1109,
-        "end": 1114
+        "start": 1130,
+        "end": 1135
       },
       "tags": [],
       "signatures": {}
@@ -4398,8 +4398,8 @@
       "name": "_normalize_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 1117,
-        "end": 1141
+        "start": 1138,
+        "end": 1162
       },
       "tags": [
         "private"
@@ -4413,8 +4413,8 @@
       "name": "get_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 1144,
-        "end": 1148
+        "start": 1165,
+        "end": 1169
       },
       "tags": [],
       "signatures": {}
@@ -4426,8 +4426,8 @@
       "name": "_tier_entry_to_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1151,
-        "end": 1163
+        "start": 1172,
+        "end": 1184
       },
       "tags": [
         "private",
@@ -4442,8 +4442,8 @@
       "name": "resolve_provider_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1166,
-        "end": 1216
+        "start": 1187,
+        "end": 1237
       },
       "tags": [
         "db_access"
@@ -4457,8 +4457,8 @@
       "name": "resolve_provider_model",
       "file": "agents_config.py",
       "span": {
-        "start": 1219,
-        "end": 1232
+        "start": 1240,
+        "end": 1253
       },
       "tags": [],
       "signatures": {}
@@ -4470,8 +4470,8 @@
       "name": "compose_prompt",
       "file": "agents_config.py",
       "span": {
-        "start": 1239,
-        "end": 1248
+        "start": 1260,
+        "end": 1269
       },
       "tags": [],
       "signatures": {}
@@ -4483,8 +4483,8 @@
       "name": "_unique_dir_prefixes",
       "file": "agents_config.py",
       "span": {
-        "start": 1255,
-        "end": 1271
+        "start": 1276,
+        "end": 1292
       },
       "tags": [
         "private",
@@ -4499,8 +4499,8 @@
       "name": "resolve_model",
       "file": "agents_config.py",
       "span": {
-        "start": 1274,
-        "end": 1310
+        "start": 1295,
+        "end": 1331
       },
       "tags": [],
       "signatures": {}
@@ -4512,8 +4512,8 @@
       "name": "_resolve_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1313,
-        "end": 1371
+        "start": 1334,
+        "end": 1392
       },
       "tags": [
         "private",
@@ -4528,8 +4528,8 @@
       "name": "_finalize",
       "file": "agents_config.py",
       "span": {
-        "start": 1322,
-        "end": 1334
+        "start": 1343,
+        "end": 1355
       },
       "tags": [
         "private"
@@ -4543,8 +4543,8 @@
       "name": "resolve_archetype_for_phase",
       "file": "agents_config.py",
       "span": {
-        "start": 1379,
-        "end": 1465
+        "start": 1400,
+        "end": 1486
       },
       "tags": [],
       "signatures": {}
@@ -19096,14 +19096,14 @@
       "signatures": {}
     },
     {
-      "id": "py:teams.TeamsConfig.from_file",
+      "id": "py:teams.CrewManifest.from_file",
       "kind": "function",
       "language": "python",
       "name": "from_file",
       "file": "teams.py",
       "span": {
-        "start": 69,
-        "end": 90
+        "start": 91,
+        "end": 106
       },
       "tags": [
         "classmethod"
@@ -19111,55 +19111,56 @@
       "signatures": {}
     },
     {
-      "id": "py:teams.TeamsConfig.from_dict",
+      "id": "py:teams.CrewManifest.from_dict",
       "kind": "function",
       "language": "python",
       "name": "from_dict",
       "file": "teams.py",
       "span": {
-        "start": 93,
-        "end": 127
+        "start": 109,
+        "end": 139
       },
       "tags": [
-        "classmethod"
+        "classmethod",
+        "db_access"
       ],
       "signatures": {}
     },
     {
-      "id": "py:teams.TeamsConfig.get_agent",
+      "id": "py:teams.CrewManifest.get_role",
       "kind": "function",
       "language": "python",
-      "name": "get_agent",
+      "name": "get_role",
       "file": "teams.py",
       "span": {
-        "start": 129,
-        "end": 141
+        "start": 141,
+        "end": 146
       },
       "tags": [],
       "signatures": {}
     },
     {
-      "id": "py:teams.TeamsConfig.get_agents_with_capability",
+      "id": "py:teams.CrewManifest.vendors_for",
       "kind": "function",
       "language": "python",
-      "name": "get_agents_with_capability",
+      "name": "vendors_for",
       "file": "teams.py",
       "span": {
-        "start": 143,
-        "end": 152
+        "start": 148,
+        "end": 154
       },
       "tags": [],
       "signatures": {}
     },
     {
-      "id": "py:teams.TeamsConfig.validate",
+      "id": "py:teams.CrewManifest.validate",
       "kind": "function",
       "language": "python",
       "name": "validate",
       "file": "teams.py",
       "span": {
-        "start": 154,
-        "end": 173
+        "start": 156,
+        "end": 175
       },
       "tags": [
         "db_access"
@@ -19167,27 +19168,42 @@
       "signatures": {}
     },
     {
-      "id": "py:teams.get_teams_config",
+      "id": "py:teams.CrewManifest.validate_against",
       "kind": "function",
       "language": "python",
-      "name": "get_teams_config",
+      "name": "validate_against",
       "file": "teams.py",
       "span": {
-        "start": 180,
-        "end": 197
+        "start": 177,
+        "end": 226
       },
       "tags": [],
       "signatures": {}
     },
     {
-      "id": "py:teams.reset_teams_config",
+      "id": "py:teams.get_crew_manifest",
       "kind": "function",
       "language": "python",
-      "name": "reset_teams_config",
+      "name": "get_crew_manifest",
       "file": "teams.py",
       "span": {
-        "start": 200,
-        "end": 203
+        "start": 233,
+        "end": 283
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:teams.reset_crew_manifest",
+      "kind": "function",
+      "language": "python",
+      "name": "reset_crew_manifest",
+      "file": "teams.py",
+      "span": {
+        "start": 286,
+        "end": 289
       },
       "tags": [],
       "signatures": {}
@@ -27146,7 +27162,7 @@
     },
     {
       "from": "py:agents_config.load_agents_config",
-      "to": "py:teams.TeamsConfig.validate",
+      "to": "py:teams.CrewManifest.validate",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:validate"
@@ -27230,7 +27246,7 @@
     },
     {
       "from": "py:agents_config.load_archetypes_config",
-      "to": "py:teams.TeamsConfig.validate",
+      "to": "py:teams.CrewManifest.validate",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:validate"
@@ -33837,11 +33853,25 @@
       "evidence": "ast:call:_check_active_worktrees"
     },
     {
-      "from": "py:teams.TeamsConfig.from_dict",
-      "to": "py:teams.TeamsConfig.validate",
+      "from": "py:teams.CrewManifest.from_dict",
+      "to": "py:teams.CrewManifest.validate",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:validate"
+    },
+    {
+      "from": "py:teams.get_crew_manifest",
+      "to": "py:agents_config.load_archetypes_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:load_archetypes_config"
+    },
+    {
+      "from": "py:teams.get_crew_manifest",
+      "to": "py:agents_config.get_provider_model_map",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_provider_model_map"
     },
     {
       "from": "py:telemetry.init_telemetry",

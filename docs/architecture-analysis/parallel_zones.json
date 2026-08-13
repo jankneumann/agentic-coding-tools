@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-13T07:54:35+00:00",
+  "generated_at": "2026-08-13T08:24:44+00:00",
   "independent_groups": [
     {
       "id": 0,
@@ -507,8 +507,9 @@
         "py:sync_points._load_registry",
         "py:sync_points._parse_iso",
         "py:sync_points.get_sync_points_status",
-        "py:teams.TeamsConfig.from_dict",
-        "py:teams.TeamsConfig.validate",
+        "py:teams.CrewManifest.from_dict",
+        "py:teams.CrewManifest.validate",
+        "py:teams.get_crew_manifest",
         "py:telemetry._init_metrics",
         "py:telemetry._init_traces",
         "py:telemetry._metrics_enabled",
@@ -536,7 +537,7 @@
       "language_mix": [
         "python"
       ],
-      "size": 528
+      "size": 529
     },
     {
       "id": 1,
@@ -11527,7 +11528,7 @@
     {
       "id": 1083,
       "modules": [
-        "py:teams.AgentDefinition"
+        "py:teams.CrewManifest"
       ],
       "language_mix": [
         "python"
@@ -11537,7 +11538,7 @@
     {
       "id": 1084,
       "modules": [
-        "py:teams.TeamsConfig"
+        "py:teams.CrewManifest.from_file"
       ],
       "language_mix": [
         "python"
@@ -11547,7 +11548,7 @@
     {
       "id": 1085,
       "modules": [
-        "py:teams.TeamsConfig.from_file"
+        "py:teams.CrewManifest.get_role"
       ],
       "language_mix": [
         "python"
@@ -11557,7 +11558,7 @@
     {
       "id": 1086,
       "modules": [
-        "py:teams.TeamsConfig.get_agent"
+        "py:teams.CrewManifest.validate_against"
       ],
       "language_mix": [
         "python"
@@ -11567,7 +11568,7 @@
     {
       "id": 1087,
       "modules": [
-        "py:teams.TeamsConfig.get_agents_with_capability"
+        "py:teams.CrewManifest.vendors_for"
       ],
       "language_mix": [
         "python"
@@ -11577,7 +11578,7 @@
     {
       "id": 1088,
       "modules": [
-        "py:teams.get_teams_config"
+        "py:teams.RoleAssignment"
       ],
       "language_mix": [
         "python"
@@ -11587,7 +11588,7 @@
     {
       "id": 1089,
       "modules": [
-        "py:teams.reset_teams_config"
+        "py:teams.reset_crew_manifest"
       ],
       "language_mix": [
         "python"
@@ -19347,42 +19348,47 @@
       "file": "teams.py"
     },
     {
-      "id": "py:teams.AgentDefinition",
+      "id": "py:teams.CrewManifest",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.TeamsConfig",
+      "id": "py:teams.CrewManifest.from_dict",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.TeamsConfig.from_dict",
+      "id": "py:teams.CrewManifest.from_file",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.TeamsConfig.from_file",
+      "id": "py:teams.CrewManifest.get_role",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.TeamsConfig.get_agent",
+      "id": "py:teams.CrewManifest.validate_against",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.TeamsConfig.get_agents_with_capability",
+      "id": "py:teams.CrewManifest.vendors_for",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.get_teams_config",
+      "id": "py:teams.RoleAssignment",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.reset_teams_config",
+      "id": "py:teams.get_crew_manifest",
+      "language": "python",
+      "file": "teams.py"
+    },
+    {
+      "id": "py:teams.reset_crew_manifest",
       "language": "python",
       "file": "teams.py"
     },
@@ -21061,6 +21067,29 @@
       ]
     },
     {
+      "id": "py:teams.CrewManifest.validate",
+      "dependent_count": 17,
+      "dependents": [
+        "py:agents_config.get_agent_config",
+        "py:agents_config.get_agent_isolation",
+        "py:agents_config.get_agents_config",
+        "py:agents_config.get_api_key_identities",
+        "py:agents_config.get_dispatch_configs",
+        "py:agents_config.get_mcp_env",
+        "py:agents_config.get_phase_mapping",
+        "py:agents_config.load_agents_config",
+        "py:agents_config.load_archetypes_config",
+        "py:agents_config.resolve_archetype_for_phase",
+        "py:config.ApiConfig.from_env",
+        "py:coordination_api.create_coordination_api",
+        "py:coordination_api.create_coordination_api.get_agent_dispatch_configs",
+        "py:coordination_mcp.get_agent_dispatch_configs",
+        "py:teams.CrewManifest.from_dict",
+        "py:teams.get_crew_manifest",
+        "py:work_queue.WorkQueueService.claim"
+      ]
+    },
+    {
       "id": "py:profile_loader._load_secrets_file",
       "dependent_count": 16,
       "dependents": [
@@ -21079,28 +21108,6 @@
         "py:profile_loader._load_secrets",
         "py:profile_loader.apply_profile",
         "py:profile_loader.load_profile",
-        "py:work_queue.WorkQueueService.claim"
-      ]
-    },
-    {
-      "id": "py:teams.TeamsConfig.validate",
-      "dependent_count": 16,
-      "dependents": [
-        "py:agents_config.get_agent_config",
-        "py:agents_config.get_agent_isolation",
-        "py:agents_config.get_agents_config",
-        "py:agents_config.get_api_key_identities",
-        "py:agents_config.get_dispatch_configs",
-        "py:agents_config.get_mcp_env",
-        "py:agents_config.get_phase_mapping",
-        "py:agents_config.load_agents_config",
-        "py:agents_config.load_archetypes_config",
-        "py:agents_config.resolve_archetype_for_phase",
-        "py:config.ApiConfig.from_env",
-        "py:coordination_api.create_coordination_api",
-        "py:coordination_api.create_coordination_api.get_agent_dispatch_configs",
-        "py:coordination_mcp.get_agent_dispatch_configs",
-        "py:teams.TeamsConfig.from_dict",
         "py:work_queue.WorkQueueService.claim"
       ]
     },
@@ -21349,10 +21356,10 @@
     }
   ],
   "summary": {
-    "total_modules": 1871,
+    "total_modules": 1872,
     "total_groups": 1178,
-    "largest_group_size": 528,
-    "leaf_count": 1481,
+    "largest_group_size": 529,
+    "leaf_count": 1482,
     "high_impact_count": 38
   }
 }

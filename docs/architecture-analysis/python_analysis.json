@@ -1213,11 +1213,14 @@
       "name": "teams",
       "file": "teams.py",
       "imports": [
+        "__future__",
+        "collections.abc",
         "dataclasses",
         "pathlib",
         "typing",
         "yaml",
-        "jsonschema"
+        "jsonschema",
+        "src.agents_config"
       ]
     },
     {
@@ -1307,8 +1310,8 @@
       "name": "__init__",
       "qualified_name": "agents_config.ProviderModelMappingError.__init__",
       "file": "agents_config.py",
-      "line_start": 576,
-      "line_end": 590,
+      "line_start": 584,
+      "line_end": 598,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1326,8 +1329,8 @@
       "name": "_default_agents_path",
       "qualified_name": "agents_config._default_agents_path",
       "file": "agents_config.py",
-      "line_start": 597,
-      "line_end": 598,
+      "line_start": 605,
+      "line_end": 606,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1347,8 +1350,8 @@
       "name": "_default_secrets_path",
       "qualified_name": "agents_config._default_secrets_path",
       "file": "agents_config.py",
-      "line_start": 601,
-      "line_end": 602,
+      "line_start": 609,
+      "line_end": 610,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1368,8 +1371,8 @@
       "name": "load_agents_config",
       "qualified_name": "agents_config.load_agents_config",
       "file": "agents_config.py",
-      "line_start": 605,
-      "line_end": 725,
+      "line_start": 613,
+      "line_end": 733,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1413,8 +1416,8 @@
       "name": "_parse_mode",
       "qualified_name": "agents_config.load_agents_config._parse_mode",
       "file": "agents_config.py",
-      "line_start": 658,
-      "line_end": 680,
+      "line_start": 666,
+      "line_end": 688,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1437,8 +1440,8 @@
       "name": "_resolve_api_key_from_openbao",
       "qualified_name": "agents_config._resolve_api_key_from_openbao",
       "file": "agents_config.py",
-      "line_start": 732,
-      "line_end": 780,
+      "line_start": 740,
+      "line_end": 788,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1469,8 +1472,8 @@
       "name": "get_api_key_identities",
       "qualified_name": "agents_config.get_api_key_identities",
       "file": "agents_config.py",
-      "line_start": 783,
-      "line_end": 833,
+      "line_start": 791,
+      "line_end": 841,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1494,8 +1497,8 @@
       "name": "get_mcp_env",
       "qualified_name": "agents_config.get_mcp_env",
       "file": "agents_config.py",
-      "line_start": 840,
-      "line_end": 868,
+      "line_start": 848,
+      "line_end": 876,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1515,8 +1518,8 @@
       "name": "get_agents_config",
       "qualified_name": "agents_config.get_agents_config",
       "file": "agents_config.py",
-      "line_start": 878,
-      "line_end": 891,
+      "line_start": 886,
+      "line_end": 899,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1536,8 +1539,8 @@
       "name": "get_agent_config",
       "qualified_name": "agents_config.get_agent_config",
       "file": "agents_config.py",
-      "line_start": 894,
-      "line_end": 899,
+      "line_start": 902,
+      "line_end": 907,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1554,8 +1557,8 @@
       "name": "reset_agents_config",
       "qualified_name": "agents_config.reset_agents_config",
       "file": "agents_config.py",
-      "line_start": 902,
-      "line_end": 905,
+      "line_start": 910,
+      "line_end": 913,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -1568,8 +1571,8 @@
       "name": "get_dispatch_configs",
       "qualified_name": "agents_config.get_dispatch_configs",
       "file": "agents_config.py",
-      "line_start": 912,
-      "line_end": 972,
+      "line_start": 920,
+      "line_end": 980,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1590,8 +1593,8 @@
       "name": "get_agent_isolation",
       "qualified_name": "agents_config.get_agent_isolation",
       "file": "agents_config.py",
-      "line_start": 979,
-      "line_end": 988,
+      "line_start": 987,
+      "line_end": 996,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1606,8 +1609,8 @@
       "name": "_default_archetypes_path",
       "qualified_name": "agents_config._default_archetypes_path",
       "file": "agents_config.py",
-      "line_start": 995,
-      "line_end": 996,
+      "line_start": 1003,
+      "line_end": 1004,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1627,8 +1630,8 @@
       "name": "load_archetypes_config",
       "qualified_name": "agents_config.load_archetypes_config",
       "file": "agents_config.py",
-      "line_start": 999,
-      "line_end": 1075,
+      "line_start": 1007,
+      "line_end": 1096,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1645,8 +1648,8 @@
         "data.get",
         "EscalationConfig",
         "raw_esc.get",
-        "ArchetypeConfig",
         "bool",
+        "ArchetypeConfig",
         "raw_mapping.items",
         "sorted",
         "result.keys",
@@ -1656,7 +1659,8 @@
       ],
       "called_by": [
         "agents_config.get_phase_mapping",
-        "agents_config.resolve_archetype_for_phase"
+        "agents_config.resolve_archetype_for_phase",
+        "teams.get_crew_manifest"
       ],
       "db_tables": [],
       "tags": [
@@ -1668,8 +1672,8 @@
       "name": "get_archetype",
       "qualified_name": "agents_config.get_archetype",
       "file": "agents_config.py",
-      "line_start": 1083,
-      "line_end": 1094,
+      "line_start": 1104,
+      "line_end": 1115,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1689,8 +1693,8 @@
       "name": "get_phase_mapping",
       "qualified_name": "agents_config.get_phase_mapping",
       "file": "agents_config.py",
-      "line_start": 1097,
-      "line_end": 1106,
+      "line_start": 1118,
+      "line_end": 1127,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1705,8 +1709,8 @@
       "name": "reset_archetypes_config",
       "qualified_name": "agents_config.reset_archetypes_config",
       "file": "agents_config.py",
-      "line_start": 1109,
-      "line_end": 1114,
+      "line_start": 1130,
+      "line_end": 1135,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -1719,8 +1723,8 @@
       "name": "_normalize_provider_model_map",
       "qualified_name": "agents_config._normalize_provider_model_map",
       "file": "agents_config.py",
-      "line_start": 1117,
-      "line_end": 1141,
+      "line_start": 1138,
+      "line_end": 1162,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1744,15 +1748,16 @@
       "name": "get_provider_model_map",
       "qualified_name": "agents_config.get_provider_model_map",
       "file": "agents_config.py",
-      "line_start": 1144,
-      "line_end": 1148,
+      "line_start": 1165,
+      "line_end": 1169,
       "is_async": false,
       "decorators": [],
       "calls": [
         "_normalize_provider_model_map"
       ],
       "called_by": [
-        "agents_config.resolve_provider_model_spec"
+        "agents_config.resolve_provider_model_spec",
+        "teams.get_crew_manifest"
       ],
       "db_tables": [],
       "tags": [],
@@ -1762,8 +1767,8 @@
       "name": "_tier_entry_to_spec",
       "qualified_name": "agents_config._tier_entry_to_spec",
       "file": "agents_config.py",
-      "line_start": 1151,
-      "line_end": 1163,
+      "line_start": 1172,
+      "line_end": 1184,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1785,8 +1790,8 @@
       "name": "resolve_provider_model_spec",
       "qualified_name": "agents_config.resolve_provider_model_spec",
       "file": "agents_config.py",
-      "line_start": 1166,
-      "line_end": 1216,
+      "line_start": 1187,
+      "line_end": 1237,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1820,8 +1825,8 @@
       "name": "resolve_provider_model",
       "qualified_name": "agents_config.resolve_provider_model",
       "file": "agents_config.py",
-      "line_start": 1219,
-      "line_end": 1232,
+      "line_start": 1240,
+      "line_end": 1253,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1836,8 +1841,8 @@
       "name": "compose_prompt",
       "qualified_name": "agents_config.compose_prompt",
       "file": "agents_config.py",
-      "line_start": 1239,
-      "line_end": 1248,
+      "line_start": 1260,
+      "line_end": 1269,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -1850,8 +1855,8 @@
       "name": "_unique_dir_prefixes",
       "qualified_name": "agents_config._unique_dir_prefixes",
       "file": "agents_config.py",
-      "line_start": 1255,
-      "line_end": 1271,
+      "line_start": 1276,
+      "line_end": 1292,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1876,8 +1881,8 @@
       "name": "resolve_model",
       "qualified_name": "agents_config.resolve_model",
       "file": "agents_config.py",
-      "line_start": 1274,
-      "line_end": 1310,
+      "line_start": 1295,
+      "line_end": 1331,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1892,8 +1897,8 @@
       "name": "_resolve_model_spec",
       "qualified_name": "agents_config._resolve_model_spec",
       "file": "agents_config.py",
-      "line_start": 1313,
-      "line_end": 1371,
+      "line_start": 1334,
+      "line_end": 1392,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1921,8 +1926,8 @@
       "name": "_finalize",
       "qualified_name": "agents_config._resolve_model_spec._finalize",
       "file": "agents_config.py",
-      "line_start": 1322,
-      "line_end": 1334,
+      "line_start": 1343,
+      "line_end": 1355,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1941,8 +1946,8 @@
       "name": "resolve_archetype_for_phase",
       "qualified_name": "agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line_start": 1379,
-      "line_end": 1465,
+      "line_start": 1400,
+      "line_end": 1486,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -24574,10 +24579,10 @@
     },
     {
       "name": "from_file",
-      "qualified_name": "teams.TeamsConfig.from_file",
+      "qualified_name": "teams.CrewManifest.from_file",
       "file": "teams.py",
-      "line_start": 69,
-      "line_end": 90,
+      "line_start": 91,
+      "line_end": 106,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -24589,73 +24594,79 @@
         "cls.from_dict"
       ],
       "called_by": [
-        "teams.get_teams_config"
+        "teams.get_crew_manifest"
       ],
       "db_tables": [],
       "tags": [
         "classmethod"
       ],
-      "docstring": "Load and validate from a YAML file.\n\nArgs:\n    path: Path to the YAML team definition file.\n\nReturns:\n    A validated TeamsConfig instance.\n\nRaises:\n    FileNotFoundError: If the file does not exist.\n    yaml.YAMLError: If the file is not valid YAML.\n    jsonschema.ValidationError: If the data fails schema validation.\n    ValueError: If semantic validation fails (e.g. duplicate agent names)."
+      "docstring": "Load and validate a crew manifest from a YAML file.\n\nRaises:\n    FileNotFoundError: If *path* does not exist.\n    yaml.YAMLError: If the file is not valid YAML.\n    jsonschema.ValidationError: If the data fails schema validation.\n    ValueError: If semantic validation fails."
     },
     {
       "name": "from_dict",
-      "qualified_name": "teams.TeamsConfig.from_dict",
+      "qualified_name": "teams.CrewManifest.from_dict",
       "file": "teams.py",
-      "line_start": 93,
-      "line_end": 127,
+      "line_start": 109,
+      "line_end": 139,
       "is_async": false,
       "decorators": [
         "classmethod"
       ],
       "calls": [
         "validate",
-        "AgentDefinition",
+        "RoleAssignment",
+        "list",
         "cls",
-        "config.validate",
+        "data.get",
+        "manifest.validate",
         "ValueError",
         "join"
       ],
       "called_by": [],
       "db_tables": [],
       "tags": [
-        "classmethod"
+        "classmethod",
+        "db_access"
       ],
-      "docstring": "Create from a dictionary (after validation).\n\nArgs:\n    data: Dictionary matching the TEAMS_SCHEMA structure.\n\nReturns:\n    A validated TeamsConfig instance.\n\nRaises:\n    jsonschema.ValidationError: If the data fails schema validation.\n    ValueError: If semantic validation fails (e.g. duplicate agent names)."
+      "docstring": "Create a validated manifest from a mapping.\n\nRaises:\n    jsonschema.ValidationError: If the data fails schema validation.\n    ValueError: If semantic validation fails."
     },
     {
-      "name": "get_agent",
-      "qualified_name": "teams.TeamsConfig.get_agent",
+      "name": "get_role",
+      "qualified_name": "teams.CrewManifest.get_role",
       "file": "teams.py",
-      "line_start": 129,
-      "line_end": 141,
+      "line_start": 141,
+      "line_end": 146,
       "is_async": false,
       "decorators": [],
       "calls": [],
       "called_by": [],
       "db_tables": [],
       "tags": [],
-      "docstring": "Get agent definition by name.\n\nArgs:\n    name: The agent name to look up.\n\nReturns:\n    The AgentDefinition if found, None otherwise."
+      "docstring": "Return the roster entry for *archetype*, or ``None`` if not listed."
     },
     {
-      "name": "get_agents_with_capability",
-      "qualified_name": "teams.TeamsConfig.get_agents_with_capability",
+      "name": "vendors_for",
+      "qualified_name": "teams.CrewManifest.vendors_for",
       "file": "teams.py",
-      "line_start": 143,
-      "line_end": 152,
+      "line_start": 148,
+      "line_end": 154,
       "is_async": false,
       "decorators": [],
-      "calls": [],
+      "calls": [
+        "self.get_role",
+        "list"
+      ],
       "called_by": [],
       "db_tables": [],
       "tags": [],
-      "docstring": "Get agents that have a specific capability.\n\nArgs:\n    capability: The capability to filter by.\n\nReturns:\n    List of agents that have the specified capability."
+      "docstring": "Return the vendors permitted to fill *archetype*.\n\nReturns an empty list when the archetype is not in the roster."
     },
     {
       "name": "validate",
-      "qualified_name": "teams.TeamsConfig.validate",
+      "qualified_name": "teams.CrewManifest.validate",
       "file": "teams.py",
-      "line_start": 154,
-      "line_end": 173,
+      "line_start": 156,
+      "line_end": 175,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -24666,44 +24677,71 @@
       "called_by": [
         "agents_config.load_agents_config",
         "agents_config.load_archetypes_config",
-        "teams.TeamsConfig.from_dict"
+        "teams.CrewManifest.from_dict"
       ],
       "db_tables": [],
       "tags": [
         "db_access"
       ],
-      "docstring": "Validate the config, returning list of error messages.\n\nChecks semantic constraints that JSON Schema cannot express,\nsuch as agent name uniqueness within the team.\n\nReturns:\n    List of error message strings. Empty if valid."
+      "docstring": "Semantic validation the JSON Schema cannot express.\n\nChecks duplicate roster archetypes and that the declared supervisor\nappears in the roster. Returns a list of error messages (empty if OK)."
     },
     {
-      "name": "get_teams_config",
-      "qualified_name": "teams.get_teams_config",
+      "name": "validate_against",
+      "qualified_name": "teams.CrewManifest.validate_against",
       "file": "teams.py",
-      "line_start": 180,
-      "line_end": 197,
+      "line_start": 177,
+      "line_end": 226,
       "is_async": false,
       "decorators": [],
       "calls": [
-        "Path",
-        "TeamsConfig.from_file"
+        "errors.append"
       ],
       "called_by": [],
       "db_tables": [],
       "tags": [],
-      "docstring": "Get the global teams configuration.\n\nLoads from the specified path on first call, or from `teams.yaml`\nin the agent-coordinator directory if no path is given.\n\nArgs:\n    path: Optional path to the teams YAML file.\n\nReturns:\n    The global TeamsConfig instance."
+      "docstring": "Cross-validate against the live archetypes + provider roster.\n\nArgs:\n    known_archetypes: Mapping of archetype name -> ``write_capable``\n        flag, as loaded from ``archetypes.yaml``.\n    known_vendors: The set of known provider ids from the provider\n        model map.\n\nChecks that every roster archetype exists, every vendor is a known\nprovider, and that the supervisor archetype exists AND is declared\n``write_capable: false`` (a read-only orchestrator, mirroring the\nsupervisor invariant enforced in ``agents_config``).\n\nReturns:\n    A list of error messages (empty if the manifest is consistent)."
     },
     {
-      "name": "reset_teams_config",
-      "qualified_name": "teams.reset_teams_config",
+      "name": "get_crew_manifest",
+      "qualified_name": "teams.get_crew_manifest",
       "file": "teams.py",
-      "line_start": 200,
-      "line_end": 203,
+      "line_start": 233,
+      "line_end": 283,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "Path",
+        "CrewManifest.from_file",
+        "load_archetypes_config",
+        "archetypes.items",
+        "set",
+        "keys",
+        "get_provider_model_map.get",
+        "get_provider_model_map",
+        "manifest.validate_against",
+        "ValueError",
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "db_access"
+      ],
+      "docstring": "Get the global crew manifest (lazy singleton).\n\nLoads from *path* (default: ``teams.yaml`` beside the coordinator package)\non first call. When *cross_validate* is true (the default), the manifest is\nchecked against the loaded ``archetypes.yaml`` roster and the provider model\nmap — this is the wiring that keeps the crew model honest, failing loud on a\nstale archetype or vendor reference.\n\nArgs:\n    path: Optional path to the crew manifest YAML file.\n    cross_validate: Whether to cross-check the manifest against the live\n        archetypes config and provider map.\n\nReturns:\n    The global :class:`CrewManifest` instance.\n\nRaises:\n    ValueError: If cross-validation finds an undefined archetype/vendor or\n        a write-capable supervisor."
+    },
+    {
+      "name": "reset_crew_manifest",
+      "qualified_name": "teams.reset_crew_manifest",
+      "file": "teams.py",
+      "line_start": 286,
+      "line_end": 289,
       "is_async": false,
       "decorators": [],
       "calls": [],
       "called_by": [],
       "db_tables": [],
       "tags": [],
-      "docstring": "Reset the global teams config. Useful for testing."
+      "docstring": "Reset the global crew manifest. Useful for testing."
     },
     {
       "name": "_metrics_enabled",
@@ -25995,8 +26033,8 @@
       "name": "PollConfig",
       "qualified_name": "agents_config.PollConfig",
       "file": "agents_config.py",
-      "line_start": 413,
-      "line_end": 427,
+      "line_start": 421,
+      "line_end": 435,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26007,8 +26045,8 @@
       "name": "ModeConfig",
       "qualified_name": "agents_config.ModeConfig",
       "file": "agents_config.py",
-      "line_start": 431,
-      "line_end": 436,
+      "line_start": 439,
+      "line_end": 444,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26019,8 +26057,8 @@
       "name": "CliConfig",
       "qualified_name": "agents_config.CliConfig",
       "file": "agents_config.py",
-      "line_start": 440,
-      "line_end": 456,
+      "line_start": 448,
+      "line_end": 464,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26031,8 +26069,8 @@
       "name": "SdkConfig",
       "qualified_name": "agents_config.SdkConfig",
       "file": "agents_config.py",
-      "line_start": 460,
-      "line_end": 473,
+      "line_start": 468,
+      "line_end": 481,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26043,8 +26081,8 @@
       "name": "AgentEntry",
       "qualified_name": "agents_config.AgentEntry",
       "file": "agents_config.py",
-      "line_start": 477,
-      "line_end": 492,
+      "line_start": 485,
+      "line_end": 500,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26055,8 +26093,8 @@
       "name": "EscalationConfig",
       "qualified_name": "agents_config.EscalationConfig",
       "file": "agents_config.py",
-      "line_start": 500,
-      "line_end": 510,
+      "line_start": 508,
+      "line_end": 518,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26067,8 +26105,8 @@
       "name": "ArchetypeConfig",
       "qualified_name": "agents_config.ArchetypeConfig",
       "file": "agents_config.py",
-      "line_start": 514,
-      "line_end": 525,
+      "line_start": 522,
+      "line_end": 533,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26079,8 +26117,8 @@
       "name": "PhaseMappingEntry",
       "qualified_name": "agents_config.PhaseMappingEntry",
       "file": "agents_config.py",
-      "line_start": 529,
-      "line_end": 539,
+      "line_start": 537,
+      "line_end": 547,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26091,8 +26129,8 @@
       "name": "ModelSpec",
       "qualified_name": "agents_config.ModelSpec",
       "file": "agents_config.py",
-      "line_start": 543,
-      "line_end": 553,
+      "line_start": 551,
+      "line_end": 561,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26103,8 +26141,8 @@
       "name": "ResolvedArchetype",
       "qualified_name": "agents_config.ResolvedArchetype",
       "file": "agents_config.py",
-      "line_start": 557,
-      "line_end": 570,
+      "line_start": 565,
+      "line_end": 578,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26115,8 +26153,8 @@
       "name": "ProviderModelMappingError",
       "qualified_name": "agents_config.ProviderModelMappingError",
       "file": "agents_config.py",
-      "line_start": 573,
-      "line_end": 590,
+      "line_start": 581,
+      "line_end": 598,
       "bases": [
         "ValueError"
       ],
@@ -29250,11 +29288,11 @@
       "decorators": []
     },
     {
-      "name": "AgentDefinition",
-      "qualified_name": "teams.AgentDefinition",
+      "name": "RoleAssignment",
+      "qualified_name": "teams.RoleAssignment",
       "file": "teams.py",
-      "line_start": 48,
-      "line_end": 54,
+      "line_start": 68,
+      "line_end": 72,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -29262,18 +29300,19 @@
       ]
     },
     {
-      "name": "TeamsConfig",
-      "qualified_name": "teams.TeamsConfig",
+      "name": "CrewManifest",
+      "qualified_name": "teams.CrewManifest",
       "file": "teams.py",
-      "line_start": 58,
-      "line_end": 173,
+      "line_start": 76,
+      "line_end": 226,
       "bases": [],
       "methods": [
         "from_file",
         "from_dict",
-        "get_agent",
-        "get_agents_with_capability",
-        "validate"
+        "get_role",
+        "vendors_for",
+        "validate",
+        "validate_against"
       ],
       "decorators": [
         "dataclass"
@@ -31890,6 +31929,14 @@
     },
     {
       "from": "teams",
+      "to": "__future__"
+    },
+    {
+      "from": "teams",
+      "to": "collections.abc"
+    },
+    {
+      "from": "teams",
       "to": "dataclasses"
     },
     {
@@ -31907,6 +31954,10 @@
     {
       "from": "teams",
       "to": "jsonschema"
+    },
+    {
+      "from": "teams",
+      "to": "src.agents_config"
     },
     {
       "from": "telemetry",
@@ -34059,7 +34110,17 @@
       "pattern": "orm"
     },
     {
-      "function": "teams.TeamsConfig.validate",
+      "function": "teams.CrewManifest.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "teams.CrewManifest.validate",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "teams.get_crew_manifest",
       "tables": [],
       "pattern": "orm"
     },
@@ -34174,7 +34235,7 @@
     }
   ],
   "summary": {
-    "total_functions": 1063,
+    "total_functions": 1064,
     "total_classes": 242,
     "total_modules": 75,
     "async_functions": 431,
@@ -34644,11 +34705,12 @@
       "sse_log_redaction.redact_token",
       "status.cleanup_expired_tokens",
       "sync_points.get_sync_points_status",
-      "teams.TeamsConfig.from_dict",
-      "teams.TeamsConfig.get_agent",
-      "teams.TeamsConfig.get_agents_with_capability",
-      "teams.get_teams_config",
-      "teams.reset_teams_config",
+      "teams.CrewManifest.from_dict",
+      "teams.CrewManifest.get_role",
+      "teams.CrewManifest.vendors_for",
+      "teams.CrewManifest.validate_against",
+      "teams.get_crew_manifest",
+      "teams.reset_crew_manifest",
       "telemetry._NoOpSpan.set_attribute",
       "telemetry._NoOpSpan.set_status",
       "telemetry._NoOpSpan.record_exception",

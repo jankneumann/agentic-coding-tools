@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: dispatcher-daemon
   title: Symphony-style dispatcher daemon
-  status: skipped
+  status: superseded
   priority: 1
   effort: M
   depends_on: []
@@ -21,9 +21,8 @@ items:
   - Daemon stays up >=24h unattended without leaking workspaces
   - Deterministically dispatches >=50 issues with no duplicate dispatch
   - Restart recovers running set from tracker + filesystem state
-  blocked_by:
-  - "SUPERSEDED BY roadmap-always-on-agent-automation:ri-08 (build-dispatcher-daemon-on-the-always-on-host)\
-    \ \u2014 see supersession-audit.md"
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: workflow-md-contract
   title: WORKFLOW.md repo-owned policy contract
   status: approved
@@ -39,7 +38,7 @@ items:
   - Reload applies within one poll tick without restarting the daemon
 - item_id: coordinator-tracker-adapter
   title: Coordinator-native issue tracker adapter (primary)
-  status: skipped
+  status: superseded
   priority: 3
   effort: M
   depends_on:
@@ -59,12 +58,11 @@ items:
   - Status transitions flow through issue_service and are captured in audit_log
   - Works in both online and coordinator-degraded modes per CAN_QUEUE_WORK capability
     flag
-  blocked_by:
-  - "SUPERSEDED BY roadmap-always-on-agent-automation:ri-07 (build-coordinator-tracker-adapter-for-dispatch)\
-    \ \u2014 see supersession-audit.md"
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-07
 - item_id: workspace-manager-hooks
   title: Issue-keyed workspace manager with lifecycle hooks
-  status: blocked
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -77,12 +75,11 @@ items:
   - Hook invocation order matches Symphony SPEC section 3
   - after_run failures do not block forward progress
   - Path containment violations fail closed before agent launch
-  blocked_by:
-  - "roadmap-always-on-agent-automation:ri-08 (build-dispatcher-daemon-on-the-always-on-host)\
-    \ must exist first \u2014 daemon-internal component, see supersession-audit.md"
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: retry-queue-backoff
   title: Centralized retry queue with exponential backoff
-  status: blocked
+  status: approved
   priority: 5
   effort: S
   depends_on:
@@ -93,12 +90,11 @@ items:
   acceptance_outcomes:
   - Backoff schedule is deterministic and bounded
   - Retry re-check prevents dispatch of now-ineligible issues
-  blocked_by:
-  - "roadmap-always-on-agent-automation:ri-08 (build-dispatcher-daemon-on-the-always-on-host)\
-    \ must exist first \u2014 daemon-internal component, see supersession-audit.md"
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: agent-runner-port
   title: Agent-runner port with vendor adapters
-  status: blocked
+  status: approved
   priority: 6
   effort: L
   depends_on:
@@ -113,12 +109,11 @@ items:
   - Same daemon drives all three vendors from the same WORKFLOW.md
   - Normalized event schema covers all Symphony SPEC agent events
   - user_input_requested terminates the session to prevent hangs
-  blocked_by:
-  - "roadmap-always-on-agent-automation:ri-08 (build-dispatcher-daemon-on-the-always-on-host)\
-    \ must exist first \u2014 daemon-internal component, see supersession-audit.md"
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: turn-based-continuation
   title: Turn-based session continuation with tracker re-check
-  status: blocked
+  status: approved
   priority: 7
   effort: M
   depends_on:
@@ -130,12 +125,11 @@ items:
   acceptance_outcomes:
   - Same thread/workspace survives across up to max_turns
   - Mid-run state transition preserves workspace and emits run_aborted
-  blocked_by:
-  - "roadmap-always-on-agent-automation:ri-08 (build-dispatcher-daemon-on-the-always-on-host)\
-    \ must exist first \u2014 daemon-internal component, see supersession-audit.md"
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: reconciliation-stall-detection
   title: Tracker-state reconciliation and stall detection
-  status: skipped
+  status: superseded
   priority: 8
   effort: M
   depends_on:
@@ -149,11 +143,12 @@ items:
   - Stalled runs killed within stall_timeout_ms
   - Terminal-state workspaces cleaned on next startup
   - Orphan worktrees reconciled against registry
-  blocked_by:
-  - "SUPERSEDED BY roadmap-always-on-agent-automation:ri-08 + ri-09 \u2014 see supersession-audit.md"
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-08
+  - roadmap-always-on-agent-automation:ri-09
 - item_id: coordinator-issue-tool
   title: Scoped coordinator-issue tool for agents
-  status: blocked
+  status: approved
   priority: 9
   effort: S
   depends_on: []
@@ -167,12 +162,11 @@ items:
   - Agent can transition issue state, post comment, link PR without external credentials
   - Every invocation writes one audit_log entry with issue_id and session_id
   - Operation surface is intersected with the agent's trust profile
-  blocked_by:
-  - "roadmap-always-on-agent-automation:ri-07 (build-coordinator-tracker-adapter-for-dispatch)\
-    \ \u2014 supersedes symphony coordinator-tracker-adapter, see supersession-audit.md"
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-07
 - item_id: token-ratelimit-accounting
   title: Token, rate-limit, and run accounting
-  status: skipped
+  status: superseded
   priority: 10
   effort: S
   depends_on:
@@ -184,12 +178,11 @@ items:
   acceptance_outcomes:
   - Dashboard can answer tokens-per-issue-per-day without log scraping
   - Rate-limit headroom queryable in real time
-  blocked_by:
-  - "SUPERSEDED BY roadmap-always-on-agent-automation:ri-10 (cross-vendor-arbitrage-instrument)\
-    \ \u2014 see supersession-audit.md"
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-10
 - item_id: operator-http-status-surface
   title: Operator HTTP status surface
-  status: skipped
+  status: superseded
   priority: 11
   effort: S
   depends_on:
@@ -203,9 +196,8 @@ items:
   - Operator can query live state during long unattended runs
   - Issues view lists coordinator issues with label/status filters
   - Daemon survives sidecar crashes without state loss
-  blocked_by:
-  - "SUPERSEDED BY roadmap-always-on-agent-automation:ri-18 (expose-operator-status-surface)\
-    \ \u2014 see supersession-audit.md"
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-18
 - item_id: trust-posture-binding
   title: Trust-posture artifact and deployment-profile binding
   status: approved
@@ -225,7 +217,7 @@ items:
   - Posture changes are audited
 - item_id: coordinator-integration
   title: Daemon and coordinator peer integration
-  status: blocked
+  status: approved
   priority: 13
   effort: M
   depends_on:
@@ -240,12 +232,11 @@ items:
   - Daemon runs collide-free with human-triggered /implement-feature
   - End-to-end audit traceability from dispatch to merge
   - Degrades gracefully when coordinator is unreachable
-  blocked_by:
-  - "roadmap-always-on-agent-automation:ri-08 (build-dispatcher-daemon-on-the-always-on-host)\
-    \ must exist first \u2014 daemon-internal component, see supersession-audit.md"
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: github-tracker-adapter
   title: GitHub Issues external projection (optional)
-  status: skipped
+  status: superseded
   priority: 14
   effort: S
   depends_on:
@@ -259,12 +250,11 @@ items:
   - Coordinator issue changes appear as GitHub issue updates within N seconds
   - No back-sync path; GitHub-side edits are ignored
   - Projection failures do not block the daemon or coordinator
-  blocked_by:
-  - "SUPERSEDED BY roadmap-always-on-agent-automation:ri-21 (add-github-two-way-tracker-adapter)\
-    \ \u2014 see supersession-audit.md"
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-21
 - item_id: linear-tracker-adapter
   title: Linear Issues external projection (optional)
-  status: blocked
+  status: approved
   priority: 15
   effort: S
   depends_on: []
@@ -273,9 +263,8 @@ items:
   acceptance_outcomes:
   - Swap projection targets via WORKFLOW.md config with no daemon code changes
   - Feature parity with GitHub projection for required fields
-  blocked_by:
-  - "roadmap-always-on-agent-automation:ri-07 (build-coordinator-tracker-adapter-for-dispatch)\
-    \ \u2014 supersedes symphony coordinator-tracker-adapter, see supersession-audit.md"
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-07
 - item_id: harness-readiness-audit
   title: Harness-readiness audit for Symphony-compatibility
   status: approved
@@ -291,4 +280,4 @@ items:
   - Report flags at least the five prerequisite categories with actionable hints
   - Integrates with existing bug-scrub report format
 created_at: '2026-04-24T06:24:27.457690+00:00'
-updated_at: '2026-08-05T08:40:56.665679+00:00'
+updated_at: '2026-08-13T08:27:19.152627+00:00'

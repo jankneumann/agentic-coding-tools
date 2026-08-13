@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Add supervisor archetype and resolve crew manifest
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on: []
@@ -75,7 +75,7 @@ items:
     verified by inspecting the session after a two-item run.
 - item_id: ri-04
   title: Route supervise gates through the approval gate service
-  status: blocked
+  status: approved
   priority: 1
   effort: M
   depends_on:
@@ -96,9 +96,8 @@ items:
     evaluation log with the posture that was applied.
   - No gate decision in a supervised run bypasses approval_gate.py, verified by test
     or audit over a full run.
-  blocked_by:
-  - "roadmap-always-on-agent-automation:ri-06 (encode-autopilot-gates-and-goal-gate-in-code)\
-    \ must complete first \u2014 it creates the gate call sites this item routes"
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-06
 - item_id: ri-05
   title: Extend handoff document with supervisor record
   status: approved
@@ -149,7 +148,7 @@ items:
     with its deadline.
 - item_id: ri-07
   title: Document and enforce work-queue truth/projection contract
-  status: approved
+  status: completed
   priority: 2
   effort: M
   depends_on: []
@@ -233,7 +232,7 @@ items:
     ri-02 has landed.
 - item_id: ri-11
   title: Define canonical candidate-work schema
-  status: approved
+  status: completed
   priority: 2
   effort: M
   depends_on: []
@@ -300,7 +299,7 @@ items:
     via the handoff record.
 - item_id: ri-14
   title: Extract shared review-findings schema
-  status: approved
+  status: completed
   priority: 3
   effort: M
   depends_on: []
@@ -322,7 +321,7 @@ items:
     into consensus, covered by a test.
 - item_id: ri-15
   title: Resolve memory-layer decision
-  status: approved
+  status: completed
   priority: 4
   effort: M
   depends_on: []
@@ -368,7 +367,7 @@ items:
     and the resolver.
 - item_id: ri-17
   title: Add typed cross-roadmap edges to the roadmap schema
-  status: approved
+  status: completed
   priority: 2
   effort: M
   depends_on: []
@@ -393,4 +392,4 @@ items:
     are expressed as typed edges, replacing their prose blocked_by encodings.
   - An item whose only blocker is an external prerequisite becomes ready automatically
     when that prerequisite completes, with no manual status edit, covered by a test.
-updated_at: '2026-08-04T17:18:41.621416+00:00'
+updated_at: '2026-08-13T08:27:19.122009+00:00'

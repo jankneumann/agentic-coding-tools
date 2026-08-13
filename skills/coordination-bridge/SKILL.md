@@ -55,7 +55,6 @@ This is the same asymmetry `coordinator-task-status-renderer` applies to the
 See the full contract — idempotent submission keyed by
 `(change_id, phase, iteration)`, outbox ordering (persist loop-state, then
 enqueue), resume re-derivation, and tier applicability (claim atomicity is
-exercised only in the coordinated tier) — in
-[`docs/guides/work-queue-truth-projection.md`](../../docs/guides/work-queue-truth-projection.md).
-The invariant is guarded by
+exercised only in the coordinated tier) — in the repo guide
+`docs/guides/work-queue-truth-projection.md`. The invariant is guarded by
 `skills/tests/coordination-bridge/test_work_queue_projection_invariant.py`.

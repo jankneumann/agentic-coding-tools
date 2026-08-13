@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-13T07:54:35+00:00",
+  "generated_at": "2026-08-13T08:24:44+00:00",
   "threshold": 5,
   "total_high_impact": 107,
   "high_impact_nodes": [
@@ -96,6 +96,10 @@
       "dependent_count": 17
     },
     {
+      "id": "py:teams.CrewManifest.validate",
+      "dependent_count": 17
+    },
+    {
       "id": "py:audit",
       "dependent_count": 16
     },
@@ -105,10 +109,6 @@
     },
     {
       "id": "py:profile_loader._load_secrets_file",
-      "dependent_count": 16
-    },
-    {
-      "id": "py:teams.TeamsConfig.validate",
       "dependent_count": 16
     },
     {
@@ -156,15 +156,15 @@
       "dependent_count": 11
     },
     {
+      "id": "py:agents_config._normalize_provider_model_map",
+      "dependent_count": 10
+    },
+    {
       "id": "py:merge_train_service.get_merge_train_service",
       "dependent_count": 10
     },
     {
       "id": "py:telemetry",
-      "dependent_count": 9
-    },
-    {
-      "id": "py:agents_config._normalize_provider_model_map",
       "dependent_count": 9
     },
     {
@@ -248,6 +248,10 @@
       "dependent_count": 7
     },
     {
+      "id": "py:agents_config.get_provider_model_map",
+      "dependent_count": 7
+    },
+    {
       "id": "py:approval._parse_dt",
       "dependent_count": 7
     },
@@ -290,10 +294,6 @@
     {
       "id": "py:telemetry.get_lock_meter",
       "dependent_count": 7
-    },
-    {
-      "id": "py:agents_config.get_provider_model_map",
-      "dependent_count": 6
     },
     {
       "id": "py:agents_config._tier_entry_to_spec",
