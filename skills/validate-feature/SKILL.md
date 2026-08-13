@@ -491,7 +491,7 @@ Report architecture diagnostics including broken flows, missing test coverage, o
 ### 7. Spec Compliance Phase (via Change Context)
 
 **Phase name:** `spec`
-**Criticality:** Non-critical (continues on failure) — EXCEPT the task-drift gate (7.0) which is CRITICAL within this phase.
+**Criticality:** Non-critical (continues on failure) — EXCEPT the task-drift gate (7.0) and the requirement-traceability gate (7.0b), which are CRITICAL within this phase.
 
 #### 7.0. Task Checkbox Drift Gate (CRITICAL)
 
@@ -524,6 +524,76 @@ fi
 **Why this is CRITICAL**: Archive validation (`openspec archive`) checks the tasks artifact's overall status, not individual checkboxes — meaning drift can slip through archive-time and leave inaccurate history. Catching it here, before the archive path, ensures the spec phase is the single source of truth for "does the plan document match what was built?" Per the incident log, `specialized-workflow-agents` shipped 29 tasks' worth of implementation to main with 0/29 checkboxes flipped because the validation gate didn't catch the drift (this check was added 2026-04-22 in response).
 
 **In CI-vs-local behavior**: In local validation, `exit 1` halts the phase immediately. In CI-invoked validation (where halting would abort merge-gate automation unhelpfully), record the drift as a CRITICAL finding in `validation-report.md` under "Phase Results" with Result=`fail` and Details listing the specific unchecked task IDs — do not silently continue.
+
+#### 7.0b. Requirement-to-Contract Traceability Gate (CRITICAL, change-scoped)
+
+This is the enforcement point for the requirement-to-contract edge: a
+contracted operation the change touches must cite the requirements it serves,
+and a requirement the change adds must be cited or excluded, before the
+change validates. Pre-existing violations the change did not create are
+reported by the gate without failing it, so this wiring blocks only new debt
+— it never fails a change for a gap it did not introduce.
+
+Detection first, exactly like the Gen-Eval phase (4b) above: `skills/validate-feature/`
+ships via `install.sh` into consumer repositories that have neither
+`packages/gen-eval/` nor `openspec/contracts/`, where the gate cannot run at
+all. Wiring it unconditionally would fail every validation in every
+downstream repo, so the SKIP is printed explicitly rather than the step being
+silently absent — an unprinted skip and a passing gate are the same
+observation in a log.
+
+```bash
+TRACE_GATE="$PROJECT_ROOT/packages/gen-eval/scripts/check_traceability.py"
+TRACE_CONTRACTS_DIR="$PROJECT_ROOT/openspec/contracts"
+
+if [ ! -f "$TRACE_GATE" ]; then
+  echo "SKIP: requirement-traceability gate unavailable ($TRACE_GATE not found). Skipping."
+  TRACE_RESULT="skip"
+elif [ ! -d "$TRACE_CONTRACTS_DIR" ]; then
+  echo "SKIP: requirement-traceability gate unavailable ($TRACE_CONTRACTS_DIR not found). Skipping."
+  TRACE_RESULT="skip"
+else
+  TRACE_PYTHON="$PROJECT_ROOT/packages/gen-eval/.venv/bin/python"
+  if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
+  # Bare, never piped — a pipeline's $? is the last stage's exit status, so
+  # `check_traceability.py | tail` would report tail's 0 on a failing gate.
+  TRACE_OUTPUT=$(cd "$PROJECT_ROOT/packages/gen-eval" && "$TRACE_PYTHON" scripts/check_traceability.py \
+    --scope change --change "$CHANGE_ID")
+  TRACE_EXIT=$?
+  echo "$TRACE_OUTPUT"
+  if [ $TRACE_EXIT -ne 0 ]; then
+    echo "FAIL: requirement-traceability gate exited $TRACE_EXIT"
+    TRACE_RESULT="fail"
+  else
+    echo "PASS: requirement-traceability gate"
+    TRACE_RESULT="pass"
+  fi
+fi
+
+# Skip and pass both leave this sub-step at exit 0; fail propagates the
+# gate's own non-zero status so a caller chaining this fragment observes it
+# without re-deriving TRACE_RESULT.
+[ "$TRACE_RESULT" = "fail" ] && exit "$TRACE_EXIT"
+exit 0
+```
+
+**Note**: `--scope change --change "$CHANGE_ID"` is the only invocation this
+skill makes. It shadows the archive with this change's own delta and reports
+touched violations only — pre-existing gaps the change did not create are
+reported, never failed (this is what makes the gate safe to make blocking).
+The full-capability sweep (every requirement, every capability, unbounded by
+change scope) is a separate, CI-only invocation and is never run here.
+
+**In CI-vs-local behavior**, mirroring 7.0: in local validation, a `fail`
+result halts further spec-compliance work — do not proceed to 7.1's
+per-requirement matrix update as if the phase passed. In CI-invoked
+validation, record `TRACE_RESULT=fail` as a CRITICAL finding in
+`validation-report.md` under "Phase Results" with Result=`fail` and Details
+set to `$TRACE_OUTPUT` (it already names the violating operations and
+requirements) — do not silently continue past it.
+
+A `skip` result is not a failure: record it as a skipped sub-step (○) and
+proceed normally.
 
 #### 7.1. Requirement Traceability (per-requirement live verification)
 
@@ -717,6 +787,7 @@ Produce a structured summary of all phases:
   - test_login_flow: TimeoutError on /api/auth
   - test_dashboard_load: Element not found: #stats-panel
 ✓ Architecture: No broken flows (2 warnings: orphaned functions)
+○ Traceability: Skipped (packages/gen-eval/ not found) _or_ ✓ Traceability: gate passed (16 operations cite 12 requirements) _or_ ✗ Traceability: gate failed — 2 violations (see gate output)
 ✓ Spec Compliance: 8/8 requirements verified (see change-context.md)
 ⚠ Log Analysis: 3 warnings found
   - [WARNING] Deprecated function call: old_api_handler (line 142)

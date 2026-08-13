@@ -506,7 +506,7 @@ scripted verification of the human-authored artifacts.
   file flips reverse enforcement for the capability (D13), so it lands last
   in the phase, when the requirement set is already triaged.
 
-- [ ] 4.3 Demonstrate the gate fails on gen-eval's own contract `[S]`
+- [x] 4.3 Demonstrate the gate fails on gen-eval's own contract `[S]`
   **Spec scenarios**: Traceability Completeness Is Enforced In Both Directions (an uncited operation fails the gate)
   **Design decisions**: D3
   **Dependencies**: 4.2b
@@ -519,6 +519,30 @@ scripted verification of the human-authored artifacts.
   **Note**: confirm the failing run reads the mutated YAML and not a stale
   derived artifact — the descriptor regenerated in 4.2 is the staleness
   hazard here, not Python bytecode.
+  **Evidence (2026-08-10, IMPLEMENT round 1, wp-wiring)**: both mutations run
+  against the real, committed `openspec/contracts/gen-eval-framework/`
+  artifacts from this worktree, with `--repo-root`/roots defaulting to it —
+  not a fixture. Command for both:
+  `cd packages/gen-eval && uv run python scripts/check_traceability.py --scope capability --change trace-requirements-to-contracts`.
+  (a) removed the `traceability:` block (sole citation
+  `gen-eval-framework.budget-management`) from `--time-budget` in
+  `openspec/contracts/gen-eval-framework/cli/gen-eval.yaml` → **exit 1**,
+  `forward failures: - ...gen-eval.yaml: cli:--time-budget cites no
+  requirement and carries no exclusion` → `git checkout --` restored the file
+  → re-run **exit 0** (`16 operations cite 12 requirements`). (b) removed the
+  `gen-eval-framework.dogfood` entry from
+  `openspec/contracts/gen-eval-framework/traceability-exclusions.yaml` →
+  **exit 1**, `reverse failures: - gen-eval-framework:
+  gen-eval-framework.dogfood ('Dogfood') is cited by no operation` →
+  restored via `git checkout --` → re-run **exit 0**. Both runs read the
+  mutated YAML directly (the gate parses contracts itself; there is no
+  derived-descriptor step in its path), so the staleness hazard the note
+  warns about does not apply to this gate — confirmed by (a) naming the
+  exact mutated flag and (b) naming the exact mutated requirement, in both
+  cases from the freshly-read file, not a cached descriptor. `__pycache__`
+  cleared before the second (GREEN) run of each pair as an extra precaution.
+  Both real artifacts left byte-identical to `HEAD` (`git status` clean)
+  after the demonstration.
 
 - [ ] Checkpoint: run tests, review diff, verify scope
 
@@ -592,7 +616,7 @@ be meaningful.
   populated by hand" has no owner other than this task; wp-matrix carries a
   verification step that fails while either template still says to hand-fill it.
 
-- [ ] 5.6 Wire the change-scoped gate into `/validate-feature` `[M]`
+- [x] 5.6 Wire the change-scoped gate into `/validate-feature` `[M]`
   **Spec scenarios**: Validation-Time Evaluation Is Scoped To The Change (a pre-existing gap does not fail a change that did not create it); skill-workflow delta: Validation-Time Requirement Traceability Gate (all four scenarios)
   **Design decisions**: D12
   **Dependencies**: 3.16, 4.2
@@ -612,6 +636,40 @@ be meaningful.
   downstream. The skill's existing gen-eval phase already does detect-then-
   print-SKIP — copy that shape. Test the SKIP path, not just the run path: an
   unprinted skip and a passing gate are indistinguishable in a log.
+  **Evidence (2026-08-10, IMPLEMENT round 1, wp-wiring)**: added section
+  7.0b "Requirement-to-Contract Traceability Gate" to
+  `skills/validate-feature/SKILL.md`, between the pre-existing 7.0 task-drift
+  gate and 7.1's per-requirement live verification — CRITICAL within the
+  non-critical Spec Compliance phase, same treatment as 7.0. Detects
+  `packages/gen-eval/scripts/check_traceability.py` and
+  `openspec/contracts/` and prints an explicit `SKIP: requirement-traceability
+  gate unavailable (<path> not found)` naming whichever is missing, mirroring
+  the Gen-Eval phase's (4b) detect-then-SKIP shape. When present, invokes
+  `check_traceability.py --scope change --change "$CHANGE_ID"` bare (command
+  substitution captures stdout, `$?` is read immediately after, never through
+  a pipe), prints the gate's own output, and sets `TRACE_RESULT` to
+  `skip`/`pass`/`fail`; a `fail` result propagates the gate's own exit code
+  from the fragment. Validation Report template (section 11) gained a
+  `Traceability` phase-result line (skip/pass/fail forms). New test file
+  `skills/tests/validate-feature/test_validate_feature_gate.py` (4 tests,
+  pattern-matched on `test_gen_eval_mode_selection.py`) extracts the fragment
+  and drives it against a hermetic stub `check_traceability.py` (no real
+  gen_eval/pydantic/yaml dependency): absent script → SKIP naming the script
+  path, exit 0; script present but `openspec/contracts/` absent → SKIP naming
+  the contracts path, exit 0; stub exit 0 → asserts the real argv
+  (`--scope change --change trace-requirements-to-contracts`) was built and
+  `PASS` printed; stub exit 1 with a violation-naming stdout line → `FAIL:
+  ... exited 1` printed, the violation line captured in output, fragment
+  exit 1. Verified: `skills/.venv/bin/python -m pytest
+  skills/tests/validate-feature -q` → **9 passed** (5 pre-existing + 4 new).
+  Full bare suite from `skills/` (`skills/.venv/bin/python -m pytest -q`,
+  matching CI's `uv run pytest -v`): **2368 passed, 1 failed** — the one
+  failure (`tests/cite-requirements/test_walkthrough.py::
+  test_real_contract_insertion_is_reversible_for_every_flag`) is pre-existing
+  and out of wp-wiring's scope (Track A's `cite-requirements` skill; the real
+  contract now has a citation for every flag post-4.2, which the test's
+  "insert one" fixture doesn't anticipate) — confirmed unrelated to this
+  task's files by inspection, not touched here.
 
 - [ ] 5.7 Wire the full-capability sweep into CI `[S]`
   **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (a pull request that was not planned through OpenSpec skips); (a pull request touching two change directories fails as ambiguous); (an unresolvable base fails rather than skipping); (a merge group batching two changes is evaluated once per change); (a merge group is not evaluated against changes outside the batch); (an archive pull request derives no change id); (the run on the integration branch cannot fail); (the job is not guarded off any declared event)
@@ -818,18 +876,57 @@ be meaningful.
   defer the reverse opt-in to a follow-up change — NOT to weaken the gate or
   to write exclusions whose reason is a placeholder.
 
-- [ ] 5.8 Update `packages/gen-eval/README.md` with the four-edge chain `[S]`
+- [x] 5.8 Update `packages/gen-eval/README.md` with the four-edge chain `[S]`
   **Dependencies**: 5.6, 5.7
   **Note**: the README documents contract → descriptor → verify. State the edge
   above it, and state plainly what the gate does NOT claim (D5) — a reader who
   takes "traceability gate: pass" for "requirements are implemented" has been
   misled by the documentation, not by the gate.
+  **Evidence (2026-08-10, IMPLEMENT round 1, wp-wiring)**: added a new
+  top-level `## Requirement traceability` section to
+  `packages/gen-eval/README.md`, placed before `## Contract-derived
+  descriptors` so the read order follows the chain: requirement → contract
+  (new) → descriptor → verify (existing). States both directions
+  (forward: per-document opt-in; reverse: per-capability opt-in keyed on
+  the exclusions file's existence, fail-closed on unreadable/unparseable),
+  the D1 never-inferred rule, the D5 non-claim verbatim from the gate's own
+  report line, and the two `--scope` invocation forms with a one-line
+  description of each's blocking/non-blocking role. Links to the promoted
+  `openspec/contracts/gen-eval-framework/schemas/traceability{,-exclusions}.schema.json`
+  rather than a nonexistent `openspec/contracts/README.md` traceability
+  section (checked: that file has no such section as of this commit).
+  **Note on the stated dependency on 5.7**: this task ran per the
+  orchestrator's explicit IMPLEMENT-round-1 scope (4.3, 5.6, 5.8, 5.9) ahead
+  of 5.7, which remains dependency-blocked on human task 5.2 (splitting the
+  coordinator contract). The README content describes the `--scope
+  capability [--change <id>]` invocation form and its blocking/non-blocking
+  roles from the already-fully-specified design (task 5.7's own text and D12)
+  rather than from anything 5.7 would newly decide, so nothing here is
+  speculative about undecided behavior — but the CI wiring itself does not
+  exist yet, so the "every BLOCKING CI invocation" language in the new
+  section describes 5.7's design, not yet a landed fact. Re-check this
+  section's wording once 5.7 lands.
 
-- [ ] 5.9 Refresh `DOWNSTREAM.md` for consumers with their own contracts `[S]`
+- [x] 5.9 Refresh `DOWNSTREAM.md` for consumers with their own contracts `[S]`
   **Dependencies**: 5.6, 5.7
   **Note**: ACA's tool contract is affected only if they opt in (D6/D13). Say
   so explicitly — the previous notice's DS-2 had to be rewritten at
   implementation time because it promised a change that did not ship.
+  **Evidence (2026-08-10, IMPLEMENT round 1, wp-wiring)**: no persistent
+  `packages/gen-eval/DOWNSTREAM.md` existed yet (prior notices for this
+  package lived per-change at `openspec/changes/<id>/DOWNSTREAM.md` and were
+  archived with their change); created it at the path this package's
+  `write_allow` names. Content: states up front that both opt-ins (forward
+  per-document, reverse per-capability via the exclusions file's existence)
+  are opt-in and nothing in this change flips either for a downstream
+  consumer's own contract; explicitly separates what is committed as of this
+  commit (the promoted schemas, the gate script, the `/validate-feature`
+  change-scoped wiring) from what is NOT yet landed (the full-capability CI
+  sweep, task 5.7, still dependency-blocked on human task 5.2 as of this
+  IMPLEMENT round) — applying the DS-2 lesson directly: do not describe
+  pending work as shipped. Points ACA at the fully-opted-in
+  `gen-eval-framework/cli/gen-eval.yaml` as a worked example per its own
+  `derive-descriptors-from-contracts` DS-3 migration path.
 
 - [ ] Final checkpoint: full suite green, `openspec validate --strict` passes,
   and both wired gates demonstrated per the RED protocol — the change-scoped
