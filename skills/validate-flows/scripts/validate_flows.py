@@ -22,7 +22,6 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +35,9 @@ if str(_ARCHITECTURE_SCRIPTS) not in sys.path:
 from arch_utils.constants import (  # type: ignore[import-not-found]  # noqa: E402
     SIDE_EFFECT_EDGE_TYPES,
     EdgeType,
+)
+from arch_utils.determinism import (  # type: ignore[import-not-found]  # noqa: E402
+    generated_at_iso,
 )
 from arch_utils.traversal import (  # type: ignore[import-not-found]  # noqa: E402
     build_adjacency,
@@ -162,6 +164,31 @@ def _finding(
     return f
 
 
+def _ordered(findings: list[Finding]) -> list[Finding]:
+    """Return *findings* in a total order that does not depend on iteration luck.
+
+    ``architecture.diagnostics.json`` is a committed artifact whose digest the
+    architecture provenance system records, so its byte content has to be a
+    function of the graph alone. Several checks derive findings by walking sets
+    of node ids, whose order follows ``PYTHONHASHSEED`` rather than the graph;
+    ranking them here makes every check's output reproducible regardless of how
+    the check happened to collect them.
+
+    Sorting is applied per check rather than across the whole report so the
+    category grouping consumers already rely on is preserved.
+    """
+    return sorted(
+        findings,
+        key=lambda f: (
+            f.get("category", ""),
+            f.get("file") or "",
+            f.get("line") if f.get("line") is not None else -1,
+            f.get("node_id") or "",
+            f.get("message", ""),
+        ),
+    )
+
+
 def _in_scope(file_path: str | None, changed_files: list[str] | None) -> bool:
     """Return True if *file_path* is in scope (or scope is not restricted)."""
     if changed_files is None:
@@ -251,7 +278,7 @@ def check_reachability(
                 suggestion="Verify this is expected, or tag the entrypoint as 'pure'",
             ))
 
-    return findings, checked
+    return _ordered(findings), checked
 
 
 # ---------------------------------------------------------------------------
@@ -284,8 +311,11 @@ def check_disconnected_flows(
             api_call_targets.add(edge["to"])
             api_call_sources[edge["to"]].append(edge["from"])
 
-    # Backend routes with no frontend callers (no incoming api_call edge)
-    for node_id in route_node_ids:
+    # Backend routes with no frontend callers (no incoming api_call edge).
+    # Walked in sorted order: `route_node_ids` is a set, and its iteration order
+    # would otherwise decide the order of the findings written to the committed
+    # diagnostics artifact.
+    for node_id in sorted(route_node_ids):
         node = nodes.get(node_id)
         if node is None:
             continue
@@ -336,7 +366,7 @@ def check_disconnected_flows(
                 suggestion="Ensure the backend handler exists and is registered in the graph",
             ))
 
-    return findings
+    return _ordered(findings)
 
 
 # ---------------------------------------------------------------------------
@@ -447,7 +477,7 @@ def check_test_coverage(
                 ),
             ))
 
-    return findings, with_coverage, without_coverage
+    return _ordered(findings), with_coverage, without_coverage
 
 
 # ---------------------------------------------------------------------------
@@ -512,7 +542,7 @@ def check_orphaned_code(
                 suggestion="Remove the dead code or add an entrypoint/test that exercises it",
             ))
 
-    return findings
+    return _ordered(findings)
 
 
 # ---------------------------------------------------------------------------
@@ -600,8 +630,10 @@ def check_pattern_consistency(
 
         # Check decorator consistency
         if kind in dominant_decorators:
+            # Sorted: a set difference, so its iteration order would otherwise
+            # decide the order of one node's decorator findings.
             missing = dominant_decorators[kind] - decorators
-            for dec in missing:
+            for dec in sorted(missing):
                 findings.append(_finding(
                     "info",
                     "pattern_consistency",
@@ -633,7 +665,7 @@ def check_pattern_consistency(
                     suggestion=f"Rename to follow {expected_conv} convention",
                 ))
 
-    return findings
+    return _ordered(findings)
 
 
 # ---------------------------------------------------------------------------
@@ -688,7 +720,10 @@ def validate_flows(
     info = sum(1 for f in all_findings if f["severity"] == "info")
 
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        # The pipeline clock, not the wall clock: this artifact is committed and
+        # digested by architecture provenance, so a wall-clock stamp would make
+        # every refresh of an unchanged graph rewrite it (issue #362).
+        "generated_at": generated_at_iso(),
         "scope": "changed" if changed_files is not None else "full",
         "changed_files": changed_files or [],
         "findings": all_findings,
