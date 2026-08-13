@@ -90,6 +90,14 @@ DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
 # Archetype name pattern (shared between schema and runtime validation)
 # ---------------------------------------------------------------------------
 
+# The supervisor archetype is a read-only orchestrator: it decomposes work,
+# delegates it to write-capable worker archetypes, and adjudicates gates. It
+# MUST NOT be write-capable — every code change is dispatched, never made by
+# the supervisor itself. The archetype resolver enforces this invariant at
+# config-load time (fail-loud), mirroring the D3 structured-field enforcement
+# that a write-capable phase must resolve to a write_capable archetype.
+SUPERVISOR_ARCHETYPE: str = "supervisor"
+
 ARCHETYPE_NAME_PATTERN = r"^[a-z][a-z0-9_-]{0,31}$"
 
 # A tier entry: bare model-id string, or model paired with a thinking level.
@@ -1046,11 +1054,24 @@ def load_archetypes_config(
                 max_dependencies=raw_esc.get("max_dependencies"),
                 loc_threshold=raw_esc.get("loc_threshold"),
             )
+        write_capable = bool(data["write_capable"])
+        # D3 structured-field enforcement (supervisor invariant): the
+        # supervisor archetype is a read-only adjudicator that delegates every
+        # change to a write-capable worker. Reject any config that marks it
+        # write_capable at load time — fail loud, same posture as the
+        # write-capable-phase gate in resolve_archetype_for_phase.
+        if name == SUPERVISOR_ARCHETYPE and write_capable:
+            raise ValueError(
+                f"archetype {SUPERVISOR_ARCHETYPE!r} must be "
+                f"write_capable: false — it decomposes and delegates work to "
+                f"write-capable worker archetypes and never edits code, specs, "
+                f"tests, or configuration directly. Got write_capable: true."
+            )
         result[name] = ArchetypeConfig(
             name=name,
             model=data["model"],
             system_prompt=data["system_prompt"],
-            write_capable=bool(data["write_capable"]),
+            write_capable=write_capable,
             escalation=esc_config,
         )
 
