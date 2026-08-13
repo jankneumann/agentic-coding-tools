@@ -32,6 +32,7 @@ from models import (  # type: ignore[import-untyped]
     LearningPhase,
     Roadmap,
     RoadmapItem,
+    completed_external_refs,
     load_roadmap,
     save_roadmap,
 )
@@ -126,8 +127,16 @@ def execute_roadmap(
 
     # Main loop: process ready items
     while True:
+        # Cross-roadmap prerequisites: an external_depends_on ref is satisfied
+        # once the referenced sibling item reaches 'completed'. Recomputed each
+        # iteration so a prerequisite completing elsewhere is picked up without
+        # a manual status edit here. Read-only scan of sibling roadmaps.
+        external_completed = (
+            completed_external_refs(repo_root) if repo_root else set()
+        )
+
         # Determine what to work on
-        ready = _get_ready_items(roadmap, checkpoint)
+        ready = _get_ready_items(roadmap, checkpoint, external_completed)
         if not ready:
             logger.info("No more ready items — execution complete")
             break
@@ -283,8 +292,23 @@ def _execute_item_phases(
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _get_ready_items(roadmap: Roadmap, checkpoint: Any) -> list[RoadmapItem]:
-    """Get items ready for execution, excluding already completed ones."""
+def _get_ready_items(
+    roadmap: Roadmap,
+    checkpoint: Any,
+    external_completed: set[str] | None = None,
+) -> list[RoadmapItem]:
+    """Get items ready for execution, excluding already completed ones.
+
+    ``external_completed`` is the set of cross-roadmap item_refs
+    ``<roadmap-id>:<item-id>`` whose referenced item has reached ``completed``
+    (see :func:`models.completed_external_refs`). An item's
+    ``external_depends_on`` refs must all be in that set for the item to be
+    ready — so an item whose only remaining blocker is an external prerequisite
+    becomes ready automatically when that prerequisite completes, with no
+    manual status edit. ``superseded`` items are never ready (their status is
+    not in the executable set). Deterministic and side-effect-free.
+    """
+    external_completed = external_completed or set()
     completed_ids = set(checkpoint.completed_items)
     failed_ids = {f.item_id for f in checkpoint.failed_items}
     skip_ids = completed_ids | failed_ids
@@ -295,7 +319,9 @@ def _get_ready_items(roadmap: Roadmap, checkpoint: Any) -> list[RoadmapItem]:
         if item.item_id in skip_ids:
             continue
         if item.status in (ItemStatus.APPROVED, ItemStatus.IN_PROGRESS):
-            if all(dep in completed_ids for dep in item.depends_on):
+            if all(dep in completed_ids for dep in item.depends_on) and all(
+                ref in external_completed for ref in item.external_depends_on
+            ):
                 ready.append(item)
 
     # Sort by priority (lower = higher priority)

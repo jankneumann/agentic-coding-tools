@@ -48,6 +48,7 @@ class ItemStatus(str, Enum):
     BLOCKED = "blocked"
     REPLAN_REQUIRED = "replan_required"
     SKIPPED = "skipped"
+    SUPERSEDED = "superseded"
 
 
 class Effort(str, Enum):
@@ -201,6 +202,9 @@ class RoadmapItem:
     learning_refs: list[str] = field(default_factory=list)
     dep_edges: list[DepEdge] = field(default_factory=list)
     scope: Scope | None = None
+    # Cross-roadmap edges. Each entry is an item_ref '<roadmap-id>:<item-id>'.
+    external_depends_on: list[str] = field(default_factory=list)
+    superseded_by: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -232,6 +236,10 @@ class RoadmapItem:
             d["learning_refs"] = self.learning_refs
         if self.scope:
             d["scope"] = self.scope.to_dict()
+        if self.external_depends_on:
+            d["external_depends_on"] = self.external_depends_on
+        if self.superseded_by:
+            d["superseded_by"] = self.superseded_by
         return d
 
     @classmethod
@@ -267,6 +275,8 @@ class RoadmapItem:
             learning_refs=data.get("learning_refs", []),
             dep_edges=dep_edges,
             scope=scope,
+            external_depends_on=list(data.get("external_depends_on", [])),
+            superseded_by=list(data.get("superseded_by", [])),
         )
 
 
@@ -315,13 +325,29 @@ class Roadmap:
                 return item
         return None
 
-    def ready_items(self) -> list[RoadmapItem]:
-        """Return items whose dependencies are all completed and status is approved."""
+    def ready_items(
+        self, external_completed: set[str] | None = None
+    ) -> list[RoadmapItem]:
+        """Return items ready to execute.
+
+        An item is ready when its status is ``approved``, every in-roadmap
+        ``depends_on`` id is completed, and every ``external_depends_on``
+        item_ref appears in ``external_completed`` (the set of cross-roadmap
+        item_refs whose referenced item has reached ``completed``). Pass the
+        set produced by :func:`completed_external_refs`. When omitted, external
+        prerequisites are treated as unmet, so an item carrying any
+        ``external_depends_on`` edge is withheld until callers supply the set.
+
+        ``superseded`` items are never ready (their status is not ``approved``).
+        This method performs no file IO and does not mutate anything.
+        """
+        external_completed = external_completed or set()
         completed_ids = {i.item_id for i in self.items if i.status == ItemStatus.COMPLETED}
         return [
             i for i in self.items
             if i.status == ItemStatus.APPROVED
             and all(dep in completed_ids for dep in i.depends_on)
+            and all(ref in external_completed for ref in i.external_depends_on)
         ]
 
     def has_cycle(self) -> bool:
@@ -566,6 +592,86 @@ def validate_against_schema(data: dict[str, Any], schema_path: str, repo_root: P
     schema = _load_schema(schema_path, repo_root)
     validator = jsonschema.Draft202012Validator(schema)
     return [e.message for e in validator.iter_errors(data)]
+
+
+# ---------------------------------------------------------------------------
+# Cross-roadmap helpers
+# ---------------------------------------------------------------------------
+ROADMAPS_DIRNAME = "openspec/roadmaps"
+
+
+def parse_item_ref(ref: str) -> tuple[str, str]:
+    """Split an item_ref ``<roadmap-id>:<item-id>`` into its two parts.
+
+    Returns ``(roadmap_id, item_id)``. Raises ``ValueError`` when the ref is
+    not exactly ``<roadmap-id>:<item-id>`` (both parts non-empty, exactly one
+    colon).
+    """
+    parts = ref.split(":")
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise ValueError(
+            f"Malformed item_ref {ref!r} — expected '<roadmap-id>:<item-id>'."
+        )
+    return parts[0], parts[1]
+
+
+def is_valid_item_ref(ref: str) -> bool:
+    """True when ``ref`` matches the ``<roadmap-id>:<item-id>`` grammar."""
+    try:
+        parse_item_ref(ref)
+    except ValueError:
+        return False
+    return True
+
+
+def load_all_roadmaps(repo_root: Path) -> dict[str, Roadmap]:
+    """Load every ``openspec/roadmaps/*/roadmap.yaml`` under ``repo_root``.
+
+    Read-only and side-effect-free. Returns ``{roadmap_id: Roadmap}`` keyed by
+    each roadmap's declared ``roadmap_id`` (not its directory name). Archived
+    roadmaps under ``openspec/roadmaps/archive/<...>/roadmap.yaml`` are nested a
+    level deeper and are naturally excluded by the ``*/roadmap.yaml`` glob.
+    Files that fail to parse are skipped rather than raising.
+    """
+    result: dict[str, Roadmap] = {}
+    roadmaps_dir = repo_root / ROADMAPS_DIRNAME
+    if not roadmaps_dir.is_dir():
+        return result
+    for path in sorted(roadmaps_dir.glob("*/roadmap.yaml")):
+        try:
+            data = yaml.safe_load(path.read_text())
+            roadmap = Roadmap.from_dict(data)
+        except Exception:  # noqa: BLE001 — a malformed sibling must not break callers
+            logger.debug("Skipping unparseable roadmap at %s", path, exc_info=True)
+            continue
+        result[roadmap.roadmap_id] = roadmap
+    return result
+
+
+def external_item_status(repo_root: Path) -> dict[str, str]:
+    """Return ``{item_ref: status}`` for every item across all roadmaps.
+
+    Keys are fully-qualified item_refs ``<roadmap-id>:<item-id>``; values are
+    the item's status string. Read-only.
+    """
+    status: dict[str, str] = {}
+    for roadmap_id, roadmap in load_all_roadmaps(repo_root).items():
+        for item in roadmap.items:
+            status[f"{roadmap_id}:{item.item_id}"] = item.status.value
+    return status
+
+
+def completed_external_refs(repo_root: Path) -> set[str]:
+    """Set of item_refs across all roadmaps whose item status is ``completed``.
+
+    This is the value to pass as ``external_completed`` to
+    :meth:`Roadmap.ready_items` / the orchestrator's ``_get_ready_items``.
+    """
+    return {
+        ref
+        for ref, st in external_item_status(repo_root).items()
+        if st == ItemStatus.COMPLETED.value
+    }
 
 
 # ---------------------------------------------------------------------------
