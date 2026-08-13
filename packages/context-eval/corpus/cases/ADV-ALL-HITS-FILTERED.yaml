@@ -1,0 +1,41 @@
+schema_version: 1
+case_id: ADV-ALL-HITS-FILTERED
+consumer: validate-feature
+
+query: "which behavioral scenarios run against a deployed frontend"
+
+category: control
+
+scope:
+  read_allow:
+    - "agent-coordinator/tests/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files: []
+  must_touch: []
+  evidence_spans: []
+
+expectation:
+  status: fallback
+  trigger: out_of_scope
+  reason: all_hits_scope_filtered
+  rendered_hits: 0
+
+recorded_response:
+  path: responses/adv-all-hits-filtered.json
+  service_state: ready
+  adversarial: true
+
+rationale: >
+  The boundary case between the scope gate and the fail-closed gate, and the one
+  where the two most plausible wrong answers are both wrong in an interesting
+  way. The service is healthy and returned results; the client-side re-check
+  removes all of them. Reporting that as an injected section with zero hits would
+  be a lie about what happened. Reporting it as `no_context` —
+  index-was-healthy-and-held-nothing — would send a reader looking for a
+  retrieval problem when the real fact is that everything relevant was outside
+  what this job was allowed to read, which is a scope decision with a completely
+  different remedy. Hence `out_of_scope` / `all_hits_scope_filtered`, with the
+  labels left empty because nothing was supposed to be rendered.

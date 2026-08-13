@@ -377,13 +377,43 @@ discovery reports false, and no optional query resources start. Immutable v2
 indexes remain available for a later re-enable; exact source search remains the
 supported coding-context path throughout rollback.
 
-## Retrieval-quality gate (design D9)
+## Retrieval-quality gate
 
-Enabling in production requires closing the spike gate: run
-`openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/` against a
-reachable embedder and confirm `semantic hit@5 >= 7/10` (see that directory's
-`spike-report.md` for the procedure). Until then the flag stays off and nothing
-depends on unproven retrieval quality.
+Enabling in production requires a schema-valid evaluation report at
+`docs/evaluation/semantic-context/report.json` whose verdict is `pass`. The
+procedure, the preconditions, the exit codes, and the conditions that expire an
+existing report are documented in
+[semantic-context evaluation](../evaluation/semantic-context/README.md).
+
+The bar is unchanged: `hit@5 >= 7/10`, including at least 2 tasks the
+exact-search baseline measurably missed. What changed is that the evidence is
+durable, machine-checkable, and fail-closed.
+
+| Before (2026-07) | Now |
+|---|---|
+| Report inside a change directory, moved by archival | Durable path outside every change directory |
+| Prose verdict `BLOCKED (environment) → WAIVED` | JSON verdict from a closed `pass` \| `fail` enum, with no waiver field anywhere |
+| Automated check was a substring test (`'Verdict' in t and 'hit@5' in t`) | Schema validation plus declared-gate and declared-denominator composition |
+| Measured stock `ccc` over sqlite-vec | Measures the Postgres/pgvector path that actually serves |
+| Unbounded ripgrep dump vs. a capped section | Both arms rendered under one shared context budget |
+
+**The report exists and it records `verdict: "fail"`** —
+`["unmeasured", "denominator_mismatch", "index_tier_insufficient"]`. The flag
+stays off because the evidence says no, not because evidence is absent, and the
+distinction is the whole point: "we did not measure it" and "we measured it and
+it failed" are different facts with different remedies, and collapsing them is
+exactly what the July 2026 waiver did. Semantic hit@5 is still unmeasured on this
+repository — `retrieval_quality` and `coding_context_utility` both declare
+`min_index_tier: live` and both received `none` — but that is now a named,
+machine-readable reason inside a schema-valid document rather than a missing
+file. A measurement that is taken and comes back `fail` is a correct, complete
+outcome; it simply does not authorize enablement.
+
+The previous attempt
+(`openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/spike-report.md:9-19`)
+was blocked by 403 embedding backends and recorded as waived, with semantic
+hit@5 UNMEASURED. It is superseded and authorizes nothing. Its ten hand-labeled
+tasks are rescued into the evaluation corpus; its runner is not.
 
 ## Consuming results in coding jobs (ri-12)
 
@@ -392,5 +422,9 @@ bound, and read its results — the `SEMANTIC_CONTEXT_INJECTION` flag, the five
 fallback triggers, the four budget bounds, and the HTTP-only constraint — is
 documented in [semantic context injection](semantic-context-injection.md).
 
-Injection is off by default and stays off until the retrieval-quality gate above
-*and* the coding-context utility gate (roadmap item ri-13) both pass.
+Injection is off by default. It stays off until one report at
+`docs/evaluation/semantic-context/report.json` records a `pass` across every
+declared gate — retrieval quality, coding-context utility, scope compliance, and
+fail-closed regression. There is no partial authorization: a single failing gate,
+or a single consumer whose coverage regresses against the exact-search baseline,
+fails the composed verdict.

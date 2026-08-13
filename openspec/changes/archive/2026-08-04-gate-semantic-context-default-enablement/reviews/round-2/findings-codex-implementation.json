@@ -1,0 +1,20 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "R1's fix moved the vacuous-pass hole from empty arrays to present-but-unscored bodies. I hand-wrote /tmp/context-gate-review.eOanLi/zero-scored-pass.json, not via write_report(): it has current corpus/harness/embedder/revision provenance, verdict \"pass\", all 19 declared case ids present, but every case has \"scored\": false with no arms and corpus.cases_scored is 0. The schema accepted it and the gate authorized it. Exact gate command run: packages/context-eval/.venv/bin/python -m context_eval.enablement_gate --repository-root \"$PWD\" --semantic-context /tmp/context-gate-review.eOanLi/semantic_context.py --report /tmp/context-gate-review.eOanLi/zero-scored-pass.json --corpus packages/context-eval/corpus --embedding-contract /tmp/context-gate-review.eOanLi/embedding-contract.json; observed output listed every condition as met, including report_describes_corpus and verdict_pass, and EXIT:0. I also validated the raw artifact with report.validate_report and observed schema_valid True, cases_declared 19, cases_scored 0, scored_true 0, unscored_false 19.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/enablement_gate.py",
+      "line_range": {
+        "start": 301,
+        "end": 375
+      },
+      "resolution": "Make report_describes_corpus, and preferably the report schema too, reject a passing top-level verdict unless the report contains actual scored evidence for the declared corpus. At minimum, when verdict == \"pass\", require cases_scored == cases_declared and every declared case entry has scored true; also add a mutation test for a raw all-unscored/non-empty pass report so this exact bypass fails with report_describes_corpus or schema_valid instead of authorizing enablement."
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+schema_version: 1
+case_id: FC-QUICK-TASK-NO-DECLARED-SCOPE
+consumer: quick-task
+
+query: "add a --dry-run flag to the worktree teardown script"
+
+category: control
+
+# EMPTY, and that is the assertion. quick-task carries no change_id and no
+# package_id, so ri-08's index_scopes() has nothing to resolve. An empty
+# read_allow is a declared statement that this job has no scope — not an
+# oversight, and emphatically not an invitation to widen to the repository root.
+scope:
+  read_allow: []
+  deny: []
+
+labels:
+  expected_files: []
+  must_touch: []
+  evidence_spans: []
+
+expectation:
+  status: fallback
+  trigger: out_of_scope
+  reason: no_declared_scope
+  rendered_hits: 0
+
+# No recorded_response, deliberately. This case never reaches the wire: ri-12
+# short-circuits on the absent scope before building a request, so there is no
+# response to record. Attaching a fixture would imply a round trip that does not
+# happen and would let a client that DID make the request still pass.
+
+rationale: >
+  This is quick-task's entire relationship with semantic injection, and the
+  reason its consumer slice declares utility_applicable: false. Its SKILL.md
+  states that it has no change_id/package_id; the guide states that a job with no
+  declared scope gets no injection and that no scope is invented for it. So there
+  is no utility to measure here, and pretending otherwise would mean either
+  inventing a scope (the exact failure ri-12 exists to prevent) or quietly
+  omitting a consumer from the evaluation (the exact failure the corpus schema's
+  required utility_applicable exists to prevent). Declared absence is auditable;
+  silent absence is indistinguishable from an oversight.

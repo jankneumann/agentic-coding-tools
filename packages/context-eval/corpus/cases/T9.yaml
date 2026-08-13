@@ -1,0 +1,44 @@
+schema_version: 1
+case_id: T9
+consumer: validate-feature
+
+query: "how does an agent claim the next available task"
+
+category: lexical-ok
+
+scope:
+  read_allow:
+    - "agent-coordinator/src/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - agent-coordinator/src/work_queue.py
+  must_touch:
+    - agent-coordinator/src/work_queue.py
+  evidence_spans:
+    # claim() — the signature and the docstring that states the guarantee
+    # ("atomically", "dependencies satisfied", guardrails before returning).
+    - file_path: agent-coordinator/src/work_queue.py
+      start_line: 225
+      end_line: 250
+    # The claim_task RPC call and the archetype/trust filtering that decides
+    # which task is "available" to THIS agent.
+    - file_path: agent-coordinator/src/work_queue.py
+      start_line: 268
+      end_line: 300
+
+exact_search_baseline:
+  ripgrep_baseline: "rg -il 'claim the next available task'"
+
+provenance:
+  rescued_from: openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/eval-set.yaml
+  notes: >
+    Preserved verbatim: case_id, query, expected_files, category, rationale, and
+    the ripgrep_baseline string. Added by ri-13: consumer, scope, must_touch, and
+    evidence_spans.
+
+rationale: >
+  work_queue.py implements get_work/claim semantics. 'claim' + 'task' tokens are likely
+  present, so ripgrep has a reasonable chance — treated as a lexical control.

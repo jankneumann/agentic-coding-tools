@@ -1,0 +1,33 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "R1's fix blocks empty array bodies but allows partial-but-non-empty bodies where zero or fewer than all cases are scored (cases_scored < cases_declared). In packages/context-eval/src/context_eval/verdict.py, compose_verdict() enforces that any run where len(scored) != len(declared_ids) is an unmeasured failure (verdict: \"fail\"). However, _describes_corpus_condition in enablement_gate.py only checks internal consistency between counts[\"cases_scored\"] and the number of entries in cases marked scored: true. It does not require cases_scored == len(declared_cases) for a passing verdict. We reproduced this by running a python script to construct a valid schema report with cases_scored: 0, all 19 cases marked scored: false, 4 gates, 6 consumers, and verdict: \"pass\". Calling enablement_gate.evaluate() on this document with INJECTION_DEFAULT_ENABLED = True returned Outcome.authorized == True (exit code 0), authorizing default enablement based on evidence where zero cases were measured.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/enablement_gate.py",
+      "line_range": {
+        "start": 301,
+        "end": 376
+      },
+      "resolution": "In _describes_corpus_condition in enablement_gate.py, check that if document.get(\"verdict\") == \"pass\", counts.get(\"cases_scored\") must equal len(declared_cases). A report recording verdict: \"pass\" with cases_scored < cases_declared (or cases_scored == 0) does not describe a valid passing measurement of the corpus and must render REPORT_DESCRIBES_CORPUS unmet."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "harness_fingerprint() in packages/context-eval/src/context_eval/report.py digests the harness source tree using _source_files(). While _source_files() filters out .pyc files and __pycache__ directories, it includes OS metadata files (such as .DS_Store), editor swap files, and hidden directories/files. We reproduced this empirically on macOS by running packages/context-eval/.venv/bin/python to compute harness_fingerprint() on packages/context-eval/src/context_eval, then creating a .DS_Store file inside src/context_eval (which macOS Finder creates automatically upon opening directories). The digest changed from 0e24a910de6347c4c7580af82dc8c7c41b671faea0955cda95c96f0e665cf446 to 930cc6c232436f046682c0b8940d6a56de45679bd23335266692139c1df74ff2. Consequently, enablement_gate returns exit code 3 with an unmet harness_fingerprint_current condition whenever .DS_Store exists in src/context_eval/.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/report.py",
+      "line_range": {
+        "start": 359,
+        "end": 367
+      },
+      "resolution": "Update _source_files() in report.py to filter out hidden files/directories (any path component starting with \".\") and common OS metadata files like .DS_Store, so that harness_fingerprint() depends strictly on source code files."
+    }
+  ]
+}

@@ -454,3 +454,125 @@ jobs:
           name: gen-eval-dogfood-report
           path: packages/gen-eval/evaluation/.reports/
           if-no-files-found: ignore
+
+  context-eval:
+    # The semantic-context evaluation harness (ri-13, packages/context-eval):
+    # the corpus, the scorers, the fail-closed verdict composer, the report
+    # emitter and the CLI.
+    #
+    # This job exists because omitting it is the documented failure mode, not a
+    # hypothetical one. `grep -n agent-scenarios .github/workflows/*.yml Makefile`
+    # returns nothing: the precedent package this plan follows (D2) was built
+    # beside gen-eval with no CI job at all. The gate this harness replaces died
+    # the same way one level up — an evaluation nobody runs stops being evidence
+    # long before anybody notices (design D14, check A).
+    #
+    # No database, no embedder, no coordinator: the whole suite is offline by
+    # construction. The live measurement is deliberately NOT a CI job — it needs
+    # a real index and minutes of indexing — and its output, the committed
+    # report under docs/evaluation/semantic-context/, is what CI reads.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/context-eval
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          # Pinned, like every tool below. `ci.yml` already carries one unpinned
+          # installer (`npm install -g @fission-ai/openspec`, issue #318) whose
+          # drift let a local 1.1.1 and CI's 1.6.0 disagree about the same tree
+          # and nearly produced a phantom defect report. This job adds no second
+          # one.
+          version: "0.9.18"
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install the package and its pinned dev tools
+        # ruff, mypy, pytest and both stub packages are pinned with `==` in
+        # packages/context-eval/pyproject.toml, so what this job checks is a
+        # property of the diff rather than of whatever the registry serves today.
+        run: uv sync --all-extras
+
+      - name: Lint (ruff)
+        # Explicit rule selection lives in the package's pyproject; ruff 0.16
+        # changed its DEFAULT set, and a gate that silently gains or loses rules
+        # on a dependency bump is not a gate.
+        run: uv run ruff check src/ tests/
+
+      - name: Type-check (mypy --strict)
+        # Blocking, and without --ignore-missing-imports: the stub packages are
+        # pinned precisely so the two untyped third-party imports are checked
+        # rather than waved through.
+        run: uv run mypy src/context_eval/ --strict
+
+      - name: Run the context-eval suite
+        # Same marker exclusion as every other job in this file. Nothing in this
+        # package is marked e2e or integration today; the exclusion is here so a
+        # future case needing a real index does not start failing CI silently on
+        # the day it is added.
+        run: uv run pytest tests -q -m "not e2e and not integration"
+
+  semantic-enablement-gate:
+    # The Enablement Consistency Gate (ri-13, design D14 check D): is the
+    # semantic-context injection default this tree declares authorized by the
+    # evidence this tree carries?
+    #
+    # Unlike every other check in this file, this one is GREEN on an unmodified
+    # tree, and deliberately: it exists to catch a flip nobody has made, and
+    # making it red today would mean making `main` red for a condition nobody
+    # caused. Its proof is a mutation test, not an observation — the
+    # `context-eval` job above runs
+    # `packages/context-eval/tests/test_enablement_gate_mutation.py`, which
+    # constructs an enabled default against evidence that is absent, stale by
+    # each of D12's six expiry conditions, failing, and schema-invalid, and
+    # asserts a non-zero exit for each. That test is what stops this job being
+    # decoration; this job is what stops the gate being unrun.
+    #
+    # It adds nothing at runtime and reaches no service: no database, no
+    # embedder, no coordinator. It reads one committed source constant and one
+    # committed report.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history, because one of the six expiry conditions asks git
+          # whether the report's indexed revision is reachable from the tree
+          # under test. Under the default shallow clone that question has no
+          # honest answer, and a gate that answered it anyway would either pass
+          # stale evidence or reject current evidence.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          # Pinned, like the `context-eval` job above and for the same reason:
+          # `ci.yml` already carries one unpinned installer (issue #318) whose
+          # drift let a local and a CI version disagree about the same tree.
+          version: "0.9.18"
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install the harness
+        # ruff 0.16.0, mypy 2.3.0, pytest 9.1.1 and both stub packages are
+        # pinned with `==` in packages/context-eval/pyproject.toml; jsonschema
+        # and pyyaml are the two runtime dependencies the gate needs to load the
+        # corpus and validate the report.
+        working-directory: packages/context-eval
+        run: uv sync --all-extras
+
+      - name: Enablement consistency gate
+        # Through `make`, so a failed build is reproduced verbatim by the same
+        # one command locally rather than approximated. PYTHON points at the
+        # venv `uv sync` just built; `make` collapses the gate's own exit code
+        # (2 = present evidence that does not authorize, 3 = absent or expired
+        # evidence) to its own 2, printing the real one as `Error <n>`.
+        run: make semantic-enablement-gate PYTHON=packages/context-eval/.venv/bin/python

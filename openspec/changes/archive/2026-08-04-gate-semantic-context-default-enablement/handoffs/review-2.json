@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T22:00:24.938146+00:00",
+  "coordinator_error": {
+    "error_type": "not_attempted",
+    "message": "Local handoff only; round 1 recorded http_403 for this agent_id."
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "phase": "IMPL_REVIEW",
+    "iteration": 2,
+    "outcome": "not_converged",
+    "reviewed_revision": "b74b3d2f5ae8d42f5e44599e3391a9872c6d7a6a",
+    "summary": "IMPL_REVIEW round 2 for gate-semantic-context-default-enablement at b74b3d2f. Multi-vendor review re-dispatched via review_dispatcher.py --mode alternative so reviewers had Bash and could build forged artifacts and run the gate themselves. Three of four succeeded: antigravity/gemini-3.6-flash-medium (69s, 2 findings), codex/gpt-5.5 (227s, 1), grok/grok-4.5 (291s, 1). pi failed again on OpenRouter HTTP 402 insufficient credits -- the same account condition as round 1, not a review failure. NOTE: the first dispatch attempt was lost entirely because the review prompt specified a finding envelope (severity/category/location/title) that checkpoint_findings._validate_finding rejects; it requires id/type/criticality/description/disposition and the dispatcher raises before writing anything, discarding all vendor stdout. Re-dispatched with the correct contract. This is the #286 family and cost one full dispatch cycle. OUTCOME not_converged on ONE blocking finding, and it is unanimous: claude, antigravity, codex and grok each independently constructed a hand-edited report that satisfies every gate condition while describing a measurement that did not happen. R1's fix closed the EMPTY body and left the PARTIAL body open -- report_describes_corpus re-derives the DENOMINATOR (counts, case ids, gate ids, consumer names) and nothing about OUTCOMES, so a document may account for the whole corpus and still contradict its own conclusion. The three other fixes verified real: R2's ScopeScoringError now routes through the shared ScoringError and all three scorers agree; R3's regenerated report carries a harness.fingerprint equal to HEAD's source digest; R4's four prose corrections are accurate. #337's fingerprint is genuinely usable -- path-independent, bytecode-independent, moves on a real scorer edit. No second decoration exists: the mutation suite carries explicit positive controls and test_every_condition_the_gate_declares_is_mutated forces each new condition to arrive with a mutant. The blocking finding is a MISSING condition, not an unproven one. All baselines reproduce exactly; worktree untracked set unchanged.",
+    "blocking_findings": [
+      {
+        "id": 1,
+        "type": "correctness",
+        "criticality": "critical",
+        "severity": "critical",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/enablement_gate.py",
+        "line_range": {
+          "start": 263,
+          "end": 375
+        },
+        "found_by": [
+          "claude(independently reproduced)",
+          "antigravity",
+          "codex",
+          "grok"
+        ],
+        "description": "The gate authorizes an enabled default from a report whose own body records failure. `verdict_pass` (_verdict_condition, :263-272) reads one top-level string, and `report_describes_corpus` (_describes_corpus_condition, :301-375) re-derives only the DENOMINATOR -- corpus counts, case ids, gate ids, consumer names. Nothing re-derives the OUTCOME, so a report can account for the whole declared corpus and still contradict its own conclusion. `__main__._check` (:188) has the identical weakness and is the other consumer of the same trust. REPRODUCED FOUR WAYS INDEPENDENTLY. (a) claude: a THREE-FIELD hand-edit of the committed docs/evaluation/semantic-context/report.json -- verdict fail->pass, delete fail_reasons, set index.indexed_revision to any reachable commit (a live run populates it anyway) -- makes the gate print NINE met conditions and exit 0, while the same file still records retrieval_quality and coding_context_utility verdict=fail with fail_reasons [unmeasured, index_tier_insufficient], 5 of 6 per_consumer entries verdict=fail, corpus.cases_scored 7 of cases_declared 19, and index.tier 'none' against two gates declaring min_index_tier 'live'. (b) codex, (c) grok and (d) antigravity each built the stronger variant: all 19 declared case ids present but every one scored: false, corpus.cases_scored 0, every gate and consumer forced to pass with fabricated measured/metrics maps -- schema-valid, and authorized. compose_verdict() guarantees pass <=> every declared case scored AND every declared gate passed AND every precondition held, so these documents are UNPRODUCIBLE by the emitter; they can only arise from a hand-edit or corruption, which is precisely the threat the module docstring (:44-56) says the second layer exists to catch -- 'the schema does not run on a file somebody edited by hand, and the gate does not run on a file nobody committed'. This is the same defect class as R1, incompletely closed. Codex's own round-1 resolution asked for 'every declared gate present AND PASSING and every declared case present AND SCORED'; only the 'present' half was implemented.",
+        "resolution": "Re-derive the composer's pass invariant onto the on-disk artifact, in one shared place that both _verdict_condition and __main__._check call. Every input is already in the report: (1) top-level pass => corpus.cases_scored == corpus.cases_declared and every declared case entry has scored true; (2) top-level pass => every `required` gate has verdict pass; (3) top-level pass => every per_consumer entry has verdict pass; (4) gate pass => index.tier satisfies that gate's min_index_tier. Mirror them as schema cross-field constraints in BOTH copies of context-eval-report.schema.json, matching this change's own stated two-layer doctrine (the schema does not run on a hand-edited file; the gate does not run on an uncommitted one). Add mutants for outcome contradiction: the existing content mutation sets (UNWRITABLE_BODIES, MISDESCRIBING_BODIES) only ever perturb corpus COVERAGE, never OUTCOME consistency, which is exactly why the suite is green on this hole."
+      }
+    ],
+    "non_blocking_findings": [
+      {
+        "id": 2,
+        "type": "security",
+        "criticality": "high",
+        "severity": "optional",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/enablement_gate.py",
+        "line_range": {
+          "start": 378,
+          "end": 620
+        },
+        "found_by": [
+          "claude"
+        ],
+        "description": "--harness-source and --harness-version together let a caller assert BOTH halves of harness identity, reintroducing on the new condition the exact property #337 was filed about. The #337 fix correctly closes the IMPLICIT case -- verified: the digest moves on a real scorer edit and the committed report matches HEAD -- but 03328270 added a second override flag alongside it. REPRODUCED: a report claiming version '9.9.9-never-installed' and a fingerprint of a MUTATED source tree correctly expires under CI's invocation (exit 3, both harness conditions unmet); adding --harness-source <mutated tree> --harness-version 9.9.9-never-installed yields exit 0 with 'the harness is still 9.9.9-never-installed' and 'the harness source still digests to 24ab...'. Non-blocking only because make/CI pass neither flag.",
+        "resolution": "evaluate() already takes harness_source as a keyword, so keep the injection seam there and drop both overrides from the production parser; the mutation tests can call evaluate() instead of main(). If the CLI seam must stay, gate it behind an explicit --allow-identity-override that the gate refuses whenever it would decide authorization."
+      },
+      {
+        "id": 3,
+        "type": "correctness",
+        "criticality": "high",
+        "severity": "optional",
+        "axis": "correctness",
+        "disposition": "fix",
+        "file_path": "packages/context-eval/src/context_eval/report.py",
+        "line_range": {
+          "start": 359,
+          "end": 367
+        },
+        "found_by": [
+          "antigravity",
+          "claude(independently reproduced)"
+        ],
+        "description": "harness_fingerprint digests every file under src/context_eval/, not only source. Bytecode and __pycache__ are correctly excluded and the digest is path-independent (both verified), but a stray .DS_Store -- which macOS Finder creates on merely opening the directory -- or a coverage.xml changes harness identity. REPRODUCED by both reviewers: the digest moves from 0e24a910... to a different value, and the gate then reports harness_fingerprint_current unmet with 'the code that measured this has changed', sending an operator to re-run a full evaluation over a file with no bearing on behaviour. Cannot authorize anything false -- it only produces a false EXPIRY, and only when the default is enabled -- hence non-blocking.",
+        "resolution": "Restrict _source_files to source suffixes (or to git-tracked files), or exclude any path component beginning with '.'. Name the contributing paths in the failure detail so an operator can diagnose the cause instead of re-measuring."
+      },
+      {
+        "id": 4,
+        "type": "correctness",
+        "criticality": "low",
+        "severity": "optional",
+        "axis": "correctness",
+        "disposition": "accept",
+        "file_path": "packages/context-eval/src/context_eval/scoring/arms.py",
+        "line_range": {
+          "start": 32,
+          "end": 32
+        },
+        "found_by": [
+          "claude"
+        ],
+        "description": "CONSISTENCY OBSERVATION, NOT A DEFECT -- probed for reachability and it held. arms.ArmError still subclasses ValueError while R2's fix established ScoringError as the one channel every scorer refusal reaches the composer through, and __main__._score_case catches only ProducerError/ApparatusError. PROBE: an inverted line span (end_line < start_line) injected into a recorded service response does NOT crash the run -- ri-12 rejects it upstream, the case is recorded unscored and the run wrote a report with apparatus_failure, exit 1. arms.top_k_files' k<1 path is unreachable because the corpus schema pins k minimum 1. Recorded only on the structural argument the R2 commit itself made: 'a scorer added later cannot be the one nobody remembered to list here'.",
+        "resolution": "Optional. Either make ArmError derive from ScoringError for the same structural reason ScopeScoringError now does, or state in arms.py why it deliberately does not."
+      }
+    ],
+    "confirmed_already_filed": [
+      {
+        "issue": "#334, #335, #336, #338, #339",
+        "note": "Deferred non-blocking in this change. Not re-raised by any round-2 reviewer. NOT re-filed."
+      },
+      {
+        "issue": "#337 (harness identity by assertion)",
+        "note": "The fix at 03328270 is real for the case it names: the fingerprint moves on a scorer edit and the committed report equals HEAD's source digest. The residual CLI override is recorded as non-blocking finding 2 rather than re-filed, because it was INTRODUCED by the fix rather than left by it."
+      },
+      {
+        "issue": "#157 (derived-artifact drift)",
+        "note": "make context-drift-gate exit 2 with decisions.timeline blocking on docs/decisions/skill-workflow.md is pre-existing and not this change's. NOT re-filed."
+      },
+      {
+        "issue": "#286 (dispatcher discards stdout on envelope mismatch)",
+        "note": "Hit directly this round: checkpoint_findings._validate_finding requires id/type/criticality/description/disposition and raises BEFORE writing, so an entire 4-vendor dispatch was lost to a prompt that specified a different envelope. NOT re-filed, but the review prompt template should carry the validated field list verbatim."
+      }
+    ],
+    "orchestrator_questions_answered": [
+      {
+        "question": "1. Did R1's fix close the hole, or move it? Partial-but-non-empty bodies.",
+        "answer": "IT MOVED IT -- blocking finding 1, and the probe you named is exactly the one that lands. Empty and structurally-empty bodies are genuinely blocked at both layers (verified: 6 schema errors on the hollow report, 0 on a genuine pass). The residue is OUTCOME consistency, not COVERAGE. All four reviewers found it independently; the minimal version is a three-field edit of the committed report."
+      },
+      {
+        "question": "2. Did the five fix commits introduce anything? Can report_describes_corpus make a legitimate report unauthorizable?",
+        "answer": "NO on the unauthorizable-legitimate-report risk, YES on one introduction. The condition cannot wrongly reject: there is no case-filter or subset flag on the run CLI, so a partial-corpus report is unproducible, and any corpus change moves corpus.digest in lockstep -- a future corpus with a different consumer set EXPIRES the old report, which is correct, rather than being rejected while current. The one introduction is --harness-source (non-blocking finding 2). R2, R3 and R4 verified real and correct."
+      },
+      {
+        "question": "3. Is harness_fingerprint_current stable enough to be usable?",
+        "answer": "YES, with one qualification. Empirically: path-independent (a verbatim copy at another path digests identically), bytecode-independent (17 compiled .pyc files do not move it), moves on a real behavioural edit, and the committed report's fingerprint EQUALS HEAD's source digest -- so no operator is expired today. The qualification is non-blocking finding 3: incidental non-source files inside src/context_eval/ do move it."
+      },
+      {
+        "question": "4. Is any check still decoration -- green on an unmodified tree AND never proven by mutation?",
+        "answer": "NO -- I could not find a second one, and I looked. The mutation suite carries explicit positive controls (test_the_durability_predicate_rejects_the_requirement_it_replaced, test_an_unmodified_copy_of_the_harness_source_still_authorizes, test_the_authorizing_report_accounts_for_the_whole_corpus) and test_every_condition_the_gate_declares_is_mutated asserts mutated == set(CONDITIONS), which obliges every new condition to arrive with a mutant. Blocking finding 1 is a MISSING condition, not an unproven one -- a distinction that meta-test structurally cannot catch, which is worth noting in its own right. No vendor found a second decoration either."
+      }
+    ],
+    "vendor_dispatch": {
+      "mode": "alternative (tool + Bash access granted to reviewers)",
+      "excluded_vendor": "claude_code (all implementation and fix work ran on claude)",
+      "succeeded": [
+        "antigravity/gemini-3.6-flash-medium (69s, 2 findings)",
+        "codex/gpt-5.5 (227s, 1 finding)",
+        "grok/grok-4.5 (291s, 1 finding)"
+      ],
+      "failed": [
+        "pi -- OpenRouter HTTP 402 insufficient credits, same account condition as round 1; not a review failure"
+      ],
+      "convergence": "UNANIMOUS on the single blocking finding: all three vendors plus this reviewer independently constructed a forged report and reproduced exit 0.",
+      "lost_dispatch": "A first dispatch of all four vendors was discarded whole by checkpoint_findings._validate_finding over the finding envelope; re-dispatched with id/type/criticality/description/disposition.",
+      "raw_findings": [
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-2/findings-antigravity-implementation.json",
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-2/findings-codex-implementation.json",
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-2/findings-grok-implementation.json",
+        "openspec/changes/gate-semantic-context-default-enablement/reviews/round-2/review-manifest.json"
+      ]
+    },
+    "baselines_reproduced": {
+      "packages/context-eval": "332 passed, 0 skipped",
+      "skills/tests/context-engineering": "735 passed",
+      "ruff check src/ tests/": "clean",
+      "mypy src/context_eval/ --strict": "clean, 17 files",
+      "make semantic-enablement-gate": "exit 0 (default is False, so no evidence required)",
+      "openspec validate --strict": "valid",
+      "schema copies": "byte-identical (sha256 9fb0919f519a73ea...)",
+      "committed report harness.fingerprint": "equals HEAD source digest 0e24a910... -- evidence is current",
+      "semantic_context.py runtime change": "verified behaviour-preserving; unset and empty-string SEMANTIC_CONTEXT_INJECTION both still resolve to False",
+      "worktree": "HEAD b74b3d2f unchanged; untracked set unchanged (5 openspec/schemas/*.json, loop-state.json, .dispatch-state.json all still untracked)"
+    },
+    "next_steps": [
+      "IMPL_FIX round 3 has ONE blocking finding. Fix it in both layers, as this change's own doctrine requires: a gate condition re-deriving the composer's pass invariant from the document, and schema cross-field constraints in both copies.",
+      "Put the re-derivation in one shared helper: __main__._check trusts the same top-level string and is the other live consumer.",
+      "Add outcome-contradiction mutants. Both existing content mutation sets perturb coverage only, which is structurally why this hole is green.",
+      "Note for the meta-test: test_every_condition_the_gate_declares_is_mutated proves every DECLARED condition has a mutant but cannot notice a condition nobody declared. Both R1 and this finding were missing conditions.",
+      "Non-blocking findings 2 and 3 are small and independent; 3 was raised by antigravity as high with its own reproduction. Consider taking both in the same pass or filing them.",
+      "Do NOT re-dispatch a review prompt without the id/type/criticality/description/disposition envelope -- it silently costs a whole cycle."
+    ]
+  }
+}

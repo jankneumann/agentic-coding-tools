@@ -1,0 +1,37 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: packages/context-eval/src/context_eval/enablement_gate.py:356-375 authorizes enablement from schema validity plus the top-level `verdict == \"pass\"`, but never cross-checks the report body against the current corpus. The promoted report schema permits `gates`, `per_consumer`, and `cases` to be empty, so a hand-edited report with the current corpus digest, current harness version, reachable indexed revision, matching embedder fingerprint, `verdict: \"pass\"`, and zero declared/scored cases/gates validates and makes `enablement_gate.main()` return 0 for an enabled default. I confirmed this with a temporary synthetic report and helper declaring `INJECTION_DEFAULT_ENABLED: bool = True`. That turns the load-bearing gate into a top-level string check for any malformed or fabricated passing artifact, defeating the declared-gates and declared-denominator guarantees.",
+      "resolution": "After schema validation, the enablement gate should load the current corpus and reject a passing report unless its corpus counts, case ids, gate ids/kinds, consumer slices, required flags, and per-gate verdicts exactly match the current declaration, with every declared gate present and passing and every declared case present and scored. Do this in the gate/check path, not only in the report emitter, because the durable report is an editable artifact.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/enablement_gate.py",
+      "line_range": {
+        "start": 356,
+        "end": 375
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: packages/context-eval/src/context_eval/enablement_gate.py:246-249 lets the caller supply `--harness-version` and then treats that supplied string as the current harness version. The expiry rule says the report must match the installed harness version; with this override, a stale report can be made current by passing the report's old version, so direct gate invocation can exit 0 while the harness-version expiry condition is actually unmet.",
+      "resolution": "Remove the public `--harness-version` override from the gate, or restrict it to a non-CLI test seam. Production gate evaluation should always compare the report against `report.installed_version()` from the package under test.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/enablement_gate.py",
+      "line_range": {
+        "start": 246,
+        "end": 249
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    }
+  ]
+}

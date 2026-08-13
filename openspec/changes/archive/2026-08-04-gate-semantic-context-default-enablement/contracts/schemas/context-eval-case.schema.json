@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/contracts/semantic-context-evaluation/schemas/context-eval-case.schema.json",
+  "title": "ContextEvalCase",
+  "description": "One evaluation case: a realistic query a coding job would issue, the scope it declares, and the hand labels the measurement is judged against. Labels are the point — utility is computed against a human's judgement of which files a task requires and which lines carry the answer, never inferred from the relevance scores the index returned, because scoring an index against its own confidence measures nothing (design decision D7). Every `$ref` is local, so a bare `Draft202012Validator` with no registry and no network can validate a case.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "consumer",
+    "query",
+    "category",
+    "scope",
+    "labels",
+    "rationale"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Pinned so a loader that has not been taught a later shape refuses the case rather than misreading it."
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "description": "The case's identifier, preserved verbatim when a case is carried forward — the rescued `T1`..`T10` keep their original ids so results stay comparable with the evaluation they came from (design D10)."
+    },
+    "consumer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The coding job that owns this case, e.g. `implement-feature`. Same pattern as ri-12's `consumer` field. Every case belongs to exactly one consumer, because per-consumer do-no-harm is absolute and a case counted under two consumers would let one consumer's gain offset another's regression."
+    },
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "The natural-language task text, issued unchanged to the semantic arm and tokenized for the keyword arm. Not a search string: the whole question is whether a real task description retrieves better material than the keywords in it."
+    },
+    "category": {
+      "enum": ["semantic-win", "lexical-ok", "control"],
+      "description": "DESCRIPTIVE METADATA ONLY. A prediction about whether exact search will miss this case, recorded so a reader can see what the labeler expected — and deliberately not an input to any gate. The archived evaluation left this ambiguous: `run_eval.py:161` computed wins from MEASURED baseline misses while its corpus header described the same clause as `category=semantic-win`, a hand-applied label. The two disagree, the spec text (\"tasks the ripgrep baseline misses\") agrees with the code, and this contract resolves it by demoting the label: a win counts only if the baseline measurably missed the case in this run (design D6). Otherwise a corpus author could manufacture wins by relabeling."
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_allow", "deny"],
+      "description": "The read scope this case declares, in the shape ri-12 sends. Deny takes precedence over allow: a path matching both is filtered, absent from the rendered hits, and present in the omissions with reason `scope_filtered` (design D8).",
+      "properties": {
+        "read_allow": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ScopeGlob" },
+          "description": "Repository-relative globs the case may read. Permitted to be EMPTY: a case with no allowed path is a fail-closed case asserting that the result is a fallback with trigger `out_of_scope`, and that state has to be expressible or the zero-scope behaviour could not be measured at all."
+        },
+        "deny": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ScopeGlob" },
+          "description": "Globs that override allow. Required as a property even when empty, so \"this case declared no denials\" is recorded rather than inferred from an absent key — the scope-compliance gate asserts the outbound request carries exactly this list."
+        }
+      }
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected_files", "must_touch", "evidence_spans"],
+      "description": "The hand labels every measure is computed against. All three are required even when empty, because an absent label set and an empty one would otherwise be indistinguishable, and only one of them is a deliberate statement.",
+      "properties": {
+        "expected_files": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/RepositoryPath" },
+          "description": "Files that answer the query; finding ANY of them in an arm's top-k list is a `hit_at_k`. This is the archived evaluation's definition, preserved exactly so the rescued cases stay comparable. Non-empty for every case except a fail-closed case, which declares an `expectation` instead — see this schema's `allOf`."
+        },
+        "must_touch": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/RepositoryPath" },
+          "description": "Files the task genuinely requires, and the denominator of `answer_coverage`. Stronger than `expected_files`: a task needing three files is not solved by finding one, so a case can be a top-k hit and still have coverage below 1."
+        },
+        "evidence_spans": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file_path", "start_line", "end_line"],
+            "description": "A labeled line range that carries the answer. `end_line >= start_line` is a sibling comparison JSON Schema cannot express and is checked by the corpus-integrity test, along with the existence of every labeled path.",
+            "properties": {
+              "file_path": { "$ref": "#/$defs/RepositoryPath" },
+              "start_line": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "1-based and inclusive, matching ri-12's rendered hit bounds so an intersection can be computed without an off-by-one convention change."
+              },
+              "end_line": { "type": "integer", "minimum": 1 }
+            }
+          },
+          "description": "The lines that make a rendered section useful. `evidence_density` is rendered lines inside these spans over all rendered lines, and `steps_to_evidence` is the position of the first rendered result intersecting one of them — so the labels, not the index, decide what counted as evidence."
+        }
+      }
+    },
+    "expectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "description": "For a fail-closed case: the exact outcome ri-12 must produce. Present only on cases that assert a fallback rather than measure retrieval quality — no index at the evaluated revision, a revision mismatch, a rejected scope, an unrecognized service state. These cases are SCORED, not skipped: the assertion is that the coding job proceeds by exact search, and that is a measurement with a pass and a fail (design D12).",
+      "properties": {
+        "status": {
+          "enum": ["injected", "fallback"],
+          "description": "Mirrors ri-12's `SemanticContextResult.status`, the harness's input contract (design D4)."
+        },
+        "trigger": {
+          "enum": ["stale", "unavailable", "mismatched", "out_of_scope", "no_context"],
+          "description": "The expected fallback trigger, required when `status` is `fallback`."
+        },
+        "reason": {
+          "enum": [
+            "working_tree_dirty",
+            "revision_not_indexed",
+            "injection_disabled",
+            "capability_absent",
+            "transport_unsupported",
+            "revision_unresolvable",
+            "bridge_failed",
+            "service_unavailable",
+            "service_overloaded",
+            "unknown_state",
+            "index_revision_differs",
+            "scope_rejected",
+            "no_declared_scope",
+            "scope_self_cancelling",
+            "all_hits_scope_filtered",
+            "index_returned_no_hits",
+            "all_hits_omitted"
+          ],
+          "description": "The expected specific cause, required alongside `trigger`. Asserting the PAIR rather than the trigger alone is what makes these cases evidence: ri-12's state mapping is total, so a case checking only the trigger would pass on the wrong cause. Mirrored from ri-12 rather than referenced, because this schema must validate with no registry; a test cross-checks both enums against ri-12's promoted schema so widening one without the other fails."
+        },
+        "rendered_hits": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many results the outcome may render. Constrained to exactly 0 when `status` is `fallback`: a fallback that showed excerpts would be showing material it just disclaimed, and \"restores exact search\" means the job got nothing from the index."
+        }
+      },
+      "allOf": [
+        {
+          "title": "A fallback expectation names its trigger, reason, and zero hits",
+          "if": {
+            "required": ["status"],
+            "properties": { "status": { "const": "fallback" } }
+          },
+          "then": {
+            "required": ["trigger", "reason", "rendered_hits"],
+            "properties": { "rendered_hits": { "const": 0 } }
+          }
+        },
+        {
+          "title": "An injected expectation carries no fallback vocabulary",
+          "if": {
+            "required": ["status"],
+            "properties": { "status": { "const": "injected" } }
+          },
+          "then": {
+            "not": { "anyOf": [{ "required": ["trigger"] }, { "required": ["reason"] }] }
+          },
+          "description": "Mirrors the contradictory-state rejection in ri-12's own contract: a section cannot be injected and also explain why it fell back."
+        }
+      ]
+    },
+    "recorded_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "description": "A recorded service response driving this case at index tier `none`. Scope compliance and fail-closed regression are client-side decisions over a response document, so they need no database and no embedding backend — which is what lets them run in CI while the retrieval measurement runs out of band (design D9).",
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/CorpusRelativeJsonPath",
+          "description": "The recorded wire body, relative to the corpus root. A file rather than an inline blob so the case YAML stays readable and the body can be validated against the coordinator's own response contract."
+        },
+        "service_state": {
+          "enum": [
+            "ready",
+            "revision_mismatch",
+            "not_indexed",
+            "not_configured",
+            "unavailable",
+            "scope_rejected"
+          ],
+          "description": "The coordinator state the recorded response carries, mirroring ri-03's `CodeSearchState`. Recorded on the case so a fail-closed case can assert the mapping from state to fallback, which ri-12 makes total on purpose."
+        },
+        "adversarial": {
+          "type": "boolean",
+          "description": "True when the recorded body DELIBERATELY contains a result outside the declared scope — a hypothetical server leak. These cases are what make the scope gate evidence rather than a tautology: they prove ri-12's own client-side deny re-check fires, instead of proving the server happened to behave (design D8)."
+        }
+      }
+    },
+    "exact_search_baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ripgrep_baseline"],
+      "description": "The exact-search baseline command carried forward from the archived evaluation, preserved for provenance (design D10).",
+      "properties": {
+        "ripgrep_baseline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "description": "The original command string, verbatim. Documentation of what a human actually tried; the harness does not execute it — its baseline producer takes an argument list and an injected repository root rather than a shell string."
+        },
+        "recorded_at_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "description": "The revision the original command was run against, when known. Present so nobody mistakes the historical string for a current measurement: the baseline number moves with the tree, which is why it is recorded in each report rather than asserted in a test."
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rescued_from"],
+      "description": "Where a carried-forward case came from. Required on any rescued case: a case that lost its origin cannot be compared with the evaluation that produced it, and the ten rescued tasks are the only labeled retrieval data this repository has.",
+      "properties": {
+        "rescued_from": {
+          "$ref": "#/$defs/RepositoryPath",
+          "description": "The artifact this case was rescued from, e.g. the archived change's corpus file. A repository-relative path, so it stays resolvable."
+        },
+        "original_case_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "description": "Recorded only when the identifier had to change. Normally absent, because the rescue preserves the id."
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "What was preserved, what was added, and anything the rescue could not carry."
+        }
+      }
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "Why this case is worth measuring and why the labels are what they are. Required, because a labeled case with no argument behind its labels cannot be reviewed — and the labels are the standard everything else is judged against."
+    }
+  },
+  "allOf": [
+    {
+      "title": "A case that is not fail-closed must label at least one expected file",
+      "if": { "not": { "required": ["expectation"] } },
+      "then": {
+        "properties": {
+          "labels": {
+            "properties": { "expected_files": { "minItems": 1 } }
+          }
+        }
+      },
+      "description": "Retrieval and utility cases are judged against labeled files, so a case with none of them could never fail: `hit_at_k` would be vacuously false and `answer_coverage` would divide by zero. A fail-closed case legitimately labels no files — it asserts a fallback — and declares an `expectation` instead. Making the exemption conditional on that declaration means an unlabeled case is either an explicit fail-closed assertion or a validation error, never an unnoticed hole in the corpus."
+    }
+  ],
+  "$defs": {
+    "RepositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]+$",
+      "description": "A normalized, repository-relative path — the same guarantee and the same pattern ri-12's rendered hits carry. Absolute paths and `..` segments are rejected because a label naming a file outside the repository would be unresolvable evidence.",
+      "$comment": "Pattern copied verbatim from openspec/contracts/code-search/schemas/semantic-context-hit.schema.json; the two must stay identical."
+    },
+    "CorpusRelativeJsonPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000*?\\[\\]{}]+\\.json$",
+      "description": "A normalized path relative to the corpus root, ending in `.json`. Constrained the same way as the manifest's case paths, glob metacharacters included: a case must name exactly one recorded response, and a corpus that could reach outside its own directory would make its digest a claim about files the digest does not cover."
+    },
+    "ScopeGlob": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]+$",
+      "description": "A repository-relative glob, e.g. `packages/code-search/**`. Absolute and traversing patterns are rejected for the same reason a path is: a declared scope is a claim about this repository. Two globs that cancel each other out ARE permitted — a self-cancelling scope is a fail-closed case the corpus deliberately contains."
+    }
+  }
+}

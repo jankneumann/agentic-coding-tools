@@ -1,0 +1,117 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: check_test_contract.ASSERT_LINE_RE only matches lines that begin with assert/expect(...)/self.assert*/pytest.raises/should(/assertThat(. Common expectation-body edits are invisible: multi-line Jest/Vitest chains where only `.toBe(n)` / `.toEqual(n)` changes (with unified=0), `expect.soft(...)`, Rust `assert_eq!` / `assert_ne!`, and `mock.assert_called_with(...)`. Spec requires non-zero exit when expectation bodies change; these false negatives let a simplify range pass the mechanical contract while mutating pinned behavior.",
+      "resolution": "Expand matcher catalog (chained `.toBe|.toEqual|.toStrictEqual|.toThrow`, `expect\\.\\w+\\s*\\(`, `assert_eq!`/`assert_ne!`, `assert_called*`) and/or flag any +/- line inside a test path that looks like a matcher/assert body; add unit cases for multi-line expect and assert_eq!.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "skills/simplify/scripts/check_test_contract.py"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: TEST_PATH_RE does not treat Go `*_test.go` (or similar) as test paths. `foo_test.go` / `pkg/foo_test.go` return false, so the contract scanner never inspects Go test diffs even if assertion patterns were fixed. Go expectation edits always look clean.",
+      "resolution": "Extend TEST_PATH_RE with `_test\\.go$` (and consider `_test\\.rs$` outside tests/) and cover with is_test_path unit tests.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "skills/simplify/scripts/check_test_contract.py"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: Runtime skill mirrors are stale relative to canonical `skills/simplify/`. `.agents/skills/simplify/scripts/verify_behavior_preservation.py` still runs HEAD tests in the live working tree (`run_tests(test_cmd, repo, head_sha)`) and documents a non-existent stash fallback; `.agents`/`.claude` copies of check_test_contract lack pending_old_path deleted-file handling. Agents that resolve scripts from installed mirrors get the pre-fix dual-run and contract bugs despite tasks.md 5.2 claiming sync.",
+      "resolution": "Re-run `bash skills/install.sh --mode rsync --deps none --python-tools none` (or equivalent) and verify `.agents`/`.claude` match `skills/simplify` for SKILL.md and all three scripts before merge.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": ".agents/skills/simplify/scripts/verify_behavior_preservation.py"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: Script tests cover happy paths (simple assert/expect line edits, deleted files, dual-run pass/fail) but not the known false negatives (multi-line `.toBe`, `expect.soft`, `assert_eq!`, Go `*_test.go` paths). Without those, the weak assertion/path detection will regress unnoticed.",
+      "resolution": "Add scan_unified_diff / is_test_path cases that currently fail and keep them red until matchers/paths are fixed.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "skills/tests/simplify/test_check_test_contract.py"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "FYI: verify_behavior_preservation.run_tests executes --test-cmd with shell=True. Documented as trusted operator input (pytest/npm), which matches intended use, but any agent- or config-sourced string is full shell injection (metacharacters, command chaining).",
+      "resolution": "Keep trust boundary explicit in CLI help (already present). Optional hardening: default to shlex.split + shell=False, with an explicit --shell flag for compound commands.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "fyi",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Optional: dual-run subprocess has no timeout. A hung test command blocks the helper indefinitely and can leave temporary worktrees until process kill; finally-block cleanup only runs after run_tests returns.",
+      "resolution": "Pass a configurable timeout to subprocess.run (e.g. --timeout-seconds) and treat timeout as failed run with report note.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "optional",
+      "file_path": "skills/simplify/scripts/verify_behavior_preservation.py"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: content invariants assert isomorphic/dead-code language but not \"redundant intermediate\", which the skill-workflow spec requires in the pattern catalog. A silent catalog regression of that pattern would not fail tests.",
+      "resolution": "Assert \"redundant intermediate\" (or equivalent) in test_simplify_has_isomorphic_extract_pattern.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "skills/tests/simplify/test_skill_md.py"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: git may quote unusual paths in unified diffs (`--- \"a/tests/my test.py\"`). _strip_diff_path does not strip surrounding quotes or handle a/b/ inside quotes, so current_path can retain quote/prefix noise. Detection still often works via substring tests/ but is fragile for edge paths.",
+      "resolution": "Strip optional surrounding quotes and then a/ or b/ prefixes when normalizing ---/+++ paths; add a quoted-path unit case.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "skills/simplify/scripts/check_test_contract.py"
+    },
+    {
+      "id": 9,
+      "type": "style",
+      "criticality": "low",
+      "description": "none: Canonical simplify contract is strong: coverage gate + characterization-first workflow, dual-run verification via detached worktrees for both baseline and HEAD, assertion-contract/scope helpers with 0/1/2 exits, expanded isomorphic/dead-code/redundant-intermediate patterns, and Phase C routing (tech-debt \u2192 simplify/plan/deprecation/perf; implement/iterate optional polish; catalogue + skill-flow manual-only notes). Prior deleted-file and dirty-HEAD dual-run bugs are fixed in skills/simplify.",
+      "resolution": "Keep pattern; re-sync runtime mirrors so installed copies match.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "skills/simplify/SKILL.md"
+    },
+    {
+      "id": 10,
+      "type": "style",
+      "criticality": "low",
+      "description": "none: Ecosystem hooks match the spec scenarios: tech-debt remediation table routes local clarity/dup to /simplify and hubs/public-API/perf elsewhere; implement-feature and iterate-on-implementation document optional manual polish as separate refactor commits without making simplify required for completion.",
+      "resolution": "Keep pattern.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "skills/tech-debt-analysis/SKILL.md"
+    }
+  ]
+}

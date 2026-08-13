@@ -1,0 +1,46 @@
+schema_version: 1
+case_id: ADV-LEAKED-HIT
+consumer: implement-feature
+
+query: "how does the coordinator choose a model for a work package"
+
+category: control
+
+scope:
+  read_allow:
+    - "agent-coordinator/src/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - agent-coordinator/src/agents_config.py
+  must_touch:
+    - agent-coordinator/src/agents_config.py
+  evidence_spans:
+    - file_path: agent-coordinator/src/agents_config.py
+      start_line: 1274
+      end_line: 1311
+
+expectation:
+  status: injected
+  # Three results recorded, one outside the declared scope. Two survive.
+  rendered_hits: 2
+
+recorded_response:
+  path: responses/adv-leaked-hit.json
+  service_state: ready
+  adversarial: true
+
+rationale: >
+  The scope-compliance gate is only evidence if the server is allowed to
+  misbehave. Measured against a well-behaved response it proves that the server
+  filtered correctly, which is not the property anyone needs: the layer that
+  actually protects the agent is ri-12's own client-side deny re-check, and a
+  server-side test cannot see it. So this response leaks
+  `skills/autopilot/SKILL.md` into a section scoped to
+  `agent-coordinator/src/**`, and marks it `scope_decision: allowed` so the
+  client cannot take the server's word for it. The in-scope results must
+  survive — an implementation that rejected the whole response would pass a
+  zero-violations check while destroying the feature, so `rendered_hits: 2` is
+  as load-bearing as the violation count.

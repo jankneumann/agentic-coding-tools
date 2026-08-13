@@ -3,10 +3,6 @@ roadmap_id: repo-improvement
 source_proposal: docs/proposals/repo-improvement-roadmap.md
 status: planning
 policy:
-  # wait_if_budget_exceeded matches the model default and every existing roadmap
-  # (symphony/sentinel/codeviz). switch_if_time_saved would let the runner switch
-  # vendors up to max_switch_attempts with no budget cap unless cost_ceiling_usd is
-  # set, so switch mode is deferred until a ceiling is chosen for this roadmap.
   default_action: wait_if_budget_exceeded
   max_switch_attempts_per_item: 2
 items:
@@ -51,7 +47,7 @@ items:
   - Component manifests and the /health report agree with the root VERSION file.
 - item_id: ri-03
   title: Build structured vendor result channel
-  status: approved
+  status: skipped
   priority: 1
   effort: M
   depends_on: []
@@ -60,9 +56,13 @@ items:
     completion ledger (submit_work/complete_work as the single source of dispatch
     state), add GET /locks?agent_id= plus bulk release to fix the cloud lock leak,
     and extend or explicitly document SdkVendorAdapter coverage beyond review-only.
-  rationale: Regex-scraping vendor CLI stdout is the most fragile link in the whole
+  rationale: 'Regex-scraping vendor CLI stdout is the most fragile link in the whole
     chain (weakness W3); structured results are a required input for the router, the
-    orchestrator's ledger-verified switching, native fan-out, and the cloud lane.
+    orchestrator''s ledger-verified switching, native fan-out, and the cloud lane.
+    RE-HOMED: this item now executes as dg-02 in the dispatch-governance roadmap,
+    which sequences it ahead of OS-level dispatch sandboxing because both rewrite
+    the same CliVendorAdapter methods. Tracked and scheduled there; kept here as skipped
+    so downstream repo-improvement items retain a resolvable reference.'
   change_id: build-structured-vendor-result-channel
   acceptance_outcomes:
   - No task_id_pattern or success_pattern regex remains on the primary result path
@@ -73,7 +73,7 @@ items:
     HTTP endpoints instead of waiting out the 120-minute TTL.
 - item_id: ri-04
   title: Add live vendor capability and cost registry
-  status: approved
+  status: skipped
   priority: 1
   effort: M
   depends_on: []
@@ -82,9 +82,14 @@ items:
     times, and a versioned real cost table replacing the policy.py stub tiers; expose
     GET /vendors and GET /vendors/{id}/availability, teach coordination_bridge.py
     the same, and delete the hardcoded vendor list in orchestrator.py.
-  rationale: Routing is reactive because vendor selection has only static config and
-    stub cost estimators; a live registry gives the router and policy engine real
-    availability and cost inputs (fixes weakness W1).
+  rationale: 'Routing is reactive because vendor selection has only static config
+    and stub cost estimators; a live registry gives the router and policy engine real
+    availability and cost inputs (fixes weakness W1). RE-HOMED: this item now executes
+    as dg-01 in the dispatch-governance roadmap, with scope reduced - the versioned
+    cost table it called for was already delivered by PR 237 (add-adaptive-model-router),
+    which replaced the policy.py stub tiers with catalog-aware pricing. Only the availability
+    and rate-limit half remains. Kept here as skipped so downstream repo-improvement
+    items retain a resolvable reference.'
   change_id: add-live-vendor-capability-and-cost-registry
   acceptance_outcomes:
   - evaluate_policy receives live availability and real cost deltas from the registry.
@@ -94,7 +99,7 @@ items:
     the registry filtered by capability.
 - item_id: ri-05
   title: Implement the task router (vendor x location x model)
-  status: approved
+  status: skipped
   priority: 1
   effort: L
   depends_on:
@@ -105,9 +110,14 @@ items:
     model, isolation, dispatch_mode, and rationale, driven by deterministic unit-testable
     rules versioned in routing.yaml, with every decision recorded under a routing
     audit event type and a local static fallback table when the coordinator is down.
-  rationale: No component ever decides where a task should run - the core gap of the
-    proposal; putting all three axes in the coordinator's existing resolver keeps
-    one decision point, one config file, one test surface for every harness.
+  rationale: 'No component ever decides where a task should run - the core gap of
+    the proposal; putting all three axes in the coordinator''s existing resolver keeps
+    one decision point, one config file, one test surface for every harness. RE-HOMED:
+    this item now executes as dg-04 in the dispatch-governance roadmap, retargeted.
+    The POST /route/task framing was superseded by PR 237, which merged a resolver
+    already owning the /routing/* namespace; dg-04 extends that resolver with location,
+    isolation, and dispatch_mode rather than standing up a second one. Kept here as
+    skipped so downstream repo-improvement items retain a resolvable reference.'
   change_id: implement-the-task-router-vendor-x-location-x-model
   acceptance_outcomes:
   - Given a synthetic task profile, POST /route/task returns a deterministic, explainable
@@ -117,7 +127,7 @@ items:
     log.
 - item_id: ri-06
   title: Make the orchestrator obey the router
-  status: approved
+  status: skipped
   priority: 1
   effort: M
   depends_on:
@@ -129,10 +139,15 @@ items:
     detector to the roadmap loop, un-stub _estimate_cost_delta/_estimate_wait_seconds
     against the registry, and turn the silent apply_phase_outcome no-op on a missing
     state file into an error.
-  rationale: The policy engine currently only logs vendor-switch decisions and nothing
-    executes them; closing this decide-but-don't-act gap is what makes routing decisions
-    real and enables the switch_if_time_saved policy — which this roadmap can opt into
-    once a cost_ceiling_usd is set (it currently runs under the safe wait default).
+  rationale: "The policy engine currently only logs vendor-switch decisions and nothing\
+    \ executes them; closing this decide-but-don't-act gap is what makes routing decisions\
+    \ real and enables the switch_if_time_saved policy \u2014 which this roadmap can\
+    \ opt into once a cost_ceiling_usd is set (it currently runs under the safe wait\
+    \ default). RE-HOMED: this item now executes as dg-06 in the dispatch-governance\
+    \ roadmap, which adds a dependency on the pinned isolation contract (dg-05) so\
+    \ the isolation field the decision carries has a defined meaning, and drops _estimate_cost_delta\
+    \ from scope - PR 237 already replaced that stub with catalog-aware pricing. Kept\
+    \ here as skipped so downstream repo-improvement items retain a resolvable reference."
   change_id: make-the-orchestrator-obey-the-router
   acceptance_outcomes:
   - An induced rate-limit on the preferred vendor causes an observed, ledger-verified
@@ -162,73 +177,82 @@ items:
     instead of blindly continuing.
 - item_id: ri-08
   title: Add scheduled continuation for self-resuming loops
-  status: candidate
+  status: blocked
   priority: 2
   effort: M
   depends_on:
   - ri-07
-  - ri-06
   description: In the Claude dispatch adapter, replace in-session async-vendor polling
     with self-wakeups matched to registry turnaround times and one-shot triggers at
     known limit-reset times; add a nightly roadmap tick and hourly PR-babysit tick
     that fire fresh sessions running the resume entry points; give non-Claude harnesses
     the same contract via cron/CI, with pause-lock guard rails, idempotent trigger
     registration, and deregistration at roadmap archive.
-  rationale: Loops are single-session and mortal (weakness W2); checkpoints make resume
-    possible but nothing makes it happen - scheduled triggers turn wait_if_budget_exceeded
+  rationale: 'Loops are single-session and mortal (weakness W2); checkpoints make
+    resume possible but nothing makes it happen - scheduled triggers turn wait_if_budget_exceeded
     pauses into active resumes and keep the factory running unattended, behind the
-    harness-agnostic adapter seam.
+    harness-agnostic adapter seam. RETARGETED: depended on ri-06, which re-homed to
+    the dispatch-governance roadmap. Those local dependencies are replaced by the
+    blocked_by references above; flip back to candidate once they complete there.'
   acceptance_outcomes:
   - A roadmap started at 9am with a vendor limit hit at 10am completes overnight with
     zero human re-invocations.
   - The audit log shows the pause, the scheduled resume, and the completion.
   - Killing every live session never strands a roadmap in in_progress for more than
     one tick interval.
+  blocked_by:
+  - dispatch-governance/dg-06
 - item_id: ri-09
   title: Use native fan-out for same-vendor parallel work
-  status: candidate
+  status: blocked
   priority: 3
   effort: M
-  depends_on:
-  - ri-03
+  depends_on: []
   description: Run review-convergence fan-out and local-parallel work-package DAGs
     through native background subagents and workflow pipelines in the Claude adapter,
     with structured outputs schema-enforced against review-findings.schema.json at
     the tool-call layer, while keeping the subprocess CliVendorAdapter path for cross-vendor
     diversity; fix the known consensus_synthesizer.py line-range parser bug in the
     process.
-  rationale: Subprocess dispatch plus stdout JSON-parsing for same-harness reviewers
+  rationale: 'Subprocess dispatch plus stdout JSON-parsing for same-harness reviewers
     is needless fragility; schema enforcement at the tool layer replaces parse-and-pray
     and converts convergence checkpoints from durability-only into actual recovery,
-    without collapsing vendor diversity.
+    without collapsing vendor diversity. RETARGETED: depended on ri-03, which re-homed
+    to the dispatch-governance roadmap. Those local dependencies are replaced by the
+    blocked_by references above; flip back to candidate once they complete there.'
   acceptance_outcomes:
   - A 3-vendor review round dispatches Claude reviewers natively (no subprocess, no
     stdout parse) and Codex/Gemini via CLI, all landing in one review-manifest.json.
   - Synthesis crash recovery from .review-cache/round-N/ works end-to-end.
+  blocked_by:
+  - dispatch-governance/dg-02
 - item_id: ri-10
   title: Build the cloud lane as a routable target
-  status: candidate
+  status: blocked
   priority: 2
   effort: L
-  depends_on:
-  - ri-03
-  - ri-05
+  depends_on: []
   description: Make location cloud a first-class router output - Claude cloud dispatch
     creates a fresh isolated session per task with a self-contained resume-contract
     prompt, results come back as PRs on conventional branches collected event-driven
     via PR activity subscriptions and the completion ledger, routing rules send independent
     FULL-parallel packages to cloud fan-out while secret- or Docker-dependent tasks
     stay local, and Codex cloud and Jules join the lane through structured harvesting.
-  rationale: Cloud execution today only happens if the operator already started a
+  rationale: 'Cloud execution today only happens if the operator already started a
     cloud session; a vendor-neutral cloud lane lets the router actually choose where
     work should go and replaces the manual /merge-pull-requests sweep as the discovery
-    mechanism.
+    mechanism. RETARGETED: depended on ri-03, ri-05, which re-homed to the dispatch-governance
+    roadmap. Those local dependencies are replaced by the blocked_by references above;
+    flip back to candidate once they complete there.'
   acceptance_outcomes:
   - /implement-feature on a 3-package FULL-parallel feature routes at least 2 packages
     to cloud sessions.
   - All cloud results are collected as PRs without any in-session polling and integrate
     via the existing merge path.
   - The coordinator work queue shows the full lifecycle of every cloud task.
+  blocked_by:
+  - dispatch-governance/dg-02
+  - dispatch-governance/dg-04
 - item_id: ri-11
   title: Make human gates non-blocking
   status: candidate
@@ -271,12 +295,10 @@ items:
   - /prioritize-proposals output includes improve-harness-generated candidates.
 - item_id: ri-13
   title: Feed routing decisions with outcome data
-  status: candidate
+  status: blocked
   priority: 3
   effort: M
   depends_on:
-  - ri-05
-  - ri-06
   - ri-12
   description: Compile a periodic routing scorecard (success rate, convergence rounds,
     cost, latency, limit-hit frequency per vendor x phase-archetype x location) from
@@ -284,14 +306,20 @@ items:
     routing.yaml as human-reviewed advisory weights, replace replanner.py's regex
     ID-matching with scorecard- and learning-driven route/task signals, and give replan_required
     a real handler via a scheduled /plan-roadmap --replan pass.
-  rationale: Dispatch outcomes are recorded but never consulted by any routing decision,
+  rationale: 'Dispatch outcomes are recorded but never consulted by any routing decision,
     and replan_required is a documented dead status; this closes the learning half
-    of policy-aware routing conservatively and inspectably.
+    of policy-aware routing conservatively and inspectably. RETARGETED: depended on
+    ri-05, ri-06, which re-homed to the dispatch-governance roadmap. Those local dependencies
+    are replaced by the blocked_by references above; flip back to candidate once they
+    complete there.'
   acceptance_outcomes:
   - The routing scorecard exists and is regenerated on schedule.
   - At least one routing rule cites scorecard evidence in its rationale.
   - replan_required items are automatically re-planned or escalated within one tick,
     never silently stuck.
+  blocked_by:
+  - dispatch-governance/dg-04
+  - dispatch-governance/dg-06
 - item_id: ri-14
   title: Enforce artifact freshness and automatic retrieval
   status: candidate
@@ -318,39 +346,47 @@ items:
     the gate, not a warning.
 - item_id: ri-15
   title: Decompose the coordinator monoliths
-  status: candidate
+  status: blocked
   priority: 4
   effort: L
-  depends_on:
-  - ri-04
-  - ri-05
+  depends_on: []
   description: Split coordination_api.py (3.3k LOC) and coordination_mcp.py (3.2k
     LOC) into per-domain routers and tool modules (locks, work, memory, approvals,
     merge-train, routing, vendors, kanban) over the existing service layer, preserving
     the Dockerfile-COPY contract checks.
-  rationale: The monoliths tax review bandwidth and merge-conflict surface, and the
+  rationale: 'The monoliths tax review bandwidth and merge-conflict surface, and the
     Phase 1 routing and vendor endpoints should not be born into a monolith; the split
-    is mechanical and best done after those endpoints stabilize.
+    is mechanical and best done after those endpoints stabilize. RETARGETED: depended
+    on ri-04, ri-05, which re-homed to the dispatch-governance roadmap. Those local
+    dependencies are replaced by the blocked_by references above; flip back to candidate
+    once they complete there.'
   acceptance_outcomes:
   - No src/ module exceeds roughly 800 LOC.
   - The route inventory is unchanged, verified by contract tests before and after.
   - Both CI docker import guards remain green.
+  blocked_by:
+  - dispatch-governance/dg-01
+  - dispatch-governance/dg-04
 - item_id: ri-16
   title: Evaluate the router with gen-eval and replay
-  status: candidate
+  status: blocked
   priority: 4
   effort: M
   depends_on:
-  - ri-05
   - ri-13
   description: Add gen-eval scenarios asserting routing decisions and fallback ladders
     for synthetic task profiles and registry states (vendor down, limit hit, cost
     ceiling, secrets-required), plus replay evaluation that runs historical dispatch
     records through proposed routing.yaml changes to show decision diffs before merge.
-  rationale: The router becomes load-bearing infrastructure and must be tested like
+  rationale: 'The router becomes load-bearing infrastructure and must be tested like
     one; replay diffs make routing config changes reviewable against what would have
-    routed differently, mitigating confidently wrong decisions.
+    routed differently, mitigating confidently wrong decisions. RETARGETED: depended
+    on ri-05, which re-homed to the dispatch-governance roadmap. Those local dependencies
+    are replaced by the blocked_by references above; flip back to candidate once they
+    complete there.'
   acceptance_outcomes:
   - Routing config changes come with a replay decision-diff in the PR.
   - The gen-eval routing suite runs in CI.
-updated_at: '2026-07-04T21:59:57.947902+00:00'
+  blocked_by:
+  - dispatch-governance/dg-04
+updated_at: '2026-08-01T21:33:12.312021+00:00'

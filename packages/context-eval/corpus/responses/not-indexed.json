@@ -1,0 +1,19 @@
+{
+  "_comment": "Recorded CodeSearchResponse: the coordinator has no index for the revision this agent is working against. ri-12 maps state `not_indexed` to the fallback pair (stale, revision_not_indexed) and renders nothing. Shape mirrors ri-03's non-ready response body as exercised by skills/tests/coordination-bridge/test_try_code_search.py.",
+  "state": "not_indexed",
+  "current": false,
+  "request": {
+    "repo_slug": "agentic_coding_tools",
+    "source_revision": "748af34c4268e768f0e3a7e7cdbe64c02835b7b6",
+    "namespace": {"kind": "main", "key": "main"},
+    "index_id": null
+  },
+  "index": null,
+  "scope": {
+    "decision": "allowed",
+    "source": "explicit",
+    "authority": "principal_grant"
+  },
+  "results": [],
+  "fallback": {"required": true, "strategy": "exact_search", "reason": "not_indexed"}
+}
