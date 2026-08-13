@@ -40,6 +40,10 @@ Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases (
 
 See [Parallel Agentic Development](../parallel-agentic-development.md) for the full implementation reference.
 
+## Execution State vs. Work Queue
+
+An autopilot run's authoritative execution state is `openspec/changes/<id>/loop-state.json`; the coordinator work queue is a derived distribution/claim projection of it, never the reverse. See the [work-queue truth/projection contract](work-queue-truth-projection.md) for the enforcement rules future dispatch implementers must follow (idempotent submission, outbox ordering, resume re-derivation).
+
 ## Observability Frontends
 
 - **`apps/kanban-viz`** — Real-time Kanban board for coordinator work-queue state. Connects to the coordinator API via SSE for live updates; shows vendor swimlanes, sync-point gate banner, and saved views. This is an observability surface, not a skill — it lives in `apps/` not `skills/`. Dev server: `cd apps/kanban-viz && npm run dev`. See [`docs/kanban-viz/README.md`](../kanban-viz/README.md).
