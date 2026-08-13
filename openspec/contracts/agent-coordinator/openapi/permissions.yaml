@@ -1,0 +1,34 @@
+# agent-coordinator permissions contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Session permissions"
+  version: 1.0.0
+  description: >-
+    Session-scoped permission grants. Spec lines 1965-1967.
+paths:
+  /permissions/request:
+    post:
+      operationId: requestPermission
+      summary: Create a session-scoped permission grant
+      description: 'Spec 1967: creates a session-scoped permission grant; requires API key.'
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Session-scoped grant created (spec 1967)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

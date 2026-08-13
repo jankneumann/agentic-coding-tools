@@ -1,0 +1,33 @@
+# agent-coordinator features contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Feature registry"
+  version: 1.0.0
+  description: >-
+    Active feature listing. Spec lines 1458-1465.
+paths:
+  /features/active:
+    get:
+      operationId: listActiveFeatures
+      summary: List active features by merge priority
+      description: >-
+        Spec 1460-1461: with a valid API key returns a JSON array of active
+        features ordered by merge priority. Spec 1464-1465: without an API key
+        returns 401.
+      security:
+        - coordinatorApiKey: []
+      responses:
+        "200": {description: Active features ordered by merge priority (spec 1461)}
+        "401": {description: Missing API key (spec 1464-1465)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

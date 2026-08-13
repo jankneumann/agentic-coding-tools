@@ -1,0 +1,37 @@
+# agent-coordinator policies contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Policy management"
+  version: 1.0.0
+  description: >-
+    Cedar policy rollback. Spec lines 1300-1304.
+paths:
+  /policies/write-operations/rollback:
+    post:
+      operationId: rollbackWriteOperationsPolicy
+      summary: Roll back the write-operations policy to a prior version
+      description: >-
+        Spec 1302-1304: retrieves the named version from
+        cedar_policies_history and updates cedar_policies with the historical
+        policy_text.
+      security:
+        - coordinatorApiKey: []
+      parameters:
+        - name: version
+          in: query
+          required: true
+          schema: {type: integer}
+      responses:
+        "200": {description: Policy rolled back to the requested version (spec 1303-1304)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

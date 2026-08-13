@@ -1,0 +1,53 @@
+# agent-coordinator memory contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Memory store"
+  version: 1.0.0
+  description: >-
+    Episodic memory store and recall. Spec lines 1409-1412.
+paths:
+  /memory/store:
+    post:
+      operationId: storeMemory
+      summary: Store a memory
+      description: >-
+        Spec 1411-1412: a memory stored here and recalled via
+        POST /memory/query returns the stored memory with correct content and
+        tags.
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Memory stored (spec 1411)}
+  /memory/query:
+    post:
+      operationId: queryMemory
+      summary: Recall memories
+      description: >-
+        Spec 1411-1412: recall returns stored memories with correct content
+        and tags.
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Recalled memories with content and tags (spec 1412)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

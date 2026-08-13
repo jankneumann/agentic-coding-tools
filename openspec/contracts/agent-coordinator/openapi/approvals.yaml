@@ -1,0 +1,91 @@
+# agent-coordinator approvals contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Approval gate"
+  version: 1.0.0
+  description: >-
+    Approval request lifecycle over HTTP. Spec lines 1184-1194, 1970-1979.
+paths:
+  /approvals/request:
+    post:
+      operationId: submitApprovalRequest
+      summary: Submit a new approval request
+      description: 'Spec 1972: submits a new approval request; requires API key.'
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Approval request submitted (spec 1972)}
+  /approvals/pending:
+    get:
+      operationId: listPendingApprovals
+      summary: List pending approval requests
+      description: >-
+        Spec 1974 names this as the existing endpoint whose auth requirement
+        GET /approvals/{request_id} must match; requires API key.
+      security:
+        - coordinatorApiKey: []
+      responses:
+        "200": {description: Pending approval requests (spec 1974)}
+  /approvals/{request_id}:
+    get:
+      operationId: getApprovalStatus
+      summary: Read the status of an approval request
+      description: >-
+        Spec 1973: returns the status of a specific approval request; requires
+        API key, consistent with GET /approvals/pending (spec 1974). Spec
+        1978-1979: a non-existent request_id returns 404.
+      security:
+        - coordinatorApiKey: []
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Approval request status (spec 1973)}
+        "404": {description: Unknown request_id (spec 1978-1979)}
+  /approvals/{request_id}/decide:
+    post:
+      operationId: decideApproval
+      summary: Approve or deny a pending operation
+      description: >-
+        Spec 1186-1189: {decision: "approved", reason} updates status to
+        approved; the audit trail records reviewer identity and reason. Spec
+        1192-1194: {decision: "denied", reason} updates status to denied and
+        the agent receives approval_denied with the reason on next check.
+      security:
+        - coordinatorApiKey: []
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              properties:
+                decision: {type: string, enum: [approved, denied]}
+                reason: {type: string}
+      responses:
+        "200": {description: Status updated and audited (spec 1187-1189, 1193)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

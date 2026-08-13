@@ -1,0 +1,55 @@
+# agent-coordinator search contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Semantic code search"
+  version: 1.0.0
+  description: >-
+    Fail-closed semantic code retrieval. Spec lines 2929-2935, 2979-2983.
+paths:
+  /search/code:
+    post:
+      operationId: searchCode
+      summary: Semantic code retrieval over one exact repository revision
+      description: >-
+        Spec 2930-2935: one typed service exposed on the MCP search_code tool
+        and this authenticated endpoint; both require query, repository slug,
+        exact source revision, namespace, and authoritative scope; non-main
+        namespaces additionally require an exact index ID; limit, offset,
+        language, and caller path filters are bounded optional narrowings.
+        Spec 2979-2981: while CODE_SEARCH_ENABLED is off this endpoint
+        returns 404.
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query, repo_slug, source_revision, namespace, scope]
+              properties:
+                query: {type: string}
+                repo_slug: {type: string}
+                source_revision: {type: string}
+                namespace: {type: object}
+                scope: {type: object}
+                index_id: {type: string, description: "Required for non-main namespaces (spec 2933-2934)"}
+                limit: {type: integer}
+                offset: {type: integer}
+                language: {type: string}
+                path_filters: {type: array, items: {type: string}}
+      responses:
+        "200": {description: Ready result or structured fail-closed operational state (spec 2930-2935)}
+        "404": {description: CODE_SEARCH_ENABLED is off (spec 2979-2981)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

@@ -1,0 +1,57 @@
+# agent-coordinator archetypes contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Archetype resolution"
+  version: 1.0.0
+  description: >-
+    Phase archetype resolution endpoint. Spec lines 2742-2761.
+paths:
+  /archetypes/resolve_for_phase:
+    post:
+      operationId: resolveArchetypeForPhase
+      summary: Resolve an archetype's model and system prompt for a phase
+      description: >-
+        Spec 2744-2753: requires X-API-Key; delegates to
+        agents_config.resolve_archetype_for_phase(phase, signals); returns 200
+        with model, system_prompt, archetype, and reasons[]; 404 for unknown
+        phase names; 400 for malformed request bodies; logs every successful
+        resolution to the audit trail with agent_id, phase, archetype, and
+        model.
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phase, signals]
+              properties:
+                phase: {type: string}
+                signals: {type: object}
+      responses:
+        "200":
+          description: Resolved archetype (spec 2750, 2755-2761)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  model: {type: string}
+                  system_prompt: {type: string}
+                  archetype: {type: string}
+                  reasons: {type: array, items: {type: string}}
+        "400": {description: Malformed request body (spec 2752)}
+        "404": {description: Unknown phase name (spec 2751)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

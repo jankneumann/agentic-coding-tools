@@ -1,0 +1,44 @@
+# agent-coordinator health contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Health check"
+  version: 1.0.0
+  description: >-
+    Unauthenticated liveness endpoint with database connectivity. Spec lines 219-221, 903-911.
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Liveness and database connectivity check
+      description: >-
+        Spec 220-221: returns 200 with status and version, no authentication.
+        Spec 903: MUST include a database connectivity check reporting both API
+        and database status. Spec 906-907: db responsive -> 200
+        {"status": "ok", "db": "connected"}. Spec 910-911: db unresponsive
+        within 2 seconds -> 503 {"status": "degraded", "db": "unreachable"}.
+      responses:
+        "200":
+          description: Healthy (spec 907)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, enum: [ok]}
+                  db: {type: string, enum: [connected]}
+                  version: {type: string}
+        "503":
+          description: Database unreachable within 2 seconds (spec 910-911)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, enum: [degraded]}
+                  db: {type: string, enum: [unreachable]}
