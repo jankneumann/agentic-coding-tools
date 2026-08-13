@@ -640,6 +640,83 @@ def format_vendor_counts(per_vendor_counts: dict[str, int]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Canonical schema validation for per-vendor findings files
+# ---------------------------------------------------------------------------
+
+def _schema_mod() -> Any:
+    """Return the ``review_findings_schema`` module, or ``None`` if absent."""
+    try:
+        import review_findings_schema  # type: ignore[import-untyped]
+
+        return review_findings_schema
+    except ImportError:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "review_findings_schema",
+            Path(__file__).parent / "review_findings_schema.py",
+        )
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(mod)  # type: ignore[union-attr]
+                return mod
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("review_findings_schema load failed: %s", exc)
+                return None
+        return None
+
+
+def _resolve_canonical_schema(schema_arg: str | None) -> dict[str, Any] | None:
+    """Load the canonical review-findings schema for per-vendor validation.
+
+    Uses an explicit ``--schema`` path when given, else the canonical file
+    discovered via the shared module. Returns ``None`` when neither the schema
+    nor jsonschema is available, in which case validation is skipped
+    (best-effort — matches the pre-existing behavioral-source contract).
+    """
+    if schema_arg:
+        try:
+            return json.loads(Path(schema_arg).read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("could not read --schema %s: %s", schema_arg, exc)
+            return None
+    mod = _schema_mod()
+    if mod is None:
+        return None
+    try:
+        return mod.load_schema()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("could not load canonical review-findings schema: %s", exc)
+        return None
+
+
+def _validate_vendor_document(
+    data: dict[str, Any], path: Path, schema: dict[str, Any] | None
+) -> None:
+    """Validate a per-vendor findings document, raising loudly on drift.
+
+    Raises :class:`ConsensusInputError` when the document violates the
+    canonical review-findings schema. No-op when validation is unavailable.
+    """
+    if schema is None:
+        return
+    try:
+        import jsonschema  # type: ignore[import-untyped]
+    except ImportError:
+        return
+    validator = jsonschema.Draft202012Validator(schema)
+    errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
+    if errors:
+        first = errors[0]
+        location = "/".join(str(p) for p in first.absolute_path) or "<root>"
+        raise ConsensusInputError(
+            f"{path}: review-findings schema violation: {first.message} "
+            f"(at {location})"
+        )
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
@@ -700,6 +777,11 @@ def main() -> int:
                 continue
             findings_paths.append(path)
 
+    # Resolve the canonical schema once; every per-vendor file is validated
+    # against it so a drifted finding (missing required field / wrong enum)
+    # fails loudly here rather than passing silently into consensus.
+    canonical_schema = _resolve_canonical_schema(args.schema)
+
     for p in findings_paths:
         if not p.exists():
             print(f"Warning: {p} not found, skipping", file=sys.stderr)
@@ -709,6 +791,7 @@ def main() -> int:
             ))
             continue
         data = json.loads(p.read_text())
+        _validate_vendor_document(data, p, canonical_schema)
         # findings-claude.json -> "claude" (drop the "findings-" prefix)
         default_vendor = p.stem
         if default_vendor.startswith("findings-"):

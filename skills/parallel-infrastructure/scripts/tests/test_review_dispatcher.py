@@ -60,7 +60,8 @@ VALID_FINDINGS_JSON = json.dumps({
     "reviewer_vendor": "test",
     "findings": [
         {"id": 1, "type": "security", "criticality": "high",
-         "description": "test", "disposition": "fix"},
+         "description": "test", "disposition": "fix",
+         "axis": "security", "severity": "critical"},
     ],
 })
 
