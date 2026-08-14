@@ -16,6 +16,7 @@ from typing import Any
 from .config import get_config
 from .db import DatabaseClient, get_db
 from .telemetry import get_policy_meter, start_span
+from .trust_levels import MIN_ADMIN_TRUST, MIN_WRITE_TRUST, TrustLevel
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ READ_ACTIONS = frozenset({
     "check_approval", "list_policy_versions",
 })
 
-# Write actions requiring trust_level >= 2
+# Write actions requiring trust_level >= MIN_WRITE_TRUST (TrustLevel.STANDARD)
 WRITE_ACTIONS = frozenset({
     "acquire_lock", "release_lock", "complete_work", "submit_work",
     "remember", "write_handoff", "check_guardrails",
@@ -67,7 +68,7 @@ WRITE_ACTIONS = frozenset({
     "register_feature", "deregister_feature",
 })
 
-# Admin actions requiring trust_level >= 3
+# Admin actions requiring trust_level >= MIN_ADMIN_TRUST (TrustLevel.ELEVATED)
 ADMIN_ACTIONS = frozenset({
     "force_push", "delete_branch", "cleanup_agents",
     "rollback_policy",
@@ -192,9 +193,11 @@ class NativePolicyEngine:
             except Exception:
                 trust_level = get_config().profiles.default_trust_level
 
-        # Suspended agents (trust 0) are denied all operations
-        if trust_level == 0:
-            decision = PolicyDecision.deny("agent_suspended: trust_level=0")
+        # Suspended agents (TrustLevel.UNTRUSTED) are denied all operations
+        if trust_level == TrustLevel.UNTRUSTED:
+            decision = PolicyDecision.deny(
+                f"agent_suspended: trust_level={int(TrustLevel.UNTRUSTED)}"
+            )
             await self._log_policy_decision(
                 agent_id=agent_id,
                 agent_type=agent_type,
@@ -253,7 +256,7 @@ class NativePolicyEngine:
             return decision
 
         if operation in WRITE_ACTIONS:
-            if trust_level >= 2:
+            if trust_level >= MIN_WRITE_TRUST:
                 decision = PolicyDecision.allow(
                     f"write_permitted: trust_level={trust_level}"
                 )
@@ -268,7 +271,7 @@ class NativePolicyEngine:
                 )
                 return decision
             decision = PolicyDecision.deny(
-                f"write_denied: trust_level={trust_level} < 2"
+                f"write_denied: trust_level={trust_level} < {int(MIN_WRITE_TRUST)}"
             )
             await self._log_policy_decision(
                 agent_id=agent_id,
@@ -282,7 +285,7 @@ class NativePolicyEngine:
             return decision
 
         if operation in ADMIN_ACTIONS:
-            if trust_level >= 3:
+            if trust_level >= MIN_ADMIN_TRUST:
                 decision = PolicyDecision.allow(
                     f"admin_permitted: trust_level={trust_level}"
                 )
@@ -297,7 +300,7 @@ class NativePolicyEngine:
                 )
                 return decision
             decision = PolicyDecision.deny(
-                f"admin_denied: trust_level={trust_level} < 3"
+                f"admin_denied: trust_level={trust_level} < {int(MIN_ADMIN_TRUST)}"
             )
             await self._log_policy_decision(
                 agent_id=agent_id,
