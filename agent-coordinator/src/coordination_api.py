@@ -553,20 +553,99 @@ async def authorize_operation(
         raise HTTPException(status_code=403, detail=decision.reason or "Forbidden")
 
 
+class TrustResolutionError(HTTPException):
+    """A registry-declared agent has no usable profile row (design D3).
+
+    Surfaced as a 500-class response, not a 403: the caller did nothing wrong.
+    The registry projection — which startup sync is supposed to materialize —
+    is broken, which is a coordinator configuration fault.
+    """
+
+    def __init__(self, agent_id: str, agent_type: str, reason: str) -> None:
+        self.agent_id = agent_id
+        self.agent_type = agent_type
+        self.reason = reason
+        super().__init__(
+            status_code=500,
+            detail=(
+                f"Trust level unresolvable for registry-declared agent "
+                f"'{agent_id}' (type '{agent_type}'): {reason}. The "
+                f"agent_profiles projection of agents.yaml is broken; "
+                f"restart the coordinator to re-run profile sync."
+            ),
+        )
+
+
+async def _audit_trust_resolution_failure(
+    agent_id: str, agent_type: str, reason: str
+) -> None:
+    """Record a failed trust resolution; never masks the original fault."""
+    try:
+        from .audit import get_audit_service
+
+        await get_audit_service().log_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="trust_resolution_failed",
+            parameters={"agent_id": agent_id, "agent_type": agent_type},
+            result={"reason": reason},
+            success=False,
+            error_message=reason,
+        )
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Could not audit trust resolution failure for '%s'",
+            agent_id,
+            exc_info=True,
+        )
+
+
 async def resolve_trust_level(agent_id: str, agent_type: str) -> int:
-    """Resolve effective trust level for guardrail evaluation."""
+    """Resolve effective trust level for guardrail evaluation.
+
+    Fail-loud is scoped to *registry-declared* agents (design D3):
+
+    - a principal absent from ``agents.yaml`` (env-var-configured externals,
+      tests) falls back to the configured default trust level, because the
+      registry cannot be authoritative for principals it does not name;
+    - a registry-declared agent whose profile row is missing or disabled
+      raises :class:`TrustResolutionError` and emits an audit event. Returning
+      a default trust level there would be the fail-open drift this change
+      exists to remove — the projection machinery itself has failed.
+    """
+    from .agents_config import get_agent_config
     from .profiles import get_profiles_service
+
+    registry_entry = get_agent_config(agent_id)
 
     try:
         profile_result = await get_profiles_service().get_profile(
             agent_id=agent_id,
             agent_type=agent_type,
         )
-        if profile_result.success and profile_result.profile is not None:
-            return profile_result.profile.trust_level
-    except Exception:
-        pass
-    return get_config().profiles.default_trust_level
+    except Exception as exc:
+        if registry_entry is None:
+            return get_config().profiles.default_trust_level
+        reason = f"profile lookup failed: {exc}"
+        await _audit_trust_resolution_failure(agent_id, agent_type, reason)
+        raise TrustResolutionError(agent_id, agent_type, reason) from exc
+
+    profile = profile_result.profile
+    if profile_result.success and profile is not None and profile.enabled:
+        return profile.trust_level
+
+    if registry_entry is None:
+        return get_config().profiles.default_trust_level
+
+    reason = (
+        "profile row is disabled"
+        if profile is not None and not profile.enabled
+        else f"no profile row named '{registry_entry.profile}'"
+    )
+    await _audit_trust_resolution_failure(agent_id, agent_type, reason)
+    raise TrustResolutionError(agent_id, agent_type, reason)
 
 
 # =============================================================================
@@ -611,6 +690,20 @@ def create_coordination_api() -> FastAPI:
                 "Migration check failed — continuing with existing schema.",
                 exc_info=True,
             )
+
+        # Project agents.yaml onto agent_profiles (design D1). MUST run after
+        # ensure_schema() so the table it writes exists.
+        #
+        # DELIBERATELY NOT wrapped in try/except, unlike every other startup
+        # step in this lifespan. The agent-identity spec requires that sync
+        # failure fail coordinator boot loudly: a coordinator whose
+        # authorization state silently diverges from the registry is precisely
+        # the fail-open drift this change removes. Do not "fix" this into the
+        # warn-and-continue pattern used above. The rollback lever is
+        # PROFILE_SYNC_ENABLED=false (design D8), which sync_profiles() honors.
+        from .agents_config import sync_profiles
+
+        await sync_profiles()
 
         # Semantic search is optional and default-off. Its runtime owns the
         # pool/provider in this serving loop; initialization failure never

@@ -23,43 +23,43 @@ tasks they verify.
 
 ## Phase 2 — Registry projections
 
-- [ ] 2.1 Write tests for full-roster identity generation — MCP agents included, unresolved
+- [x] 2.1 Write tests for full-roster identity generation — MCP agents included, unresolved
       placeholders excluded, explicit env override wins, duplicate keys raise naming both
       agents (S)
       **Spec scenarios**: agent-identity / "MCP-transport agent receives identity
       projection", "Full-roster identity map", "Duplicate key rejected"
       **Design decisions**: D5, D6
       **Dependencies**: none
-- [ ] 2.2 Drop the `transport == "http"` filter in `get_api_key_identities()`; make
+- [x] 2.2 Drop the `transport == "http"` filter in `get_api_key_identities()`; make
       duplicate resolved keys a load error (S)
       **Dependencies**: 2.1
-- [ ] 2.3 Write tests for `sync_profiles()` — insert missing, update drifted, disable
+- [x] 2.3 Write tests for `sync_profiles()` — insert missing, update drifted, disable
       orphan with audit event, idempotent re-run (second invocation converges, no
       duplicate mutations), `PROFILE_SYNC_ENABLED=false` no-op (M)
       **Spec scenarios**: agent-identity / "Sync creates missing profile", "Sync updates
       drifted profile", "Orphan profile disabled with audit trail", "Sync disabled via flag"
       **Design decisions**: D1, D2, D8, D9
       **Dependencies**: 1.2
-- [ ] 2.4 Implement `sync_profiles()` in `agents_config.py` (capabilities→operations
+- [x] 2.4 Implement `sync_profiles()` in `agents_config.py` (capabilities→operations
       mapping table plus trust-derived grants, idempotent upsert keyed on profile name,
       orphan disabling, audit events per the profile-sync contract) and invoke from
       coordinator startup behind `PROFILE_SYNC_ENABLED` (M)
       **Dependencies**: 2.3
-- [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 2.5 Write regression test: derived `allowed_operations` for `claude_code_local`
+- [x] Checkpoint: run tests, review diff, verify scope
+- [x] 2.5 Write regression test: derived `allowed_operations` for `claude_code_local`
       equals the operations granted by migration 007/019/022 (S)
       **Design decisions**: risk note "allowed_operations derivation"
       **Dependencies**: 2.4
-- [ ] 2.6 Write tests for fail-loud trust resolution — registry agent with missing/disabled
+- [x] 2.6 Write tests for fail-loud trust resolution — registry agent with missing/disabled
       profile errors with audit event; unknown principal still gets default trust (S)
       **Spec scenarios**: agent-coordinator / "Registry agent with broken projection fails
       loud", "Unknown principal still defaults low"
       **Design decisions**: D3
       **Dependencies**: 2.4
-- [ ] 2.7 Implement the fail-loud split in `resolve_trust_level()` (registry-membership
+- [x] 2.7 Implement the fail-loud split in `resolve_trust_level()` (registry-membership
       check, 500-class error surface, audit event) (S)
       **Dependencies**: 2.6
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 3 — CLI wrapper
 
