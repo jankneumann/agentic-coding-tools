@@ -1,0 +1,369 @@
+schema_version: 1
+
+feature:
+  id: derive-agent-identity-from-registry
+  title: "Registry-derived identity and trust — agents.yaml canonical, projections synced, fail-loud (pca-01)"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  # No OpenAPI surface in this change (see contracts/README.md); the schema requires
+  # an openapi block, so primary points at the README stub documenting that decision.
+  openapi:
+    primary: "openspec/changes/derive-agent-identity-from-registry/contracts/README.md"
+    files:
+      - "openspec/changes/derive-agent-identity-from-registry/contracts/README.md"
+      - "openspec/changes/derive-agent-identity-from-registry/contracts/db/schema.sql"
+      - "openspec/changes/derive-agent-identity-from-registry/contracts/events/profile-sync-audit.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-contracts — validate DB + event contracts (root of DAG)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-contracts
+    title: "Contracts — trust-constraint DB contract, profile_sync audit event schema"
+    task_type: contracts
+    description: |
+      Validate contracts/db/schema.sql and contracts/events/profile-sync-audit.schema.json
+      against the current agent_profiles schema (migration 007) and audit_log conventions.
+      Establishes the coordination boundary for downstream packages.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/derive-agent-identity-from-registry/contracts"
+      keys:
+        - "contract:agent-profiles-trust-constraint"
+        - "contract:profile-sync-audit-event"
+      ttl_minutes: 60
+      reason: "Identity/trust contracts for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/derive-agent-identity-from-registry/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: registry-identity-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Event schema parses; DB contract non-empty"
+          kind: command
+          command: "python3 -c 'import json; json.load(open(\"openspec/changes/derive-agent-identity-from-registry/contracts/events/profile-sync-audit.schema.json\"))' && test -s openspec/changes/derive-agent-identity-from-registry/contracts/db/schema.sql"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["contracts_valid"]
+    metadata:
+      loc_estimate: 0
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["contracts_valid"]
+      artifacts:
+        - "openspec/changes/derive-agent-identity-from-registry/contracts/db/schema.sql"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-trust-scale — trust_levels.py module, policy-engine wiring, migration
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-trust-scale
+    title: "Unified trust scale — src/trust_levels.py, policy thresholds, DB migration"
+    task_type: backend
+    description: |
+      Implement tasks.md 1.1-1.3: TrustLevel IntEnum (0 Untrusted .. 4 Admin) in
+      src/trust_levels.py, policy-engine read/write/admin thresholds derived from it,
+      migration realizing contracts/db/schema.sql with paired down migration.
+      NOTE: wiring AGENTS_SCHEMA trust bounds to the module lands in wp-registry-sync,
+      which owns agents_config.py (scope non-overlap, design D4 note).
+    role: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/src/trust_levels.py"
+        - "agent-coordinator/src/policy_engine.py"
+      keys:
+        - "db:schema:agent_profiles"
+      ttl_minutes: 120
+      reason: "Trust scale module and constraint migration"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/trust_levels.py"
+        - "agent-coordinator/src/policy_engine.py"
+        - "agent-coordinator/database/migrations/**"
+        - "agent-coordinator/tests/test_trust_levels.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: registry-identity-wp-trust-scale
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Trust-scale unit tests pass"
+          kind: command
+          command: "uv run pytest tests/test_trust_levels.py -q"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["trust_scale_green"]
+    metadata:
+      loc_estimate: 150
+      complexity: low
+      package_kind: data_model
+    inputs: {}
+    outputs:
+      result_keys: ["trust_scale_green"]
+      artifacts:
+        - "agent-coordinator/src/trust_levels.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-registry-sync — identity generation, sync_profiles, fail-loud trust
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-registry-sync
+    title: "Registry projections — full-roster identities, startup profile sync, fail-loud resolution"
+    task_type: backend
+    description: |
+      Implement tasks.md 2.1-2.7: drop the transport filter in get_api_key_identities()
+      and make duplicate keys a load error (D5, D6); sync_profiles() with
+      capabilities->operations mapping, orphan disabling, audit events per the
+      profile-sync-audit contract, advisory-lock concurrency, PROFILE_SYNC_ENABLED
+      guard (D1, D2, D8, D9); fail-loud split in resolve_trust_level() (D3); wire
+      AGENTS_SCHEMA trust bounds to trust_levels.py; allowed_operations regression
+      test against migrations 007/019/022.
+    role: implementer
+    priority: 3
+    depends_on: [wp-trust-scale]
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/profiles.py"
+      keys:
+        - "feature:identity-generation:write"
+        - "feature:profile-sync:write"
+      ttl_minutes: 120
+      reason: "Registry projection implementation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/profiles.py"
+        - "agent-coordinator/tests/test_agents_config.py"
+        - "agent-coordinator/tests/test_profiles.py"
+        - "agent-coordinator/tests/test_coordination_api.py"
+        - "agent-coordinator/tests/test_profile_sync.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: registry-identity-wp-registry-sync
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Sync + identity + fail-loud tests pass"
+          kind: command
+          command: "uv run pytest tests/test_profile_sync.py tests/test_agents_config.py tests/test_profiles.py -q"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["registry_sync_green"]
+    metadata:
+      loc_estimate: 500
+      complexity: medium
+      package_kind: crud
+    inputs: {}
+    outputs:
+      result_keys: ["registry_sync_green"]
+      artifacts:
+        - "agent-coordinator/src/agents_config.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-cli-wrapper — setup_cloud.py derives roster from registry
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-cli-wrapper
+    title: "setup_cloud.py — thin wrapper over load_agents_config()"
+    task_type: backend
+    description: |
+      Implement tasks.md 3.1-3.2: delete the hardcoded AGENTS roster; derive agents,
+      key flags, identities, and .env.cloud aliases from the registry; preserve
+      operator UX (Railway push, --verify); docstring records pca-03 retirement (D7).
+    role: implementer
+    priority: 4
+    depends_on: [wp-registry-sync]
+    locks:
+      files:
+        - "agent-coordinator/scripts/setup_cloud.py"
+      keys:
+        - "feature:setup-cloud-wrapper:write"
+      ttl_minutes: 60
+      reason: "CLI wrapper derivation"
+    scope:
+      write_allow:
+        - "agent-coordinator/scripts/setup_cloud.py"
+        - "agent-coordinator/tests/test_setup_cloud.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: registry-identity-wp-cli-wrapper
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "setup_cloud derivation tests pass"
+          kind: command
+          command: "uv run pytest tests/test_setup_cloud.py -q"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["cli_wrapper_green"]
+    metadata:
+      loc_estimate: 200
+      complexity: low
+    inputs: {}
+    outputs:
+      result_keys: ["cli_wrapper_green"]
+      artifacts:
+        - "agent-coordinator/scripts/setup_cloud.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-invariant-docs — CI invariant test + docs/runbook
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-invariant-docs
+    title: "Registry-projection invariant test + docs"
+    task_type: backend
+    description: |
+      Implement tasks.md 4.1-4.2: tests/test_registry_projection.py asserting every
+      registry agent materializes profile + identity + resolvable profile name and no
+      enabled orphans remain; update agent-coordinator/CLAUDE.md env-var docs and add
+      the rollback runbook snippet (D8).
+    role: implementer
+    priority: 5
+    depends_on: [wp-registry-sync, wp-cli-wrapper]
+    locks:
+      files:
+        - "agent-coordinator/tests/test_registry_projection.py"
+      keys:
+        - "feature:registry-projection-invariant:write"
+      ttl_minutes: 60
+      reason: "Invariant test and docs"
+    scope:
+      write_allow:
+        - "agent-coordinator/tests/test_registry_projection.py"
+        - "agent-coordinator/CLAUDE.md"
+        - "docs/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: registry-identity-wp-invariant-docs
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Invariant test passes against current registry"
+          kind: command
+          command: "uv run pytest tests/test_registry_projection.py -q"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["invariant_green"]
+    metadata:
+      loc_estimate: 250
+      complexity: medium
+    inputs: {}
+    outputs:
+      result_keys: ["invariant_green"]
+      artifacts:
+        - "agent-coordinator/tests/test_registry_projection.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-integration — merge, full gates
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-integration
+    title: "Integration — merge worktrees, full test/type/lint gates"
+    task_type: integration
+    description: |
+      Implement tasks.md 4.3: merge package branches, run the full agent-coordinator
+      suite (pytest -m "not e2e and not integration"), mypy --strict src/, ruff check;
+      fix integration fallout.
+    role: integrator
+    priority: 6
+    depends_on: [wp-contracts, wp-trust-scale, wp-registry-sync, wp-cli-wrapper, wp-invariant-docs]
+    locks:
+      files: []
+      keys:
+        - "feature:derive-agent-identity-from-registry:integrate"
+      ttl_minutes: 120
+      reason: "Feature integration"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    worktree:
+      name: registry-identity-wp-integration
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Full unit suite green"
+          kind: command
+          command: "uv run pytest -m 'not e2e and not integration' -q"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["suite_green"]
+        - name: "Types and lint clean"
+          kind: command
+          command: "uv run mypy --strict src/ && uv run ruff check ."
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["static_green"]
+    metadata:
+      loc_estimate: 50
+      complexity: low
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["suite_green", "static_green"]
+      artifacts: []

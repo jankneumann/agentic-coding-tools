@@ -1,0 +1,114 @@
+# Design — derive-agent-identity-from-registry
+
+Phase 1 of the `principal-credential-architecture` roadmap (pca-01). Scope: make
+`agents.yaml` canonical and derive all identity/trust projections from it. No OpenBao
+topology changes (pca-02), no auth-mechanism changes (pca-03), no posture resolution (pca-04).
+
+## Context
+
+Full failure analysis lives in the roadmap proposal
+(`openspec/roadmaps/principal-credential-architecture/proposal.md`). The short version:
+four authorization layers drift independently because every one of them fails open, and the
+spec's `seed_profiles_from_config()` requirement (2026-03-01) was never implemented — the
+gap that let `add-agy-grok-pi-harnesses` ship dispatch plumbing without authorization
+plumbing, leaving three harnesses at silent trust 2 with no canonical identities.
+
+## Decisions
+
+### D1 — `agent_profiles` is a materialized view; sync runs at startup
+
+The DB table stops being a co-equal authority. Coordinator startup upserts one row per
+registry agent (keyed by declared `profile` name) and the table is thereafter read-only from
+the operator's perspective. Explicit-seeding (the spec's original design) was rejected
+because its own five-month history of non-implementation across two shipped changes is the
+evidence against operator-invoked consistency; runtime fallback (registry consulted on DB
+miss) was rejected because it creates two *live* authorities whose precedence must be
+debugged forever. Recorded as the Gate 1 selection in `proposal.md`.
+
+### D2 — Orphans are disabled, never deleted; every sync mutation is audited
+
+Rows whose profile name no registry entry declares get `enabled = false`. This reverses the
+spec's "additive only" posture deliberately: ghost profiles (`gemini_*`, `strands_*`) are
+live authorization state for retired principals — exactly what an attacker or a stale
+script would use. Disabling rather than deleting preserves history and makes rollback a
+one-line re-enable. Each insert/update/disable emits an `audit_log` event
+(`operation = "profile_sync"`), so the projection is observable, satisfying the
+Governance-layer requirement that authorization changes leave a trail.
+
+### D3 — Fail-loud is scoped to *registry-declared* agents
+
+Two miss cases split:
+
+- Principal not in the registry (env-var-configured externals, tests): default trust —
+  unchanged, because the registry cannot be authoritative for principals it doesn't name.
+- Registry-declared agent with a missing/disabled profile row: hard error + audit event.
+  A known agent with a broken projection means the projection machinery itself failed —
+  continuing at a default trust level is precisely the fail-open drift this change removes.
+
+`resolve_trust_level()` gains the registry check; the error surfaces as a 500-class
+response (configuration fault), not a 403 (the caller did nothing wrong).
+
+### D4 — One trust-scale module; validators derive from it
+
+New `agent-coordinator/src/trust_levels.py` defining the existing documented scale
+(0 Untrusted, 1 Limited, 2 Standard, 3 Elevated, 4 Admin) as an `IntEnum` plus
+`MIN_TRUST` / `MAX_TRUST`. The `agents.yaml` JSON schema bounds, the policy engine's
+read/write/admin thresholds, and the migration's CHECK constraint test all reference it.
+The YAML schema's current 1–5 range is a bug (DB constraint is 0–4); no live config uses
+0 or 5, so tightening is a no-op for data and **BREAKING** only for hypothetical configs.
+
+### D5 — Transport does not gate identity
+
+`get_api_key_identities()` iterates all agents, not `transport == "http"`. Rationale: the
+MCP server's HTTP-proxy fallback makes every local agent an HTTP principal in practice
+(this planning session itself authenticated that way). `transport` remains as dispatch
+metadata only.
+
+### D6 — Duplicate resolved API keys become a load error
+
+Current behavior logs a warning and last-writer-wins — an identity-confusion bug waiting to
+happen (two principals, one key, wrong attribution in audit logs). With the identity map now
+covering the full roster, collisions get likelier; fail at load with both agent names.
+
+### D7 — `setup_cloud.py` keeps its UX, loses its roster
+
+The hardcoded `AGENTS` list and per-agent `--<agent>-key` flag table are replaced by
+iteration over `load_agents_config()`; key-flag names derive from agent names. Operator
+workflow (`.env.cloud`, aliases, Railway push, `--verify`) is unchanged. The script is
+scheduled for deletion in pca-03 when static keys die — documented in its module docstring
+so nobody invests in it further.
+
+### D8 — Rollback levers ship with the change
+
+- `PROFILE_SYNC_ENABLED=false` skips all sync writes (logged warning), restoring pre-change
+  runtime behavior.
+- Explicit `COORDINATION_API_KEY_IDENTITIES` still overrides registry derivation (existing
+  precedence), pinning the identity map if the widened roster misbehaves.
+- The trust-constraint migration ships with a paired down migration.
+- Disabled orphan rows re-enable with one documented `UPDATE`.
+
+### D9 — Sync concurrency via advisory lock
+
+Multiple API workers can boot simultaneously. The sync takes a Postgres advisory lock
+(`pg_advisory_lock`) for its transaction; losers of the race re-read and no-op (idempotent
+upserts keyed on `name`). No new table needed.
+
+### D10 — OpenBao code is untouched
+
+`_resolve_api_key_from_openbao()` and `bao_seed.py` keep their current (flawed) behavior;
+fixing the shared-secret/shared-path topology is pca-02's entire scope. Phase 1 must remain
+shippable with no OpenBao deployed. The identity-generation refactor keeps the OpenBao
+resolution hook exactly where it is.
+
+## Risks
+
+- **Startup write path**: a bad registry now blocks boot. Mitigated by D8's flag and by the
+  registry-projection CI test catching bad registries before deploy.
+- **Widened identity map**: local-agent keys become accepted HTTP credentials wherever the
+  registry's `${VAR}`s resolve. This is the *intended* semantic (they already are, via
+  setup_cloud env vars), but the diff makes it visible; per-agent key rotation is the
+  operator action if any local key was shared or leaked.
+- **`allowed_operations` derivation**: capabilities → operations mapping must reproduce the
+  operation lists the hand-written migrations granted, or agents lose abilities silently.
+  The mapping table is data-driven and covered by an explicit regression test comparing
+  against the operations currently granted to `claude_code_local`.
