@@ -5,21 +5,21 @@ tasks they verify.
 
 ## Phase 1 — Unified trust scale
 
-- [ ] 1.1 Write tests for the trust-scale module — enum values/names match the documented
+- [x] 1.1 Write tests for the trust-scale module — enum values/names match the documented
       table, bounds exported, YAML schema and policy thresholds derive from it (S)
       **Spec scenarios**: agent-identity / "Out-of-scale registry value rejected",
       "Single definition consumed everywhere"
       **Design decisions**: D4
       **Dependencies**: none
-- [ ] 1.2 Create `src/trust_levels.py` — `TrustLevel` IntEnum (0 Untrusted … 4 Admin),
+- [x] 1.2 Create `src/trust_levels.py` — `TrustLevel` IntEnum (0 Untrusted … 4 Admin),
       `MIN_TRUST`/`MAX_TRUST`; wire `AGENTS_SCHEMA` trust bounds and policy-engine
       read/write/admin thresholds to it (S)
       **Dependencies**: 1.1
-- [ ] 1.3 Migration: align `agent_profiles` CHECK constraint with the module's bounds and
+- [x] 1.3 Migration: align `agent_profiles` CHECK constraint with the module's bounds and
       add the paired down migration; test asserts constraint bounds equal module bounds (S)
       **Design decisions**: D4, D8
       **Dependencies**: 1.2
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2 — Registry projections
 
