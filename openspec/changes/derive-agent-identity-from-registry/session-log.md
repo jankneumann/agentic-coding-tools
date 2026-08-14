@@ -39,3 +39,40 @@
 ### Context
 Planned Phase 1 of the principal-credential-architecture roadmap: make agents.yaml canonical and derive all identity/trust projections (DB profiles, identity map, trust scale) from it, fail-loud for known agents. Roadmap (4 phases: registry canonical, per-agent OpenBao, session tokens, unified posture) created alongside the fully detailed pca-01 change. Approach 1 (startup sync, materialized-view DB) selected at Gate 1.
 
+---
+
+## Phase: Implement (2026-08-14)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **UNMANAGED_PROFILES carve-out for role profiles (D2 amended)** `architectural: agent-identity` — evaluator is a role, not a harness identity: migration 027's claim_task has evaluator-specific self-review-exclusion logic, so blanket orphan-disabling would break evaluation task claiming. claude_code_reviewer and strands_local were checked the same way and are genuine ghosts.
+2. **Concurrency via idempotent upserts, not an advisory lock (D9 amended)** `architectural: agent-identity` — pg_advisory_lock is unreachable through DatabaseClient: no raw execute, rpc() emits named-parameter calls Postgres built-ins reject, and pooled connections make session-scoped locks unsafe. Convergent upserts satisfy the spec's concurrency requirement.
+3. **PROFILE_SYNC_ENABLED disabled in test conftest, wiring pinned by two explicit tests** `architectural: agent-identity` — 24 tests across five modules build the app with `with TestClient(app)`, running the lifespan; the deliberately unwrapped sync then failed boot against the fake Supabase URL. Disabling in tests declares 'does not exercise the projection' rather than softening the production contract; two new lifespan tests keep the fail-loud wiring covered.
+4. **Restored `discover` to codex-remote in agents.yaml** `architectural: agent-identity` — The projection derives allowed_operations from declared capabilities, so the omission would have dropped register_session/heartbeat from the synced profile — operations the agent holds today and needs to register a session and avoid stale-reaping. A registry gap, not an intentional restriction.
+
+### Alternatives Considered
+- Degrade the startup sync when the database is unreachable: rejected because Would soften the spec'd fail-loud contract to unbreak tests; the request path's D3 fail-closed behavior is the security property, and production boot failure on an unreachable DB is defensible since no endpoint can serve without it.
+- Adding evaluator to agents.yaml instead of an allowlist: rejected because The registry would then claim to describe an agent it cannot dispatch, authenticate, or assign a transport to.
+
+### Trade-offs
+- Accepted claude_code_remote loses query_audit over Adding an `audit` capability to keep the migration-era grant because Diagnostic read, not required for operation; registry is canonical, and the reversal is a one-line capability addition. Filed as a follow-up issue.
+- Accepted Alias ccc renamed to cclaude over Preserving the historical alias via a lookup table because ccc is not mechanically derivable from the agent name or its CLI command; a lookup table would recreate the second roster this change deletes.
+
+### Open Questions
+- [ ] get_agent_profile() resolves ambiguously when two agents share an agent_type (claude_code_local vs claude_code_remote) — filed; needs a migration, relevant to pca-03/pca-04
+- [ ] migration 031 adds synced_from_registry_at but sync_profiles never writes it (asyncpg/Supabase type friction) — filed; wants a DEFAULT now() follow-up migration
+- [ ] First production boot will disable claude_code_reviewer and strands_local and create four profiles; verify against the live database before deploying
+
+### Next Steps
+- Run /validate-feature derive-agent-identity-from-registry, then archive
+- pca-02 (restructure-openbao-per-agent-secrets) is the next roadmap item and is now unblocked
+
+### Relevant Files
+- `agent-coordinator/src/trust_levels.py` — single programmatic trust scale
+- `agent-coordinator/tests/test_registry_projection.py` — the CI invariant that would have caught the original bug
+- `docs/registry-identity-projection.md` — operator projection model and rollback runbook
+
+### Context
+Implemented pca-01 across six work packages: agents.yaml is now canonical and the identity map, agent_profiles rows, and trust scale are derived projections, with fail-loud resolution and a CI invariant test. Full suite 2255 passed / 0 failed; mypy --strict and ruff clean. Two design decisions were amended from implementation findings, and integration surfaced a permission narrowing that was fixed at the registry.
+
