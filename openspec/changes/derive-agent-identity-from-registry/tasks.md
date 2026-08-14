@@ -63,15 +63,15 @@ tasks they verify.
 
 ## Phase 3 — CLI wrapper
 
-- [ ] 3.1 Write tests for registry-derived `setup_cloud.py` — roster equals
+- [x] 3.1 Write tests for registry-derived `setup_cloud.py` — roster equals
       `load_agents_config()` names, per-agent flags generated, identities JSON matches
       `get_api_key_identities()` shape, `.env.cloud` aliases emitted per CLI-bearing agent (S)
       **Design decisions**: D7
       **Dependencies**: 2.2
-- [ ] 3.2 Rewrite `setup_cloud.py` roster/flag/identity derivation from the registry;
+- [x] 3.2 Rewrite `setup_cloud.py` roster/flag/identity derivation from the registry;
       delete the hardcoded `AGENTS` list; docstring notes pca-03 retirement (S)
       **Dependencies**: 3.1
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 4 — Invariant and integration
 
