@@ -35,6 +35,26 @@ one-line re-enable. Each insert/update/disable emits an `audit_log` event
 (`operation = "profile_sync"`), so the projection is observable, satisfying the
 Governance-layer requirement that authorization changes leave a trail.
 
+**Amended at implementation — not every profile is a harness identity.** Reading the
+seeded rows revealed a class the original decision would have broken: `evaluator`
+(migration `026_evaluator_profile.sql`, `agent_type: evaluator`, exercised by
+`tests/test_evaluator_profile.py` and the generator-evaluator work-queue routing) is a
+**role** profile, not a harness identity. It has no CLI, no transport, and no business
+being in `agents.yaml` — but a blanket "disable everything the registry doesn't declare"
+would disable it and silently break evaluation task assignment. That is the same
+class of collateral damage this change exists to prevent, arriving from the other
+direction.
+
+The registry therefore owns *harness-identity* profiles, and a short, explicit
+`UNMANAGED_PROFILES` allowlist names the role profiles it deliberately does not own.
+Orphan disabling skips that set. The allowlist lives beside `sync_profiles()` with a
+comment explaining the distinction, and the Registry Projection Invariant asserts every
+enabled profile is either registry-declared **or** on the allowlist — so a future role
+profile that nobody thought about still fails CI rather than being quietly disabled or
+quietly tolerated. Rejected alternative: adding `evaluator` to `agents.yaml`, which would
+mean the registry claims to describe agents it cannot dispatch, authenticate, or assign a
+transport to.
+
 ### D3 — Fail-loud is scoped to *registry-declared* agents
 
 Two miss cases split:
@@ -87,11 +107,34 @@ so nobody invests in it further.
 - The trust-constraint migration ships with a paired down migration.
 - Disabled orphan rows re-enable with one documented `UPDATE`.
 
-### D9 — Sync concurrency via advisory lock
+### D9 — Sync concurrency via idempotent upserts (amended at implementation)
 
-Multiple API workers can boot simultaneously. The sync takes a Postgres advisory lock
-(`pg_advisory_lock`) for its transaction; losers of the race re-read and no-op (idempotent
-upserts keyed on `name`). No new table needed.
+Multiple API workers can boot simultaneously.
+
+**Original decision**: take a Postgres advisory lock (`pg_advisory_lock`) around the sync
+transaction. **Amended during implementation** — that lock is not reachable through this
+codebase's DB abstraction, for three independent reasons found by reading
+`src/db_postgres.py`:
+
+1. `DatabaseClient` exposes only `rpc` / `query` / `insert` / `update` / `delete`; there is
+   no raw-SQL escape hatch.
+2. `rpc()` emits `SELECT fn(name := $1)` — *named* parameter syntax, which Postgres
+   built-ins like `pg_advisory_lock(bigint)` do not accept (they have no parameter names).
+3. Session-scoped advisory locks are unsafe over a connection pool: `pool.acquire()` hands
+   each call a different connection, so the lock and its release can land on different
+   sessions.
+
+**Amended decision**: correctness comes from idempotence, not mutual exclusion. Profile
+upserts are `INSERT … ON CONFLICT (name) DO UPDATE` and orphan disabling is a single
+`UPDATE … WHERE name <> ALL($1) AND enabled = true`. Both are safe to run concurrently and
+converge on the same state, which is what the spec's "idempotent and safe under concurrent
+startup" requirement actually demands. Where the sync needs per-mutation audit detail
+(old/new values), the migration defines SQL functions that perform the mutation and RETURN
+what changed, called through `db.rpc()`; those functions may take `pg_advisory_xact_lock`
+internally — a *transaction*-scoped lock is safe on a pooled connection because it releases
+with the implicit transaction — purely to avoid duplicate audit events when two workers boot
+at the same instant. Duplicate audit events are cosmetic, not corrupting, so this is a
+refinement rather than a requirement.
 
 ### D10 — OpenBao code is untouched
 
