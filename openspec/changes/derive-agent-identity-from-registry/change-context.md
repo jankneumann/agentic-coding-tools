@@ -32,6 +32,6 @@ Phase 1 (pre-implementation) populated. Files Changed / Evidence filled in Phase
 
 - **Requirements traced**: 6/6
 - **Tests mapped**: 6 requirements have at least one test
-- **Evidence collected**: 6/6 (full suite 2255 passed, 11 skipped, 0 failed at afd64fa; mypy --strict and ruff clean)
+- **Evidence collected**: 6/6 (full suite 2270 passed, 11 skipped, 0 failed at afd64fa; mypy --strict and ruff clean)
 - **Gaps identified**: ---
 - **Deferred items**: ---
