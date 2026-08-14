@@ -28,10 +28,17 @@ agent is a potential HTTP principal and every one gets an identity.
 
 **It does not touch role profiles.** The registry owns *harness identities* — things with a
 transport that can be dispatched and authenticated. Profiles that represent a role rather than
-a harness (today: `evaluator`, seeded by migration 026 and used by generator-evaluator work-queue
-routing) are named in an explicit unmanaged-profile allowlist and are left alone. The projection
-invariant test asserts every enabled profile is either registry-declared or explicitly unmanaged,
-so a new role profile that nobody classified fails CI rather than being silently disabled.
+a harness are named in an explicit unmanaged-profile allowlist and left alone. Today that is
+`evaluator` (migration 026), and the classification was verified rather than assumed: migration
+027's `claim_task` function contains live evaluator-specific logic (excluding an evaluator from
+claiming evaluation tasks it submitted itself), so disabling that profile would break evaluation
+task claiming. The other candidates were checked the same way and are genuinely dead —
+`claude_code_reviewer` and `strands_local` have no reference anywhere outside the migration that
+renamed them.
+
+The projection invariant test asserts every enabled profile is either registry-declared or
+explicitly unmanaged, so a future role profile that nobody classified fails CI rather than being
+silently disabled.
 
 **It does not delete.** Rows for agents the registry no longer declares are set
 `enabled = false` and retained, with a `profile_sync` audit event naming each one. Retiring a
