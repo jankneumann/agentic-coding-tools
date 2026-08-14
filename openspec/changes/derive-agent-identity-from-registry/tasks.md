@@ -1,0 +1,93 @@
+# Tasks — derive-agent-identity-from-registry
+
+Sizes per the plan-feature sizing table. TDD ordering: test tasks precede the implementation
+tasks they verify.
+
+## Phase 1 — Unified trust scale
+
+- [ ] 1.1 Write tests for the trust-scale module — enum values/names match the documented
+      table, bounds exported, YAML schema and policy thresholds derive from it (S)
+      **Spec scenarios**: agent-identity / "Out-of-scale registry value rejected",
+      "Single definition consumed everywhere"
+      **Design decisions**: D4
+      **Dependencies**: none
+- [ ] 1.2 Create `src/trust_levels.py` — `TrustLevel` IntEnum (0 Untrusted … 4 Admin),
+      `MIN_TRUST`/`MAX_TRUST`; wire `AGENTS_SCHEMA` trust bounds and policy-engine
+      read/write/admin thresholds to it (S)
+      **Dependencies**: 1.1
+- [ ] 1.3 Migration: align `agent_profiles` CHECK constraint with the module's bounds and
+      add the paired down migration; test asserts constraint bounds equal module bounds (S)
+      **Design decisions**: D4, D8
+      **Dependencies**: 1.2
+- [ ] Checkpoint: run tests, review diff, verify scope
+
+## Phase 2 — Registry projections
+
+- [ ] 2.1 Write tests for full-roster identity generation — MCP agents included, unresolved
+      placeholders excluded, explicit env override wins, duplicate keys raise naming both
+      agents (S)
+      **Spec scenarios**: agent-identity / "MCP-transport agent receives identity
+      projection", "Full-roster identity map", "Duplicate key rejected"
+      **Design decisions**: D5, D6
+      **Dependencies**: none
+- [ ] 2.2 Drop the `transport == "http"` filter in `get_api_key_identities()`; make
+      duplicate resolved keys a load error (S)
+      **Dependencies**: 2.1
+- [ ] 2.3 Write tests for `sync_profiles()` — insert missing, update drifted, disable
+      orphan with audit event, idempotent re-run, `PROFILE_SYNC_ENABLED=false` no-op,
+      advisory-lock race (second worker no-ops) (M)
+      **Spec scenarios**: agent-identity / "Sync creates missing profile", "Sync updates
+      drifted profile", "Orphan profile disabled with audit trail", "Sync disabled via flag"
+      **Design decisions**: D1, D2, D8, D9
+      **Dependencies**: 1.2
+- [ ] 2.4 Implement `sync_profiles()` in `agents_config.py` (capabilities→operations
+      mapping table, upsert keyed on profile name, orphan disabling, audit events,
+      advisory lock) and invoke from coordinator startup behind `PROFILE_SYNC_ENABLED` (M)
+      **Dependencies**: 2.3
+- [ ] Checkpoint: run tests, review diff, verify scope
+- [ ] 2.5 Write regression test: derived `allowed_operations` for `claude_code_local`
+      equals the operations granted by migration 007/019/022 (S)
+      **Design decisions**: risk note "allowed_operations derivation"
+      **Dependencies**: 2.4
+- [ ] 2.6 Write tests for fail-loud trust resolution — registry agent with missing/disabled
+      profile errors with audit event; unknown principal still gets default trust (S)
+      **Spec scenarios**: agent-coordinator / "Registry agent with broken projection fails
+      loud", "Unknown principal still defaults low"
+      **Design decisions**: D3
+      **Dependencies**: 2.4
+- [ ] 2.7 Implement the fail-loud split in `resolve_trust_level()` (registry-membership
+      check, 500-class error surface, audit event) (S)
+      **Dependencies**: 2.6
+- [ ] Checkpoint: run tests, review diff, verify scope
+
+## Phase 3 — CLI wrapper
+
+- [ ] 3.1 Write tests for registry-derived `setup_cloud.py` — roster equals
+      `load_agents_config()` names, per-agent flags generated, identities JSON matches
+      `get_api_key_identities()` shape, `.env.cloud` aliases emitted per CLI-bearing agent (S)
+      **Design decisions**: D7
+      **Dependencies**: 2.2
+- [ ] 3.2 Rewrite `setup_cloud.py` roster/flag/identity derivation from the registry;
+      delete the hardcoded `AGENTS` list; docstring notes pca-03 retirement (S)
+      **Dependencies**: 3.1
+- [ ] Checkpoint: run tests, review diff, verify scope
+
+## Phase 4 — Invariant and integration
+
+- [ ] 4.1 Write `tests/test_registry_projection.py` — for every registry agent: enabled
+      profile row with declared trust post-sync, identity entry present (or key explicitly
+      unresolvable in test env), referenced profile resolves; no enabled non-registry
+      profiles remain (M)
+      **Spec scenarios**: agent-identity / "Half-onboarded harness caught in CI",
+      "Ghost profile caught in CI"
+      **Design decisions**: D1, D2
+      **Dependencies**: 2.4, 2.7
+- [ ] 4.2 Update docs — `agent-coordinator/CLAUDE.md` env-var section
+      (`PROFILE_SYNC_ENABLED`, identity auto-population semantics), rollback runbook
+      snippet in `docs/` (S)
+      **Design decisions**: D8
+      **Dependencies**: 2.7, 3.2
+- [ ] 4.3 Integration: full `pytest -m "not e2e and not integration"`, `mypy --strict src/`,
+      `ruff check .` in agent-coordinator; fix fallout (S)
+      **Dependencies**: 4.1, 4.2
+- [ ] Checkpoint: run tests, review diff, verify scope

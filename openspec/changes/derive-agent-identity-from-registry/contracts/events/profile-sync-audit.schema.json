@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "profile-sync-audit.schema.json",
+  "title": "profile_sync audit event payload",
+  "description": "Payload recorded in audit_log.details for each mutation the startup registry sync performs on agent_profiles (design D2). One event per mutated row; unchanged rows emit nothing.",
+  "type": "object",
+  "required": ["action", "profile_name", "agent_type", "source"],
+  "properties": {
+    "action": {
+      "enum": ["insert", "update", "disable"],
+      "description": "insert: row created for a registry agent; update: drifted fields reconciled to registry values; disable: enabled orphan row set enabled=false"
+    },
+    "profile_name": { "type": "string", "minLength": 1 },
+    "agent_type": { "type": "string", "minLength": 1 },
+    "source": {
+      "const": "agents.yaml",
+      "description": "Projection source; fixed until later roadmap phases introduce others"
+    },
+    "changed_fields": {
+      "type": "object",
+      "description": "Present for action=update: field -> {from, to} pairs limited to trust_level, allowed_operations, enabled",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["from", "to"]
+      }
+    },
+    "trust_level": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4,
+      "description": "Declared trust level for insert/update actions"
+    }
+  },
+  "additionalProperties": false
+}
