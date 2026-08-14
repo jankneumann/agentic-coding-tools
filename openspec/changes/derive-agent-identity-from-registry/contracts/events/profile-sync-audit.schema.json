@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "profile-sync-audit.schema.json",
   "title": "profile_sync audit event payload",
-  "description": "Payload recorded in audit_log.details for each mutation the startup registry sync performs on agent_profiles (design D2). One event per mutated row; unchanged rows emit nothing.",
+  "description": "Payload passed as the `parameters` argument of AuditService.log_operation(operation=\"profile_sync\") for each mutation the startup registry sync performs on agent_profiles (design D2), landing in the audit_log.parameters JSONB column (migration 008). One event per mutated row; unchanged rows emit nothing.",
   "type": "object",
   "required": ["action", "profile_name", "agent_type", "source"],
   "properties": {
