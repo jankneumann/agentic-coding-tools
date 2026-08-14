@@ -100,9 +100,14 @@ treating the table as a materialized projection of the registry.
 
 - On startup, for each registry agent, the coordinator SHALL upsert an `agent_profiles` row
   keyed by the declared `profile` name, carrying `agent_type`, `trust_level`, and
-  `allowed_operations` derived from the entry's `capabilities`
-- Enabled profile rows whose name is not declared by any registry entry SHALL be **disabled**
-  (`enabled = false`), never deleted; disabling SHALL emit an audit event naming the row
+  `allowed_operations` derived from the entry's `capabilities` and trust level
+- The registry SHALL own **harness-identity** profiles only. Profiles representing roles
+  rather than harness identities (e.g. `evaluator`, which has no transport and cannot be
+  dispatched) SHALL be named in an explicit unmanaged-profile allowlist maintained beside
+  the sync, and SHALL NOT be disabled by it
+- Enabled profile rows that are neither declared by a registry entry nor named in the
+  unmanaged allowlist SHALL be **disabled** (`enabled = false`), never deleted; disabling
+  SHALL emit an audit event naming the row
 - The sync SHALL be idempotent and safe under concurrent startup of multiple API workers
 - The sync SHALL be guarded by `PROFILE_SYNC_ENABLED` (default: enabled); disabling it
   restores pre-sync runtime behavior (rollback lever)
@@ -124,6 +129,13 @@ treating the table as a materialized projection of the registry.
 - **WHEN** startup sync runs against an `agents.yaml` with no gemini entry
 - **THEN** the row SHALL be set `enabled = false` and retained
 - **AND** an audit event SHALL record the disabling
+
+#### Scenario: Unmanaged role profile survives sync
+- **GIVEN** the enabled `evaluator` profile row seeded by migration 026
+- **AND** `evaluator` is named in the unmanaged-profile allowlist
+- **WHEN** startup sync runs against an `agents.yaml` with no evaluator entry
+- **THEN** the row SHALL remain enabled and unmodified
+- **AND** no disabling audit event SHALL be emitted for it
 
 #### Scenario: Sync disabled via flag
 - **WHEN** `PROFILE_SYNC_ENABLED=false`
@@ -161,8 +173,9 @@ surprise.
   `agent_profiles` row with the declared trust level, (b) an identity map entry exists or
   the agent's key is explicitly declared unresolvable in the test environment, (c) the
   `profile` name referenced by the entry resolves after sync
-- The test SHALL assert that no enabled profile rows exist that are not declared by the
-  registry (post-sync)
+- The test SHALL assert that every enabled profile row (post-sync) is either declared by
+  the registry or named in the unmanaged-profile allowlist, so a role profile nobody
+  considered fails CI rather than being silently disabled or silently tolerated
 - The test SHALL fail when a new harness is added to `agents.yaml` without the projections
   materializing
 

@@ -34,15 +34,16 @@ tasks they verify.
       duplicate resolved keys a load error (S)
       **Dependencies**: 2.1
 - [ ] 2.3 Write tests for `sync_profiles()` — insert missing, update drifted, disable
-      orphan with audit event, idempotent re-run, `PROFILE_SYNC_ENABLED=false` no-op,
-      advisory-lock race (second worker no-ops) (M)
+      orphan with audit event, idempotent re-run (second invocation converges, no
+      duplicate mutations), `PROFILE_SYNC_ENABLED=false` no-op (M)
       **Spec scenarios**: agent-identity / "Sync creates missing profile", "Sync updates
       drifted profile", "Orphan profile disabled with audit trail", "Sync disabled via flag"
       **Design decisions**: D1, D2, D8, D9
       **Dependencies**: 1.2
 - [ ] 2.4 Implement `sync_profiles()` in `agents_config.py` (capabilities→operations
-      mapping table, upsert keyed on profile name, orphan disabling, audit events,
-      advisory lock) and invoke from coordinator startup behind `PROFILE_SYNC_ENABLED` (M)
+      mapping table plus trust-derived grants, idempotent upsert keyed on profile name,
+      orphan disabling, audit events per the profile-sync contract) and invoke from
+      coordinator startup behind `PROFILE_SYNC_ENABLED` (M)
       **Dependencies**: 2.3
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 2.5 Write regression test: derived `allowed_operations` for `claude_code_local`
