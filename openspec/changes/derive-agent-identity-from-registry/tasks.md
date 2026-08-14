@@ -75,7 +75,7 @@ tasks they verify.
 
 ## Phase 4 — Invariant and integration
 
-- [ ] 4.1 Write `tests/test_registry_projection.py` — for every registry agent: enabled
+- [x] 4.1 Write `tests/test_registry_projection.py` — for every registry agent: enabled
       profile row with declared trust post-sync, identity entry present (or key explicitly
       unresolvable in test env), referenced profile resolves; no enabled non-registry
       profiles remain (M)
@@ -83,12 +83,12 @@ tasks they verify.
       "Ghost profile caught in CI"
       **Design decisions**: D1, D2
       **Dependencies**: 2.4, 2.7
-- [ ] 4.2 Update docs — `agent-coordinator/CLAUDE.md` env-var section
+- [x] 4.2 Update docs — `agent-coordinator/CLAUDE.md` env-var section
       (`PROFILE_SYNC_ENABLED`, identity auto-population semantics), rollback runbook
       snippet in `docs/` (S)
       **Design decisions**: D8
       **Dependencies**: 2.7, 3.2
-- [ ] 4.3 Integration: full `pytest -m "not e2e and not integration"`, `mypy --strict src/`,
+- [x] 4.3 Integration: full `pytest -m "not e2e and not integration"`, `mypy --strict src/`,
       `ruff check .` in agent-coordinator; fix fallout (S)
       **Dependencies**: 4.1, 4.2
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
