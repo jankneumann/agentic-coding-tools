@@ -808,3 +808,52 @@ async def test_registry_agent_with_healthy_profile_resolves(
     monkeypatch.setattr("src.profiles._profiles_service", service)
 
     assert await resolve_trust_level("grok-local", "grok") == 3
+
+
+# =============================================================================
+# Startup registry projection wiring (design D1/D3)
+# =============================================================================
+#
+# tests/conftest.py disables PROFILE_SYNC_ENABLED for the suite so that app
+# construction does not attempt the projection against the fake Supabase URL.
+# These two tests re-enable it and pin the wiring itself, so the conftest
+# default cannot quietly leave the fail-loud contract untested.
+
+
+@pytest.mark.asyncio
+async def test_lifespan_runs_registry_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Startup invokes the registry projection when sync is enabled."""
+    monkeypatch.delenv("PROFILE_SYNC_ENABLED", raising=False)
+    monkeypatch.setattr("src.migrations.ensure_schema", AsyncMock(return_value=[]))
+    sync = AsyncMock()
+    monkeypatch.setattr("src.agents_config.sync_profiles", sync)
+
+    with TestClient(create_coordination_api()):
+        pass
+
+    sync.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_fails_boot_when_registry_sync_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sync failure propagates out of startup rather than warning and continuing.
+
+    Every other startup step in the lifespan swallows its exception. This one
+    deliberately does not: a coordinator whose authorization state diverges from
+    the registry must not serve. If someone converts the sync call to the
+    surrounding warn-and-continue pattern, this test fails.
+    """
+    from src.agents_config import ProfileSyncError
+
+    monkeypatch.delenv("PROFILE_SYNC_ENABLED", raising=False)
+    monkeypatch.setattr("src.migrations.ensure_schema", AsyncMock(return_value=[]))
+    monkeypatch.setattr(
+        "src.agents_config.sync_profiles",
+        AsyncMock(side_effect=ProfileSyncError("projection unavailable")),
+    )
+
+    with pytest.raises(ProfileSyncError, match="projection unavailable"):
+        with TestClient(create_coordination_api()):
+            pass
