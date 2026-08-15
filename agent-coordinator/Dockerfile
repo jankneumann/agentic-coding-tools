@@ -21,8 +21,11 @@ FROM python:3.14-slim AS builder
 # Build tools needed to compile native deps (e.g. asyncpg, cryptography)
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libffi-dev && rm -rf /var/lib/apt/lists/*
 
-# Install uv package manager
-RUN pip install --no-cache-dir uv
+# Install uv package manager, pinned. An unpinned resolver is itself an
+# unpinned build input: uv picks the newest release at build time, so the same
+# commit can resolve differently next month through no change of ours. Bump
+# deliberately, alongside a `uv lock` run.
+RUN pip install --no-cache-dir uv==0.9.18
 
 # Copy the gen-eval sibling package so the path-dep in
 # agent-coordinator/pyproject.toml resolves at uv-sync time. The path is
@@ -36,11 +39,23 @@ COPY packages/code-search/ /packages/code-search/
 
 WORKDIR /app
 
-# Copy dependency manifests (layer caching — only reinstall when these change)
-COPY agent-coordinator/pyproject.toml agent-coordinator/uv.lock* ./
+# Copy dependency manifests (layer caching — only reinstall when these change).
+#
+# `uv.lock` is NOT globbed. The previous `uv.lock*` made the lockfile optional:
+# because `pyproject.toml` always matched, a missing lock left the COPY happy and
+# the build fell through to resolving dependencies from scratch. For an image we
+# deploy, a missing lock has to be a build failure, not a silent re-resolve.
+COPY agent-coordinator/pyproject.toml agent-coordinator/uv.lock ./
 
 # hatchling requires README.md for metadata validation even with --no-install-project
-RUN touch README.md && uv sync --all-extras --no-dev --no-install-project
+#
+# `--locked` asserts the lockfile already agrees with pyproject.toml and installs
+# exactly what it pins, rather than quietly re-resolving when the two have
+# drifted. Without it the deployed dependency set was decided at build time, so
+# rebuilding an unchanged commit could ship different versions than the ones
+# tested — and a stale lock reached production as a silent upgrade instead of a
+# red build. Refresh with `cd agent-coordinator && uv lock`.
+RUN touch README.md && uv sync --locked --all-extras --no-dev --no-install-project
 
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime — lean image with only venv + source
