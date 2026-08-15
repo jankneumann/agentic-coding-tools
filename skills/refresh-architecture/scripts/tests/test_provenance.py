@@ -122,7 +122,7 @@ def test_dirty_relevant_input_is_truthful(repo: Path) -> None:
     assert doc["source_revision"] == rev_before  # HEAD retained
     assert doc["worktree_dirty"] is True
     # Fingerprint reflects working-tree bytes: differs from the committed state.
-    clean_fp = prov.compute_input_fingerprint(repo, ["src", "database/migrations"])
+    clean_fp, _enumeration = prov.compute_input_fingerprint(repo, ["src", "database/migrations"])
     assert doc["input_fingerprint"] == clean_fp  # both computed from dirty tree
 
 
@@ -274,3 +274,125 @@ def test_deterministic_timestamp_honors_source_date_epoch(repo: Path) -> None:
         assert generated_at_iso() == "2023-11-14T22:13:20+00:00"
     finally:
         os.environ.pop("SOURCE_DATE_EPOCH", None)
+
+
+# --------------------------------------------------------------------------- #
+# Portable input identity — the fingerprint describes the repository, not the
+# machine that happens to be holding it.
+#
+# The defect these pin: `_iter_root_files` walked the working tree excluding a
+# fixed list of directory *names*, with no notion of `.gitignore`. Any ignored
+# file sitting under an input root was hashed into the committed fingerprint, so
+# provenance generated on a developer machine could never match a clean CI
+# checkout, and no amount of regeneration could reconcile the two. The gate that
+# consumes this reported the resulting drift as an apparatus failure naming no
+# artifact, which is why it went unfixed.
+# --------------------------------------------------------------------------- #
+ROOTS = ["src", "database/migrations"]
+
+
+def _fingerprint(repo: Path) -> str:
+    fp, _enumeration = prov.compute_input_fingerprint(repo, ROOTS)
+    return fp
+
+
+def _discovered_paths(repo: Path) -> set[str]:
+    entries, _missing = prov.discover_relevant_inputs(repo, ROOTS)
+    return {e["path"] for e in entries}
+
+
+def test_gitignored_file_under_an_input_root_is_not_an_input(repo: Path) -> None:
+    """The regression, asserted through the signature-stable entry list.
+
+    Deliberately not phrased over ``compute_input_fingerprint``: this test must
+    fail on the unfixed producer by *naming the offending path*, not incidentally
+    on a changed return type, or it proves nothing about the defect.
+    """
+    (repo / ".gitignore").write_text("*.local\n.env\n")
+    _commit_all(repo, "ignore rules")
+    before = _discovered_paths(repo)
+
+    (repo / "src" / "secrets.local").write_text("API_KEY=hunter2\n")
+    (repo / "src" / ".env").write_text("TOKEN=abc\n")
+
+    leaked = _discovered_paths(repo) - before
+    assert not leaked, f"ignored files were fingerprinted as inputs: {sorted(leaked)}"
+    assert _fingerprint(repo) == _fingerprint(repo)  # and the hash over them is stable
+
+
+def test_untracked_but_unignored_file_is_still_an_input(repo: Path) -> None:
+    """The fix must not go too far: a new source file is a real input.
+
+    ``--exclude-standard`` removes ignored files only. A file the developer has
+    not yet ``git add``-ed is still something a clean clone would get once
+    committed, and it genuinely feeds the analyzers.
+    """
+    before = _fingerprint(repo)
+    (repo / "src" / "new_module.py").write_text("x = 1\n")
+    assert _fingerprint(repo) != before
+
+
+def test_dirty_tracked_input_still_changes_the_fingerprint(repo: Path) -> None:
+    """Scenario architecture-refresh.2 must survive the enumeration change.
+
+    Git decides *which* files are inputs; the working tree decides what they
+    contain. Uncommitted edits to a tracked file must still register.
+    """
+    before = _fingerprint(repo)
+    (repo / "src" / "app.py").write_text("print('edited, not committed')\n")
+    assert _fingerprint(repo) != before
+
+
+def test_fingerprint_matches_a_clean_clone_of_the_same_revision(repo: Path, tmp_path: Path) -> None:
+    """The end-to-end property the gate depends on: dev tree == CI checkout."""
+    (repo / ".gitignore").write_text("*.local\n")
+    _commit_all(repo, "ignore rules")
+    (repo / "src" / "developer.local").write_text("machine-specific junk\n")
+
+    clone = tmp_path / "clone"
+    subprocess.run(
+        ["git", "clone", "-q", str(repo), str(clone)], check=True, capture_output=True
+    )
+
+    assert _fingerprint(clone) == _fingerprint(repo)
+
+
+def test_input_mode_records_only_the_git_visible_bit(repo: Path) -> None:
+    """Permission bits below the executable bit belong to the umask, not the repo."""
+    target = repo / "src" / "app.py"
+    entries, _missing = prov.discover_relevant_inputs(repo, ROOTS)
+    modes = {e["mode"] for e in entries}
+    assert modes <= {"100644", "100755"}
+
+    before = _fingerprint(repo)
+    target.chmod(0o664)  # a umask-002 checkout of the very same file
+    assert _fingerprint(repo) == before
+
+    target.chmod(0o755)  # a genuinely executable file is a real difference
+    assert _fingerprint(repo) != before
+
+
+def test_enumeration_strategy_is_recorded(repo: Path) -> None:
+    doc = _generate(repo)
+    assert doc["input_enumeration"] == prov.INPUT_ENUMERATION_GIT
+    prov.validate_provenance(doc)
+
+
+def test_absent_enumeration_is_an_identity_mismatch_not_input_drift(repo: Path) -> None:
+    """Provenance predating this field must say what to do about it.
+
+    A recorded document with no ``input_enumeration`` was produced by the walk
+    strategy. Reporting that as INPUT_FINGERPRINT_MISMATCH would tell a reader
+    the source inputs changed, sending them to look for a source edit that never
+    happened. It is an identity change, and the identity code is what carries
+    "regenerate" as the remediation.
+    """
+    doc = _generate(repo)
+    doc.pop("input_enumeration")
+    prov.provenance_path(repo).write_text(json.dumps(doc))
+
+    result = _check(repo)
+    assert not result.is_fresh
+    codes = {r.code for r in result.reasons}
+    assert prov.PRODUCER_IDENTITY_MISMATCH in codes
+    assert prov.INPUT_FINGERPRINT_MISMATCH not in codes
