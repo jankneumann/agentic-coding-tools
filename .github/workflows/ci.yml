@@ -502,6 +502,16 @@ jobs:
           MERGE_GROUP_REF: ${{ github.event.merge_group.head_ref }}
         run: |
           set -uo pipefail
+          # GitHub Actions runs a `run:` step with no `shell:` key as `bash -e {0}`,
+          # so errexit is ON here by default. Every branch below deliberately
+          # inspects a command's status rather than dying on it: a diff that touches
+          # no change directory is a SKIP at exit 0, the post-merge run must never
+          # block whatever the gate returns, and the merge_group loop must visit
+          # every batched id instead of stopping at the first failure. Under errexit
+          # all three of those collapse into "abort with the gate's status", so turn
+          # it off explicitly and check each status by hand. The suite drives this
+          # fragment with `bash -e` for the same reason.
+          set +e
 
           TRACE_GATE="packages/gen-eval/scripts/check_traceability.py"
           TRACE_PYTHON="packages/gen-eval/.venv/bin/python"
@@ -515,11 +525,21 @@ jobs:
           # name the literal id `archive`. Dropping any one breaks a real
           # archive pull request (see design D12's measured table).
           derive_change_ids() {
-            git diff --no-renames --diff-filter=d --name-only "$1" HEAD \
-              -- openspec/changes/ \
+            # Returns 2 — distinct from "resolved the base and derived nothing" —
+            # when git cannot resolve the base commit. Run as a single pipeline the
+            # two are indistinguishable: `fatal: bad object` and "grep matched
+            # nothing" both arrive as a non-zero status with empty stdout, and the
+            # caller then takes the no-change SKIP path on a base it never read.
+            # The spec puts those on different exit paths, so the git status is
+            # captured on its own before anything is piped.
+            local raw
+            raw="$(git diff --no-renames --diff-filter=d --name-only "$1" HEAD \
+              -- openspec/changes/)" || return 2
+            printf '%s\n' "$raw" \
               | sed 's#^openspec/changes/\([^/]*\)/.*#\1#' \
               | sort -u \
               | grep -v '^archive$'
+            return 0
           }
 
           run_gate() {
@@ -540,6 +560,10 @@ jobs:
                 exit 1
               fi
               CHANGE_IDS="$(derive_change_ids "$PR_BASE_SHA")"
+                  if [ $? -eq 2 ]; then
+                    echo "::error::requirement-traceability sweep: unresolvable base for pull_request (github.event.pull_request.base.sha='$PR_BASE_SHA' could not be resolved against this checkout)"
+                    exit 1
+                  fi
               if [ -z "$CHANGE_IDS" ]; then
                 echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched on ${PR_HEAD_REF:-this branch}"
                 exit 0
@@ -558,6 +582,10 @@ jobs:
                 exit 1
               fi
               CHANGE_IDS="$(derive_change_ids "$MERGE_GROUP_BASE_SHA")"
+                  if [ $? -eq 2 ]; then
+                    echo "::error::requirement-traceability sweep: unresolvable base for merge_group (github.event.merge_group.base_sha='$MERGE_GROUP_BASE_SHA' could not be resolved against this checkout)"
+                    exit 1
+                  fi
               if [ -z "$CHANGE_IDS" ]; then
                 echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched in merge group ${MERGE_GROUP_REF:-<unknown>}"
                 exit 0

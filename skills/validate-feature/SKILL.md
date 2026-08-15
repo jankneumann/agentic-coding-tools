@@ -555,11 +555,42 @@ elif [ ! -d "$TRACE_CONTRACTS_DIR" ]; then
 else
   TRACE_PYTHON="$PROJECT_ROOT/packages/gen-eval/.venv/bin/python"
   if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
+fi
+
+# Presence is not runnability. `packages/gen-eval/.venv` is untracked, so a
+# freshly created worktree — which is where /validate-feature is required to
+# run — has the gate script and openspec/contracts/ but no venv, and
+# TRACE_PYTHON falls back to a system python3 that cannot import the gate's
+# dependencies. That surfaces as ModuleNotFoundError and exit 1, which the
+# capture below would report as "the traceability gate found violations" when
+# what actually happened is "the gate could not run here". Those two are
+# opposite conditions and must not share an exit path — the same rule the CI
+# sweep applies to an unresolvable base versus an absent change directory.
+# `--help` is the probe because it exercises the real import chain without
+# touching any contract.
+if [ "${TRACE_RESULT:-}" != "skip" ] && ! "$TRACE_PYTHON" "$TRACE_GATE" --help >/dev/null 2>&1; then
+  echo "SKIP: requirement-traceability gate unavailable ($TRACE_PYTHON cannot run $TRACE_GATE — dependencies not installed; run 'uv sync' in packages/gen-eval). Skipping."
+  TRACE_RESULT="skip"
+fi
+
+if [ "${TRACE_RESULT:-}" != "skip" ]; then
   # Bare, never piped — a pipeline's $? is the last stage's exit status, so
   # `check_traceability.py | tail` would report tail's 0 on a failing gate.
+  #
+  # errexit is suspended across the capture. This fragment is pasted into
+  # whatever shell the running agent has, and a failing gate under `set -e`
+  # aborts on the assignment itself: the shell dies before `echo "$TRACE_OUTPUT"`
+  # ever runs, so the violation text the report is supposed to quote is lost and
+  # the operator sees a bare non-zero exit. The gate failing is the case this
+  # phase exists to report, so it is precisely the case that must not kill the
+  # reporter. Saved and restored rather than left off, so nothing after this
+  # block silently loses errexit.
+  case $- in *e*) _TRACE_HAD_ERREXIT=1;; *) _TRACE_HAD_ERREXIT=0;; esac
+  set +e
   TRACE_OUTPUT=$(cd "$PROJECT_ROOT/packages/gen-eval" && "$TRACE_PYTHON" scripts/check_traceability.py \
     --scope change --change "$CHANGE_ID")
   TRACE_EXIT=$?
+  [ "$_TRACE_HAD_ERREXIT" = "1" ] && set -e
   echo "$TRACE_OUTPUT"
   if [ $TRACE_EXIT -ne 0 ]; then
     echo "FAIL: requirement-traceability gate exited $TRACE_EXIT"
@@ -573,7 +604,7 @@ fi
 # Skip and pass both leave this sub-step at exit 0; fail propagates the
 # gate's own non-zero status so a caller chaining this fragment observes it
 # without re-deriving TRACE_RESULT.
-[ "$TRACE_RESULT" = "fail" ] && exit "$TRACE_EXIT"
+[ "${TRACE_RESULT:-}" = "fail" ] && exit "$TRACE_EXIT"
 exit 0
 ```
 
