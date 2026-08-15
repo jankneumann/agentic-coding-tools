@@ -543,8 +543,14 @@ silently absent — an unprinted skip and a passing gate are the same
 observation in a log.
 
 ```bash
-TRACE_GATE="$PROJECT_ROOT/packages/gen-eval/scripts/check_traceability.py"
-TRACE_CONTRACTS_DIR="$PROJECT_ROOT/openspec/contracts"
+# This gate evaluates the tree UNDER VALIDATION, not the shared checkout.
+# PROJECT_ROOT resolves to MAIN_REPO inside a managed worktree, and a gate
+# rooted there would evaluate main's contracts instead of this branch's —
+# SKIPping on every worktree validation and validating the wrong tree after
+# merge. The gate therefore derives its own root from the current tree.
+TRACE_ROOT="$(git rev-parse --show-toplevel)"
+TRACE_GATE="$TRACE_ROOT/packages/gen-eval/scripts/check_traceability.py"
+TRACE_CONTRACTS_DIR="$TRACE_ROOT/openspec/contracts"
 
 if [ ! -f "$TRACE_GATE" ]; then
   echo "SKIP: requirement-traceability gate unavailable ($TRACE_GATE not found). Skipping."
@@ -553,7 +559,7 @@ elif [ ! -d "$TRACE_CONTRACTS_DIR" ]; then
   echo "SKIP: requirement-traceability gate unavailable ($TRACE_CONTRACTS_DIR not found). Skipping."
   TRACE_RESULT="skip"
 else
-  TRACE_PYTHON="$PROJECT_ROOT/packages/gen-eval/.venv/bin/python"
+  TRACE_PYTHON="$TRACE_ROOT/packages/gen-eval/.venv/bin/python"
   if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
   # Bare, never piped — a pipeline's $? is the last stage's exit status, so
   # `check_traceability.py | tail` would report tail's 0 on a failing gate.
@@ -568,7 +574,7 @@ else
   # block silently loses errexit.
   case $- in *e*) _TRACE_HAD_ERREXIT=1;; *) _TRACE_HAD_ERREXIT=0;; esac
   set +e
-  TRACE_OUTPUT=$(cd "$PROJECT_ROOT/packages/gen-eval" && "$TRACE_PYTHON" scripts/check_traceability.py \
+  TRACE_OUTPUT=$(cd "$TRACE_ROOT/packages/gen-eval" && "$TRACE_PYTHON" scripts/check_traceability.py \
     --scope change --change "$CHANGE_ID")
   TRACE_EXIT=$?
   [ "$_TRACE_HAD_ERREXIT" = "1" ] && set -e

@@ -50,8 +50,14 @@ def _skill_md_gate_block() -> str:
 # Kept byte-for-byte in sync with that section's code block;
 # test_fragment_matches_skill_md (below) enforces it.
 TRACE_GATE_FRAGMENT = textwrap.dedent("""
-TRACE_GATE="$PROJECT_ROOT/packages/gen-eval/scripts/check_traceability.py"
-TRACE_CONTRACTS_DIR="$PROJECT_ROOT/openspec/contracts"
+# This gate evaluates the tree UNDER VALIDATION, not the shared checkout.
+# PROJECT_ROOT resolves to MAIN_REPO inside a managed worktree, and a gate
+# rooted there would evaluate main's contracts instead of this branch's —
+# SKIPping on every worktree validation and validating the wrong tree after
+# merge. The gate therefore derives its own root from the current tree.
+TRACE_ROOT="$(git rev-parse --show-toplevel)"
+TRACE_GATE="$TRACE_ROOT/packages/gen-eval/scripts/check_traceability.py"
+TRACE_CONTRACTS_DIR="$TRACE_ROOT/openspec/contracts"
 
 if [ ! -f "$TRACE_GATE" ]; then
   echo "SKIP: requirement-traceability gate unavailable ($TRACE_GATE not found). Skipping."
@@ -60,7 +66,7 @@ elif [ ! -d "$TRACE_CONTRACTS_DIR" ]; then
   echo "SKIP: requirement-traceability gate unavailable ($TRACE_CONTRACTS_DIR not found). Skipping."
   TRACE_RESULT="skip"
 else
-  TRACE_PYTHON="$PROJECT_ROOT/packages/gen-eval/.venv/bin/python"
+  TRACE_PYTHON="$TRACE_ROOT/packages/gen-eval/.venv/bin/python"
   if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
   # Bare, never piped — a pipeline's $? is the last stage's exit status, so
   # `check_traceability.py | tail` would report tail's 0 on a failing gate.
@@ -75,7 +81,7 @@ else
   # block silently loses errexit.
   case $- in *e*) _TRACE_HAD_ERREXIT=1;; *) _TRACE_HAD_ERREXIT=0;; esac
   set +e
-  TRACE_OUTPUT=$(cd "$PROJECT_ROOT/packages/gen-eval" && "$TRACE_PYTHON" scripts/check_traceability.py \\
+  TRACE_OUTPUT=$(cd "$TRACE_ROOT/packages/gen-eval" && "$TRACE_PYTHON" scripts/check_traceability.py \\
     --scope change --change "$CHANGE_ID")
   TRACE_EXIT=$?
   [ "$_TRACE_HAD_ERREXIT" = "1" ] && set -e
@@ -122,11 +128,22 @@ def _run(
     wrapper scripts that drive validation phases."""
     script = project_root / ".trace-gate-under-test.sh"
     script.write_text(TRACE_GATE_FRAGMENT)
+    # The fragment derives TRACE_ROOT from `git rev-parse --show-toplevel`,
+    # so the tree under test must be a git repository and the fragment must
+    # run from inside it — exactly the worktree-validation situation the
+    # TRACE_ROOT derivation exists for.
+    if not (project_root / ".git").exists():
+        subprocess.run(
+            ["git", "init", "-q", str(project_root)],
+            env={"PATH": "/usr/bin:/bin"},
+            check=True,
+            capture_output=True,
+        )
     cmd = ["bash", "-e", str(script)] if errexit else ["bash", str(script)]
     return subprocess.run(
         cmd,
+        cwd=project_root,
         env={
-            "PROJECT_ROOT": str(project_root),
             "CHANGE_ID": change_id,
             "PATH": "/usr/bin:/bin",
         },
