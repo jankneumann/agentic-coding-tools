@@ -447,22 +447,31 @@ def compute_input_fingerprint(
 # Optional-tool identity (output-affecting)
 # --------------------------------------------------------------------------- #
 def detect_optional_tools() -> list[dict[str, Any]]:
-    """Identify output-affecting optional tools (tree-sitter SQL/enrichment)."""
-    available = False
-    version: str | None = None
-    try:
-        import tree_sitter  # type: ignore  # noqa: F401
-        from importlib.metadata import PackageNotFoundError, version as _v
+    """Identify output-affecting optional tools (tree-sitter SQL/enrichment).
 
-        available = True
-        try:
-            version = _v("tree-sitter")
-        except PackageNotFoundError:  # pragma: no cover - installed-without-metadata
-            version = None
-    except Exception:
-        available = False
-        version = None
-    return [{"name": "tree-sitter", "available": available, "version": version}]
+    Reports the interpreter the *pipeline* would use, not the one running this
+    function. Importing ``tree_sitter`` in-process answered a different question:
+    a refresh driven by an interpreter without the package skipped the
+    enrichment, comment-linker and pattern-reporter stages while provenance —
+    running under a Python that did have it — still recorded
+    ``available: true``. The record then vouched for artifacts that were never
+    regenerated (issue #378).
+    """
+    from arch_utils.interpreters import (
+        resolve_treesitter_python,
+        treesitter_version,
+    )
+
+    resolved = resolve_treesitter_python()
+    if resolved is None:
+        return [{"name": "tree-sitter", "available": False, "version": None}]
+    return [
+        {
+            "name": "tree-sitter",
+            "available": True,
+            "version": treesitter_version(resolved),
+        }
+    ]
 
 
 # --------------------------------------------------------------------------- #
