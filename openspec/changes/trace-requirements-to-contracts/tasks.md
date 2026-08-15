@@ -556,7 +556,7 @@ numeric range but is owned by no package; 5.6 and 5.7 additionally require the
 human-authored artifacts from 4.2/4.2b (and 5.2 for the sweep demonstration) to
 be meaningful.
 
-- [ ] 5.1 `[human]` Author `openspec/contracts/agent-coordinator/openapi/v1.yaml` from the spec `[M]`
+- [x] 5.1 `[human]` Author `openspec/contracts/agent-coordinator/openapi/v1.yaml` from the spec `[M]`
   **Design decisions**: D1, D6
   **Dependencies**: 3.7
   **Note**: **authored from `openspec/specs/agent-coordinator/spec.md`, NOT
@@ -566,7 +566,7 @@ be meaningful.
   serves 82 operations, requirements name 35 of them.
   **Note**: lands `untraced` (D6). Scoping which documents opt in is 5.2.
 
-- [ ] 5.2 `[human]` Split the coordinator contract and opt one document in `[M]`
+- [x] 5.2 `[human]` Split the coordinator contract and opt one document in `[M]`
   **Spec scenarios**: Forward Enforcement Is Opt-In Per Contract Document (declaring traceability commits the whole contract document); Completeness Is Evaluated Per Capability (a capability's contracts are evaluated as one surface)
   **Design decisions**: D6, D10, D13
   **Dependencies**: 5.1, 3.12
@@ -583,7 +583,7 @@ be meaningful.
   names most concretely. Proves the model on real requirements before anyone
   commits to all 82.
 
-- [ ] 5.3 `[human]` Record the unattributed operations as findings, not fixes `[S]`
+- [x] 5.3 `[human]` Record the unattributed operations as findings, not fixes `[S]` — filed as issue #377 (45 operations, 2026-08-15)
   **Dependencies**: 5.1
   **Note**: the ~47 operations no requirement names are out of scope by
   construction (see proposal Scope), as is the coordinator's reverse opt-in.
