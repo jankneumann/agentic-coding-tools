@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/contracts/merge-pull-requests/pr-delivery-classification.schema.json",
+  "title": "OpenSpec PR Delivery Classification",
+  "description": "Deterministic, evidence-bearing classification of an OpenSpec pull request. Metadata corroborates but never overrides changed files and base-branch proposal state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ruleset_version",
+    "pr_number",
+    "base_branch",
+    "change_id",
+    "origin",
+    "github_author",
+    "author_vendor",
+    "delivery_stage",
+    "evidence",
+    "ambiguity_reasons",
+    "classified_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "ruleset_version": { "type": "string", "minLength": 1 },
+    "pr_number": { "type": "integer", "minimum": 1 },
+    "base_branch": { "type": "string", "minLength": 1 },
+    "change_id": { "type": ["string", "null"], "minLength": 1 },
+    "origin": {
+      "enum": ["openspec", "codex", "sentinel", "bolt", "palette", "jules", "dependabot", "renovate", "other"]
+    },
+    "github_author": { "type": ["string", "null"], "minLength": 1 },
+    "author_vendor": {
+      "description": "Independent from origin and delivery stage; extensible for newly configured vendors.",
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "delivery_stage": { "$ref": "#/$defs/deliveryStage" },
+    "evidence": { "$ref": "#/$defs/evidence" },
+    "ambiguity_reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "classified_at": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "delivery_stage": { "const": "ambiguous" } },
+        "required": ["delivery_stage"]
+      },
+      "then": {
+        "properties": { "ambiguity_reasons": { "minItems": 1 } }
+      },
+      "else": {
+        "properties": { "ambiguity_reasons": { "maxItems": 0 } }
+      }
+    }
+  ],
+  "$defs": {
+    "deliveryStage": {
+      "enum": ["proposal", "implementation", "mixed", "ambiguous"]
+    },
+    "stageHint": {
+      "oneOf": [
+        { "enum": ["proposal", "implementation", "mixed"] },
+        { "type": "null" }
+      ]
+    },
+    "pathList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "changed_files",
+        "planning_artifacts",
+        "implementation_files",
+        "other_files",
+        "base_state",
+        "body_marker",
+        "branch_hint",
+        "marker_matches_classification"
+      ],
+      "properties": {
+        "changed_files": { "$ref": "#/$defs/pathList" },
+        "planning_artifacts": { "$ref": "#/$defs/pathList" },
+        "implementation_files": { "$ref": "#/$defs/pathList" },
+        "other_files": { "$ref": "#/$defs/pathList" },
+        "base_state": { "$ref": "#/$defs/baseState" },
+        "body_marker": {
+          "description": "Parsed value of the OpenSpec-Delivery PR-body marker, if present.",
+          "$ref": "#/$defs/stageHint"
+        },
+        "branch_hint": {
+          "description": "Non-authoritative stage inferred from branch naming, if any.",
+          "$ref": "#/$defs/stageHint"
+        },
+        "marker_matches_classification": {
+          "description": "Null when no marker exists or the result is ambiguous for reasons unrelated to a marker.",
+          "type": ["boolean", "null"]
+        }
+      }
+    },
+    "baseState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_path_exists",
+        "proposal_present",
+        "specs_present",
+        "tasks_present",
+        "implementation_state"
+      ],
+      "properties": {
+        "change_path_exists": { "type": "boolean" },
+        "proposal_present": { "type": "boolean" },
+        "specs_present": { "type": "boolean" },
+        "tasks_present": { "type": "boolean" },
+        "implementation_state": {
+          "enum": ["absent", "planned", "in_progress", "complete", "unknown"]
+        }
+      }
+    }
+  }
+}

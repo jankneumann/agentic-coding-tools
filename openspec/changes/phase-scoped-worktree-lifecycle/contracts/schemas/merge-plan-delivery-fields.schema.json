@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/contracts/merge-pull-requests/merge-plan-delivery-fields.schema.json",
+  "title": "Merge Plan Delivery Fields",
+  "description": "Extracted view of the delivery-stage fields added to a durable merge-plan node. Definition is immutable evidence; state is the effective routing decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["definition", "state"],
+  "properties": {
+    "definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["delivery_classification"],
+      "properties": {
+        "delivery_classification": {
+          "$ref": "pr-delivery-classification.schema.json"
+        }
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["delivery_routing"],
+      "properties": {
+        "delivery_routing": { "$ref": "#/$defs/deliveryRouting" }
+      }
+    }
+  },
+  "$defs": {
+    "operatorOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor", "reason", "recorded_at"],
+      "properties": {
+        "actor": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "recorded_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "deliveryRouting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_stage",
+        "decision_source",
+        "review_context",
+        "validation_route",
+        "cleanup_route",
+        "operator_override",
+        "evaluated_at"
+      ],
+      "properties": {
+        "effective_stage": {
+          "enum": ["proposal", "implementation", "mixed", "ambiguous"]
+        },
+        "decision_source": { "enum": ["classifier", "operator_override"] },
+        "review_context": {
+          "enum": ["planning_only", "planning_and_code", "classification_only"]
+        },
+        "validation_route": { "enum": ["openspec_only", "full", "blocked"] },
+        "cleanup_route": {
+          "enum": ["preserve_active_change", "archive_after_merge", "blocked"]
+        },
+        "operator_override": {
+          "oneOf": [
+            { "$ref": "#/$defs/operatorOverride" },
+            { "type": "null" }
+          ]
+        },
+        "blocking_reason": { "type": ["string", "null"], "minLength": 1 },
+        "evaluated_at": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "decision_source": { "const": "operator_override" } },
+            "required": ["decision_source"]
+          },
+          "then": {
+            "properties": { "operator_override": { "$ref": "#/$defs/operatorOverride" } }
+          },
+          "else": {
+            "properties": { "operator_override": { "type": "null" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "effective_stage": { "const": "proposal" } },
+            "required": ["effective_stage"]
+          },
+          "then": {
+            "properties": {
+              "review_context": { "const": "planning_only" },
+              "validation_route": { "const": "openspec_only" },
+              "cleanup_route": { "const": "preserve_active_change" },
+              "blocking_reason": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "effective_stage": { "enum": ["implementation", "mixed"] } },
+            "required": ["effective_stage"]
+          },
+          "then": {
+            "properties": {
+              "review_context": { "const": "planning_and_code" },
+              "validation_route": { "const": "full" },
+              "cleanup_route": { "const": "archive_after_merge" },
+              "blocking_reason": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "effective_stage": { "const": "ambiguous" } },
+            "required": ["effective_stage"]
+          },
+          "then": {
+            "properties": {
+              "decision_source": { "const": "classifier" },
+              "review_context": { "const": "classification_only" },
+              "validation_route": { "const": "blocked" },
+              "cleanup_route": { "const": "blocked" },
+              "operator_override": { "type": "null" },
+              "blocking_reason": { "type": "string", "minLength": 1 }
+            },
+            "required": ["blocking_reason"]
+          }
+        }
+      ]
+    }
+  }
+}

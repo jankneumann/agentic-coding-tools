@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-15T21:35:35.510224+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-autopilot",
+    "session_id": null,
+    "summary": "Planned phase-scoped worktree leases and proposal-only PR routing from the agreed handoff. Selected a repository-owned locked registry-v2 contract with deterministic PR delivery classification and six isolated implementation packages.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Repository-owned lifecycle authority",
+        "rationale": "Preserves offline operation and avoids a second source of truth while separating retention from activity.",
+        "capability": "worktree",
+        "supersedes": null
+      },
+      {
+        "title": "Diff-first PR delivery classification",
+        "rationale": "Changed files plus base proposal state are authoritative; PR metadata corroborates and conflicts fail safe.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "Continuous autopilot owner",
+        "rationale": "One persisted owner spans write-capable phases and releases only after durable checkpointing.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run PLAN_ITERATE and multi-vendor PLAN_REVIEW before implementation.",
+      "Implement wp-registry and wp-pr-delivery as the first DAG roots."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/proposal.md",
+        "description": "selected proposal"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md",
+        "description": "D1-D17 technical design"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/tasks.md",
+        "description": "TDD task plan"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml",
+        "description": "six-package DAG"
+      }
+    ]
+  }
+}

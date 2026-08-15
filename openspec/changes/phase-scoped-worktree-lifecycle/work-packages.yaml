@@ -1,0 +1,468 @@
+schema_version: 1
+
+feature:
+  id: phase-scoped-worktree-lifecycle
+  title: "Phase-scoped worktree lifecycle and proposal-only PRs"
+  plan_revision: 1
+  created_by: codex-autopilot
+  created_at: "2026-08-15T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
+    files:
+      - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
+      - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+      - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
+      - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/pr-delivery-classification.schema.json"
+      - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 180
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-registry
+    title: "Registry v2 and local activity guard"
+    task_type: backend
+    description: |
+      Tasks 1.1-1.4. Build the locked dual-read/single-write registry-v2
+      interpreter, owner-scoped lease commands, retention aliases, migration
+      inspection, environment short-circuits, and local active-agent semantics.
+    role: python-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/worktree/scripts/worktree.py"
+        - "skills/shared/active_agents.py"
+      keys:
+        - "feature:worktree:lifecycle"
+        - "contract:worktree-registry-v2"
+      ttl_minutes: 180
+      reason: "Canonical lifecycle state and guard semantics"
+    scope:
+      write_allow:
+        - "skills/worktree/**"
+        - "skills/shared/active_agents.py"
+        - "skills/shared/tests/test_active_agents.py"
+        - "skills/tests/worktree/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/merge-pull-requests/**"
+        - "skills/autopilot/**"
+    context_impact:
+      surfaces: [architecture, documentation, semantic_code]
+    worktree:
+      name: phase-lifecycle-registry
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Registry and guard tests"
+          kind: command
+          command: "uv run --project skills pytest skills/worktree/scripts/tests skills/shared/tests/test_active_agents.py skills/tests/worktree -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [registry_guard_tests]
+        - name: "Registry contracts parse"
+          kind: command
+          command: "uv run --project skills python -c \"import json; from jsonschema import Draft202012Validator; Draft202012Validator.check_schema(json.load(open('openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json')))\""
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [registry_contract_valid]
+    metadata:
+      loc_estimate: 850
+      alternatives_count: 3
+      complexity: high
+      package_kind: data_model
+    inputs:
+      contracts:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+    outputs:
+      result_keys: [registry_guard_tests, registry_contract_valid]
+      artifacts:
+        - "skills/worktree/scripts/worktree.py"
+        - "skills/shared/active_agents.py"
+
+  - package_id: wp-phase-lifecycle
+    title: "Standalone phase lifecycle and session release"
+    task_type: workflow
+    description: |
+      Tasks 2.1-2.4. Add explicit standalone/continuous modes to planning,
+      implementation, iteration, and validation; guarantee durable push before
+      release; create proposal-only PRs; and add owner-scoped session backstops.
+    role: workflow-engineer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-registry]
+    locks:
+      files:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+      keys:
+        - "feature:worktree:phases"
+      ttl_minutes: 180
+      reason: "Standalone workflow lifecycle contract"
+    scope:
+      write_allow:
+        - "skills/plan-feature/**"
+        - "skills/implement-feature/**"
+        - "skills/iterate-on-plan/**"
+        - "skills/iterate-on-implementation/**"
+        - "skills/validate-feature/**"
+        - "skills/session-bootstrap/**"
+        - "skills/tests/plan-feature/**"
+        - "skills/tests/implement-feature/**"
+        - "skills/tests/iterate-on-plan/**"
+        - "skills/tests/iterate-on-implementation/**"
+        - "skills/tests/validate-feature/**"
+        - "skills/tests/session-bootstrap/**"
+        - "agent-coordinator/scripts/deregister_agent.py"
+        - "agent-coordinator/scripts/install_hooks.py"
+        - "agent-coordinator/tests/test_install_hooks.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/autopilot/**"
+        - "skills/merge-pull-requests/**"
+    context_impact:
+      surfaces: [capabilities, documentation]
+    worktree:
+      name: phase-lifecycle-workflows
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Phase lifecycle contract tests"
+          kind: command
+          command: "uv run --project skills pytest skills/tests/plan-feature skills/tests/implement-feature skills/tests/iterate-on-plan skills/tests/iterate-on-implementation skills/tests/validate-feature skills/tests/session-bootstrap -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [phase_lifecycle_tests]
+    metadata:
+      loc_estimate: 650
+      alternatives_count: 3
+      complexity: high
+      package_kind: integration
+    inputs:
+      contracts:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+      dependencies: [wp-registry]
+    outputs:
+      result_keys: [phase_lifecycle_tests]
+
+  - package_id: wp-pr-delivery
+    title: "PR delivery classification and merge routing"
+    task_type: workflow
+    description: |
+      Tasks 3.1-3.6. Classify proposal, implementation, mixed, and ambiguous
+      delivery from diff/base evidence; preserve author provenance; route
+      independent vendor review; and make validation plus cleanup stage-aware.
+    role: python-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/merge-pull-requests/scripts/discover_prs.py"
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+        - "skills/merge-pull-requests/scripts/post_merge_cleanup.py"
+      keys:
+        - "feature:merge:delivery"
+        - "contract:pr-delivery-classification"
+      ttl_minutes: 240
+      reason: "Delivery-stage evidence and merge routing"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/**"
+        - "skills/tests/merge-pull-requests/**"
+        - "skills/shared/github_classifier.py"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "skills/autopilot/**"
+    context_impact:
+      surfaces: [capabilities, architecture, decisions, documentation, semantic_code]
+    worktree:
+      name: phase-lifecycle-pr-delivery
+      mode: isolated
+    timeout_minutes: 300
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "PR classification and routing tests"
+          kind: command
+          command: "uv run --project skills pytest skills/tests/merge-pull-requests skills/merge-pull-requests/scripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [pr_delivery_tests]
+        - name: "PR delivery schemas parse"
+          kind: command
+          command: "uv run --project skills python -c \"import json; from jsonschema import Draft202012Validator; [Draft202012Validator.check_schema(json.load(open(p))) for p in ('openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/pr-delivery-classification.schema.json','openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json')]\""
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [pr_delivery_contracts_valid]
+    metadata:
+      loc_estimate: 1050
+      alternatives_count: 3
+      complexity: high
+      package_kind: algorithm
+    inputs:
+      contracts:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/pr-delivery-classification.schema.json"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json"
+      overlapping_change: add-merge-plan-orchestration
+    outputs:
+      result_keys: [pr_delivery_tests, pr_delivery_contracts_valid]
+      artifacts:
+        - "skills/merge-pull-requests/scripts/pr_delivery.py"
+
+  - package_id: wp-autopilot
+    title: "Autopilot continuous lease ownership"
+    task_type: orchestration
+    description: |
+      Tasks 4.1-4.4. Persist one run-owned lease, renew it across write phases
+      and resume, propagate continuous context to nested skills, checkpoint before
+      release, and release before DONE or after durable escalation state.
+    role: python-engineer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-registry]
+    locks:
+      files:
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/scripts/phase_agent.py"
+      keys:
+        - "feature:autopilot:lease"
+      ttl_minutes: 240
+      reason: "Autopilot owner identity and finalization"
+    scope:
+      write_allow:
+        - "skills/autopilot/**"
+        - "skills/tests/autopilot/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/merge-pull-requests/**"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces: [capabilities, decisions, documentation, semantic_code]
+    worktree:
+      name: phase-lifecycle-autopilot
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Autopilot lifecycle tests"
+          kind: command
+          command: "uv run --project skills pytest skills/autopilot/scripts/tests skills/tests/autopilot -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [autopilot_lifecycle_tests]
+    metadata:
+      loc_estimate: 700
+      alternatives_count: 3
+      complexity: high
+      package_kind: integration
+    inputs:
+      contracts:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+      dependencies: [wp-registry]
+    outputs:
+      result_keys: [autopilot_lifecycle_tests]
+
+  - package_id: wp-coordinator-projections
+    title: "Coordinator lifecycle and delivery projections"
+    task_type: backend
+    description: |
+      Tasks 5.1-5.2. Make coordinator sync-point and worktree views consume the
+      canonical live-lease semantics and preserve delivery-stage evidence in
+      merge/UI projections without reviving stale pins as activity.
+    role: python-engineer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-registry, wp-pr-delivery]
+    locks:
+      files:
+        - "agent-coordinator/src/sync_points.py"
+        - "agent-coordinator/src/worktrees_view.py"
+      keys:
+        - "feature:coordinator:worktree"
+        - "feature:coordinator:delivery"
+      ttl_minutes: 180
+      reason: "Coordinator projection parity"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/sync_points.py"
+        - "agent-coordinator/src/worktrees_view.py"
+        - "agent-coordinator/src/openspec_proposals_api.py"
+        - "agent-coordinator/src/kanban_viz.py"
+        - "agent-coordinator/tests/test_sync_points.py"
+        - "agent-coordinator/tests/test_worktrees_view.py"
+        - "agent-coordinator/tests/test_kanban_viz_endpoints.py"
+        - "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/worktree/**"
+        - "skills/merge-pull-requests/**"
+    context_impact:
+      surfaces: [apis, architecture, documentation, semantic_code]
+    worktree:
+      name: phase-lifecycle-coordinator
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coordinator projection tests"
+          kind: command
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests/test_sync_points.py agent-coordinator/tests/test_worktrees_view.py agent-coordinator/tests/test_kanban_viz_endpoints.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [coordinator_projection_tests]
+    metadata:
+      loc_estimate: 450
+      alternatives_count: 2
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contracts:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json"
+      dependencies: [wp-registry, wp-pr-delivery]
+    outputs:
+      result_keys: [coordinator_projection_tests]
+
+  - package_id: wp-integration
+    title: "Canonical specs, documentation, mirrors, and verification"
+    task_type: validation
+    description: |
+      Tasks 6.1-6.3. Update canonical specs and operator guides, regenerate
+      runtime mirrors, execute AC-01 through AC-12, and run full OpenSpec,
+      package, architecture, test, static, formatting, and drift gates.
+    role: integration-engineer
+    archetype: analyst
+    priority: 4
+    depends_on:
+      - wp-phase-lifecycle
+      - wp-pr-delivery
+      - wp-autopilot
+      - wp-coordinator-projections
+    locks:
+      files:
+        - "openspec/specs/worktree/spec.md"
+        - "openspec/specs/skill-workflow/spec.md"
+        - "openspec/specs/merge-pull-requests/spec.md"
+        - "openspec/specs/coordinator-kanban-viz/spec.md"
+        - "skills/install.sh"
+      keys:
+        - "feature:worktree:integration"
+      ttl_minutes: 180
+      reason: "Canonical integration and generated mirror sync"
+    scope:
+      write_allow:
+        - "openspec/specs/worktree/spec.md"
+        - "openspec/specs/skill-workflow/spec.md"
+        - "openspec/specs/merge-pull-requests/spec.md"
+        - "openspec/specs/coordinator-kanban-viz/spec.md"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/**"
+        - "docs/guides/worktree-management.md"
+        - "docs/guides/workflow.md"
+        - "docs/mental-models.md"
+        - "skills/install.sh"
+        - ".agents/skills/**"
+        - ".claude/skills/**"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces: [capabilities, architecture, decisions, documentation]
+    worktree:
+      name: phase-lifecycle-integration
+      mode: isolated
+    timeout_minutes: 300
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "OpenSpec and package gates"
+          kind: command
+          command: "openspec validate phase-scoped-worktree-lifecycle --strict && uv run --project skills python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [openspec_package_gates]
+        - name: "Architecture scope gate"
+          kind: command
+          command: "uv run --project skills python skills/refresh-architecture/scripts/parallel_zones.py --validate-packages openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml --json"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [architecture_scope_gate]
+        - name: "Installed mirror drift gate"
+          kind: command
+          command: "bash skills/install.sh --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [mirror_drift_gate]
+    metadata:
+      loc_estimate: 350
+      alternatives_count: 2
+      complexity: medium
+      package_kind: integration
+    inputs:
+      dependencies:
+        - wp-phase-lifecycle
+        - wp-pr-delivery
+        - wp-autopilot
+        - wp-coordinator-projections
+      contracts:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
+    outputs:
+      result_keys: [openspec_package_gates, architecture_scope_gate, mirror_drift_gate]
+      artifacts:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/validation-report.md"

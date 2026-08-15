@@ -1,0 +1,166 @@
+contract_version: "1.0"
+name: worktree-lifecycle
+executable: skills/worktree/scripts/worktree.py
+description: >-
+  Local repository-owned CLI contract for activity leases and retention. All
+  mutations serialize on one registry lock, validate the current document, and
+  atomically replace it with a schema-v2 document.
+
+defaults:
+  lease_ttl_seconds: 1800
+  heartbeat_interval_seconds: 300
+  lock_timeout_seconds: 10
+
+registry:
+  path: .git-worktrees/.registry.json
+  lock_path: .git-worktrees/.registry.lock
+  write_schema: ../schemas/worktree-registry-v2.schema.json#/$defs/registryV2
+  accepted_read_schemas:
+    - ../schemas/worktree-registry-v2.schema.json#/$defs/registryV2
+    - ../schemas/worktree-registry-v2.schema.json#/$defs/registryV1
+  mutation_guarantees:
+    - exclusive_file_lock
+    - validate_before_rewrite
+    - atomic_replace
+    - owner_checked
+    - idempotent_same_owner_retry
+
+identity:
+  entry_key: [change_id, agent_id]
+  lease_owner:
+    type: string
+    min_length: 1
+    examples:
+      - plan-feature:session-123
+      - implement-feature:session-123
+      - autopilot:run-456
+
+global_exit_codes:
+  0: success_or_idempotent_noop
+  1: invalid_arguments_or_entry_not_found
+  2: invalid_or_corrupt_registry
+  3: live_lease_owned_by_another_owner
+  4: owner_mismatch
+  5: lock_timeout
+
+commands:
+  - name: lease acquire
+    synopsis: >-
+      worktree.py lease acquire CHANGE_ID [--agent-id ID] --owner OWNER
+      --phase PHASE --reason REASON [--mode standalone|continuous|manual]
+      [--ttl-seconds N] [--json]
+    mutation: true
+    required: [change_id, owner, phase, reason]
+    defaults:
+      mode: standalone
+      ttl_seconds: 1800
+    behavior:
+      - Create a lease when none exists or the previous lease is expired.
+      - Retry by the same owner is idempotent and renews expiry.
+      - Refuse takeover of a live lease held by another owner with exit code 3.
+    json_output:
+      required: [change_id, agent_id, owner, phase, acquired_at, last_heartbeat, expires_at, acquired]
+
+  - name: lease renew
+    synopsis: >-
+      worktree.py lease renew CHANGE_ID [--agent-id ID] --owner OWNER
+      [--phase PHASE] [--ttl-seconds N] [--json]
+    mutation: true
+    required: [change_id, owner]
+    defaults:
+      ttl_seconds: 1800
+    behavior:
+      - Renew only a non-expired lease held by the exact owner.
+      - An optional phase updates the current phase without changing ownership.
+      - Refuse a different owner with exit code 4; an expired lease must be acquired again.
+    json_output:
+      required: [change_id, agent_id, owner, phase, last_heartbeat, expires_at, renewed]
+
+  - name: lease release
+    synopsis: >-
+      worktree.py lease release CHANGE_ID [--agent-id ID] --owner OWNER [--json]
+    mutation: true
+    required: [change_id, owner]
+    behavior:
+      - Clear only a lease held by the exact owner.
+      - Releasing an already absent lease is an idempotent success.
+      - Refuse a different live owner with exit code 4.
+    json_output:
+      required: [change_id, agent_id, owner, released]
+
+  - name: lease release-owner
+    synopsis: worktree.py lease release-owner --owner OWNER [--json]
+    mutation: true
+    required: [owner]
+    behavior:
+      - Best-effort session-end operation that clears every lease with an exact owner match.
+      - Never releases leases owned by another run, even when owner prefixes match.
+      - Repeating the command is an idempotent success.
+    json_output:
+      required: [owner, released_count, released_entries]
+
+  - name: lease status
+    synopsis: >-
+      worktree.py lease status [CHANGE_ID] [--agent-id ID] [--owner OWNER]
+      [--include-expired] [--json]
+    mutation: false
+    behavior:
+      - Report live versus expired using the caller's current clock.
+      - Retention is reported independently and never changes lease liveness.
+    json_output:
+      required: [schema_version, inspected_at, entries]
+
+  - name: retention set
+    synopsis: >-
+      worktree.py retention set CHANGE_ID [--agent-id ID] --reason REASON [--json]
+    mutation: true
+    required: [change_id, reason]
+    behavior:
+      - Set retained=true and retention_reason without acquiring activity.
+      - Retry with the same reason is an idempotent success.
+
+  - name: retention clear
+    synopsis: worktree.py retention clear CHANGE_ID [--agent-id ID] [--json]
+    mutation: true
+    required: [change_id]
+    behavior:
+      - Set retained=false and retention_reason=null without releasing activity.
+      - Repeating the command is an idempotent success.
+
+  - name: inspect
+    synopsis: worktree.py inspect [CHANGE_ID] [--agent-id ID] [--json]
+    mutation: false
+    behavior:
+      - Report schema version, migration interpretation, retention, and lease liveness.
+      - Never rewrites the registry or deletes a worktree.
+
+  - name: migration-report
+    synopsis: worktree.py migration-report [--json]
+    mutation: false
+    behavior:
+      - Validate the current registry and preview each v1-to-v2 interpretation.
+      - Interpret pinned=true as retention and heartbeat freshness only as transitional activity evidence.
+      - Never rewrites the registry.
+
+compatibility_aliases:
+  pin:
+    maps_to: retention set
+    default_reason: legacy-pin
+    warning: >-
+      Deprecated compatibility alias. Pinning protects from GC but does not
+      acquire an activity lease or block a sync point.
+  unpin:
+    maps_to: retention clear
+    warning: Deprecated compatibility alias; does not release an activity lease.
+  heartbeat:
+    maps_to: lease renew
+    constraints:
+      - Requires an explicit --owner when a v2 activity lease exists.
+      - Legacy v1 behavior remains readable during migration but new workflows use lease renew.
+
+safety_invariants:
+  - Expiry makes activity non-blocking but never removes a worktree or branch.
+  - GC skips retained entries and refuses dirty or unmerged worktrees unless an existing explicit operator force path separately authorizes removal.
+  - Teardown is owner-aware and idempotent; nested phases cannot release a continuous parent lease.
+  - A workflow pushes durable output before releasing its standalone phase lease.
+  - Cloud isolation may make local registry mutations no-ops, but command output remains shape-compatible.
