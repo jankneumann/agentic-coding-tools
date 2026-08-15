@@ -41,3 +41,18 @@
 ### Context
 Planned fitness-function-driven development as a third feedback loop alongside spec-driven and test-driven development, based on a repo audit showing quality machinery exists but is unwired. Approach 1 (extend existing machinery in place) selected at Gate 1; coordinated tier; five staged work packages plus contracts.
 
+---
+
+## Phase: Plan (2026-08-15)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Gate 2 plan approval** `architectural: fitness-functions` — User approved the complete plan (proposal, design D1-D8, 2 spec deltas, 18 tasks, 6 work packages) without modifications.
+
+### Next Steps
+- /implement-feature introduce-fitness-function-gates, starting with wp-contracts then wp-schema.
+
+### Context
+Gate 2 approved by user: proceed to implementation. Coordinator issues seeded from tasks.md (23 created). Gate 1 selection was Approach 1 (extend in place); both gates recorded per plan-feature verification item 6.
+
