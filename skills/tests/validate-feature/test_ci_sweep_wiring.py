@@ -87,7 +87,7 @@ TRACE_GATE="packages/gen-eval/scripts/check_traceability.py"
 TRACE_PYTHON="packages/gen-eval/.venv/bin/python"
 if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
 
-# Change-id derivation (task 5.7). All three conditions are
+# Change-id derivation (task 5.7). All four conditions are
 # load-bearing: --no-renames so the derived set does not depend on
 # git's similarity heuristic; --diff-filter=d (exclude deletions) so
 # the source half of an archive `git mv` does not name the change
@@ -106,6 +106,7 @@ derive_change_ids() {
   raw="$(git diff --no-renames --diff-filter=d --name-only "$1" HEAD \\
     -- openspec/changes/)" || return 2
   printf '%s\\n' "$raw" \\
+    | grep -E '^openspec/changes/[^/]+/' \\
     | sed 's#^openspec/changes/\\([^/]*\\)/.*#\\1#' \\
     | sort -u \\
     | grep -v '^archive$'
@@ -130,10 +131,10 @@ case "$EVENT_NAME" in
       exit 1
     fi
     CHANGE_IDS="$(derive_change_ids "$PR_BASE_SHA")"
-        if [ $? -eq 2 ]; then
-          echo "::error::requirement-traceability sweep: unresolvable base for pull_request (github.event.pull_request.base.sha='$PR_BASE_SHA' could not be resolved against this checkout)"
-          exit 1
-        fi
+    if [ $? -eq 2 ]; then
+      echo "::error::requirement-traceability sweep: unresolvable base for pull_request (github.event.pull_request.base.sha='$PR_BASE_SHA' could not be resolved against this checkout)"
+      exit 1
+    fi
     if [ -z "$CHANGE_IDS" ]; then
       echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched on ${PR_HEAD_REF:-this branch}"
       exit 0
@@ -152,10 +153,10 @@ case "$EVENT_NAME" in
       exit 1
     fi
     CHANGE_IDS="$(derive_change_ids "$MERGE_GROUP_BASE_SHA")"
-        if [ $? -eq 2 ]; then
-          echo "::error::requirement-traceability sweep: unresolvable base for merge_group (github.event.merge_group.base_sha='$MERGE_GROUP_BASE_SHA' could not be resolved against this checkout)"
-          exit 1
-        fi
+    if [ $? -eq 2 ]; then
+      echo "::error::requirement-traceability sweep: unresolvable base for merge_group (github.event.merge_group.base_sha='$MERGE_GROUP_BASE_SHA' could not be resolved against this checkout)"
+      exit 1
+    fi
     if [ -z "$CHANGE_IDS" ]; then
       echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched in merge group ${MERGE_GROUP_REF:-<unknown>}"
       exit 0
@@ -377,6 +378,69 @@ def test_ambiguous_change_fails_on_pull_request(tmp_path: Path) -> None:
     assert "ambiguous" in result.stdout
     assert "change-a" in result.stdout
     assert "change-b" in result.stdout
+    assert "SKIP" not in result.stdout
+
+
+def test_file_directly_under_changes_is_not_a_change_id(tmp_path: Path) -> None:
+    """Spec: derivation considers paths 'under a directory matching
+    `openspec/changes/<id>/`'.
+
+    A file sitting directly under `openspec/changes/` has no `/` after the
+    changes/ segment, so the sed rewrite does not match and the path passes
+    through verbatim — the gate was then invoked as
+    `--change openspec/changes/README.md`. A note or README there is ordinary
+    housekeeping, so this is reachable without anyone doing anything odd."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    changes = repo / "openspec" / "changes"
+    changes.mkdir(parents=True)
+    (changes / "README.md").write_text("notes about the changes directory\n")
+    _commit_all(repo, "add a note directly under openspec/changes/")
+    _make_stub_gate(repo)
+
+    result = _run(
+        repo,
+        {"EVENT_NAME": "pull_request", "PR_BASE_SHA": base_sha, "PR_HEAD_REF": "docs/note"},
+    )
+    assert result.returncode == 0, result.stdout
+    assert "SKIP: requirement-traceability sweep" in result.stdout
+    assert "--change" not in result.stdout
+
+
+def test_file_directly_under_changes_does_not_trip_ambiguity(tmp_path: Path) -> None:
+    """The same defect's worse half: alongside one real change directory, the
+    stray path became a second derived 'id' and the pull request was hard-failed
+    as ambiguous despite touching exactly one change."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    changes = repo / "openspec" / "changes"
+    (changes / "real-change").mkdir(parents=True)
+    (changes / "real-change" / "spec.md").write_text("# real-change\n")
+    (changes / "README.md").write_text("notes\n")
+    _commit_all(repo, "one real change plus a stray note")
+    _make_stub_gate(repo)
+
+    result = _run(
+        repo,
+        {"EVENT_NAME": "pull_request", "PR_BASE_SHA": base_sha, "PR_HEAD_REF": "openspec/real-change"},
+    )
+    assert result.returncode == 0, result.stdout
+    assert "ambiguous" not in result.stdout
+    assert "argv: --scope capability --change real-change" in result.stdout
+
+
+def test_unhandled_event_fails_loudly(tmp_path: Path) -> None:
+    """Spec: the rule is stated for exactly three events 'precisely so that a
+    fourth event, added later without a rule, fails loudly instead of passing
+    quietly'. A `case` that matches nothing exits 0, which is the unfalsifiable
+    green the clause exists to prevent — so the `*)` arm is normative and needs
+    a test of its own."""
+    repo = _init_repo(tmp_path)
+    _make_stub_gate(repo)
+    result = _run(repo, {"EVENT_NAME": "schedule"})
+    assert result.returncode == 1, result.stdout
+    assert "::error::" in result.stdout
+    assert "schedule" in result.stdout
     assert "SKIP" not in result.stdout
 
 

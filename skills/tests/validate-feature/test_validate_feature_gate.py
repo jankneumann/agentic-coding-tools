@@ -62,25 +62,6 @@ elif [ ! -d "$TRACE_CONTRACTS_DIR" ]; then
 else
   TRACE_PYTHON="$PROJECT_ROOT/packages/gen-eval/.venv/bin/python"
   if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
-fi
-
-# Presence is not runnability. `packages/gen-eval/.venv` is untracked, so a
-# freshly created worktree — which is where /validate-feature is required to
-# run — has the gate script and openspec/contracts/ but no venv, and
-# TRACE_PYTHON falls back to a system python3 that cannot import the gate's
-# dependencies. That surfaces as ModuleNotFoundError and exit 1, which the
-# capture below would report as "the traceability gate found violations" when
-# what actually happened is "the gate could not run here". Those two are
-# opposite conditions and must not share an exit path — the same rule the CI
-# sweep applies to an unresolvable base versus an absent change directory.
-# `--help` is the probe because it exercises the real import chain without
-# touching any contract.
-if [ "${TRACE_RESULT:-}" != "skip" ] && ! "$TRACE_PYTHON" "$TRACE_GATE" --help >/dev/null 2>&1; then
-  echo "SKIP: requirement-traceability gate unavailable ($TRACE_PYTHON cannot run $TRACE_GATE — dependencies not installed; run 'uv sync' in packages/gen-eval). Skipping."
-  TRACE_RESULT="skip"
-fi
-
-if [ "${TRACE_RESULT:-}" != "skip" ]; then
   # Bare, never piped — a pipeline's $? is the last stage's exit status, so
   # `check_traceability.py | tail` would report tail's 0 on a failing gate.
   #
@@ -245,41 +226,6 @@ def test_gate_failure_fails_validation(tmp_path: Path) -> None:
     assert "cites no requirement" in result.stdout  # gate's own violation-naming output is captured
     assert "PASS" not in result.stdout
     assert "SKIP" not in result.stdout
-
-
-def test_unrunnable_interpreter_produces_skip_not_failure(tmp_path: Path) -> None:
-    """'The gate could not run here' must not be reported as 'the gate found
-    violations'.
-
-    `packages/gen-eval/.venv` is untracked, so a freshly created worktree — the
-    environment /validate-feature is required to run in — has the gate script
-    and openspec/contracts/ present but no venv, and TRACE_PYTHON falls back to
-    a system python3 that cannot import the gate's dependencies. Presence
-    detection alone passes that through to the capture, where
-    ModuleNotFoundError arrives as exit 1 and is reported as a traceability
-    failure on a phase marked CRITICAL. The stub here fails the way an
-    uninstalled dependency does: non-zero on every invocation including
-    `--help`."""
-    _make_contracts_dir(tmp_path)
-    scripts_dir = tmp_path / "packages" / "gen-eval" / "scripts"
-    scripts_dir.mkdir(parents=True, exist_ok=True)
-    stub = scripts_dir / "check_traceability.py"
-    stub.write_text(
-        textwrap.dedent("""\
-            #!/usr/bin/env python3
-            import sys
-            print("ModuleNotFoundError: No module named 'yaml'", file=sys.stderr)
-            sys.exit(1)
-            """)
-    )
-    stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
-
-    result = _run(tmp_path, "trace-requirements-to-contracts")
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "SKIP: requirement-traceability gate unavailable" in result.stdout
-    assert "cannot run" in result.stdout
-    assert "FAIL" not in result.stdout
-    assert "PASS" not in result.stdout
 
 
 def test_gate_failure_still_reports_under_errexit(tmp_path: Path) -> None:

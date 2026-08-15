@@ -555,25 +555,6 @@ elif [ ! -d "$TRACE_CONTRACTS_DIR" ]; then
 else
   TRACE_PYTHON="$PROJECT_ROOT/packages/gen-eval/.venv/bin/python"
   if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
-fi
-
-# Presence is not runnability. `packages/gen-eval/.venv` is untracked, so a
-# freshly created worktree — which is where /validate-feature is required to
-# run — has the gate script and openspec/contracts/ but no venv, and
-# TRACE_PYTHON falls back to a system python3 that cannot import the gate's
-# dependencies. That surfaces as ModuleNotFoundError and exit 1, which the
-# capture below would report as "the traceability gate found violations" when
-# what actually happened is "the gate could not run here". Those two are
-# opposite conditions and must not share an exit path — the same rule the CI
-# sweep applies to an unresolvable base versus an absent change directory.
-# `--help` is the probe because it exercises the real import chain without
-# touching any contract.
-if [ "${TRACE_RESULT:-}" != "skip" ] && ! "$TRACE_PYTHON" "$TRACE_GATE" --help >/dev/null 2>&1; then
-  echo "SKIP: requirement-traceability gate unavailable ($TRACE_PYTHON cannot run $TRACE_GATE — dependencies not installed; run 'uv sync' in packages/gen-eval). Skipping."
-  TRACE_RESULT="skip"
-fi
-
-if [ "${TRACE_RESULT:-}" != "skip" ]; then
   # Bare, never piped — a pipeline's $? is the last stage's exit status, so
   # `check_traceability.py | tail` would report tail's 0 on a failing gate.
   #
