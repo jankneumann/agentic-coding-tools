@@ -72,7 +72,14 @@ PRODUCER_ID = "architecture"
 #: of walking the working tree with a name-only exclusion list. Provenance built
 #: by 1.0.0 fingerprinted whatever ignored files happened to sit under an input
 #: root on the generating machine, so it can never match a clean checkout.
-PRODUCER_VERSION = "1.1.0"
+#:
+#: 1.2.0 — the tree-sitter enrichment pass orders its occurrence lists. Before
+#: this, `QueryCursor.captures()` returned them in an order that varied between
+#: runs of one revision, so treesitter_enrichment.json (and every digest over
+#: it) changed on every refresh. Artifacts built by 1.1.0 carry that arbitrary
+#: order and so cannot match a current rebuild; the identity mismatch says that
+#: plainly rather than surfacing as an unexplained fingerprint difference.
+PRODUCER_VERSION = "1.2.0"
 PROVENANCE_SCHEMA_VERSION = 1
 
 ARCH_DIR_DEFAULT = "docs/architecture-analysis"
