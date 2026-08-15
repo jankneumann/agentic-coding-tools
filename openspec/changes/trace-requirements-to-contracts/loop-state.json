@@ -24,7 +24,7 @@
   ],
   "change_id": "trace-requirements-to-contracts",
   "cli_review_enabled": true,
-  "current_phase": "VAL_REVIEW",
+  "current_phase": "DONE",
   "error": null,
   "escalation_reason": null,
   "findings_trend": [
@@ -76,7 +76,7 @@
   "memory_ids": [],
   "package_authors": {},
   "packages_status": {},
-  "phase_archetype": "reviewer",
+  "phase_archetype": "runner",
   "phase_history": [
     {
       "at": "2026-07-28T14:26:58.593896+00:00",
@@ -304,10 +304,17 @@
       "at": "2026-08-15T21:46:29.958350+00:00",
       "outcome": "not_converged",
       "phase": "VAL_REVIEW"
+    },
+    {
+      "phase": "DONE",
+      "outcome": "awaiting_merge_approval",
+      "round": 1,
+      "at": "2026-08-15T22:30:00+00:00",
+      "note": "Full loop complete at 60335bbb. IMPLEMENT x3 (1 harness-isolation abort, 2 complete), IMPL_ITERATE complete (1 fix), IMPL_REVIEW converged 3 rounds 11->9->0 (9 fixes + HIGH escalation fixed), codex confirm pass (NUL-delimited derivation), VALIDATE escalate -> VAL_FIX (dependency-direction), VAL_REVIEW not_converged -> remediated (main merged, CI unblocked), CI 16/16 green incl. first live sweep run, operator signed 5.7c + checkpoints. Vendor effectiveness: claude_code/codex/grok/antigravity productive; pi dead (#383). Merge awaits /cleanup-feature."
     }
   ],
   "phase_started_at": "2026-07-31T20:33:27.549085+00:00",
-  "previous_phase": "VALIDATE",
+  "previous_phase": "VAL_REVIEW",
   "schema_version": 4,
   "started_at": "2026-07-28T14:22:58.793360+00:00",
   "total_iterations": 1,
