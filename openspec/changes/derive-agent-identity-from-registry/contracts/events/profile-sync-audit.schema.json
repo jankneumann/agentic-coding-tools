@@ -2,15 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "profile-sync-audit.schema.json",
   "title": "profile_sync audit event payload",
-  "description": "Payload passed as the `parameters` argument of AuditService.log_operation(operation=\"profile_sync\") for each mutation the startup registry sync performs on agent_profiles (design D2), landing in the audit_log.parameters JSONB column (migration 008). One event per mutated row; unchanged rows emit nothing.",
+  "description": "Payload passed as the `parameters` argument of AuditService.log_operation(operation=\"profile_sync\") for each mutation the startup registry sync performs on agent_profiles (design D2) and agent_profile_assignments (design D11), landing in the audit_log.parameters JSONB column (migration 008). One event per mutated row; unchanged rows emit nothing.",
   "type": "object",
   "required": ["action", "profile_name", "agent_type", "source"],
   "properties": {
     "action": {
-      "enum": ["insert", "update", "disable"],
-      "description": "insert: row created for a registry agent; update: drifted fields reconciled to registry values; disable: enabled orphan row set enabled=false"
+      "enum": ["insert", "update", "disable", "assign", "reassign", "unassign"],
+      "description": "Profile actions — insert: row created for a registry agent; update: drifted fields reconciled to registry values; disable: enabled orphan row set enabled=false. Assignment actions (design D11) — assign: agent_profile_assignments row created for a registry agent; reassign: existing assignment repointed at the profile the registry declares; unassign: assignment for an agent the registry no longer declares deleted (the table has no enabled column, so a stale pointer can only be removed; the profile it pointed at is retained and disabled)"
     },
-    "profile_name": { "type": "string", "minLength": 1 },
+    "profile_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "For profile actions, the mutated row's name. For assign/reassign, the profile the agent is now assigned to. For unassign, the profile the removed assignment pointed at (\"unknown\" when that row no longer exists)"
+    },
     "agent_type": { "type": "string", "minLength": 1 },
     "source": {
       "const": "agents.yaml",
@@ -28,8 +32,36 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 4,
-      "description": "Declared trust level for insert/update actions"
+      "description": "Declared trust level for insert/update/assign/reassign actions"
+    },
+    "agent_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required for the assignment actions: the agent_profile_assignments.agent_id the mutation targets (a registry agent name, or for unassign an agent the registry no longer declares)"
+    },
+    "previous_profile_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Present for action=reassign: the profile the assignment pointed at before the projection repointed it (\"unknown\" when that row no longer exists)"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "action": { "enum": ["assign", "reassign", "unassign"] } },
+        "required": ["action"]
+      },
+      "then": { "required": ["agent_id"] }
+    },
+    {
+      "if": {
+        "properties": { "action": { "enum": ["insert", "update", "disable"] } },
+        "required": ["action"]
+      },
+      "then": {
+        "not": { "anyOf": [{ "required": ["agent_id"] }, { "required": ["previous_profile_name"] }] }
+      }
+    }
+  ],
   "additionalProperties": false
 }

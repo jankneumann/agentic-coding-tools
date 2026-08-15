@@ -20,7 +20,16 @@ about the *registry as it actually is*, not a fixture:
 3. the ``profile`` name each entry references resolves after sync
    (:func:`_profile_resolution_violations`);
 4. every enabled row post-sync is registry-declared or named in
-   ``UNMANAGED_PROFILES`` (:func:`_unclassified_profile_violations`).
+   ``UNMANAGED_PROFILES`` (:func:`_unclassified_profile_violations`);
+5. every agent *resolves* — the way ``get_agent_profile()`` resolves, assignment
+   first and ``agent_type`` + ``created_at`` fallback second — to a profile
+   carrying its declared trust level (:func:`_resolution_violations`).
+
+Rule 5 exists because rules 1 and 3 look rows up **by name**, which proves a row
+exists but not that the agent reaches it. That blind spot let a second defect
+survive this very invariant: ``agent_profile_assignments`` was not projected, so
+any agent sharing an ``agent_type`` with an older profile row silently resolved
+to that older row instead (design D11).
 
 Each rule is a checker returning human-readable violations, so the negative
 tests at the bottom feed the *same* checkers a broken world and prove the
@@ -48,7 +57,13 @@ from src.agents_config import (
 )
 from src.config import reset_config
 from src.profile_loader import _INTERPOLATION_RE
-from tests.test_profile_sync import FakeAudit, FakeDb, _agent, _row
+from tests.test_profile_sync import (
+    FakeAudit,
+    FakeDb,
+    _agent,
+    _assignment,
+    _row,
+)
 
 #: The ``agent_profiles`` rows a freshly migrated database holds, so the sync
 #: under test runs against the state a real coordinator boots into rather than
@@ -86,14 +101,26 @@ def registry() -> list[AgentEntry]:
     return load_agents_config()
 
 
+async def _synced_db(
+    agents: list[AgentEntry],
+    seed: list[dict[str, Any]] | None = None,
+    assignments: list[dict[str, Any]] | None = None,
+) -> FakeDb:
+    """Run the registry projection and return the resulting database."""
+    db = FakeDb(
+        seed if seed is not None else MIGRATION_SEEDED_ROWS,
+        assignments=assignments,
+    )
+    await sync_profiles(agents, db=db, audit=FakeAudit())
+    return db
+
+
 async def _synced_rows(
     agents: list[AgentEntry],
     seed: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Run the registry projection and return the resulting profile table."""
-    db = FakeDb(seed if seed is not None else MIGRATION_SEEDED_ROWS)
-    await sync_profiles(agents, db=db, audit=FakeAudit())
-    return db.rows
+    return (await _synced_db(agents, seed)).rows
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +243,82 @@ def _profile_resolution_violations(
     return violations
 
 
+def _resolve_profile_row(
+    agent_id: str,
+    agent_type: str,
+    rows: list[dict[str, Any]],
+    assignments: list[dict[str, Any]],
+) -> tuple[dict[str, Any] | None, str]:
+    """Resolve a profile the way ``get_agent_profile()`` does (migration 007).
+
+    Two steps, in this order:
+
+    1. the ``agent_profile_assignments`` row for *agent_id*, joined to an
+       **enabled** profile (the SQL join carries ``p.enabled = true``, so an
+       assignment pointing at a disabled row yields nothing and falls through);
+    2. otherwise the enabled profile of *agent_type* with the smallest
+       ``created_at`` — ``ORDER BY created_at ASC LIMIT 1``.
+
+    Returns the resolved row (or ``None``) and the source, matching the
+    ``'assignment'`` / ``'default'`` labels the SQL function returns.
+    """
+    by_id = {r.get("id"): r for r in rows}
+    for assignment in assignments:
+        if assignment.get("agent_id") != agent_id:
+            continue
+        row = by_id.get(assignment.get("profile_id"))
+        if row is not None and row.get("enabled"):
+            return row, "assignment"
+
+    candidates = [
+        r for r in rows if r.get("agent_type") == agent_type and r.get("enabled")
+    ]
+    # Stable sort: rows with equal (or absent) created_at keep insertion order,
+    # which is creation order in the fake.
+    candidates.sort(key=lambda r: str(r.get("created_at") or ""))
+    if candidates:
+        return candidates[0], "default"
+    return None, "none"
+
+
+def _resolution_violations(
+    agents: list[AgentEntry],
+    rows: list[dict[str, Any]],
+    assignments: list[dict[str, Any]],
+) -> list[str]:
+    """Rule 5 — every agent *resolves* to a profile with its declared trust.
+
+    Stronger than rule 1: rule 1 asks whether a row with the right trust exists
+    somewhere in the table, this one asks whether the agent actually reaches it.
+    """
+    violations: list[str] = []
+    for agent in agents:
+        row, source = _resolve_profile_row(agent.name, agent.type, rows, assignments)
+        if row is None:
+            violations.append(
+                f"agent {agent.name!r} resolves to no profile at all — "
+                f"get_agent_profile({agent.name!r}, {agent.type!r}) would return "
+                f"no_profile_found and the agent is refused every operation."
+            )
+            continue
+        if str(row.get("name")) != agent.profile:
+            violations.append(
+                f"agent {agent.name!r} declares profile {agent.profile!r} but "
+                f"resolves to {str(row.get('name'))!r} via {source} — a row bearing "
+                f"the declared name is not the same thing as the agent reaching it. "
+                f"Project agent_profile_assignments in sync_profiles()."
+            )
+        if row.get("trust_level") != agent.trust_level:
+            violations.append(
+                f"agent {agent.name!r} declares trust_level {agent.trust_level} but "
+                f"resolves via {source} to profile {str(row.get('name'))!r} carrying "
+                f"trust_level {row.get('trust_level')!r} — the created_at tiebreak "
+                f"decided this agent's trust, exactly the defect migration 018 fixed "
+                f"by hand for the roster of its day."
+            )
+    return violations
+
+
 def _unclassified_profile_violations(
     agents: list[AgentEntry],
     rows: list[dict[str, Any]],
@@ -302,14 +405,73 @@ class TestRegistryProjectionInvariant:
     async def test_invariant_holds_on_a_fresh_database(
         self, registry: list[AgentEntry]
     ) -> None:
-        """First boot against an empty table satisfies all four rules too."""
-        rows = await _synced_rows(registry, seed=[])
+        """First boot against an empty table satisfies every rule too."""
+        db = await _synced_db(registry, seed=[])
         violations = [
-            *_profile_row_violations(registry, rows),
-            *_profile_resolution_violations(registry, rows),
-            *_unclassified_profile_violations(registry, rows),
+            *_profile_row_violations(registry, db.rows),
+            *_profile_resolution_violations(registry, db.rows),
+            *_unclassified_profile_violations(registry, db.rows),
+            *_resolution_violations(registry, db.rows, db.assignments),
         ]
         assert not violations, _report(violations)
+
+    async def test_every_registry_agent_resolves_to_its_declared_trust(
+        self, registry: list[AgentEntry]
+    ) -> None:
+        """Rule 5 — resolution, not row existence.
+
+        Against the migration-seeded table this fails without the assignment
+        projection: ``claude_code_local`` (trust 3) is the oldest enabled row of
+        type ``claude_code``, so ``claude-remote`` (declared trust 2) reaches it
+        through the ``created_at`` fallback.
+        """
+        db = await _synced_db(registry)
+        violations = _resolution_violations(registry, db.rows, db.assignments)
+        assert not violations, _report(violations)
+
+    async def test_every_registry_agent_resolves_through_its_own_assignment(
+        self, registry: list[AgentEntry]
+    ) -> None:
+        """The `created_at` tiebreak must be unreachable, not merely unlucky."""
+        db = await _synced_db(registry)
+        for agent in registry:
+            _, source = _resolve_profile_row(
+                agent.name, agent.type, db.rows, db.assignments
+            )
+            assert source == "assignment", (
+                f"agent {agent.name!r} resolves via {source!r}, so its trust level "
+                f"depends on which profile row of type {agent.type!r} is oldest"
+            )
+
+    async def test_assignments_are_projected_only_for_registry_agents(
+        self, registry: list[AgentEntry]
+    ) -> None:
+        """Migration 018's rows for dropped harnesses are stale pointers.
+
+        ``gemini-local`` / ``gemini-remote`` left the registry; their assignments
+        point into profiles this sync disables. Assignments have no ``enabled``
+        column, so removal is the only option (design D11) — the profile itself
+        is still retained and disabled.
+        """
+        stale = [
+            _assignment("gemini-local", "gemini_local_worker"),
+            _assignment("gemini-remote", "gemini_cloud_worker"),
+        ]
+        db = await _synced_db(
+            registry,
+            seed=[
+                *MIGRATION_SEEDED_ROWS,
+                _row("gemini_local_worker", agent_type="gemini", trust_level=3),
+                _row("gemini_cloud_worker", agent_type="gemini", trust_level=2),
+            ],
+            assignments=stale,
+        )
+        assert sorted(a["agent_id"] for a in db.assignments) == sorted(
+            a.name for a in registry
+        )
+        for name in ("gemini_local_worker", "gemini_cloud_worker"):
+            row = next(r for r in db.rows if r["name"] == name)
+            assert row["enabled"] is False, "the profile is retained, only disabled"
 
 
 # ---------------------------------------------------------------------------
@@ -434,6 +596,105 @@ class TestInvariantCatchesHalfOnboardedHarness:
 
         with pytest.raises(DuplicateApiKeyError, match="warp-local"):
             get_api_key_identities([first, second])
+
+
+class TestInvariantCatchesResolutionByCreatedAt:
+    """The future-``grok-remote`` case: two agents of one type, no assignments.
+
+    This is the permanent regression guard for design D11. Migration 018 fixed
+    this by hand for the six-agent roster of 2026-05 and nothing extended the
+    fix to ``antigravity-local`` / ``grok-local`` / ``pi-local``; they resolve
+    correctly today only because each is the sole profile of its type.
+    """
+
+    async def test_missing_assignment_resolves_to_the_older_wrong_trust_row(
+        self,
+    ) -> None:
+        older = _agent(
+            "grok-local", profile="grok_local", agent_type="grok", trust_level=3
+        )
+        newer = _agent(
+            "grok-remote", profile="grok_remote", agent_type="grok", trust_level=2
+        )
+        agents = [older, newer]
+        db = await _synced_db(agents, seed=[])
+
+        # The pre-fix world: profile rows projected, assignments never written.
+        violations = _resolution_violations(agents, db.rows, assignments=[])
+        assert any(
+            "grok-remote" in v and "created_at tiebreak" in v for v in violations
+        ), _report(violations)
+
+        # ...and rule 1, which looks rows up by name, sees nothing wrong. That
+        # gap is the whole reason rule 5 exists.
+        assert not _profile_row_violations(agents, db.rows)
+
+    async def test_projected_assignments_make_the_same_pair_resolve_correctly(
+        self,
+    ) -> None:
+        agents = [
+            _agent("grok-local", profile="grok_local", agent_type="grok",
+                   trust_level=3),
+            _agent("grok-remote", profile="grok_remote", agent_type="grok",
+                   trust_level=2),
+        ]
+        db = await _synced_db(agents, seed=[])
+
+        assert not _resolution_violations(agents, db.rows, db.assignments)
+        row, source = _resolve_profile_row(
+            "grok-remote", "grok", db.rows, db.assignments
+        )
+        assert source == "assignment"
+        assert row is not None and row["name"] == "grok_remote"
+
+    async def test_assignment_to_a_disabled_profile_falls_back_and_is_reported(
+        self,
+    ) -> None:
+        """``get_agent_profile()`` joins on ``p.enabled = true``, so a pointer at
+        a disabled row is not resolution — it silently degrades to the fallback.
+        """
+        agents = [
+            _agent("grok-local", profile="grok_local", agent_type="grok",
+                   trust_level=3),
+            _agent("grok-remote", profile="grok_remote", agent_type="grok",
+                   trust_level=2),
+        ]
+        db = await _synced_db(agents, seed=[])
+        for row in db.rows:
+            if row["name"] == "grok_remote":
+                row["enabled"] = False
+
+        row, source = _resolve_profile_row(
+            "grok-remote", "grok", db.rows, db.assignments
+        )
+        assert source == "default"
+        assert row is not None and row["name"] == "grok_local"
+        assert any(
+            "grok-remote" in v for v in _resolution_violations(agents, db.rows, db.assignments)
+        )
+
+    async def test_outdated_pointer_beats_the_type_fallback(self) -> None:
+        """``UNIQUE (agent_id)`` means one pointer per agent, and the pointer wins.
+
+        A hand-written assignment left aimed at the wrong row therefore outranks
+        every profile the type fallback would have found — which is why the
+        projection repoints rather than only inserting missing rows.
+        """
+        agents = [
+            _agent("grok-local", profile="grok_local", agent_type="grok",
+                   trust_level=3),
+            _agent("grok-sandbox", profile="grok_sandbox", agent_type="grok",
+                   trust_level=0),
+        ]
+        outdated = [_assignment("grok-local", "grok_sandbox")]
+        db = await _synced_db(agents, seed=[], assignments=[dict(outdated[0])])
+
+        violations = _resolution_violations(agents, db.rows, outdated)
+        assert any(
+            "grok-local" in v and "grok_sandbox" in v for v in violations
+        ), _report(violations)
+        # The projection repointed it, so the synced world is clean.
+        assert not _resolution_violations(agents, db.rows, db.assignments)
 
 
 class TestInvariantCatchesGhostProfile:
