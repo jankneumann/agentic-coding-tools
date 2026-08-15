@@ -71,92 +71,134 @@ def _sweep_step() -> dict:
 # fails loudly the moment the two diverge, so "kept in sync" is enforced,
 # not just asserted in a comment.
 SWEEP_FRAGMENT = textwrap.dedent("""
-    set -uo pipefail
+set -uo pipefail
+# GitHub Actions runs a `run:` step with no `shell:` key as `bash -e {0}`,
+# so errexit is ON here by default. Every branch below deliberately
+# inspects a command's status rather than dying on it: a diff that touches
+# no change directory is a SKIP at exit 0, the post-merge run must never
+# block whatever the gate returns, and the merge_group loop must visit
+# every batched id instead of stopping at the first failure. Under errexit
+# all three of those collapse into "abort with the gate's status", so turn
+# it off explicitly and check each status by hand. The suite drives this
+# fragment with `bash -e` for the same reason.
+set +e
 
-    TRACE_GATE="packages/gen-eval/scripts/check_traceability.py"
-    TRACE_PYTHON="packages/gen-eval/.venv/bin/python"
-    if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
+TRACE_GATE="packages/gen-eval/scripts/check_traceability.py"
+TRACE_PYTHON="packages/gen-eval/.venv/bin/python"
+if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
 
-    # Change-id derivation (task 5.7). All three conditions are
-    # load-bearing: --no-renames so the derived set does not depend on
-    # git's similarity heuristic; --diff-filter=d (exclude deletions) so
-    # the source half of an archive `git mv` does not name the change
-    # being archived; grep -v archive so the destination half does not
-    # name the literal id `archive`. Dropping any one breaks a real
-    # archive pull request (see design D12's measured table).
-    derive_change_ids() {
-      git diff --no-renames --diff-filter=d --name-only "$1" HEAD \\
-        -- openspec/changes/ \\
-        | sed 's#^openspec/changes/\\([^/]*\\)/.*#\\1#' \\
-        | sort -u \\
-        | grep -v '^archive$'
-    }
+# Change-id derivation (task 5.7). Five conditions, each
+# load-bearing: --no-renames so the derived set does not depend on
+# git's similarity heuristic; --diff-filter=d (exclude deletions) so
+# the source half of an archive `git mv` does not name the change
+# being archived; grep -v archive so the destination half does not
+# name the literal id `archive`. Dropping either of those two breaks a
+# real archive pull request (see design D12's measured table).
+#
+# grep -E '^openspec/changes/[^/]+/' enforces the spec's "under a
+# directory matching openspec/changes/<id>/" literally. Without it the
+# sed leaves a path with no `/` after the changes/ segment untouched, so
+# a file sitting directly under openspec/changes/ is emitted verbatim as
+# though it were a change id, and alongside a real change it trips the
+# ambiguity rule and hard-blocks a single-change pull request.
+#
+# core.quotePath=false because git otherwise C-quotes the WHOLE path when
+# any byte in it is non-ASCII. The leading `"` then fails the anchor
+# above and the change directory is dropped — a blocking gate silently
+# not running, on an ordinary ASCII change id that merely touched a file
+# with an accented name.
+derive_change_ids() {
+  # Returns 2 — distinct from "resolved the base and derived nothing" —
+  # when git cannot resolve the base commit. Run as a single pipeline the
+  # two are indistinguishable: `fatal: bad object` and "grep matched
+  # nothing" both arrive as a non-zero status with empty stdout, and the
+  # caller then takes the no-change SKIP path on a base it never read.
+  # The spec puts those on different exit paths, so the git status is
+  # captured on its own before anything is piped.
+  local raw
+  raw="$(git -c core.quotePath=false diff --no-renames --diff-filter=d --name-only "$1" HEAD \\
+    -- openspec/changes/)" || return 2
+  printf '%s\\n' "$raw" \\
+    | grep -E '^openspec/changes/[^/]+/' \\
+    | sed 's#^openspec/changes/\\([^/]*\\)/.*#\\1#' \\
+    | sort -u \\
+    | grep -v '^archive$'
+  return 0
+}
 
-    run_gate() {
-      # $1: a change id, or empty string for union mode (--change
-      # omitted). Bare invocation, never piped — a pipeline's $? is the
-      # last stage's status.
-      if [ -n "$1" ]; then
-        "$TRACE_PYTHON" "$TRACE_GATE" --scope capability --change "$1"
-      else
-        "$TRACE_PYTHON" "$TRACE_GATE" --scope capability
-      fi
-    }
+run_gate() {
+  # $1: a change id, or empty string for union mode (--change
+  # omitted). Bare invocation, never piped — a pipeline's $? is the
+  # last stage's status.
+  if [ -n "$1" ]; then
+    "$TRACE_PYTHON" "$TRACE_GATE" --scope capability --change "$1"
+  else
+    "$TRACE_PYTHON" "$TRACE_GATE" --scope capability
+  fi
+}
 
-    case "$EVENT_NAME" in
-      pull_request)
-        if [ -z "${PR_BASE_SHA:-}" ]; then
-          echo "::error::requirement-traceability sweep: unresolvable base for pull_request (github.event.pull_request.base.sha is empty)"
-          exit 1
-        fi
-        CHANGE_IDS="$(derive_change_ids "$PR_BASE_SHA")"
-        if [ -z "$CHANGE_IDS" ]; then
-          echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched on ${PR_HEAD_REF:-this branch}"
-          exit 0
-        fi
-        COUNT=$(printf '%s\\n' "$CHANGE_IDS" | grep -c .)
-        if [ "$COUNT" -gt 1 ]; then
-          echo "::error::requirement-traceability sweep: ambiguous — pull request touches multiple change directories: $(printf '%s' "$CHANGE_IDS" | tr '\\n' ' ')"
-          exit 1
-        fi
-        run_gate "$CHANGE_IDS"
-        exit $?
-        ;;
-      merge_group)
-        if [ -z "${MERGE_GROUP_BASE_SHA:-}" ]; then
-          echo "::error::requirement-traceability sweep: unresolvable base for merge_group (github.event.merge_group.base_sha is empty)"
-          exit 1
-        fi
-        CHANGE_IDS="$(derive_change_ids "$MERGE_GROUP_BASE_SHA")"
-        if [ -z "$CHANGE_IDS" ]; then
-          echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched in merge group ${MERGE_GROUP_REF:-<unknown>}"
-          exit 0
-        fi
-        # No ambiguity rule here: a merge group's diff spans every
-        # batched pull request, so several change directories is the
-        # ordinary case. Iterate and block if any invocation fails.
-        OVERALL=0
-        while IFS= read -r id; do
-          [ -z "$id" ] && continue
-          echo "requirement-traceability sweep: evaluating batched change '$id'"
-          run_gate "$id"
-          [ $? -ne 0 ] && OVERALL=1
-        done <<< "$CHANGE_IDS"
-        exit "$OVERALL"
-        ;;
-      push)
-        # Union mode: every on-branch delta shadows the archive at once.
-        # Report-only — its exit status must not depend on what it found.
-        echo "requirement-traceability sweep: post-merge report (union of every on-branch delta, non-blocking)"
-        run_gate ""
-        echo "requirement-traceability sweep: post-merge run never blocks; exiting 0 regardless of the result above"
-        exit 0
-        ;;
-      *)
-        echo "::error::requirement-traceability sweep: unhandled event '$EVENT_NAME' — no rule for this trigger"
-        exit 1
-        ;;
-    esac
+case "$EVENT_NAME" in
+  pull_request)
+    if [ -z "${PR_BASE_SHA:-}" ]; then
+      echo "::error::requirement-traceability sweep: unresolvable base for pull_request (github.event.pull_request.base.sha is empty)"
+      exit 1
+    fi
+    CHANGE_IDS="$(derive_change_ids "$PR_BASE_SHA")"
+    if [ $? -eq 2 ]; then
+      echo "::error::requirement-traceability sweep: unresolvable base for pull_request (github.event.pull_request.base.sha='$PR_BASE_SHA' could not be resolved against this checkout)"
+      exit 1
+    fi
+    if [ -z "$CHANGE_IDS" ]; then
+      echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched on ${PR_HEAD_REF:-this branch}"
+      exit 0
+    fi
+    COUNT=$(printf '%s\\n' "$CHANGE_IDS" | grep -c .)
+    if [ "$COUNT" -gt 1 ]; then
+      echo "::error::requirement-traceability sweep: ambiguous — pull request touches multiple change directories: $(printf '%s' "$CHANGE_IDS" | tr '\\n' ' ')"
+      exit 1
+    fi
+    run_gate "$CHANGE_IDS"
+    exit $?
+    ;;
+  merge_group)
+    if [ -z "${MERGE_GROUP_BASE_SHA:-}" ]; then
+      echo "::error::requirement-traceability sweep: unresolvable base for merge_group (github.event.merge_group.base_sha is empty)"
+      exit 1
+    fi
+    CHANGE_IDS="$(derive_change_ids "$MERGE_GROUP_BASE_SHA")"
+    if [ $? -eq 2 ]; then
+      echo "::error::requirement-traceability sweep: unresolvable base for merge_group (github.event.merge_group.base_sha='$MERGE_GROUP_BASE_SHA' could not be resolved against this checkout)"
+      exit 1
+    fi
+    if [ -z "$CHANGE_IDS" ]; then
+      echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched in merge group ${MERGE_GROUP_REF:-<unknown>}"
+      exit 0
+    fi
+    # No ambiguity rule here: a merge group's diff spans every
+    # batched pull request, so several change directories is the
+    # ordinary case. Iterate and block if any invocation fails.
+    OVERALL=0
+    while IFS= read -r id; do
+      [ -z "$id" ] && continue
+      echo "requirement-traceability sweep: evaluating batched change '$id'"
+      run_gate "$id"
+      [ $? -ne 0 ] && OVERALL=1
+    done <<< "$CHANGE_IDS"
+    exit "$OVERALL"
+    ;;
+  push)
+    # Union mode: every on-branch delta shadows the archive at once.
+    # Report-only — its exit status must not depend on what it found.
+    echo "requirement-traceability sweep: post-merge report (union of every on-branch delta, non-blocking)"
+    run_gate ""
+    echo "requirement-traceability sweep: post-merge run never blocks; exiting 0 regardless of the result above"
+    exit 0
+    ;;
+  *)
+    echo "::error::requirement-traceability sweep: unhandled event '$EVENT_NAME' — no rule for this trigger"
+    exit 1
+    ;;
+esac
 """)
 
 
@@ -243,12 +285,25 @@ def _make_stub_gate(
 
 
 def _run(repo: Path, env_extra: dict[str, str]) -> subprocess.CompletedProcess:
+    """Drive the fragment the way GitHub Actions actually drives it.
+
+    A ``run:`` step that declares no ``shell:`` key runs as ``bash -e {0}`` — a
+    SCRIPT FILE, with errexit ON. Driving it here as ``bash -c <string>`` instead
+    silently drops the ``-e``, and that one difference hid six of this job's nine
+    spec-mandated behaviours: under errexit the no-change SKIP, the archive SKIP,
+    the never-blocking push run and the per-id merge_group loop all collapse into
+    "abort with the first non-zero status". Tests that cannot observe errexit
+    cannot observe the job. Both properties — file, not -c; -e, not bare — are
+    load-bearing; do not "simplify" either away.
+    """
     import os
 
     env = dict(os.environ)
     env.update(env_extra)
+    script = repo / ".sweep-under-test.sh"
+    script.write_text(SWEEP_FRAGMENT)
     return subprocess.run(
-        ["bash", "-c", SWEEP_FRAGMENT],
+        ["bash", "-e", str(script)],
         cwd=repo,
         env=env,
         capture_output=True,
@@ -339,6 +394,152 @@ def test_ambiguous_change_fails_on_pull_request(tmp_path: Path) -> None:
     assert "SKIP" not in result.stdout
 
 
+def test_file_directly_under_changes_is_not_a_change_id(tmp_path: Path) -> None:
+    """Spec: derivation considers paths 'under a directory matching
+    `openspec/changes/<id>/`'.
+
+    A file sitting directly under `openspec/changes/` has no `/` after the
+    changes/ segment, so the sed rewrite does not match and the path passes
+    through verbatim — the gate was then invoked as
+    `--change openspec/changes/README.md`. A note or README there is ordinary
+    housekeeping, so this is reachable without anyone doing anything odd."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    changes = repo / "openspec" / "changes"
+    changes.mkdir(parents=True)
+    (changes / "README.md").write_text("notes about the changes directory\n")
+    _commit_all(repo, "add a note directly under openspec/changes/")
+    _make_stub_gate(repo)
+
+    result = _run(
+        repo,
+        {"EVENT_NAME": "pull_request", "PR_BASE_SHA": base_sha, "PR_HEAD_REF": "docs/note"},
+    )
+    assert result.returncode == 0, result.stdout
+    assert "SKIP: requirement-traceability sweep" in result.stdout
+    assert "--change" not in result.stdout
+
+
+def test_file_directly_under_changes_does_not_trip_ambiguity(tmp_path: Path) -> None:
+    """The same defect's worse half: alongside one real change directory, the
+    stray path became a second derived 'id' and the pull request was hard-failed
+    as ambiguous despite touching exactly one change."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    changes = repo / "openspec" / "changes"
+    (changes / "real-change").mkdir(parents=True)
+    (changes / "real-change" / "spec.md").write_text("# real-change\n")
+    (changes / "README.md").write_text("notes\n")
+    _commit_all(repo, "one real change plus a stray note")
+    _make_stub_gate(repo)
+
+    result = _run(
+        repo,
+        {"EVENT_NAME": "pull_request", "PR_BASE_SHA": base_sha, "PR_HEAD_REF": "openspec/real-change"},
+    )
+    assert result.returncode == 0, result.stdout
+    assert "ambiguous" not in result.stdout
+    assert "argv: --scope capability --change real-change" in result.stdout
+
+
+def test_non_ascii_filename_still_derives_its_change_id(tmp_path: Path) -> None:
+    """A change directory must be derived from its touched files whatever they
+    are named.
+
+    `core.quotePath` defaults to true, so git C-quotes the WHOLE path when any
+    byte in it is non-ASCII: `"openspec/changes/my-change/r\\303\\251sum..."`.
+    The leading quote fails the `^openspec/changes/` anchor, the id is dropped,
+    and the job prints the no-change SKIP — a blocking gate silently not
+    running, on an ordinary ASCII change id that merely touched a file with an
+    accented name."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    change_dir = repo / "openspec" / "changes" / "my-change"
+    change_dir.mkdir(parents=True)
+    (change_dir / "résumé-notes.md").write_text("notes\n")
+    _commit_all(repo, "change touching a non-ascii filename")
+    _make_stub_gate(repo)
+
+    result = _run(
+        repo,
+        {"EVENT_NAME": "pull_request", "PR_BASE_SHA": base_sha, "PR_HEAD_REF": "openspec/my-change"},
+    )
+    assert result.returncode == 0, result.stdout
+    assert "argv: --scope capability --change my-change" in result.stdout
+    assert "SKIP" not in result.stdout
+
+
+def test_unhandled_event_fails_loudly(tmp_path: Path) -> None:
+    """Spec: the rule is stated for exactly three events 'precisely so that a
+    fourth event, added later without a rule, fails loudly instead of passing
+    quietly'. A `case` that matches nothing exits 0, which is the unfalsifiable
+    green the clause exists to prevent — so the `*)` arm is normative and needs
+    a test of its own."""
+    repo = _init_repo(tmp_path)
+    _make_stub_gate(repo)
+    result = _run(repo, {"EVENT_NAME": "schedule"})
+    assert result.returncode == 1, result.stdout
+    assert "::error::" in result.stdout
+    assert "schedule" in result.stdout
+    assert "SKIP" not in result.stdout
+
+
+def test_single_change_pull_request_blocks_when_the_gate_fails(tmp_path: Path) -> None:
+    """Spec: on `pull_request` the job invokes the gate with `--change <id>`
+    and SHALL block.
+
+    This is the primary blocking event, and until this test existed nothing
+    covered it: the other pull_request cases all return before `run_gate` is
+    ever reached (SKIP, SKIP, ambiguous, unresolvable base), so rewriting the
+    arm's `exit $?` to `exit 0` left the whole suite green while the gate
+    stopped gating. Both halves are asserted here — the argv built, and the
+    non-zero status propagated."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    change_dir = repo / "openspec" / "changes" / "only-change"
+    change_dir.mkdir(parents=True)
+    (change_dir / "spec.md").write_text("# only-change\n")
+    _commit_all(repo, "one change")
+    _make_stub_gate(repo, fail_ids=("only-change",))
+
+    result = _run(
+        repo,
+        {
+            "EVENT_NAME": "pull_request",
+            "PR_BASE_SHA": base_sha,
+            "PR_HEAD_REF": "openspec/only-change",
+        },
+    )
+    assert result.returncode == 1, result.stdout
+    assert "argv: --scope capability --change only-change" in result.stdout
+    assert "uncited requirement" in result.stdout
+    assert "SKIP" not in result.stdout
+
+
+def test_single_change_pull_request_passes_when_the_gate_passes(tmp_path: Path) -> None:
+    """The same path's success half: a clean gate leaves the job at exit 0
+    while still having invoked it change-scoped. Without this, a fragment that
+    always failed would satisfy the blocking test above."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    change_dir = repo / "openspec" / "changes" / "only-change"
+    change_dir.mkdir(parents=True)
+    (change_dir / "spec.md").write_text("# only-change\n")
+    _commit_all(repo, "one change")
+    _make_stub_gate(repo)
+
+    result = _run(
+        repo,
+        {
+            "EVENT_NAME": "pull_request",
+            "PR_BASE_SHA": base_sha,
+            "PR_HEAD_REF": "openspec/only-change",
+        },
+    )
+    assert result.returncode == 0, result.stdout
+    assert "argv: --scope capability --change only-change" in result.stdout
+
+
 def test_unresolvable_base_fails_pull_request(tmp_path: Path) -> None:
     """Spec: 'An unresolvable base fails rather than skipping' —
     github.event.pull_request.base.sha empty must fail naming the event, not
@@ -348,6 +549,51 @@ def test_unresolvable_base_fails_pull_request(tmp_path: Path) -> None:
     assert result.returncode == 1, result.stdout
     assert "::error::" in result.stdout
     assert "pull_request" in result.stdout
+    assert "SKIP" not in result.stdout
+
+
+def test_nonempty_unresolvable_base_fails_pull_request(tmp_path: Path) -> None:
+    """The reachable half of 'an unresolvable base fails rather than skipping'.
+
+    An empty base sha is the easy case and the only one previously covered. The
+    case that actually happens — a base commit that is a well-formed sha the
+    checkout does not contain (force-pushed base, a fetch depth that did not
+    reach it) — made `git diff` fail inside the command substitution, which the
+    old single-pipeline derivation could not distinguish from "derived no ids".
+    The job then printed the no-change SKIP and exited 0 against a base it had
+    never read: a blocking gate silently not running."""
+    repo = _init_repo(tmp_path)
+    _make_stub_gate(repo)
+    result = _run(
+        repo,
+        {
+            "EVENT_NAME": "pull_request",
+            "PR_BASE_SHA": "deadbeef" * 5,
+            "PR_HEAD_REF": "openspec/some-change",
+        },
+    )
+    assert result.returncode == 1, result.stdout
+    assert "::error::" in result.stdout
+    assert "pull_request" in result.stdout
+    assert "SKIP" not in result.stdout
+
+
+def test_nonempty_unresolvable_base_fails_merge_group(tmp_path: Path) -> None:
+    """Same rule on merge_group, whose base sha is likewise a real commit that
+    a shallow or stale checkout may simply not have."""
+    repo = _init_repo(tmp_path)
+    _make_stub_gate(repo)
+    result = _run(
+        repo,
+        {
+            "EVENT_NAME": "merge_group",
+            "MERGE_GROUP_BASE_SHA": "deadbeef" * 5,
+            "MERGE_GROUP_REF": "gh-readonly-queue/main/pr-9",
+        },
+    )
+    assert result.returncode == 1, result.stdout
+    assert "::error::" in result.stdout
+    assert "merge_group" in result.stdout
     assert "SKIP" not in result.stdout
 
 
@@ -408,6 +654,34 @@ def test_merge_group_blocks_if_any_invocation_fails(tmp_path: Path) -> None:
     assert result.returncode == 1, result.stdout
     assert "change-b: cites no requirement" in result.stdout
     assert "ambiguous" not in result.stdout
+
+
+def test_merge_group_evaluates_every_id_even_after_one_fails(tmp_path: Path) -> None:
+    """Spec: 'invoke the gate once per derived change id ... and block if any
+    invocation fails' — *once per id*, not "until one fails".
+
+    The neighbouring test fails the LAST id in the batch, which a fragment that
+    aborts on the first failure would still satisfy. Failing the FIRST id is
+    what distinguishes the two: the batch must still be evaluated to the end so
+    one merge-queue run reports every offending change, rather than making the
+    queue rediscover them one eviction at a time."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    for change_id in ("change-a", "change-b"):
+        change_dir = repo / "openspec" / "changes" / change_id
+        change_dir.mkdir(parents=True)
+        (change_dir / "spec.md").write_text(f"# {change_id}\n")
+    _commit_all(repo, "batch two changes")
+    _make_stub_gate(repo, fail_ids=("change-a",), violation_text="change-a: cites no requirement")
+
+    result = _run(
+        repo,
+        {"EVENT_NAME": "merge_group", "MERGE_GROUP_BASE_SHA": base_sha, "MERGE_GROUP_REF": "gh-readonly-queue/main/pr-2"},
+    )
+    assert result.returncode == 1, result.stdout
+    assert "change-a: cites no requirement" in result.stdout
+    # The id AFTER the failing one must still have been invoked.
+    assert "argv: --scope capability --change change-b" in result.stdout
 
 
 def test_push_run_never_blocks(tmp_path: Path) -> None:
