@@ -42,3 +42,31 @@
 ### Context
 Five parallel analyses (completeness, consistency, feasibility, testability, security/perf) surfaced 3 critical, 12 high, and ~12 medium findings; all at or above medium were fixed. The largest: the opt-in unit contradicted itself across four documents — resolved by new D13 (forward opt-in per contract document, reverse opt-in per capability via a traceability-exclusions.yaml that is simultaneously the requirement-exclusion home D4 was missing). Change scope, slug algorithm, concentration trigger, and malformed-input behavior are now deterministic; a skill-workflow delta, task 2.0 (schema extension/promotion), task 4.2b (flagship reverse opt-in), and wp-matrix/wp-wiring packages were added; phase 3 renumbered to 3.1-3.16.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-08-15)
+
+**Agent**: claude-autopilot-iterate | **Session**: N/A
+
+### Decisions
+1. **Fix the stale requirement-count assertion by cross-checking, not re-pinning a literal** — test_all_fourteen_added_requirements_resolve_under_this_change hardcoded 14; task 4.1 (commit 89365ffe, the review window's base commit) added a 15th ADDED requirement ('Pass-rate gating governs exit status') without updating the test, leaving packages/gen-eval's own pytest suite (and CI's gen-eval-tests job, which runs it bare) red on this branch. Rather than bump the literal to 15 (which would go stale again on the next ADDED requirement), the count is now cross-checked against an independent raw regex count of '### Requirement:' headings in the same delta text, so a parser regression is still caught but a legitimate new requirement no longer requires updating this test.
+2. **Correct DOWNSTREAM.md's stale 'not yet landed' claim about the CI sweep** — Task 5.9's evidence (2026-08-10) wrote DOWNSTREAM.md before task 5.7 (the CI sweep) had landed, framing it as pending. 5.7 landed later in this same change (commit 4aa24237) without a DOWNSTREAM.md update, so the committed file at HEAD asserts something false about HEAD itself — the mirror image of the DS-2 mistake the file's own text warns against (promising something unshipped, vs. here denying something already shipped). Rewrote the section to state the sweep is real and unconditional while preserving the substantive claim (it is this repository's CI, not something a downstream consumer inherits without vendoring the workflow file too).
+
+### Alternatives Considered
+- Leave the stale count at 15 as a new hardcoded literal: rejected because Fixes today's failure but recreates the exact staleness risk for the next ADDED requirement; an independent structural cross-check catches both under- and over-counting without a literal to maintain.
+
+### Trade-offs
+- Accepted A slightly more complex test (regex cross-check)  over A single hardcoded integer because the complexity buys resistance to the specific staleness class that just caused a real, currently-red CI job on this branch
+
+### Open Questions
+- [ ] Issue #377's arithmetic (83 served / 43 contracted / 45 unattributed) doesn't quite reconcile to the near-match operation called out separately; not fixed here since it is operator-authored issue-body content, not a repo artifact.
+
+### Completed Work
+- Fixed test_effective_spec_set.py's stale requirement count (14->cross-checked); packages/gen-eval suite: 1180 passed/1 failed -> 1181 passed/0 failed
+- Corrected DOWNSTREAM.md's stale 'CI sweep not yet landed' section
+- Annotated tasks.md 5.8 (re-check confirmed, no change needed) and 5.9 (fix recorded) per the task's own 'Re-check once 5.7 lands' instruction
+- Verified (read-only, not recorded against 5.7c) that both check_traceability.py invocations (--scope capability [--change ...] and --scope change --change trace-requirements-to-contracts) currently exit 0 against the real merge candidate
+
+### Context
+Reviewed commits 89365ffe..HEAD (Track A citations/exclusions, Track B coordinator contract + locks.yaml opt-in, wp-wiring 4.3/5.6/5.7/5.8/5.9, cite-requirements test fix). Fixed two engineering-artifact defects: a stale hardcoded requirement count in test_effective_spec_set.py (14 vs the real 15 after task 4.1 added a new requirement) that was silently failing packages/gen-eval's own suite and would red CI's gen-eval-tests job, and a stale DOWNSTREAM.md section describing the CI sweep (task 5.7) as not-yet-landed when it has since landed in this same change. No human citation/exclusion decisions were touched.
+

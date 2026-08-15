@@ -20,6 +20,7 @@ roots.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -62,13 +63,33 @@ def test_this_changes_new_requirement_does_not_resolve_without_the_change_id() -
         resolver.resolve(req_id, change_id=None)
 
 
-def test_all_fourteen_added_requirements_resolve_under_this_change() -> None:
+def test_all_added_requirements_resolve_under_this_change() -> None:
+    """Every ADDED heading in this change's own delta resolves.
+
+    The count check is a deliberate trip-wire, not incidental: a parser
+    regression that silently drops or duplicates headings would make the
+    loop below pass on whatever subset survived. Rather than pin a literal
+    (this test originally hardcoded 14; task 4.1 added a 15th ADDED
+    requirement, "Pass-rate gating governs exit status", in 89365ffe
+    without updating this number — exactly the staleness this rewrite
+    removes), count `### Requirement:` headings in the raw delta text
+    independently of the resolver's own parser and assert the two agree.
+    A future ADDED requirement changes both sides of that comparison
+    together, so this test cannot go stale the way the count literal did.
+    """
     resolver = RequirementResolver(SPECS_ROOT, CHANGES_ROOT)
     delta_path = CHANGES_ROOT / THIS_CHANGE / "specs" / "gen-eval-framework" / "spec.md"
     from gen_eval.traceability import parse_requirement_headings  # noqa: PLC0415
 
-    added_headings = parse_requirement_headings(delta_path.read_text(encoding="utf-8"))
-    assert len(added_headings) == 14
+    delta_text = delta_path.read_text(encoding="utf-8")
+    added_headings = parse_requirement_headings(delta_text)
+    raw_heading_count = len(re.findall(r"^### Requirement:", delta_text, flags=re.MULTILINE))
+    assert raw_heading_count >= 1, "fixture assumption: the ADDED section is non-empty"
+    assert len(added_headings) == raw_heading_count, (
+        "parse_requirement_headings found a different number of headings than a raw "
+        "count of the delta text — the parser dropped, merged, or duplicated one"
+    )
+    assert len(set(added_headings)) == len(added_headings), "no duplicate ADDED heading"
     for heading in added_headings:
         req_id = requirement_id("gen-eval-framework", heading)
         assert resolver.resolve(req_id, change_id=THIS_CHANGE) == heading
