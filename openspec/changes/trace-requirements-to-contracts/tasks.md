@@ -671,7 +671,7 @@ be meaningful.
   "insert one" fixture doesn't anticipate) — confirmed unrelated to this
   task's files by inspection, not touched here.
 
-- [ ] 5.7 Wire the full-capability sweep into CI `[S]`
+- [x] 5.7 Wire the full-capability sweep into CI `[S]`
   **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (an opted-in surface fails the sweep); (a surface that has not opted in is reported, not failed); (a pull request that was not planned through OpenSpec skips); (a pull request touching two change directories fails as ambiguous); (an unresolvable base fails rather than skipping); (a merge group batching two changes is evaluated once per change); (a merge group is not evaluated against changes outside the batch); (an archive pull request derives no change id); (the run on the integration branch cannot fail); (the job is not guarded off any declared event)
   **Design decisions**: D12
   **Dependencies**: 3.16, 5.2
@@ -797,6 +797,55 @@ be meaningful.
   **Note**: this is what makes the coordinator's existing gaps visible without
   stopping unrelated work; diff-scoping alone would leave them invisible
   forever, since no change touches them.
+  **Evidence (2026-08-15, IMPLEMENT round 3, wp-wiring)**: added job
+  `requirement-traceability-sweep` to `.github/workflows/ci.yml` — ONE job,
+  no `if:` guard, on all three declared events (confirmed:
+  `grep -n 'if:' .github/workflows/ci.yml` still returns exactly the
+  pre-existing `if: failure()` hit and no other). Change-id derivation uses
+  the exact command from this task's note (`--no-renames --diff-filter=d
+  --name-only <base> HEAD -- openspec/changes/ | sed
+  's#^openspec/changes/\([^/]*\)/.*#\1#' | sort -u | grep -v '^archive$'`),
+  computed against `github.event.pull_request.base.sha` on `pull_request` and
+  the distinct `github.event.merge_group.base_sha` on `merge_group`.
+  `pull_request` invokes `--scope capability --change <id>` once, BLOCKING;
+  SKIPs naming the branch on zero touched directories; fails naming both
+  candidates on two (ambiguous). `merge_group` invokes the gate once per
+  derived id with `--change <id>`, BLOCKING if any invocation fails, and does
+  NOT apply the ambiguity rule. `push` omits `--change` (union mode) and
+  always exits 0 after printing whatever the gate reported, regardless of the
+  gate's own exit code. An unresolvable base (`PR_BASE_SHA`/
+  `MERGE_GROUP_BASE_SHA` empty) fails naming the event, on a separate exit
+  path from the no-change-directory SKIP.
+  New test file `skills/tests/validate-feature/test_ci_sweep_wiring.py` (11
+  tests, pattern-matched on `test_validate_feature_gate.py`): non-OpenSpec-PR
+  SKIP, archive-PR SKIP (via a `git rm` plus a separate add under `archive/`,
+  reproducing the `--no-renames` delete+add decomposition on a fixture with
+  an `archive/` subtree per task 3.16's note), ambiguity on `pull_request`,
+  unresolvable base on both blocking events, merge_group per-change
+  iteration (both a two-change success case and a one-of-two-fails case,
+  each asserting "ambiguous" never appears), the push run's unconditional
+  exit 0, and a drift guard (`test_fragment_matches_ci_yml`) that parses the
+  real `ci.yml` step via `yaml.safe_load` and fails the moment the test's
+  copy of the bash fragment and the real step diverge — stronger than the
+  "kept byte-for-byte in sync" comment alone. A companion test asserts the
+  job carries no `if:` key and that `ci.yml`'s `on:` block still declares
+  `push`/`pull_request`/`merge_group`.
+  Verified: `skills/.venv/bin/python -m pytest skills/tests/validate-feature
+  -q` → **20 passed** (9 pre-existing + 11 new). Full bare suite from
+  `skills/` (`skills/.venv/bin/python -m pytest -q`, matching CI's `uv run
+  pytest -v`): **2380 passed, 0 failed** — the one pre-existing failure noted
+  under 5.6's evidence
+  (`tests/cite-requirements/test_walkthrough.py::test_real_contract_insertion_is_reversible_for_every_flag`)
+  has since been fixed by 77ec5023 and is green here too.
+  **Deliberately not exercised by this task's tests** (owned elsewhere): the
+  two verdict scenarios on this task's `Spec scenarios` line ("an opted-in
+  surface fails the sweep" / "a surface that has not opted in is reported,
+  not failed") are wp-gate's tests against the gate itself, and the
+  unbatched-exclusion scenario is task 3.16's resolution-mode property — this
+  package's tests assert the argv the job builds, not what the gate resolves
+  once invoked with it. Task 5.7c (`[human]`, still open) is the acceptance
+  run of this wiring against the real merge candidate and is untouched by
+  this note.
 
 - [x] 5.7b Register `tests/validate-feature` in `skills/pyproject.toml` `[XS]`
   **Spec scenarios**: skill-workflow delta: Validation-Time Requirement Traceability Gate (skill wiring is covered by skill tests)
