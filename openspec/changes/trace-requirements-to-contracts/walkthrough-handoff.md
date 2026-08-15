@@ -1,5 +1,12 @@
 # Handoff — start the cite-requirements walkthrough (Track A)
 
+> **HISTORICAL — Track A completed 2026-08-09** (commits `89365ffe`,
+> `4a8fc9ab`: 17/17 flags decided, 35/35 requirements accounted, reverse
+> enforcement ON). Nothing below is a pending instruction. Commands and
+> claims reflect the 2026-08-08 state: the `$WALK` path predates the
+> `<skill-base-dir>` convention adopted in the VAL_FIX, and "PR #342
+> 14/14 CI green" describes commit `c1185ad0`, not the current head.
+
 Written 2026-08-08 for a fresh session. Everything a clean context needs to
 run the guided traceability walkthrough; nothing here requires the prior
 conversation.
