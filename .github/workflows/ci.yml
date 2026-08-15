@@ -517,13 +517,26 @@ jobs:
           TRACE_PYTHON="packages/gen-eval/.venv/bin/python"
           if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
 
-          # Change-id derivation (task 5.7). All four conditions are
+          # Change-id derivation (task 5.7). Five conditions, each
           # load-bearing: --no-renames so the derived set does not depend on
           # git's similarity heuristic; --diff-filter=d (exclude deletions) so
           # the source half of an archive `git mv` does not name the change
           # being archived; grep -v archive so the destination half does not
-          # name the literal id `archive`. Dropping any one breaks a real
-          # archive pull request (see design D12's measured table).
+          # name the literal id `archive`. Dropping either of those two breaks a
+          # real archive pull request (see design D12's measured table).
+          #
+          # grep -E '^openspec/changes/[^/]+/' enforces the spec's "under a
+          # directory matching openspec/changes/<id>/" literally. Without it the
+          # sed leaves a path with no `/` after the changes/ segment untouched, so
+          # a file sitting directly under openspec/changes/ is emitted verbatim as
+          # though it were a change id, and alongside a real change it trips the
+          # ambiguity rule and hard-blocks a single-change pull request.
+          #
+          # core.quotePath=false because git otherwise C-quotes the WHOLE path when
+          # any byte in it is non-ASCII. The leading `"` then fails the anchor
+          # above and the change directory is dropped — a blocking gate silently
+          # not running, on an ordinary ASCII change id that merely touched a file
+          # with an accented name.
           derive_change_ids() {
             # Returns 2 — distinct from "resolved the base and derived nothing" —
             # when git cannot resolve the base commit. Run as a single pipeline the
@@ -533,7 +546,7 @@ jobs:
             # The spec puts those on different exit paths, so the git status is
             # captured on its own before anything is piped.
             local raw
-            raw="$(git diff --no-renames --diff-filter=d --name-only "$1" HEAD \
+            raw="$(git -c core.quotePath=false diff --no-renames --diff-filter=d --name-only "$1" HEAD \
               -- openspec/changes/)" || return 2
             printf '%s\n' "$raw" \
               | grep -E '^openspec/changes/[^/]+/' \

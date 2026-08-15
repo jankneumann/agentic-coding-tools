@@ -87,13 +87,26 @@ TRACE_GATE="packages/gen-eval/scripts/check_traceability.py"
 TRACE_PYTHON="packages/gen-eval/.venv/bin/python"
 if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
 
-# Change-id derivation (task 5.7). All four conditions are
+# Change-id derivation (task 5.7). Five conditions, each
 # load-bearing: --no-renames so the derived set does not depend on
 # git's similarity heuristic; --diff-filter=d (exclude deletions) so
 # the source half of an archive `git mv` does not name the change
 # being archived; grep -v archive so the destination half does not
-# name the literal id `archive`. Dropping any one breaks a real
-# archive pull request (see design D12's measured table).
+# name the literal id `archive`. Dropping either of those two breaks a
+# real archive pull request (see design D12's measured table).
+#
+# grep -E '^openspec/changes/[^/]+/' enforces the spec's "under a
+# directory matching openspec/changes/<id>/" literally. Without it the
+# sed leaves a path with no `/` after the changes/ segment untouched, so
+# a file sitting directly under openspec/changes/ is emitted verbatim as
+# though it were a change id, and alongside a real change it trips the
+# ambiguity rule and hard-blocks a single-change pull request.
+#
+# core.quotePath=false because git otherwise C-quotes the WHOLE path when
+# any byte in it is non-ASCII. The leading `"` then fails the anchor
+# above and the change directory is dropped — a blocking gate silently
+# not running, on an ordinary ASCII change id that merely touched a file
+# with an accented name.
 derive_change_ids() {
   # Returns 2 — distinct from "resolved the base and derived nothing" —
   # when git cannot resolve the base commit. Run as a single pipeline the
@@ -103,7 +116,7 @@ derive_change_ids() {
   # The spec puts those on different exit paths, so the git status is
   # captured on its own before anything is piped.
   local raw
-  raw="$(git diff --no-renames --diff-filter=d --name-only "$1" HEAD \\
+  raw="$(git -c core.quotePath=false diff --no-renames --diff-filter=d --name-only "$1" HEAD \\
     -- openspec/changes/)" || return 2
   printf '%s\\n' "$raw" \\
     | grep -E '^openspec/changes/[^/]+/' \\
@@ -427,6 +440,33 @@ def test_file_directly_under_changes_does_not_trip_ambiguity(tmp_path: Path) -> 
     assert result.returncode == 0, result.stdout
     assert "ambiguous" not in result.stdout
     assert "argv: --scope capability --change real-change" in result.stdout
+
+
+def test_non_ascii_filename_still_derives_its_change_id(tmp_path: Path) -> None:
+    """A change directory must be derived from its touched files whatever they
+    are named.
+
+    `core.quotePath` defaults to true, so git C-quotes the WHOLE path when any
+    byte in it is non-ASCII: `"openspec/changes/my-change/r\\303\\251sum..."`.
+    The leading quote fails the `^openspec/changes/` anchor, the id is dropped,
+    and the job prints the no-change SKIP — a blocking gate silently not
+    running, on an ordinary ASCII change id that merely touched a file with an
+    accented name."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    change_dir = repo / "openspec" / "changes" / "my-change"
+    change_dir.mkdir(parents=True)
+    (change_dir / "résumé-notes.md").write_text("notes\n")
+    _commit_all(repo, "change touching a non-ascii filename")
+    _make_stub_gate(repo)
+
+    result = _run(
+        repo,
+        {"EVENT_NAME": "pull_request", "PR_BASE_SHA": base_sha, "PR_HEAD_REF": "openspec/my-change"},
+    )
+    assert result.returncode == 0, result.stdout
+    assert "argv: --scope capability --change my-change" in result.stdout
+    assert "SKIP" not in result.stdout
 
 
 def test_unhandled_event_fails_loudly(tmp_path: Path) -> None:
