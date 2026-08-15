@@ -1,0 +1,354 @@
+schema_version: 1
+
+feature:
+  id: introduce-fitness-function-gates
+  title: "Fitness-function gates: NFR capture, findings axes, ratcheted architecture gate"
+  plan_revision: 1
+  created_by: plan-feature
+
+contracts:
+  revision: 1
+  openapi:
+    primary: openspec/changes/introduce-fitness-function-gates/contracts/README.md
+    files:
+      - openspec/changes/introduce-fitness-function-gates/contracts/README.md
+      - openspec/changes/introduce-fitness-function-gates/contracts/review-findings-axis.md
+      - openspec/changes/introduce-fitness-function-gates/contracts/architecture-gates-config.md
+      - openspec/changes/introduce-fitness-function-gates/contracts/coverage-baseline.schema.json
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Validate contract documents"
+    task_type: contracts
+    description: >-
+      Verify the four contract documents are internally consistent and match reality:
+      the three axis-enum copy locations exist at the documented paths, the
+      architecture.config.yaml loader rules do not contradict the report-configuration
+      spec, and coverage-baseline.schema.json is a valid JSON Schema.
+    depends_on: []
+    priority: 1
+    locks:
+      files: []
+      keys:
+        - "contract:review-findings-axis-v2"
+      ttl_minutes: 60
+      reason: "Contract validation for introduce-fitness-function-gates"
+    scope:
+      write_allow:
+        - "openspec/changes/introduce-fitness-function-gates/contracts/**"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+        - "agent-coordinator/agents.yaml"
+        - "architecture.config.yaml"
+    worktree:
+      name: introduce-fitness-function-gates--wp-contracts
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: contracts-schema-valid
+          kind: command
+          command: >-
+            python3 -c "import json, jsonschema;
+            s=json.load(open('openspec/changes/introduce-fitness-function-gates/contracts/coverage-baseline.schema.json'));
+            jsonschema.Draft202012Validator.check_schema(s); print('ok')"
+          evidence:
+            artifacts: []
+            result_keys: ["contracts_valid"]
+    outputs:
+      result_keys: ["contracts_valid"]
+
+  - package_id: wp-schema
+    title: "Findings schema axes + consensus axis matching"
+    task_type: implementation
+    description: >-
+      Tasks 1.1-1.6: extend the axis enum to 8 values in all three schema copies,
+      update the exact-match test to assert copy identity, add axis to
+      consensus_synthesizer.py Finding/ConsensusFinding and matching keys, update
+      axis tables in parallel-review SKILL.md files and impl_review_driver.py, and
+      mark validate-feature-findings-gate as superseded.
+    depends_on: [wp-contracts]
+    priority: 2
+    metadata:
+      complexity: medium
+      package_kind: data_model
+    locks:
+      files:
+        - "openspec/schemas/review-findings.schema.json"
+        - "agent-coordinator/agents.yaml"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+      keys:
+        - "contract:review-findings-axis-v2"
+      ttl_minutes: 240
+      reason: "Axis enum extension + consensus axis matching"
+    scope:
+      write_allow:
+        - "openspec/schemas/review-findings.schema.json"
+        - "skills/parallel-infrastructure/**"
+        - "agent-coordinator/agents.yaml"
+        - "skills/parallel-review-plan/**"
+        - "skills/parallel-review-implementation/**"
+        - "scripts/impl_review_driver.py"
+        - "skills/tests/parallel-infrastructure/**"
+        - "docs/skills-catalogue.md"
+        - "openspec/changes/validate-feature-findings-gate/proposal.md"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+        - "agent-coordinator/**"
+        - "scripts/**"
+        - "docs/**"
+      deny:
+        - "skills/validate-feature/**"
+        - "skills/plan-feature/**"
+    worktree:
+      name: introduce-fitness-function-gates--wp-schema
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: schema-and-consensus-tests
+          kind: command
+          command: >-
+            uv run --project skills pytest
+            skills/tests/parallel-infrastructure/test_review_findings_schema.py
+            skills/parallel-infrastructure/tests/ -q
+          evidence:
+            artifacts: []
+            result_keys: ["schema_tests_passed"]
+    outputs:
+      result_keys: ["schema_tests_passed"]
+      artifacts:
+        - "openspec/schemas/review-findings.schema.json"
+
+  - package_id: wp-templates
+    title: "NFR capture in planning templates + discovery rubric"
+    task_type: implementation
+    description: >-
+      Tasks 3.1-3.4: add the Non-Functional Requirements section to the proposal.md
+      template, the fitness-function mapping subsection to the design.md template,
+      and NFR elicitation category 7 to the plan-feature discovery rubric, with
+      template-contract tests first.
+    depends_on: [wp-contracts]
+    priority: 2
+    metadata:
+      complexity: low
+      package_kind: config
+    locks:
+      files:
+        - "openspec/schemas/feature-workflow/templates/proposal.md"
+        - "openspec/schemas/feature-workflow/templates/design.md"
+        - "skills/plan-feature/SKILL.md"
+      keys:
+        - "feature:nfr-template-capture:write"
+      ttl_minutes: 120
+      reason: "NFR sections in feature-workflow templates"
+    scope:
+      write_allow:
+        - "openspec/schemas/feature-workflow/templates/proposal.md"
+        - "openspec/schemas/feature-workflow/templates/design.md"
+        - "skills/plan-feature/**"
+        - "skills/tests/plan-feature/**"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+        - "docs/**"
+    worktree:
+      name: introduce-fitness-function-gates--wp-templates
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: template-contract-tests
+          kind: command
+          command: "uv run --project skills pytest skills/tests/plan-feature/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["template_tests_passed"]
+    outputs:
+      result_keys: ["template_tests_passed"]
+
+  - package_id: wp-gates
+    title: "Architecture gate ratchet, schema-valid linters, DEGRADED status"
+    task_type: implementation
+    description: >-
+      Tasks 2.1-2.7: make the three architecture linters emit schema-valid findings
+      (with jsonschema-validating tests), add the gates.architecture section with
+      populated severity_thresholds to architecture.config.yaml, wire mode-conditional
+      Architecture gating into gate_logic.py, introduce the DEGRADED status with the
+      --accept-degraded override, and emit DEGRADED from the fail-open producers
+      (autopilot GATEKEEPER fallback, sub-2-vendor review dispatch, degraded security
+      pass). Runs after wp-schema so linters emit the extended axes.
+    depends_on: [wp-contracts, wp-schema]
+    priority: 3
+    metadata:
+      complexity: high
+      package_kind: algorithm
+    locks:
+      files:
+        - "skills/validate-feature/scripts/gate_logic.py"
+        - "architecture.config.yaml"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      keys:
+        - "flag:gates.architecture.mode"
+      ttl_minutes: 240
+      reason: "Gate promotion + degradation transparency"
+    scope:
+      write_allow:
+        - "skills/validate-feature/**"
+        - "architecture.config.yaml"
+        - "skills/autopilot/**"
+        - "skills/security-review/**"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "openspec/schemas/feature-workflow/templates/validation-report.md"
+        - "skills/tests/validate-feature/**"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+        - "docs/**"
+        - "Makefile"
+      deny:
+        - "openspec/schemas/feature-workflow/templates/proposal.md"
+        - "openspec/schemas/feature-workflow/templates/design.md"
+    worktree:
+      name: introduce-fitness-function-gates--wp-gates
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: gate-and-linter-tests
+          kind: command
+          command: >-
+            uv run --project skills pytest skills/validate-feature/scripts/tests/
+            skills/tests/validate-feature/ -q
+          evidence:
+            artifacts: []
+            result_keys: ["gate_tests_passed"]
+    outputs:
+      result_keys: ["gate_tests_passed"]
+      artifacts:
+        - "architecture.config.yaml"
+
+  - package_id: wp-coverage
+    title: "Coverage ratchet job + baseline"
+    task_type: implementation
+    description: >-
+      Tasks 4.1-4.4: add the coverage ratchet script with tests, seed
+      coverage-baseline.json from measured values, add the non-required
+      coverage-ratchet job to ci.yml additively (three prior changes landed jobs in
+      that file), and document the promotion command in the session-completion guide.
+    depends_on: [wp-contracts]
+    priority: 3
+    metadata:
+      complexity: low
+      package_kind: config
+    locks:
+      files:
+        - ".github/workflows/ci.yml"
+      keys:
+        - "env:coverage-baseline"
+      ttl_minutes: 120
+      reason: "Coverage ratchet CI job"
+    scope:
+      write_allow:
+        - ".github/workflows/ci.yml"
+        - "coverage-baseline.json"
+        - "scripts/coverage_ratchet.py"
+        - "scripts/tests/**"
+        - "docs/guides/session-completion.md"
+      read_allow:
+        - ".github/**"
+        - "scripts/**"
+        - "docs/**"
+        - "agent-coordinator/**"
+        - "skills/**"
+    worktree:
+      name: introduce-fitness-function-gates--wp-coverage
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: ratchet-tests
+          kind: command
+          command: "uv run --project agent-coordinator pytest scripts/tests/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["ratchet_tests_passed"]
+    outputs:
+      result_keys: ["ratchet_tests_passed"]
+      artifacts:
+        - "coverage-baseline.json"
+
+  - package_id: wp-integration
+    title: "Merge, full validation, advisory-gate smoke"
+    task_type: integration
+    description: >-
+      Tasks 5.1-5.2: merge all package branches, run the full test suites,
+      openspec validate --strict, and validate_flows; then run the validate-feature
+      spec and evidence phases and confirm the advisory architecture block renders in
+      validation-report.md with the DEGRADED vocabulary available.
+    depends_on: [wp-schema, wp-templates, wp-gates, wp-coverage]
+    priority: 4
+    locks:
+      files: []
+      keys:
+        - "feature:fitness-function-gates:integrate"
+      ttl_minutes: 120
+      reason: "Integration merge + full validation"
+    scope:
+      write_allow:
+        - "openspec/changes/introduce-fitness-function-gates/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: introduce-fitness-function-gates--wp-integration
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: full-suites
+          kind: command
+          command: >-
+            uv run --project agent-coordinator pytest agent-coordinator/tests -q
+            -m "not e2e and not integration"
+          evidence:
+            artifacts: []
+            result_keys: ["coordinator_suite_passed"]
+        - name: skills-suites
+          kind: command
+          command: "uv run --project skills pytest skills/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["skills_suite_passed"]
+        - name: openspec-strict
+          kind: command
+          command: "openspec validate introduce-fitness-function-gates --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+    outputs:
+      result_keys: ["coordinator_suite_passed", "skills_suite_passed", "openspec_valid"]
+      artifacts:
+        - "openspec/changes/introduce-fitness-function-gates/validation-report.md"
