@@ -91,7 +91,12 @@ waiting on the largest of them (Approach 3).
 
 ### Selected Approach
 
-_Pending Gate 1 approval._
+**Approach 1** (first-class `local` provider), selected at Gate 1 on 2026-08-15: the
+operator reviewed the approach comparison and directed the plan to completion with the
+recommended approach, no modifications requested. Approaches 2 and 3 are retained above
+as brief rejected entries: Approach 2 erases the local/cloud vendor distinction that
+trust, routing, audit, and rate-limit policy key on; Approach 3 inverts the dependency
+the adaptive router assumes.
 
 ## Impact
 
