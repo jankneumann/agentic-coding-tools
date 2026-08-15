@@ -396,3 +396,69 @@ def test_absent_enumeration_is_an_identity_mismatch_not_input_drift(repo: Path) 
     codes = {r.code for r in result.reasons}
     assert prov.PRODUCER_IDENTITY_MISMATCH in codes
     assert prov.INPUT_FINGERPRINT_MISMATCH not in codes
+
+
+# --------------------------------------------------------------------------- #
+# Issue #382 — the record distinguishes "generated now" from "left over"
+# --------------------------------------------------------------------------- #
+def test_owned_artifacts_without_a_generated_set_claims_nothing(repo: Path) -> None:
+    """An ad-hoc build cannot know what a run produced, so it must not say.
+
+    ``carried_over`` absent means "unknown", which is the honest answer when
+    provenance is assembled outside a staged run (and the shape every document
+    written before this field existed already has).
+    """
+    artifacts = prov.owned_artifacts(repo)
+    assert artifacts
+    assert all("carried_over" not in a for a in artifacts)
+
+
+def test_owned_artifacts_flags_files_this_run_did_not_write(repo: Path) -> None:
+    arch = repo / prov.ARCH_DIR_DEFAULT
+    (arch / "treesitter_enrichment.json").write_text('{"from": "an older revision"}\n')
+    (arch / "views" / ".gitkeep").write_text("")
+
+    artifacts = prov.owned_artifacts(
+        repo,
+        generated={"architecture.graph.json", "architecture.summary.json", "views/overview.md"},
+    )
+    flags = {a["path"]: a["carried_over"] for a in artifacts}
+
+    assert flags["docs/architecture-analysis/architecture.graph.json"] is False
+    assert flags["docs/architecture-analysis/architecture.summary.json"] is False
+    assert flags["docs/architecture-analysis/views/overview.md"] is False
+    # Never staged by this run: an optional producer that did not run, and the
+    # committed placeholder that only ever exists in the output directory.
+    assert flags["docs/architecture-analysis/treesitter_enrichment.json"] is True
+    assert flags["docs/architecture-analysis/views/.gitkeep"] is True
+    # Flagged, not dropped: the digest still pins the committed bytes.
+    carried = next(
+        a for a in artifacts
+        if a["path"] == "docs/architecture-analysis/treesitter_enrichment.json"
+    )
+    assert carried["sha256"] == prov.hash_file(arch / "treesitter_enrichment.json")[0]
+
+
+def test_flagged_provenance_is_schema_valid_and_still_fresh(repo: Path) -> None:
+    """Carrying an artifact over is a soft skip, not drift.
+
+    The optional stages fail soft on purpose, so a partial refresh must not make
+    the freshness check fail — it must make the *record* tell the truth.
+    """
+    (repo / prov.ARCH_DIR_DEFAULT / "treesitter_enrichment.json").write_text("{}\n")
+    doc = prov.build_provenance(
+        repo,
+        mode="full",
+        roots=["src", "database/migrations"],
+        optional_tools=TOOLS,
+        generated={"architecture.graph.json", "architecture.summary.json", "views/overview.md"},
+    )
+    prov.validate_provenance(doc)
+    prov.write_provenance(repo, doc)
+
+    result = _check(repo)
+    assert result.is_fresh, [r.to_dict() for r in result.reasons]
+    # The check surfaces what it did not vouch for without failing on it.
+    assert result.to_dict()["carried_over"] == [
+        "docs/architecture-analysis/treesitter_enrichment.json"
+    ]

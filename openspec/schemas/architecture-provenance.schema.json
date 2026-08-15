@@ -134,6 +134,10 @@
           },
           "required": {
             "type": "boolean"
+          },
+          "carried_over": {
+            "description": "True when the recording run did not produce this artifact — promotion is a one-way merge, so a file an optional stage skipped survives in the output directory at the bytes an earlier revision wrote. The entry is still recorded (its digest keeps pinning the committed bytes); the flag is what stops the record from claiming this revision generated it. Optional so a document assembled outside a staged run, or written before this field existed, stays schema-valid — absent means 'unknown', never 'freshly generated'.",
+            "type": "boolean"
           }
         }
       }

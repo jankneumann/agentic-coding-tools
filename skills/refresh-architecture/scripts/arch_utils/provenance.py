@@ -22,7 +22,7 @@ import json
 import os
 import subprocess
 import sys
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -184,6 +184,15 @@ class CheckResult:
             "status": self.status,
             "reasons": [r.to_dict() for r in self.reasons],
             "artifacts": [r.path for r in self.reasons if r.path],
+            # Recorded artifacts the generating run did not produce. Not drift —
+            # the optional stages skip soft by design — but a reader deciding
+            # how much to trust a `fresh` verdict needs to see which artifacts
+            # it does not cover. Empty for provenance predating the flag.
+            "carried_over": [
+                art["path"]
+                for art in (self.provenance or {}).get("artifacts", [])
+                if art.get("carried_over")
+            ],
         }
 
 
@@ -483,33 +492,54 @@ def hash_file(path: Path) -> tuple[str, int]:
 
 
 def owned_artifacts(
-    repo_root: Path | str, arch_dir: str = ARCH_DIR_DEFAULT
+    repo_root: Path | str,
+    arch_dir: str = ARCH_DIR_DEFAULT,
+    *,
+    generated: Collection[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Return sorted digests for the owned architecture artifacts that exist."""
+    """Return sorted digests for the owned architecture artifacts that exist.
+
+    *generated* is the set of paths, relative to *arch_dir* and POSIX-separated,
+    that the current run actually produced — what promotion wrote, not what the
+    output directory happens to contain. Promotion is a one-way merge (it copies
+    and never deletes, deliberately: the optional stages fail soft, and
+    ``views/.gitkeep`` is committed but never staged), so scanning the directory
+    cannot tell an artifact this revision generated from one an earlier revision
+    left behind. Every entry then gets an explicit ``carried_over`` flag.
+
+    Passing ``None`` means the caller does not know what the run produced, and
+    the flag is omitted rather than guessed — which is also the shape of every
+    document written before this field existed. Absent is "unknown"; present is
+    a claim. Nothing is dropped from the record either way, so a carried-over
+    artifact keeps its digest pinned and hand-edits to it still surface as
+    ARTIFACT_DIGEST_MISMATCH.
+    """
     repo_root = Path(repo_root)
     base = repo_root / arch_dir
+    known = None if generated is None else {Path(g).as_posix() for g in generated}
+
+    def _entry(path: Path, rel_to_arch: str, required: bool) -> dict[str, Any]:
+        digest, size = hash_file(path)
+        record: dict[str, Any] = {
+            "path": f"{arch_dir}/{rel_to_arch}",
+            "sha256": digest,
+            "size_bytes": size,
+            "required": required,
+        }
+        if known is not None:
+            record["carried_over"] = rel_to_arch not in known
+        return record
+
     out: list[dict[str, Any]] = []
     for name, required in _OWNED_TOP_LEVEL:
         p = base / name
         if p.is_file():
-            digest, size = hash_file(p)
-            out.append(
-                {
-                    "path": f"{arch_dir}/{name}",
-                    "sha256": digest,
-                    "size_bytes": size,
-                    "required": required,
-                }
-            )
+            out.append(_entry(p, name, required))
     views = base / "views"
     if views.is_dir():
         for p in sorted(views.rglob("*")):
             if p.is_file():
-                digest, size = hash_file(p)
-                rel = p.relative_to(repo_root).as_posix()
-                out.append(
-                    {"path": rel, "sha256": digest, "size_bytes": size, "required": False}
-                )
+                out.append(_entry(p, p.relative_to(base).as_posix(), False))
     out.sort(key=lambda a: a["path"])
     return out
 
@@ -565,8 +595,13 @@ def build_provenance(
     dirty: bool | None = None,
     warning_count: int = 0,
     generated_at: str | None = None,
+    generated: Collection[str] | None = None,
 ) -> dict[str, Any]:
-    """Assemble a schema-valid architecture provenance document from disk state."""
+    """Assemble a schema-valid architecture provenance document from disk state.
+
+    *generated* is forwarded to :func:`owned_artifacts` — see there for why a
+    caller that knows what the run produced must say so.
+    """
     repo_root = Path(repo_root)
     roots = roots if roots is not None else default_input_roots()
     tools = optional_tools if optional_tools is not None else detect_optional_tools()
@@ -593,7 +628,7 @@ def build_provenance(
             "error_count": 0,
             "warning_count": warning_count,
         },
-        "artifacts": owned_artifacts(repo_root, arch_dir),
+        "artifacts": owned_artifacts(repo_root, arch_dir, generated=generated),
     }
     return doc
 
