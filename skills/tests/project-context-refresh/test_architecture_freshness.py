@@ -244,57 +244,10 @@ class TestStaleProvenanceBlocks:
         paths = {a.path for a in result.artifacts}
         assert f"{ARCH_DIR}/architecture.graph.json" in paths
 
-    def test_pathless_input_drift_names_the_provenance_document(
-        self, arch_repo: tuple[Path, str]
-    ) -> None:
-        """INPUT_FINGERPRINT_MISMATCH carries no path; the drifted artifact is
-        the provenance document whose recorded fingerprint no longer matches.
-
-        Regression: unnamed drift was reported by the gate as an apparatus
-        failure ("drift without naming any artifact"), hiding the
-        ``make architecture-refresh`` remediation. Seen on main after commits
-        changed input-root files without regenerating provenance.
-        """
-        repo, head = arch_repo
-        _commit_fresh_provenance(repo)
-        (repo / "src" / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
-
-        result = _run(repo, head)
-
-        assert arch_provenance.INPUT_FINGERPRINT_MISMATCH in _codes(result)
-        assert {a.path for a in result.artifacts} == {PROVENANCE_REL}
-
-    def test_pathless_identity_drift_names_the_provenance_document(
-        self, arch_repo: tuple[Path, str]
-    ) -> None:
-        """PRODUCER_IDENTITY_MISMATCH is equally pathless and equally must
-        surface a named artifact rather than an empty stale list."""
-        repo, head = arch_repo
-        doc = _commit_fresh_provenance(repo)
-        doc["optional_tools"] = [
-            {"name": "tree-sitter", "available": True, "version": "0.0.0-other"}
-        ]
-        arch_provenance.write_provenance(repo, doc)
-
-        result = _run(repo, head)
-
-        assert result.status is ProducerStatus.DEGRADED
-        assert arch_provenance.PRODUCER_IDENTITY_MISMATCH in _codes(result)
-        assert PROVENANCE_REL in {a.path for a in result.artifacts}
-
-    def test_every_drift_result_names_at_least_one_artifact(
-        self, arch_repo: tuple[Path, str]
-    ) -> None:
-        """The gate-level invariant this producer must uphold: a drift verdict
-        with an empty artifact list is unactionable by construction."""
-        repo, head = arch_repo
-        _commit_fresh_provenance(repo)
-        (repo / "src" / "app.py").write_text("VALUE = 3\n", encoding="utf-8")
-
-        result = _run(repo, head)
-
-        assert result.status is ProducerStatus.DEGRADED
-        assert result.artifacts
+    # Pathless drift — INPUT_FINGERPRINT_MISMATCH and PRODUCER_IDENTITY_MISMATCH
+    # — is covered by TestRepositoryLevelDriftNamesArtifacts below, which pins
+    # the stronger outcome: those reasons name *every* recorded artifact, not
+    # only the provenance document.
 
 
 # --------------------------------------------------------------------------- #
@@ -424,3 +377,73 @@ class TestProducerIsReadOnly:
         _run(repo, head)
 
         assert not (repo / PROVENANCE_REL).exists()
+
+
+# --------------------------------------------------------------------------- #
+# Repository-level drift names the artifacts it invalidates
+#
+# A producer-identity or input-fingerprint mismatch carries no ``path``: no
+# single artifact is at fault, the identity or the inputs behind *all* of them
+# changed. The producer used to drop those reasons on the floor when building
+# its artifact list, handing the gate drift that named nothing. The gate then
+# correctly refused to emit an empty stale list — and reclassified a real,
+# blocking drift as an apparatus failure whose message named no artifact and no
+# reason code, which is why this went unfixed on main for as long as it did.
+#
+# The fix is not to weaken the gate's "never report drift you cannot name" rule.
+# It is to have the producer name what it legitimately can: every artifact the
+# committed provenance records.
+# --------------------------------------------------------------------------- #
+class TestRepositoryLevelDriftNamesArtifacts:
+    def _all_recorded(self, doc: dict) -> set[str]:
+        return {a["path"] for a in doc["artifacts"]}
+
+    def test_input_fingerprint_mismatch_names_every_recorded_artifact(
+        self, arch_repo: tuple[Path, str]
+    ) -> None:
+        repo, head = arch_repo
+        doc = _commit_fresh_provenance(repo)
+        # A source edit changes the inputs behind every derived artifact.
+        (repo / "src" / "app.py").write_text("VALUE = 999\n", encoding="utf-8")
+
+        result = _run(repo, head)
+
+        assert result.status is ProducerStatus.DEGRADED
+        assert arch_provenance.INPUT_FINGERPRINT_MISMATCH in _codes(result)
+        assert {a.path for a in result.artifacts} == self._all_recorded(doc), (
+            "repository-level drift must name the artifacts it invalidates, or "
+            "the gate cannot report a precise stale list"
+        )
+
+    def test_producer_identity_mismatch_names_every_recorded_artifact(
+        self, arch_repo: tuple[Path, str]
+    ) -> None:
+        repo, head = arch_repo
+        doc = _commit_fresh_provenance(repo)
+        stale = json.loads((repo / PROVENANCE_REL).read_text(encoding="utf-8"))
+        stale["producer"]["producer_version"] = "0.0.1-from-an-older-producer"
+        (repo / PROVENANCE_REL).write_text(json.dumps(stale), encoding="utf-8")
+
+        result = _run(repo, head)
+
+        assert result.status is ProducerStatus.DEGRADED
+        assert arch_provenance.PRODUCER_IDENTITY_MISMATCH in _codes(result)
+        assert {a.path for a in result.artifacts} == self._all_recorded(doc)
+
+    def test_drift_always_carries_at_least_one_artifact(
+        self, arch_repo: tuple[Path, str]
+    ) -> None:
+        """The invariant the gate depends on, stated directly.
+
+        Whatever the reason, a degraded architecture result must name something.
+        An empty list is the one output that makes the gate call real drift an
+        apparatus failure.
+        """
+        repo, head = arch_repo
+        _commit_fresh_provenance(repo)
+        (repo / "src" / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
+
+        result = _run(repo, head)
+
+        assert result.status is ProducerStatus.DEGRADED
+        assert result.artifacts, "degraded architecture result named no artifact"

@@ -261,6 +261,22 @@ def _reason_of(result: ProducerResult) -> str:
     return _bounded(f"{result.producer_id} reported {result.status.value}")
 
 
+def _failed_validation_summaries(result: ProducerResult) -> str:
+    """The result's failed-validation text, which is where drift codes live.
+
+    Deliberately not :func:`_reason_of`: that prefers ``fallback.reason``, and a
+    drifted producer's fallback is boilerplate about write behaviour ("check mode
+    performed no checkout write"). For explaining *why* a result drifted, the
+    failed validations are the only field that carries the reason codes.
+    """
+    summaries = [
+        validation.summary
+        for validation in result.validations
+        if validation.status is ValidationStatus.FAILED
+    ]
+    return "; ".join(summaries) if summaries else _reason_of(result)
+
+
 def _degradation(
     result: ProducerResult, owner: str, reason: str | None = None
 ) -> dict[str, Any]:
@@ -597,14 +613,19 @@ def render_report(
             else:
                 # Drift the report cannot name is not a precise artifact list, so
                 # it is reported as an apparatus failure rather than as drift with
-                # an empty list or an invented path.
+                # an empty list or an invented path. The producer's own failed
+                # validations are carried through rather than replaced: refusing
+                # to name an artifact is not a reason to also discard the reason
+                # codes, which are the only thing left that tells a reader what
+                # to look at.
                 failed.append(
                     _degradation(
                         result,
                         owner,
                         _bounded(
                             f"{result.producer_id} reported drift without naming any "
-                            "artifact, so the gate cannot report a precise stale list"
+                            "artifact, so the gate cannot report a precise stale "
+                            f"list — reported: {_failed_validation_summaries(result)}"
                         ),
                     )
                 )
