@@ -544,7 +544,7 @@ scripted verification of the human-authored artifacts.
   Both real artifacts left byte-identical to `HEAD` (`git status` clean)
   after the demonstration.
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 5 — The coordinator contract, matrix generation, and CI
 
@@ -880,7 +880,7 @@ be meaningful.
   top-level `scripts/models.py`), so they cannot simply be appended. Filed
   separately; deliberately NOT fixed here.
 
-- [ ] 5.7c `[human]` The unmutated tree passes at capability scope `[M]`
+- [x] 5.7c `[human]` The unmutated tree passes at capability scope `[M]` — signed off 2026-08-15 by operator at 93359116: `check_traceability.py --scope capability --change trace-requirements-to-contracts` EXIT=0 ("18 operations cite 14 requirements"); union form recorded non-blocking EXIT=1 (other changes' delta requirements, as designed); code-search/v2.yaml in REPORT not failures; CI sweep job live-passed on pull_request (16/16 checks green)
   **Spec scenarios**: The Full Sweep Blocks Opted-In Surfaces And Reports The Rest (both scenarios)
   **Design decisions**: D12, D13
   **Dependencies**: 4.2b, 5.2, 5.7
@@ -996,7 +996,7 @@ be meaningful.
   repository's CI and does not affect a downstream contract unless the
   workflow file is also vendored.
 
-- [ ] Final checkpoint: full suite green, `openspec validate --strict` passes,
+- [x] Final checkpoint: full suite green, `openspec validate --strict` passes,
   and both wired gates demonstrated per the RED protocol — the change-scoped
   gate (5.6) and the full sweep (5.7) each exit non-zero against their
   documented mutation and exit zero after restore, with commands and exit
