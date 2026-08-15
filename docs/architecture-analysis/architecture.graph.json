@@ -1,14 +1,12 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-08-13T07:54:35+00:00",
-      "git_sha": "d8d2f29f2c54d850bcb709e82f348b2bb6cd1f80",
+      "generated_at": "2026-08-15T19:36:33+00:00",
+      "git_sha": "5422c97e5af5cbc2fc417bf4804f7b3da4520773",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
-      "notes": [
-        "TypeScript analysis not available"
-      ]
+      "notes": []
     }
   ],
   "nodes": [
@@ -20015,6 +20013,1176 @@
       "signatures": {}
     },
     {
+      "id": "ts:kanban-viz/vite.config",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/vite.config",
+      "file": "kanban-viz/vite.config.ts",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/App",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/App",
+      "file": "kanban-viz/src/App.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/main",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/main",
+      "file": "kanban-viz/src/main.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/vite-env.d",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/vite-env.d",
+      "file": "kanban-viz/src/vite-env.d.ts",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/__tests__/fixtures",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/__tests__/fixtures",
+      "file": "kanban-viz/src/__tests__/fixtures.ts",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/__tests__/setup",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/__tests__/setup",
+      "file": "kanban-viz/src/__tests__/setup.ts",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/Board",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/Board",
+      "file": "kanban-viz/src/components/Board.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/Card",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/Card",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/ClusterBadge",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/ClusterBadge",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/Column",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/Column",
+      "file": "kanban-viz/src/components/Column.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/ConsentPrompt",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/ConsentPrompt",
+      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/HiddenReposToggle",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/HiddenReposToggle",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/PRCardView",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/PRCardView",
+      "file": "kanban-viz/src/components/PRCardView.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/ProposalCardView",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/ProposalCardView",
+      "file": "kanban-viz/src/components/ProposalCardView.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/PROriginFilter",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/PROriginFilter",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/RefreshButton",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/RefreshButton",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/RepoBadge",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/RepoBadge",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/SaveViewButton",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/SaveViewButton",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/SourceSwimlanes",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/SourceSwimlanes",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/SyncPointBanner",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/SyncPointBanner",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/components/VendorSwimlanes",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/components/VendorSwimlanes",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/hooks/useBoardCards",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/hooks/useBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/hooks/useCoordinator",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/hooks/useCoordinator",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/lib/coordinator-types",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/lib/coordinator-types",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/lib/reversibility",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/lib/reversibility",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/lib/runtime",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/lib/runtime",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:kanban-viz/src/lib/saveView",
+      "kind": "module",
+      "language": "typescript",
+      "name": "kanban-viz/src/lib/saveView",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:App",
+      "kind": "component",
+      "language": "typescript",
+      "name": "App",
+      "file": "kanban-viz/src/App.tsx",
+      "span": {
+        "start": 14,
+        "end": 109
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:Board",
+      "kind": "component",
+      "language": "typescript",
+      "name": "Board",
+      "file": "kanban-viz/src/components/Board.tsx",
+      "span": {
+        "start": 24,
+        "end": 81
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:Card",
+      "kind": "component",
+      "language": "typescript",
+      "name": "Card",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "span": {
+        "start": 41,
+        "end": 206
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:ClusterBadge",
+      "kind": "component",
+      "language": "typescript",
+      "name": "ClusterBadge",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "span": {
+        "start": 72,
+        "end": 79
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:ClusterBadgeInner",
+      "kind": "component",
+      "language": "typescript",
+      "name": "ClusterBadgeInner",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "span": {
+        "start": 81,
+        "end": 124
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:ClusterHighlightWrapper",
+      "kind": "component",
+      "language": "typescript",
+      "name": "ClusterHighlightWrapper",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "span": {
+        "start": 130,
+        "end": 152
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:Column",
+      "kind": "component",
+      "language": "typescript",
+      "name": "Column",
+      "file": "kanban-viz/src/components/Column.tsx",
+      "span": {
+        "start": 25,
+        "end": 70
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:ConsentPrompt",
+      "kind": "component",
+      "language": "typescript",
+      "name": "ConsentPrompt",
+      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
+      "span": {
+        "start": 12,
+        "end": 69
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:HiddenReposToggle",
+      "kind": "component",
+      "language": "typescript",
+      "name": "HiddenReposToggle",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "span": {
+        "start": 30,
+        "end": 83
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:PRCardView",
+      "kind": "component",
+      "language": "typescript",
+      "name": "PRCardView",
+      "file": "kanban-viz/src/components/PRCardView.tsx",
+      "span": {
+        "start": 75,
+        "end": 226
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:ProposalCardView",
+      "kind": "component",
+      "language": "typescript",
+      "name": "ProposalCardView",
+      "file": "kanban-viz/src/components/ProposalCardView.tsx",
+      "span": {
+        "start": 22,
+        "end": 175
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:PROriginFilter",
+      "kind": "component",
+      "language": "typescript",
+      "name": "PROriginFilter",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "span": {
+        "start": 69,
+        "end": 131
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:RefreshButton",
+      "kind": "component",
+      "language": "typescript",
+      "name": "RefreshButton",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "span": {
+        "start": 30,
+        "end": 132
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:RepoBadge",
+      "kind": "component",
+      "language": "typescript",
+      "name": "RepoBadge",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "span": {
+        "start": 53,
+        "end": 81
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:SaveViewButton",
+      "kind": "component",
+      "language": "typescript",
+      "name": "SaveViewButton",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "span": {
+        "start": 53,
+        "end": 162
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:IssueSourceRow",
+      "kind": "component",
+      "language": "typescript",
+      "name": "IssueSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "span": {
+        "start": 108,
+        "end": 229
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:PRSourceRow",
+      "kind": "component",
+      "language": "typescript",
+      "name": "PRSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "span": {
+        "start": 245,
+        "end": 377
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:PartialResultChip",
+      "kind": "component",
+      "language": "typescript",
+      "name": "PartialResultChip",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "span": {
+        "start": 393,
+        "end": 440
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:ProposalSourceRow",
+      "kind": "component",
+      "language": "typescript",
+      "name": "ProposalSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "span": {
+        "start": 442,
+        "end": 549
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:SourceSwimlanes",
+      "kind": "component",
+      "language": "typescript",
+      "name": "SourceSwimlanes",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "span": {
+        "start": 554,
+        "end": 645
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:SyncPointBanner",
+      "kind": "component",
+      "language": "typescript",
+      "name": "SyncPointBanner",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "span": {
+        "start": 43,
+        "end": 302
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:VendorSwimlanes",
+      "kind": "component",
+      "language": "typescript",
+      "name": "VendorSwimlanes",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "span": {
+        "start": 64,
+        "end": 139
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:relativeTime",
+      "kind": "function",
+      "language": "typescript",
+      "name": "relativeTime",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "span": {
+        "start": 28,
+        "end": 39
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:emitHighlight",
+      "kind": "function",
+      "language": "typescript",
+      "name": "emitHighlight",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "span": {
+        "start": 22,
+        "end": 26
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:useHighlightState",
+      "kind": "function",
+      "language": "typescript",
+      "name": "useHighlightState",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "span": {
+        "start": 32,
+        "end": 63
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:shortForm",
+      "kind": "function",
+      "language": "typescript",
+      "name": "shortForm",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "span": {
+        "start": 16,
+        "end": 19
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:loadFromStorage",
+      "kind": "function",
+      "language": "typescript",
+      "name": "loadFromStorage",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "span": {
+        "start": 28,
+        "end": 43
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:saveToStorage",
+      "kind": "function",
+      "language": "typescript",
+      "name": "saveToStorage",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "span": {
+        "start": 45,
+        "end": 51
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:filterByOrigin",
+      "kind": "function",
+      "language": "typescript",
+      "name": "filterByOrigin",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "span": {
+        "start": 137,
+        "end": 143
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:formatRelative",
+      "kind": "function",
+      "language": "typescript",
+      "name": "formatRelative",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "span": {
+        "start": 134,
+        "end": 142
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:hashString",
+      "kind": "function",
+      "language": "typescript",
+      "name": "hashString",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "span": {
+        "start": 22,
+        "end": 30
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:repoToColor",
+      "kind": "function",
+      "language": "typescript",
+      "name": "repoToColor",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "span": {
+        "start": 33,
+        "end": 40
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:slugify",
+      "kind": "function",
+      "language": "typescript",
+      "name": "slugify",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "span": {
+        "start": 43,
+        "end": 51
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:bucketIssues",
+      "kind": "function",
+      "language": "typescript",
+      "name": "bucketIssues",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "span": {
+        "start": 70,
+        "end": 76
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:bucketPRs",
+      "kind": "function",
+      "language": "typescript",
+      "name": "bucketPRs",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "span": {
+        "start": 79,
+        "end": 85
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:bucketProposals",
+      "kind": "function",
+      "language": "typescript",
+      "name": "bucketProposals",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "span": {
+        "start": 88,
+        "end": 94
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:fetchSyncStatus",
+      "kind": "function",
+      "language": "typescript",
+      "name": "fetchSyncStatus",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "span": {
+        "start": 24,
+        "end": 33
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:extractVendor",
+      "kind": "function",
+      "language": "typescript",
+      "name": "extractVendor",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "span": {
+        "start": 29,
+        "end": 32
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:groupByVendor",
+      "kind": "function",
+      "language": "typescript",
+      "name": "groupByVendor",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "span": {
+        "start": 46,
+        "end": 57
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:determineConsensus",
+      "kind": "function",
+      "language": "typescript",
+      "name": "determineConsensus",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "span": {
+        "start": 60,
+        "end": 62
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:clusterBoardCards",
+      "kind": "function",
+      "language": "typescript",
+      "name": "clusterBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "span": {
+        "start": 57,
+        "end": 127
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:fetchPRs",
+      "kind": "function",
+      "language": "typescript",
+      "name": "fetchPRs",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "span": {
+        "start": 179,
+        "end": 188
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:fetchProposals",
+      "kind": "function",
+      "language": "typescript",
+      "name": "fetchProposals",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "span": {
+        "start": 190,
+        "end": 209
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:useBoardCards",
+      "kind": "function",
+      "language": "typescript",
+      "name": "useBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "span": {
+        "start": 211,
+        "end": 360
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:fetchIssuesForSingleChange",
+      "kind": "function",
+      "language": "typescript",
+      "name": "fetchIssuesForSingleChange",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "span": {
+        "start": 64,
+        "end": 84
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:fetchIssuesUnioned",
+      "kind": "function",
+      "language": "typescript",
+      "name": "fetchIssuesUnioned",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "span": {
+        "start": 96,
+        "end": 112
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:mintEventsToken",
+      "kind": "function",
+      "language": "typescript",
+      "name": "mintEventsToken",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "span": {
+        "start": 114,
+        "end": 130
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:useCoordinator",
+      "kind": "function",
+      "language": "typescript",
+      "name": "useCoordinator",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "span": {
+        "start": 132,
+        "end": 321
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:assertNever",
+      "kind": "function",
+      "language": "typescript",
+      "name": "assertNever",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "span": {
+        "start": 208,
+        "end": 212
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:issueStatusToColumn",
+      "kind": "function",
+      "language": "typescript",
+      "name": "issueStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "span": {
+        "start": 218,
+        "end": 230
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:prStatusToColumn",
+      "kind": "function",
+      "language": "typescript",
+      "name": "prStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "span": {
+        "start": 236,
+        "end": 247
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:proposalStatusToColumn",
+      "kind": "function",
+      "language": "typescript",
+      "name": "proposalStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "span": {
+        "start": 250,
+        "end": 257
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:toIssueCard",
+      "kind": "function",
+      "language": "typescript",
+      "name": "toIssueCard",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "span": {
+        "start": 295,
+        "end": 297
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:deriveIssueRepo",
+      "kind": "function",
+      "language": "typescript",
+      "name": "deriveIssueRepo",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "span": {
+        "start": 336,
+        "end": 352
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:getClusterKey",
+      "kind": "function",
+      "language": "typescript",
+      "name": "getClusterKey",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "span": {
+        "start": 364,
+        "end": 374
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:classify",
+      "kind": "function",
+      "language": "typescript",
+      "name": "classify",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "span": {
+        "start": 46,
+        "end": 48
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:classifyOrDefault",
+      "kind": "function",
+      "language": "typescript",
+      "name": "classifyOrDefault",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "span": {
+        "start": 54,
+        "end": 56
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:requiresConsent",
+      "kind": "function",
+      "language": "typescript",
+      "name": "requiresConsent",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "span": {
+        "start": 59,
+        "end": 61
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:isTauri",
+      "kind": "function",
+      "language": "typescript",
+      "name": "isTauri",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "span": {
+        "start": 12,
+        "end": 14
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:isBrowser",
+      "kind": "function",
+      "language": "typescript",
+      "name": "isBrowser",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "span": {
+        "start": 21,
+        "end": 23
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:saveView",
+      "kind": "function",
+      "language": "typescript",
+      "name": "saveView",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "span": {
+        "start": 35,
+        "end": 45
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:saveBrowser",
+      "kind": "function",
+      "language": "typescript",
+      "name": "saveBrowser",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "span": {
+        "start": 47,
+        "end": 66
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "ts:saveTauri",
+      "kind": "function",
+      "language": "typescript",
+      "name": "saveTauri",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "span": {
+        "start": 68,
+        "end": 90
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "pg:public.public.file_locks",
       "kind": "table",
       "language": "sql",
@@ -20148,6 +21316,21 @@
       }
     },
     {
+      "id": "pg:public.public.file_locks.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.work_queue",
       "kind": "table",
       "language": "sql",
@@ -20266,10 +21449,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.depends_on",
+      "id": "pg:public.public.work_queue.enable",
       "kind": "column",
       "language": "sql",
-      "name": "depends_on",
+      "name": "enable",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -20277,14 +21460,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UUID[]"
+        "type": "UNKNOWN"
       }
     },
     {
-      "id": "pg:public.public.work_queue.status",
+      "id": "pg:public.public.work_queue.labels",
       "kind": "column",
       "language": "sql",
-      "name": "status",
+      "name": "labels",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -20296,10 +21479,85 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.result",
+      "id": "pg:public.public.work_queue.parent_id",
       "kind": "column",
       "language": "sql",
-      "name": "result",
+      "name": "parent_id",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UUID"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.issue_type",
+      "kind": "column",
+      "language": "sql",
+      "name": "issue_type",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.assignee",
+      "kind": "column",
+      "language": "sql",
+      "name": "assignee",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.closed_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "closed_at",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.close_reason",
+      "kind": "column",
+      "language": "sql",
+      "name": "close_reason",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.metadata",
+      "kind": "column",
+      "language": "sql",
+      "name": "metadata",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -20311,10 +21569,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.error_message",
+      "id": "pg:public.public.work_queue.agent_requirements",
       "kind": "column",
       "language": "sql",
-      "name": "error_message",
+      "name": "agent_requirements",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -20322,112 +21580,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.created_at",
-      "kind": "column",
-      "language": "sql",
-      "name": "created_at",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.started_at",
-      "kind": "column",
-      "language": "sql",
-      "name": "started_at",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.completed_at",
-      "kind": "column",
-      "language": "sql",
-      "name": "completed_at",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.deadline",
-      "kind": "column",
-      "language": "sql",
-      "name": "deadline",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.attempt_count",
-      "kind": "column",
-      "language": "sql",
-      "name": "attempt_count",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "INTEGER"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.max_attempts",
-      "kind": "column",
-      "language": "sql",
-      "name": "max_attempts",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "INTEGER"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.IF",
-      "kind": "column",
-      "language": "sql",
-      "name": "IF",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "NOT EXISTS labels TEXT[]"
+        "type": "JSONB"
       }
     },
     {
@@ -20560,7 +21713,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -20579,6 +21732,21 @@
       }
     },
     {
+      "id": "pg:public.public.agent_sessions.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.agent_sessions.capabilities",
       "kind": "column",
       "language": "sql",
@@ -20590,7 +21758,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -20639,10 +21807,10 @@
       }
     },
     {
-      "id": "pg:public.public.agent_sessions.IF",
+      "id": "pg:public.public.agent_sessions.delegated_from",
       "kind": "column",
       "language": "sql",
-      "name": "IF",
+      "name": "delegated_from",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -20650,7 +21818,22 @@
       },
       "tags": [],
       "signatures": {
-        "type": "NOT EXISTS delegated_from TEXT"
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.agent_sessions.phase_archetype",
+      "kind": "column",
+      "language": "sql",
+      "name": "phase_archetype",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
       }
     },
     {
@@ -20817,6 +22000,21 @@
       }
     },
     {
+      "id": "pg:public.public.handoff_documents.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "002_handoff_documents.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.memory_episodic",
       "kind": "table",
       "language": "sql",
@@ -20946,7 +22144,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -20961,7 +22159,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -20992,6 +22190,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.memory_episodic.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "004_memory_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -21042,21 +22255,6 @@
       "kind": "column",
       "language": "sql",
       "name": "session_id",
-      "file": "004_memory_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.memory_working.key",
-      "kind": "column",
-      "language": "sql",
-      "name": "key",
       "file": "004_memory_tables.sql",
       "span": {
         "start": 1,
@@ -21125,6 +22323,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.memory_working.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "004_memory_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -21212,7 +22425,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -21288,6 +22501,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.memory_procedural.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "004_memory_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -21454,6 +22682,21 @@
       }
     },
     {
+      "id": "pg:public.public.changesets.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "005_verification_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.verification_results",
       "kind": "table",
       "language": "sql",
@@ -21508,7 +22751,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "verification_tier"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -21523,7 +22766,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "verification_executor"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -21538,7 +22781,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "verification_status"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -21632,6 +22875,21 @@
       }
     },
     {
+      "id": "pg:public.public.verification_results.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "005_verification_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.verification_policies",
       "kind": "table",
       "language": "sql",
@@ -21716,7 +22974,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "verification_tier"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -21731,7 +22989,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "verification_executor"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -21792,6 +23050,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.verification_policies.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "005_verification_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -21988,6 +23261,21 @@
       }
     },
     {
+      "id": "pg:public.public.approval_queue.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "014_fix_approval_queue_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.operation_guardrails",
       "kind": "table",
       "language": "sql",
@@ -22133,6 +23421,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.operation_guardrails.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "006_guardrails_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -22314,6 +23617,21 @@
       }
     },
     {
+      "id": "pg:public.public.guardrail_violations.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "006_guardrails_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.agent_profiles",
       "kind": "table",
       "language": "sql",
@@ -22413,7 +23731,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -22428,7 +23746,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -22552,6 +23870,21 @@
       }
     },
     {
+      "id": "pg:public.public.agent_profiles.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "007_agent_profiles.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.agent_profile_assignments",
       "kind": "table",
       "language": "sql",
@@ -22637,6 +23970,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.agent_profile_assignments.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "007_agent_profiles.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -22803,6 +24151,21 @@
       }
     },
     {
+      "id": "pg:public.public.audit_log.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "008_audit_log.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.network_policies",
       "kind": "table",
       "language": "sql",
@@ -22936,6 +24299,21 @@
       }
     },
     {
+      "id": "pg:public.public.network_policies.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "009_network_policies.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.network_access_log",
       "kind": "table",
       "language": "sql",
@@ -23051,6 +24429,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.network_access_log.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "009_network_policies.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -23187,10 +24580,10 @@
       }
     },
     {
-      "id": "pg:public.public.cedar_policies.IF",
+      "id": "pg:public.public.cedar_policies.enable",
       "kind": "column",
       "language": "sql",
-      "name": "IF",
+      "name": "enable",
       "file": "010_cedar_policy_store.sql",
       "span": {
         "start": 1,
@@ -23198,7 +24591,22 @@
       },
       "tags": [],
       "signatures": {
-        "type": "NOT EXISTS policy_version INTEGER"
+        "type": "UNKNOWN"
+      }
+    },
+    {
+      "id": "pg:public.public.cedar_policies.policy_version",
+      "kind": "column",
+      "language": "sql",
+      "name": "policy_version",
+      "file": "010_cedar_policy_store.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
       }
     },
     {
@@ -23317,6 +24725,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.cedar_entities.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "010_cedar_policy_store.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -23449,7 +24872,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -23480,21 +24903,6 @@
       "tags": [],
       "signatures": {
         "type": "INTEGER"
-      }
-    },
-    {
-      "id": "pg:public.public.feature_registry.metadata",
-      "kind": "column",
-      "language": "sql",
-      "name": "metadata",
-      "file": "012_feature_registry.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "JSONB"
       }
     },
     {
@@ -23970,6 +25378,21 @@
       }
     },
     {
+      "id": "pg:public.public.issue_comments.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "017_issue_tracking.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.code_search_registry",
       "kind": "table",
       "language": "sql",
@@ -24103,10 +25526,10 @@
       }
     },
     {
-      "id": "pg:public.public.code_search_registry.IF",
+      "id": "pg:public.public.code_search_registry.canonical_index_id",
       "kind": "column",
       "language": "sql",
-      "name": "IF",
+      "name": "canonical_index_id",
       "file": "028_code_search_registry.sql",
       "span": {
         "start": 1,
@@ -24114,7 +25537,22 @@
       },
       "tags": [],
       "signatures": {
-        "type": "NOT EXISTS canonical_index_id UUID"
+        "type": "UUID"
+      }
+    },
+    {
+      "id": "pg:public.public.code_search_registry.git_common_dir_fingerprint",
+      "kind": "column",
+      "language": "sql",
+      "name": "git_common_dir_fingerprint",
+      "file": "028_code_search_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
       }
     },
     {
@@ -24195,21 +25633,6 @@
       "kind": "column",
       "language": "sql",
       "name": "namespace_key",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_indexes.source_revision",
-      "kind": "column",
-      "language": "sql",
-      "name": "source_revision",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -24446,10 +25869,10 @@
       }
     },
     {
-      "id": "pg:public.public.code_search_indexes.CONSTRAINT",
+      "id": "pg:public.public.code_search_indexes.policy_fingerprint",
       "kind": "column",
       "language": "sql",
-      "name": "CONSTRAINT",
+      "name": "policy_fingerprint",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -24457,14 +25880,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "code_search_indexes_natural_key"
+        "type": "TEXT"
       }
     },
     {
-      "id": "pg:public.public.code_search_indexes.IF",
+      "id": "pg:public.public.code_search_indexes.pipeline_fingerprint",
       "kind": "column",
       "language": "sql",
-      "name": "IF",
+      "name": "pipeline_fingerprint",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -24472,7 +25895,37 @@
       },
       "tags": [],
       "signatures": {
-        "type": "NOT EXISTS policy_fingerprint TEXT"
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.code_search_indexes.embedder_fingerprint",
+      "kind": "column",
+      "language": "sql",
+      "name": "embedder_fingerprint",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.code_search_indexes.parent_index_id",
+      "kind": "column",
+      "language": "sql",
+      "name": "parent_index_id",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UUID"
       }
     },
     {
@@ -36215,5 +37668,94 @@
       "path": "start_work_session"
     }
   ],
-  "disconnected_frontend_calls": []
+  "disconnected_frontend_calls": [
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    },
+    {
+      "node_id": "ts:",
+      "url": "<dynamic>"
+    }
+  ]
 }

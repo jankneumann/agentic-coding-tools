@@ -51,6 +51,12 @@
           "type": "JSONB",
           "nullable": true,
           "default": "'{}'"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -106,70 +112,58 @@
           "default": "5"
         },
         {
-          "name": "depends_on",
-          "type": "UUID[]",
+          "name": "enable",
+          "type": "UNKNOWN",
           "nullable": true,
           "default": null
         },
         {
-          "name": "status",
+          "name": "labels",
           "type": "TEXT",
           "nullable": true,
-          "default": "'pending'"
+          "default": "'{}'"
         },
         {
-          "name": "result",
+          "name": "parent_id",
+          "type": "UUID",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "issue_type",
+          "type": "TEXT",
+          "nullable": true,
+          "default": "'task'"
+        },
+        {
+          "name": "assignee",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "closed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "close_reason",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "agent_requirements",
           "type": "JSONB",
           "nullable": true,
           "default": null
-        },
-        {
-          "name": "error_message",
-          "type": "TEXT",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "created_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": "NOW()"
-        },
-        {
-          "name": "started_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "completed_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "deadline",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "attempt_count",
-          "type": "INTEGER",
-          "nullable": true,
-          "default": "0"
-        },
-        {
-          "name": "max_attempts",
-          "type": "INTEGER",
-          "nullable": true,
-          "default": "3"
-        },
-        {
-          "name": "IF",
-          "type": "NOT EXISTS labels TEXT[]",
-          "nullable": true,
-          "default": "'{}'"
         }
       ],
       "primary_key": [
@@ -226,7 +220,7 @@
         },
         {
           "name": "files_modified",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
@@ -237,8 +231,14 @@
           "default": "'{}'"
         },
         {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
+        },
+        {
           "name": "capabilities",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
@@ -261,10 +261,16 @@
           "default": null
         },
         {
-          "name": "IF",
-          "type": "NOT EXISTS delegated_from TEXT",
+          "name": "delegated_from",
+          "type": "TEXT",
           "nullable": true,
           "default": "NULL"
+        },
+        {
+          "name": "phase_archetype",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -336,6 +342,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": true,
           "default": "NOW()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -392,13 +404,13 @@
         },
         {
           "name": "lessons",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": null
         },
         {
           "name": "tags",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
@@ -413,6 +425,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -444,12 +462,6 @@
           "default": null
         },
         {
-          "name": "key",
-          "type": "TEXT",
-          "nullable": false,
-          "default": null
-        },
-        {
           "name": "value",
           "type": "JSONB",
           "nullable": false,
@@ -472,6 +484,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -510,7 +528,7 @@
         },
         {
           "name": "prerequisites",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
@@ -543,6 +561,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -614,6 +638,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -640,19 +670,19 @@
         },
         {
           "name": "tier",
-          "type": "verification_tier",
+          "type": "UNKNOWN",
           "nullable": false,
           "default": null
         },
         {
           "name": "executor",
-          "type": "verification_executor",
+          "type": "UNKNOWN",
           "nullable": false,
           "default": null
         },
         {
           "name": "status",
-          "type": "verification_status",
+          "type": "UNKNOWN",
           "nullable": false,
           "default": "'pending'"
         },
@@ -691,6 +721,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -729,13 +765,13 @@
         },
         {
           "name": "tier",
-          "type": "verification_tier",
+          "type": "UNKNOWN",
           "nullable": false,
           "default": null
         },
         {
           "name": "executor",
-          "type": "verification_executor",
+          "type": "UNKNOWN",
           "nullable": false,
           "default": null
         },
@@ -762,6 +798,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -845,6 +887,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -910,6 +958,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -987,6 +1041,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1031,13 +1091,13 @@
         },
         {
           "name": "allowed_operations",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
         {
           "name": "blocked_operations",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
@@ -1088,6 +1148,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1129,6 +1195,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1200,6 +1272,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1259,6 +1337,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1312,6 +1396,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1373,8 +1463,14 @@
           "default": "now()"
         },
         {
-          "name": "IF",
-          "type": "NOT EXISTS policy_version INTEGER",
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "policy_version",
+          "type": "INTEGER",
           "nullable": false,
           "default": "1"
         }
@@ -1430,6 +1526,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": true,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1486,7 +1588,7 @@
         },
         {
           "name": "resource_claims",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": false,
           "default": "'{}'"
         },
@@ -1501,12 +1603,6 @@
           "type": "INTEGER",
           "nullable": true,
           "default": "5"
-        },
-        {
-          "name": "metadata",
-          "type": "JSONB",
-          "nullable": true,
-          "default": "'{}'"
         }
       ],
       "primary_key": [
@@ -1719,6 +1815,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1780,8 +1882,14 @@
           "default": "now()"
         },
         {
-          "name": "IF",
-          "type": "NOT EXISTS canonical_index_id UUID",
+          "name": "canonical_index_id",
+          "type": "UUID",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "git_common_dir_fingerprint",
+          "type": "TEXT",
           "nullable": true,
           "default": null
         }
@@ -1822,12 +1930,6 @@
         },
         {
           "name": "namespace_key",
-          "type": "TEXT",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "source_revision",
           "type": "TEXT",
           "nullable": false,
           "default": null
@@ -1923,14 +2025,26 @@
           "default": "now()"
         },
         {
-          "name": "CONSTRAINT",
-          "type": "code_search_indexes_natural_key",
+          "name": "policy_fingerprint",
+          "type": "TEXT",
           "nullable": true,
           "default": null
         },
         {
-          "name": "IF",
-          "type": "NOT EXISTS policy_fingerprint TEXT",
+          "name": "pipeline_fingerprint",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "embedder_fingerprint",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "parent_index_id",
+          "type": "UUID",
           "nullable": true,
           "default": null
         }
@@ -2006,11 +2120,7 @@
           "default": "0"
         }
       ],
-      "primary_key": [
-        "index_id",
-        "attempt_count",
-        "file_path"
-      ],
+      "primary_key": [],
       "file": "030_incremental_code_search_indexes.sql",
       "line": 175
     },
@@ -2073,10 +2183,7 @@
           "default": "0"
         }
       ],
-      "primary_key": [
-        "index_id",
-        "file_path"
-      ],
+      "primary_key": [],
       "file": "030_incremental_code_search_indexes.sql",
       "line": 210
     }
@@ -2157,7 +2264,7 @@
     {
       "from_table": "public.work_queue",
       "from_columns": [
-        "IF"
+        "parent_id"
       ],
       "to_table": "public.work_queue",
       "to_columns": [
@@ -2188,6 +2295,18 @@
         "repo_slug"
       ],
       "constraint_name": "",
+      "on_delete": "RESTRICT"
+    },
+    {
+      "from_table": "public.code_search_indexes",
+      "from_columns": [
+        "parent_index_id"
+      ],
+      "to_table": "public.code_search_indexes",
+      "to_columns": [
+        "index_id"
+      ],
+      "constraint_name": "code_search_indexes_parent_fk",
       "on_delete": "RESTRICT"
     },
     {
@@ -2736,7 +2855,7 @@
       "name": "idx_feature_registry_merge_queue_gin",
       "table": "public.feature_registry",
       "columns": [
-        "(metadata -> 'merge_queue'"
+        "(metadata -> 'merge_queue')"
       ],
       "unique": false
     },
@@ -2744,7 +2863,7 @@
       "name": "idx_feature_registry_merge_queue_train_id",
       "table": "public.feature_registry",
       "columns": [
-        "(metadata -> 'merge_queue' ->> 'train_id'"
+        "(metadata -> 'merge_queue' ->> 'train_id')"
       ],
       "unique": false
     },
@@ -2752,7 +2871,7 @@
       "name": "idx_feature_registry_merge_queue_partition_id",
       "table": "public.feature_registry",
       "columns": [
-        "(metadata -> 'merge_queue' ->> 'partition_id'"
+        "(metadata -> 'merge_queue' ->> 'partition_id')"
       ],
       "unique": false
     },
@@ -2760,7 +2879,7 @@
       "name": "idx_feature_registry_merge_queue_train_position",
       "table": "public.feature_registry",
       "columns": [
-        "(((metadata -> 'merge_queue' ->> 'train_position'"
+        "(((metadata -> 'merge_queue' ->> 'train_position'))::int)"
       ],
       "unique": false
     },
@@ -2768,7 +2887,7 @@
       "name": "idx_work_queue_archetype",
       "table": "public.work_queue",
       "columns": [
-        "(agent_requirements->>'archetype'"
+        "(agent_requirements->>'archetype')"
       ],
       "unique": false
     },
@@ -2822,223 +2941,801 @@
       "name": "auth.role",
       "file": "000_bootstrap.sql",
       "line": 31,
-      "language": "sql"
+      "language": "sql",
+      "parameters": [],
+      "return_type": "text",
+      "referenced_tables": []
     },
     {
       "name": "public.acquire_lock",
       "file": "001_core_schema.sql",
       "line": 98,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_FILE_PATH TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_REASON TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_TTL_MINUTES INTEGER DEFAULT 120"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.file_locks",
+        "public.v_existing"
+      ]
     },
     {
       "name": "public.release_lock",
       "file": "001_core_schema.sql",
       "line": 179,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_FILE_PATH TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.file_locks"
+      ]
     },
     {
       "name": "public.claim_task",
       "file": "027_claim_task_exclude_submitter.sql",
       "line": 1,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_TASK_TYPES TEXT[] DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ARCHETYPES TEXT[] DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TRUST_LEVEL INTEGER DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_EXCLUDE_SUBMITTED_BY TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.p_exclude_submitted_by",
+        "public.skip",
+        "public.v_task",
+        "public.work_queue"
+      ]
     },
     {
       "name": "public.complete_task",
       "file": "001_core_schema.sql",
       "line": 262,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_TASK_ID UUID"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SUCCESS BOOLEAN"
+        },
+        {
+          "name": "",
+          "type": "P_RESULT JSONB DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_ERROR_MESSAGE TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.work_queue"
+      ]
     },
     {
       "name": "public.submit_task",
       "file": "021_agent_requirements.sql",
       "line": 88,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_TASK_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_DESCRIPTION TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_INPUT_DATA JSONB DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_PRIORITY INTEGER DEFAULT 5"
+        },
+        {
+          "name": "",
+          "type": "P_DEPENDS_ON UUID[] DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_DEADLINE TIMESTAMPTZ DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_REQUIREMENTS JSONB DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.v_task_id",
+        "public.work_queue"
+      ]
     },
     {
       "name": "public.write_handoff",
       "file": "002_handoff_documents.sql",
       "line": 22,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_NAME TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_SUMMARY TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_COMPLETED_WORK JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_IN_PROGRESS JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_DECISIONS JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_NEXT_STEPS JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_RELEVANT_FILES JSONB DEFAULT '[]'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.handoff_documents",
+        "public.v_handoff_id"
+      ]
     },
     {
       "name": "public.read_handoff",
       "file": "002_handoff_documents.sql",
       "line": 65,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_NAME TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_LIMIT INTEGER DEFAULT 1"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.handoff_documents",
+        "public.v_handoffs"
+      ]
     },
     {
       "name": "public.register_agent_session",
       "file": "003_agent_discovery.sql",
       "line": 16,
-      "language": "plpgsql"
+      "language": "unknown",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_CAPABILITIES TEXT[] DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "P_CURRENT_TASK TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb as",
+      "referenced_tables": []
     },
     {
       "name": "public.discover_agents",
       "file": "023_add_phase_archetype.sql",
       "line": 28,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_CAPABILITY TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_STATUS TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.agent_sessions",
+        "public.v_agents"
+      ]
     },
     {
       "name": "public.agent_heartbeat",
       "file": "026_add_gatekeeper_archetype.sql",
       "line": 32,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_PHASE_ARCHETYPE TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.agent_sessions"
+      ]
     },
     {
       "name": "public.cleanup_dead_agents",
       "file": "003_agent_discovery.sql",
       "line": 112,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_STALE_THRESHOLD INTERVAL DEFAULT '15 MINUTES'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.agent_sessions",
+        "public.file_locks",
+        "public.v_stale_agent_ids"
+      ]
     },
     {
       "name": "public.store_episodic_memory",
       "file": "004_memory_tables.sql",
       "line": 57,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_EVENT_TYPE TEXT DEFAULT 'DISCOVERY'"
+        },
+        {
+          "name": "",
+          "type": "P_SUMMARY TEXT DEFAULT ''"
+        },
+        {
+          "name": "",
+          "type": "P_DETAILS JSONB DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "P_OUTCOME TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_LESSONS TEXT[] DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "P_TAGS TEXT[] DEFAULT '{}'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.memory_episodic",
+        "public.v_existing",
+        "public.v_memory_id"
+      ]
     },
     {
       "name": "public.get_relevant_memories",
       "file": "004_memory_tables.sql",
       "line": 107,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_TAGS TEXT[] DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "P_EVENT_TYPE TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_LIMIT INT DEFAULT 10"
+        },
+        {
+          "name": "",
+          "type": "P_MIN_RELEVANCE FLOAT DEFAULT 0.0"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.memory_episodic",
+        "public.v_result"
+      ]
     },
     {
       "name": "public.get_pending_approvals",
       "file": "005_verification_tables.sql",
       "line": 134,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.approval_queue",
+        "public.changesets"
+      ]
     },
     {
       "name": "public.approve_changeset",
       "file": "005_verification_tables.sql",
       "line": 157,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_APPROVAL_ID UUID"
+        },
+        {
+          "name": "",
+          "type": "P_REVIEWER TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_APPROVED BOOLEAN"
+        },
+        {
+          "name": "",
+          "type": "P_NOTES TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.approval_queue",
+        "public.changeset",
+        "public.changesets",
+        "public.v_changeset_id"
+      ]
     },
     {
       "name": "public.check_guardrails",
       "file": "006_guardrails_tables.sql",
       "line": 66,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_OPERATION_TEXT TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_TRUST_LEVEL INT DEFAULT 2"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.guardrail_violations",
+        "public.operation_guardrails"
+      ]
     },
     {
       "name": "public.get_agent_profile",
       "file": "007_agent_profiles.sql",
       "line": 80,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TYPE TEXT DEFAULT 'CLAUDE_CODE'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.agent_profile_assignments",
+        "public.agent_profiles",
+        "public.v_profile"
+      ]
     },
     {
       "name": "public.raise_immutable_error",
       "file": "008_audit_log.sql",
       "line": 28,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger as",
+      "referenced_tables": [
+        "public.and"
+      ]
     },
     {
       "name": "public.cleanup_old_audit_entries",
       "file": "008_audit_log.sql",
       "line": 45,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_RETENTION_DAYS INT DEFAULT 90"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.audit_log"
+      ]
     },
     {
       "name": "public.is_domain_allowed",
       "file": "009_network_policies.sql",
       "line": 53,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_DOMAIN TEXT"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.agent_profile_assignments",
+        "public.network_access_log",
+        "public.network_policies",
+        "public.v_profile_id"
+      ]
     },
     {
       "name": "public.update_cedar_policies_timestamp",
       "file": "010_cedar_policy_store.sql",
       "line": 19,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": []
     },
     {
       "name": "public.register_feature",
       "file": "012_feature_registry.sql",
       "line": 34,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_FEATURE_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_TITLE TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT DEFAULT 'UNKNOWN'"
+        },
+        {
+          "name": "",
+          "type": "P_RESOURCE_CLAIMS TEXT[] DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "P_BRANCH_NAME TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_MERGE_PRIORITY INTEGER DEFAULT 5"
+        },
+        {
+          "name": "",
+          "type": "P_METADATA JSONB DEFAULT '{}'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.claims",
+        "public.feature_registry",
+        "public.set",
+        "public.v_result"
+      ]
     },
     {
       "name": "public.deregister_feature",
       "file": "012_feature_registry.sql",
       "line": 86,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_FEATURE_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_STATUS TEXT DEFAULT 'COMPLETED'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.feature_registry"
+      ]
     },
     {
       "name": "public.capture_policy_history",
       "file": "013_dynamic_authorization.sql",
       "line": 65,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": [
+        "public.cedar_policies_history"
+      ]
     },
     {
       "name": "public.notify_policy_changed",
       "file": "013_dynamic_authorization.sql",
       "line": 91,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": []
     },
     {
       "name": "public.coordinator_notify",
       "file": "025_notify_enrich_change_id.sql",
       "line": 1,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "CHANNEL TEXT"
+        },
+        {
+          "name": "",
+          "type": "EVENT_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "ENTITY_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "SUMMARY TEXT DEFAULT ''"
+        },
+        {
+          "name": "",
+          "type": "CHANGE_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "CONTEXT JSONB DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "::JSONB"
+        }
+      ],
+      "return_type": "void",
+      "referenced_tables": []
     },
     {
       "name": "public.notify_approval_queue_change",
       "file": "015_notification_triggers.sql",
       "line": 34,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": [
+        "new.status"
+      ]
     },
     {
       "name": "public.notify_work_queue_change",
       "file": "025_notify_enrich_change_id.sql",
       "line": 67,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": [
+        "new.labels",
+        "new.status"
+      ]
     },
     {
       "name": "public.notify_agent_discovery_change",
       "file": "015_notification_triggers.sql",
       "line": 104,
-      "language": "plpgsql"
+      "language": "unknown",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": []
     },
     {
       "name": "public.notify_audit_log_change",
       "file": "025_notify_enrich_change_id.sql",
       "line": 118,
-      "language": "plpgsql"
+      "language": "unknown",
+      "parameters": [],
+      "return_type": "trigger as",
+      "referenced_tables": []
     },
     {
       "name": "public.code_search_indexes_set_storage_key",
       "file": "029_revision_aware_code_search_indexes.sql",
       "line": 78,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": []
     },
     {
       "name": "public.code_search_registry_validate_canonical",
       "file": "029_revision_aware_code_search_indexes.sql",
       "line": 134,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": [
+        "public.candidate",
+        "public.code_search_indexes"
+      ]
     },
     {
       "name": "public.code_search_indexes_validate_canonical_target",
       "file": "029_revision_aware_code_search_indexes.sql",
       "line": 189,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": [
+        "public.code_search_registry",
+        "public.registry"
+      ]
     },
     {
       "name": "public.validate_code_search_repository_identity",
       "file": "030_incremental_code_search_indexes.sql",
       "line": 31,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": [
+        "old.git_common_dir_fingerprint",
+        "old.repo_root"
+      ]
     },
     {
       "name": "public.validate_code_search_parent",
       "file": "030_incremental_code_search_indexes.sql",
       "line": 248,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": [
+        "old.parent_index_id",
+        "public.candidate",
+        "public.code_search_indexes"
+      ]
     },
     {
       "name": "public.validate_code_search_parent_target",
       "file": "030_incremental_code_search_indexes.sql",
       "line": 330,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": [
+        "public.code_search_indexes"
+      ]
     }
   ],
   "triggers": [
@@ -3047,77 +3744,77 @@
       "table": "public.audit_log",
       "event": "UPDATE|DELETE",
       "timing": "BEFORE",
-      "function": "raise_immutable_error"
+      "function": "public.raise_immutable_error"
     },
     {
       "name": "cedar_policies_updated_at",
       "table": "public.cedar_policies",
       "event": "UPDATE",
       "timing": "BEFORE",
-      "function": "update_cedar_policies_timestamp"
+      "function": "public.update_cedar_policies_timestamp"
     },
     {
       "name": "cedar_entities_updated_at",
       "table": "public.cedar_entities",
       "event": "UPDATE",
       "timing": "BEFORE",
-      "function": "update_cedar_policies_timestamp"
+      "function": "public.update_cedar_policies_timestamp"
     },
     {
       "name": "trg_cedar_policies_history",
       "table": "public.cedar_policies",
       "event": "INSERT|UPDATE|DELETE",
       "timing": "BEFORE",
-      "function": "capture_policy_history"
+      "function": "public.capture_policy_history"
     },
     {
       "name": "trg_notify_policy_changed",
       "table": "public.cedar_policies",
       "event": "INSERT|UPDATE|DELETE",
       "timing": "AFTER",
-      "function": "notify_policy_changed"
+      "function": "public.notify_policy_changed"
     },
     {
       "name": "trg_approval_queue_notify",
       "table": "public.approval_queue",
       "event": "INSERT|UPDATE",
       "timing": "AFTER",
-      "function": "notify_approval_queue_change"
+      "function": "public.notify_approval_queue_change"
     },
     {
       "name": "trg_work_queue_notify",
       "table": "public.work_queue",
       "event": "UPDATE",
       "timing": "AFTER",
-      "function": "notify_work_queue_change"
+      "function": "public.notify_work_queue_change"
     },
     {
       "name": "trg_agent_discovery_notify",
       "table": "public.agent_sessions",
       "event": "INSERT|UPDATE",
       "timing": "AFTER",
-      "function": "notify_agent_discovery_change"
+      "function": "public.notify_agent_discovery_change"
     },
     {
       "name": "trg_audit_log_notify",
       "table": "public.audit_log",
       "event": "INSERT",
       "timing": "AFTER",
-      "function": "notify_audit_log_change"
+      "function": "public.notify_audit_log_change"
     },
     {
       "name": "trg_work_queue_notify",
       "table": "public.work_queue",
       "event": "UPDATE",
       "timing": "AFTER",
-      "function": "notify_work_queue_change"
+      "function": "public.notify_work_queue_change"
     },
     {
       "name": "trg_audit_log_notify",
       "table": "public.audit_log",
       "event": "INSERT",
       "timing": "AFTER",
-      "function": "notify_audit_log_change"
+      "function": "public.notify_audit_log_change"
     }
   ],
   "fk_graph": [
@@ -3167,7 +3864,7 @@
       "from": "public.work_queue",
       "to": "public.work_queue",
       "columns": [
-        "IF"
+        "parent_id"
       ]
     },
     {
@@ -3182,6 +3879,13 @@
       "to": "public.code_search_registry",
       "columns": [
         "repo_slug"
+      ]
+    },
+    {
+      "from": "public.code_search_indexes",
+      "to": "public.code_search_indexes",
+      "columns": [
+        "parent_index_id"
       ]
     },
     {
@@ -3201,10 +3905,14 @@
   ],
   "summary": {
     "total_tables": 29,
-    "total_columns": 293,
-    "total_foreign_keys": 11,
+    "total_columns": 312,
+    "total_foreign_keys": 12,
     "total_indexes": 72,
     "most_referenced_tables": [
+      {
+        "table": "public.code_search_indexes",
+        "references": 3
+      },
       {
         "table": "public.changesets",
         "references": 2
@@ -3215,10 +3923,6 @@
       },
       {
         "table": "public.work_queue",
-        "references": 2
-      },
-      {
-        "table": "public.code_search_indexes",
         "references": 2
       },
       {
@@ -3237,43 +3941,43 @@
     "widest_tables": [
       {
         "table": "public.code_search_indexes",
-        "column_count": 23
-      },
-      {
-        "table": "public.work_queue",
-        "column_count": 18
+        "column_count": 24
       },
       {
         "table": "public.agent_profiles",
-        "column_count": 15
+        "column_count": 16
       },
       {
         "table": "public.agent_sessions",
-        "column_count": 14
+        "column_count": 16
+      },
+      {
+        "table": "public.work_queue",
+        "column_count": 16
       },
       {
         "table": "public.approval_queue",
+        "column_count": 13
+      },
+      {
+        "table": "public.guardrail_violations",
         "column_count": 12
       },
       {
         "table": "public.memory_episodic",
-        "column_count": 11
+        "column_count": 12
       },
       {
         "table": "public.verification_results",
+        "column_count": 12
+      },
+      {
+        "table": "public.audit_log",
         "column_count": 11
       },
       {
-        "table": "public.guardrail_violations",
+        "table": "public.changesets",
         "column_count": 11
-      },
-      {
-        "table": "public.feature_registry",
-        "column_count": 11
-      },
-      {
-        "table": "public.handoff_documents",
-        "column_count": 10
       }
     ]
   }
