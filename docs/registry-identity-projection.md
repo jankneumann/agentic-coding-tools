@@ -18,7 +18,16 @@ fails if any projection cannot be derived from it.
 |---|---|---|
 | API-key identity map (`{key: {agent_id, agent_type}}`) | every registry agent with a resolvable `api_key`, regardless of `transport` | at config load |
 | `agent_profiles` rows (name, agent_type, trust_level, allowed_operations) | registry `profile`, `trust_level`, `capabilities` | coordinator startup, after migrations |
-| Trust level used by guardrails/policy | the synced profile row | per request |
+| `agent_profile_assignments` rows (agent_id → profile_id) | registry agent name and its `profile` | coordinator startup, after the profile phase |
+| Trust level used by guardrails/policy | the profile the agent **resolves** to | per request |
+
+Both tables matter, because `get_agent_profile()` reads the assignment first and only falls
+back to "the oldest enabled profile of this `agent_type`" when there is none. Projecting
+profiles alone leaves that fallback load-bearing: two agents sharing a type resolve by
+`created_at`, regardless of what they declare. Projecting assignments makes the tiebreak
+unreachable for registry agents. Rows the sync writes carry `assigned_by = 'registry_sync'`,
+so they are distinguishable from the hand-written rows migration 018 left with `assigned_by`
+NULL.
 
 `transport` describes an agent's *preferred channel*, not its authorization boundary — the MCP
 server falls back to the HTTP proxy when the local database is unreachable, so every declared
@@ -40,9 +49,14 @@ The projection invariant test asserts every enabled profile is either registry-d
 explicitly unmanaged, so a future role profile that nobody classified fails CI rather than being
 silently disabled.
 
-**It does not delete.** Rows for agents the registry no longer declares are set
+**It does not delete profiles.** Profile rows for agents the registry no longer declares are set
 `enabled = false` and retained, with a `profile_sync` audit event naming each one. Retiring a
 harness should leave a trail, and disabling is reversible in one statement.
+
+Stale *assignments* are the one exception: they are deleted, not disabled. The table has no
+`enabled` column, and an assignment is a pointer rather than authorization state — the profile
+it referenced is still retained and disabled, so nothing is lost. Each removal is audited with
+the profile the pointer targeted, which is what makes it reconstructible.
 
 ## What the first sync will do
 
@@ -108,6 +122,19 @@ COORDINATION_API_KEYS='<key>'
 ```sql
 UPDATE agent_profiles SET enabled = true WHERE name IN ('gemini_local', 'strands_local');
 ```
+
+**Restore an assignment the sync removed** — the audit event records the agent id and the
+profile its pointer targeted, so the row can be rebuilt from the trail:
+
+```sql
+INSERT INTO agent_profile_assignments (agent_id, profile_id)
+SELECT '<agent-id>', id FROM agent_profiles WHERE name = '<profile-name-from-audit>'
+ON CONFLICT (agent_id) DO UPDATE SET profile_id = EXCLUDED.profile_id;
+```
+
+Note that re-adding an assignment while `PROFILE_SYNC_ENABLED` is still on will simply be
+re-removed at the next boot, since the registry does not declare that agent. Turn the flag off
+first if the restoration needs to persist.
 
 Query what was disabled and when, from the audit trail:
 
