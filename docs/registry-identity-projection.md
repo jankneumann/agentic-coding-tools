@@ -50,18 +50,22 @@ Measured against the migration history at the time this change landed:
 
 | Action | Profiles |
 |---|---|
-| Created (declared in the registry, no row exists) | `codex_local`, `antigravity_local`, `grok_local`, `pi_local` |
-| Updated (row exists, reconciled to registry values) | `claude_code_local`, `claude_code_remote`, `codex_remote` |
-| Disabled (retired harness identities) | `claude_code_reviewer`, `strands_local`, plus `gemini_*` on any deployment where they were seeded |
+| Created (declared in the registry, no row exists) | `antigravity_local`, `grok_local`, `pi_local` |
+| Updated (row exists, reconciled to registry values) | `claude_code_local`, `claude_code_remote`, `codex_local`, `codex_remote` |
+| Disabled (retired harness identities) | `claude_code_reviewer`, `gemini_local`, `gemini_remote`, `strands_local` |
 | Left alone (unmanaged role profile) | `evaluator` |
 
-The "created" row is the bug this change exists to fix, and it is one wider than the original
-audit found. Migration 007 seeds five profiles; migration 019 attempts eight renames, three of
-which (`codex_local_worker`, `gemini_local_worker`, `gemini_cloud_worker`) name rows that were
-never seeded and are therefore silent no-ops. The consequence is that **`codex-local` never had
-a profile either** — so a harness that predates the antigravity/grok/pi additions has also been
-running at the default trust level 2 while its registry entry declared 3. Nothing failed,
-because everything failed open. That is the whole argument for this change in one table.
+The "created" row is the bug this change exists to fix: the three harnesses added by
+`add-agy-grok-pi-harnesses` got dispatch configuration and no authorization state.
+
+Migration 018 is worth reading alongside this table, because it is the previous attempt at the
+same problem. Its header records the identical failure — "`claude-remote` got `claude_code_cli`
+(trust 3) instead of `claude_code_web_implementer` (trust 2)" — and it fixed it by hand, adding
+the then-missing local profiles and writing one explicit `agent_profile_assignments` row per
+agent. That worked, and still works, for the roster as it stood in that migration. It did
+nothing for any harness added afterwards, which is precisely why three of them arrived with no
+profile at all. Hand-maintained rosters do not survive the next addition; that is the argument
+for projecting from the registry instead.
 
 ## Fail-loud, and where it stops
 

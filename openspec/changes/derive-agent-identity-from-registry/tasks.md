@@ -92,3 +92,36 @@ tasks they verify.
       `ruff check .` in agent-coordinator; fix fallout (S)
       **Dependencies**: 4.1, 4.2
 - [x] Checkpoint: run tests, review diff, verify scope
+
+## Phase 5 — Assignment projection (follow-up; closes the resolution gap)
+
+Added after Phase 4. The profile projection alone did not satisfy the change's own claim:
+`get_agent_profile()` reads `agent_profile_assignments` first and falls back to `agent_type`
+with `ORDER BY created_at ASC LIMIT 1`, so a correct profile row can still be unreachable.
+Migration 018 fixed this by hand for its contemporary roster and did not extend to later
+harnesses (design D11).
+
+- [ ] 5.1 Write tests for assignment projection — assignment created per registry agent,
+      re-pointed when the registry changes an agent's profile, stale assignment removed with
+      audit event naming the profile it pointed at, idempotent re-run, convergent under
+      concurrent boot, `PROFILE_SYNC_ENABLED=false` no-op (M)
+      **Spec scenarios**: agent-identity / "Declared agent resolves to its own profile, not the
+      oldest of its type", "Stale assignment removed with audit trail"
+      **Contracts**: contracts/events/profile-sync-audit.schema.json (assignment actions)
+      **Design decisions**: D11
+      **Dependencies**: 2.4
+- [ ] 5.2 Project `agent_profile_assignments` in `sync_profiles()` (name→id map re-queried after
+      the profile phase, upsert keyed on the table's UNIQUE (agent_id), stale-assignment removal
+      with audit, extended `ProfileSyncResult`) and extend the audit contract with the assignment
+      actions (M)
+      **Design decisions**: D11
+      **Dependencies**: 5.1
+- [ ] 5.3 Close the invariant blind spot — add a resolution checker to
+      `tests/test_registry_projection.py` that resolves the way `get_agent_profile()` does
+      (assignment first, then `agent_type` + `created_at` fallback) and assert every registry
+      agent reaches its declared trust level; negative test covers two agents sharing an
+      `agent_type` with the wrong-trust row older and no assignment (S)
+      **Spec scenarios**: agent-identity / "Registry Projection Invariant" clause (d)
+      **Design decisions**: D11
+      **Dependencies**: 5.2
+- [ ] Checkpoint: run tests, review diff, verify scope

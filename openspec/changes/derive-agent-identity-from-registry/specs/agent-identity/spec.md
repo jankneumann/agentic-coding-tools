@@ -142,6 +142,33 @@ treating the table as a materialized projection of the registry.
 - **THEN** startup SHALL perform no profile writes
 - **AND** a warning SHALL be logged that the registry projection is not enforced
 
+### Requirement: Registry Assignment Projection
+
+The coordinator SHALL project `agent_profile_assignments` from the registry alongside
+`agent_profiles`, so that profile resolution for a registry agent never depends on the
+`agent_type` fallback ordering.
+
+- For every registry agent, the sync SHALL maintain an assignment row binding the agent's id to
+  the profile row named by its `profile` field
+- Assignment rows for agents not declared by the registry SHALL be removed, and each removal
+  SHALL emit an audit event naming the profile the assignment pointed at
+- Assignment projection SHALL be governed by the same `PROFILE_SYNC_ENABLED` flag and SHALL be
+  idempotent and convergent under concurrent worker startup
+
+#### Scenario: Declared agent resolves to its own profile, not the oldest of its type
+- **GIVEN** two registry agents share an `agent_type` and declare different trust levels
+- **AND** the agent declaring the higher trust level has the newer profile row
+- **WHEN** startup sync has run
+- **THEN** each agent SHALL resolve to the profile row it declares
+- **AND** resolution SHALL NOT depend on `created_at` ordering
+
+#### Scenario: Stale assignment removed with audit trail
+- **GIVEN** an assignment row for `gemini-local` pointing at the `gemini_local` profile
+- **WHEN** startup sync runs against an `agents.yaml` with no gemini entry
+- **THEN** the assignment row SHALL be removed
+- **AND** an audit event SHALL record the removal and the profile it pointed at
+- **AND** the `gemini_local` profile row itself SHALL be retained and disabled
+
 ### Requirement: Unified Trust Scale
 
 The system SHALL define the agent trust scale exactly once, as the 0–4 scale already named
@@ -172,7 +199,10 @@ surprise.
 - A test SHALL assert, for every registry agent: (a) profile sync produces an enabled
   `agent_profiles` row with the declared trust level, (b) an identity map entry exists or
   the agent's key is explicitly declared unresolvable in the test environment, (c) the
-  `profile` name referenced by the entry resolves after sync
+  `profile` name referenced by the entry resolves after sync, (d) the agent **resolves** to a
+  profile carrying its declared trust level when looked up the way `get_agent_profile()` does
+  — explicit assignment first, then the `agent_type` fallback — so that a projection which is
+  present but unreachable fails CI
 - The test SHALL assert that every enabled profile row (post-sync) is either declared by
   the registry or named in the unmanaged-profile allowlist, so a role profile nobody
   considered fails CI rather than being silently disabled or silently tolerated
