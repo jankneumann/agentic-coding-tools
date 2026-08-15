@@ -50,16 +50,20 @@ not summarized as done.
    that shipping it via `install.sh` cannot fail validation in a repo that
    has neither.
 
-## What is NOT in this change (yet)
+## The full-capability CI sweep is this repository's, not yours
 
-The full-capability CI sweep (wiring the same gate into `.github/workflows/ci.yml`
-so every contract in every capability is checked on every PR/merge-group/push)
-is a separate task in the same OpenSpec change, gated on human authoring work
-that had not landed as of this commit. If you are reading this notice from a
-copy of `packages/gen-eval/` vendored after that lands, the CI wiring is real;
-if you are reading it before, do not assume a repository-wide sweep runs
-anywhere yet. Either way it is **this repository's** CI, not something that
-runs against your contracts unless you vendor the workflow file too.
+`.github/workflows/ci.yml` now (as of this commit) carries a
+`requirement-traceability-sweep` job that runs the same gate at
+`--scope capability` on every `push` to `main`, `pull_request`, and
+`merge_group` — blocking on the two PR-facing events, report-only on `push`.
+This landed later in the same OpenSpec change than the paragraph above; an
+earlier revision of this notice described the sweep as not yet wired,
+written before that task's human-authored prerequisites (splitting and
+opting in the coordinator contract) had landed. Both have landed as of this
+commit, so the corrected statement is unconditional rather than
+two-sided: the sweep is real, in **this repository's** workflow file, and it
+is still not something that runs against your contracts unless you also
+vendor `.github/workflows/ci.yml` (or an equivalent job) into your own repo.
 
 ## Your tool contract is affected only if you opt in (D6/D13)
 

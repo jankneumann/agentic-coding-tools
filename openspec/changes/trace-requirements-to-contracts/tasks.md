@@ -955,6 +955,13 @@ be meaningful.
   exist yet, so the "every BLOCKING CI invocation" language in the new
   section describes 5.7's design, not yet a landed fact. Re-check this
   section's wording once 5.7 lands.
+  **Re-check (2026-08-15, IMPL_ITERATE, wp-wiring)**: 5.7 has landed
+  (4aa24237). Re-read the `## Requirement traceability` section against the
+  merged `requirement-traceability-sweep` job: it never asserted the sweep
+  existed yet — it described the invocation forms and blocking/non-blocking
+  roles from the design (task 5.7's text and D12), which is now also the
+  landed fact. No wording change needed here. Contrast task 5.9 below, whose
+  text DID assert non-landed status and needed correcting.
 
 - [x] 5.9 Refresh `DOWNSTREAM.md` for consumers with their own contracts `[S]`
   **Dependencies**: 5.6, 5.7
@@ -976,6 +983,18 @@ be meaningful.
   pending work as shipped. Points ACA at the fully-opted-in
   `gen-eval-framework/cli/gen-eval.yaml` as a worked example per its own
   `derive-descriptors-from-contracts` DS-3 migration path.
+  **Fix (2026-08-15, IMPL_ITERATE, wp-wiring)**: 5.7 landed (4aa24237) after
+  this task's evidence was recorded, and the "What is NOT in this change
+  (yet)" section still read "gated on human authoring work that had not
+  landed as of this commit" — a factually stale claim once read from the
+  branch tip this same PR reaches, and precisely the DS-2 shape this task's
+  own note names (describing something as pending that has since shipped in
+  the same change, the inverse of DS-2's "promising a change that did not
+  ship"). Rewrote the section (now "The full-capability CI sweep is this
+  repository's, not yours") to state the sweep is real and unconditional,
+  while keeping the substantive claim that mattered — it is this
+  repository's CI and does not affect a downstream contract unless the
+  workflow file is also vendored.
 
 - [ ] Final checkpoint: full suite green, `openspec validate --strict` passes,
   and both wired gates demonstrated per the RED protocol — the change-scoped
