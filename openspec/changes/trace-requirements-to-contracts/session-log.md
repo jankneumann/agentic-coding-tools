@@ -70,3 +70,27 @@ Five parallel analyses (completeness, consistency, feasibility, testability, sec
 ### Context
 Reviewed commits 89365ffe..HEAD (Track A citations/exclusions, Track B coordinator contract + locks.yaml opt-in, wp-wiring 4.3/5.6/5.7/5.8/5.9, cite-requirements test fix). Fixed two engineering-artifact defects: a stale hardcoded requirement count in test_effective_spec_set.py (14 vs the real 15 after task 4.1 added a new requirement) that was silently failing packages/gen-eval's own suite and would red CI's gen-eval-tests job, and a stale DOWNSTREAM.md section describing the CI sweep (task 5.7) as not-yet-landed when it has since landed in this same change. No human citation/exclusion decisions were touched.
 
+---
+
+## Phase: Validation (2026-08-15)
+
+**Agent**: validator | **Session**: N/A
+
+### Decisions
+1. **7.0 task-drift FAIL treated as CI-invoked (recorded, not halted)** — SKILL.md distinguishes local vs CI-invoked behavior for the 7.0/7.0b CRITICAL gates. This run recorded the drift as a CRITICAL finding in validation-report.md rather than aborting mid-phase, then continued through the remaining phases to produce a complete evidence record.
+2. **Did not touch tasks.md, 5.7c, or the Final checkpoint** — Per this run's explicit scope: 5.7c is a [human] acceptance task and the Final checkpoint is the sign-off this validation feeds evidence into, neither of which this run is authorized to check off.
+
+### Open Questions
+- [ ] Should the Phase 4 checkpoint (tasks.md:547) be reconciled now that 4.1-4.3 are all checked, independent of 5.7c/Final?
+
+### Completed Work
+- architecture
+- ci
+
+### Next Steps
+- Fix skills/cite-requirements/SKILL.md:63 and skills/cite-requirements/scripts/walkthrough.py:22 to use the installed-skill-base convention instead of a hardcoded skills/ path (dependency_direction.py must exit 0).
+- Human: run task 5.7c's acceptance sweep and check the Final checkpoint, then re-run /validate-feature trace-requirements-to-contracts.
+
+### Context
+Ran validate-feature semantics against the tree under validation. Deploy/Smoke/Security/E2E/Gen-Eval skipped (tooling+CI change, no service under test). Spec-compliance CRITICAL gates: 7.0b requirement-to-contract traceability (this change's own new gate, run --scope change --change trace-requirements-to-contracts from TRACE_ROOT) PASSES (18 operations cite 14 requirements, no touched-scope violations). 7.0 task-checkbox-drift gate FAILS (3 unchecked: Phase 4 checkpoint, human task 5.7c, Final checkpoint) -- two of the three require human action and were intentionally left untouched per this run's scope. Architecture linters surfaced 2 high-severity, real, CI-breaking findings: the new skills/cite-requirements/ skill hardcodes a canonical skills/ runtime path instead of the installed-skill-base convention (dependency_direction.py exits 1, and the same check runs unguarded in ci.yml's test-infra-skills job). All test suites (packages/gen-eval 1213 passed, skills/ 2392 passed), ruff, and openspec validate --strict (34/34) are green. Overall: FAIL, on the task-drift gate (human-gated) and the cite-requirements path defect (agent-fixable).
+

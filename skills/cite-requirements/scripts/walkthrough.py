@@ -19,7 +19,7 @@ Runs under the gen-eval project venv so it can reuse the gate's own parsing
 (`gen_eval.traceability`) instead of growing a drifting reimplementation:
 
     uv run --project packages/gen-eval python \
-        skills/cite-requirements/scripts/walkthrough.py <command> ...
+        <skill-base-dir>/scripts/walkthrough.py <command> ...
 
 Pure text-manipulation paths (block location, insertion, card slicing) are
 importable with stdlib + pyyaml only, so the skills test suite exercises them

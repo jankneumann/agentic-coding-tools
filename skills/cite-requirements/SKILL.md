@@ -60,7 +60,7 @@ The helper needs the gen-eval venv (it reuses the gate's own parser —
 `gen_eval.traceability` — rather than growing a drifting reimplementation):
 
 ```bash
-WALK="uv run --project packages/gen-eval python skills/cite-requirements/scripts/walkthrough.py"
+WALK="uv run --project packages/gen-eval python <skill-base-dir>/scripts/walkthrough.py"
 ```
 
 Run it BARE, never piped ahead of an exit-code check.
