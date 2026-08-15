@@ -102,11 +102,18 @@ if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
 # though it were a change id, and alongside a real change it trips the
 # ambiguity rule and hard-blocks a single-change pull request.
 #
-# core.quotePath=false because git otherwise C-quotes the WHOLE path when
-# any byte in it is non-ASCII. The leading `"` then fails the anchor
-# above and the change directory is dropped — a blocking gate silently
-# not running, on an ordinary ASCII change id that merely touched a file
-# with an accented name.
+# -z (NUL-delimited) because git otherwise C-quotes the WHOLE path when
+# it contains non-ASCII bytes, newlines, tabs, backslashes, or double
+# quotes. The leading `"` then fails the anchor above and the change
+# directory is dropped — a blocking gate silently not running, on an
+# ordinary ASCII change id that merely touched a file with an accented
+# (or quoted) name. core.quotePath=false alone is NOT enough: it only
+# disables the non-ASCII escaping, while newline/tab/backslash/quote
+# names stay C-quoted. -z emits every path verbatim. The tr to
+# newlines is safe for id derivation: a control character inside a
+# FILE name splits that path, but the id lives before the first `/`,
+# so the fragment carrying `openspec/changes/<id>/` still derives the
+# right id and the orphaned tail fails the anchor and is dropped.
 derive_change_ids() {
   # Returns 2 — distinct from "resolved the base and derived nothing" —
   # when git cannot resolve the base commit. Run as a single pipeline the
@@ -115,14 +122,24 @@ derive_change_ids() {
   # caller then takes the no-change SKIP path on a base it never read.
   # The spec puts those on different exit paths, so the git status is
   # captured on its own before anything is piped.
-  local raw
-  raw="$(git -c core.quotePath=false diff --no-renames --diff-filter=d --name-only "$1" HEAD \\
-    -- openspec/changes/)" || return 2
-  printf '%s\\n' "$raw" \\
+  # NUL-delimited output cannot pass through "$(...)": bash strips
+  # NUL bytes from command substitution, which concatenates every
+  # path into one unseparated string and derives only the first id.
+  # A temp file keeps git's own exit status observable on the
+  # redirect while preserving the NULs for tr.
+  local tmp
+  tmp="$(mktemp)"
+  if ! git diff --no-renames --diff-filter=d --name-only -z "$1" HEAD \\
+    -- openspec/changes/ > "$tmp"; then
+    rm -f "$tmp"
+    return 2
+  fi
+  tr '\\0' '\\n' < "$tmp" \\
     | grep -E '^openspec/changes/[^/]+/' \\
     | sed 's#^openspec/changes/\\([^/]*\\)/.*#\\1#' \\
     | sort -u \\
     | grep -v '^archive$'
+  rm -f "$tmp"
   return 0
 }
 
@@ -453,11 +470,41 @@ def test_non_ascii_filename_still_derives_its_change_id(tmp_path: Path) -> None:
     running, on an ordinary ASCII change id that merely touched a file with an
     accented name."""
     repo = _init_repo(tmp_path)
+    # Pin the quoting mode the production fix must defeat: a developer or CI
+    # host with a global `core.quotePath=false` would otherwise keep this test
+    # green even if the -z fix were removed.
+    _git(repo, "config", "core.quotePath", "true")
     base_sha = _git(repo, "rev-parse", "HEAD")
     change_dir = repo / "openspec" / "changes" / "my-change"
     change_dir.mkdir(parents=True)
     (change_dir / "résumé-notes.md").write_text("notes\n")
     _commit_all(repo, "change touching a non-ascii filename")
+    _make_stub_gate(repo)
+
+    result = _run(
+        repo,
+        {"EVENT_NAME": "pull_request", "PR_BASE_SHA": base_sha, "PR_HEAD_REF": "openspec/my-change"},
+    )
+    assert result.returncode == 0, result.stdout
+    assert "argv: --scope capability --change my-change" in result.stdout
+    assert "SKIP" not in result.stdout
+
+
+def test_quoted_filename_still_derives_its_change_id(tmp_path: Path) -> None:
+    """A double quote in a touched file's name must not drop the change id.
+
+    `core.quotePath=false` only disables the non-ASCII escaping; git still
+    C-quotes names containing newline, tab, backslash, or double quotes under
+    EVERY quotePath setting. Only NUL-delimited output (`--name-only -z`)
+    emits such a path verbatim — without it, the quoted path fails the
+    `^openspec/changes/` anchor and, if it is the only touched file, the
+    blocking gate silently prints the no-change SKIP."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    change_dir = repo / "openspec" / "changes" / "my-change"
+    change_dir.mkdir(parents=True)
+    (change_dir / 'notes "draft".md').write_text("notes\n")
+    _commit_all(repo, "change touching a double-quoted filename")
     _make_stub_gate(repo)
 
     result = _run(
