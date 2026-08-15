@@ -242,3 +242,22 @@ decisions:
   requirement: gen-eval-framework.the-gate-makes-no-claim-that-a-requirement-is-satisfied
   reason: Served by the traceability gate (check_traceability.py) and its CI wiring,
     not by the gen-eval CLI; this contract exposes no surface for it.
+- at: '2026-08-15T00:00:00+00:00'
+  kind: cite-operation
+  contract: openspec/contracts/agent-coordinator/openapi/locks.yaml
+  operation: 'POST /locks/acquire'
+  requirements:
+    - agent-coordinator.http-api-interface
+    - agent-coordinator.file-locking
+  note: Operator selection (task 5.2 opt-in walkthrough) — HTTP surface hosting
+    the literal endpoint scenarios plus the lock semantics served. First
+    x-traceability block opts locks.yaml into forward enforcement (D6).
+- at: '2026-08-15T00:00:00+00:00'
+  kind: cite-operation
+  contract: openspec/contracts/agent-coordinator/openapi/locks.yaml
+  operation: 'GET /locks/status/{path}'
+  requirements:
+    - agent-coordinator.http-api-interface
+    - agent-coordinator.file-locking
+  note: Operator selection (task 5.2 opt-in walkthrough) — read-only
+    skip-auth scenario (spec 223-225) plus the lock state it reads.

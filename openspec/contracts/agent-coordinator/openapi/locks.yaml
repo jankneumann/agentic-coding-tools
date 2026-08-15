@@ -23,6 +23,10 @@ paths:
         an agent identity used with a different agent_id returns 403.
       security:
         - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.http-api-interface
+          - agent-coordinator.file-locking
       requestBody:
         required: true
         content:
@@ -40,6 +44,10 @@ paths:
       description: >-
         Spec 224-225: a GET without an API key returns the lock status with
         200 — read-only endpoints skip auth.
+      x-traceability:
+        requirements:
+          - agent-coordinator.http-api-interface
+          - agent-coordinator.file-locking
       parameters:
         - name: path
           in: path
