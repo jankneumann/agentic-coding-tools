@@ -1,0 +1,38 @@
+schema_version: 1
+case_id: FC-SCOPE-REJECTED
+consumer: validate-feature
+
+query: "what does the deployment smoke check assert"
+
+category: control
+
+scope:
+  read_allow:
+    - "agent-coordinator/src/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files: []
+  must_touch: []
+  evidence_spans: []
+
+expectation:
+  status: fallback
+  trigger: out_of_scope
+  reason: scope_rejected
+  rendered_hits: 0
+
+recorded_response:
+  path: responses/scope-rejected.json
+  service_state: scope_rejected
+
+rationale: >
+  The scope the job declared was well-formed and the coordinator refused it
+  anyway — the principal is not authorized for it. That is an authorization
+  decision, not a relevance one, and the distinction has to survive into the
+  trigger: `out_of_scope` tells the reader "you were not allowed to see this",
+  where `unavailable` would tell them "the service is broken". Nobody would
+  escalate the second correctly. The corpus keeps this separate from the two
+  no-declared-scope cases because a refusal and an absence are different facts
+  with the same visible outcome.

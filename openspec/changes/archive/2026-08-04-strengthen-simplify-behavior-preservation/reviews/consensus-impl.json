@@ -1,0 +1,326 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "whole-branch",
+  "reviewers": [
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 12,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 10,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 1
+        },
+        {
+          "vendor": "codex",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: check_test_contract.scan_unified_diff ignores deleted test files (+++ /dev/null). Removed assertion lines on deleted tests produce zero findings, so a simplify that deletes characterization tests can pass the contract check."
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 2
+        },
+        {
+          "vendor": "codex",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Nit: dual-run HEAD path executes --test-cmd in the live working tree, so uncommitted dirty files can make HEAD results non-reproducible relative to head_sha."
+    },
+    {
+      "id": 3,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Critical: the baseline run executes in a pristine `git worktree add --detach` checkout (line 112-122) that contains only tracked files \u2014 no `.venv`, no `node_modules`, no build output, no editable install. In this very repo the command SKILL.md recommends verbatim (`--test-cmd \"pytest -q\"`, SKILL.md:193-198) cannot work there: `pytest` is not on PATH (memory of this tree: skills tests run as `skills/.venv/bin/python -m pytest`, and `.venv` is gitignored so it is absent from a fresh worktree). The baseline run therefore exits non-zero for environment reasons, `both_passed` goes false, the process exits 2, and the note emitted is the actively misleading `baseline suite was already red \u2014 fix tests before simplifying` (line 134). An agent following the skill will conclude the pre-existing suite is broken and either abandon a valid simplification or 'fix' non-existent test failures. Every venv- or node_modules-based project hits this on first use, i.e. the flagship gate of the change fails closed with a wrong diagnosis in the common case. Secondary leak: if `git worktree remove --force` fails, the `.git/worktrees` admin entry survives (`shutil.rmtree` removes only the directory) and no `git worktree prune` is issued."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: both diff-based gates only see committed work, and they report a clean pass \u2014 not an error \u2014 when work is uncommitted. `measure_scope` runs `git diff --name-only <base>...<head>` and `--numstat <base>...<head>`; `check_test_contract.evaluate` uses the same three-dot range. Verified: a repo with 20 uncommitted new files totalling ~1200 changed lines yields `Rule of 500 check: OK / files: 0 (max 5) / lines: 0 (max 500)`, exit 0. SKILL.md's workflow does tell the agent to commit each simplification (step 5) before running the checks (step 6), but a gate whose entire value is being mechanical must not hand out a green when it measured nothing \u2014 the failure mode is silent and indistinguishable from a genuinely small diff. This also interacts with finding 1: staged-but-uncommitted expectation edits pass check_test_contract for the same reason."
+    },
+    {
+      "id": 5,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Nit: the comment calls the detector 'path-based; language-agnostic', but only TEST_PATH_RE is language-agnostic \u2014 ASSERT_LINE_RE covers Python and JS/TS idioms only. Rust `assert_eq!(x, 1)` does not match (after `assert` the `\\b` fails because `_` is a word character, and no alternative covers `_eq`), and gtest `EXPECT_EQ(...)`, Go's `if got != want { t.Errorf(...) }` table style, and Ruby `x.must_equal` are all invisible. For a repo that is Python-first this is low impact today, but the skill is offered as a general-purpose contract and the comment overstates coverage."
+    },
+    {
+      "id": 6,
+      "status": "confirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 8
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "Nit: verify_behavior_preservation module docstring claims a git-stash fallback when worktree fails, but dual_run only uses worktree and raises on failure."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Critical: the module docstring states 'Characterization commits that *add* new tests are fine; this checker focuses on modified lines inside assertion/expect calls', but the implementation matches `^[+\\-]` and so flags pure additions. Verified: a range containing one `test: pin behavior` commit adding `tests/test_char.py` with `assert f() == 1`, followed by a refactor commit, exits 2 with `Test contract: BROKEN \u2014 assertion/expect lines changed` and the action text 'revert expectation edits'. The behavior is arguably the intended strictness (spec and SKILL.md both place the characterization commit before the baseline SHA), and skills/tests/simplify/test_check_test_contract.py:111-132 codifies it \u2014 but then the docstring is simply wrong, and the operator-facing message is wrong too: it accuses the agent of editing expectations when nothing was edited, and its prescribed remedy (revert) would delete the characterization tests the coverage gate just required. Given the whole point of Phase A is that agents follow this text literally, a contradictory docstring plus a misdirecting error message is a live footgun, not a cosmetic issue."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: Phase C ships three spec requirements with zero automated coverage. The spec adds 'Tech-Debt Remediation Routing to Simplify' and 'Optional Post-Implementation Simplify Polish' as SHALL requirements, and Phase A's requirement includes 'invocation SHALL remain operator-manual', yet `grep -rn simplify skills/tests/tech-debt-analysis/ skills/tests/implement-feature/` returns nothing, there is no `skills/tests/iterate-on-implementation/` directory at all, and nothing asserts that autopilot does not reference simplify (I confirmed autopilot currently has no simplify reference \u2014 that invariant is exactly what a test should lock in). Phase A's markdown got eleven content invariants; the routing tables and polish notes that Phase C adds to three other SKILL.md files are prose that the next unrelated edit to those files can silently delete without a red test. Success Criterion 5 ('Catalogue/skill-flow/tech-debt/implement/iterate docs describe the handoffs; autopilot remains manual-only') is therefore asserted only by human reading."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: two of the new content invariants are near-tautologies that cannot fail. `test_simplify_manual_invocation_only` asserts `\"autopilot\" in lower and (\"not\" in lower or \"default\" in lower)` \u2014 the substring 'not' occurs in ordinary English prose throughout a 300-line SKILL.md (it appears in 'not' inside 'note', 'cannot', 'nothing', and dozens of standalone uses), so the second conjunct is satisfied by any document and the test degrades to 'the word autopilot appears somewhere'. A regression that flipped the doc to 'Autopilot runs simplify by default' would still pass. Likewise `test_simplify_has_isomorphic_extract_pattern` asserts `\"isomorphic extract\" in lower or \"isomorphic\" in lower`; the second disjunct is strictly weaker and is already satisfied by the frontmatter tag `isomorphic` on line 9, so the specific pattern-catalog entry the spec requires is not actually pinned. Given the change's own thesis is that a test which never exercises the surface cannot pin it (SKILL.md:274), the content tests should hold themselves to it."
+    },
+    {
+      "id": 10,
+      "status": "confirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "style",
+      "agreed_criticality": "low",
+      "recommended_disposition": "fix",
+      "description": "Nit: check_test_contract module docstring says characterization commits that add tests are fine, but the scanner flags every +assert line including pure additions. Correct only when --base is set after pin; docstring overpromises."
+    },
+    {
+      "id": 11,
+      "status": "confirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 11
+        },
+        {
+          "vendor": "codex",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: verify_behavior_preservation runs --test-cmd with shell=True. Acceptable for operator-supplied pytest/npm commands but unsafe if args come from untrusted input."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Skill contract, OpenSpec delta, dual-run exit codes (0/1/2), and tech-debt remediation routing are coherent and match the approved A+B+C design."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: the scripts measure `<base>...<head>` (three-dot, merge-base symmetric difference \u2014 check_scope.py:57,59 and check_test_contract.py:125) while SKILL.md Verification step 7 tells the operator to eyeball `git diff <baseline>..HEAD --stat` (two-dot). When the baseline is a direct ancestor of HEAD the two agree, but when the operator passes a branch name (e.g. `--base main`) after main has moved, the scripts silently exclude changes the operator's own command shows \u2014 the gate then reports a smaller diff than the human sees, in the permissive direction."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Positive observation \u2014 the Phase B scripts are well-shaped as portable skill payloads. All three are pure standard library plus `git` with no agent-coordinator import, satisfying the spec's 'MUST NOT require agent-coordinator' constraint and keeping the skill usable from any runtime mirror; all three share one consistent exit-code taxonomy (0 ok / 2 gate failure / 1 usage-or-git error) that matches the table in SKILL.md:214-218 exactly, so an orchestrator can branch on 2-vs-1 without per-script special casing; each exposes a pure, importable core (`evaluate`, `scan_unified_diff`, `dual_run`) separate from `main(argv)`, which is why the unit tests can drive them in-process rather than via subprocess; results are dataclasses serialized with an explicit `schema_version` on the report; and every git call uses argv lists rather than string interpolation. The spec delta is well-formed (every requirement leads with SHALL on its first line, each has at least one WHEN/THEN scenario), tasks.md is fully checked, and `skills/tests/simplify/` is already wired into `skills/pyproject.toml` testpaths \u2014 I ran it: 23 passed. The findings above are about what the gates fail to catch, not about the shape of the code."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: The main simplify skill text covers the coverage gate, characterization-first workflow, expanded isomorphic/dead-code/redundant-intermediate catalog, manual invocation, and ecosystem routing without auto-wiring simplify into implement or autopilot."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: content invariants assert isomorphic/dead-code language but not \"redundant intermediate\", which the skill-workflow spec requires in the pattern catalog. A silent catalog regression of that pattern would not fail tests."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: git may quote unusual paths in unified diffs (`--- \"a/tests/my test.py\"`). _strip_diff_path does not strip surrounding quotes or handle a/b/ inside quotes, so current_path can retain quote/prefix noise. Detection still often works via substring tests/ but is fragile for edge paths."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Canonical simplify contract is strong: coverage gate + characterization-first workflow, dual-run verification via detached worktrees for both baseline and HEAD, assertion-contract/scope helpers with 0/1/2 exits, expanded isomorphic/dead-code/redundant-intermediate patterns, and Phase C routing (tech-debt \u2192 simplify/plan/deprecation/perf; implement/iterate optional polish; catalogue + skill-flow manual-only notes). Prior deleted-file and dirty-HEAD dual-run bugs are fixed in skills/simplify."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Ecosystem hooks match the spec scenarios: tech-debt remediation table routes local clarity/dup to /simplify and hubs/public-API/perf elsewhere; implement-feature and iterate-on-implementation document optional manual polish as separate refactor commits without making simplify required for completion."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 19,
+    "confirmed_count": 7,
+    "unconfirmed_count": 12,
+    "disagreement_count": 0,
+    "blocking_count": 6
+  }
+}

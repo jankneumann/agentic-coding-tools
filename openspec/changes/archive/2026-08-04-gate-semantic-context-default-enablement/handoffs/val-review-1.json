@@ -1,0 +1,129 @@
+{
+ "schema_version": 1,
+ "written_at": "2026-08-03T14:27:21.673826+00:00",
+ "coordinator_error": {
+  "error_type": "not_attempted",
+  "message": "Local handoff only, consistent with the IMPL_REVIEW rounds on this change."
+ },
+ "payload": {
+  "agent_name": "claude_code",
+  "phase": "VAL_REVIEW",
+  "iteration": 1,
+  "outcome": "not_converged",
+  "reviewed_revision": "9e9d2aed002c90174544e95856077035d9b0124e",
+  "scope": "Critique of validation-report.md: reproduce every asserted expected result, independently rebuild the 16/16 requirement-to-evidence mapping, audit tasks.md checkboxes against the tree, and check design.md / session-log.md for prose falsified by the four fix rounds. Not a re-review of implementation code already covered by four multi-vendor IMPL_REVIEW rounds.",
+  "summary": "VAL_REVIEW for gate-semantic-context-default-enablement at 9e9d2aed. OUTCOME not_converged, on three documentation contradictions -- no code, spec, or contract defect found. EVERY CLAIM IN validation-report.md REPRODUCED EXACTLY, independently, at HEAD: packages/context-eval 380 passed / 0 skipped; skills/tests/context-engineering/ 735 passed; ruff check src/ tests/ clean; mypy --strict clean over 17 source files; make semantic-enablement-gate exit 0 (also in CI's exact form, PYTHON=packages/context-eval/.venv/bin/python); openspec validate --strict valid at CI version 1.7.0 (and validate --all --strict 63 passed / 0 failed, so this change breaks no other spec); all three schema pairs byte-identical via cmp; INJECTION_DEFAULT_ENABLED = False at semantic_context.py:571 exactly. The committed report.json: 0 schema errors against the promoted contract, verdict 'fail' with fail_reasons [unmeasured, denominator_mismatch, index_tier_insufficient], report.body_consistency() consistent=True with no contradictions, live corpus digest == recorded (6417066963...), and report.harness_identity() recomputed at HEAD returns dc25e1ce4b77... == the recorded harness.fingerprint. SPEC COVERAGE INDEPENDENTLY REBUILT (the claim the operator most wanted checked): there is no traceability artifact in the change, so the 16/16 mapping was reconstructed from scratch rather than read. It holds. 16 requirements across 3 deltas (semantic-context-evaluation 11, code-search 3, skill-workflow 2) and 47 scenarios (30/11/6) -- the validation report's correction of the orchestrator addendum's '42' is itself correct. Every one of the 16 maps to a named, discriminating test, and the two thinnest mappings were chased to ground: skill-workflow 'One gate passing is not enough' is carried by CONTRADICTIONS['a pass over a failing required gate', 'a pass over a failing consumer'] parametrized through test_no_self_contradicting_report_authorizes_an_enabled_default, plus the report.py:751 body_consistency clause; skill-workflow 'Runtime fallback remains the retrieval helper's responsibility' is structural -- enablement_gate is reachable only from Makefile:506, imported by no runtime path, so no second runtime path exists to introduce. Four scenarios were sampled at the assertion level rather than the name level (test_the_category_label_cannot_manufacture_a_win, test_missing_evidence_is_censored_to_max_files_plus_one, test_ri12_filters_the_leaked_hit_and_keeps_the_rest, test_a_declared_case_absent_from_the_run_is_a_denominator_mismatch); all four genuinely assert their scenario with discriminating assertions, none is a tautology. No requirement without evidence. TASKS.MD: no false checkmarks -- every falsifiable claim across all 7 phases was verified against the tree; the flip/revert pair 84120599/b161c7f3 is byte-clean (git diff 84120599~1 b161c7f3 on semantic_context.py is empty). DESIGN.MD AND SESSION-LOG.MD: not falsified by the four fix rounds. design.md handles its own supersession correctly, with an explicit 'Superseded in part on 2026-08-01' callout at :605 and inline flagged corrections -- the right pattern, not drift. THE DRIFT IS IN THE READMEs INSTEAD. Finding 1 is the one that matters and is the exact failure mode this change exists to prevent: the durable evaluation record's own front page publishes a harness source digest its sibling artifact contradicts. context-drift-gate exit 2 re-confirmed as pre-existing issue #157 (decisions.timeline on docs/decisions/skill-workflow.md plus informational openspec.projection); not attributed to this change. On the operator's security question: the validation report's call (observation, not finding) is CORRECT, and better-founded than the reason it gives -- see notes. Nothing was committed to the tree but this handoff; the protected untracked set (5 openspec/schemas/context-*.schema.json, loop-state.json, .dispatch-state.json) is unchanged, verified before and after.",
+  "blocking_findings": [
+   {
+    "id": 1,
+    "type": "documentation_drift",
+    "criticality": "medium",
+    "severity": "medium",
+    "axis": "correctness",
+    "disposition": "fix",
+    "file_path": "docs/evaluation/semantic-context/README.md",
+    "line_range": {
+     "start": 63,
+     "end": 63
+    },
+    "found_by": [
+     "claude(independently reproduced)"
+    ],
+    "description": "STALE HARNESS SOURCE DIGEST IN THE PUBLISHED EVALUATION RECORD. README.md:63 reads 'harness `context-eval 0.1.0`, harness source digest `d8bcd8ea...`. The CLI exited `2`.' The report.json sitting beside it records 'dc25e1ce4b77a7931f9984aa00891e010c5b1829fc0547dbb3586e539f4b131d', and report.harness_identity() recomputed at HEAD returns dc25e1ce... -- so the README, not the report, is the wrong one. d8bcd8ea... was the value between bc9e18e2 and 2864bbfc; git log -p on report.json shows the field's full history as 0e24a910 -> 6fd7ba4b -> a1c52e21 -> d8bcd8ea -> dc25e1ce. The last fix commit (2864bbfc) updated report.json's fingerprint AND edited this same README (37 lines, the one-wayness section) but did not update line 63. WHY IT MATTERS: this is ri-13's own thesis violated in ri-13's own published evidence. The change exists because a previous retrieval gate's recorded evidence stopped describing the system and was read as a pass anyway; the durable record's front page now names a harness identity the artifact it introduces does not have. It is NOT an authorization hole -- the enablement gate reads report.json, never the README, and harness_fingerprint_current is computed not parsed -- so nothing is mis-authorized. It is a correctness defect in the durable evidence surface the code-search spec's 'The report SHALL live at a durable path' requirement and both guides point readers at. VALIDATE missed it because it verified report.json's fingerprint against a recomputation but never checked the README's restatement of the same fact. FIX: update README.md:63 to dc25e1ce... Consider also pinning the doc's copy to the artifact with a test -- nothing in the 380-test suite asserts that README prose agrees with report.json, which is why four review rounds did not catch it."
+   }
+  ],
+  "non_blocking_findings": [
+   {
+    "id": 2,
+    "type": "documentation_drift",
+    "criticality": "low",
+    "severity": "low",
+    "axis": "correctness",
+    "disposition": "fix",
+    "file_path": "openspec/changes/gate-semantic-context-default-enablement/tasks.md",
+    "line_range": {
+     "start": 686,
+     "end": 701
+    },
+    "found_by": [
+     "claude(independently reproduced)"
+    ],
+    "description": "TASKS.MD 7.4 AND VALIDATION-REPORT.MD RECORD OPPOSITE RESULTS FOR THE SAME GATE. Task 7.4's Result block ends 'Reran `make context-drift-gate`: **exit 0**, only the pre-existing [openspec.projection informational drift]'. At HEAD the gate exits 2 with a BLOCKING drift -- decisions.timeline on docs/decisions/skill-workflow.md -- and the change's own validation-report.md:18 says so ('`make context-drift-gate` exits 2 on this tree'). Two committed records in the same change assert opposite outcomes for one command. The checkbox itself is HONEST: 7.4 landed at ab295754, at which point this change's session-log.md did not yet exist (git cat-file -e ab295754:...session-log.md is absent); it was added by 64c361d7 and appended by ddc30be2, and the decision-index emitter reads it, which is what turned the gate red afterwards. Everything else 7.4 asserts still holds (contracts-inventory.md lists all three promoted schemas; the context_impact surfaces were added). So the work was done and the recorded verification result went stale inside the same change. The underlying drift is pre-existing issue #157 and is NOT this change's defect -- not re-filed, and the remedy (`make decisions`, or archival) belongs to cleanup-feature. FIX: update 7.4's Result to match HEAD and cross-reference #157, so the change does not ship two contradicting records of one gate."
+   },
+   {
+    "id": 3,
+    "type": "documentation_drift",
+    "criticality": "low",
+    "severity": "low",
+    "axis": "correctness",
+    "disposition": "fix",
+    "file_path": "docs/evaluation/semantic-context/README.md",
+    "line_range": {
+     "start": 93,
+     "end": 99
+    },
+    "found_by": [
+     "claude(independently reproduced)"
+    ],
+    "description": "'RE-DERIVED TWICE' UNDERCOUNTS, AND THE SENTENCE PRE-DATES THE LAST RE-DERIVATION. README.md:93 says '`harness.fingerprint` has been re-derived twice since this report was recorded, on 2026-08-01 and again on 2026-08-02, and nothing else was.' git log -p on report.json shows four re-derivations after the initial 03328270 value: 0e24a910 -> 6fd7ba4b (f51da73b) -> a1c52e21 (6ec3ea43) -> d8bcd8ea (bc9e18e2) -> dc25e1ce (2864bbfc). The last one post-dates the sentence, which is the same missed edit as finding 1. The enumerated list of source changes in the same paragraph also omits 2864bbfc's addition -- body_consistency now re-derives all three declared row counts (report.py:808-818) -- which this same README documents 220 lines later at :319-322. FIX: correct the count and extend the list, in the same pass as finding 1."
+   },
+   {
+    "id": 4,
+    "type": "documentation_drift",
+    "criticality": "low",
+    "severity": "low",
+    "axis": "maintainability",
+    "disposition": "fix",
+    "file_path": "packages/context-eval/README.md",
+    "line_range": {
+     "start": 17,
+     "end": 26
+    },
+    "found_by": [
+     "claude(independently reproduced)"
+    ],
+    "description": "THE PACKAGE README'S LAYOUT DESCRIBES A TWO-MODULE PACKAGE THAT NO LONGER EXISTS. The 'Layout' block lists under src/context_eval/ only 'models.py  frozen views of the corpus documents' and 'loader.py  load + validate + digest'. The shipped package is __init__.py, __main__.py, enablement_gate.py, judge.py, loader.py, models.py, report.py, verdict.py plus producers/ (3 modules) and scoring/ (4 modules) -- the two subpackages and the entry point are the package's substance and none appear. git log on this file shows exactly one commit, e8c1257c (task 2.5, the phase-2 loader commit), and it was never revisited. This is pre-existing within the change rather than fix-round drift, but it is the front door of a package this change introduces as a durable, promoted-contract-bearing deliverable. FIX: regenerate the Layout block from the shipped tree."
+   }
+  ],
+  "notes": [
+   {
+    "topic": "security question 1 -- semantic_runtime.py:265 path join",
+    "note": "The validation report's call (record as an observation, do not file) is CORRECT, but the reason it gives is weaker than the real one. It argues 'this requires repo-write access to the corpus fixtures, which already implies arbitrary code execution'. The stronger and verifiable answer is that the traversal is closed at the contract layer: recorded_response.path is typed $ref CorpusRelativeJsonPath in context-eval-case.schema.json, whose pattern is ^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000*?\\[\\]{}]+\\.json$ -- it rejects a leading / AND every .. segment. Tested against '../../../etc/passwd', '/etc/passwd.json', '../outside.json', 'responses/../../x.json', 'a/../../b.json': all five rejected, 'responses/x.json' accepted. And load_corpus() schema-validates every case document at load time (loader.py:132) before recorded_response() can be reached, so no unvalidated case ever gets there. Note the specific hazard the pattern's leading-/ clause closes: Path(corpus_root) / '/abs' returns '/abs' in pathlib, so an absolute path would escape silently. Recommendation: correct the validation report's reasoning; do not file an issue and do not change the code."
+   },
+   {
+    "topic": "design.md / session-log.md drift (operator question 3)",
+    "note": "Clean. design.md is not falsified by the four fix rounds: the recorded-outcome section carries an explicit 'Superseded in part on 2026-08-01' callout at :605 pointing at the amendment at :740, with corrections inline and flagged where they apply, and its numbers (corpus digest, verdict, fail_reasons, 19/7, tier none, exit 2) all match report.json at HEAD. session-log.md is not falsified; its test counts are dated phase records, not claims about HEAD. Two omissions were considered and are NOT filed: design.md's D12 lists six expiry conditions and the amendment adds a seventh while the shipped EXPIRY_CONDITIONS has nine (report_describes_corpus and verdict_consistent are absent from design.md) -- but enablement_gate.py:167 and :179 deliberately frame both as 'not one of D12's original six', so D12's list is historically accurate rather than wrong; and docs/guides/semantic-context-injection.md:148-154 omits verdict_consistent from its prose expiry list while correctly pointing at the evaluation README, which does list all nine. Both are judgement calls left to the author."
+   },
+   {
+    "topic": "stale-but-honest numbers",
+    "note": "tasks.md records 'packages/context-eval 306 passed' at lines 361, 611 and 647; HEAD runs 380. The extra 74 come from the review-round commits. These are dated phase records like the session log's, not claims about HEAD, and are not filed as findings -- but if 7.4 is being edited for finding 2 anyway, they are cheap to reconcile in the same pass."
+   },
+   {
+    "topic": "confirmed correct, do not 'fix'",
+    "note": "report.json's verdict 'fail' is the correct recorded outcome per D11 and must not be made to pass. A validation report recording PASS over an evaluation recording fail is not a contradiction -- VALIDATE asserts spec satisfaction, the report asserts semantic retrieval was not measured; both hold simultaneously and by design. make semantic-enablement-gate green on an unmodified tree is by design (default off, no evidence required); the mutation proof at docs/evaluation/semantic-context/enablement-gate-mutation-proof.md is what makes that gate evidence rather than decoration, and it reproduces. Commit 84120599 must not be squashed. The user-facing guides (docs/guides/code-search.md, docs/guides/semantic-context-injection.md) describe the fail verdict accurately and never as waived, blocked, or accepted."
+   }
+  ],
+  "claims_verified": {
+   "context_eval_tests": "380 passed / 0 skipped -- reproduced exactly",
+   "skills_context_engineering_tests": "735 passed -- reproduced exactly",
+   "ruff": "clean -- reproduced",
+   "mypy_strict": "clean, 17 source files -- reproduced exactly",
+   "semantic_enablement_gate": "exit 0, including CI's exact PYTHON= form -- reproduced",
+   "openspec_validate_strict": "valid at CI version 1.7.0; validate --all --strict 63 passed / 0 failed -- reproduced",
+   "schema_pairs_byte_identical": "all three cmp clean -- reproduced",
+   "report_schema_errors": "0 against the promoted contract -- reproduced",
+   "report_verdict": "fail [unmeasured, denominator_mismatch, index_tier_insufficient] -- reproduced",
+   "report_self_consistent": "body_consistency consistent=True, no contradictions -- reproduced",
+   "harness_fingerprint": "recomputed dc25e1ce... == recorded -- reproduced",
+   "corpus_digest": "live == recorded 6417066963... -- reproduced",
+   "injection_default_enabled": "False at semantic_context.py:571 exactly -- reproduced",
+   "requirement_count": "16 across 3 deltas -- reproduced",
+   "scenario_count": "47 (30/11/6) -- reproduced; the report's correction of the addendum's 42 is right",
+   "spec_coverage": "16/16 independently remapped; no requirement without evidence -- CONFIRMED",
+   "context_drift_gate": "exit 2, pre-existing issue #157 -- re-confirmed, not this change's",
+   "ci_jobs": "context-eval (ci.yml:458) and semantic-enablement-gate (ci.yml:521) both present and wired -- reproduced",
+   "flip_revert_clean": "git diff 84120599~1 b161c7f3 on semantic_context.py empty -- reproduced"
+  },
+  "recommendation": "Four documentation edits, no code, spec, or contract change: README.md:63 fingerprint (finding 1, the only blocking one), README.md:93-99 count and list (finding 3), tasks.md 7.4 Result (finding 2), packages/context-eval/README.md Layout (finding 4). Findings 1 and 3 are one edit pass over one file. After those land, this change is ready for cleanup-feature: every substantive validation claim already reproduces exactly and the spec mapping is genuinely complete."
+ }
+}

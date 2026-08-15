@@ -160,6 +160,62 @@ class ConsensusReport:
 
 _CRITICALITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
+# Vendors label the same defect with different type vocabularies
+# ("correctness" vs "bug", "security" vs "vulnerability"). Matching on
+# raw string equality zeroes every cross-vendor pair, so types are
+# canonicalized before comparison.
+_TYPE_ALIASES = {
+    "bug": "correctness",
+    "logic": "correctness",
+    "defect": "correctness",
+    "error": "correctness",
+    "functional": "correctness",
+    "vulnerability": "security",
+    "vuln": "security",
+    "perf": "performance",
+    "efficiency": "performance",
+    "lint": "style",
+    "formatting": "style",
+    "convention": "style",
+    "design": "architecture",
+    "structure": "architecture",
+}
+
+
+def _canonical_type(type_str: str) -> str:
+    normalized = type_str.strip().lower().replace("-", "_")
+    return _TYPE_ALIASES.get(normalized, normalized)
+
+
+def _types_compatible(a: str, b: str) -> bool:
+    return _canonical_type(a) == _canonical_type(b)
+
+
+def _normalize_path(path: str) -> str:
+    """Strip diff prefixes and leading ./ so vendor path formats align."""
+    p = path.strip().lstrip("/")
+    for prefix in ("a/", "b/", "./"):
+        if p.startswith(prefix) and len(p) > len(prefix):
+            p = p[len(prefix):]
+    return p
+
+
+def _paths_match(a: str | None, b: str | None) -> bool:
+    """True when two vendor-reported paths plausibly name the same file.
+
+    Vendors emit the same file as repo-relative, absolute, or diff-prefixed
+    (``a/``/``b/``) paths. Beyond normalized equality, accept a
+    component-boundary suffix match in either direction so
+    ``/repo/skills/foo.py`` pairs with ``skills/foo.py``.
+    """
+    if not a or not b:
+        return False
+    na, nb = _normalize_path(a), _normalize_path(b)
+    if na == nb:
+        return True
+    shorter, longer = (na, nb) if len(na) <= len(nb) else (nb, na)
+    return longer.endswith("/" + shorter)
+
 
 def _tokenize(text: str) -> set[str]:
     """Tokenize text for Jaccard similarity."""
@@ -178,38 +234,39 @@ def _jaccard(a: set[str], b: set[str]) -> float:
 def match_score(a: Finding, b: Finding) -> tuple[float, str]:
     """Compute match score and basis between two findings.
 
+    Score bands are calibrated so each is reachable at the default 0.6
+    threshold with realistic inputs — independent LLMs never produce
+    verbatim-identical descriptions, so every band must clear the
+    threshold on paraphrased agreement.
+
     Returns:
         (score, basis) where score is 0.0-1.0 and basis describes
         the matching criteria used.
     """
-    # Same type is a prerequisite for any match
-    if a.type != b.type:
-        return 0.0, ""
+    same_type = _types_compatible(a.type, b.type)
+    same_file = _paths_match(a.file_path, b.file_path)
 
-    # Exact location match: same file + overlapping lines + same type
-    if (
-        a.file_path
-        and b.file_path
-        and a.file_path == b.file_path
-        and a.line_start is not None
-        and b.line_start is not None
-    ):
-        # Check line overlap
+    # Location match: same file + overlapping lines. Two vendors pointing
+    # at the same lines almost certainly describe the same issue even
+    # when their type labels differ.
+    if same_file and a.line_start is not None and b.line_start is not None:
         a_end = a.line_end or a.line_start
         b_end = b.line_end or b.line_start
         if a.line_start <= b_end and b.line_start <= a_end:
-            return 0.95, "location+type"
+            if same_type:
+                return 0.95, "location+type"
+            return 0.8, "location"
 
-    # Same file + same type + similar description
-    if a.file_path and b.file_path and a.file_path == b.file_path:
-        desc_sim = _jaccard(_tokenize(a.description), _tokenize(b.description))
-        if desc_sim >= 0.3:
-            return min(0.5 + desc_sim * 0.4, 0.85), "file+type+description"
-
-    # Same type + similar description (no file match)
     desc_sim = _jaccard(_tokenize(a.description), _tokenize(b.description))
-    if desc_sim >= 0.4:
-        return min(0.3 + desc_sim * 0.3, 0.7), "type+description"
+
+    if same_file and same_type and desc_sim >= 0.25:
+        return min(0.5 + desc_sim * 0.4, 0.85), "file+type+description"
+
+    if same_file and desc_sim >= 0.35:
+        return min(0.5 + desc_sim * 0.3, 0.8), "file+description"
+
+    if same_type and desc_sim >= 0.3:
+        return min(0.3 + desc_sim * 0.6, 0.75), "type+description"
 
     return 0.0, ""
 

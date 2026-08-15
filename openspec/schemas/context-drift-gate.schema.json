@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/context-drift-gate.schema.json",
+  "title": "Deterministic Context Drift Gate Report",
+  "description": "Read-only report emitted by the composed drift gate. Distinct from the refresh manifest (which records a durable operation) and from a branch-local context checkpoint (which is per-work-package): a gate report is transient, repository-wide, and exists to explain a build outcome. Its four result groups are disjoint, which is what lets a caller distinguish blocking drift from pending state and from external degradation -- a distinction the terminal refresh outcome collapses into a single degraded value.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_revision",
+    "outcome",
+    "exit_code",
+    "blocking_drift",
+    "informational_drift",
+    "not_configured",
+    "failed",
+    "architecture",
+    "context_impact",
+    "semantic"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Contract version. Incremented only on a breaking change."
+    },
+    "source_revision": {
+      "$ref": "https://agentic-coding-tools.dev/schemas/context-refresh-types.schema.json#/$defs/GitRevision",
+      "description": "Full Git SHA the gate evaluated. Every drift decision is made against this revision and producer inputs, never against file modification times."
+    },
+    "outcome": {
+      "enum": ["fresh", "drift", "failed"],
+      "description": "Derived from the four result groups. 'fresh' covers the case where only informational drift or absent optional owners are present -- neither blocks."
+    },
+    "exit_code": {
+      "enum": [0, 1, 2],
+      "description": "0 fresh, 2 blocking drift, 1 apparatus failure or unverifiable provenance. Redundant with outcome, and emitted anyway so a log reader never has to re-derive the mapping."
+    },
+    "blocking_drift": {
+      "type": "array",
+      "description": "Producers whose committed managed output is stale. Non-empty implies exit_code 2 unless a failure outranks it. Sorted by producer_id for byte stability.",
+      "items": { "$ref": "#/$defs/ProducerFinding" }
+    },
+    "informational_drift": {
+      "type": "array",
+      "description": "Producers whose drift reflects pending state rather than staleness -- currently only the OpenSpec projection producer, whose findings mean an active change carries an unmerged spec delta. Never contributes to a failing exit code.",
+      "items": { "$ref": "#/$defs/ProducerFinding" }
+    },
+    "not_configured": {
+      "type": "array",
+      "description": "Optional owners that are absent. A required producer reporting no configuration is rewritten to a failure by registry policy before reaching here, so every entry is external degradation and none of them block.",
+      "items": { "$ref": "#/$defs/ProducerDegradation" }
+    },
+    "failed": {
+      "type": "array",
+      "description": "Producers that raised or could not render. Non-empty implies exit_code 1.",
+      "items": { "$ref": "#/$defs/ProducerDegradation" }
+    },
+    "architecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness", "provenance"],
+      "description": "Architecture freshness determined by comparing committed provenance against recomputed digests. Never derived from rebuilding provenance out of the working tree.",
+      "properties": {
+        "freshness": {
+          "enum": ["fresh", "stale", "unverifiable", "not-configured"],
+          "description": "'unverifiable' covers missing, malformed, or schema-invalid provenance and is classified as blocking drift -- unverifiable evidence is not the same as absent tooling. 'not-configured' means the architecture owner is not importable and does not block."
+        },
+        "provenance": {
+          "enum": ["present", "missing", "malformed"],
+          "description": "State of the committed provenance file itself, reported separately so 'stale' and 'no baseline at all' are never confused."
+        }
+      }
+    },
+    "context_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evaluated", "findings"],
+      "description": "Work-package context-impact validation, scoped to work-package files present in the diff under test. Strict legacy enforcement is never enabled.",
+      "properties": {
+        "evaluated": {
+          "type": "array",
+          "description": "Repository-relative paths of the work-package files validated. Empty when the diff touched none.",
+          "items": {
+            "$ref": "https://agentic-coding-tools.dev/schemas/context-refresh-types.schema.json#/$defs/RepositoryPath"
+          }
+        },
+        "findings": {
+          "type": "array",
+          "description": "Per-package outcomes. 'unmigrated' is reported explicitly and never fails the gate.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["package_id", "status"],
+            "properties": {
+              "package_id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+              },
+              "status": {
+                "enum": ["declared", "rationalized", "unmigrated", "undeclared", "spurious_rationale"]
+              },
+              "surfaces": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "enum": ["capabilities", "apis", "architecture", "decisions", "documentation", "semantic_code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "semantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason"],
+      "description": "The gate never constructs an indexer and never probes Postgres or an embedder.",
+      "properties": {
+        "status": {
+          "const": "not-attempted",
+          "description": "Deliberately not a SemanticIndexStatus value. Those describe probe outcomes; 'not-configured' would assert a probe found no configuration. 'not-attempted' makes no currency claim, so stale semantic results can never be presented as current."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Why no probe was performed. Bounded like every other reason string in this contract family."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ProducerFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_id", "owner", "artifacts", "remediation"],
+      "properties": {
+        "producer_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9.]{0,63}$"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical owner, recovered from the registry producer spec. ProducerResult carries no owner field, so the gate joins the two."
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Every stale artifact named individually and sorted, so a failing build reports a precise list rather than a count.",
+          "items": {
+            "$ref": "https://agentic-coding-tools.dev/schemas/context-refresh-types.schema.json#/$defs/RepositoryPath"
+          }
+        },
+        "remediation": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "https://agentic-coding-tools.dev/schemas/context-refresh-types.schema.json#/$defs/Remediation"
+          }
+        }
+      }
+    },
+    "ProducerDegradation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_id", "owner", "reason"],
+      "properties": {
+        "producer_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9.]{0,63}$"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Bounded, never a raw traceback."
+        }
+      }
+    }
+  }
+}

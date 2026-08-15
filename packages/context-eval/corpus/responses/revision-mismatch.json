@@ -1,0 +1,30 @@
+{
+  "_comment": "Recorded CodeSearchResponse: an index exists, but it was built from a different revision than the one the agent is working against. The hits it holds describe code that is no longer there, which is why ri-12 maps `revision_mismatch` to (mismatched, index_revision_differs) and renders nothing rather than rendering stale excerpts.",
+  "state": "revision_mismatch",
+  "current": false,
+  "request": {
+    "repo_slug": "agentic_coding_tools",
+    "source_revision": "748af34c4268e768f0e3a7e7cdbe64c02835b7b6",
+    "namespace": {"kind": "main", "key": "main"},
+    "index_id": "3f1d2c4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f"
+  },
+  "index": {
+    "index_id": "3f1d2c4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+    "repo_slug": "agentic_coding_tools",
+    "source_revision": "0000000000000000000000000000000000000000",
+    "namespace": {"kind": "main", "key": "main"},
+    "embedder_model": "recorded-fixture-embedder",
+    "embedding_dim": 8,
+    "embedder_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "policy_fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "pipeline_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "completed_at": "2026-07-20T00:00:00Z"
+  },
+  "scope": {
+    "decision": "allowed",
+    "source": "explicit",
+    "authority": "principal_grant"
+  },
+  "results": [],
+  "fallback": {"required": true, "strategy": "exact_search", "reason": "revision_mismatch"}
+}

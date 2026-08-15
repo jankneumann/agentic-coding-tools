@@ -66,13 +66,19 @@ def _scrutiny_finding(
 def _behavioral_finding(
     *, fid: int, criticality: str, file_path: str, line_start: int = 10
 ) -> dict:
-    """Build a behavioral_failure finding dict."""
+    """Build a behavioral_failure finding dict.
+
+    Includes ``axis``/``severity`` — required for new findings per the
+    review-findings schema and emitted by ``gen_eval.findings_emitter``.
+    """
     return {
         "id": fid,
         "type": "behavioral_failure",
         "criticality": criticality,
         "description": f"behavioral failure {fid}",
         "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
         "file_path": file_path,
         "line_range": {"start": line_start, "end": line_start + 5},
     }

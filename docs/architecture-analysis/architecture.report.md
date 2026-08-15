@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-07-27T20:32:11+00:00  
-Git SHA: `0d4f9bd688c777cf07faeb768e8ae316c9ed86a5`
+Generated: 2026-08-15T19:36:33+00:00  
+Git SHA: `5422c97e5af5cbc2fc417bf4804f7b3da4520773`
 
 ## System Overview
 
@@ -13,15 +13,15 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1909 |
+| Total nodes | 1980 |
 | Total edges | 1160 |
 | Python modules | 102 |
 | Functions | 1104 (431 async) |
 | Classes | 242 |
 | Mcp Endpoints | 96 |
 | DB tables | 29 |
-| Python nodes | 1380 |
-| Sql nodes | 439 |
+| Python nodes | 1432 |
+| Sql nodes | 458 |
 | Typescript nodes | 90 |
 
 ## Module Responsibility Map
@@ -141,21 +141,21 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 - `policy_engine` — imported by 6 modules
 - `telemetry` — imported by 6 modules
 - `feature_registry` — imported by 5 modules
-- `profiles` — imported by 4 modules
-- `guardrails` — imported by 4 modules
 - `code_search` — imported by 4 modules
 - `event_bus` — imported by 4 modules
-- `merge_train` — imported by 3 modules
-- `locks` — imported by 3 modules
-- `help_service` — imported by 3 modules
-- `merge_queue` — imported by 3 modules
-- `work_queue` — imported by 3 modules
+- `guardrails` — imported by 4 modules
+- `profiles` — imported by 4 modules
 - `agents_config` — imported by 3 modules
-- `refresh_rpc_client` — imported by 3 modules
-- `handoffs` — imported by 3 modules
-- `memory` — imported by 3 modules
 - `code_search_runtime` — imported by 3 modules
+- `handoffs` — imported by 3 modules
+- `help_service` — imported by 3 modules
 - `issue_service` — imported by 3 modules
+- `locks` — imported by 3 modules
+- `memory` — imported by 3 modules
+- `merge_queue` — imported by 3 modules
+- `merge_train` — imported by 3 modules
+- `refresh_rpc_client` — imported by 3 modules
+- `work_queue` — imported by 3 modules
 
 ## Entry Points
 
@@ -276,7 +276,7 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2878 findings** across 5 categories:
+**2872 findings** across 5 categories:
 
 ### Orphan — 1273
 
@@ -284,21 +284,21 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
-- 'approval' is unreachable from any entrypoint or test
-- 'assurance' is unreachable from any entrypoint or test
-- 'audit' is unreachable from any entrypoint or test
+- 'PollConfig' is unreachable from any entrypoint or test
+- 'ModeConfig' is unreachable from any entrypoint or test
+- 'CliConfig' is unreachable from any entrypoint or test
 - ... and 1268 more
 
-### Pattern Consistency — 45
+### Pattern Consistency — 39
 
-45 unclassified findings.
+39 unclassified findings.
 
 - 'relativeTime' uses camelCase but most functions use snake_case
 - 'emitHighlight' uses camelCase but most functions use snake_case
 - 'useHighlightState' uses camelCase but most functions use snake_case
 - 'shortForm' uses camelCase but most functions use snake_case
 - 'loadFromStorage' uses camelCase but most functions use snake_case
-- ... and 40 more
+- ... and 34 more
 
 ### Reachability — 96
 
@@ -328,11 +328,11 @@ Breakdown: 88 info, 8 warning.
 
 96 MCP routes have no frontend callers — expected (clients are AI agents).
 
-- Backend route 'remove_from_merge_queue_endpoint' has no frontend callers
-- Backend route 'help_topic' has no frontend callers
-- Backend route 'get_current_locks' has no frontend callers
-- Backend route 'get_task_endpoint' has no frontend callers
-- Backend route 'get_active_features_resource' has no frontend callers
+- Backend route 'acquire_lock' has no frontend callers
+- Backend route 'release_lock' has no frontend callers
+- Backend route 'check_lock_status' has no frontend callers
+- Backend route 'store_memory' has no frontend callers
+- Backend route 'query_memories' has no frontend callers
 - ... and 91 more
 
 ## High-Impact Nodes
@@ -344,8 +344,8 @@ Breakdown: 88 info, 8 warning.
 | Node | Dependents | Risk |
 |------|------------|------|
 | `config.get_config` | 181 | Critical — affects 181 downstream functions (28 modules affected) |
-| `http_proxy.get_client` | 109 | Critical — affects 109 downstream functions (modules: coordination_mcp, http_proxy) |
 | `http_proxy._error_response` | 109 | Critical — affects 109 downstream functions (modules: coordination_mcp, http_proxy) |
+| `http_proxy.get_client` | 109 | Critical — affects 109 downstream functions (modules: coordination_mcp, http_proxy) |
 | `http_proxy._request` | 108 | Critical — affects 108 downstream functions (modules: coordination_mcp, http_proxy) |
 | `http_proxy._agent_identity` | 72 | Critical — affects 72 downstream functions (modules: coordination_mcp, http_proxy) |
 | `policy_engine.get_policy_engine` | 43 | Critical — affects 43 downstream functions (6 modules affected) |
@@ -356,9 +356,9 @@ Breakdown: 88 info, 8 warning.
 | `coordination_api.authorize_operation` | 27 | Critical — affects 27 downstream functions (modules: coordination_api) |
 | `coordination_cli._output` | 27 | Critical — affects 27 downstream functions (modules: coordination_cli) |
 | `db.create_db_client` | 26 | Critical — affects 26 downstream functions (23 modules affected) |
-| `db_postgres` | 25 | Critical — affects 25 downstream functions (25 modules affected) |
 | `coordination_cli._run` | 25 | Critical — affects 25 downstream functions (modules: coordination_cli) |
 | `db.get_db` | 25 | Critical — affects 25 downstream functions (22 modules affected) |
+| `db_postgres` | 25 | Critical — affects 25 downstream functions (25 modules affected) |
 | `db` | 24 | Critical — affects 24 downstream functions (24 modules affected) |
 | `code_search_authorization._is_normalized_relative` | 21 | Critical — affects 21 downstream functions (modules: code_search, code_search_authorization) |
 | `code_search_authorization.validate_safe_glob` | 20 | Critical — affects 20 downstream functions (modules: code_search, code_search_authorization) |
@@ -469,7 +469,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1216 independent groups** identified. The largest interconnected group has 528 modules; 1519 modules are leaf nodes (safe to modify in isolation).
+**1287 independent groups** identified. The largest interconnected group has 528 modules; 1590 modules are leaf nodes (safe to modify in isolation).
 
 **38 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -497,9 +497,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1519)
+### Leaf Modules (1590)
 
-1519 modules have no dependents — changes are fully isolated. 1194 of the 1216 groups are singletons.
+1590 modules have no dependents — changes are fully isolated. 1265 of the 1287 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -509,8 +509,8 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1380 nodes)"]
-    Database["Database (439 nodes)"]
+    Backend["Backend (1432 nodes)"]
+    Database["Database (458 nodes)"]
     Frontend["Frontend (90 nodes)"]
 ```
 
@@ -590,6 +590,7 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (10 symbols)"]
     telemetry["telemetry (20 symbols)"]
+    tests__test_architecture["tests.test_architecture (52 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
@@ -802,15 +803,17 @@ erDiagram
         TEXT agent_id
         TIMESTAMPTZ assigned_at
         TEXT assigned_by
+        UNKNOWN enable
         UUID id
         UUID profile_id
     }
     public__agent_profiles {
         TEXT agent_type
-        TEXT__ allowed_operations
-        TEXT__ blocked_operations
+        TEXT allowed_operations
+        TEXT blocked_operations
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         INT max_api_calls_per_hour
@@ -823,16 +826,18 @@ erDiagram
         TIMESTAMPTZ updated_at
     }
     public__agent_sessions {
-        NOT_EXISTS_delegated_from_TEXT IF
         TEXT agent_id
         TEXT agent_type
-        TEXT__ capabilities
+        TEXT capabilities
         TEXT current_task
+        TEXT delegated_from
+        UNKNOWN enable
         TIMESTAMPTZ ended_at
-        TEXT__ files_modified
+        TEXT files_modified
         TEXT id
         TIMESTAMPTZ last_heartbeat
         JSONB metadata
+        TEXT phase_archetype
         TIMESTAMPTZ started_at
         TEXT status
         TEXT task_description
@@ -845,6 +850,7 @@ erDiagram
         TIMESTAMPTZ created_at
         TIMESTAMPTZ decided_at
         TEXT decided_by
+        UNKNOWN enable
         TIMESTAMPTZ expires_at
         UUID id
         TEXT operation
@@ -857,6 +863,7 @@ erDiagram
         TEXT agent_type
         TIMESTAMPTZ created_at
         INT duration_ms
+        UNKNOWN enable
         TEXT error_message
         UUID id
         TEXT operation
@@ -867,6 +874,7 @@ erDiagram
     public__cedar_entities {
         JSONB attributes
         TIMESTAMPTZ created_at
+        UNKNOWN enable
         TEXT entity_id
         TEXT entity_type
         UUID id
@@ -874,13 +882,14 @@ erDiagram
         TIMESTAMPTZ updated_at
     }
     public__cedar_policies {
-        NOT_EXISTS_policy_version_INTEGER IF
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         TEXT name
         TEXT policy_text
+        INTEGER policy_version
         INTEGER priority
         TIMESTAMPTZ updated_at
     }
@@ -901,6 +910,7 @@ erDiagram
         TEXT commit_sha
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         UUID id
         TEXT session_id
         TEXT status
@@ -930,13 +940,12 @@ erDiagram
         UUID index_id
     }
     public__code_search_indexes {
-        code_search_indexes_natural_key CONSTRAINT
-        NOT_EXISTS_policy_fingerprint_TEXT IF
         INTEGER attempt_count
         INTEGER chunk_count
         TIMESTAMPTZ completed_at
         TIMESTAMPTZ created_at
         TIMESTAMPTZ deleted_at
+        TEXT embedder_fingerprint
         TEXT embedder_model
         INTEGER embedding_dim
         UUID index_id
@@ -946,20 +955,23 @@ erDiagram
         UUID lease_token
         TEXT namespace_key
         TEXT namespace_kind
+        UUID parent_index_id
+        TEXT pipeline_fingerprint
+        TEXT policy_fingerprint
         TEXT repo_slug
         TIMESTAMPTZ retention_until
-        TEXT source_revision
         TIMESTAMPTZ started_at
         TEXT status
         TEXT storage_key
         TIMESTAMPTZ updated_at
     }
     public__code_search_registry {
-        NOT_EXISTS_canonical_index_id_UUID IF
+        UUID canonical_index_id
         INTEGER chunk_count
         TIMESTAMPTZ created_at
         TEXT embedder_model
         INTEGER embedding_dim
+        TEXT git_common_dir_fingerprint
         TEXT last_indexed_commit
         TEXT repo_root
         TEXT repo_slug
@@ -970,16 +982,16 @@ erDiagram
         TIMESTAMPTZ completed_at
         TEXT feature_id
         INTEGER merge_priority
-        JSONB metadata
         TIMESTAMPTZ registered_at
         TEXT registered_by
-        TEXT__ resource_claims
+        TEXT resource_claims
         TEXT status
         TEXT title
         TIMESTAMPTZ updated_at
     }
     public__file_locks {
         TEXT agent_type
+        UNKNOWN enable
         TIMESTAMPTZ expires_at
         TEXT file_path
         TIMESTAMPTZ locked_at
@@ -995,6 +1007,7 @@ erDiagram
         TEXT category
         JSONB context
         TIMESTAMPTZ created_at
+        UNKNOWN enable
         UUID id
         TEXT matched_text
         TEXT operation_text
@@ -1006,6 +1019,7 @@ erDiagram
         JSONB completed_work
         TIMESTAMPTZ created_at
         JSONB decisions
+        UNKNOWN enable
         UUID id
         JSONB in_progress
         JSONB next_steps
@@ -1017,6 +1031,7 @@ erDiagram
         TEXT author
         TEXT body
         TIMESTAMPTZ created_at
+        UNKNOWN enable
         UUID id
         UUID issue_id
     }
@@ -1024,22 +1039,24 @@ erDiagram
         TEXT agent_id
         TIMESTAMPTZ created_at
         JSONB details
+        UNKNOWN enable
         TEXT event_type
         UUID id
-        TEXT__ lessons
+        TEXT lessons
         TEXT outcome
         FLOAT relevance_score
         TEXT session_id
         TEXT summary
-        TEXT__ tags
+        TEXT tags
     }
     public__memory_procedural {
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         INT failure_count
         UUID id
         TIMESTAMPTZ last_used
-        TEXT__ prerequisites
+        TEXT prerequisites
         TEXT skill_name
         JSONB steps
         INT success_count
@@ -1048,9 +1065,9 @@ erDiagram
     public__memory_working {
         TEXT agent_id
         TIMESTAMPTZ created_at
+        UNKNOWN enable
         TIMESTAMPTZ expires_at
         UUID id
-        TEXT key
         TEXT session_id
         TIMESTAMPTZ updated_at
         JSONB value
@@ -1060,6 +1077,7 @@ erDiagram
         BOOLEAN allowed
         TIMESTAMPTZ created_at
         TEXT domain
+        UNKNOWN enable
         UUID id
         UUID policy_id
         TEXT reason
@@ -1069,6 +1087,7 @@ erDiagram
         TIMESTAMPTZ created_at
         TEXT description
         TEXT domain_pattern
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         INT priority
@@ -1087,6 +1106,7 @@ erDiagram
         TEXT category
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         INT min_trust_level
@@ -1108,45 +1128,45 @@ erDiagram
         JSONB config
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
-        verification_executor executor
+        UNKNOWN executor
         TEXT file_pattern
         UUID id
         TEXT name
         INT priority
-        verification_tier tier
+        UNKNOWN tier
     }
     public__verification_results {
         UUID changeset_id
         TIMESTAMPTZ completed_at
         TIMESTAMPTZ created_at
         INT duration_ms
+        UNKNOWN enable
         TEXT error_message
-        verification_executor executor
+        UNKNOWN executor
         UUID id
         JSONB result
         TIMESTAMPTZ started_at
-        verification_status status
-        verification_tier tier
+        UNKNOWN status
+        UNKNOWN tier
     }
     public__work_queue {
-        NOT_EXISTS_labels_TEXT__ IF
-        INTEGER attempt_count
+        JSONB agent_requirements
+        TEXT assignee
         TIMESTAMPTZ claimed_at
         TEXT claimed_by
-        TIMESTAMPTZ completed_at
-        TIMESTAMPTZ created_at
-        TIMESTAMPTZ deadline
-        UUID__ depends_on
+        TEXT close_reason
+        TIMESTAMPTZ closed_at
         TEXT description
-        TEXT error_message
+        UNKNOWN enable
         UUID id
         JSONB input_data
-        INTEGER max_attempts
+        TEXT issue_type
+        TEXT labels
+        JSONB metadata
+        UUID parent_id
         INTEGER priority
-        JSONB result
-        TIMESTAMPTZ started_at
-        TEXT status
         TEXT task_type
     }
 ```

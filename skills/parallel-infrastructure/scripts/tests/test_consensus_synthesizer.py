@@ -12,7 +12,9 @@ from consensus_synthesizer import (
     Finding,
     VendorResult,
     _jaccard,
+    _paths_match,
     _tokenize,
+    _types_compatible,
     match_score,
 )
 
@@ -112,6 +114,154 @@ class TestMatchScore:
         b = _finding(description="CSS alignment issue in header", vendor="grok")
         score, _ = match_score(a, b)
         assert score < 0.3
+
+
+# ---------------------------------------------------------------------------
+# Cross-vendor format skew (regression: 2026-08-04 merge session)
+#
+# Four consensus runs over 43 findings produced confirmed_count=0 /
+# match_score=0.0 even though codex and grok plainly agreed. Root causes:
+# byte-equality on file_path (vendors emit relative / absolute / a-prefixed
+# paths), a hard equality gate on free-form type labels, and a
+# type+description score band that required Jaccard 1.0 to clear the 0.6
+# threshold. These tests pin the repaired behavior.
+# ---------------------------------------------------------------------------
+
+class TestPathsMatch:
+    @pytest.mark.parametrize(
+        ("a", "b"),
+        [
+            ("skills/foo/bar.py", "skills/foo/bar.py"),
+            ("./skills/foo/bar.py", "skills/foo/bar.py"),
+            ("a/skills/foo/bar.py", "b/skills/foo/bar.py"),
+            ("/Users/dev/repo/skills/foo/bar.py", "skills/foo/bar.py"),
+            ("foo/bar.py", "repo/skills/foo/bar.py"),
+        ],
+    )
+    def test_equivalent_formats_match(self, a: str, b: str) -> None:
+        assert _paths_match(a, b)
+        assert _paths_match(b, a)
+
+    @pytest.mark.parametrize(
+        ("a", "b"),
+        [
+            ("skills/foo/bar.py", "skills/foo/baz.py"),
+            ("skills/foo/bar.py", "other/foobar.py"),
+            (None, "skills/foo/bar.py"),
+            ("skills/foo/bar.py", None),
+            (None, None),
+        ],
+    )
+    def test_different_files_do_not_match(self, a: str | None, b: str | None) -> None:
+        assert not _paths_match(a, b)
+
+    def test_suffix_requires_component_boundary(self) -> None:
+        # "bar.py" must not match "foobar.py"
+        assert not _paths_match("bar.py", "skills/foobar.py")
+
+
+class TestTypeCompatibility:
+    @pytest.mark.parametrize(
+        ("a", "b"),
+        [
+            ("correctness", "bug"),
+            ("Correctness", "correctness"),
+            ("security", "vulnerability"),
+            ("performance", "perf"),
+            ("architecture", "design"),
+        ],
+    )
+    def test_aliases_compatible(self, a: str, b: str) -> None:
+        assert _types_compatible(a, b)
+
+    def test_distinct_types_incompatible(self) -> None:
+        assert not _types_compatible("security", "performance")
+
+
+class TestCrossVendorFormatSkew:
+    def test_absolute_vs_relative_path_location_match(self) -> None:
+        a = _finding(
+            type="correctness",
+            file_path="skills/implement-feature/SKILL.md",
+            line_start=268, line_end=272,
+            description="Dispatch grant appears after the primary dispatch sites",
+        )
+        b = _finding(
+            type="bug", vendor="grok",
+            file_path="/Users/dev/repo/skills/implement-feature/SKILL.md",
+            line_start=268,
+            description="Authorization grant placed below the dispatch call it must cover",
+        )
+        score, basis = match_score(a, b)
+        assert score >= 0.6
+        assert "location" in basis
+
+    def test_diff_prefixed_path_matches(self) -> None:
+        a = _finding(
+            file_path="a/skills/roadmap-runtime/scripts/checkpoint.py",
+            line_start=40, line_end=44,
+        )
+        b = _finding(
+            vendor="grok",
+            file_path="skills/roadmap-runtime/scripts/checkpoint.py",
+            line_start=42,
+        )
+        score, _ = match_score(a, b)
+        assert score >= 0.9
+
+    def test_same_location_different_type_labels_still_matches(self) -> None:
+        a = _finding(type="security", file_path="src/auth.py", line_start=10)
+        b = _finding(type="architecture", vendor="grok",
+                     file_path="src/auth.py", line_start=10)
+        score, basis = match_score(a, b)
+        assert score >= 0.6
+        assert basis == "location"
+
+    def test_paraphrased_description_without_file_reaches_threshold(self) -> None:
+        # Previously score = min(0.3 + sim*0.3, 0.7) needed sim == 1.0 to
+        # reach the 0.6 threshold — unreachable for paraphrased findings.
+        a = _finding(description="SQL injection risk in query builder module")
+        b = _finding(
+            description="SQL injection vulnerability in the query builder",
+            vendor="grok",
+        )
+        score, basis = match_score(a, b)
+        assert score >= 0.6
+        assert basis == "type+description"
+
+    def test_end_to_end_mixed_formats_confirm(self) -> None:
+        """Vendors agreeing through format skew must produce confirmed findings."""
+        synth = ConsensusSynthesizer()
+        result = synth.synthesize(
+            review_type="pr",
+            target="PR #281",
+            vendor_results=[
+                VendorResult(vendor="codex", findings=[
+                    _finding(
+                        id=1, type="correctness", disposition="fix",
+                        file_path="skills/implement-feature/SKILL.md",
+                        line_start=268, line_end=272,
+                        description="Grant sits after the dispatch sites it authorizes",
+                    ),
+                    _finding(
+                        id=2, type="style", disposition="accept",
+                        description="Codex-only nit about naming",
+                    ),
+                ]),
+                VendorResult(vendor="grok", findings=[
+                    _finding(
+                        id=1, type="bug", disposition="fix", vendor="grok",
+                        file_path="a/skills/implement-feature/SKILL.md",
+                        line_start=268,
+                        description="Authorization grant placed below dispatch call",
+                    ),
+                ]),
+            ],
+        )
+        assert result.confirmed_count == 1
+        assert result.blocking_count == 1
+        confirmed = [cf for cf in result.consensus_findings if cf.status == "confirmed"]
+        assert confirmed[0].match_score >= 0.6
 
 
 # ---------------------------------------------------------------------------

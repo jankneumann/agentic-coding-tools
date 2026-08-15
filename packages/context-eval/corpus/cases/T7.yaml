@@ -1,0 +1,57 @@
+schema_version: 1
+case_id: T7
+consumer: iterate-on-implementation
+
+query: "retry with exponential backoff"
+
+category: lexical-ok
+
+scope:
+  read_allow:
+    - "agent-coordinator/src/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  # Three files, exactly as the archived set labelled them — any of the three in
+  # the top-5 counts as a hit@5, and that definition is preserved so this case
+  # stays comparable with the number it was originally measured under.
+  expected_files:
+    - agent-coordinator/src/event_bus.py
+    - agent-coordinator/src/guardrails.py
+    - agent-coordinator/src/merge_train.py
+  # But only ONE of them actually implements exponential backoff. Re-read at
+  # ri-13 labelling time: event_bus.py computes
+  # `self._backoff_seconds * (2 ** (retries - 1))` capped at _MAX_BACKOFF_SECONDS;
+  # guardrails.py's only match is a comment ("retry DB sooner") and merge_train.py's
+  # matches are re-queue/retry prose with no delay computation anywhere. So
+  # must_touch is the strictly smaller, defensible set. This divergence is the
+  # point of must_touch existing: a task is not answered by finding a file that
+  # merely mentions the words.
+  must_touch:
+    - agent-coordinator/src/event_bus.py
+  evidence_spans:
+    # _MAX_BACKOFF_SECONDS and the constructor's backoff_seconds / max_retries —
+    # the parameters of the curve.
+    - file_path: agent-coordinator/src/event_bus.py
+      start_line: 117
+      end_line: 130
+    # The loop itself: doubling delay, capped, with a terminal give-up.
+    - file_path: agent-coordinator/src/event_bus.py
+      start_line: 231
+      end_line: 260
+
+exact_search_baseline:
+  ripgrep_baseline: "rg -il 'exponential backoff'"
+
+provenance:
+  rescued_from: openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/eval-set.yaml
+  notes: >
+    Preserved verbatim: case_id, query, expected_files, category, rationale, and
+    the ripgrep_baseline string. Added by ri-13: consumer, scope, must_touch, and
+    evidence_spans. The three archived expected_files were kept unchanged, but
+    must_touch names only event_bus.py — see the comment above must_touch.
+
+rationale: >
+  Control case: the query IS the literal token. ripgrep should tie or beat semantic here;
+  included to confirm the eval doesn't only reward semantic-friendly phrasing.

@@ -1,0 +1,44 @@
+schema_version: 1
+case_id: T10
+consumer: debugging-and-error-recovery
+
+query: "how can an agent leave notes for the next session to pick up"
+
+category: semantic-win
+
+scope:
+  read_allow:
+    - "agent-coordinator/src/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files:
+    - agent-coordinator/src/handoffs.py
+  must_touch:
+    - agent-coordinator/src/handoffs.py
+  evidence_spans:
+    # write() — "a handoff document for session continuity", with the structured
+    # fields (completed_work, in_progress, decisions, next_steps) that are the
+    # "notes" the query is asking about.
+    - file_path: agent-coordinator/src/handoffs.py
+      start_line: 107
+      end_line: 132
+    # read() — the other half: how the next session picks them up.
+    - file_path: agent-coordinator/src/handoffs.py
+      start_line: 191
+      end_line: 212
+
+exact_search_baseline:
+  ripgrep_baseline: "rg -il 'leave notes for the next session'"
+
+provenance:
+  rescued_from: openspec/changes/archive/2026-07-20-add-semantic-code-search/eval/eval-set.yaml
+  notes: >
+    Preserved verbatim: case_id, query, expected_files, category, rationale, and
+    the ripgrep_baseline string. Added by ri-13: consumer, scope, must_touch, and
+    evidence_spans.
+
+rationale: >
+  Handoffs are the mechanism for passing context between sessions (handoffs.py). The
+  colloquial 'leave notes for the next session' shares no tokens with 'handoff'.

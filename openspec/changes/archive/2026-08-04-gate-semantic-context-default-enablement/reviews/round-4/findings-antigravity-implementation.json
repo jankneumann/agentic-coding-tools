@@ -1,0 +1,35 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": "r4-01",
+      "type": "docstring_inaccuracy",
+      "criticality": "medium",
+      "description": "packages/context-eval/src/context_eval/report.py:637-640 (and enablement_gate.py:353-356): BodyConsistency docstring claims MISSING_REQUIRED_GATE cannot be derived from the report document alone because it needs the manifest gate list. However, document['corpus']['gates_declared'] is written to the report file, so len(document['gates']) < document['corpus']['gates_declared'] can be re-derived directly from the document alone.",
+      "disposition": "fix"
+    },
+    {
+      "id": "r4-02",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "packages/context-eval/src/context_eval/report.py:560-564: _case_results() doc comment states an outcome for an undeclared case leaves the report writable so evidence of the mismatch survives, but the implementation raises ReportError(f'{outcome.case_id} is not a declared case'), preventing report document generation.",
+      "disposition": "fix"
+    },
+    {
+      "id": "r4-03",
+      "type": "test_gap",
+      "criticality": "medium",
+      "description": "packages/context-eval/tests/test_enablement_gate_mutation.py:1255-1282: test_a_recorded_apparatus_failure_is_not_a_contradiction no longer tests one-wayness. Because body_consistency now derives 'fail' from scope_adapter == 'degraded', derived_verdict and recorded_verdict are both 'fail', testing symmetric agreement rather than asserting that a recorded fail over a derived pass is consistent.",
+      "disposition": "fix"
+    },
+    {
+      "id": "r4-04",
+      "type": "docstring_inaccuracy",
+      "criticality": "low",
+      "description": "packages/context-eval/tests/test_enablement_gate_mutation.py:1424-1430: Test comment claims the schema clause 'A passing report records no failing gate' is non-redundant with body_consistency because a gate with required: false and verdict: fail under a recorded pass would be accepted by body_consistency. However, GateResult.required in the schema (openspec/contracts/semantic-context-evaluation/schemas/context-eval-report.schema.json:423-426) is const: true, making required: false schema-invalid on the property level and unreachable for any schema-valid document.",
+      "disposition": "fix"
+    }
+  ]
+}

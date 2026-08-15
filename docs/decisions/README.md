@@ -36,6 +36,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [merge-pull-requests](./merge-pull-requests.md)
 - [observability](./observability.md)
 - [project-context-refresh-orchestration](./project-context-refresh-orchestration.md)
+- [semantic-context-evaluation](./semantic-context-evaluation.md)
 - [sentinel-security-eval](./sentinel-security-eval.md)
 - [skill-workflow](./skill-workflow.md)
 - [software-factory-tooling](./software-factory-tooling.md)

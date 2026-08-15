@@ -1,0 +1,67 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "`_compose_gate` only catches `scoring.relevance.ScoringError` when a gate builder cannot measure, but `_scope_gate` \u2192 `scope.score_scope` raises sibling class `ScopeScoringError` (not a subclass of `ScoringError`). With an empty scored set (every case `scored=False`, e.g. total producer failure), retrieval and utility convert to fail/`unmeasured`, then scope raises and aborts `compose_verdict` before a report exists. Reproduced: all 19 cases unscored \u2192 `ScopeScoringError: the scope gate scored no cases; a vacuous pass is unwritable`. That violates the harness thesis that \"could not measure\" is a durable FAIL, and `__main__._run` does not wrap composition, so the CLI can crash with no controlled exit code and no written report.",
+      "resolution": "Treat scope unmeasurability the same as other gates: either make `ScopeScoringError` a subclass of (or alias of) `ScoringError`, catch both in `_compose_gate`, or have `_scope_gate` raise `ScoringError` on empty/invalid inputs so composition always returns a failing gate with `unmeasured` rather than propagating.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/verdict.py",
+      "line_range": {
+        "start": 395,
+        "end": 486
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "`_fail_closed_gate` labels a *measured* below-threshold expectation match rate as `unmeasured`. After computing `expectation_match_rate` and `cases_scored`, a rate under `min_expectation_match_rate` returns fail reasons `[UNMEASURED]`. Retrieval/utility use dedicated below-threshold reasons; fail-closed reuses the vocabulary value reserved for \"could not measure\". The committed report already exhibits this: `fail_closed_regression` has `measured.expectation_match_rate \u2248 0.571` with `cases_scored: 7` yet `fail_reasons: [\"unmeasured\"]`. That conflates the module's own distinction (and D3/D12's \"no measurement\" vs \"measured and failed\"), and can make a real regression look like apparatus absence.",
+      "resolution": "Emit a fail reason that means \"measured and failed the fail-closed threshold\" (extend the closed `FailReason` enum and schema if needed, e.g. a fail-closed/below-threshold member), and keep `unmeasured` only for empty/unscorable expectation sets (the existing `ScoringError` path).",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/verdict.py",
+      "line_range": {
+        "start": 512,
+        "end": 532
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "`_scope_gate` always passes `scope_adapter=RESOLVED` into `scope.score_scope`, relying on `compose_verdict` adding overall `apparatus_failure` when measurement is degraded. That is not equivalent to the scorer's own degraded path: with `scope_adapter=\"degraded\"` and otherwise ideal arms, the overall verdict fails with `apparatus_failure` while `scope_compliance` still records `verdict: pass` and no apparatus reason. The comment claims a compensating, stricter check; overall enablement is blocked, but the gate object claims compliance under conditions D8 says must fail the scope measurement itself. `test_a_degraded_scope_adapter_fails_the_run` only asserts the overall reason, so this gate-level green path is unproven-red.",
+      "resolution": "Pass `measurement.scope_adapter` into `score_scope` (or fail the scope gate with `apparatus_failure` when degraded) so the recorded gate outcome matches the apparatus condition; keep the overall run failure if desired, but do not report a passing scope gate under a degraded adapter.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/verdict.py",
+      "line_range": {
+        "start": 464,
+        "end": 486
+      },
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Enablement expiry condition `harness_version_current` compares the report's harness version to `--harness-version` when supplied, otherwise `report.installed_version()`. Passing `--harness-version` equal to a stale report's version makes the condition met even when the installed package differs (confirmed: expected='old' with recorded 'old' \u2192 met). Mutation tests only mutate the report's version field and never assert that the CLI override cannot re-authorize after a harness bump. An enabled default plus a still-passing report can therefore be authorized against software that is not the software that measured, weakening D12's harness-version expiry. (CI Makefile does not pass the flag today; the escape hatch is still present on the gate CLI.)",
+      "resolution": "Remove `--harness-version` from the production gate path, or restrict it to explicit test-only injection; always compare against installed package metadata in `evaluate`/`main`, and add a mutation that an override matching a stale report cannot authorize when the installed version differs.",
+      "disposition": "fix",
+      "file_path": "packages/context-eval/src/context_eval/enablement_gate.py",
+      "line_range": {
+        "start": 246,
+        "end": 456
+      },
+      "axis": "security",
+      "severity": "optional"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+schema_version: 1
+case_id: FC-REVISION-MISMATCH
+consumer: iterate-on-implementation
+
+query: "which module rewrites the review findings into fix tasks"
+
+category: control
+
+scope:
+  read_allow:
+    - "skills/iterate-on-implementation/**"
+  deny:
+    - "**/.venv/**"
+
+labels:
+  expected_files: []
+  must_touch: []
+  evidence_spans: []
+
+expectation:
+  status: fallback
+  trigger: mismatched
+  reason: index_revision_differs
+  rendered_hits: 0
+
+recorded_response:
+  path: responses/revision-mismatch.json
+  service_state: revision_mismatch
+
+rationale: >
+  An index exists and answers, but it was built from a different revision. This
+  is the dangerous case, and the reason it is a separate case from
+  FC-NO-INDEX-AT-REVISION: there ARE hits to render, they look plausible, and
+  they describe code that has since changed. An iterate-on-implementation agent
+  fed excerpts from the pre-fix revision would be reasoning about the bug it just
+  fixed. `index` is populated in the recorded body precisely so a client that
+  checked "did we get an index back" rather than "does it match MY revision"
+  would fail this case.

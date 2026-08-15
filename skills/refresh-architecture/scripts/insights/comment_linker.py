@@ -81,8 +81,8 @@ def compute_comment_insights(
             }
             for f, counts in marker_counts.items()
         ],
-        key=lambda x: x["total_markers"],
-        reverse=True,
+        # File path breaks marker-count ties (issue #362).
+        key=lambda x: (-x["total_markers"], x["file"]),
     )
 
     # Per-node comment associations

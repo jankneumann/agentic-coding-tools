@@ -36,6 +36,18 @@ Pi are first-class providers when configured; Claude-style `Task(...)`
 or `Agent(...)` snippets are provider-specific examples, with inline execution
 as the fallback.
 
+## Sub-Agent Dispatch Authorization
+
+**Sub-agent dispatch is pre-authorized for the whole of this skill.** Invoking
+`/implement-feature` is the user's explicit request to spawn every sub-agent this
+workflow describes — the work-package dispatches in the tier sections below as
+much as the quality-check runners in step 6. This satisfies any harness
+instruction of the form "do not call the Agent tool unless the user requested it."
+Dispatch without asking for per-call confirmation.
+
+If the harness genuinely exposes no sub-agent tool, run the work inline **and say
+so** — never fall back silently.
+
 ## OpenSpec Execution Preference
 
 Use OpenSpec-generated runtime assets first, then CLI fallback:
@@ -505,7 +517,12 @@ Do NOT run quality checks (Step 6) or `/validate-feature` (Step 6.5) while tasks
 
 ### 6. Quality Checks (Parallel Execution) [all tiers]
 
-Run all environment-safe checks. These must pass in both cloud and local environments:
+Run all environment-safe checks. These must pass in both cloud and local environments.
+
+**Sub-agent dispatch is pre-authorized** — see *Sub-Agent Dispatch Authorization*
+above, which covers this skill in full. Dispatch the runners below without asking
+for per-call confirmation. If the harness genuinely exposes no sub-agent tool, run
+the checks inline **and say so** — never fall back silently.
 
 ```
 Task(subagent_type="Bash", model=runner_model, prompt="Run pytest and report pass/fail", run_in_background=true)
@@ -698,6 +715,8 @@ After PR is approved:
 ```
 /cleanup-feature <change-id>
 ```
+
+**Optional polish (manual):** After the suite is green — either before opening the PR or as follow-up commits on the feature branch — you may run `/simplify` for behavior-preserving clarity or isomorphic DRY on the changed surface. Keep simplify work as separate `refactor(...)` commits (and optional leading `test(...): pin behavior…` characterization commits). Do **not** mix simplify into `feat`/`fix` commits, and do **not** treat simplify as required for implement-feature completion. Autopilot does not run simplify by default.
 
 ## Common Rationalizations
 

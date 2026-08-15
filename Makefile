@@ -46,7 +46,15 @@ ENRICHMENT_FILE  := $(ARCH_DIR)/treesitter_enrichment.json
 COMMENT_FILE     := $(ARCH_DIR)/comment_insights.json
 PATTERN_FILE     := $(ARCH_DIR)/pattern_insights.json
 QUERIES_DIR      := $(SCRIPTS_DIR)/treesitter_queries
-SCRIPTS_PYTHON   := $(SCRIPTS_DIR)/.venv/bin/python
+# Interpreter for the optional tree-sitter stages. Resolved by the same module
+# the shell pipeline and the provenance record use, so all three agree on
+# whether the tool is available; an empty value means it is not (issue #378).
+#
+# This was `$(SCRIPTS_DIR)/.venv/bin/python` — a per-skill venv that does not
+# exist here and that nothing creates — so `make architecture` skipped the
+# enrichment, comment-linker and pattern-reporter stages on every run, silently,
+# while still reporting success.
+SCRIPTS_PYTHON   ?= $(shell $(PYTHON) $(SCRIPTS_DIR)/arch_utils/interpreters.py 2>/dev/null)
 
 # Intermediate per-language outputs
 PY_ANALYSIS    := $(ARCH_DIR)/python_analysis.json
@@ -470,3 +478,39 @@ CONTEXT_GATE_BASE ?= main
 .PHONY: context-drift-gate
 context-drift-gate: ## Composed deterministic context drift gate (exit 0 fresh / 2 blocking drift / 1 failure)
 	@$(PYTHON) skills/project-context-refresh/scripts/cli.py gate --base $(CONTEXT_GATE_BASE)
+
+# Enablement Consistency Gate (ri-13)
+#
+# Asks one build-time question: is the semantic-context injection default this
+# tree declares authorized by the evidence this tree carries? It compares the
+# single `INJECTION_DEFAULT_ENABLED` declaration in
+# skills/context-engineering/scripts/semantic_context.py against the recorded
+# evaluation report at docs/evaluation/semantic-context/report.json, applying
+# design decision D12's expiry conditions. A failure names every condition
+# it found unmet.
+#
+#   0  authorized, or nothing is claimed (the default is disabled)
+#   1  the gate could not read what it needed to decide
+#   2  the evidence is current and schema-valid, and its verdict is not a pass
+#   3  the evidence is absent or has expired
+#
+# Those are the gate's own codes. `make` collapses any recipe failure to its own
+# exit 2, printing the real one as `Error <n>`, so a caller that needs to tell 2
+# from 3 runs the module directly rather than through this target.
+#
+# It adds NOTHING at runtime. ri-12's per-request fallbacks are already total and
+# already fail closed; this gate operates on the justification for the default,
+# which the runtime cannot see. See docs/evaluation/semantic-context/README.md.
+#
+# EMBEDDING_CONTRACT is the JSON EmbeddingContract the tree is configured with.
+# It is optional only because the default is off: with the default enabled, an
+# unsupplied contract is an unmet condition rather than a waived one, because an
+# unchecked embedding fingerprint is not a matching one.
+
+EMBEDDING_CONTRACT ?=
+
+.PHONY: semantic-enablement-gate
+semantic-enablement-gate: ## Enablement consistency gate: injection default vs. its evidence (0 ok / 2 fail / 3 no evidence / 1 failure)
+	@PYTHONPATH=packages/context-eval/src $(PYTHON) -m context_eval.enablement_gate \
+		--repository-root . \
+		$(if $(EMBEDDING_CONTRACT),--embedding-contract $(EMBEDDING_CONTRACT),)

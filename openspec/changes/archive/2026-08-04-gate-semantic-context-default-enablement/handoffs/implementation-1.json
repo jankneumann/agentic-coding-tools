@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T20:17:38.377178+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Completed phase 7 (wp-integration): confirmed no sibling wp branches exist so 7.1 had nothing to merge and both full suites reproduce baseline; proved the enablement gate fails correctly on a scratch flip-and-revert of INJECTION_DEFAULT_ENABLED with the flip byte-identically reverted; confirmed contract promotion is byte-identical; remediated both drift-gate blockers this change owns (regenerated contracts-inventory.md, added the missing documentation surface to two work packages context_impact blocks); validated the change by id at the CI-pinned openspec version 1.7.0; and recorded (without executing) the gh api call needed to make the two new CI jobs required contexts.",
+    "completed_work": [
+      "Task 7.1: verified no --wp-* siblings; packages/context-eval (306 passed), skills/tests/context-engineering/ (735 passed), skills/install.sh --check (exit 0)",
+      "Task 7.2: flip/run/revert mutation proof recorded at docs/evaluation/semantic-context/enablement-gate-mutation-proof.md",
+      "Task 7.3: confirmed byte-identical contract promotion and README.md row",
+      "Task 7.4: remediated both owned context-drift-gate blockers (api.contracts, context.impact)",
+      "Task 7.5: openspec validate --strict by change id at version 1.7.0, valid",
+      "Task 7.6: recorded (not executed) the gh api call for branch protection required contexts"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "7.1 has nothing to merge",
+        "rationale": "All seven packages executed sequentially on the single feature branch; git branch --list shows no --wp-* siblings, so integration reduces to re-running the full verification surface rather than a merge.",
+        "capability": "semantic-context-evaluation",
+        "supersedes": null
+      },
+      {
+        "title": "Mutation proof captured as a durable artifact, not just console output",
+        "rationale": "Design D14 requires showing the gate fail, not just asserting it would; wrote docs/evaluation/semantic-context/enablement-gate-mutation-proof.md recording both the raw module exit code (3) and make (2, with the real code in its Error line).",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Added documentation surface to wp-contracts and wp-scoring context_impact blocks",
+        "rationale": "validate_context_impact.py flagged both as undeclared for a documentation surface implied by README.md and markdown test fixtures respectively; declaring is a one-way strict commitment so both surfaces were added rather than argued away.",
+        "capability": "project-context-refresh",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "A repository admin should run the recorded gh api PATCH call to make context-eval and semantic-enablement-gate required contexts on main.",
+      "Validation should confirm the PR diff against main touches only files inside declared work-package write_allow scopes across all seven phases, not just phase 7."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/gate-semantic-context-default-enablement/tasks.md",
+        "description": "All phase 7 tasks (7.1-7.6) flipped to [x] with Result notes"
+      },
+      {
+        "path": "docs/evaluation/semantic-context/enablement-gate-mutation-proof.md",
+        "description": "New durable artifact: task 7.2 mutation proof"
+      },
+      {
+        "path": "docs/architecture-analysis/contracts-inventory.md",
+        "description": "Regenerated to include the three promoted semantic-context-evaluation schemas"
+      },
+      {
+        "path": "openspec/changes/gate-semantic-context-default-enablement/work-packages.yaml",
+        "description": "wp-contracts and wp-scoring context_impact.surfaces gained documentation"
+      }
+    ]
+  }
+}

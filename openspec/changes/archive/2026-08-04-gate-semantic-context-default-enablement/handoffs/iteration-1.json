@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-01T20:30:24.910018+00:00",
+  "coordinator_error": {
+    "error_type": "http_403",
+    "message": "API key is not permitted to act as requested agent_id",
+    "http_status": 403
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Completed IMPL_ITERATE for gate-semantic-context-default-enablement. All 7 phases and all tasks were already complete when this iteration started; the job was refinement, not new feature work. Fixed the highest-value flagged follow-up (issue #333): producers/semantic_runtime.py's _ResolvedScope stub (the harness's duck-typed replacement for ri-08's IndexScopes) carried read_allow/deny but no allows(path) method, while semantic_context.py:454's client-side deny re-check calls scopes.allows(path) unconditionally. Every case that reached the re-check raised AttributeError, which collect_semantic_context's never-raises guarantee (D8) swallows into a fallback/unavailable/unknown_state arm with zero hits -- and scoring.scope.score_scope scores an empty arm as compliant, since there are no violations in zero hits. The scope_compliance gate was passing without ever scoring a single rendered hit. Fixed by delegating _ResolvedScope.allows to context_eval.scoring.scope.allows (the same deny-precedence function the gate scores against). Added packages/context-eval/tests/test_semantic_runtime_producer.py (5 new tests) driving SemanticRuntimeProducer against the corpus's adversarial recorded responses (ADV-DENY-PRECEDENCE, ADV-LEAKED-HIT); confirmed the tests catch the regression by temporarily reverting the fix (all 5 failed with status=fallback/unavailable/unknown_state) then restoring it. The three other flagged follow-ups (#334 --live per-producer scope, #335 threshold-literal lint ergonomics, #336 is_fail_closed rename) were left untouched -- none are defects with the same gate-correctness impact, and the phase scope is refinement of bugs/edge-cases, not speculative rework. Full baseline reverified post-fix: packages/context-eval 311 passed (306 baseline + 5 new), skills/tests/context-engineering/ 735 passed (unchanged), ruff check clean, mypy --strict clean (17 files), make semantic-enablement-gate exit 0, make context-drift-gate exit 2 with only the pre-existing openspec.projection informational drift (owned by cleanup-feature), openspec validate --strict valid at pinned version 1.7.0. Commit ddc30be2 pushed to openspec/gate-semantic-context-default-enablement. git status --short confirmed clean except the five pre-existing untracked schema/loop-state files that must stay untracked (issue #311, orchestrator-owned).",
+    "completed_work": [
+      "Fixed issue #333: added _ResolvedScope.allows(path) in packages/context-eval/src/context_eval/producers/semantic_runtime.py, delegating to context_eval.scoring.scope.allows",
+      "Added packages/context-eval/tests/test_semantic_runtime_producer.py: 5 new tests covering the allows() stub and end-to-end SemanticRuntimeProducer rendering of adversarial corpus cases",
+      "Verified the new tests actually catch the regression (reverted fix, confirmed all 5 fail with fallback/unavailable/unknown_state, restored fix)",
+      "Reverified full baseline: 311 context-eval tests passed, 735 context-engineering tests passed, ruff clean, mypy --strict clean, semantic-enablement-gate exit 0, context-drift-gate exit 2 (only pre-existing informational drift), openspec validate --strict valid",
+      "Appended a session-log.md entry for this iteration phase documenting the fix and the deliberate non-fixes",
+      "Committed (ddc30be2) with explicit paths, never git add -A; verified git status before/after",
+      "Pushed openspec/gate-semantic-context-default-enablement to origin"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Fixed #333, left #334/#335/#336 filed",
+        "rationale": "#333 is a genuine defect with a small, low-risk, well-tested fix that changes gate correctness. #334 is structurally larger (per-producer vs per-case --live, hard-coded fixture revision) with no gate-correctness regression signature; #335 is lint ergonomics only; #336 is a low-risk rename/docstring change but not a defect -- none justified touching working code in a bug/edge-case refinement pass.",
+        "capability": "semantic-context-evaluation",
+        "supersedes": null
+      },
+      {
+        "title": "Delegated to scoring.scope.allows rather than reimplementing",
+        "rationale": "packages/context-eval has no cross-package boundary to protect internally, and a second hand-written implementation risks silent drift from the gate's own scoring semantics; importing keeps the stub and the gate in lockstep by construction.",
+        "capability": "semantic-context-evaluation",
+        "supersedes": null
+      },
+      {
+        "title": "New test module instead of extending test_scope_scorer.py",
+        "rationale": "test_scope_scorer.py drives collect_semantic_context through a hand-built, already-correct _Scopes stub defined in the test itself, and could never have caught this bug -- it is specific to SemanticRuntimeProducer's own wiring.",
+        "capability": "semantic-context-evaluation",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "None required from this phase. VAL_REVIEW or the next orchestrator phase should confirm the fix and tests as described.",
+      "The three filed-but-unfixed follow-ups (#334, #335, #336) remain open GitHub issues for a future change, per the orchestrator's explicit scope boundary for this phase."
+    ],
+    "relevant_files": [
+      {
+        "path": "packages/context-eval/src/context_eval/producers/semantic_runtime.py",
+        "description": "_ResolvedScope now implements allows(path) by delegating to scoring.scope.allows (issue #333 fix)"
+      },
+      {
+        "path": "packages/context-eval/tests/test_semantic_runtime_producer.py",
+        "description": "New: 5 regression tests for issue #333"
+      },
+      {
+        "path": "openspec/changes/gate-semantic-context-default-enablement/session-log.md",
+        "description": "Appended Implementation Iteration phase entry"
+      }
+    ]
+  }
+}

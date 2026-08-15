@@ -1,0 +1,811 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/contracts/semantic-context-evaluation/schemas/context-eval-report.schema.json",
+  "title": "ContextEvalReport",
+  "description": "One run of the semantic-context evaluation harness: the verdict, every declared gate's result, per-consumer results, per-case results, and the provenance needed to decide later whether the evidence has expired. This document is the only artifact that may authorize enabling semantic context injection by default, so its shape is the fail-closed mechanism rather than a record of one (design decision D3). A run that could not measure anything is representable only as `{\"verdict\": \"fail\", \"fail_reasons\": [\"unmeasured\"]}`; the document it replaces — `BLOCKED (environment) -> WAIVED (operator decision)` — has no representation here at all. Every `$defs` reference is local: the schema is deliberately self-contained so a bare `Draft202012Validator` with no registry and no network can validate a report.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "verdict",
+    "harness",
+    "repository",
+    "index",
+    "environment",
+    "budget",
+    "corpus",
+    "gates",
+    "per_consumer",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Pinned so a consumer that has not been taught a later shape refuses the document rather than misreading it."
+    },
+    "verdict": {
+      "$ref": "#/$defs/Verdict",
+      "description": "The composed outcome. Exactly two values exist and there will never be a third: no `skip`, `blocked`, `waived`, `partial`, `unmeasured`, `n/a`, or `pending`. This is the change's load-bearing constraint (design D3). An evaluation that could not be executed is a `fail` carrying `fail_reasons`, because the alternative — a value meaning \"we did not decide\" — is a value automation eventually learns to accept."
+    },
+    "fail_reasons": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "unmeasured",
+          "retrieval_gate_below_threshold",
+          "utility_gate_below_threshold",
+          "consumer_regression",
+          "scope_violation",
+          "denominator_mismatch",
+          "missing_required_gate",
+          "index_tier_insufficient",
+          "corpus_digest_mismatch",
+          "revision_mismatch",
+          "service_disabled_during_measurement",
+          "apparatus_failure"
+        ],
+        "description": "A closed vocabulary, so a failure always names which clause failed and no reason can be invented at write time to describe an outcome nobody anticipated. `unmeasured` is the value that makes the July 2026 waiver expressible as the failure it was."
+      },
+      "description": "Required when `verdict` is `fail` and forbidden when it is `pass` (see `allOf`). `minItems: 1` because a failure that explains nothing is a waiver with extra steps."
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2}))?$",
+      "description": "The evaluation's single timestamp, supplied as an explicit input and recorded verbatim (design D16). Nothing in the harness reads a clock and nothing branches on this value; it exists so a reader can date the evidence. Pinned by `pattern` as well as `format` because validators ignore `format` by default."
+    },
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "corpus_digest", "fingerprint"],
+      "description": "What produced this report, and against which corpus. Every part is an evidence-expiry input (design D12): a harness version bump, a change to the harness's own source, or a corpus digest change each withdraws the report's authorization to enable injection.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "The installed harness version. Compared against the running package by the enablement gate, so a report produced by software nobody has anymore stops counting as evidence."
+        },
+        "corpus_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Deterministic digest over the whole corpus directory, cases and thresholds alike. This is why there is no waiver field: an operator who believes a threshold is wrong edits the manifest, which changes this digest and invalidates every existing report against the new corpus."
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Deterministic digest over the harness's OWN source tree, built exactly as `corpus_digest` is built over the corpus. `version` is a string a person writes into `pyproject.toml`, which made it the one expiry condition an operator could satisfy by assertion: a fix to a scorer leaves the declared version untouched, so a report the harness demonstrably no longer reproduces went on counting as current evidence. This makes a behavioural change to the measuring code invalidate its own evidence with nobody remembering to bump anything — the same rule the embedder already obeys (design D6), applied to the harness itself."
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo_slug", "evaluated_revision"],
+      "description": "The tree the measurement was taken over.",
+      "properties": {
+        "repo_slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,50}$",
+          "description": "Matches ri-03's `RepoSlug` constraint, so a report names an index namespace the coordinator would recognize."
+        },
+        "evaluated_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "description": "Full Git object ID of the tree scored, in ri-03's `FullRevision` shape (SHA-1 or SHA-256). A ref name would not survive as evidence: `HEAD` means something different every day, and the exact-search baseline is tree-dependent."
+        }
+      }
+    },
+    "index": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "indexed_revision", "namespace_kind", "namespace_key", "embedder"],
+      "description": "Which index answered, and what it was built by. Recorded even at tier `none`, because \"no index was involved\" is itself a fact a gate declaring a higher tier fails against.",
+      "properties": {
+        "tier": {
+          "enum": ["none", "seeded", "live"],
+          "description": "The three index tiers that exist in this repository (design D9): `none` is recorded responses or fixtures with no database and no embedder; `seeded` is a registry row satisfying `_USABLE_INDEX_COUNT_SQL` with no embedder ever contacted; `live` is a real index built by `index_repo`. A gate declaring `live` and receiving `seeded` or `none` fails with `index_tier_insufficient` — hit@5 over a hand-written 3-dimensional vector is arithmetic about a fixture, not evidence about retrieval, and the tier is what makes the difference machine-checkable rather than a matter of trust in the runner."
+        },
+        "indexed_revision": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "description": "The exact revision the serving index was built from, or `null` at tier `none` where no index served. Null is honest here and is not a skip: the accompanying `tier` already says no index existed, so nothing is being silently omitted. When present it is an evidence-expiry input — a report whose indexed revision is unreachable from the evaluated tree no longer authorizes anything (design D12)."
+        },
+        "namespace_kind": {
+          "enum": ["main", "feature", "work_package"],
+          "description": "Mirrors `NamespaceKind` in `packages/code-search`. Which namespace answered changes what the measurement means: a work-package index covers a scoped slice of the tree."
+        },
+        "namespace_key": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "index_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "description": "Identity of the index that served, when one did. Pinned by `pattern` as well as `format`, which validators ignore by default — without it the field silently accepts any string and the index's identity stops being checkable."
+        },
+        "embedder": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provider_kind", "model_id", "dimension", "fingerprint"],
+          "description": "The embedding configuration that produced the serving index, read from the configured `EmbeddingContract` and from `CodeSearchResponse.index`. No component of the harness contains a model identifier as a literal, and a test enforces that (design D6): identity is derived, never asserted.",
+          "properties": {
+            "provider_kind": {
+              "enum": ["local", "openai_compatible"],
+              "description": "Mirrors `EmbeddingProviderKind`. Recorded because the two kinds have different failure modes and different reproducibility: a remote endpoint can change the vectors it returns for an unchanged model id."
+            },
+            "model_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "description": "Derived from the contract the run was configured with. Tests assert this field is present and consistent, never that it equals a particular string."
+            },
+            "dimension": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Vector dimension. A dimension change invalidates the measurement even under an unchanged model name."
+            },
+            "fingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "Fingerprint of the whole embedding contract. `code-search`'s spec already holds that a model-name match alone is insufficient, so this — not `model_id` — is what makes evidence expiry decidable (design D12)."
+            },
+            "policy_fingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "Fingerprint of the indexing policy, when the provider exposes one."
+            },
+            "pipeline_fingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "Fingerprint of the chunking/indexing pipeline, when the provider exposes one. Two indexes from one model and one policy can still differ if the pipeline changed."
+            }
+          }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code_search_enabled",
+        "semantic_context_injection",
+        "coordination_transport",
+        "scope_adapter"
+      ],
+      "description": "The preconditions in force while the measurement ran. Each is recorded rather than assumed, because a measurement taken in the wrong state measured something other than what it claims.",
+      "properties": {
+        "code_search_enabled": {
+          "type": "boolean",
+          "description": "Whether `CODE_SEARCH_ENABLED` was set during the run. ri-13 does not own this flag (design D17) but records it as a precondition: with it unset, `GET /search/code/status` short-circuits before touching the database or an embedder and returns `{\"available\": false, \"state\": \"disabled\"}`, so a retrieval measurement taken in that state measured nothing at all. The composer fails the retrieval gate with `service_disabled_during_measurement` when this is false."
+        },
+        "semantic_context_injection": {
+          "type": "boolean",
+          "description": "Whether ri-12's injection switch was on for the run. Recorded, never gated on: the harness scores rendered sections, and it can produce them from recorded responses with injection off."
+        },
+        "coordination_transport": {
+          "enum": ["mcp", "http", "none"],
+          "description": "The resolved `COORDINATION_TRANSPORT`. ri-12 injects only over `http`; an `mcp` or `none` run therefore produces fallbacks by construction, which is a valid fail-closed measurement and an invalid retrieval one."
+        },
+        "scope_adapter": {
+          "enum": ["resolved", "degraded"],
+          "description": "Whether the shared scope-normalization dependency resolved. `_normalize_read_scope` is not injectable and falls back to unnormalized globs when its sibling skill is absent, which makes a scope-compliance number mean something different from what it claims. `degraded` is therefore an `apparatus_failure` fail reason, never a silent pass (design D8)."
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_hits", "max_files", "max_total_lines", "max_hit_lines"],
+      "description": "The single context budget applied to BOTH arms, resolved from the corpus manifest and identical to ri-12's runtime bounds (design D5). Comparing an unbounded baseline dump against a capped section measures the cap, not the retrieval, so recording one shared budget is what makes evidence density comparable at all.",
+      "properties": {
+        "max_hits": { "type": "integer", "minimum": 1 },
+        "max_files": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Also the censoring constant: `steps_to_evidence` takes `max_files + 1` when no rendered result reaches labeled evidence, so this value is required to interpret that measure."
+        },
+        "max_total_lines": { "type": "integer", "minimum": 1 },
+        "max_hit_lines": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_id",
+        "k",
+        "cases_declared",
+        "cases_scored",
+        "gates_declared",
+        "consumers_declared"
+      ],
+      "description": "The declared denominator. Every count here comes from the manifest except `cases_scored`, which comes from the run — and the composer fails with `denominator_mismatch` when the two disagree. This is the direct structural fix for the failure mode that disqualified gen-eval as a host (design D2), where an invalid scenario, a malformed file, a gather-exception, and an exhausted budget all vanished from the results without lowering the pass rate.",
+      "properties": {
+        "corpus_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The k of `hit_at_k`, from the manifest rather than from code, so changing it is a reviewable diff that moves the corpus digest."
+        },
+        "cases_declared": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "From the corpus manifest. Declared, so it cannot shrink to match what happened to work — and bounded below by 1, so it cannot shrink to nothing either. A report declaring zero cases has an empty denominator, and every rate computed over an empty denominator is vacuously satisfied."
+        },
+        "cases_scored": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "From the run. `cases_scored <= cases_declared` is a sibling comparison JSON Schema cannot express and is a producer obligation checked by the harness's own tests."
+        },
+        "gates_declared": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "From the corpus manifest. Bounded below by 1 for the same reason as `cases_declared`: a run judged against no gate passed no gate."
+        },
+        "consumers_declared": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "From the corpus manifest. Bounded below by 1: a report covering no consumer measured no coding job."
+        }
+      }
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/GateResult" },
+      "description": "One entry per gate that produced a result. `minItems: 1`, and that bound is the fix for a document that satisfied every provenance check while measuring nothing: a hand-written report carrying the current corpus digest, the current harness identity, a matching embedder fingerprint, a reachable indexed revision and `verdict: \"pass\"` with `gates: []` authorized enablement outright. This is the vacuous pass `GateResult` already forbids per gate, forbidden one level up. A gate that could NOT be measured is still emitted rather than omitted — the composer converts every scorer's refusal into a failing gate with no numbers and `fail_reasons: [\"unmeasured\"]` — so a run that measured nothing remains fully writable as a `fail`. A gate the corpus declared and this array omits is still `missing_required_gate`: omitting ONE of several gates stays representable, because it is a different document from one that omits them all."
+    },
+    "per_consumer": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ConsumerResult" },
+      "description": "One entry per declared consumer. `minItems: 1`: a consumer that could not be measured is recorded as a failing consumer, never as an absent one, so an empty array describes a corpus with no consumers rather than a run that measured none of them. There is no averaging across consumers: ri-12 kept the `consumer` field precisely so this evaluation could say \"injection helps debugging and hurts review\", and a mean would throw that away on the one metric where it matters most (design D7)."
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/CaseResult" },
+      "description": "Every declared case, scored or not. A case that raised, timed out, or found no index appears here with `scored: false` and an `unscored_reason` — it does not disappear. `minItems: 1` completes that guarantee structurally: if no case may disappear, then a report over a non-empty corpus cannot have an empty `cases` array, and an empty one is a report about nothing. The number of entries here is checked against `corpus.cases_declared` by the enablement gate, which is the only place the declared denominator can be re-derived from the artifact a gate actually reads."
+    },
+    "judge": {
+      "$ref": "#/$defs/AdvisoryReview",
+      "description": "An optional qualitative review, attached by the emitter AFTER the verdict exists. `compose_verdict()` has no judge parameter at all, so letting a review affect an outcome would require changing a function signature — a reviewable diff (design D15). An absent judge is never a fail reason and is not a gate."
+    }
+  },
+  "allOf": [
+    {
+      "title": "A failing verdict names its reasons",
+      "if": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "const": "fail" } }
+      },
+      "then": { "required": ["fail_reasons"] },
+      "description": "The clause that makes \"could not measure\" a self-explaining failure. Without it, `{\"verdict\": \"fail\"}` alone would be as uninformative as the markdown waiver this contract replaces."
+    },
+    {
+      "title": "A passing verdict carries no failure reasons",
+      "if": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "const": "pass" } }
+      },
+      "then": { "not": { "required": ["fail_reasons"] } },
+      "description": "Closed in both directions. A pass listing reasons it failed is two contradictory claims about one run, and a reader — or a gate — would have to guess which one governs."
+    },
+    {
+      "title": "A passing report records no failing gate",
+      "if": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "const": "pass" } }
+      },
+      "then": {
+        "properties": {
+          "gates": {
+            "items": {
+              "not": {
+                "required": ["verdict"],
+                "properties": { "verdict": { "const": "fail" } }
+              }
+            }
+          }
+        }
+      },
+      "description": "The same contradiction the two clauses above close for `fail_reasons`, closed for the conclusion itself. `compose_verdict()` returns `pass` only when every declared gate produced a passing result, so a pass over a failing gate is not a document the emitter can write — which is precisely why a text editor can: flipping the top-level `verdict` of a recorded failure is a one-token edit, and every provenance check keeps holding because none of them reads the body. That edit, on the committed report, printed nine met enablement-gate conditions on its way to exit 0. The enablement gate now re-derives the whole invariant from the artifact as well (`verdict_consistent`), because a schema does not run on a file somebody edited by hand."
+    },
+    {
+      "title": "A passing report records no failing consumer",
+      "if": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "const": "pass" } }
+      },
+      "then": {
+        "properties": {
+          "per_consumer": {
+            "items": {
+              "not": {
+                "required": ["verdict"],
+                "properties": { "verdict": { "const": "fail" } }
+              }
+            }
+          }
+        }
+      },
+      "description": "Do-no-harm is absolute and per consumer: `score_utility` fails its gate on any failing consumer and nothing offsets anything, so a pass over a recorded regression is unproducible. Stated here as well as in the composer because the composer's guarantee is about a value in memory and every consumer of this contract re-reads an editable file."
+    },
+    {
+      "title": "A passing report scored every case it reports",
+      "if": {
+        "required": ["verdict"],
+        "properties": { "verdict": { "const": "pass" } }
+      },
+      "then": {
+        "properties": {
+          "cases": {
+            "items": {
+              "not": {
+                "required": ["scored"],
+                "properties": { "scored": { "const": false } }
+              }
+            }
+          }
+        }
+      },
+      "description": "An unscored declared case is `unmeasured` and `denominator_mismatch` in the composer, never a skip — that is the whole difference between this harness and the runner design D2 rejected. The forgery that motivated this clause kept all nineteen declared case ids and marked every one `scored: false` with `cases_scored: 0`, which satisfied the denominator re-derivation exactly: the counts agreed with the body, and the body held no measurement. The sibling comparison `cases_scored == cases_declared` is one JSON Schema cannot make, and the enablement gate re-derives it instead."
+    }
+  ],
+  "$defs": {
+    "Verdict": {
+      "enum": ["pass", "fail"],
+      "description": "The one verdict vocabulary, reused by the report, every gate, and every consumer so no level can quietly admit an escape value the level above forbids."
+    },
+    "RepositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]+$",
+      "description": "A normalized, repository-relative path — the same guarantee ri-12's rendered hits carry, and the same pattern. Absolute paths and `..` segments are rejected because a rendered result names a file the worker is invited to open, so a path escaping the repository would be a scope claim the evidence must not be able to make.",
+      "$comment": "Pattern copied verbatim from openspec/contracts/code-search/schemas/semantic-context-hit.schema.json; the two must stay identical."
+    },
+    "UnitInterval": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "A rate or fraction. Bounded on both sides so a scorer that divided by the wrong denominator produces an invalid report rather than a plausible one."
+    },
+    "MetricMap": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
+      "additionalProperties": { "type": "number" },
+      "description": "A named set of numbers — thresholds or measurements. Open by design: which measures a gate reports is the gate's business, and pinning the key set here would mean a schema revision for every new measure. Values are numbers only, so a gate cannot report a string where a comparison is expected."
+    },
+    "GateResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "required",
+        "min_index_tier",
+        "verdict",
+        "thresholds",
+        "measured"
+      ],
+      "description": "One gate's outcome, self-describing: it carries the threshold it was judged against alongside the value it measured, so a reader never needs the harness source to interpret it.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-z][a-z0-9_-]*$",
+          "description": "Matches the gate's `id` in the corpus manifest. The composer pairs declared gates to results by this value, so a typo becomes `missing_required_gate` rather than a silently skipped gate."
+        },
+        "kind": {
+          "enum": [
+            "retrieval_quality",
+            "coding_context_utility",
+            "scope_compliance",
+            "fail_closed_regression"
+          ],
+          "description": "The four measurement families this harness knows how to run. Closed, because a gate of an unknown kind is a gate whose semantics no scorer implements — it would be authored, declared required, and unrunnable."
+        },
+        "required": {
+          "const": true,
+          "description": "Always true, and unwritable as anything else. A boolean here would let a run author an optional gate and then not run it, so \"we didn't gate on that one\" would become a legal document (design D3). An operator who no longer wants a gate deletes it from the corpus manifest, which changes the corpus digest and invalidates every prior report."
+        },
+        "min_index_tier": {
+          "enum": ["none", "seeded", "live"],
+          "description": "The minimum index tier this gate's measurement requires. A report produced at a lower tier than the gate declares fails with `index_tier_insufficient` (design D9)."
+        },
+        "verdict": { "$ref": "#/$defs/Verdict" },
+        "thresholds": {
+          "$ref": "#/$defs/MetricMap",
+          "description": "Copied verbatim from the corpus manifest's `gates[].thresholds`. `minProperties: 1` via `MetricMap`: a gate judged against nothing passes everything. Thresholds live in the manifest and never as literals in the scorers, so changing one is a reviewable diff against the evidence it gates."
+        },
+        "measured": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
+          "additionalProperties": { "type": "number" },
+          "description": "What this run actually measured, keyed to match `thresholds`. Permitted to be empty only for a failing gate — an apparatus failure genuinely has no numbers — and required to be non-empty for a passing one, see this definition's `allOf`."
+        },
+        "fail_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/FailReason" }
+        }
+      },
+      "allOf": [
+        {
+          "title": "A failing gate names its reasons",
+          "if": {
+            "required": ["verdict"],
+            "properties": { "verdict": { "const": "fail" } }
+          },
+          "then": { "required": ["fail_reasons"] }
+        },
+        {
+          "title": "A passing gate carries no failure reasons",
+          "if": {
+            "required": ["verdict"],
+            "properties": { "verdict": { "const": "pass" } }
+          },
+          "then": { "not": { "required": ["fail_reasons"] } }
+        },
+        {
+          "title": "A passing gate measured something",
+          "if": {
+            "required": ["verdict"],
+            "properties": { "verdict": { "const": "pass" } }
+          },
+          "then": { "properties": { "measured": { "minProperties": 1 } } },
+          "description": "A gate that passed while measuring nothing is the vacuous pass this whole change exists to make unwritable. gen-eval guards only `total_scenarios == 0`; this generalizes the guard to every gate."
+        }
+      ]
+    },
+    "FailReason": {
+      "enum": [
+        "unmeasured",
+        "retrieval_gate_below_threshold",
+        "utility_gate_below_threshold",
+        "consumer_regression",
+        "scope_violation",
+        "denominator_mismatch",
+        "missing_required_gate",
+        "index_tier_insufficient",
+        "corpus_digest_mismatch",
+        "revision_mismatch",
+        "service_disabled_during_measurement",
+        "apparatus_failure"
+      ],
+      "description": "The same closed vocabulary the top-level `fail_reasons` uses, so a gate or a consumer cannot fail for a reason the composed report has no way to state."
+    },
+    "ConsumerResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer",
+        "utility_applicable",
+        "cases_declared",
+        "cases_scored",
+        "verdict"
+      ],
+      "description": "One coding job's outcome over its own declared case slice. Do-no-harm is absolute and per consumer: if any single consumer's semantic required-file coverage is strictly below its own exact-search baseline, that consumer fails with `consumer_regression` and the composed verdict fails. A gain elsewhere does not offset it.",
+      "properties": {
+        "consumer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "The consumer name ri-12 sends, e.g. `implement-feature`. Same pattern as ri-12's `consumer` field, so a report cannot name a consumer the runtime could never identify itself as."
+        },
+        "utility_applicable": {
+          "type": "boolean",
+          "description": "REQUIRED, and required precisely because it must not default. `quick-task` declares `false`: its SKILL.md documents that it has no `change_id`/`package_id`, so every request returns `out_of_scope`/`no_declared_scope` and no section is ever rendered — its cases are fail-closed regression cases, not utility cases. Declared absence is auditable; silent absence is indistinguishable from an oversight, which is how a consumer quietly stops being measured."
+        },
+        "utility_not_applicable_reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Required when `utility_applicable` is false and forbidden when it is true. The reason is prose because it is an argument about a consumer's design, not a code — but it is mandatory prose, so \"utility does not apply here\" can never be an unexplained assertion."
+        },
+        "cases_declared": { "type": "integer", "minimum": 0 },
+        "cases_scored": { "type": "integer", "minimum": 0 },
+        "verdict": { "$ref": "#/$defs/Verdict" },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "answer_coverage_semantic",
+            "answer_coverage_baseline",
+            "evidence_density_semantic",
+            "evidence_density_baseline",
+            "steps_to_evidence_semantic",
+            "steps_to_evidence_baseline"
+          ],
+          "description": "Means over this consumer's scored cases. Every measure appears as a semantic/baseline PAIR and all six are required together: a semantic mean without its baseline is an unfalsifiable improvement claim, and the whole design of this evaluation is that utility is baseline-relative (design D7).",
+          "properties": {
+            "answer_coverage_semantic": { "$ref": "#/$defs/UnitInterval" },
+            "answer_coverage_baseline": { "$ref": "#/$defs/UnitInterval" },
+            "evidence_density_semantic": { "$ref": "#/$defs/UnitInterval" },
+            "evidence_density_baseline": { "$ref": "#/$defs/UnitInterval" },
+            "steps_to_evidence_semantic": {
+              "type": "number",
+              "minimum": 1,
+              "description": "Mean of a censored measure, so it is a number rather than an integer. Lower is better."
+            },
+            "steps_to_evidence_baseline": { "type": "number", "minimum": 1 },
+            "hit_at_k_semantic": { "$ref": "#/$defs/UnitInterval" },
+            "hit_at_k_baseline": { "$ref": "#/$defs/UnitInterval" },
+            "wins_over_baseline": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of this consumer's cases where the semantic arm covered a required file the baseline missed. MEASURED, never read from a case's `category` label (design D6): `run_eval.py:161` computed measured misses while its corpus header described a hand-applied label, and the spec text agrees with the code."
+            }
+          }
+        },
+        "fail_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/FailReason" }
+        }
+      },
+      "allOf": [
+        {
+          "title": "Inapplicable utility must say why",
+          "if": {
+            "required": ["utility_applicable"],
+            "properties": { "utility_applicable": { "const": false } }
+          },
+          "then": { "required": ["utility_not_applicable_reason"] }
+        },
+        {
+          "title": "Applicable utility carries no inapplicability reason",
+          "if": {
+            "required": ["utility_applicable"],
+            "properties": { "utility_applicable": { "const": true } }
+          },
+          "then": { "not": { "required": ["utility_not_applicable_reason"] } }
+        },
+        {
+          "title": "A consumer whose utility applies cannot pass without metrics",
+          "if": {
+            "required": ["utility_applicable", "verdict"],
+            "properties": {
+              "utility_applicable": { "const": true },
+              "verdict": { "const": "pass" }
+            }
+          },
+          "then": { "required": ["metrics"] },
+          "description": "Otherwise a consumer could be recorded as passing its utility conditions with no numbers behind the claim — the same vacuous pass `GateResult` forbids, one level down."
+        },
+        {
+          "title": "A failing consumer names its reasons",
+          "if": {
+            "required": ["verdict"],
+            "properties": { "verdict": { "const": "fail" } }
+          },
+          "then": { "required": ["fail_reasons"] }
+        },
+        {
+          "title": "A passing consumer carries no failure reasons",
+          "if": {
+            "required": ["verdict"],
+            "properties": { "verdict": { "const": "pass" } }
+          },
+          "then": { "not": { "required": ["fail_reasons"] } }
+        }
+      ]
+    },
+    "CaseResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "consumer", "scored"],
+      "description": "One declared case's outcome. A case that could not be scored stays in this array rather than dropping out of the denominator, which is the difference between this harness and the runner design D2 rejected.",
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "description": "The case's own identifier, preserved verbatim from the corpus — including the rescued `T1`..`T10` (design D10), whose identity has to survive the move to stay comparable with the earlier evaluation."
+        },
+        "consumer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "scored": {
+          "type": "boolean",
+          "description": "Whether the case produced measurements. `false` is not a skip: it requires an `unscored_reason` from a closed list of five failures, and the composer fails the run for any unscored declared case."
+        },
+        "unscored_reason": {
+          "enum": [
+            "apparatus_failure",
+            "invalid_document",
+            "no_index_at_revision",
+            "producer_error",
+            "timeout"
+          ],
+          "description": "Why this case produced no measurement. Five values, every one a failure — none is a skip, an exclusion, or a not-applicable. Required when `scored` is false and forbidden when it is true."
+        },
+        "arms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["semantic", "baseline"],
+          "description": "The two compared arms, both rendered under the single declared budget (design D5). Both are required whenever the case was scored: a semantic result with no baseline is not a comparison, and this evaluation's entire claim is relative.",
+          "properties": {
+            "semantic": { "$ref": "#/$defs/ArmResult" },
+            "baseline": {
+              "$ref": "#/$defs/ArmResult",
+              "description": "The fair keyword-ripgrep arm: query tokenized, stopwords dropped, files ranked by distinct-term coverage then match frequency, then rendered under the same budget."
+            },
+            "naive_phrase": {
+              "$ref": "#/$defs/ArmResult",
+              "description": "The literal-phrase `rg -il '<query>'` arm — the first thing an agent tries, and the honest floor. Retained as a non-gating third column (design D5): it measured 0/10 in the earlier evaluation, and gating against zero would be trivially winnable."
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "title": "An unscored case says why",
+          "if": {
+            "required": ["scored"],
+            "properties": { "scored": { "const": false } }
+          },
+          "then": {
+            "required": ["unscored_reason"],
+            "not": { "required": ["arms"] }
+          },
+          "description": "And carries no arms, because arms are measurements and there were none. Together these make \"this case did not run\" impossible to write as anything other than a named failure."
+        },
+        {
+          "title": "A scored case has both arms and no unscored reason",
+          "if": {
+            "required": ["scored"],
+            "properties": { "scored": { "const": true } }
+          },
+          "then": {
+            "required": ["arms"],
+            "not": { "required": ["unscored_reason"] }
+          }
+        }
+      ]
+    },
+    "ArmResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rendered_files",
+        "rendered_lines",
+        "hit_at_k",
+        "answer_coverage",
+        "evidence_density",
+        "steps_to_evidence",
+        "scope_violations"
+      ],
+      "description": "What one arm actually put in front of the coding job, and how useful it was. Every measure is integer or rational arithmetic over sorted sequences — no wall clock, no pseudorandom values, no set iteration anywhere in the ranking or scoring path (design D16).",
+      "properties": {
+        "rendered_files": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/RepositoryPath" },
+          "description": "The distinct files this arm rendered, in the arm's own deterministic rank order. Empty for a fallback, which is the correct rendering of \"nothing was injected\"."
+        },
+        "rendered_lines": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total lines rendered, the denominator of `evidence_density`. Zero for a fallback."
+        },
+        "hit_at_k": {
+          "type": "boolean",
+          "description": "Whether any labeled `expected_files` entry appears in this arm's top-k file list, k from the manifest. Preserves the earlier evaluation's definition exactly, so the rescued cases stay comparable across the two."
+        },
+        "answer_coverage": {
+          "$ref": "#/$defs/UnitInterval",
+          "description": "Fraction of the case's labeled `must_touch` files present in this arm's rendered file set — did the job get everything it needs? Stronger than `hit_at_k`: a task needing three files is not solved by finding one."
+        },
+        "evidence_density": {
+          "$ref": "#/$defs/UnitInterval",
+          "description": "Rendered lines falling inside a labeled evidence span, over all rendered lines — how much of what the job got was worth reading. This is where a right-but-bloated section loses, and it is only comparable because both arms share one budget."
+        },
+        "steps_to_evidence": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Walking this arm's own ordering, the 1-based position of the first distinct rendered FILE holding a result that intersects a labeled evidence span; lower is better. Files, not hits, and the distinction is load-bearing: the censoring value is `budget.max_files + 1`, so with `max_hits > max_files` a hit position could exceed the value that is supposed to be the worst possible outcome. D7's own gloss -- how many files must be opened before the evidence appears -- agrees. When no rendered result ever intersects, the value is CENSORED to `budget.max_files + 1` — never null, never absent, never excluded from the mean. A null here would be a silent skip: the case would quietly stop contributing to the consumer's mean, which is exactly the shrinking-denominator behaviour design D3 forbids. Censoring keeps the failure in the arithmetic as the worst possible score."
+        },
+        "scope_violations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "The offending path as rendered. Deliberately looser than `RepositoryPath`: a violation is by definition a path the declared scope rejected, and the report must be able to NAME whatever was rendered. Validating it against the strict repository-relative pattern would make the worst violations — an absolute path, a traversal — the ones the evidence cannot report, which inverts the purpose of recording them."
+          },
+          "description": "Rendered results falling outside the case's declared scope under deny-precedence semantics. MUST be empty for a passing scope-compliance gate: this is zero-tolerance, not a threshold, and one violation fails the gate with the violating path named (design D8)."
+        },
+        "status": {
+          "enum": ["injected", "fallback"],
+          "description": "Mirrors ri-12's `SemanticContextResult.status` — this harness's input contract (design D4). Present on the semantic arm; a fallback is a legitimate, scored outcome, not an absent measurement."
+        },
+        "fallback_trigger": {
+          "enum": ["stale", "unavailable", "mismatched", "out_of_scope", "no_context"],
+          "description": "ri-12's fallback trigger, recorded verbatim. Fail-closed regression cases assert the exact trigger/reason PAIR rather than just the trigger, because ri-12's mapping is total by design and a case that only checked the trigger would pass on the wrong cause."
+        },
+        "fallback_reason": {
+          "enum": [
+            "working_tree_dirty",
+            "revision_not_indexed",
+            "injection_disabled",
+            "capability_absent",
+            "transport_unsupported",
+            "revision_unresolvable",
+            "bridge_failed",
+            "service_unavailable",
+            "service_overloaded",
+            "unknown_state",
+            "index_revision_differs",
+            "scope_rejected",
+            "no_declared_scope",
+            "scope_self_cancelling",
+            "all_hits_scope_filtered",
+            "index_returned_no_hits",
+            "all_hits_omitted"
+          ],
+          "description": "ri-12's specific fallback cause, recorded verbatim so this evaluation can prove ri-12's runtime guarantees from the corpus rather than restate them. Mirrored rather than referenced because this schema must validate with no registry and no network; a test cross-checks the two enums against ri-12's promoted schema so widening one without the other fails."
+        }
+      }
+    },
+    "AdvisoryReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available"],
+      "description": "An advisory qualitative review of rendered sections. Structurally incapable of affecting any verdict: it is attached by the emitter after `compose_verdict()` returns, and the composer's input type has no field for it (design D15). Its absence is never a failure reason.",
+      "properties": {
+        "available": {
+          "type": "boolean",
+          "description": "Whether a review backend was configured. Required, so \"no judge ran\" is a recorded fact rather than an empty block, and `false` is a completely normal run."
+        },
+        "backend": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Which backend produced the notes, when one did. No model identifier appears as a literal anywhere in the harness; this is read from configuration."
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["case_id", "note"],
+            "properties": {
+              "case_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+              },
+              "note": { "type": "string", "minLength": 1, "maxLength": 4000 }
+            }
+          },
+          "description": "Free prose, per case. Deliberately unstructured: anything a machine could branch on would be a channel from the judge to the verdict, and there is no such channel."
+        }
+      }
+    }
+  }
+}

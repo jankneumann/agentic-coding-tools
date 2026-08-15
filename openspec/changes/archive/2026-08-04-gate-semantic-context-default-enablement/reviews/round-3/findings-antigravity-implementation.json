@@ -1,0 +1,20 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "file_path": "packages/context-eval/src/context_eval/report.py",
+      "line_range": {
+        "start": 671,
+        "end": 747
+      },
+      "description": "body_consistency() in report.py fails to re-derive the composer pass-invariant for environment preconditions (scope_adapter == \"degraded\" and code_search_enabled == False for live-tier gates). compose_verdict() in verdict.py forces verdict = FAIL (with APPARATUS_FAILURE or SERVICE_DISABLED_DURING_MEASUREMENT) under these conditions. The module docstring claims one-way derivation is necessary because apparatus failures live at top level rather than in rows; however, environment.scope_adapter and environment.code_search_enabled ARE recorded in document[\"environment\"]. When a report with scope_adapter: \"degraded\" or code_search_enabled: false is hand-edited to record verdict: \"pass\" and gates[].verdict: \"pass\", body_consistency() returns consistent=True and derived_verdict=\"pass\", causing context_eval check to exit 0 on a degraded/disabled run. Verified by running: python3 -c \"import sys, json; sys.path.insert(0, \\\"packages/context-eval/src\\\"); from pathlib import Path; from context_eval.__main__ import _check; from context_eval import report; doc = report.read_report(\\\"docs/evaluation/semantic-context/report.json\\\"); doc[\\\"verdict\\\"] = \\\"pass\\\"; doc.pop(\\\"fail_reasons\\\", None); doc[\\\"environment\\\"][\\\"scope_adapter\\\"] = \\\"degraded\\\"; doc[\\\"corpus\\\"][\\\"cases_scored\\\"] = 19; for g in doc[\\\"gates\\\"]: g[\\\"verdict\\\"] = \\\"pass\\\"; g[\\\"min_index_tier\\\"] = \\\"none\\\"; g[\\\"measured\\\"] = {\\\"hit_at_k\\\": 1.0}; g.pop(\\\"fail_reasons\\\", None); for c in doc[\\\"per_consumer\\\"]: c[\\\"verdict\\\"] = \\\"pass\\\"; c[\\\"metrics\\\"] = {\\\"answer_coverage_semantic\\\": 1.0, \\\"answer_coverage_baseline\\\": 1.0, \\\"evidence_density_semantic\\\": 1.0, \\\"evidence_density_baseline\\\": 1.0, \\\"steps_to_evidence_semantic\\\": 1.0, \\\"steps_to_evidence_baseline\\\": 1.0}; c.pop(\\\"fail_reasons\\\", None); for case in doc[\\\"cases\\\"]: case[\\\"scored\\\"] = True; case.pop(\\\"unscored_reason\\\", None); tmp = Path(\\\"/tmp/degraded_pass.json\\\"); tmp.write_text(json.dumps(doc)); print(\\\"exit:\\\", _check(report_path=tmp, corpus_root=Path(\\\"packages/context-eval/corpus\\\"), expect_digest=True)); tmp.unlink()\" which output exit: 0.",
+      "disposition": "fix",
+      "resolution": "Update body_consistency() in report.py to check document[\"environment\"][\"scope_adapter\"] == \"degraded\" and (for gates requiring live tier) document[\"environment\"][\"code_search_enabled\"] is False as body failures."
+    }
+  ]
+}
