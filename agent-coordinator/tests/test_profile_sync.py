@@ -9,13 +9,17 @@ hand-written migrations gave ``claude_code_local`` (task 2.5).
 
 from __future__ import annotations
 
+import itertools
 import json
+import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from src.agents_config import (
+    ASSIGNMENT_ASSIGNED_BY,
     CAPABILITY_OPERATIONS,
     PROFILE_SYNC_OPERATION,
     UNMANAGED_PROFILES,
@@ -43,16 +47,70 @@ CONTRACT_PATH = (
 # ---------------------------------------------------------------------------
 
 
-class FakeDb:
-    """In-memory stand-in for the narrow DatabaseClient surface sync uses."""
+PROFILES_TABLE = "agent_profiles"
+ASSIGNMENTS_TABLE = "agent_profile_assignments"
 
-    def __init__(self, rows: list[dict[str, Any]] | None = None) -> None:
+#: Synthetic ``created_at`` values, handed out in creation order so the fake
+#: reproduces the ``ORDER BY created_at ASC`` tiebreak ``get_agent_profile()``
+#: uses when an agent has no assignment. Lexicographic order == creation order.
+_CREATED_AT_SEQUENCE = itertools.count()
+
+
+def _next_created_at() -> str:
+    stamp = datetime(2026, 1, 1, tzinfo=UTC) + timedelta(
+        seconds=next(_CREATED_AT_SEQUENCE)
+    )
+    return stamp.isoformat()
+
+
+def _profile_id(name: str) -> str:
+    """Deterministic opaque id for a profile row, standing in for the UUID PK."""
+    return str(uuid.uuid5(uuid.NAMESPACE_OID, f"agent_profiles:{name}"))
+
+
+class FakeDb:
+    """In-memory stand-in for the narrow DatabaseClient surface sync uses.
+
+    Models both tables the projection writes:
+
+    * ``agent_profiles`` — ``UNIQUE (name)``, ``id`` and ``created_at`` filled
+      in by the database on insert (the projection never supplies them);
+    * ``agent_profile_assignments`` — ``UNIQUE (agent_id)``, enforced here so a
+      duplicate insert raises the way Postgres would, which is what makes the
+      concurrent-boot convergence test mean anything.
+    """
+
+    def __init__(
+        self,
+        rows: list[dict[str, Any]] | None = None,
+        assignments: list[dict[str, Any]] | None = None,
+    ) -> None:
         self.rows: list[dict[str, Any]] = [dict(r) for r in (rows or [])]
+        for row in self.rows:
+            row.setdefault("id", _profile_id(str(row.get("name"))))
+            row.setdefault("created_at", _next_created_at())
+        self.assignments: list[dict[str, Any]] = [dict(a) for a in (assignments or [])]
         self.inserts: list[dict[str, Any]] = []
         self.updates: list[tuple[dict[str, Any], dict[str, Any]]] = []
+        self.assignment_inserts: list[dict[str, Any]] = []
+        self.assignment_updates: list[tuple[dict[str, Any], dict[str, Any]]] = []
+        self.deletes: list[tuple[str, dict[str, Any]]] = []
         self.fail_query = False
         self.fail_insert = False
         self.fail_update = False
+        self.fail_delete = False
+        #: Assignment rows a *concurrent* worker commits between our read of
+        #: ``agent_profile_assignments`` and our write. Injected right after the
+        #: first read of that table, so the projection's INSERT hits
+        #: ``UNIQUE (agent_id)`` exactly as it would in a real two-worker boot.
+        self.race_assignments: list[dict[str, Any]] = []
+
+    def _table(self, table: str) -> list[dict[str, Any]]:
+        if table == PROFILES_TABLE:
+            return self.rows
+        if table == ASSIGNMENTS_TABLE:
+            return self.assignments
+        raise AssertionError(f"unexpected table {table!r}")
 
     async def query(
         self,
@@ -60,10 +118,13 @@ class FakeDb:
         query_params: str | None = None,
         select: str = "*",
     ) -> list[dict[str, Any]]:
-        assert table == "agent_profiles"
         if self.fail_query:
             raise RuntimeError("db down")
-        return [dict(r) for r in self.rows]
+        snapshot = [dict(r) for r in self._table(table)]
+        if table == ASSIGNMENTS_TABLE and self.race_assignments:
+            self.assignments.extend(dict(a) for a in self.race_assignments)
+            self.race_assignments = []
+        return snapshot
 
     async def insert(
         self,
@@ -71,12 +132,33 @@ class FakeDb:
         data: dict[str, Any],
         return_data: bool = True,
     ) -> dict[str, Any]:
-        assert table == "agent_profiles"
+        if table == ASSIGNMENTS_TABLE:
+            agent_id = data.get("agent_id")
+            if any(a.get("agent_id") == agent_id for a in self.assignments):
+                raise RuntimeError(
+                    "duplicate key value violates unique constraint "
+                    '"agent_profile_assignments_agent_id_key"'
+                )
+            row = {"id": str(uuid.uuid4()), **data}
+            self.assignment_inserts.append(dict(data))
+            self.assignments.append(row)
+            return dict(row)
+
+        assert table == PROFILES_TABLE
+        row = {
+            "id": _profile_id(str(data.get("name"))),
+            "created_at": _next_created_at(),
+            **data,
+        }
         if self.fail_insert:
+            # A racing worker won the UNIQUE (name) insert: the row exists in
+            # the table even though *our* insert raised.
+            if not any(r.get("name") == data.get("name") for r in self.rows):
+                self.rows.append(row)
             raise RuntimeError("duplicate key value violates unique constraint")
         self.inserts.append(dict(data))
-        self.rows.append(dict(data))
-        return dict(data)
+        self.rows.append(row)
+        return dict(row)
 
     async def update(
         self,
@@ -85,16 +167,27 @@ class FakeDb:
         data: dict[str, Any],
         return_data: bool = True,
     ) -> list[dict[str, Any]]:
-        assert table == "agent_profiles"
         if self.fail_update:
             raise RuntimeError("db down")
-        self.updates.append((dict(match), dict(data)))
+        if table == ASSIGNMENTS_TABLE:
+            self.assignment_updates.append((dict(match), dict(data)))
+        else:
+            assert table == PROFILES_TABLE
+            self.updates.append((dict(match), dict(data)))
         updated: list[dict[str, Any]] = []
-        for row in self.rows:
+        for row in self._table(table):
             if all(row.get(k) == v for k, v in match.items()):
                 row.update(data)
                 updated.append(dict(row))
         return updated
+
+    async def delete(self, table: str, match: dict[str, Any]) -> None:
+        if self.fail_delete:
+            raise RuntimeError("db down")
+        rows = self._table(table)
+        self.deletes.append((table, dict(match)))
+        for row in [r for r in rows if all(r.get(k) == v for k, v in match.items())]:
+            rows.remove(row)
 
 
 class FakeAudit:
@@ -138,13 +231,33 @@ def _row(
     trust_level: int = 3,
     allowed_operations: list[str] | None = None,
     enabled: bool = True,
+    created_at: str | None = None,
 ) -> dict[str, Any]:
     return {
+        "id": _profile_id(name),
         "name": name,
         "agent_type": agent_type,
         "trust_level": trust_level,
         "allowed_operations": allowed_operations if allowed_operations is not None else [],
         "enabled": enabled,
+        # Creation order decides the type-based fallback in get_agent_profile();
+        # rows built earlier are therefore "older".
+        "created_at": created_at if created_at is not None else _next_created_at(),
+    }
+
+
+def _assignment(
+    agent_id: str,
+    profile_name: str,
+    *,
+    assigned_by: str | None = None,
+) -> dict[str, Any]:
+    """An ``agent_profile_assignments`` row pointing at *profile_name*."""
+    return {
+        "id": str(uuid.uuid4()),
+        "agent_id": agent_id,
+        "profile_id": _profile_id(profile_name),
+        "assigned_by": assigned_by,
     }
 
 
@@ -273,15 +386,23 @@ class TestSyncProfiles:
             ["lock"], 3
         )
         payloads = audit.payloads()
-        assert payloads == [
-            {
-                "action": "insert",
-                "profile_name": "grok_local",
-                "agent_type": "grok",
-                "source": "agents.yaml",
-                "trust_level": 3,
-            }
-        ]
+        assert payloads[0] == {
+            "action": "insert",
+            "profile_name": "grok_local",
+            "agent_type": "grok",
+            "source": "agents.yaml",
+            "trust_level": 3,
+        }
+        # The profile row alone does not decide resolution — the assignment does.
+        assert payloads[1] == {
+            "action": "assign",
+            "profile_name": "grok_local",
+            "agent_type": "grok",
+            "source": "agents.yaml",
+            "trust_level": 3,
+            "agent_id": "grok-local",
+        }
+        assert len(payloads) == 2
 
     async def test_updates_drifted_trust_level(self) -> None:
         db = FakeDb(
@@ -337,7 +458,12 @@ class TestSyncProfiles:
                     agent_type="grok",
                     allowed_operations=derive_allowed_operations(["lock"], 3),
                 )
-            ]
+            ],
+            assignments=[
+                _assignment(
+                    "grok-local", "grok_local", assigned_by=ASSIGNMENT_ASSIGNED_BY
+                )
+            ],
         )
         audit = FakeAudit()
         agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
@@ -345,8 +471,10 @@ class TestSyncProfiles:
         result = await sync_profiles(agents, db=db, audit=audit)
 
         assert result.unchanged == ["grok_local"]
+        assert result.assignments_unchanged == ["grok-local"]
         assert result.mutations == 0
         assert db.updates == []
+        assert db.assignment_inserts == []
         assert audit.events == []
 
     async def test_allowed_operations_order_is_not_drift(self) -> None:
@@ -419,7 +547,8 @@ class TestSyncProfiles:
         agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
 
         first = await sync_profiles(agents, db=db, audit=FakeAudit())
-        assert first.mutations == 2  # insert grok_local, disable gemini_local
+        # insert grok_local, disable gemini_local, assign grok-local
+        assert first.mutations == 3
 
         audit = FakeAudit()
         second = await sync_profiles(agents, db=db, audit=audit)
@@ -508,6 +637,154 @@ class TestSyncProfiles:
 
 
 # ---------------------------------------------------------------------------
+# agent_profile_assignments projection (design D11)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+class TestSyncAssignments:
+    """The assignment table is what ``get_agent_profile()`` reads first.
+
+    Migration 018 wrote these rows by hand for the roster of its day and for
+    nobody added afterwards; projecting them from the registry removes the
+    second hand-maintained roster.
+    """
+
+    async def test_assigns_every_registry_agent_to_its_declared_profile(self) -> None:
+        db = FakeDb()
+        audit = FakeAudit()
+        agents = [
+            _agent("grok-local", profile="grok_local", agent_type="grok"),
+            _agent("pi-local", profile="pi_local", agent_type="pi"),
+        ]
+
+        result = await sync_profiles(agents, db=db, audit=audit)
+
+        assert result.assigned == ["grok-local", "pi-local"]
+        by_agent = {a["agent_id"]: a for a in db.assignments}
+        assert by_agent["grok-local"]["profile_id"] == _profile_id("grok_local")
+        assert by_agent["pi-local"]["profile_id"] == _profile_id("pi_local")
+        # `assigned_by` distinguishes projected rows from hand-written ones.
+        assert {a["assigned_by"] for a in db.assignments} == {ASSIGNMENT_ASSIGNED_BY}
+
+    async def test_reassigns_pointer_at_the_wrong_profile(self) -> None:
+        db = FakeDb(
+            [
+                _row("gemini_local", agent_type="gemini"),
+                _row(
+                    "grok_local",
+                    agent_type="grok",
+                    allowed_operations=derive_allowed_operations(["lock"], 3),
+                ),
+            ],
+            assignments=[_assignment("grok-local", "gemini_local")],
+        )
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        result = await sync_profiles(agents, db=db, audit=FakeAudit())
+
+        assert result.reassigned == ["grok-local"]
+        assert db.assignment_updates[0][0] == {"agent_id": "grok-local"}
+        assert db.assignments[0]["profile_id"] == _profile_id("grok_local")
+        assert db.assignments[0]["assigned_by"] == ASSIGNMENT_ASSIGNED_BY
+
+    async def test_stale_assignment_is_deleted_and_its_profile_retained(self) -> None:
+        """A pointer is not authorization state — deleting it loses nothing."""
+        db = FakeDb(
+            [_row("gemini_local", agent_type="gemini")],
+            assignments=[_assignment("gemini-local", "gemini_local")],
+        )
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        result = await sync_profiles(agents, db=db, audit=FakeAudit())
+
+        assert result.unassigned == ["gemini-local"]
+        assert [a["agent_id"] for a in db.assignments] == ["grok-local"]
+        assert db.deletes == [
+            (ASSIGNMENTS_TABLE, {"agent_id": "gemini-local"}),
+        ]
+        # The profile it pointed at survives, disabled — D2 still holds there.
+        gemini = next(r for r in db.rows if r["name"] == "gemini_local")
+        assert gemini["enabled"] is False
+
+    async def test_idempotent_rerun_writes_no_assignments(self) -> None:
+        db = FakeDb()
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        await sync_profiles(agents, db=db, audit=FakeAudit())
+        db.assignment_inserts.clear()
+        db.assignment_updates.clear()
+        audit = FakeAudit()
+
+        second = await sync_profiles(agents, db=db, audit=audit)
+
+        assert second.assignments_unchanged == ["grok-local"]
+        assert second.mutations == 0
+        assert db.assignment_inserts == []
+        assert db.assignment_updates == []
+        assert audit.events == []
+
+    async def test_concurrent_assignment_insert_converges_via_update(self) -> None:
+        """The loser of the UNIQUE (agent_id) race reconciles instead of dying."""
+        db = FakeDb()
+        # Committed by a racing worker after we snapshot the assignment table.
+        db.race_assignments = [_assignment("grok-local", "gemini_local")]
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        result = await sync_profiles(agents, db=db, audit=FakeAudit())
+
+        assert result.assigned == ["grok-local"]
+        assert db.assignment_updates[0][0] == {"agent_id": "grok-local"}
+        assert len(db.assignments) == 1
+        assert db.assignments[0]["profile_id"] == _profile_id("grok_local")
+
+    async def test_assignment_write_failure_raises(self) -> None:
+        db = FakeDb()
+        db.race_assignments = [_assignment("grok-local", "gemini_local")]
+        db.fail_update = True
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        with pytest.raises(ProfileSyncError, match="Could not assign agent"):
+            await sync_profiles(agents, db=db, audit=FakeAudit())
+
+    async def test_stale_assignment_delete_failure_raises(self) -> None:
+        db = FakeDb(
+            [_row("gemini_local", agent_type="gemini")],
+            assignments=[_assignment("gemini-local", "gemini_local")],
+        )
+        db.fail_delete = True
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        with pytest.raises(ProfileSyncError, match="stale assignment"):
+            await sync_profiles(agents, db=db, audit=FakeAudit())
+
+    async def test_disabled_by_flag_writes_no_assignments(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Rule 4: the projection has one knob, PROFILE_SYNC_ENABLED."""
+        monkeypatch.setenv("PROFILE_SYNC_ENABLED", "false")
+        reset_config()
+        db = FakeDb()
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        result = await sync_profiles(agents, db=db, audit=FakeAudit())
+
+        assert result.skipped_reason == "disabled"
+        assert db.assignments == []
+        assert db.assignment_inserts == []
+
+    async def test_full_registry_assigns_every_agent(self) -> None:
+        from src.agents_config import load_agents_config
+
+        agents = load_agents_config()
+        db = FakeDb()
+
+        result = await sync_profiles(agents, db=db, audit=FakeAudit())
+
+        assert sorted(result.assigned) == sorted(a.name for a in agents)
+
+
+# ---------------------------------------------------------------------------
 # Audit contract conformance
 # ---------------------------------------------------------------------------
 
@@ -522,7 +799,14 @@ class TestAuditContract:
             [
                 _row("gemini_local", agent_type="gemini"),
                 _row("grok_local", agent_type="grok", trust_level=1),
-            ]
+            ],
+            assignments=[
+                # An agent the registry no longer declares → unassign.
+                _assignment("gemini-local", "gemini_local"),
+                # A hand-written assignment pointing at the wrong row → reassign.
+                _assignment("grok-local", "gemini_local"),
+                # pi-local has no assignment at all → assign.
+            ],
         )
         audit = FakeAudit()
         agents = [
@@ -533,6 +817,51 @@ class TestAuditContract:
         await sync_profiles(agents, db=db, audit=audit)
 
         payloads = audit.payloads()
-        assert {p["action"] for p in payloads} == {"insert", "update", "disable"}
+        assert {p["action"] for p in payloads} == {
+            "insert", "update", "disable", "assign", "reassign", "unassign",
+        }
         for payload in payloads:
             validate(instance=payload, schema=schema)
+
+    async def test_assignment_actions_carry_reconstructible_detail(self) -> None:
+        """reassign/unassign must record which profile the pointer left behind."""
+        db = FakeDb(
+            [
+                _row("gemini_local", agent_type="gemini"),
+                _row(
+                    "grok_local",
+                    agent_type="grok",
+                    allowed_operations=derive_allowed_operations(["lock"], 3),
+                ),
+            ],
+            assignments=[
+                _assignment("gemini-local", "gemini_local"),
+                _assignment("grok-local", "gemini_local"),
+            ],
+        )
+        audit = FakeAudit()
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        result = await sync_profiles(agents, db=db, audit=audit)
+
+        assert result.reassigned == ["grok-local"]
+        assert result.unassigned == ["gemini-local"]
+        payloads = audit.payloads()
+        assert next(p for p in payloads if p["action"] == "reassign") == {
+            "action": "reassign",
+            "profile_name": "grok_local",
+            "agent_type": "grok",
+            "source": "agents.yaml",
+            "trust_level": 3,
+            "agent_id": "grok-local",
+            "previous_profile_name": "gemini_local",
+        }
+        assert next(p for p in payloads if p["action"] == "unassign") == {
+            "action": "unassign",
+            # The profile the removed pointer referenced — retained and disabled
+            # by the profile phase, so the removal is reconstructible.
+            "profile_name": "gemini_local",
+            "agent_type": "gemini",
+            "source": "agents.yaml",
+            "agent_id": "gemini-local",
+        }

@@ -951,6 +951,12 @@ PROFILE_SYNC_SOURCE = "agents.yaml"
 #: Audit ``operation`` name for registry projection mutations.
 PROFILE_SYNC_OPERATION = "profile_sync"
 
+#: ``assigned_by`` stamped on every ``agent_profile_assignments`` row the
+#: registry projection writes, so an operator can tell a projected assignment
+#: from a hand-written one (migration 018 wrote its rows with ``assigned_by``
+#: NULL).
+ASSIGNMENT_ASSIGNED_BY = "registry_sync"
+
 
 class ProfileSyncError(RuntimeError):
     """The registry projection could not be materialized.
@@ -969,13 +975,26 @@ class ProfileSyncResult:
     updated: list[str] = field(default_factory=list)
     disabled: list[str] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
+    #: ``agent_profile_assignments`` outcomes (design D11), keyed by agent id
+    #: rather than profile name — an assignment is a per-agent pointer.
+    assigned: list[str] = field(default_factory=list)
+    reassigned: list[str] = field(default_factory=list)
+    unassigned: list[str] = field(default_factory=list)
+    assignments_unchanged: list[str] = field(default_factory=list)
     #: ``None`` when the sync ran; otherwise why it performed no writes.
     skipped_reason: str | None = None
 
     @property
     def mutations(self) -> int:
-        """Number of rows this run changed."""
-        return len(self.inserted) + len(self.updated) + len(self.disabled)
+        """Number of rows this run changed (profiles *and* assignments)."""
+        return (
+            len(self.inserted)
+            + len(self.updated)
+            + len(self.disabled)
+            + len(self.assigned)
+            + len(self.reassigned)
+            + len(self.unassigned)
+        )
 
 
 def derive_allowed_operations(
@@ -1049,6 +1068,8 @@ async def _emit_sync_audit(
     agent_type: str,
     trust_level: int | None = None,
     changed_fields: dict[str, dict[str, Any]] | None = None,
+    agent_id: str | None = None,
+    previous_profile_name: str | None = None,
 ) -> None:
     """Emit one profile-sync audit event (contract: profile-sync-audit.schema.json)."""
     parameters: dict[str, Any] = {
@@ -1061,6 +1082,10 @@ async def _emit_sync_audit(
         parameters["trust_level"] = trust_level
     if changed_fields:
         parameters["changed_fields"] = changed_fields
+    if agent_id is not None:
+        parameters["agent_id"] = agent_id
+    if previous_profile_name is not None:
+        parameters["previous_profile_name"] = previous_profile_name
 
     try:
         await audit.log_operation(
@@ -1080,19 +1105,181 @@ async def _emit_sync_audit(
         )
 
 
+async def _sync_assignments(
+    agents: list[AgentEntry],
+    *,
+    db: DatabaseClient,
+    audit: AuditService,
+    result: ProfileSyncResult,
+) -> None:
+    """Project ``agent_profile_assignments`` from the registry (design D11).
+
+    Profiles alone do not decide what an agent resolves to.
+    ``get_agent_profile()`` (migration 007) reads the assignment first and only
+    then falls back to ``agent_type`` + ``ORDER BY created_at ASC LIMIT 1``.
+    That fallback silently serves the *oldest* row of the type when two agents
+    share a type and neither is assigned — the bug migration 018 fixed by hand
+    for the roster of its day and for nobody added since. Writing one assignment
+    per registry agent makes the tiebreak unreachable rather than merely lucky.
+
+    Idempotent and convergent under concurrent worker boot, like the profile
+    phase: writes are keyed on ``agent_id`` (the table's UNIQUE column), so a
+    worker that loses the INSERT race reconciles with an UPDATE.
+    """
+    # Profile ids are not returned by the upsert path above, so re-query. This
+    # also picks up rows a concurrent worker inserted between our phases.
+    try:
+        profile_rows = await db.query("agent_profiles")
+    except Exception as exc:
+        raise ProfileSyncError(
+            f"Could not re-read agent_profiles for the assignment projection: {exc}"
+        ) from exc
+
+    id_by_name: dict[str, Any] = {}
+    row_by_id: dict[Any, dict[str, Any]] = {}
+    for row in profile_rows:
+        row_id = row.get("id")
+        if row_id is None:
+            continue
+        row_by_id[row_id] = row
+        name = row.get("name")
+        if name:
+            id_by_name[str(name)] = row_id
+
+    try:
+        assignment_rows = await db.query("agent_profile_assignments")
+    except Exception as exc:
+        raise ProfileSyncError(
+            f"Could not read agent_profile_assignments for the registry "
+            f"projection: {exc}"
+        ) from exc
+
+    existing: dict[str, dict[str, Any]] = {
+        str(row.get("agent_id")): row for row in assignment_rows if row.get("agent_id")
+    }
+
+    declared: set[str] = set()
+    for agent in agents:
+        declared.add(agent.name)
+        profile_id = id_by_name.get(agent.profile)
+        if profile_id is None:
+            raise ProfileSyncError(
+                f"Agent '{agent.name}' has no agent_profiles row named "
+                f"'{agent.profile}' after the profile phase, so its assignment "
+                f"cannot be projected — resolution would fall back to the oldest "
+                f"row of type '{agent.type}'."
+            )
+
+        current = existing.get(agent.name)
+        if current is not None and current.get("profile_id") == profile_id:
+            result.assignments_unchanged.append(agent.name)
+            continue
+
+        payload = {"profile_id": profile_id, "assigned_by": ASSIGNMENT_ASSIGNED_BY}
+
+        if current is None:
+            try:
+                await db.insert(
+                    "agent_profile_assignments",
+                    {"agent_id": agent.name, **payload},
+                    return_data=False,
+                )
+            except Exception as exc:
+                # A concurrent worker may have inserted the same agent_id
+                # between our read and our write (UNIQUE (agent_id)). Converge
+                # via update rather than failing the slower worker's boot; both
+                # workers project identical content.
+                try:
+                    await db.update(
+                        "agent_profile_assignments",
+                        {"agent_id": agent.name},
+                        payload,
+                        return_data=False,
+                    )
+                except Exception as update_exc:
+                    raise ProfileSyncError(
+                        f"Could not assign agent '{agent.name}' to profile "
+                        f"'{agent.profile}': {update_exc}"
+                    ) from exc
+
+            result.assigned.append(agent.name)
+            await _emit_sync_audit(
+                audit,
+                action="assign",
+                profile_name=agent.profile,
+                agent_type=agent.type,
+                trust_level=agent.trust_level,
+                agent_id=agent.name,
+            )
+            continue
+
+        try:
+            await db.update(
+                "agent_profile_assignments",
+                {"agent_id": agent.name},
+                payload,
+                return_data=False,
+            )
+        except Exception as exc:
+            raise ProfileSyncError(
+                f"Could not reassign agent '{agent.name}' to profile "
+                f"'{agent.profile}': {exc}"
+            ) from exc
+
+        previous = row_by_id.get(current.get("profile_id"))
+        result.reassigned.append(agent.name)
+        await _emit_sync_audit(
+            audit,
+            action="reassign",
+            profile_name=agent.profile,
+            agent_type=agent.type,
+            trust_level=agent.trust_level,
+            agent_id=agent.name,
+            previous_profile_name=str(previous.get("name")) if previous else "unknown",
+        )
+
+    for agent_id, row in existing.items():
+        if agent_id in declared:
+            continue
+        # Stale pointers are DELETEd, deliberately unlike D2's
+        # disable-don't-delete rule for profiles: this table has no `enabled`
+        # column, and an assignment is a *pointer*, not authorization state. The
+        # profile it referenced is retained (and disabled by the profile phase),
+        # and the audit event below records the name it pointed at, so the
+        # removal stays reconstructible from the audit trail alone.
+        pointed = row_by_id.get(row.get("profile_id"))
+        try:
+            await db.delete("agent_profile_assignments", {"agent_id": agent_id})
+        except Exception as exc:
+            raise ProfileSyncError(
+                f"Could not remove stale assignment for agent '{agent_id}': {exc}"
+            ) from exc
+
+        result.unassigned.append(agent_id)
+        await _emit_sync_audit(
+            audit,
+            action="unassign",
+            profile_name=str(pointed.get("name")) if pointed else "unknown",
+            agent_type=str(pointed.get("agent_type")) if pointed else "unknown",
+            agent_id=agent_id,
+        )
+
+
 async def sync_profiles(
     agents: list[AgentEntry] | None = None,
     *,
     db: DatabaseClient | None = None,
     audit: AuditService | None = None,
 ) -> ProfileSyncResult:
-    """Project ``agents.yaml`` onto the ``agent_profiles`` table (design D1).
+    """Project ``agents.yaml`` onto the profile tables (design D1 / D11).
 
     For every registry agent, upserts the row named by its ``profile`` field
     with the declared trust level and derived ``allowed_operations``. Enabled
     rows that are neither declared by the registry nor listed in
-    :data:`UNMANAGED_PROFILES` are **disabled**, never deleted. Every mutation
-    emits a ``profile_sync`` audit event; unchanged rows emit nothing.
+    :data:`UNMANAGED_PROFILES` are **disabled**, never deleted. Then projects
+    ``agent_profile_assignments`` (see :func:`_sync_assignments`), which is the
+    table resolution actually consults first. Every mutation emits a
+    ``profile_sync`` audit event; unchanged rows emit nothing.
 
     Idempotent and safe under concurrent startup of multiple API workers
     (design D9 as amended): all writes are keyed on the profile name and
@@ -1268,6 +1455,8 @@ async def sync_profiles(
             agent_type=str(row.get("agent_type") or "unknown"),
         )
 
+    await _sync_assignments(agents, db=db, audit=audit, result=result)
+
     if result.mutations:
         # The profiles service caches lookups by agent_id:agent_type with a
         # TTL. At boot the cache is empty and this is a no-op; on a re-sync in
@@ -1278,11 +1467,16 @@ async def sync_profiles(
         get_profiles_service().invalidate_cache()
 
     logger.info(
-        "Profile sync: %d inserted, %d updated, %d disabled, %d unchanged.",
+        "Profile sync: %d inserted, %d updated, %d disabled, %d unchanged; "
+        "assignments: %d assigned, %d reassigned, %d removed, %d unchanged.",
         len(result.inserted),
         len(result.updated),
         len(result.disabled),
         len(result.unchanged),
+        len(result.assigned),
+        len(result.reassigned),
+        len(result.unassigned),
+        len(result.assignments_unchanged),
     )
     return result
 

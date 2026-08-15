@@ -101,7 +101,7 @@ with `ORDER BY created_at ASC LIMIT 1`, so a correct profile row can still be un
 Migration 018 fixed this by hand for its contemporary roster and did not extend to later
 harnesses (design D11).
 
-- [ ] 5.1 Write tests for assignment projection — assignment created per registry agent,
+- [x] 5.1 Write tests for assignment projection — assignment created per registry agent,
       re-pointed when the registry changes an agent's profile, stale assignment removed with
       audit event naming the profile it pointed at, idempotent re-run, convergent under
       concurrent boot, `PROFILE_SYNC_ENABLED=false` no-op (M)
@@ -110,13 +110,13 @@ harnesses (design D11).
       **Contracts**: contracts/events/profile-sync-audit.schema.json (assignment actions)
       **Design decisions**: D11
       **Dependencies**: 2.4
-- [ ] 5.2 Project `agent_profile_assignments` in `sync_profiles()` (name→id map re-queried after
+- [x] 5.2 Project `agent_profile_assignments` in `sync_profiles()` (name→id map re-queried after
       the profile phase, upsert keyed on the table's UNIQUE (agent_id), stale-assignment removal
       with audit, extended `ProfileSyncResult`) and extend the audit contract with the assignment
       actions (M)
       **Design decisions**: D11
       **Dependencies**: 5.1
-- [ ] 5.3 Close the invariant blind spot — add a resolution checker to
+- [x] 5.3 Close the invariant blind spot — add a resolution checker to
       `tests/test_registry_projection.py` that resolves the way `get_agent_profile()` does
       (assignment first, then `agent_type` + `created_at` fallback) and assert every registry
       agent reaches its declared trust level; negative test covers two agents sharing an
@@ -124,4 +124,4 @@ harnesses (design D11).
       **Spec scenarios**: agent-identity / "Registry Projection Invariant" clause (d)
       **Design decisions**: D11
       **Dependencies**: 5.2
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
