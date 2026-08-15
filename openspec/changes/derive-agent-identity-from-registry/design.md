@@ -136,6 +136,41 @@ with the implicit transaction — purely to avoid duplicate audit events when tw
 at the same instant. Duplicate audit events are cosmetic, not corrupting, so this is a
 refinement rather than a requirement.
 
+### D11 — The registry projects assignments too, because assignments are what resolve
+
+Added after the profile projection landed. Projecting `agent_profiles` alone is not sufficient
+for the change's own claim ("every registry agent resolves to its declared trust"), because
+`agent_profiles` is not what resolution reads first.
+
+`get_agent_profile(p_agent_id, p_agent_type)` (migration 007) resolves in two steps: an explicit
+`agent_profile_assignments` row for the agent id, and failing that a fallback on
+`agent_type` with `ORDER BY created_at ASC LIMIT 1`. When two agents share an `agent_type` and
+neither has an assignment, the **oldest** profile row wins regardless of declared trust.
+
+Migration `018_agent_profile_assignments.sql` already diagnosed and fixed exactly this, by hand:
+its header records `claude-remote` resolving to `claude_code_cli` (trust 3) instead of
+`claude_code_web_implementer` (trust 2), and it wrote one assignment row per agent for the
+six-agent roster of the time. That fix is correct and still holds for those agents. It simply
+does not extend to anything added later — `antigravity-local`, `grok-local` and `pi-local` have
+profile rows but no assignments, and resolve correctly today only because each happens to be the
+sole profile of its `agent_type`. A future `grok-remote` reintroduces the 018 bug verbatim.
+
+So migration 018 is a second hand-maintained roster, the same species of artifact as
+`setup_cloud.py`'s `AGENTS` list (D7), and it survives for the same reason: nothing failed when
+it went stale. `sync_profiles()` therefore projects assignments as well, which makes the
+`created_at` tiebreak unreachable for registry agents rather than merely unlucky.
+
+Two sub-decisions:
+
+- **Stale assignments are deleted, not disabled** — deliberately unlike D2's rule for profiles.
+  The table has no `enabled` column, and an assignment is a *pointer*, not authorization state:
+  the profile it referenced is still retained and disabled, so nothing is lost. Each removal is
+  audited with the profile name it pointed at, keeping the action reconstructible.
+- **The invariant now asserts through resolution, not row existence.** The original checker
+  looked profiles up by name, which is why it certified a projection that resolution could still
+  get wrong. Checking the row exists is a weaker claim than checking the agent reaches it, and
+  only the weaker one was tested.
+
 ### D10 — OpenBao code is untouched
 
 `_resolve_api_key_from_openbao()` and `bao_seed.py` keep their current (flawed) behavior;
