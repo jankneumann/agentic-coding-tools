@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -650,7 +651,7 @@ def load_agents_config(
     Raises:
         FileNotFoundError: If *path* does not exist.
         jsonschema.ValidationError: If the data fails schema validation.
-        ValueError: On duplicate agent names.
+        ValueError: On duplicate agent names or duplicate ``profile`` values.
     """
     if path is None:
         path = _default_agents_path()
@@ -668,11 +669,30 @@ def load_agents_config(
     secrets = _load_secrets_file(secrets_path)
     entries: list[AgentEntry] = []
     seen_names: set[str] = set()
+    #: profile name -> the agent that claimed it, so the second claimant can be
+    #: named in the error.
+    seen_profiles: dict[str, str] = {}
 
     for name, agent_data in raw["agents"].items():
         if name in seen_names:
             raise ValueError(f"Duplicate agent name: '{name}'")
         seen_names.add(name)
+
+        # Two agents sharing one `profile` is not a harmless alias: sync_profiles()
+        # upserts by profile name in file order, so the last entry silently
+        # overwrites the first one's trust level and operations. An agent could
+        # then be promoted to admin without its own trust_level line changing,
+        # and neither orphan disabling nor the registry invariant check would
+        # notice. One agent, one profile row.
+        profile_name = agent_data["profile"]
+        if profile_name in seen_profiles:
+            raise ValueError(
+                f"Duplicate profile: '{profile_name}' is declared by both "
+                f"'{seen_profiles[profile_name]}' and '{name}'. Each agent needs "
+                f"its own profile, or the later entry silently overwrites the "
+                f"earlier one's trust level and operations."
+            )
+        seen_profiles[profile_name] = name
 
         raw_key = agent_data.get("api_key")
         resolved_key: str | None = None
@@ -1029,6 +1049,44 @@ def derive_allowed_operations(
     return sorted(operations)
 
 
+#: Substring PostgreSQL puts in the message of every UNIQUE-constraint failure.
+#: The PostgREST/httpx backend surfaces the violation as text, so the string is
+#: the only signal available there.
+_UNIQUE_VIOLATION_TEXT = "duplicate key value violates unique constraint"
+
+#: SQLSTATE for unique_violation. asyncpg exposes it as ``sqlstate``.
+_UNIQUE_VIOLATION_SQLSTATE = "23505"
+
+
+def _is_unique_violation(exc: BaseException) -> bool:
+    """Is *exc* a genuine UNIQUE-constraint violation?
+
+    The insert→update fallbacks below exist for exactly one situation: a
+    concurrent worker won the race for the same unique key. Treating *every*
+    insert failure as that race is what let an RLS denial, an FK violation, or
+    a CHECK failure be retried as an UPDATE — which matches zero rows, raises
+    nothing (``return_data=False`` never inspects rowcount), and is then
+    recorded as a successful projection with an audit event for a row that
+    does not exist. Anything that is not a uniqueness collision must fail the
+    sync instead.
+    """
+    if type(exc).__name__ == "UniqueViolationError":  # asyncpg
+        return True
+    if getattr(exc, "sqlstate", None) == _UNIQUE_VIOLATION_SQLSTATE:
+        return True
+    return _UNIQUE_VIOLATION_TEXT in str(exc)
+
+
+def _registry_sync_timestamp() -> str:
+    """Value for ``agent_profiles.synced_from_registry_at`` on this write.
+
+    Migration 031 added the column so operators can tell registry-projected
+    rows from hand-maintained ones; it stays NULL unless the projection
+    actually stamps it.
+    """
+    return datetime.now(UTC).isoformat()
+
+
 def _desired_profile_row(agent: AgentEntry) -> dict[str, Any]:
     """Build the ``agent_profiles`` row a registry entry projects to."""
     return {
@@ -1188,7 +1246,16 @@ async def _sync_assignments(
                 # A concurrent worker may have inserted the same agent_id
                 # between our read and our write (UNIQUE (agent_id)). Converge
                 # via update rather than failing the slower worker's boot; both
-                # workers project identical content.
+                # workers project identical content. Narrowed to real
+                # uniqueness collisions: an RLS denial or FK violation means no
+                # row exists, so the retried UPDATE would match nothing, raise
+                # nothing, and leave the agent with no assignment while this
+                # run reported `assign`.
+                if not _is_unique_violation(exc):
+                    raise ProfileSyncError(
+                        f"Could not assign agent '{agent.name}' to profile "
+                        f"'{agent.profile}': {exc}"
+                    ) from exc
                 try:
                     await db.update(
                         "agent_profile_assignments",
@@ -1362,18 +1429,31 @@ async def sync_profiles(
         declared.add(name)
         current = existing.get(name)
 
+        # Stamp every projected write so migration 031's
+        # synced_from_registry_at column means what its comment claims.
+        row_payload = {**desired, "synced_from_registry_at": _registry_sync_timestamp()}
+        update_payload = {k: v for k, v in row_payload.items() if k != "name"}
+
         if current is None:
             try:
-                await db.insert("agent_profiles", desired, return_data=False)
+                await db.insert("agent_profiles", row_payload, return_data=False)
             except Exception as exc:
                 # A concurrent worker may have inserted the same name between
                 # our read and our write (UNIQUE (name)). Converge via update
-                # rather than failing the boot of the slower worker.
+                # rather than failing the boot of the slower worker. ONLY for a
+                # real uniqueness collision: any other failure means the row was
+                # never written, and retrying it as an UPDATE would match zero
+                # rows, raise nothing, and be reported as a successful insert.
+                if not _is_unique_violation(exc):
+                    raise ProfileSyncError(
+                        f"Could not project agent '{agent.name}' onto profile "
+                        f"'{name}': {exc}"
+                    ) from exc
                 try:
                     await db.update(
                         "agent_profiles",
                         {"name": name},
-                        {k: v for k, v in desired.items() if k != "name"},
+                        update_payload,
                         return_data=False,
                     )
                 except Exception as update_exc:
@@ -1410,7 +1490,7 @@ async def sync_profiles(
             await db.update(
                 "agent_profiles",
                 {"name": name},
-                {k: v for k, v in desired.items() if k != "name"},
+                update_payload,
                 return_data=False,
             )
         except Exception as exc:

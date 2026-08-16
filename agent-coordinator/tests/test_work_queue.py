@@ -405,3 +405,119 @@ class TestWorkQueueAtomicity:
 
         assert result.success is False
         assert "not_claimed_by_agent" in result.reason
+
+
+class TestWorkQueueTrustResolution:
+    """The guardrail paths must use the same resolver as the HTTP endpoints.
+
+    ``WorkQueueService._resolve_trust_level`` used to be a verbatim copy of the
+    pre-change resolver: no registry check, no ``enabled`` check, and
+    ``except Exception:`` → default trust. The same broken projection therefore
+    produced a fail-loud 500 on ``/work/claim`` and a silent grant of trust 2
+    on the claim/complete/submit guardrail evaluations that run here.
+    """
+
+    @staticmethod
+    def _entry():
+        from src.agents_config import AgentEntry
+
+        return AgentEntry(
+            name="grok-local",
+            type="grok",
+            profile="grok_local",
+            trust_level=3,
+            transport="mcp",
+            capabilities=["lock"],
+            description="d",
+        )
+
+    @pytest.mark.asyncio
+    async def test_registry_agent_with_disabled_profile_fails_loud(
+        self, monkeypatch, db_client
+    ):
+        """A disabled profile row must not degrade to the default trust level."""
+        from unittest.mock import AsyncMock
+
+        from src.profiles import AgentProfile, ProfileResult
+        from src.trust_resolution import TrustResolutionError
+
+        monkeypatch.setattr(
+            "src.agents_config.get_agent_config", lambda _agent_id: self._entry()
+        )
+        service = AsyncMock()
+        service.get_profile.return_value = ProfileResult(
+            success=True,
+            profile=AgentProfile(
+                id="p",
+                name="grok_local",
+                agent_type="grok",
+                trust_level=3,
+                enabled=False,
+            ),
+            source="assignment",
+        )
+        monkeypatch.setattr("src.profiles._profiles_service", service)
+        monkeypatch.setattr("src.audit._audit_service", AsyncMock())
+
+        with pytest.raises(TrustResolutionError):
+            await WorkQueueService(db_client)._resolve_trust_level(
+                "grok-local", "grok"
+            )
+
+    @pytest.mark.asyncio
+    async def test_lookup_failure_for_registry_agent_fails_loud(
+        self, monkeypatch, db_client
+    ):
+        """The old copy swallowed every exception and returned trust 2."""
+        from unittest.mock import AsyncMock
+
+        from src.trust_resolution import TrustResolutionError
+
+        monkeypatch.setattr(
+            "src.agents_config.get_agent_config", lambda _agent_id: self._entry()
+        )
+        service = AsyncMock()
+        service.get_profile.side_effect = RuntimeError("db down")
+        monkeypatch.setattr("src.profiles._profiles_service", service)
+        monkeypatch.setattr("src.audit._audit_service", AsyncMock())
+
+        with pytest.raises(TrustResolutionError):
+            await WorkQueueService(db_client)._resolve_trust_level(
+                "grok-local", "grok"
+            )
+
+    @pytest.mark.asyncio
+    async def test_decommissioned_agent_does_not_inherit_sibling_trust(
+        self, monkeypatch, db_client
+    ):
+        """The F1 escalation, on the queue path this time."""
+        from unittest.mock import AsyncMock
+
+        from src.config import reset_config
+        from src.profiles import AgentProfile, ProfileResult
+
+        monkeypatch.setenv("PROFILES_DEFAULT_TRUST", "2")
+        reset_config()
+
+        monkeypatch.setattr(
+            "src.agents_config.get_agent_config", lambda _agent_id: None
+        )
+        service = AsyncMock()
+        service.get_profile.return_value = ProfileResult(
+            success=True,
+            profile=AgentProfile(
+                id="p",
+                name="codex_local",
+                agent_type="codex",
+                trust_level=3,
+                enabled=True,
+            ),
+            source="default",
+        )
+        monkeypatch.setattr("src.profiles._profiles_service", service)
+
+        trust = await WorkQueueService(db_client)._resolve_trust_level(
+            "codex-remote", "codex"
+        )
+        assert trust == 2
+        reset_config()

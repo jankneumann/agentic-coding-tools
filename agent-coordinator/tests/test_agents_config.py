@@ -110,6 +110,54 @@ class TestLoadAgentsConfig:
         local = next(a for a in agents if a.name == "test-local")
         assert local.api_key is None
 
+    def test_duplicate_profile_rejected_naming_both_agents(
+        self, tmp_path: Path,
+    ) -> None:
+        """Two agents sharing a profile is a silent privilege escalation.
+
+        ``sync_profiles()`` upserts by profile name in file order, so the later
+        entry overwrites the earlier one's trust level and operations. Here
+        ``test-local`` declares ``trust_level: 3`` but would end up owning a
+        profile row projected at 4 — promoted to admin without its own
+        ``trust_level`` line changing, and invisible to orphan disabling and to
+        the registry invariant check (both of which key on profile name).
+        """
+        agents_file = tmp_path / "agents.yaml"
+        _write(
+            agents_file,
+            VALID_AGENTS_YAML
+            + """
+  test-shadow:
+    type: claude_code
+    profile: claude_code_cli
+    trust_level: 4
+    transport: mcp
+    capabilities: [lock]
+    description: Squats on test-local's profile
+""",
+        )
+        with pytest.raises(ValueError, match="Duplicate profile") as excinfo:
+            load_agents_config(agents_file, secrets_path=tmp_path / "none")
+
+        message = str(excinfo.value)
+        assert "claude_code_cli" in message
+        assert "test-local" in message
+        assert "test-shadow" in message
+
+    def test_distinct_profiles_still_load(self, tmp_path: Path) -> None:
+        """The duplicate-profile guard must not reject a well-formed roster."""
+        agents_file = tmp_path / "agents.yaml"
+        _write(agents_file, VALID_AGENTS_YAML)
+        agents = load_agents_config(agents_file, secrets_path=tmp_path / "none")
+        profiles = [a.profile for a in agents]
+        assert len(profiles) == len(set(profiles))
+
+    def test_shipped_registry_has_no_duplicate_profiles(self) -> None:
+        """The real agents.yaml must satisfy the one-agent-one-profile rule."""
+        agents = load_agents_config()
+        profiles = [a.profile for a in agents]
+        assert len(profiles) == len(set(profiles))
+
 
 # ---------------------------------------------------------------------------
 # get_api_key_identities

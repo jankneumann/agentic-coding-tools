@@ -35,6 +35,16 @@ from .code_search_runtime import (
 from .config import get_config
 from .port_allocator import get_port_allocator
 
+# Trust resolution lives in src/trust_resolution.py so that the HTTP write
+# endpoints in this module and WorkQueueService's guardrail paths share ONE
+# implementation (they used to have two, and the other one failed open).
+# Re-exported under the historical names: callers import TrustResolutionError
+# from here, and tests patch ``src.coordination_api.resolve_trust_level``.
+from .trust_resolution import (  # noqa: F401
+    TrustResolutionError,
+    resolve_trust_level,
+)
+
 _CODE_SEARCH_PROBLEMS = {
     401: {
         "type": "urn:coordinator:authentication:required",
@@ -551,101 +561,6 @@ async def authorize_operation(
     )
     if not decision.allowed:
         raise HTTPException(status_code=403, detail=decision.reason or "Forbidden")
-
-
-class TrustResolutionError(HTTPException):
-    """A registry-declared agent has no usable profile row (design D3).
-
-    Surfaced as a 500-class response, not a 403: the caller did nothing wrong.
-    The registry projection — which startup sync is supposed to materialize —
-    is broken, which is a coordinator configuration fault.
-    """
-
-    def __init__(self, agent_id: str, agent_type: str, reason: str) -> None:
-        self.agent_id = agent_id
-        self.agent_type = agent_type
-        self.reason = reason
-        super().__init__(
-            status_code=500,
-            detail=(
-                f"Trust level unresolvable for registry-declared agent "
-                f"'{agent_id}' (type '{agent_type}'): {reason}. The "
-                f"agent_profiles projection of agents.yaml is broken; "
-                f"restart the coordinator to re-run profile sync."
-            ),
-        )
-
-
-async def _audit_trust_resolution_failure(
-    agent_id: str, agent_type: str, reason: str
-) -> None:
-    """Record a failed trust resolution; never masks the original fault."""
-    try:
-        from .audit import get_audit_service
-
-        await get_audit_service().log_operation(
-            agent_id=agent_id,
-            agent_type=agent_type,
-            operation="trust_resolution_failed",
-            parameters={"agent_id": agent_id, "agent_type": agent_type},
-            result={"reason": reason},
-            success=False,
-            error_message=reason,
-        )
-    except Exception:  # noqa: BLE001
-        import logging
-
-        logging.getLogger(__name__).warning(
-            "Could not audit trust resolution failure for '%s'",
-            agent_id,
-            exc_info=True,
-        )
-
-
-async def resolve_trust_level(agent_id: str, agent_type: str) -> int:
-    """Resolve effective trust level for guardrail evaluation.
-
-    Fail-loud is scoped to *registry-declared* agents (design D3):
-
-    - a principal absent from ``agents.yaml`` (env-var-configured externals,
-      tests) falls back to the configured default trust level, because the
-      registry cannot be authoritative for principals it does not name;
-    - a registry-declared agent whose profile row is missing or disabled
-      raises :class:`TrustResolutionError` and emits an audit event. Returning
-      a default trust level there would be the fail-open drift this change
-      exists to remove — the projection machinery itself has failed.
-    """
-    from .agents_config import get_agent_config
-    from .profiles import get_profiles_service
-
-    registry_entry = get_agent_config(agent_id)
-
-    try:
-        profile_result = await get_profiles_service().get_profile(
-            agent_id=agent_id,
-            agent_type=agent_type,
-        )
-    except Exception as exc:
-        if registry_entry is None:
-            return get_config().profiles.default_trust_level
-        reason = f"profile lookup failed: {exc}"
-        await _audit_trust_resolution_failure(agent_id, agent_type, reason)
-        raise TrustResolutionError(agent_id, agent_type, reason) from exc
-
-    profile = profile_result.profile
-    if profile_result.success and profile is not None and profile.enabled:
-        return profile.trust_level
-
-    if registry_entry is None:
-        return get_config().profiles.default_trust_level
-
-    reason = (
-        "profile row is disabled"
-        if profile is not None and not profile.enabled
-        else f"no profile row named '{registry_entry.profile}'"
-    )
-    await _audit_trust_resolution_failure(agent_id, agent_type, reason)
-    raise TrustResolutionError(agent_id, agent_type, reason)
 
 
 # =============================================================================
