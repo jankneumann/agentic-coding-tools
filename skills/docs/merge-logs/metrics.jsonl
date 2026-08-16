@@ -1,0 +1,28 @@
+{"event_type": "rebase", "pr_number": 10, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:47:16.626661+00:00"}
+{"event_type": "rebase", "pr_number": 0, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:47:16.627820+00:00"}
+{"event_type": "rebase", "pr_number": 1, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:47:16.627922+00:00"}
+{"event_type": "rebase", "pr_number": 2, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:47:16.627980+00:00"}
+{"event_type": "rebase", "pr_number": 3, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:47:16.628038+00:00"}
+{"event_type": "rebase", "pr_number": 4, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:47:16.628083+00:00"}
+{"event_type": "rebase", "pr_number": 11, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:47:16.630638+00:00"}
+{"event_type": "rebase", "pr_number": 0, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:47:16.631545+00:00"}
+{"event_type": "rebase", "pr_number": 1, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:47:16.631644+00:00"}
+{"event_type": "revert", "pr_number": 42, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:47:16.637034+00:00"}
+{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-16T11:47:16.729563+00:00"}
+{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-16T11:47:16.730774+00:00"}
+{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-16T11:47:16.732059+00:00"}
+{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": false, "timestamp": "2026-08-16T11:47:16.734110+00:00", "error": "API timeout"}
+{"event_type": "rebase", "pr_number": 10, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:48:56.264223+00:00"}
+{"event_type": "rebase", "pr_number": 0, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:48:56.265311+00:00"}
+{"event_type": "rebase", "pr_number": 1, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:48:56.265420+00:00"}
+{"event_type": "rebase", "pr_number": 2, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:48:56.265478+00:00"}
+{"event_type": "rebase", "pr_number": 3, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:48:56.265523+00:00"}
+{"event_type": "rebase", "pr_number": 4, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:48:56.265568+00:00"}
+{"event_type": "rebase", "pr_number": 11, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:48:56.268185+00:00"}
+{"event_type": "rebase", "pr_number": 0, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:48:56.269108+00:00"}
+{"event_type": "rebase", "pr_number": 1, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:48:56.269225+00:00"}
+{"event_type": "revert", "pr_number": 42, "backend": "direct", "success": true, "timestamp": "2026-08-16T11:48:56.274719+00:00"}
+{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-16T11:48:56.372290+00:00"}
+{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-16T11:48:56.373442+00:00"}
+{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-16T11:48:56.374766+00:00"}
+{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": false, "timestamp": "2026-08-16T11:48:56.376682+00:00", "error": "API timeout"}

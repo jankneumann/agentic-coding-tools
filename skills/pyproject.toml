@@ -116,6 +116,14 @@ testpaths = [
     # venv and is exercised by use, not by this suite.
     "tests/cite-requirements",
     "expedite/scripts/tests",
+    # NOTE: validate-feature/scripts/tests, autopilot/scripts/tests,
+    # security-review/tests and parallel-infrastructure/tests are deliberately
+    # absent. Skills import siblings by flat module name and twelve of those
+    # names are defined by more than one skill, so a single pytest session
+    # resolves the wrong one. CI runs those four in a separate process (see the
+    # "Run in-skill test suites (isolated process)" step in ci.yml).
+    # tests/test_ci_test_coverage.py fails if any test directory is reached by
+    # neither mechanism.
 ]
 
 [tool.ruff]

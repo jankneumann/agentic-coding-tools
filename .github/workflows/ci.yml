@@ -68,6 +68,49 @@ jobs:
       - name: Run infrastructure skill tests
         run: uv run pytest -v
 
+      # One process per directory, on purpose. Skills are standalone script
+      # directories that import siblings by flat module name, and twelve of
+      # those names are defined by more than one skill (`models` by five,
+      # `main` by four, `gate`, `cli`, `runner`, `orchestrator`, ... by two
+      # apiece). In a shared pytest session the first skill to import one wins
+      # sys.modules for every skill after it, so these directories were simply
+      # left out of testpaths -- taking the gate-logic, linter, GATEKEEPER,
+      # security-gate, consensus, merge-queue and transcript suites out of CI
+      # with them. A process boundary per skill is the isolation the
+      # architecture already implies.
+      #
+      # skills/tests/test_ci_test_coverage.py fails if a test directory is
+      # reached by neither this step nor testpaths, so the gap cannot silently
+      # reopen.
+      - name: Run in-skill test suites (isolated processes)
+        run: |
+          set -euo pipefail
+          status=0
+          for suite in \
+            validate-feature/scripts/tests \
+            autopilot/scripts/tests \
+            autopilot/tests \
+            security-review/tests \
+            parallel-infrastructure/tests \
+            parallel-infrastructure/scripts/tests \
+            agent-metrics/tests \
+            collect-transcripts/tests \
+            explore-feature/tests \
+            gen-eval-scenario/tests \
+            improve-harness/tests \
+            iterate-on-implementation/tests \
+            merge-pull-requests/scripts/tests \
+            quick-task/tests \
+            session-log/tests \
+            session-log/scripts \
+            tech-debt-analysis/tests
+          do
+            echo "::group::pytest $suite"
+            uv run pytest "$suite" -q || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+
   test-skills:
     runs-on: ubuntu-latest
 
