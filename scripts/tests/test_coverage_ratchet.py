@@ -26,7 +26,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
-import coverage_ratchet as cr  # noqa: E402
+import coverage_ratchet as cr
 
 SCHEMA_PATH = (
     REPO_ROOT

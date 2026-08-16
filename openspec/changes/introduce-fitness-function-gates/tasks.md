@@ -14,7 +14,7 @@ Scenario references use document order within each delta spec:
   **Spec scenarios**: skill-workflow.1, skill-workflow.3, skill-workflow.4
   **Design decisions**: D2
   **Dependencies**: 1.1
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 - [x] 1.3 Write consensus axis tests — round-trip, same-line different-axis split [M]
   **Spec scenarios**: fitness-functions.4 (axis round-trips), fitness-functions.5 (matching uses axis)
   **Design decisions**: D3
@@ -28,7 +28,7 @@ Scenario references use document order within each delta spec:
 - [x] 1.6 Mark validate-feature-findings-gate proposal SUPERSEDED [XS]
   **Design decisions**: D7
   **Dependencies**: None
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2 — Gates, linters, degradation (wp-gates)
 
@@ -42,7 +42,7 @@ Scenario references use document order within each delta spec:
   **Spec scenarios**: fitness-functions.8, fitness-functions.9, fitness-functions.14, fitness-functions.15, fitness-functions.16
   **Design decisions**: D4, D6
   **Dependencies**: None
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 - [x] 2.4 Add gates.architecture section with populated severity_thresholds to architecture.config.yaml [S]
   **Spec scenarios**: fitness-functions.10 (thresholds populated)
   **Contracts**: contracts/architecture-gates-config.md
@@ -56,12 +56,12 @@ Scenario references use document order within each delta spec:
   **Spec scenarios**: fitness-functions.14, fitness-functions.15, fitness-functions.16
   **Design decisions**: D6
   **Dependencies**: 2.3
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 - [x] 2.7 Emit DEGRADED from fail-open producers — GATEKEEPER fallback, sub-2-vendor review, degraded security pass [M]
   **Spec scenarios**: fitness-functions.14 (degraded status written)
   **Design decisions**: D6
   **Dependencies**: 2.6
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 3 — Planning templates, discovery rubric (wp-templates)
 
@@ -79,7 +79,7 @@ Scenario references use document order within each delta spec:
   **Spec scenarios**: fitness-functions.3
   **Design decisions**: D8
   **Dependencies**: 3.1
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 4 — Coverage ratchet (wp-coverage)
 
@@ -98,13 +98,13 @@ Scenario references use document order within each delta spec:
 - [x] 4.4 Document ratchet promotion command in session-completion guide [XS]
   **Design decisions**: D5
   **Dependencies**: 4.3
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 5 — Integration (wp-integration)
 
-- [ ] 5.1 Run full test suites, openspec validate --strict, validate_flows against merged branch [S]
+- [x] 5.1 Run full test suites, openspec validate --strict, validate_flows against merged branch [S]
   **Dependencies**: Phases 1–4
 - [ ] 5.2 Run validate-feature spec plus evidence phases; confirm advisory architecture block renders in validation-report.md [S]
   **Spec scenarios**: fitness-functions.8
   **Dependencies**: 5.1
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
