@@ -44,13 +44,27 @@ def _requirements() -> dict[str, Any]:
             {
                 "change_id": "add-merge-plan-orchestration",
                 "expected_head_ref": "openspec/add-merge-plan-orchestration",
-                "required_surface": "file-tier merge-plan schema and executor",
+                "required_surface": {
+                    "id": "file-tier-merge-plan-schema-and-executor",
+                    "files": [
+                        {"path": "contracts/merge-plan.schema.json", "kind": "json-schema"},
+                        {"path": "skills/build_plan.py", "kind": "python"},
+                    ],
+                    "verify_at": ["authoritative-merge-sha", "feature-head"],
+                },
                 "blocks": ["wp-pr-delivery"],
             },
             {
                 "change_id": "validate-feature-findings-gate",
                 "expected_head_ref": "openspec/validate-feature-findings-gate",
-                "required_surface": "selected ephemeral validation worktree",
+                "required_surface": {
+                    "id": "selected-ephemeral-validation-worktree",
+                    "files": [
+                        {"path": "skills/validation_worktree.py", "kind": "python"},
+                        {"path": "skills/test_validation_worktree.py", "kind": "python"},
+                    ],
+                    "verify_at": ["authoritative-merge-sha", "feature-head"],
+                },
                 "blocks": ["wp-phase-lifecycle"],
             },
         ],
@@ -148,23 +162,6 @@ class FakeRunner:
             if self.mode == "invalid_oid" and number == 1:
                 pr["mergeCommit"] = {"oid": "a" * 41}
             return self._done(args, json.dumps([pr]))
-        if args[:3] == ("gh", "pr", "view"):
-            number = int(args[3])
-            if number == 1:
-                files = [
-                    {
-                        "path": "openspec/changes/add-merge-plan-orchestration/contracts/schemas/merge-plan.schema.json"
-                    },
-                    {"path": "skills/merge-pull-requests/scripts/build_plan.py"},
-                ]
-            else:
-                files = [
-                    {"path": "skills/validate-feature/scripts/validation_worktree.py"},
-                    {"path": "skills/tests/validate-feature/test_validation_worktree.py"},
-                ]
-            if self.mode == "missing_surface" and number == 1:
-                files = [{"path": "README.md"}]
-            return self._done(args, json.dumps({"files": files}))
         if args[:2] == ("git", "fetch"):
             return self._done(args)
         if args[:3] == ("git", "rev-parse", "FETCH_HEAD"):
@@ -175,6 +172,32 @@ class FakeRunner:
             if self.mode == "non_ancestral" and args[3] == self.merge_shas[1]:
                 return self._done(args, returncode=1)
             return self._done(args)
+        if args[:3] == ("git", "cat-file", "-e"):
+            revision, path = args[3].split(":", 1)
+            if (
+                self.mode == "missing_surface"
+                and revision == self.merge_shas[1]
+                and path == "skills/build_plan.py"
+            ):
+                return self._done(args, returncode=1)
+            return self._done(args)
+        if args[:2] == ("git", "show"):
+            revision, path = args[2].split(":", 1)
+            if path.endswith(".schema.json"):
+                content = (
+                    '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object"}'
+                )
+            else:
+                content = "def main():\n    return 0\n"
+            if self.mode == "invalid_surface_content" and revision == self.head:
+                content = "def broken(:\n"
+            if (
+                self.mode == "invalid_python_surface"
+                and revision == self.head
+                and path.endswith(".py")
+            ):
+                content = "def broken(:\n"
+            return self._done(args, content)
         raise AssertionError(f"unexpected command: {args}")
 
 
@@ -201,6 +224,8 @@ def _run(preflight, tmp_path: Path, runner: FakeRunner, mutate=None):
         ("invalid_oid", "object id"),
         ("non_ancestral", "not ancestral"),
         ("missing_surface", "required surface"),
+        ("invalid_surface_content", "cannot parse"),
+        ("invalid_python_surface", "cannot parse"),
     ],
 )
 def test_preflight_fails_closed(preflight, tmp_path: Path, mode: str, match: str) -> None:
@@ -234,6 +259,10 @@ def test_success_uses_authoritative_metadata_and_atomically_writes_schema_valid_
     }
     assert not list(output.parent.glob(f".{output.name}.*.tmp"))
     assert all("merge_sha" not in call for call in runner.calls)
+    surface_checks = [call[3] for call in runner.calls if call[:3] == ("git", "cat-file", "-e")]
+    assert f"{runner.merge_shas[1]}:skills/build_plan.py" in surface_checks
+    assert f"{runner.head}:skills/build_plan.py" in surface_checks
+    assert not any(call[:3] == ("gh", "pr", "view") for call in runner.calls)
 
 
 def test_failure_preserves_existing_output(preflight, tmp_path: Path) -> None:
@@ -255,8 +284,85 @@ def test_verify_only_rechecks_ancestry_without_rewriting(preflight, tmp_path: Pa
     before = output.read_bytes()
 
     verified = preflight.run_preflight(
-        _write_requirements(tmp_path), output, tmp_path, runner=FakeRunner(), verify_only=True
+        _write_requirements(tmp_path),
+        output,
+        tmp_path,
+        runner=FakeRunner(),
+        verify_only=True,
+        expected_feature_head=runner.head,
     )
 
     assert verified["implementation_diff_base_sha"] == runner.base_tip
     assert output.read_bytes() == before
+
+
+def test_verify_only_requires_an_explicit_gate_head(preflight, tmp_path: Path) -> None:
+    runner = FakeRunner()
+    _, output = _run(preflight, tmp_path, runner)
+
+    with pytest.raises(preflight.PreflightError, match="exact expected feature HEAD"):
+        preflight.run_preflight(
+            _write_requirements(tmp_path),
+            output,
+            tmp_path,
+            runner=FakeRunner(),
+            verify_only=True,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutate", "match"),
+    [
+        (
+            lambda evidence: evidence["prerequisites"].pop(),
+            "one-to-one",
+        ),
+        (
+            lambda evidence: evidence["prerequisites"].append(dict(evidence["prerequisites"][0])),
+            "one-to-one",
+        ),
+        (
+            lambda evidence: evidence["prerequisites"].__setitem__(
+                1, dict(evidence["prerequisites"][0])
+            ),
+            "one-to-one",
+        ),
+        (
+            lambda evidence: evidence["prerequisites"][1].__setitem__(
+                "change_id", "unexpected-change"
+            ),
+            "one-to-one",
+        ),
+    ],
+)
+def test_verify_only_rejects_duplicate_omitted_or_unknown_prerequisite_ids(
+    preflight, tmp_path: Path, mutate, match: str
+) -> None:
+    runner = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, runner)
+    mutate(evidence)
+
+    with pytest.raises(preflight.PreflightError, match=match):
+        preflight.verify_evidence_bytes(
+            _write_requirements(tmp_path),
+            json.dumps(evidence).encode(),
+            tmp_path,
+            runner=FakeRunner(),
+            expected_feature_head=runner.head,
+        )
+
+
+def test_verify_only_rejects_a_stale_gate_head_binding(preflight, tmp_path: Path) -> None:
+    runner = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, runner)
+    current = FakeRunner()
+    current.head = "c" * 40
+
+    with pytest.raises(preflight.PreflightError, match="exact feature HEAD"):
+        preflight.verify_evidence_bytes(
+            _write_requirements(tmp_path),
+            json.dumps(evidence).encode(),
+            tmp_path,
+            runner=current,
+            expected_feature_head=runner.head,
+        )

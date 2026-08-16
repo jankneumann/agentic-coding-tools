@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import re
@@ -97,6 +98,10 @@ def _load_requirements(path: Path) -> dict[str, Any]:
     prerequisites = data.get("prerequisites")
     if not isinstance(prerequisites, list) or not prerequisites:
         raise PreflightError("requirements contain no prerequisites")
+    change_ids = [item.get("change_id") for item in prerequisites]
+    head_refs = [item.get("expected_head_ref") for item in prerequisites]
+    if len(change_ids) != len(set(change_ids)) or len(head_refs) != len(set(head_refs)):
+        raise PreflightError("prerequisite change IDs and head refs must be unique")
     return data
 
 
@@ -144,21 +149,84 @@ def _repository_context(
     return repository, default_branch, remote
 
 
-def _surface_matches(assertion: str, files: set[str]) -> bool:
-    if assertion == "file-tier merge-plan schema and executor":
-        has_schema = any(path.endswith("/merge-plan.schema.json") for path in files)
-        has_executor = any(
-            path.startswith("skills/merge-pull-requests/scripts/")
-            and ("plan" in Path(path).stem or "execute" in Path(path).stem)
-            for path in files
+def _validate_surface_content(
+    *, change_id: str, path: str, kind: str, revision: str, content: str
+) -> None:
+    try:
+        if kind == "python":
+            ast.parse(content, filename=path)
+        elif kind == "json-schema":
+            schema = json.loads(content)
+            Draft202012Validator.check_schema(schema)
+        else:
+            raise PreflightError(f"{change_id}: unsupported required surface kind {kind!r}")
+    except (SyntaxError, UnicodeError, json.JSONDecodeError, Exception) as exc:
+        if isinstance(exc, PreflightError):
+            raise
+        raise PreflightError(
+            f"{change_id}: cannot parse required surface {path} at {revision}: {exc}"
+        ) from exc
+
+
+def _verify_required_surface(
+    surface: Any,
+    *,
+    change_id: str,
+    merge_sha: str,
+    feature_head: str,
+    repo_root: Path,
+    runner: Runner,
+) -> str:
+    if not isinstance(surface, dict) or not isinstance(surface.get("id"), str):
+        raise PreflightError(f"{change_id}: required surface must have an id")
+    files = surface.get("files")
+    if not isinstance(files, list) or not files:
+        raise PreflightError(f"{change_id}: required surface files must be non-empty")
+    if surface.get("verify_at") != [
+        "authoritative-merge-sha",
+        "feature-head",
+    ]:
+        raise PreflightError(
+            f"{change_id}: required surface must verify at merge SHA and feature HEAD"
         )
-        return has_schema and has_executor
-    if assertion == "selected ephemeral validation worktree":
-        return any(
-            path.startswith("skills/validate-feature/") and "worktree" in path.lower()
-            for path in files
-        )
-    raise PreflightError(f"unknown required surface assertion: {assertion}")
+    paths = [item.get("path") for item in files if isinstance(item, dict)]
+    if len(paths) != len(files) or len(paths) != len(set(paths)):
+        raise PreflightError(f"{change_id}: required surface paths must be unique")
+
+    for revision in (merge_sha, feature_head):
+        for item in files:
+            path = item.get("path")
+            kind = item.get("kind")
+            if (
+                not isinstance(path, str)
+                or not path
+                or kind
+                not in (
+                    "python",
+                    "json-schema",
+                )
+            ):
+                raise PreflightError(f"{change_id}: invalid required surface file declaration")
+            object_spec = f"{revision}:{path}"
+            present = _command(
+                runner,
+                ("git", "cat-file", "-e", object_spec),
+                repo_root,
+                check=False,
+            )
+            if present.returncode != 0:
+                raise PreflightError(
+                    f"{change_id}: required surface {path} is absent at {revision}"
+                )
+            content = _command(runner, ("git", "show", object_spec), repo_root).stdout
+            _validate_surface_content(
+                change_id=change_id,
+                path=path,
+                kind=kind,
+                revision=revision,
+                content=content,
+            )
+    return surface["id"]
 
 
 def _is_ancestor(runner: Runner, repo_root: Path, ancestor: str, descendant: str) -> bool:
@@ -187,9 +255,9 @@ def _resolve_prerequisite(
 ) -> dict[str, Any]:
     head_ref = config.get("expected_head_ref")
     change_id = config.get("change_id")
-    assertion = config.get("required_surface")
-    if not all(isinstance(value, str) and value for value in (head_ref, change_id, assertion)):
-        raise PreflightError("prerequisite identity and surface fields must be non-empty strings")
+    surface = config.get("required_surface")
+    if not all(isinstance(value, str) and value for value in (head_ref, change_id)):
+        raise PreflightError("prerequisite identity fields must be non-empty strings")
 
     prs = _json_command(
         runner,
@@ -227,31 +295,18 @@ def _resolve_prerequisite(
         )
 
     merge_sha = _require_oid((pr.get("mergeCommit") or {}).get("oid"), "merge object id")
-    details = _json_command(
-        runner,
-        (
-            "gh",
-            "pr",
-            "view",
-            str(pr["number"]),
-            "--repo",
-            repository,
-            "--json",
-            "files",
-        ),
-        repo_root,
-    )
-    files = {
-        item.get("path")
-        for item in details.get("files", [])
-        if isinstance(item, dict) and isinstance(item.get("path"), str)
-    }
-    if not _surface_matches(assertion, files):
-        raise PreflightError(f"{change_id}: required surface was not changed by the merged PR")
     if not _is_ancestor(runner, repo_root, merge_sha, base_tip):
         raise PreflightError(f"{change_id}: merge SHA is not ancestral to fetched base")
     if not _is_ancestor(runner, repo_root, merge_sha, feature_head):
         raise PreflightError(f"{change_id}: merge SHA is not ancestral to feature HEAD")
+    surface_id = _verify_required_surface(
+        surface,
+        change_id=change_id,
+        merge_sha=merge_sha,
+        feature_head=feature_head,
+        repo_root=repo_root,
+        runner=runner,
+    )
 
     return {
         "change_id": change_id,
@@ -266,7 +321,7 @@ def _resolve_prerequisite(
         "authoritative_merge_sha": merge_sha,
         "fetched_base_tip_sha": base_tip,
         "verified_head_sha": feature_head,
-        "surface_assertion": assertion,
+        "surface_assertion": surface_id,
         "verified_at": verified_at,
     }
 
@@ -325,9 +380,27 @@ def _verify_existing(
     repo_root: Path,
     runner: Runner,
     schema: dict[str, Any],
+    expected_feature_head: str,
 ) -> dict[str, Any]:
+    required_ids = [item["change_id"] for item in requirements["prerequisites"]]
+    raw_prerequisites = evidence.get("prerequisites", [])
+    evidence_ids = (
+        [item.get("change_id") for item in raw_prerequisites if isinstance(item, dict)]
+        if isinstance(raw_prerequisites, list)
+        else []
+    )
+    if (
+        len(evidence_ids) != len(required_ids)
+        or len(evidence_ids) != len(set(evidence_ids))
+        or set(evidence_ids) != set(required_ids)
+    ):
+        raise PreflightError("baseline evidence prerequisite IDs are not an exact one-to-one match")
     _validate_evidence(evidence, schema)
+    expected_feature_head = _require_oid(expected_feature_head, "expected feature HEAD object id")
     current = _resolve(requirements, repo_root, runner)
+    current_feature_heads = {item["verified_head_sha"] for item in current["prerequisites"]}
+    if current_feature_heads != {expected_feature_head}:
+        raise PreflightError("baseline verification is not bound to the exact feature HEAD")
     if evidence.get("repository") != current["repository"]:
         raise PreflightError("baseline evidence belongs to a different repository")
     current_by_change = {item["change_id"]: item for item in current["prerequisites"]}
@@ -385,6 +458,32 @@ def _verify_existing(
     return evidence
 
 
+def verify_evidence_bytes(
+    requirements_path: Path,
+    evidence_bytes: bytes,
+    repo_root: Path,
+    *,
+    runner: Runner = _default_runner,
+    expected_feature_head: str,
+) -> dict[str, Any]:
+    """Verify immutable evidence bytes against one exact feature HEAD."""
+    requirements_path = Path(requirements_path)
+    try:
+        evidence = json.loads(evidence_bytes)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise PreflightError(f"baseline evidence is not valid JSON: {exc}") from exc
+    requirements = _load_requirements(requirements_path)
+    schema = _schema_for(requirements_path)
+    return _verify_existing(
+        evidence,
+        requirements,
+        Path(repo_root),
+        runner,
+        schema,
+        expected_feature_head,
+    )
+
+
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
@@ -415,6 +514,7 @@ def run_preflight(
     *,
     runner: Runner = _default_runner,
     verify_only: bool = False,
+    expected_feature_head: str | None = None,
 ) -> dict[str, Any]:
     requirements_path = Path(requirements_path)
     output_path = Path(output_path)
@@ -422,11 +522,19 @@ def run_preflight(
     requirements = _load_requirements(requirements_path)
     schema = _schema_for(requirements_path)
     if verify_only:
+        if expected_feature_head is None:
+            raise PreflightError("verify-only requires an exact expected feature HEAD")
         try:
-            evidence = json.loads(output_path.read_text())
-        except (OSError, json.JSONDecodeError) as exc:
+            evidence_bytes = output_path.read_bytes()
+        except OSError as exc:
             raise PreflightError(f"cannot read baseline evidence: {exc}") from exc
-        return _verify_existing(evidence, requirements, repo_root, runner, schema)
+        return verify_evidence_bytes(
+            requirements_path,
+            evidence_bytes,
+            repo_root,
+            runner=runner,
+            expected_feature_head=expected_feature_head,
+        )
 
     evidence = _resolve(requirements, repo_root, runner)
     _validate_evidence(evidence, schema)
@@ -440,6 +548,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--repo-root", type=Path, default=Path.cwd())
     parser.add_argument("--verify-only", action="store_true")
+    parser.add_argument("--expected-feature-head")
     args = parser.parse_args(argv)
     try:
         evidence = run_preflight(
@@ -447,6 +556,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.output,
             args.repo_root,
             verify_only=args.verify_only,
+            expected_feature_head=args.expected_feature_head,
         )
     except PreflightError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
