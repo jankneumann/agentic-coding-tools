@@ -67,3 +67,39 @@ Planned phase-scoped worktree leases and proposal-only PR routing from the agree
 
 ### Context
 Resolved semantic blockers that strict OpenSpec validation did not catch: lease fencing/finalization, session and migration contracts, delivery-stage truth and evidence, active-spec conflicts, runtime packaging, and cross-change ordering. The refined plan now passes strict, package-DAG, architecture-scope, schema-instance, and diff checks.
+
+---
+
+## Phase: Plan Review 2 (2026-08-16)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Plan review is not converged** `architectural: worktree` — Expired takeover lacks an implementable process-evidence contract, operator delivery-stage overrides are not bound to the reviewed SHAs, and release-owner can expose preserved work without quarantine.
+
+### Open Questions
+- [ ] What exact local process identity and stale-record rules make expired takeover safe under PID reuse and cross-host ambiguity?
+- [ ] Which pushed parent remote ref proves an integrated package branch durable before its worktree is removed?
+
+### Completed Work
+- Read proposal, design, tasks, all delta specs, contracts, and work-packages.yaml after Plan Iteration 2.
+- Wrote and schema-validated 8 Codex findings: 3 critical, 3 nit, and 2 positive observations.
+- Attempted review dispatch to Antigravity, Claude, Grok, and Pi; no external vendor produced a valid result.
+- Synthesized the only valid review into a non-quorate consensus artifact.
+
+### Next Steps
+- Define and test the expired-takeover process-evidence contract.
+- Bind operator overrides to inspected base/head SHAs and invalidate stale overrides.
+- Quarantine or safely dispose owner-released worktrees before clearing ownership.
+- Clarify package durability refs, split-side-effect teardown recovery, and recovery-adopt output semantics.
+- Rerun multi-vendor PLAN_REVIEW after PLAN_FIX.
+
+### Relevant Files
+- `openspec/changes/phase-scoped-worktree-lifecycle/review-findings-plan.json` — primary schema-valid findings
+- `openspec/changes/phase-scoped-worktree-lifecycle/reviews/review-manifest.json` — vendor failures and quorum evidence
+- `openspec/changes/phase-scoped-worktree-lifecycle/reviews/consensus-plan.json` — non-quorate single-vendor synthesis
+- `openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml` — lifecycle contract requiring revision
+- `openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json` — operator override contract requiring SHA binding
+
+### Context
+PLAN_REVIEW did not converge. Codex found three critical blockers, three nits, and two positive observations. Antigravity, Claude, Grok, and Pi produced no valid review, so external quorum was 0/4; the single-vendor consensus summary must not override the primary critical findings.

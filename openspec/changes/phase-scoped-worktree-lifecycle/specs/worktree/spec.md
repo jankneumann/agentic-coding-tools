@@ -82,9 +82,9 @@ reset, clean, or otherwise mutate worktree contents or unmerged branches.
 - **THEN** the active-agent guard SHALL stop reporting that lease as a blocker
 - **AND** the worktree, its dirty files, and its unmerged branch MUST remain untouched
 
-#### Scenario: Expired takeover quarantines unknown work
+#### Scenario: Expired takeover quarantines live or unknown process evidence
 
-- **WHEN** an expired lease remains attached to a dirty, non-durable, or process-indeterminate checkout
+- **WHEN** an expired lease remains attached to a dirty or non-durable checkout, an exact same-host PID/start-token match, or missing, unreadable, unsupported, or cross-host process evidence
 - **AND** a later phase attempts ordinary acquisition
 - **THEN** the takeover assessment SHALL run while holding the lifecycle lock
 - **AND** it SHALL set `recovery_required` and refuse acquisition
@@ -92,9 +92,15 @@ reset, clean, or otherwise mutate worktree contents or unmerged branches.
 
 #### Scenario: Clean durable expired takeover uses a new fence
 
-- **WHEN** an expired checkout is proven clean, submodule-clean, reachable from its expected remote, and free of contradictory process evidence
+- **WHEN** an expired checkout is proven clean, submodule-clean, reachable from its expected remote, and its same-host PID is absent or has a different process-start token
 - **THEN** ordinary acquisition MAY replace the expired lease with a new `lease_id`
 - **AND** the old owner and lease id MUST remain fenced from every later mutation boundary
+
+#### Scenario: PID reuse is stale rather than live evidence
+
+- **WHEN** an expired lease's evidence names a PID that exists on the same host with a different process-start token
+- **THEN** takeover SHALL treat that evidence as stale PID reuse rather than the old writer
+- **AND** takeover MAY proceed only if every checkout and durability check also passes
 
 ### Requirement: Lease Inspection and Recovery SHALL Be Operator-Visible
 
@@ -136,6 +142,24 @@ release and safe teardown. Inspection MUST NOT rewrite registry entries.
 - **AND** another process attempts acquisition for the same registry entry
 - **THEN** the disposer SHALL hold the exclusive lifecycle lock through safety checks, Git removal, and registry removal
 - **AND** the acquire SHALL observe either the pre-disposal live lease or the completed removal, never an unfenced worktree being removed
+
+#### Scenario: Teardown reconciles a crash after Git removal
+
+- **WHEN** Git worktree removal succeeds but the process crashes before the exact owner/lease registry entry is deleted
+- **THEN** repeated teardown with that owner and lease id SHALL remove the orphan entry and matching process evidence
+- **AND** a different owner or lease id MUST remain a non-mutating conflict
+
+#### Scenario: Bulk owner release quarantines preserved checkouts
+
+- **WHEN** recovery release targets every lease with one exact owner
+- **THEN** each matching checkout still present SHALL enter `recovery_required` before its lease is cleared
+- **AND** no preserved checkout SHALL become eligible for ordinary acquisition
+
+#### Scenario: Explicit recovery adoption populates a complete manual lease
+
+- **WHEN** an operator adopts a quarantined entry with a new owner, lease id, and non-empty reason
+- **THEN** the command SHALL clear recovery state and atomically create a schema-valid manual `RECOVERY` lease with nullable session, timestamps, and TTL
+- **AND** missing, unsafe, or concurrently owned entries SHALL fail without mutation
 
 ### Requirement: Registry Migration SHALL Preserve Existing Local Workflow Compatibility
 

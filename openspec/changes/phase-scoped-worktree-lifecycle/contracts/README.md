@@ -8,7 +8,7 @@ coordinator, GitHub metadata, or a local worktree a second source of truth.
 
 | Contract type | Applicable? | Artifact / reason |
 |---|---:|---|
-| JSON Schema | Yes | `schemas/worktree-registry-v2.schema.json` covers strict schema-v2 writes and backward-compatible v1 reads. `schemas/pr-delivery-classification.schema.json` records deterministic PR-stage evidence. `schemas/merge-plan-delivery-fields.schema.json` defines the immutable classification snapshot and mutable routing fields added to each durable merge-plan node. |
+| JSON Schema | Yes | `schemas/worktree-registry-v2.schema.json` covers strict schema-v2 writes and backward-compatible v1 reads. `schemas/worktree-process-evidence.schema.json` defines non-authoritative local PID/start/host evidence for conservative expired takeover. `schemas/pr-delivery-classification.schema.json` records deterministic PR-stage evidence. `schemas/merge-plan-delivery-fields.schema.json` defines the immutable classification snapshot and mutable routing fields added to each durable merge-plan node. |
 | CLI contract | Yes | `cli/worktree-lifecycle.yaml` defines locked, owner-checked lease and retention commands, compatibility aliases, defaults, output, and exit behavior. |
 | OpenAPI | No | Lease authority remains in the repository registry and must work without coordinator or network access. Coordinator API/UI work only projects this state; it does not introduce an authoritative HTTP mutation surface in this change. |
 | Database schema | No | No database is added or changed. Registry state remains in `.git-worktrees/.registry.json`; the durable merge plan remains a file-tier artifact when the coordinator tier is unavailable. |
@@ -63,6 +63,20 @@ The legacy heartbeat command performs this mapping only while the source entry
 is v1; after canonicalization it requires the explicit synthetic owner and
 lease id and follows the normal renew contract.
 
+Process evidence is stored atomically at
+`.git-worktrees/.lifecycle-processes/<sha256(lease_id)>.json` and validates
+against `schemas/worktree-process-evidence.schema.json`. The controller records
+the lease id and owner, PID, platform process-start token, host/boot identity,
+controller-instance id, and timestamps before making a new automatic lease
+visible, then refreshes `last_seen_at` with lease renewal. On the same host, an
+existing PID with the exact start token is a live old writer; an absent PID or
+start-token mismatch is stale evidence, including PID reuse. Missing,
+unreadable, cross-host, or unsupported evidence is indeterminate. Live or
+indeterminate evidence quarantines an expired checkout; only stale same-host
+evidence permits the remaining clean/durable checks. Evidence never grants
+ownership. Release/finalization removes its matching record after the registry
+transition; a record with no matching lease is safe stale data and may be GC'd.
+
 ### PR delivery classification
 
 `schemas/pr-delivery-classification.schema.json` is the complete classifier
@@ -95,11 +109,15 @@ The routing matrix is schema-enforced: proposal delivery gets planning-only
 review, strict OpenSpec validation, and preserves the active change;
 implementation and mixed delivery get plan-plus-code review, full validation,
 and archival after merge; ambiguous delivery is blocked. An operator override
-must record actor, timestamp, and rationale and changes the effective stage
-without rewriting the original classification evidence. Producer checks require
+must record actor, timestamp, rationale, inspected base and head SHAs, ruleset
+version, and a SHA-256 digest of the canonical inspected classification. It
+changes the effective stage without rewriting the original classification
+evidence. Producer checks require
 classifier-sourced routing to equal `state.latest_delivery_classification`, and
 operator disposition records actor, rationale, selected stage, and timestamp,
-with `selected_stage == effective_stage`.
+with `selected_stage == effective_stage`. Execution honors an override only
+while its SHAs, ruleset version, and digest equal the latest classification;
+any mismatch restores blocked ambiguous routing.
 This change implements file-tier persistence; coordinator APIs/UI project those
 fields but do not activate the overlapping change's deferred coordinator
 system-of-record.

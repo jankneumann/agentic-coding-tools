@@ -81,3 +81,25 @@
 - Codex produced 8 schema-valid findings: 3 critical, 3 nits, and 2 positive observations.
 - Antigravity, Claude, and Grok timed out; Pi returned invalid JSON, so external quorum was not met and all findings remained unconfirmed.
 - The critical findings were nevertheless concrete contract defects and were fixed before review retry.
+
+---
+
+## Iteration 3
+
+<!-- Date: 2026-08-15 -->
+
+### Findings
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | architecture | critical | Expired takeover referenced process evidence without defining identity, storage, PID reuse, or cross-host behavior. | Added a versioned process-evidence schema and atomic lease-bound records with PID/start/host/controller identity; live and indeterminate evidence quarantines, while stale same-host evidence permits later safety checks. |
+| 2 | contract mismatch | critical | Operator delivery overrides were not bound to the base/head state the operator inspected. | Added required base/head SHAs, ruleset version, and canonical-classification SHA-256 digest; any mismatch restores blocked ambiguous routing. |
+| 3 | security | critical | Bulk `release-owner` could clear leases without quarantining preserved checkouts. | Applied quarantine-before-clear semantics and per-entry/quarantine counts to exact-owner recovery release. |
+| 4 | correctness | medium | Package disposal did not define which remote ref proves an integrated child HEAD durable. | Required parent-feature push first and exact child-HEAD reachability from that expected parent remote ref. |
+| 5 | resilience | medium | A crash between Git removal and registry replacement left an unreconciled live orphan entry. | Made exact owner/lease repeated teardown reconcile the one-sided missing-checkout state and process evidence. |
+| 6 | contract mismatch | medium | Explicit recovery adoption did not define its complete schema-v2 lease result. | Defined every manual `RECOVERY` lease field, TTL/timestamps, state clearing, output, and conflict exits. |
+
+### Review Context
+
+- The second retry again had no valid external vendor result; Codex supplied 3 critical blockers, 3 nits, and 2 positive observations.
+- All six actionable findings were incorporated before the next convergence attempt.

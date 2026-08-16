@@ -3,18 +3,19 @@ schema_version: 1
 feature:
   id: phase-scoped-worktree-lifecycle
   title: "Phase-scoped worktree lifecycle and proposal-only PRs"
-  plan_revision: 2
+  plan_revision: 3
   created_by: codex-autopilot
   created_at: "2026-08-15T00:00:00Z"
 
 contracts:
-  revision: 2
+  revision: 3
   openapi:
     primary: "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
     files:
       - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
       - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
       - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
+      - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-process-evidence.schema.json"
       - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/pr-delivery-classification.schema.json"
       - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json"
 
@@ -82,7 +83,7 @@ packages:
             result_keys: [registry_guard_tests]
         - name: "Registry contracts parse"
           kind: command
-          command: "uv run --project skills python -c \"import json; from jsonschema import Draft202012Validator; Draft202012Validator.check_schema(json.load(open('openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json')))\""
+          command: "uv run --project skills python -c \"import json; from jsonschema import Draft202012Validator; [Draft202012Validator.check_schema(json.load(open(p))) for p in ('openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json','openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-process-evidence.schema.json')]\""
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -96,6 +97,7 @@ packages:
     inputs:
       contracts:
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-process-evidence.schema.json"
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
     outputs:
       result_keys: [registry_guard_tests, registry_contract_valid]

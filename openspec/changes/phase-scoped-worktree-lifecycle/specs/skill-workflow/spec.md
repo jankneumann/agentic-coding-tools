@@ -64,7 +64,8 @@ activity protection.
 #### Scenario: Worktrees are finalized after integration
 
 - **WHEN** package integration completes successfully
-- **THEN** the orchestrator SHALL assert each package lease and safely dispose its clean remotely durable worktree
+- **THEN** the orchestrator SHALL push the parent feature ref and prove the exact package HEAD is reachable from that expected remote ref
+- **AND** it SHALL assert each package lease and safely dispose its clean remotely durable worktree without requiring the child branch name itself to be pushed
 - **AND** a dirty or non-durable package SHALL be quarantined rather than force-deleted
 
 ## ADDED Requirements

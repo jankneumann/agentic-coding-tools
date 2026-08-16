@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-16T01:52:47Z",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "Phase sub-agent persisted the structured review handoff locally for orchestrator pickup.",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "PLAN_REVIEW did not converge. The revised plan still has three critical lifecycle and merge-routing contract blockers plus three recovery/package nits. Codex produced the only valid review; Antigravity, Claude, Grok, and Pi produced no valid findings, so external quorum was 0/4 and the single-vendor consensus artifact remains non-quorate. Its automatic zero-blocking summary must not override the primary critical findings.",
+    "completed_work": [
+      "Read proposal, design, tasks, all delta specs, contracts, and work-packages.yaml after Plan Iteration 2.",
+      "Wrote and schema-validated 8 Codex findings: 3 critical, 3 nit, and 2 positive observations.",
+      "Attempted review dispatch to Antigravity, Claude, Grok, and Pi; review-manifest.json records that no vendor produced a valid result.",
+      "Synthesized consensus-plan.json from the only valid review; quorum was not met and all findings remain unconfirmed."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Plan review is not converged",
+        "rationale": "Expired takeover lacks an implementable process-evidence contract, operator delivery-stage overrides are not bound to the reviewed SHAs, and release-owner can expose preserved work without quarantine.",
+        "capability": "worktree",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Define the local process-evidence record and stale/live decision rules used by expired-lease takeover, with PID-reuse and indeterminate fixtures.",
+      "Bind every operator delivery-stage override to the inspected base/head SHAs and invalidate it when either SHA changes.",
+      "Make release-owner quarantine or safely dispose every preserved matching checkout before clearing ownership.",
+      "Specify the parent remote ref and push ordering that prove integrated package worktrees durable before teardown.",
+      "Add owner-fenced reconciliation for a crash after Git worktree removal but before registry deletion.",
+      "Complete the recovery-adopt field, output, exit-code, and failure contract, then rerun multi-vendor PLAN_REVIEW."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/review-findings-plan.json",
+        "description": "Primary schema-valid findings"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/reviews/review-manifest.json",
+        "description": "External vendor failures and quorum evidence"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/reviews/consensus-plan.json",
+        "description": "Non-quorate single-vendor synthesis"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md",
+        "description": "Expired-takeover process-evidence design requiring revision"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml",
+        "description": "Release-owner, teardown-reconciliation, and recovery-adopt contracts requiring revision"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json",
+        "description": "Operator override contract requiring SHA binding"
+      }
+    ]
+  }
+}

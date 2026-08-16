@@ -25,6 +25,16 @@ registry:
     - owner_checked
     - idempotent_same_owner_retry
 
+process_evidence:
+  path: .git-worktrees/.lifecycle-processes/<sha256(lease_id)>.json
+  schema: ../schemas/worktree-process-evidence.schema.json
+  fields: [lease_id, owner, pid, process_start_token, host_id, controller_instance_id, written_at, last_seen_at]
+  rules:
+    - The lifecycle controller atomically writes evidence before publishing an automatic lease and refreshes it with renewal.
+    - Same-host pid plus exact process_start_token is live; absent pid or token mismatch is stale, including PID reuse.
+    - Missing, unreadable, unsupported, or cross-host evidence is indeterminate and quarantines expired takeover.
+    - Evidence may veto expired takeover but never grants ownership.
+
 identity:
   entry_key: [change_id, agent_id]
   lease_owner:
@@ -62,8 +72,8 @@ commands:
       ttl_seconds: 1800
     behavior:
       - Create a lease immediately when none exists.
-      - Before replacing an expired lease, hold the lifecycle lock and inspect worktree/submodule cleanliness, expected-remote reachability, and remaining process evidence; unsafe or indeterminate state MUST be quarantined with recovery_required and return exit code 7.
-      - Only a clean, durable expired entry without contradictory process evidence may be acquired, and replacement MUST use a new lease_id.
+      - Before replacing an expired lease, hold the lifecycle lock and inspect worktree/submodule cleanliness, expected-remote reachability, and the schema-valid process-evidence record bound to the old lease id; unsafe, live-writer, or indeterminate state MUST be quarantined with recovery_required and return exit code 7.
+      - Only a clean, durable expired entry with stale same-host evidence may be acquired, and replacement MUST use a new lease_id.
       - Retry by the same owner and lease_id is idempotent and renews expiry.
       - Refuse a live lease with a different owner using exit code 3 and a different lease_id using exit code 6.
       - Refuse automatic acquisition of recovery_required entries with exit code 7.
@@ -104,11 +114,12 @@ commands:
     mutation: true
     required: [owner]
     behavior:
-      - Explicit recovery operation that clears every lease with an exact owner match.
+      - Explicit recovery operation that handles every lease with an exact owner match under the lifecycle lock.
+      - For every matching checkout still present, atomically set recovery_required with an owner-recovery reason before clearing the lease; never return preserved state to ordinary-acquire eligibility.
       - Never releases leases owned by another run, even when owner prefixes match.
       - Repeating the command is an idempotent success.
     json_output:
-      required: [owner, released_count, released_entries]
+      required: [owner, released_count, quarantined_count, released_entries]
 
   - name: lease release-session
     synopsis: worktree.py lease release-session --session-id SESSION_ID [--json]
@@ -126,12 +137,17 @@ commands:
   - name: recovery adopt
     synopsis: >-
       worktree.py recovery adopt CHANGE_ID [--agent-id ID] --owner OWNER
-      --lease-id LEASE_ID --reason REASON [--json]
+      --lease-id LEASE_ID --reason REASON [--session-id SESSION_ID]
+      [--ttl-seconds N] [--json]
     mutation: true
     required: [change_id, owner, lease_id, reason]
     behavior:
-      - Explicit operator action that inspects preserved state, clears recovery_required, and acquires a new fenced manual lease atomically.
+      - Explicit operator action that inspects preserved state and atomically clears recovery_required plus recovery_reason while acquiring a new fenced manual lease.
+      - The resulting lease stores owner and lease_id, nullable session_id, phase RECOVERY, the supplied reason, lifecycle_mode manual, acquired_at and last_heartbeat set to now, expires_at=now+ttl_seconds, and the default 1800-second TTL when omitted.
+      - Missing entries return exit code 1; live-owner conflicts return 3; inspection failure or unresolved unsafe state returns 7; wrong/stale fencing never mutates state.
       - Ordinary phase workflows MUST NOT pass this operation implicitly.
+    json_output:
+      required: [change_id, agent_id, owner, lease_id, session_id, phase, reason, lifecycle_mode, acquired_at, last_heartbeat, expires_at, ttl_seconds, adopted, recovery_required]
 
   - name: teardown
     synopsis: >-
@@ -145,6 +161,7 @@ commands:
       - On dirty, dirty-submodule, or non-durable state, preserve the worktree and return an unsafe result so finalization can release it into recovery quarantine.
       - Never run destructive submodule deinitialization before dirtiness is proven absent.
       - Repeating teardown after the registry entry and worktree are already absent is an idempotent success and does not attest prior ownership.
+      - If Git removal succeeded but the exact owner/lease registry entry remains after a crash, repeated teardown SHALL reconcile the missing checkout by removing that entry and matching process evidence; wrong owner or lease_id remains a non-mutating conflict.
     json_output:
       required: [change_id, agent_id, owner, lease_id, removed, recovery_required, reason]
 

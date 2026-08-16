@@ -33,12 +33,29 @@
     "operatorOverride": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["actor", "selected_stage", "reason", "recorded_at"],
+      "required": [
+        "actor",
+        "selected_stage",
+        "reason",
+        "recorded_at",
+        "base_sha",
+        "head_sha",
+        "ruleset_version",
+        "classification_digest"
+      ],
       "properties": {
         "actor": { "type": "string", "minLength": 1 },
         "selected_stage": { "enum": ["proposal", "implementation", "mixed"] },
         "reason": { "type": "string", "minLength": 1 },
-        "recorded_at": { "type": "string", "format": "date-time" }
+        "recorded_at": { "type": "string", "format": "date-time" },
+        "base_sha": { "type": "string", "minLength": 7 },
+        "head_sha": { "type": "string", "minLength": 7 },
+        "ruleset_version": { "type": "string", "minLength": 1 },
+        "classification_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of the canonical latest delivery classification inspected by the operator."
+        }
       }
     },
     "deliveryRouting": {

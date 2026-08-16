@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/contracts/worktree/worktree-process-evidence.schema.json",
+  "title": "Worktree Lifecycle Process Evidence",
+  "description": "Non-authoritative local process identity bound to one activity lease for conservative expired-takeover decisions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "lease_id",
+    "owner",
+    "pid",
+    "process_start_token",
+    "host_id",
+    "controller_instance_id",
+    "written_at",
+    "last_seen_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "lease_id": { "type": "string", "minLength": 1 },
+    "owner": { "type": "string", "minLength": 1 },
+    "pid": { "type": "integer", "minimum": 1 },
+    "process_start_token": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Platform process-start identity used with pid to reject PID reuse."
+    },
+    "host_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable local host/boot identity; another or unverifiable host is indeterminate."
+    },
+    "controller_instance_id": { "type": "string", "minLength": 1 },
+    "written_at": { "type": "string", "format": "date-time" },
+    "last_seen_at": { "type": "string", "format": "date-time" }
+  }
+}

@@ -13,9 +13,9 @@ paths concurrently.
 
 ## 1. Registry and activity-guard contract
 
-- [ ] 1.1 (M) Write deterministic registry-v2 contract fixtures and lease tests covering migration, locking, session release, fencing, recovery quarantine, atomic disposal, remote reachability, retention, inspection, corruption, plus isolation
-  **Spec scenarios**: `worktree` — Owner acquires and renews the default lease; Different owner cannot renew or release a live lease; Expired writer is fenced after same-owner resume; Matching release is idempotent; AC-08; Expired takeover quarantines unknown work; Clean durable expired takeover uses a new fence; AC-09; AC-11; Concurrent lifecycle updates preserve both owners' records; Inspection reports lifecycle categories without mutation; Pushed proposal branch is safely disposable before merge; Unsafe finalization quarantines recovery state; Acquire cannot race owner-checked disposal; Fresh legacy heartbeat maps every canonical lease field; Missing or invalid legacy heartbeat is diagnosable and idle; Corrupt registry blocks safety decisions without rewrite; Activity lease commands respect environment isolation
-  **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
+- [ ] 1.1 (M) Write deterministic registry-v2 contract fixtures and lease tests covering migration, locking, owner/session quarantine release, fencing, process evidence, recovery adoption, atomic/crash-reconciled disposal, package-parent remote reachability, retention, inspection, corruption, plus isolation
+  **Spec scenarios**: `worktree` — Owner acquires and renews the default lease; Different owner cannot renew or release a live lease; Expired writer is fenced after same-owner resume; Matching release is idempotent; AC-08; Expired takeover quarantines live or unknown process evidence; Clean durable expired takeover uses a new fence; PID reuse is stale rather than live evidence; AC-09; AC-11; Concurrent lifecycle updates preserve both owners' records; Inspection reports lifecycle categories without mutation; Pushed proposal branch is safely disposable before merge; Unsafe finalization quarantines recovery state; Acquire cannot race owner-checked disposal; Teardown reconciles a crash after Git removal; Bulk owner release quarantines preserved checkouts; Explicit recovery adoption populates a complete manual lease; Fresh legacy heartbeat maps every canonical lease field; Missing or invalid legacy heartbeat is diagnosable and idle; Corrupt registry blocks safety decisions without rewrite; Activity lease commands respect environment isolation
+  **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/schemas/worktree-process-evidence.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D1-D6
   **Dependencies**: None
   **Files**: `skills/worktree/scripts/tests/test_worktree.py`, `skills/worktree/scripts/tests/test_environment_aware.py`, `skills/shared/tests/test_worktree_lifecycle.py`, `skills/tests/worktree/test_setup_prototype.py`, `skills/tests/worktree/fixtures/**`
@@ -39,7 +39,7 @@ paths concurrently.
 
 ## 2. Standalone phase lifecycle and session backstop
 
-- [ ] 2.1 (M) Write process-level lifecycle-controller and workflow contract tests for proposal branches, durable pushes, strict validation, renewal loss, fencing assertions, atomic disposal/quarantine, all-tier finalization, plus continuous-owner nesting
+- [ ] 2.1 (M) Write process-level lifecycle-controller and workflow contract tests for proposal branches, durable pushes, package-HEAD reachability through the pushed parent ref, strict validation, renewal loss, live/PID-reused/missing/cross-host process evidence, fencing assertions, atomic disposal/quarantine and post-Git-removal reconciliation, all-tier finalization, plus continuous-owner nesting
   **Spec scenarios**: `skill-workflow` — Durable push precedes phase release; Failed phase still finalizes activity; AC-01; Proposal artifacts fail strict validation; AC-06; Later phase recreates from durable remote state; `worktree` — Expired writer is fenced after same-owner resume; Unsafe finalization quarantines recovery state; Acquire cannot race owner-checked disposal
   **Contracts**: `contracts/cli/worktree-lifecycle.yaml`, `contracts/schemas/worktree-registry-v2.schema.json`
   **Design decisions**: D7-D8
@@ -89,7 +89,7 @@ paths concurrently.
 
 - [ ] Checkpoint: run delivery-classifier plus vendor-review tests; inspect prompts to confirm proposal reviews cannot request a code diff.
 
-- [ ] 3.5 (M) Write routing tests for PR-head validation, implementation gates, ambiguity, immutable discovery versus latest classification, auditable operator disposition, cleanup, archival, plus convergence
+- [ ] 3.5 (M) Write routing tests for PR-head validation, implementation gates, ambiguity, immutable discovery versus latest classification, SHA/ruleset/digest-bound operator disposition and stale-override blocking, cleanup, archival, plus convergence
   **Spec scenarios**: `merge-pull-requests` — AC-02; AC-03; Proposal routing skips implementation-only gates; Implementation and mixed routing preserves cleanup; Durable merge plan preserves stage evidence on resume; Operator disposition is explicit and auditable; Proposal OpenSpec PR is merged without cleanup recommendation; Legacy implementation PR retains cleanup behavior
   **Contracts**: `contracts/schemas/merge-plan-delivery-fields.schema.json`, `contracts/schemas/pr-delivery-classification.schema.json`
   **Design decisions**: D14-D15

@@ -139,9 +139,9 @@ coordinator state tier.
 #### Scenario: Operator disposition is explicit and auditable
 
 - **WHEN** an operator resolves an `ambiguous` node as proposal, implementation, or mixed
-- **THEN** the merge-plan command SHALL require the selected stage, actor, non-empty rationale, and timestamp
+- **THEN** the merge-plan command SHALL require the selected stage, actor, non-empty rationale, timestamp, inspected base/head SHAs, ruleset version, and canonical classification digest
 - **AND** routing SHALL resume from that recorded override without rewriting either classification snapshot
-- **AND** a changed head SHA SHALL force revalidation before execution
+- **AND** a changed base SHA, head SHA, ruleset version, or classification digest SHALL restore blocked ambiguous routing and force a new disposition before execution
 
 ## MODIFIED Requirements
 
