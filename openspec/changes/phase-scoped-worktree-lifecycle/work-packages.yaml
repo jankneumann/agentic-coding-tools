@@ -98,7 +98,7 @@ packages:
             result_keys: [prerequisite_preflight_tests]
         - name: "Baseline evidence validates"
           kind: command
-          command: "uv run --project skills python skills/implement-feature/scripts/prerequisite_preflight.py --requirements openspec/changes/phase-scoped-worktree-lifecycle/contracts/prerequisites.yaml --output openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json --verify-only"
+          command: "uv run --project skills python skills/implement-feature/scripts/prerequisite_preflight.py --requirements openspec/changes/phase-scoped-worktree-lifecycle/contracts/prerequisites.yaml --output openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json --verify-only --expected-feature-head \"$(git rev-parse HEAD)\""
           cwd: "."
           expect_exit_code: 0
           evidence:
