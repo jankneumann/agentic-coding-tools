@@ -98,6 +98,7 @@ class FakeRunner:
         self.mode = "ok"
         self.calls: list[tuple[str, ...]] = []
         self.gate_parents: list[str] | None = None
+        self.gate_message_lines = ["fixture gate"]
 
     @staticmethod
     def _done(argv: tuple[str, ...], stdout: str = "", returncode: int = 0):
@@ -172,7 +173,8 @@ class FakeRunner:
         if args[:3] == ("git", "cat-file", "-p"):
             parents = self.gate_parents if self.gate_parents is not None else ["f" * 40]
             parent_lines = "".join(f"parent {parent}\n" for parent in parents)
-            return self._done(args, f"tree {'1' * 40}\n{parent_lines}\nfixture gate\n")
+            message = "\n".join(self.gate_message_lines)
+            return self._done(args, f"tree {'1' * 40}\n{parent_lines}\n{message}\n")
         if args[:3] == ("git", "merge-base", "--is-ancestor"):
             if self.mode == "non_ancestral" and args[3] == self.merge_shas[1]:
                 return self._done(args, returncode=1)
@@ -505,6 +507,7 @@ def test_verify_only_rejects_a_merge_gate_commit(preflight, tmp_path: Path) -> N
     committed = FakeRunner()
     committed.head = "c" * 40
     committed.gate_parents = [generation.head, "a" * 40]
+    committed.gate_message_lines = [f"parent {'b' * 40}", "merge message"]
 
     with pytest.raises(preflight.PreflightError, match="non-merge"):
         preflight.verify_evidence_bytes(
@@ -514,3 +517,44 @@ def test_verify_only_rejects_a_merge_gate_commit(preflight, tmp_path: Path) -> N
             runner=committed,
             expected_feature_head=committed.head,
         )
+
+
+def test_verify_only_rejects_root_gate_with_parent_like_commit_message(
+    preflight, tmp_path: Path
+) -> None:
+    generation = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, generation)
+    committed = FakeRunner()
+    committed.head = "c" * 40
+    committed.gate_parents = []
+    committed.gate_message_lines = [f"parent {generation.head}", "spoofed body"]
+
+    with pytest.raises(preflight.PreflightError, match="exactly one parent"):
+        preflight.verify_evidence_bytes(
+            _write_requirements(tmp_path),
+            json.dumps(evidence).encode(),
+            tmp_path,
+            runner=committed,
+            expected_feature_head=committed.head,
+        )
+
+
+def test_verify_only_accepts_normal_gate_with_parent_like_commit_message(
+    preflight, tmp_path: Path
+) -> None:
+    generation = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, generation)
+    committed = FakeRunner()
+    committed.head = "c" * 40
+    committed.gate_parents = [generation.head]
+    committed.gate_message_lines = [f"parent {'a' * 40}", "ordinary body"]
+
+    verified = preflight.verify_evidence_bytes(
+        _write_requirements(tmp_path),
+        json.dumps(evidence).encode(),
+        tmp_path,
+        runner=committed,
+        expected_feature_head=committed.head,
+    )
+
+    assert verified == evidence

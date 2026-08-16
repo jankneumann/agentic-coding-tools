@@ -423,7 +423,10 @@ def _verify_existing(
         ("git", "cat-file", "-p", expected_feature_head),
         repo_root,
     ).stdout
-    gate_lines = gate_commit.splitlines()
+    gate_headers, separator, _message = gate_commit.partition("\n\n")
+    if not separator:
+        raise PreflightError("committed evidence gate has malformed commit headers")
+    gate_lines = gate_headers.splitlines()
     if not gate_lines or not gate_lines[0].startswith("tree "):
         raise PreflightError("committed evidence gate is not a commit object")
     gate_parents = [
