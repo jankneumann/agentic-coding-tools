@@ -143,7 +143,13 @@ coordinator state tier.
 - **AND** it SHALL require the selected stage, actor, non-empty rationale, timestamp, inspected base/head SHAs, ruleset version, algorithm `pr-delivery-v1+jcs-sha256`, and canonical classification digest
 - **AND** routing SHALL resume from that recorded override without rewriting either classification snapshot
 - **AND** execution SHALL reclassify again and honor the override only while latest state remains ambiguous and every binding plus selected/effective stage matches
-- **AND** a changed binding SHALL discard the override, route a newly clear classification through the classifier, or restore blocked routing when still ambiguous
+- **AND** a changed binding SHALL append invalidation audit evidence before clearing the active override, route a newly clear classification through the classifier, or restore blocked routing when still ambiguous
+
+#### Scenario: Stale operator override remains auditable
+
+- **WHEN** execution invalidates an override because a SHA, ruleset, digest, or delivery classification changed
+- **THEN** it SHALL append the complete override, observed binding evidence, timestamp, reason code, and replacement stage to operator override history under the merge-plan lock before clearing the active override
+- **AND** coordinator projections SHALL expose the history while disabling override controls for a now-clear classification
 
 #### Scenario: Classification digest is deterministic semantic evidence
 

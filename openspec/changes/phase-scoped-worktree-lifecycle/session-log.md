@@ -148,3 +148,46 @@ PLAN_REVIEW did not converge. Codex found three critical blockers, three nits, a
 
 ### Context
 Resolved the final lifecycle, resume, and delivery-override blockers without changing the persisted ESCALATE state. The plan now uses controller-bound leases, stored durability targets, collision-safe process evidence, external autopilot run state, ambiguous-only RFC-8785-bound overrides, and smaller executable work packages.
+
+---
+
+## Phase: Plan Iteration 3 (2026-08-16)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Publish leases only from timestamp-free setup intent** `architectural: worktree` — Provisioning must block conservatively without becoming active or consuming lease lifetime before final publication.
+2. **Authorize recovery writes with the live registry fence** `architectural: skill-workflow` — Envelope generation CAS is concurrency control, not authority; stale controllers must fail even after reading the latest generation.
+3. **Make prerequisite visibility a scheduler-owned completion barrier** `architectural: skill-workflow` — Dependent worktrees must branch from the exact verified feature HEAD, not merely wait for an isolated package status.
+4. **Keep delivery and recovery audit append-only** `architectural: merge-pull-requests` — Safety-sensitive operator and force-adopt decisions must survive active-state clearing and teardown.
+
+### Alternatives Considered
+- Publish a complete lease inside the setup reservation: rejected because its timestamps can expire before active publication and incorrectly imply ownership
+- Treat package completion alone as prerequisite visibility: rejected because isolated result branches do not automatically become dependent worktree bases
+
+### Trade-offs
+- Accepted an indeterminate sync-point blocker for unfinished provisioning over allowing sync points to proceed while setup side effects are unresolved because the reservation grants no activity but unresolved checkout creation is unsafe to ignore
+- Accepted remaining in ESCALATE without external quorum over claiming convergence from internal review alone because the authorized third-party export boundary was not satisfied
+
+### Open Questions
+- [ ] External multi-vendor plan quorum remains unavailable until the operator explicitly authorizes repository-artifact export or provides an approved review path.
+- [ ] Implementation remains blocked until add-merge-plan-orchestration and validate-feature-findings-gate are authoritatively merged and the feature-HEAD preflight passes.
+
+### Completed Work
+- Resolved 29 revision-5 findings across registry setup/recovery, external autopilot state, merge routing, workflow inventory, prerequisite scheduling, and changed-file quality gates.
+- Added authoritative prerequisite, mutating-skill inventory, baseline evidence, setup reservation, recovery audit, and external recovery contracts with explicit package ownership.
+- Obtained clean re-audits from three internal reviewers after fixing every reported critical and nit.
+- Passed strict OpenSpec, package DAG/locks, architecture scope, JSON Schema/YAML, representative instance, review artifact, and diff whitespace validation.
+
+### Next Steps
+- Obtain external review quorum or an explicit operator decision on the non-quorate review boundary.
+- Land and reconcile both named prerequisite changes, then run the shared-feature preflight completion barrier before creating dependent implementation worktrees.
+
+### Relevant Files
+- `openspec/changes/phase-scoped-worktree-lifecycle/design.md` — Revision-5 lifecycle and recovery decisions
+- `openspec/changes/phase-scoped-worktree-lifecycle/tasks.md` — Test-first implementation and scheduler-barrier tasks
+- `openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml` — Eight-package validated DAG
+- `openspec/changes/phase-scoped-worktree-lifecycle/reviews/consensus-plan.json` — Non-quorate final review synthesis
+
+### Context
+Revision 5 closes the lifecycle transaction, recovery fencing, delivery-audit, inventory, and package-scheduling gaps found by three independent internal reviews. All internal re-audits and deterministic validators are clean, but external vendor quorum remains unavailable because repository export approval was not granted; loop state therefore remains ESCALATE and implementation stays gated on both named prerequisite changes plus the authoritative preflight.

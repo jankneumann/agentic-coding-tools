@@ -83,15 +83,106 @@
         }
       ]
     },
+    "leaseIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "lease_id",
+        "controller_instance_id",
+        "session_id",
+        "phase",
+        "reason",
+        "lifecycle_mode",
+        "ttl_seconds"
+      ],
+      "properties": {
+        "owner": { "type": "string", "minLength": 1 },
+        "lease_id": { "type": "string", "minLength": 1 },
+        "controller_instance_id": { "type": "string", "minLength": 1 },
+        "session_id": { "type": ["string", "null"], "minLength": 1 },
+        "phase": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "lifecycle_mode": { "enum": ["standalone", "continuous"] },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400,
+          "default": 1800
+        }
+      },
+      "description": "Requested initial ownership without lease timestamps. It grants no activity; acquired_at, last_heartbeat, and expires_at are created from one publication timestamp in the final reservation-to-entry transaction."
+    },
     "durabilityTarget": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["remote_name", "canonical_remote_url_sha256", "ref_name"],
+      "required": ["remote_name", "remote_url_hash_algorithm", "canonical_remote_url_sha256", "ref_name"],
       "properties": {
-        "remote_name": { "type": "string", "minLength": 1 },
-        "canonical_remote_url_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "ref_name": { "type": "string", "pattern": "^refs/remotes/[^/]+/.+" }
+        "remote_name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "remote_url_hash_algorithm": { "const": "git-remote-url-v1" },
+        "canonical_remote_url_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Digest of the currently configured remote URL after the contract's credential-stripping canonicalization."
+        },
+        "ref_name": {
+          "type": "string",
+          "pattern": "^refs/remotes/[A-Za-z0-9][A-Za-z0-9._-]*/.+",
+          "description": "Remote-tracking ref whose remote component MUST equal remote_name; producers enforce this cross-field invariant."
+        }
       }
+    },
+    "recoveryAuditTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "event",
+        "recorded_at",
+        "change_id",
+        "agent_id",
+        "entry_generation",
+        "actor",
+        "rationale",
+        "prior_owner",
+        "prior_lease_id",
+        "prior_controller_instance_id",
+        "new_owner",
+        "new_lease_id",
+        "new_controller_instance_id",
+        "process_evidence_key",
+        "established_durability_target",
+        "termination_confirmed"
+      ],
+      "properties": {
+        "event_id": { "type": "string", "minLength": 1 },
+        "event": { "const": "force-adopted" },
+        "recorded_at": { "$ref": "#/$defs/timestamp" },
+        "change_id": { "type": "string", "minLength": 1 },
+        "agent_id": { "type": ["string", "null"], "minLength": 1 },
+        "entry_generation": { "type": "string", "minLength": 1 },
+        "actor": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "prior_owner": { "type": ["string", "null"], "minLength": 1 },
+        "prior_lease_id": { "type": ["string", "null"], "minLength": 1 },
+        "prior_controller_instance_id": { "type": ["string", "null"], "minLength": 1 },
+        "new_owner": { "type": "string", "minLength": 1 },
+        "new_lease_id": { "type": "string", "minLength": 1 },
+        "new_controller_instance_id": { "type": "string", "minLength": 1 },
+        "process_evidence_key": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "established_durability_target": {
+          "oneOf": [
+            { "$ref": "#/$defs/durabilityTarget" },
+            { "type": "null" }
+          ],
+          "description": "Target established by this force-adopt transition, or null when the entry already had a non-null target."
+        },
+        "termination_confirmed": { "type": "boolean" }
+      },
+      "allOf": [{ "properties": { "termination_confirmed": { "const": true } } }]
     },
     "recoveryContext": {
       "type": "object",
@@ -105,28 +196,13 @@
         "quarantined_at"
       ],
       "properties": {
-        "source": { "enum": ["expired-takeover", "owner-release", "session-release", "unsafe-finalization", "legacy-adoption", "operator-force"] },
+        "source": { "enum": ["expired-takeover", "explicit-release", "owner-release", "session-release", "unsafe-finalization", "legacy-adoption", "setup-failure"] },
         "prior_owner": { "type": ["string", "null"], "minLength": 1 },
         "prior_lease_id": { "type": ["string", "null"], "minLength": 1 },
         "prior_controller_instance_id": { "type": ["string", "null"], "minLength": 1 },
         "process_evidence_key": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
-        "quarantined_at": { "$ref": "#/$defs/timestamp" },
-        "force_actor": { "type": "string", "minLength": 1 },
-        "force_reason": { "type": "string", "minLength": 1 },
-        "termination_confirmed": { "type": "boolean" }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": { "source": { "const": "operator-force" } },
-            "required": ["source"]
-          },
-          "then": {
-            "required": ["force_actor", "force_reason", "termination_confirmed"],
-            "properties": { "termination_confirmed": { "const": true } }
-          }
-        }
-      ]
+        "quarantined_at": { "$ref": "#/$defs/timestamp" }
+      }
     },
     "entryV2": {
       "type": "object",
@@ -232,15 +308,56 @@
         }
       ]
     },
+    "setupReservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "setup_id",
+        "change_id",
+        "agent_id",
+        "branch",
+        "worktree_path",
+        "entry_generation",
+        "durability_target",
+        "lease_intent",
+        "state",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "setup_id": { "type": "string", "minLength": 1 },
+        "change_id": { "type": "string", "minLength": 1 },
+        "agent_id": { "type": ["string", "null"], "minLength": 1 },
+        "branch": { "type": "string", "minLength": 1 },
+        "worktree_path": { "type": "string", "minLength": 1 },
+        "entry_generation": { "type": "string", "minLength": 1 },
+        "durability_target": { "$ref": "#/$defs/durabilityTarget" },
+        "lease_intent": { "$ref": "#/$defs/leaseIntent" },
+        "state": { "enum": ["reserved", "checkout-created", "evidence-created"] },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "updated_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "description": "Non-active setup-and-acquire intent. Its lease_intent has no activity timestamps, is never interpreted as a writable entry, and is reconciled by exact generation before retry."
+    },
     "registryV2": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_version", "entries"],
+      "required": ["schema_version", "entries", "setup_reservations", "recovery_audit"],
       "properties": {
         "schema_version": { "type": "integer", "const": 2 },
         "entries": {
           "type": "array",
           "items": { "$ref": "#/$defs/entryV2" }
+        },
+        "setup_reservations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/setupReservation" },
+          "description": "Crash-recoverable setup-and-acquire operations; reservations never grant activity or satisfy ownership assertions."
+        },
+        "recovery_audit": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recoveryAuditTransition" },
+          "description": "Append-only force-adoption safety history. Producer enforces unique event ids and preserves events after entry removal."
         },
         "extensions": {
           "type": "object",

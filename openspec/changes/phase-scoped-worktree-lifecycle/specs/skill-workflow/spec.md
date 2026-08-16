@@ -1,9 +1,15 @@
 ## MODIFIED Requirements
 
-### Requirement: Launcher Invariant (All Write Skills)
+### Requirement: Repository-Mutating Workflow Entrypoint Invariant
 
-Every local skill that mutates repository files or Git state SHALL operate in a
-managed worktree, never the shared checkout. A direct write-capable phase SHALL
+Every repository-mutating entrypoint classified in the canonical
+`mutating-skill-inventory.yaml` SHALL follow its declared standalone-owner,
+continuous-parent, child-owner, hybrid-sync-point, sync-point, registry-reader,
+or inherited-only lifecycle. The inventory SHALL cover every canonical consumer
+of setup, heartbeat, pin, active-agent, and registry state and automated tests
+MUST fail for an unclassified consumer. A repository-mutating entrypoint SHALL
+operate only in a managed worktree or an explicitly inherited fenced worktree,
+never the shared checkout. A direct write-capable phase SHALL
 enter its phase worktree, acquire a fenced activity lease, and finalize it
 through the shared executable lifecycle controller. Continuous mode SHALL be
 explicit and parent-owned; retention or an existing worktree MUST NOT imply
@@ -43,22 +49,22 @@ autopilot planning SHALL instead use its explicit parent-owned
 
 - **WHEN** strict OpenSpec validation fails before proposal delivery
 - **THEN** the workflow MUST NOT create a proposal PR
-- **AND** finalization SHALL dispose clean durable state or release it into explicit recovery quarantine
+- **AND** finalization SHALL dispose clean durable state or atomically quarantine and clear its exact lease
 
 ### Requirement: Implementation Orchestrator Worktree Setup
 
 The implementation orchestrator SHALL create a dedicated worktree and fenced
 lease for every root or parallel work package before mutation. Each package
 lease SHALL be independent from the parent phase lease, included in dispatch
-context, asserted before integration, and disposed after integration or released
-into recovery quarantine on failure. Retention aliases MUST NOT be used as
+context, asserted before integration, and disposed after integration or
+atomically quarantined-and-cleared on failure. Retention aliases MUST NOT be used as
 activity protection.
 
 #### Scenario: Package worktrees use leases rather than pins
 
 - **WHEN** an orchestrator dispatches three implementation packages
-- **THEN** each registered worktree SHALL have its own owner and lease id
-- **AND** each dispatch SHALL receive its exact worktree, branch, owner, and lease id
+- **THEN** each registered worktree SHALL have its own exact owner, lease id, controller id, and entry generation
+- **AND** each dispatch SHALL receive its exact worktree, branch, ownership triple, and entry generation
 - **AND** no package SHALL rely on `pinned: true` to block concurrent writers
 
 #### Scenario: Worktrees are finalized after integration
@@ -82,16 +88,17 @@ output, and finalize the local worktree without a release-then-remove race. A wo
 Continuous ownership SHALL be opt-in and SHALL require an explicit parent owner
 token; nested skills MUST NOT infer continuous mode from an existing worktree.
 
-#### Scenario: Durable push precedes phase release
+#### Scenario: Durable push precedes phase teardown
 
 - **WHEN** a standalone phase completes successfully
-- **THEN** it SHALL commit and push its durable output before releasing its lease
-- **AND** it SHALL safely tear down its phase worktree before returning `awaiting review`
+- **THEN** it SHALL commit and push its durable output before teardown
+- **AND** it SHALL safely tear down its phase worktree while the exact lease remains live before returning `awaiting review`
 
 #### Scenario: Failed phase still finalizes activity
 
 - **WHEN** a standalone phase fails after acquiring its lease
-- **THEN** executable finalization SHALL attempt ownership-triple-checked disposal or recovery quarantine plus release
+- **THEN** executable finalization SHALL attempt exact-triple-and-generation-checked teardown
+- **AND** unsafe teardown SHALL atomically quarantine and clear the lease without a follow-up release
 - **AND** dirty or unmerged state MUST NOT be force-deleted
 - **AND** recovery information SHALL identify any preserved worktree
 
@@ -100,19 +107,19 @@ token; nested skills MUST NOT infer continuous mode from an existing worktree.
 Direct `iterate-on-plan`, `implement-feature`, `iterate-on-implementation`, and
 `validate-feature` invocations SHALL each create or adopt a phase-specific
 managed worktree and owner-scoped lease. Each phase SHALL push its commits or
-reports to the appropriate proposal or implementation PR branch before release
-and safe teardown. A later phase SHALL be able to recreate its worktree from the
+reports to the appropriate proposal or implementation PR branch before fenced
+teardown. A later phase SHALL be able to recreate its worktree from the
 remote branch.
 
 This contract SHALL apply to sequential, local-parallel, and coordinated tiers.
 Package child worktrees SHALL remain isolated and SHALL be safely torn down after
-integration or released into explicit recovery quarantine on failure.
+integration or atomically quarantined-and-cleared on failure.
 
-#### Scenario: AC-06 — Every implementation tier releases its phase lease
+#### Scenario: AC-06 — Every implementation tier finalizes its phase lease
 
 - **WHEN** `implement-feature` runs in the sequential, local-parallel, or coordinated tier
 - **AND** the tier reaches pushed completion or a terminal failure
-- **THEN** that tier SHALL execute the same owner-checked release contract
+- **THEN** that tier SHALL execute the same exact-triple-and-generation teardown-or-quarantine contract
 - **AND** it SHALL safely tear down the parent phase worktree and integrated package children
 - **AND** it MUST NOT release a lease owned by a continuous parent
 
@@ -138,12 +145,20 @@ triple and MUST NOT renew, release, or replace the parent-owned lease.
 Autopilot SHALL retain canonical workflow state at the existing feature-branch
 `loop-state.json` path and persist a schema-valid recovery envelope outside the
 disposable checkout, including branch, stored durability target, durable HEAD,
-canonical loop-state path and digest, resume phase, finalization intent, and
-checkout state. The envelope SHALL locate and verify restored canonical state
+canonical loop-state path and digest, generation, finalization intent, and
+checkout state. Before any I/O, the reader SHALL validate safe identifiers and
+prove that the envelope directory, owner, branch, loop-state path, and remote ref
+derive from its run/change identity. After fetching and hashing the exact blob,
+it SHALL validate the canonical loop-state change id before worktree creation or
+lease acquisition. All
+envelope writes SHALL use a per-run lock, generation CAS, atomic replace, file
+fsync, and directory fsync; present/pending writes SHALL additionally prove the
+exact live registry triple plus entry generation, and post-removal CAS SHALL be
+bound to the unchanged pending identity. The envelope SHALL locate and verify restored canonical state
 but SHALL NOT independently authorize a phase or lease. After the pull request and checkpoint
-are durable, autopilot SHALL record teardown intent, release its lease, safely
-tear down, and record removal before entering DONE or presenting any human merge
-gate. Terminal failure and ESCALATE use the same checkpoint-before-release
+are durable, autopilot SHALL CAS teardown intent, safely tear down while its
+exact lease is live, and record removal before entering DONE or presenting any human merge
+gate. Terminal failure and ESCALATE use the same checkpoint-before-teardown
 protocol; a non-durable checkpoint MUST quarantine rather than delete the
 checkout.
 
@@ -152,7 +167,7 @@ checkout.
 - **WHEN** autopilot proceeds from PLAN through VALIDATE and SUBMIT_PR
 - **THEN** every renewal SHALL retain the same `autopilot:<run-id>` owner
 - **AND** nested skills SHALL leave that lease owned by autopilot
-- **AND** autopilot SHALL release it before DONE presents the human merge gate
+- **AND** autopilot SHALL remove it through fenced teardown or quarantine-plus-clear before DONE presents the human merge gate
 
 #### Scenario: Replacement controller resumes without duplicating a live writer
 
@@ -164,9 +179,9 @@ checkout.
 #### Scenario: Released or removed autopilot checkout resumes from durable state
 
 - **WHEN** ESCALATE or exception finalization recorded `checkout_state=removed` outside the worktree
-- **AND** the recorded durable HEAD remains reachable from the stored remote/ref
-- **THEN** resume SHALL recreate the checkout and registry entry, verify the restored canonical loop-state digest, acquire a new lease/controller under the stable owner, checkpoint them, and continue from that canonical phase
-- **AND** missing, non-durable, quarantined, or partially present state SHALL remain escalated
+- **AND** the configured remote URL digest still matches and the freshly fetched stored ref tip equals the recorded durable HEAD exactly
+- **THEN** resume SHALL hash and schema-validate the loop-state blob at that exact OID before recreating the checkout and registry entry, acquire a new lease/controller under the stable owner, checkpoint them, and continue from the phase derived from canonical state
+- **AND** advanced, rewound, missing, URL-mismatched, quarantined, or partially present state SHALL remain escalated
 
 #### Scenario: Fresh description bootstraps before PLAN mutation
 
@@ -178,16 +193,18 @@ checkout.
 
 - **WHEN** autopilot transitions to ESCALATE after acquiring its continuous lease
 - **THEN** it SHALL first persist loop state and recovery context
-- **AND** it SHALL then attempt owner-checked release and safe teardown
+- **AND** it SHALL then attempt exact-triple-and-generation-checked teardown while the lease remains live
+- **AND** unsafe teardown SHALL quarantine and clear ownership atomically
 - **AND** preserved files MUST NOT remain a permanent sync-point blocker
 
 ### Requirement: Session Finalization SHALL Provide a Best-Effort Lease Backstop
 
-Executable orchestration paths SHALL use `finally`-style owner release. Session
+Executable orchestration paths SHALL use `finally`-style teardown-or-quarantine. Session
 end and stop hooks SHALL additionally attempt local, owner-scoped release for all
 leases belonging to the terminating session when that identity is available.
 The hook SHALL work without coordinator connectivity, SHALL be idempotent, and
-MUST NOT release another session's or run's lease.
+MUST NOT release another session's or run's lease. It SHALL NOT invoke teardown
+or mutate an autopilot recovery envelope.
 
 #### Scenario: Session end releases only matching owners
 
@@ -198,6 +215,23 @@ MUST NOT release another session's or run's lease.
 - **AND** every matching checkout not already removed by explicit finalization SHALL be quarantined before its lease is cleared
 - **AND** its exact prior controller identity and process evidence SHALL remain bound to recovery context until safe adoption or teardown
 - **AND** the hook MUST NOT delete a worktree or make preserved state ordinarily adoptable
+- **AND** a later autopilot resume that observes a present-envelope/quarantined-registry mismatch SHALL remain escalated rather than silently reacquire
+
+### Requirement: Prerequisite Evidence SHALL Be Visible Before Dependent Dispatch
+
+The authoritative prerequisite preflight SHALL execute as a root package in the
+managed shared feature worktree. Completion SHALL require the declared
+feature-HEAD barrier to revalidate committed evidence while holding the branch
+lock and record that exact HEAD as the minimum base for every dependent
+worktree. The scheduler MUST NOT mark the preflight complete, satisfy its DAG
+edges, or create a dependent checkout from an earlier feature HEAD.
+
+#### Scenario: Verified preflight commit is the dependent worktree base
+
+- **WHEN** the preflight resolves both authoritative prerequisite merges and commits schema-valid evidence
+- **THEN** the scheduler SHALL revalidate that evidence on feature HEAD under the branch lock
+- **AND** every unblocked dependent worktree SHALL record and contain that exact feature HEAD as its base
+- **AND** a failed verification, changed HEAD, or lost CAS SHALL keep dependent packages blocked until locked re-verification succeeds
 
 ### Requirement: Canonical Lifecycle Skills SHALL Generate Consistent Runtime Mirrors
 

@@ -3,17 +3,20 @@ schema_version: 1
 feature:
   id: phase-scoped-worktree-lifecycle
   title: "Phase-scoped worktree lifecycle and proposal-only PRs"
-  plan_revision: 4
+  plan_revision: 5
   created_by: codex-autopilot
   created_at: "2026-08-15T00:00:00Z"
 
 contracts:
-  revision: 4
+  revision: 5
   openapi:
     primary: "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
     files:
       - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
       - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+      - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/mutating-skill-inventory.yaml"
+      - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/prerequisites.yaml"
+      - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/baseline-gates.schema.json"
       - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
       - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-process-evidence.schema.json"
       - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/autopilot-run-recovery.schema.json"
@@ -29,14 +32,103 @@ defaults:
   min_trust_level: 2
 
 packages:
+  - package_id: wp-baseline-preflight
+    title: "Authoritative prerequisite preflight"
+    task_type: validation
+    description: |
+      Tasks 0.1-0.5. Resolve both named prerequisite pull requests from
+      authoritative repository metadata, verify merged/base/ancestry and named
+      surfaces, record the implementation diff base, and atomically publish
+      schema-valid baseline evidence in the managed shared feature worktree.
+      Package completion is a synchronous feature-HEAD barrier: verify the
+      evidence under the branch lock, record that exact HEAD as the minimum
+      dependent base, and only then satisfy dependencies or create worktrees.
+    role: integration-engineer
+    archetype: analyst
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/implement-feature/scripts/prerequisite_preflight.py"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/parallel-infrastructure/scripts/dag_scheduler.py"
+        - "skills/parallel-infrastructure/scripts/integration_orchestrator.py"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json"
+      keys:
+        - "feature:phase_lifecycle:preflight"
+      ttl_minutes: 60
+      reason: "Fail-closed prerequisite reconciliation"
+    scope:
+      write_allow:
+        - "skills/implement-feature/scripts/prerequisite_preflight.py"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/parallel-infrastructure/scripts/dag_scheduler.py"
+        - "skills/parallel-infrastructure/scripts/integration_orchestrator.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_dag_scheduler.py"
+        - "skills/tests/implement-feature/test_prerequisite_preflight.py"
+        - "skills/tests/implement-feature/test_coordinated_preflight.py"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces: [architecture, decisions, semantic_code]
+    worktree:
+      name: phase-lifecycle-baseline-preflight
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Prerequisite preflight tests"
+          kind: command
+          command: "uv run --project skills pytest skills/tests/implement-feature/test_prerequisite_preflight.py skills/tests/implement-feature/test_coordinated_preflight.py skills/parallel-infrastructure/scripts/tests/test_dag_scheduler.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [prerequisite_preflight_tests]
+        - name: "Baseline evidence validates"
+          kind: command
+          command: "uv run --project skills python skills/implement-feature/scripts/prerequisite_preflight.py --requirements openspec/changes/phase-scoped-worktree-lifecycle/contracts/prerequisites.yaml --output openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json --verify-only"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: ["openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json"]
+            result_keys: [baseline_preflight_evidence]
+        - name: "Preflight integration ordering"
+          kind: command
+          command: "uv run --project skills pytest skills/tests/implement-feature/test_coordinated_preflight.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [baseline_integration_ordering]
+    metadata:
+      loc_estimate: 250
+      alternatives_count: 2
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contracts:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/prerequisites.yaml"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/baseline-gates.schema.json"
+    outputs:
+      result_keys: [prerequisite_preflight_tests, baseline_preflight_evidence, baseline_integration_ordering]
+      artifacts:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json"
+
   - package_id: wp-registry
     title: "Registry v2 and local activity guard"
     task_type: backend
     description: |
       Tasks 1.1-1.6. Build the locked dual-read/single-write registry-v2
-      interpreter, controller-bound lease/resume commands, stored durability,
-      collision-safe process evidence, safe recovery, retention, migration,
-      environment short-circuits, and local active-agent semantics.
+      interpreter, crash-reconciled setup reservations, controller-bound
+      lease/resume commands, bound durability targets, generation-safe process
+      evidence, append-only recovery audit, compatibility setup,
+      teardown-before-release, retention, migration, environment short-circuits,
+      and local active-agent semantics.
     role: python-engineer
     archetype: implementer
     priority: 1
@@ -114,12 +206,13 @@ packages:
     description: |
       Tasks 2.1-2.6. Add controller-bound standalone/continuous modes to
       planning, implementation, iteration, and validation; guarantee stored-ref
-      durability before release; enforce parent-only renewal; create
+      durability before teardown; quarantine before clearing preserved state;
+      enforce parent-only renewal; create
       proposal-only PRs; and preserve evidence in session backstops.
     role: workflow-engineer
     archetype: implementer
     priority: 2
-    depends_on: [wp-registry]
+    depends_on: [wp-baseline-preflight, wp-registry]
     locks:
       files:
         - "skills/shared/phase_lifecycle.py"
@@ -165,14 +258,6 @@ packages:
     verification:
       tier_required: B
       steps:
-        - name: "Validation-worktree baseline is recorded and ancestral"
-          kind: command
-          command: "git fetch origin main && uv run --project skills python -c \"import json, subprocess; p='openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json'; s=json.load(open(p))['validate-feature-findings-gate']['sha']; subprocess.run(['git','merge-base','--is-ancestor',s,'HEAD'],check=True)\""
-          cwd: "."
-          expect_exit_code: 0
-          evidence:
-            artifacts: ["openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json"]
-            result_keys: [validation_baseline_gate]
         - name: "Phase lifecycle contract tests"
           kind: command
           command: "uv run --project skills pytest skills/shared/tests/test_phase_lifecycle.py skills/tests/plan-feature skills/tests/implement-feature skills/tests/iterate-on-plan skills/tests/iterate-on-implementation skills/tests/validate-feature skills/tests/session-bootstrap -q"
@@ -197,26 +282,99 @@ packages:
     inputs:
       contracts:
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
-      dependencies: [wp-registry]
-      required_baseline:
-        change_id: validate-feature-findings-gate
-        gate: "merged_and_rebased_before_dispatch"
-        evidence_file: "openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json"
+      dependencies: [wp-baseline-preflight, wp-registry]
     outputs:
       result_keys: [phase_lifecycle_tests, install_hook_tests]
+
+  - package_id: wp-lifecycle-consumers
+    title: "Mutating launcher and sync-point consumer migration"
+    task_type: workflow
+    description: |
+      Tasks 2.7-2.9. Enforce the canonical mutating-skill inventory, migrate
+      standalone/continuous/child launchers to the shared controller, preserve
+      prototype retention independently from activity, and move sync-point plus
+      registry readers to canonical live-lease semantics.
+    role: workflow-engineer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-phase-lifecycle]
+    locks:
+      files:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/mutating-skill-inventory.yaml"
+        - "skills/prototype-feature/SKILL.md"
+        - "skills/update-specs/SKILL.md"
+      keys:
+        - "feature:worktree:consumers"
+      ttl_minutes: 180
+      reason: "Complete migration of launchers and registry consumers"
+    scope:
+      write_allow:
+        - "skills/archive-roadmap/**"
+        - "skills/autopilot-roadmap/**"
+        - "skills/changelog-version/**"
+        - "skills/cleanup-feature/**"
+        - "skills/explore-feature/**"
+        - "skills/fix-scrub/**"
+        - "skills/plan-roadmap/**"
+        - "skills/prototype-feature/**"
+        - "skills/quick-task/**"
+        - "skills/refresh-architecture/**"
+        - "skills/update-specs/**"
+        - "skills/project-context-refresh/**"
+        - "skills/expedite/**"
+        - "skills/review-artifacts/**"
+        - "skills/tests/lifecycle-consumers/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/autopilot/**"
+        - "skills/merge-pull-requests/**"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces: [capabilities, architecture, documentation, semantic_code]
+    worktree:
+      name: phase-lifecycle-consumers
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Lifecycle inventory and consumer tests"
+          kind: command
+          command: "uv run --project skills pytest skills/tests/lifecycle-consumers -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [lifecycle_consumer_tests]
+    metadata:
+      loc_estimate: 650
+      alternatives_count: 2
+      complexity: high
+      package_kind: integration
+    inputs:
+      contracts:
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/mutating-skill-inventory.yaml"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+      dependencies: [wp-phase-lifecycle]
+    outputs:
+      result_keys: [lifecycle_consumer_tests]
 
   - package_id: wp-pr-delivery
     title: "PR delivery classification and merge routing"
     task_type: workflow
     description: |
-      Tasks 3.1-3.8. Classify proposal, implementation, mixed, and ambiguous
+      Tasks 3.1-3.10. Classify proposal, implementation, mixed, and ambiguous
       delivery from diff/base evidence; preserve author provenance; route
       independent vendor review; constrain overrides to ambiguous state; define
-      the canonical digest; and make validation plus cleanup stage-aware.
+      the canonical digest; make validation plus cleanup stage-aware; and
+      migrate the merge sync point to the canonical shared lifecycle guard.
     role: python-engineer
     archetype: implementer
     priority: 1
-    depends_on: []
+    depends_on: [wp-baseline-preflight, wp-registry]
     locks:
       files:
         - "skills/merge-pull-requests/scripts/discover_prs.py"
@@ -248,14 +406,6 @@ packages:
     verification:
       tier_required: A
       steps:
-        - name: "Merge-plan baseline is recorded and ancestral"
-          kind: command
-          command: "git fetch origin main && uv run --project skills python -c \"import json, subprocess; p='openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json'; s=json.load(open(p))['add-merge-plan-orchestration']['sha']; subprocess.run(['git','merge-base','--is-ancestor',s,'HEAD'],check=True)\""
-          cwd: "."
-          expect_exit_code: 0
-          evidence:
-            artifacts: ["openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json"]
-            result_keys: [merge_plan_baseline_gate]
         - name: "PR classification and routing tests"
           kind: command
           command: "uv run --project skills pytest skills/tests/merge-pull-requests skills/merge-pull-requests/scripts/tests -q"
@@ -282,14 +432,12 @@ packages:
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/pr-delivery-classification.schema.json"
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json"
       overlapping_change: add-merge-plan-orchestration
-      required_baseline:
-        change_id: add-merge-plan-orchestration
-        gate: "merged_and_rebased_before_dispatch"
-        evidence_file: "openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json"
+      dependencies: [wp-baseline-preflight, wp-registry]
     outputs:
       result_keys: [pr_delivery_tests, pr_delivery_contracts_valid]
       artifacts:
         - "skills/merge-pull-requests/scripts/pr_delivery.py"
+        - "skills/tests/merge-pull-requests/fixtures/jcs-unicode-golden.json"
 
   - package_id: wp-autopilot
     title: "Autopilot continuous lease ownership"
@@ -297,8 +445,9 @@ packages:
     description: |
       Tasks 4.1-4.6. Persist one run owner with a controller-bound lease, renew
       only in the parent, propagate assertion context to nested skills, keep
-      resumable state outside disposable worktrees, and recreate removed state
-      only from a verified durable checkpoint.
+      generation-CAS resumable state outside disposable worktrees, finalize
+      through teardown-before-release, and recreate removed state only from an
+      identity-bound exact-tip checkpoint.
     role: python-engineer
     archetype: implementer
     priority: 2
@@ -307,6 +456,7 @@ packages:
       files:
         - "skills/autopilot/scripts/autopilot.py"
         - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/install_assets/openspec/schemas/convergence-state.schema.json"
       keys:
         - "feature:autopilot:lease"
       ttl_minutes: 240
@@ -435,13 +585,14 @@ packages:
     title: "Canonical specs, documentation, mirrors, and verification"
     task_type: validation
     description: |
-      Tasks 6.1-6.3. Update canonical specs and operator guides, regenerate
+      Tasks 6.1-6.4. Update canonical specs and operator guides, regenerate
       runtime mirrors, execute AC-01 through AC-12, and run full OpenSpec,
       package, architecture, test, static, formatting, and drift gates.
     role: integration-engineer
     archetype: analyst
     priority: 4
     depends_on:
+      - wp-lifecycle-consumers
       - wp-phase-lifecycle
       - wp-pr-delivery
       - wp-autopilot
@@ -452,6 +603,7 @@ packages:
         - "openspec/specs/skill-workflow/spec.md"
         - "openspec/specs/merge-pull-requests/spec.md"
         - "openspec/specs/coordinator-kanban-viz/spec.md"
+        - "openspec/schemas/convergence-state.schema.json"
         - "skills/install.sh"
       keys:
         - "feature:worktree:integration"
@@ -463,11 +615,14 @@ packages:
         - "openspec/specs/skill-workflow/spec.md"
         - "openspec/specs/merge-pull-requests/spec.md"
         - "openspec/specs/coordinator-kanban-viz/spec.md"
+        - "openspec/schemas/convergence-state.schema.json"
         - "openspec/changes/phase-scoped-worktree-lifecycle/validation-report.md"
         - "docs/guides/worktree-management.md"
         - "docs/guides/workflow.md"
         - "docs/mental-models.md"
         - "skills/install.sh"
+        - "skills/validate-packages/scripts/ruff_changed_files.py"
+        - "skills/validate-packages/scripts/tests/test_ruff_changed_files.py"
         - "skills/tests/contracts/test_phase_scoped_worktree_contracts.py"
         - "skills/tests/contracts/fixtures/phase-scoped-worktree-lifecycle/**"
         - ".agents/skills/**"
@@ -509,17 +664,25 @@ packages:
           evidence:
             artifacts: []
             result_keys: [mirror_drift_gate]
+        - name: "Convergence schema source and mirror parity"
+          kind: command
+          command: "cmp skills/autopilot/install_assets/openspec/schemas/convergence-state.schema.json openspec/schemas/convergence-state.schema.json && uv run --project skills pytest skills/tests/autopilot/test_loop_state.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: ["openspec/schemas/convergence-state.schema.json"]
+            result_keys: [convergence_schema_parity]
         - name: "Lifecycle, merge-routing, autopilot, and coordinator regression suites"
           kind: command
-          command: "uv run --project skills pytest skills/worktree/scripts/tests skills/shared/tests/test_active_agents.py skills/shared/tests/test_worktree_lifecycle.py skills/shared/tests/test_phase_lifecycle.py skills/tests/contracts/test_phase_scoped_worktree_contracts.py skills/tests/worktree skills/tests/plan-feature skills/tests/implement-feature skills/tests/iterate-on-plan skills/tests/iterate-on-implementation skills/tests/validate-feature skills/tests/session-bootstrap skills/tests/merge-pull-requests skills/merge-pull-requests/scripts/tests skills/autopilot/scripts/tests skills/tests/autopilot -q && uv run --project agent-coordinator pytest agent-coordinator/tests/test_sync_points.py agent-coordinator/tests/test_worktrees_view.py agent-coordinator/tests/test_kanban_viz_endpoints.py agent-coordinator/tests/test_check_docker_imports.py agent-coordinator/tests/test_install_hooks.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py -q"
+          command: "uv run --project skills pytest skills/worktree/scripts/tests skills/shared/tests/test_active_agents.py skills/shared/tests/test_worktree_lifecycle.py skills/shared/tests/test_phase_lifecycle.py skills/tests/contracts/test_phase_scoped_worktree_contracts.py skills/tests/worktree skills/tests/plan-feature skills/tests/implement-feature skills/tests/iterate-on-plan skills/tests/iterate-on-implementation skills/tests/validate-feature skills/tests/session-bootstrap skills/tests/lifecycle-consumers skills/tests/merge-pull-requests skills/merge-pull-requests/scripts/tests skills/autopilot/scripts/tests skills/tests/autopilot -q && uv run --project agent-coordinator pytest agent-coordinator/tests/test_sync_points.py agent-coordinator/tests/test_worktrees_view.py agent-coordinator/tests/test_kanban_viz_endpoints.py agent-coordinator/tests/test_check_docker_imports.py agent-coordinator/tests/test_install_hooks.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
             artifacts: []
             result_keys: [targeted_regression_tests]
-        - name: "Static, formatting, schema-instance, and diff gates"
+        - name: "Changed-file static, formatting, schema-instance, and diff gates"
           kind: command
-          command: "uv run --project skills ruff check skills/worktree skills/shared skills/session-bootstrap skills/merge-pull-requests skills/autopilot skills/tests && uv run --project skills ruff format --check skills/worktree skills/shared skills/session-bootstrap skills/merge-pull-requests skills/autopilot skills/tests && uv run --project agent-coordinator ruff check agent-coordinator/src agent-coordinator/scripts agent-coordinator/tests && uv run --project agent-coordinator ruff format --check agent-coordinator/src agent-coordinator/scripts agent-coordinator/tests && uv run --project agent-coordinator mypy agent-coordinator/src && git diff --check"
+          command: "uv run --project skills pytest skills/validate-packages/scripts/tests/test_ruff_changed_files.py -q && uv run --project skills python skills/validate-packages/scripts/ruff_changed_files.py --baseline-file openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json && uv run --project agent-coordinator mypy agent-coordinator/src && git diff --check"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -533,12 +696,13 @@ packages:
     inputs:
       dependencies:
         - wp-phase-lifecycle
+        - wp-lifecycle-consumers
         - wp-pr-delivery
         - wp-autopilot
         - wp-coordinator-projections
       contracts:
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
     outputs:
-      result_keys: [openspec_package_gates, architecture_scope_gate, mirror_drift_gate, targeted_regression_tests, static_and_diff_gates]
+      result_keys: [openspec_package_gates, architecture_scope_gate, mirror_drift_gate, convergence_schema_parity, targeted_regression_tests, static_and_diff_gates]
       artifacts:
         - "openspec/changes/phase-scoped-worktree-lifecycle/validation-report.md"

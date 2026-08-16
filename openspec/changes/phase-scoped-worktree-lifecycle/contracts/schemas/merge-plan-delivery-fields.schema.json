@@ -20,12 +20,17 @@
     "state": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["latest_delivery_classification", "delivery_routing"],
+      "required": ["latest_delivery_classification", "delivery_routing", "operator_override_history"],
       "properties": {
         "latest_delivery_classification": {
           "$ref": "pr-delivery-classification.schema.json"
         },
-        "delivery_routing": { "$ref": "#/$defs/deliveryRouting" }
+        "delivery_routing": { "$ref": "#/$defs/deliveryRouting" },
+        "operator_override_history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/operatorOverrideEvent" },
+          "description": "Append-only audit of override recording, execution, and invalidation."
+        }
       },
       "allOf": [
         {
@@ -141,6 +146,36 @@
           "type": "string",
           "pattern": "^[0-9a-f]{64}$",
           "description": "SHA-256 of the canonical latest delivery classification inspected by the operator."
+        }
+      }
+    },
+    "operatorOverrideEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id", "event_type", "occurred_at", "recorded_by", "override",
+        "observed_delivery_stage", "observed_base_sha", "observed_head_sha",
+        "observed_ruleset_version", "observed_classification_digest_algorithm",
+        "observed_classification_digest", "reason_code"
+      ],
+      "properties": {
+        "event_id": { "type": "string", "minLength": 1 },
+        "event_type": { "enum": ["recorded", "honored", "invalidated"] },
+        "occurred_at": { "type": "string", "format": "date-time" },
+        "recorded_by": { "type": "string", "minLength": 1 },
+        "override": { "$ref": "#/$defs/operatorOverride" },
+        "observed_delivery_stage": { "enum": ["proposal", "implementation", "mixed", "ambiguous"] },
+        "observed_base_sha": { "type": "string", "minLength": 7 },
+        "observed_head_sha": { "type": "string", "minLength": 7 },
+        "observed_ruleset_version": { "type": "string", "minLength": 1 },
+        "observed_classification_digest_algorithm": { "const": "pr-delivery-v1+jcs-sha256" },
+        "observed_classification_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "reason_code": {
+          "enum": [
+            "operator_recorded", "honored_at_execution", "base_sha_changed",
+            "head_sha_changed", "ruleset_changed", "digest_changed",
+            "classification_became_clear", "superseded"
+          ]
         }
       }
     },

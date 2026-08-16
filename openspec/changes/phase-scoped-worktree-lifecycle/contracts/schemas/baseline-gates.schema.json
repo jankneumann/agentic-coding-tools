@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/contracts/baseline-gates.schema.json",
+  "title": "Implementation Prerequisite Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "repository", "implementation_diff_base_sha", "verified_at", "prerequisites"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "repository": { "type": "string", "minLength": 1 },
+    "implementation_diff_base_sha": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
+    "verified_at": { "type": "string", "format": "date-time" },
+    "prerequisites": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "$ref": "#/$defs/prerequisite" }
+    }
+  },
+  "$defs": {
+    "prerequisite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_id", "repository", "remote_name", "configured_base_ref",
+        "pr_number", "pr_url", "head_ref", "base_ref", "merged_at",
+        "authoritative_merge_sha", "fetched_base_tip_sha", "verified_head_sha",
+        "surface_assertion", "verified_at"
+      ],
+      "properties": {
+        "change_id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "repository": { "type": "string", "minLength": 1 },
+        "remote_name": { "type": "string", "minLength": 1 },
+        "configured_base_ref": { "type": "string", "minLength": 1 },
+        "pr_number": { "type": "integer", "minimum": 1 },
+        "pr_url": { "type": "string", "format": "uri" },
+        "head_ref": { "type": "string", "minLength": 1 },
+        "base_ref": { "type": "string", "minLength": 1 },
+        "merged_at": { "type": "string", "format": "date-time" },
+        "authoritative_merge_sha": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
+        "fetched_base_tip_sha": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
+        "verified_head_sha": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
+        "surface_assertion": { "type": "string", "minLength": 1 },
+        "verified_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

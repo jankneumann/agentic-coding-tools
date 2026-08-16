@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "required": [
     "schema_version",
+    "envelope_generation",
     "run_id",
     "change_id",
     "owner",
@@ -15,7 +16,6 @@
     "durable_head",
     "loop_state_path",
     "loop_state_sha256",
-    "resume_phase",
     "lease_id",
     "registry_entry_generation",
     "checkout_state",
@@ -23,25 +23,54 @@
     "updated_at"
   ],
   "properties": {
-    "schema_version": { "type": "integer", "const": 1 },
-    "run_id": { "type": "string", "minLength": 1 },
-    "change_id": { "type": "string", "minLength": 1 },
-    "owner": { "type": "string", "pattern": "^autopilot:.+" },
-    "branch": { "type": "string", "pattern": "^openspec/.+" },
+    "schema_version": { "type": "integer", "const": 2 },
+    "envelope_generation": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic generation used by locked compare-and-swap persistence."
+    },
+    "run_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "change_id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "owner": {
+      "type": "string",
+      "pattern": "^autopilot:[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "description": "Producer MUST require exact equality with autopilot:<run_id>."
+    },
+    "branch": {
+      "type": "string",
+      "pattern": "^openspec/[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "Producer MUST derive this as openspec/<change_id>."
+    },
     "durability_target": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["remote_name", "canonical_remote_url_sha256", "ref_name"],
+      "required": ["remote_name", "remote_url_hash_algorithm", "canonical_remote_url_sha256", "ref_name"],
       "properties": {
-        "remote_name": { "type": "string", "minLength": 1 },
+        "remote_name": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "remote_url_hash_algorithm": { "const": "git-remote-url-v1" },
         "canonical_remote_url_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "ref_name": { "type": "string", "pattern": "^refs/remotes/[^/]+/.+" }
+        "ref_name": {
+          "type": "string",
+          "pattern": "^refs/remotes/[A-Za-z0-9][A-Za-z0-9._-]*/.+",
+          "description": "Producer MUST require the remote path component to equal remote_name."
+        }
       }
     },
-    "durable_head": { "type": ["string", "null"], "minLength": 7 },
-    "loop_state_path": { "type": "string", "pattern": "^openspec/changes/[^/]+/loop-state\\.json$" },
-    "loop_state_sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
-    "resume_phase": { "type": "string", "minLength": 1 },
+    "durable_head": {
+      "type": ["string", "null"],
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+      "description": "Exact expected fetched tip of durability_target.ref_name, not merely a reachable ancestor."
+    },
+    "loop_state_path": {
+      "type": "string",
+      "pattern": "^openspec/changes/[a-z0-9]+(?:-[a-z0-9]+)*/loop-state\\.json$",
+      "description": "Producer MUST derive this path from change_id before any filesystem access."
+    },
+    "loop_state_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the exact Git blob bytes at durable_head:loop_state_path before JSON parsing or migration."
+    },
     "lease_id": { "type": ["string", "null"], "minLength": 1 },
     "registry_entry_generation": { "type": ["string", "null"], "minLength": 1 },
     "checkout_state": { "enum": ["present", "teardown_pending", "removed", "quarantined"] },
@@ -51,13 +80,28 @@
   "allOf": [
     {
       "if": {
+        "properties": { "checkout_state": { "const": "present" } },
+        "required": ["checkout_state"]
+      },
+      "then": {
+        "properties": {
+          "finalization_intent": { "const": "none" },
+          "lease_id": { "type": "string", "minLength": 1 },
+          "registry_entry_generation": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    {
+      "if": {
         "properties": { "checkout_state": { "enum": ["teardown_pending", "removed"] } },
         "required": ["checkout_state"]
       },
       "then": {
         "properties": {
-          "durable_head": { "type": "string", "minLength": 7 },
+          "durable_head": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
           "loop_state_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "lease_id": { "type": "string", "minLength": 1 },
+          "registry_entry_generation": { "type": "string", "minLength": 1 },
           "finalization_intent": { "enum": ["done", "escalate", "exception"] }
         }
       }

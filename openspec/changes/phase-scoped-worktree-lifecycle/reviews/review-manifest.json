@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "change_id": null,
+  "change_id": "phase-scoped-worktree-lifecycle",
   "review_type": "plan",
-  "created_at": "2026-08-16T01:51:48Z",
-  "target": "cli-dispatch",
+  "created_at": "2026-08-16T13:24:52Z",
+  "target": "phase-scoped-worktree-lifecycle",
   "dispatches": [
     {
       "vendor": "antigravity",
@@ -12,8 +12,8 @@
       "models_attempted": [
         "gemini-3.6-flash-medium"
       ],
-      "elapsed_seconds": 0.31299733300693333,
-      "error": "ERROR: logging before google.Init: E0815 21:51:40.235304       1 main.go:440] Failed to redirect output for CLI: creating log file: opening log file: open /Users/jankneumann/.gemini/antigravity-cli/log/cli-20260815_215140.log: operation not permitted\nERROR: logging before google.Init: I0815 21:51:40.238146       1 resolver.go:85] Model ID gemini-3.6-flash-medium not in local config, defaulting to CCPA\nERROR: logging before google.Init: I0815 21:51:40.238232       1 resolver.go:111] Model resolve",
+      "elapsed_seconds": 0.3957946659065783,
+      "error": "ERROR: logging before google.Init: E0816 09:24:43.934497       1 main.go:440] Failed to redirect output for CLI: creating log file: opening log file: open /Users/jankneumann/.gemini/antigravity-cli/log/cli-20260816_092443.log: operation not permitted\nERROR: logging before google.Init: I0816 09:24:43.936937       1 resolver.go:85] Model ID gemini-3.6-flash-medium not in local config, defaulting to CCPA\nERROR: logging before google.Init: I0816 09:24:43.936954       1 resolver.go:111] Model resolve",
       "error_class": "unknown"
     },
     {
@@ -23,7 +23,7 @@
       "models_attempted": [
         "(default)"
       ],
-      "elapsed_seconds": 2.735235083149746,
+      "elapsed_seconds": 3.513820917112753,
       "error": "Unknown error",
       "error_class": "unknown"
     },
@@ -34,7 +34,7 @@
       "models_attempted": [
         "grok-4.5"
       ],
-      "elapsed_seconds": 4.612832916900516,
+      "elapsed_seconds": 4.599167790962383,
       "error": "Error: Couldn't create session: Permission denied.: {\n  \"code\": \"FS_PERMISSION_DENIED\",\n  \"detail\": \"Operation not permitted (os error 1)\"\n}\n",
       "error_class": "unknown"
     },
@@ -45,7 +45,7 @@
       "models_attempted": [
         "qwen/qwen3-coder"
       ],
-      "elapsed_seconds": 0.8116217919159681,
+      "elapsed_seconds": 0.9106333749368787,
       "error": "No API key found for openrouter.\n\nUse /login to log into a provider via OAuth or API key. See:\n  /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/docs/providers.md\n  /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/docs/models.md\n",
       "error_class": "unknown"
     }

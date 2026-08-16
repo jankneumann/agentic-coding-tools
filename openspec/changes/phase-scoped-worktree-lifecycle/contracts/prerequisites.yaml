@@ -1,0 +1,26 @@
+schema_version: 1
+repository: current
+remote_name: configured-default
+base_ref: configured-default
+execution_gate:
+  package_id: wp-baseline-preflight
+  completion_visibility: feature-head
+  evidence_path: openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json
+  dependent_base_rule: exact-verified-feature-head
+prerequisites:
+  - change_id: add-merge-plan-orchestration
+    expected_head_ref: openspec/add-merge-plan-orchestration
+    required_surface: file-tier merge-plan schema and executor
+    blocks: [wp-pr-delivery]
+  - change_id: validate-feature-findings-gate
+    expected_head_ref: openspec/validate-feature-findings-gate
+    required_surface: selected ephemeral validation worktree
+    blocks: [wp-phase-lifecycle]
+
+verification:
+  - Resolve exactly one merged pull request for the expected head ref in the current repository.
+  - Read merge SHA and base ref from authoritative pull-request metadata; caller-supplied SHAs are forbidden.
+  - Fetch the configured remote/base and prove the merge SHA ancestral to both fetched base tip and feature HEAD.
+  - Verify the named required surface, schema-validate evidence, and atomically write baseline-gates.json.
+  - Run the preflight package in the managed shared feature worktree; under the feature-branch lock, reverify evidence and record exact feature HEAD before marking the package complete.
+  - Create each dependent worktree only from that recorded feature HEAD; a changed HEAD requires locked re-verification and a new recorded base.

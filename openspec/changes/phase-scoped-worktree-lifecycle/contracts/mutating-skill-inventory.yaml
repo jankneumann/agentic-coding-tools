@@ -1,0 +1,45 @@
+schema_version: 1
+description: >-
+  Canonical lifecycle classification for repository-mutating workflow
+  entrypoints and registry/sync-point consumers. Inventory tests scan canonical
+  sources for setup, heartbeat, pin, active-agent, and direct registry usage and
+  fail when a consumer is absent.
+
+defaults:
+  setup_owner: shared-phase-lifecycle
+  renew_owner: owning-controller
+  finalizer: teardown-or-quarantine
+  retention_behavior: independent
+  active_guard: canonical-live-lease
+
+skills:
+  - {skill: archive-roadmap, mutation_mode: standalone_owner, canonical_path: skills/archive-roadmap/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: changelog-version, mutation_mode: standalone_owner, canonical_path: skills/changelog-version/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: explore-feature, mutation_mode: standalone_owner, canonical_path: skills/explore-feature/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: fix-scrub, mutation_mode: standalone_owner, canonical_path: skills/fix-scrub/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: plan-feature, mutation_mode: standalone_owner, canonical_path: skills/plan-feature/SKILL.md, tests: skills/tests/plan-feature}
+  - {skill: plan-roadmap, mutation_mode: standalone_owner, canonical_path: skills/plan-roadmap/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: implement-feature, mutation_mode: standalone_owner, canonical_path: skills/implement-feature/SKILL.md, tests: skills/tests/implement-feature}
+  - {skill: iterate-on-plan, mutation_mode: standalone_owner, canonical_path: skills/iterate-on-plan/SKILL.md, tests: skills/tests/iterate-on-plan}
+  - {skill: iterate-on-implementation, mutation_mode: standalone_owner, canonical_path: skills/iterate-on-implementation/SKILL.md, tests: skills/tests/iterate-on-implementation}
+  - {skill: validate-feature, mutation_mode: standalone_owner, canonical_path: skills/validate-feature/SKILL.md, tests: skills/tests/validate-feature}
+  - {skill: quick-task-write, mutation_mode: standalone_owner, canonical_path: skills/quick-task/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: refresh-architecture, mutation_mode: standalone_owner, canonical_path: skills/refresh-architecture/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: autopilot, mutation_mode: continuous_parent, canonical_path: skills/autopilot/SKILL.md, tests: skills/tests/autopilot}
+  - {skill: autopilot-roadmap, mutation_mode: continuous_parent, canonical_path: skills/autopilot-roadmap/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: implementation-package-worker, mutation_mode: child_owner, canonical_path: skills/implement-feature/SKILL.md, tests: skills/tests/implement-feature}
+  - {skill: prototype-feature, mutation_mode: child_owner, canonical_path: skills/prototype-feature/SKILL.md, tests: skills/tests/lifecycle-consumers, retention_behavior: retained-after-lease-release}
+  - {skill: cleanup-feature, mutation_mode: hybrid_sync_point, canonical_path: skills/cleanup-feature/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: merge-pull-requests, mutation_mode: sync_point, canonical_path: skills/merge-pull-requests/SKILL.md, tests: skills/tests/merge-pull-requests}
+  - {skill: update-specs, mutation_mode: sync_point, canonical_path: skills/update-specs/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: project-context-refresh-sync-point, mutation_mode: sync_point, canonical_path: skills/project-context-refresh/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: expedite, mutation_mode: registry_reader, canonical_path: skills/expedite/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: review-artifacts, mutation_mode: registry_reader, canonical_path: skills/review-artifacts/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: coordinator-projections, mutation_mode: registry_reader, canonical_path: agent-coordinator/src/worktrees_view.py, tests: agent-coordinator/tests/test_worktrees_view.py}
+  - {skill: session-hooks, mutation_mode: registry_reader, canonical_path: skills/session-bootstrap/scripts/hooks/deregister_agent.py, tests: skills/tests/session-bootstrap}
+
+inherited_only:
+  rule: >-
+    Editing/reference helpers that never launch a workflow may mutate only
+    inside an already fenced caller worktree and MUST assert inherited context
+    at each mutation boundary rather than create a second lease.

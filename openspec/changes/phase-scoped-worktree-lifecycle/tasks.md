@@ -2,19 +2,34 @@
 
 All tasks use test-first ordering. Sizes describe one focused agent session; no task is XL and no task is L.
 
-## 0. Enforced baseline gates
+## 0. Executable prerequisite preflight
 
-- [ ] 0.1 Record the merged baseline SHA for `add-merge-plan-orchestration` in `baseline-gates.json`, fetch the configured base ref, run `git merge-base --is-ancestor <recorded-sha> HEAD`, and validate that its file-tier merge-plan schema is the one extended here before dispatching package `wp-pr-delivery`
-- [ ] 0.2 Record the merged baseline SHA for `validate-feature-findings-gate` in `baseline-gates.json`, fetch the configured base ref, run `git merge-base --is-ancestor <recorded-sha> HEAD`, and validate that its ephemeral validation worktree is the one wrapped here before dispatching package `wp-phase-lifecycle`
+- [ ] 0.1 (S) Write mocked repository/PR/Git tests that fail closed for absent, open, duplicate, wrong-repository, wrong-base, caller-supplied-SHA, non-ancestral, missing-surface, and 41-63-character invalid Git object-id prerequisite evidence
+  **Contracts**: `contracts/prerequisites.yaml`, `contracts/schemas/baseline-gates.schema.json`
+  **Dependencies**: None
+  **Files**: `skills/tests/implement-feature/test_prerequisite_preflight.py`
 
-These are no-dispatch prerequisites, not advisory notes. If either active change
-has not landed, the dependent package remains blocked rather than writing shared
-paths concurrently.
+- [ ] 0.2 (S) Implement the prerequisite resolver that obtains authoritative merged PR metadata, fetches the configured remote/base, proves ancestry to fetched base plus feature HEAD, validates named surfaces, records the implementation diff base, and atomically writes schema-valid evidence
+  **Dependencies**: 0.1
+  **Files**: `skills/implement-feature/scripts/prerequisite_preflight.py`
+
+- [ ] 0.3 Run the live resolver in the managed shared feature worktree and commit `baseline-gates.json` there before satisfying the package dependency or creating dependent worktrees; if either prerequisite is not merged and reconciled, or feature-HEAD CAS loses a race, leave `wp-pr-delivery` and `wp-phase-lifecycle` blocked
+  **Dependencies**: 0.2
+  **Files**: `openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json`
+
+- [ ] 0.4 Write coordinated-execution regression coverage proving dependent worktrees are based on the feature commit containing verified preflight evidence and cannot start from a pre-barrier feature HEAD
+  **Spec scenarios**: `skill-workflow` — Verified preflight commit is the dependent worktree base
+  **Dependencies**: 0.3
+  **Files**: `skills/tests/implement-feature/test_prerequisite_preflight.py`, `skills/tests/implement-feature/test_coordinated_preflight.py`, `skills/parallel-infrastructure/scripts/tests/test_dag_scheduler.py`
+
+- [ ] 0.5 Implement the coordinated completion barrier: packages declaring a feature-HEAD barrier are not marked complete until the exact result commit is integrated under the branch lock, evidence is reverified on the resulting feature HEAD, and the scheduler records that HEAD as the minimum base for every dependent worktree
+  **Dependencies**: 0.4
+  **Files**: `skills/implement-feature/SKILL.md`, `skills/parallel-infrastructure/scripts/dag_scheduler.py`, `skills/parallel-infrastructure/scripts/integration_orchestrator.py`
 
 ## 1. Registry and activity-guard contract
 
-- [ ] 1.1 (M) Write registry identity and controller-fencing tests covering exact-triple retry/renew/assert/release, duplicate live-controller rejection, entry-bound evidence keys, intentional cross-entry lease-id collisions, locking, retention, corruption, and isolation
-  **Spec scenarios**: `worktree` — Owner acquires and renews the default lease; Different owner cannot renew or release a live lease; Duplicate live controller cannot reuse the same fence; Matching release is idempotent; AC-08; Process evidence is collision-safe across entries; AC-09; AC-11; Concurrent lifecycle updates preserve both owners' records; Corrupt registry blocks safety decisions without rewrite; Activity lease commands respect environment isolation
+- [ ] 1.1 (M) Write registry identity and controller-fencing tests covering the exact triple across acquire/resume/renew/assert/release/teardown and JSON output, wrong-controller conflicts, generation-bound evidence keys, intentional cross-entry lease-id collisions, locking, retention, corruption, and isolation
+  **Spec scenarios**: `worktree` — Owner acquires and renews the default lease; Wrong ownership component cannot renew or release a live lease; Duplicate live controller cannot reuse the same fence; Automatic commands and results carry the exact fence; Matching release is idempotent; Fresh automatic setup publishes through a durable reservation; Setup crash boundaries reconcile exact side effects; Provisioning reservation blocks sync points; Durability target binds remote identity and fetched ref; AC-08; Process evidence is collision-safe across entries; AC-09; AC-11; Concurrent lifecycle updates preserve both owners' records; Corrupt registry blocks safety decisions without rewrite; Activity lease commands respect environment isolation
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/schemas/worktree-process-evidence.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D1-D6
   **Dependencies**: None
@@ -24,25 +39,25 @@ paths concurrently.
   **Dependencies**: 1.1
   **Files**: `skills/shared/worktree_lifecycle.py`, `skills/worktree/scripts/worktree.py`, `skills/worktree/SKILL.md`
 
-- [ ] 1.3 (M) Write setup/durability/adoption tests covering atomic setup-and-acquire, pre-existing unleased and v1 state, stored remote/ref identity, package-parent refs, refresh/generation races, expired resume, owner/session quarantine evidence, safe/force recovery, and crash-reconciled disposal
-  **Spec scenarios**: `worktree` — Pre-existing unleased state is not silently adopted; Expired takeover quarantines live or unknown process evidence; Clean durable expired takeover uses a new fence; PID reuse is stale rather than live evidence; Unsafe finalization quarantines recovery state; Teardown reconciles a crash after Git removal; Bulk owner release quarantines preserved checkouts; Explicit recovery adoption populates a complete manual lease
+- [ ] 1.3 (M) Write reservation/crash-reconciliation, timestamp-free lease-intent publication, durability-binding/null-target recovery establishment plus force-adopt target snapshots, compatibility-setup/heartbeat, teardown-before-release, deterministic release quarantine defaults, force-adopt-audit, and generation-bound evidence tests covering every side-effect boundary and exact-triple conflict
+  **Spec scenarios**: `worktree` — Pre-existing unleased state is not silently adopted; Expired takeover quarantines live or unknown process evidence; Clean durable expired takeover uses a new fence; PID reuse is stale rather than live evidence; Successful finalization tears down before lease release; Unsafe teardown quarantines and clears in one transaction; Teardown reconciles a crash after Git removal; Bulk owner release quarantines preserved checkouts; Explicit recovery adoption populates a complete manual lease; Force-adopt audit survives recovery clearing and teardown; Legacy setup remains compatible but is not ordinarily adoptable
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/schemas/worktree-process-evidence.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D2-D8
   **Dependencies**: 1.2
   **Files**: `skills/worktree/scripts/tests/test_worktree.py`, `skills/shared/tests/test_worktree_lifecycle.py`, `skills/tests/worktree/test_setup_prototype.py`, `skills/tests/worktree/fixtures/**`
 
-- [ ] 1.4 (M) Implement atomic setup/acquire, persisted durability targets, refresh-outside-lock revalidation, resume/adoption/quarantine, audited force-adopt, and fenced disposal/reconciliation
+- [ ] 1.4 (M) Implement the staged setup reservation state machine, publication-time initial lease construction, bound durability refresh plus generation-fenced null-target recovery establishment, exact-old/new resume fencing, atomic top-level force-adopt audit, nullable-controller legacy heartbeat handler, deterministic release quarantine defaults, compatibility setup path, and teardown-or-quarantine finalization transaction
   **Dependencies**: 1.3
   **Files**: `skills/shared/worktree_lifecycle.py`, `skills/worktree/scripts/worktree.py`, `skills/worktree/SKILL.md`
 
-- [ ] 1.5 (S) Write active-agent guard tests for live, released, expired, retained, legacy, malformed, plus corrupt entries
+- [ ] 1.5 (S) Write active-agent guard tests for live, released, expired, retained, legacy, malformed, corrupt entries, plus unfinished setup reservations as indeterminate non-activity blockers
   **Spec scenarios**: `worktree` — AC-08, AC-09, AC-11, Corrupt registry blocks safety decisions without rewrite; `coordinator-kanban-viz` — AC-02
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`
   **Design decisions**: D1-D6
   **Dependencies**: 1.2
   **Files**: `skills/shared/tests/test_active_agents.py`
 
-- [ ] 1.6 (S) Make the local active-agent guard block only current activity evidence
+- [ ] 1.6 (S) Make the local active-agent guard report current activity separately while conservatively blocking sync points on either current activity or unreconciled setup reservations
   **Dependencies**: 1.4, 1.5
   **Files**: `skills/shared/active_agents.py`
 
@@ -50,30 +65,30 @@ paths concurrently.
 
 ## 2. Standalone phase lifecycle and session backstop
 
-- [ ] 2.1 (M) Write process-level lifecycle-controller tests for controller-bound begin/retry/assert/renew/finalize, renewal loss, durable standalone disposal/quarantine, and all-tier finalization
-  **Spec scenarios**: `skill-workflow` — Durable push precedes phase release; Failed phase still finalizes activity; AC-01; Proposal artifacts fail strict validation; AC-06; Later phase recreates from durable remote state; `worktree` — Expired writer is fenced after same-owner resume; Unsafe finalization quarantines recovery state; Acquire cannot race owner-checked disposal
+- [ ] 2.1 (M) Write process-level lifecycle-controller tests for controller-bound begin/retry/assert/renew/finalize, renewal loss, teardown without prior release, unsafe teardown without follow-up release, exact-triple command/output propagation, generation-bound teardown retry, and all-tier finalization
+  **Spec scenarios**: `skill-workflow` — Durable push precedes phase teardown; Failed phase still finalizes activity; AC-01; Proposal artifacts fail strict validation; AC-06; Later phase recreates from durable remote state; `worktree` — Expired writer is fenced after same-owner resume; Successful finalization tears down before lease release; Unsafe teardown quarantines and clears in one transaction; Acquire cannot race owner-checked disposal
   **Contracts**: `contracts/cli/worktree-lifecycle.yaml`, `contracts/schemas/worktree-registry-v2.schema.json`
   **Design decisions**: D7-D8
   **Dependencies**: 1.4, 1.6
   **Files**: `skills/shared/tests/test_phase_lifecycle.py`, `skills/tests/plan-feature/test_skill_contract.py`, `skills/tests/implement-feature/test_skill_contract.py`, `skills/tests/iterate-on-plan/test_skill_contract.py`, `skills/tests/iterate-on-implementation/test_skill_contract.py`, `skills/tests/validate-feature/test_skill_contract.py`
 
-- [ ] 2.2 (M) Implement the executable controller-bound renew/assert/finalize controller and add standalone/continuous lifecycle modes plus PR provenance trailers to planning, implementation, iteration, and validation skills
+- [ ] 2.2 (M) Implement the executable controller-bound renew/assert/finalize controller with checkpoint-before-teardown and atomic quarantine-plus-clear ordering, then add standalone/continuous lifecycle modes plus PR provenance trailers to planning, implementation, iteration, and validation skills
   **Dependencies**: 2.1
   **Files**: `skills/shared/phase_lifecycle.py`, `skills/plan-feature/SKILL.md`, `skills/implement-feature/SKILL.md`, `skills/iterate-on-plan/SKILL.md`, `skills/iterate-on-implementation/SKILL.md`, `skills/validate-feature/SKILL.md`
 
-- [ ] 2.3 (M) Write package and nested-workflow tests for parent-ref durability targets, parent-only continuous renewal, inherited triple assertions, and post-integration disposal
+- [ ] 2.3 (M) Write package and nested-workflow tests for parent-ref durability targets, parent-only continuous renewal, inherited triple assertions, and post-integration teardown-before-release
   **Spec scenarios**: `skill-workflow` — Package worktrees use leases rather than pins; Package integration proves parent-ref durability; AC-07
   **Contracts**: `contracts/cli/worktree-lifecycle.yaml`, `contracts/schemas/worktree-registry-v2.schema.json`
   **Design decisions**: D7-D9
   **Dependencies**: 2.2
   **Files**: `skills/shared/tests/test_phase_lifecycle.py`, `skills/tests/implement-feature/test_skill_contract.py`, `skills/tests/validate-feature/test_skill_contract.py`
 
-- [ ] 2.4 (M) Implement package parent-ref durability and parent-controller-only renewal across phase/package dispatch and finalization
+- [ ] 2.4 (M) Implement package parent-ref durability and parent-controller-only renewal across phase/package dispatch and teardown-or-quarantine finalization
   **Dependencies**: 2.3
   **Files**: `skills/shared/phase_lifecycle.py`, `skills/implement-feature/SKILL.md`, `skills/validate-feature/SKILL.md`
 
 - [ ] 2.5 (S) Write session-finalization tests for exact owner/session release, preserved prior-controller evidence, different/null third-session identity, and absent-entry idempotency without coordinator connectivity
-  **Spec scenarios**: `skill-workflow` — Session end releases only matching owners; `worktree` — Different owner cannot renew or release a live lease; Unsafe finalization quarantines recovery state
+  **Spec scenarios**: `skill-workflow` — Session end releases only matching owners; `worktree` — Wrong ownership component cannot renew or release a live lease; Unsafe finalization quarantines recovery state
   **Contracts**: `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D5, D10
   **Dependencies**: 1.4
@@ -83,7 +98,20 @@ paths concurrently.
   **Dependencies**: 2.5
   **Files**: `skills/session-bootstrap/scripts/hooks/deregister_agent.py`, `skills/session-bootstrap/SKILL.md`, `agent-coordinator/scripts/deregister_agent.py`, `agent-coordinator/scripts/install_hooks.py`
 
-- [ ] Checkpoint: run lifecycle skill plus session-hook tests; verify every exit path releases only its owner after durable output.
+- [ ] 2.7 (M) Write mutating-skill inventory completeness and compatibility tests that scan setup, heartbeat, pin, active-agent, and registry consumers and cover every declared lifecycle mode
+  **Contracts**: `contracts/mutating-skill-inventory.yaml`, `contracts/cli/worktree-lifecycle.yaml`
+  **Dependencies**: 2.2
+  **Files**: `skills/tests/lifecycle-consumers/**`
+
+- [ ] 2.8 (M) Migrate standalone, continuous-parent, and child launchers in the inventory to the shared controller, including plan pin-as-activity, implementation heartbeat/unpin, and prototype retained-after-lease-release behavior
+  **Dependencies**: 2.7
+  **Files**: inventory-owned launcher skills under `skills/`, excluding `skills/autopilot/**` and `skills/merge-pull-requests/**`
+
+- [ ] 2.9 (M) Migrate hybrid sync-point, sync-point, and registry-reader consumers to canonical live-lease semantics and remove stale pinned-or-heartbeat prose/direct reads
+  **Dependencies**: 2.7
+  **Files**: `skills/{cleanup-feature,update-specs,project-context-refresh,expedite,review-artifacts}/**`, `skills/tests/lifecycle-consumers/**`
+
+- [ ] Checkpoint: run lifecycle skill plus session-hook tests; verify every exit path tears down or quarantines only its exact ownership triple after durable output.
 
 ## 3. Pull-request delivery classification and merge routing
 
@@ -111,14 +139,14 @@ paths concurrently.
 
 - [ ] Checkpoint: run delivery-classifier plus vendor-review tests; inspect prompts to confirm proposal reviews cannot request a code diff.
 
-- [ ] 3.5 (M) Write ambiguity-disposition and canonical-digest tests covering clear-stage override rejection, ambiguous-only selection, selected/effective equality, optimistic SHA/ruleset binding, TOCTOU reclassification, RFC-8785 normalization, Unicode, fixed expected hash, and cross-process parity
-  **Spec scenarios**: `merge-pull-requests` — AC-02; AC-03; Proposal routing skips implementation-only gates; Implementation and mixed routing preserves cleanup; Durable merge plan preserves stage evidence on resume; Operator disposition is explicit and auditable; Proposal OpenSpec PR is merged without cleanup recommendation; Legacy implementation PR retains cleanup behavior
+- [ ] 3.5 (M) Write ambiguity-disposition, append-only override-history, and canonical-digest tests covering pre-revision merge-plan nodes initialized with empty history under lock, record/honor/invalidate events, every binding change, newly clear and still-ambiguous results, clear-stage rejection, selected/effective equality, RFC-8785 normalization, Unicode, fixed expected hash, and cross-process parity
+  **Spec scenarios**: `merge-pull-requests` — Operator disposition is explicit and auditable; Stale operator override remains auditable; Classification digest is deterministic semantic evidence
   **Contracts**: `contracts/schemas/merge-plan-delivery-fields.schema.json`, `contracts/schemas/pr-delivery-classification.schema.json`
   **Design decisions**: D14-D15
   **Dependencies**: 3.2
-  **Files**: `skills/tests/merge-pull-requests/test_delivery_classification.py`, `skills/tests/merge-pull-requests/test_stage_routing.py`, `skills/tests/contracts/fixtures/phase-scoped-worktree-lifecycle/**`
+  **Files**: `skills/tests/merge-pull-requests/test_delivery_classification.py`, `skills/tests/merge-pull-requests/test_stage_routing.py`, `skills/tests/merge-pull-requests/fixtures/jcs-unicode-golden.json`
 
-- [ ] 3.6 (M) Implement one shared JCS digest helper plus lock/reload/reclassify disposition and execution-time override invalidation
+- [ ] 3.6 (M) Implement one shared JCS digest helper plus lock/reload/reclassify disposition, schema-valid locked initialization of missing legacy `operator_override_history` to `[]`, and atomic override-history append before execution-time invalidation
   **Dependencies**: 3.5
   **Files**: `skills/merge-pull-requests/scripts/pr_delivery.py`, `skills/merge-pull-requests/scripts/merge_plan.py`, `skills/merge-pull-requests/scripts/execute_merge_plan.py`
 
@@ -133,27 +161,36 @@ paths concurrently.
   **Dependencies**: 3.4, 3.7
   **Files**: `skills/merge-pull-requests/SKILL.md`, `skills/merge-pull-requests/scripts/post_merge_cleanup.py`, `skills/merge-pull-requests/scripts/merge_plan.py`, `skills/merge-pull-requests/scripts/execute_merge_plan.py`
 
+- [ ] 3.9 (S) Write merge sync-point and post-merge cleanup tests proving live leases and provisioning reservations block, while expired, retained-idle, and stale legacy state do not
+  **Contracts**: `contracts/mutating-skill-inventory.yaml`, `contracts/schemas/worktree-registry-v2.schema.json`
+  **Dependencies**: 1.6, 3.8
+  **Files**: `skills/tests/merge-pull-requests/**`, `skills/merge-pull-requests/scripts/tests/test_post_merge_cleanup.py`
+
+- [ ] 3.10 (S) Migrate merge-pull-requests and post-merge cleanup from direct pinned/heartbeat interpretation to the canonical shared sync-point guard
+  **Dependencies**: 3.9
+  **Files**: `skills/merge-pull-requests/SKILL.md`, `skills/merge-pull-requests/scripts/post_merge_cleanup.py`
+
 ## 4. Autopilot continuous ownership
 
-- [ ] 4.1 (M) Write live/expired controller tests for fresh bootstrap, one stable owner plus exact lease/controller triple, parent-only renewal, same-controller retry, replacement-controller resume, zombie rejection, and quarantine escalation
+- [ ] 4.1 (M) Write live/expired controller tests for fresh bootstrap, one stable owner plus exact lease/controller triple and generation, parent-only renewal, same-controller retry, replacement-controller resume, zombie rejection, and quarantine escalation
   **Spec scenarios**: `skill-workflow` — AC-07; Fresh description bootstraps before PLAN mutation; Replacement controller resumes without duplicating a live writer; Escalation checkpoints before releasing activity; `worktree` — Duplicate live controller cannot reuse the same fence; Expired writer is fenced after same-owner resume
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/schemas/autopilot-run-recovery.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D7, D9
   **Dependencies**: 1.4, 2.4
   **Files**: `skills/autopilot/scripts/tests/test_autopilot_lifecycle.py`, `skills/autopilot/scripts/tests/test_autopilot.py`
 
-- [ ] 4.2 (M) Implement autopilot parent-controller ownership, exact-triple dispatch assertions, fenced resume, and checkpointed release/finally behavior
+- [ ] 4.2 (M) Implement autopilot parent-controller ownership, exact-triple dispatch assertions, fenced resume, and checkpoint-before-teardown/quarantine finally behavior
   **Dependencies**: 4.1
   **Files**: `skills/autopilot/scripts/autopilot.py`
 
-- [ ] 4.3 (M) Write external run-state tests for `teardown_pending`, cleanly removed resume after ESCALATE/exception, durable-ref recreation, non-durable refusal, quarantine, and partial-state reconciliation
+- [ ] 4.3 (M) Write external run-state tests for unsafe identifiers and derived-envelope mismatch before I/O, post-fetch canonical-state change-id mismatch before checkout creation, truncated-envelope preservation, generation CAS/concurrent writers, present-state non-null lease/generation identity, stale-controller rejection even after loading the latest generation, fsync and teardown fault boundaries, session-release divergence, `teardown_pending`, identity-bound pending-to-removed CAS, exact-tip removed resume, advanced/rewound/missing/URL-mismatched refusal, exact blob digest, canonical LoopState validation/migration, quarantine, and partial-state reconciliation
   **Spec scenarios**: `skill-workflow` — Released or removed autopilot checkout resumes from durable state; Escalation checkpoints before releasing activity
-  **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
+  **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/schemas/autopilot-run-recovery.schema.json`, `skills/autopilot/install_assets/openspec/schemas/convergence-state.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D9
   **Dependencies**: 4.2
-  **Files**: `skills/autopilot/scripts/tests/test_autopilot_lifecycle.py`, `skills/autopilot/scripts/tests/test_autopilot.py`
+  **Files**: `skills/autopilot/scripts/tests/test_autopilot_lifecycle.py`, `skills/autopilot/scripts/tests/test_autopilot_recovery.py`, `skills/autopilot/scripts/tests/test_autopilot.py`, `skills/tests/autopilot/test_loop_state.py`
 
-- [ ] 4.4 (M) Persist autopilot run state outside disposable worktrees and implement durable-ref recreation plus teardown crash reconciliation
+- [ ] 4.4 (M) Implement convergence-state schema v5 save/load/migration, locked generation-CAS/fsync external envelope persistence, exact-tip durable recreation, and pending-to-removed teardown crash reconciliation
   **Dependencies**: 4.3
   **Files**: `skills/autopilot/scripts/autopilot.py`, `skills/autopilot/install_assets/openspec/schemas/convergence-state.schema.json`, `skills/autopilot/references/worktree-lifecycle-recovery.md`
 
@@ -168,11 +205,11 @@ paths concurrently.
   **Dependencies**: 4.4, 4.5
   **Files**: `skills/autopilot/scripts/phase_agent.py`, `skills/autopilot/scripts/runner.py`, `skills/autopilot/SKILL.md`, `skills/autopilot/references/worktree-lifecycle-recovery.md`
 
-- [ ] Checkpoint: run autopilot tests; inspect every terminal/resumed transition for stable owner identity plus checkpoint-before-release ordering.
+- [ ] Checkpoint: run autopilot tests; inspect every terminal/resumed transition for stable owner identity plus checkpoint-before-teardown ordering.
 
 ## 5. Coordinator and UI projections
 
-- [ ] 5.1 (M) Write coordinator source/container import-contract and projection tests for live, expired, retained, legacy, corrupt, proposal-plan, immutable/latest classification, plus ambiguous delivery records
+- [ ] 5.1 (M) Write coordinator source/container import-contract and projection tests for live, expired, retained, legacy, corrupt, unfinished reservation as an indeterminate non-active blocker, proposal-plan, immutable/latest classification, blocked ambiguity, valid override, invalidated override history/reason, and newly clear routing without stale controls
   **Spec scenarios**: `coordinator-kanban-viz` — Live lease is projected as active; AC-09; AC-08; AC-11; AC-02; Live continuous autopilot lease blocks sync points; Corrupt registry is an indeterminate blocker; Ambiguous delivery is operator-visible; Proposal plan omits archival action
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/schemas/merge-plan-delivery-fields.schema.json`
   **Design decisions**: D1, D15
@@ -189,7 +226,7 @@ paths concurrently.
   **Spec scenarios**: all scenarios in `worktree`, `skill-workflow`, `merge-pull-requests`, and `coordinator-kanban-viz`
   **Contracts**: all files under `contracts/`
   **Design decisions**: D1-D17
-  **Dependencies**: 2.4, 2.6, 3.8, 4.6, 5.2
+  **Dependencies**: 2.4, 2.6, 2.9, 3.10, 4.6, 5.2
   **Files**: `openspec/specs/worktree/spec.md`, `openspec/specs/skill-workflow/spec.md`, `openspec/specs/merge-pull-requests/spec.md`, `openspec/specs/coordinator-kanban-viz/spec.md`, `docs/guides/worktree-management.md`, `docs/guides/workflow.md`, `docs/mental-models.md`
 
 - [ ] 6.2 (S) Regenerate runtime skill mirrors; run drift plus artifact validation
@@ -197,13 +234,18 @@ paths concurrently.
   **Contracts**: all files under `contracts/`
   **Design decisions**: D16-D17
   **Dependencies**: 6.1
-  **Files**: `skills/install.sh`, generated `.agents/skills/**`, generated `.claude/skills/**`
+  **Files**: `skills/install.sh`, generated `.agents/skills/**`, generated `.claude/skills/**`, generated `openspec/schemas/convergence-state.schema.json`
 
-- [ ] 6.3 (M) Run direct-proposal, reviewed-implementation, autopilot removed-resume, crash-expiry/zombie fencing, atomic-disposal, recovery-quarantine, retention, legacy/corrupt-registry, vendor-provenance, and ambiguous-only override verification; validate representative reference-resolved schema instances including a fixed digest hash; run full targeted pytest including merge script, coordinator projection, and install-hook tests; run Ruff check plus format-check across worktree/shared/session-bootstrap/merge/autopilot and coordinator source/scripts/tests, mypy/static checks, mirror drift, and `git diff --check`
+- [ ] 6.3 (S) Write and implement the changed-Python quality helper that validates the recorded implementation diff base, unions committed/staged/unstaged/renamed/added/untracked NUL-delimited paths, excludes generated `.agents/skills/**` and `.claude/skills/**` Python mirrors only after byte-for-byte drift validation, routes every remaining existing Python file to the skills or coordinator environment, and runs Ruff check plus format-check without failing on unrelated baseline debt; test both exclusion and drift-failure behavior
+  **Contracts**: `contracts/schemas/baseline-gates.schema.json`
+  **Dependencies**: 6.2
+  **Files**: `skills/validate-packages/scripts/ruff_changed_files.py`, `skills/validate-packages/scripts/tests/test_ruff_changed_files.py`
+
+- [ ] 6.4 (M) Run direct-proposal, reviewed-implementation, autopilot exact-tip removed-resume, crash-expiry/zombie fencing, reservation/disposal faults, recovery-quarantine/audit, retention, legacy/corrupt-registry, inventory coverage, vendor-provenance, override history, fixed JCS fixture, convergence-schema parity, changed-file Ruff, mypy/static, mirror drift, and `git diff --check` verification
   **Spec scenarios**: AC-01 through AC-12
   **Contracts**: all files under `contracts/`
   **Design decisions**: D1-D17
-  **Dependencies**: 6.2
+  **Dependencies**: 6.3
   **Files**: `skills/tests/contracts/test_phase_scoped_worktree_contracts.py`, `skills/tests/contracts/fixtures/phase-scoped-worktree-lifecycle/**`, validation evidence under `openspec/changes/phase-scoped-worktree-lifecycle/`
 
 - [ ] Checkpoint: run strict OpenSpec, package, architecture, pytest, formatting, static, mirror-drift, plus `git diff --check` gates.

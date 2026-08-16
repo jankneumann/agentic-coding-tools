@@ -153,3 +153,89 @@
   on the phase-lifecycle package.
 - Intra-change file and lock overlaps: none; cross-change paths are protected by
   executable recorded-SHA ancestry gates before dispatch.
+
+---
+
+## Iteration 5
+
+<!-- Date: 2026-08-16 -->
+
+### Findings
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | correctness | critical | Autopilot released its lease before a teardown command that required the still-live exact ownership triple. | Made successful finalization checkpoint then teardown while the triple is live; unsafe teardown atomically quarantines and clears ownership, with no second release. |
+| 2 | security | critical | Force-adopt authorization lived only in recovery context and vanished when successful adoption cleared quarantine. | Added append-only top-level recovery audit, atomically recording actor, rationale, termination confirmation, generation, and old/new identities so entry teardown cannot erase it. |
+| 3 | resilience | critical | Setup-and-acquire claimed impossible atomicity across Git, evidence, and registry writes without a crash protocol. | Added caller-id/generation-fenced setup reservations, explicit side-effect checkpoints, sync-point blocking, and exact retry/quarantine transitions. |
+| 4 | security | critical | Durability remote, URL digest, and ref were independently supplied and could identify different authorities. | Defined `git-remote-url-v1`, credential stripping, exact remote/ref binding, current URL verification, outside-lock fetch, and generation-bound observed-tip revalidation. |
+| 5 | compatibility | critical | Mandatory durability arguments broke existing setup and left separately visible manual entries semantically unclear. | Preserved the complete legacy setup signature/output with nullable target and made it an explicitly manual, non-ordinarily-adoptable compatibility path. |
+| 6 | architecture | critical | The all-write-skills invariant omitted many live pin, heartbeat, and registry consumers. | Replaced the vague scope with a checked-in mutating-skill inventory, scan-based completeness tests, and a dedicated lifecycle-consumer package. |
+| 7 | security | critical | External recovery identifiers and redundant owner/branch/path fields were not cross-bound before path construction. | Added safe identifier patterns, derived-path/equality checks before I/O, and canonical-state change-id verification. |
+| 8 | resilience | critical | External recovery writes lacked lock/CAS/fsync semantics and removed resume accepted stale reachable ancestors. | Added per-run lock, generation CAS, atomic durable replace, exact blob hashing, and exact fetched-tip recreation with advanced/rewound/missing refusal. |
+| 9 | contract mismatch | critical | The installed convergence schema and root mirror did not validate actual persisted LoopState and had no owner package for parity. | Assigned schema-v5 source ownership to autopilot, root mirror ownership to integration, real-state migration tests, and byte-parity validation. |
+| 10 | architecture | critical | Baseline ancestry metadata was not scheduler-enforced and trusted arbitrary recorded SHAs. | Added an authoritative-PR preflight package and evidence schema; dependent worktrees wait for verified merged/base/ancestry/surface evidence. |
+| 11 | correctness | critical | Repository-wide Ruff formatting was guaranteed to fail on unrelated baseline debt. | Added a baseline-bound changed-Python helper that includes committed and working-tree paths and routes files through the correct project environment. |
+| 12 | architecture | critical | The PR package could not author its required JCS golden fixture. | Moved the single fixture into the PR package's owned test tree and made integration consume, not author, it. |
+| 13 | observability | medium | Clearing a stale operator override erased the operator and invalidation evidence. | Added append-only override history with recorded/honored/invalidated events and coordinator projection tests. |
+| 14 | consistency | medium | Normative teardown scenarios omitted controller identity and the state diagram retained a removed nonce. | Propagated the exact triple plus destructive entry generation through commands, outputs, scenarios, and replaced nonce with reservation transitions. |
+| 15 | security | critical | Envelope generation CAS did not itself stop a stale controller that loaded the latest generation from overwriting recovery state. | Required every present/pending write to authorize against the exact live registry triple and entry generation; post-teardown reconciliation is limited to an identity-bound pending-to-removed CAS. |
+| 16 | compatibility | critical | Legacy and compatibility entries with a null durability target had no command capable of establishing one for safe recovery. | Added complete remote/ref arguments to both adoption commands, with outside-lock validation/fetch, generation revalidation, and atomic target establishment. |
+| 17 | correctness | critical | A setup reservation embedded a complete timestamped lease, so the initial lease could age or expire before active publication. | Replaced it with a timestamp-free `leaseIntent`; the final locked publication derives acquisition, heartbeat, and expiry from one publication time. |
+| 18 | consistency | critical | Reservation blocking, active projection, and active-agent prose disagreed over whether provisioning could pass a sync point. | Defined reservations as non-active, indeterminate sync-point blockers and added local plus coordinator projection coverage. |
+| 19 | compatibility | critical | The v2 null-controller legacy heartbeat path was described as ordinary renew even though renew requires a controller. | Defined a narrow compatibility handler for the exact stored manual `LEGACY` synthetic lease; all other v2 leases require controller-bound renew. |
+| 20 | correctness | critical | Explicit release could not always create schema-valid quarantine because its reason was optional. | Defined a stable `explicit-release` recovery source and deterministic default reason while preserving a supplied non-empty reason. |
+| 21 | architecture | critical | Merge sync-point migration was inventoried but excluded from the lifecycle-consumer package and absent from its owning PR package. | Assigned canonical-guard migration and tests to `wp-pr-delivery`, made it depend on `wp-registry`, and sequenced integration after the migration. |
+| 22 | architecture | critical | Isolated preflight completion did not guarantee its evidence commit was present in dependent worktree bases, and initial prose did not assign the scheduler enforcement code. | Moved the root preflight to the managed shared feature worktree; assigned the implement-feature/DAG scheduler completion barrier, exact dependent-base recording, and no-early-dependent tests to the preflight package. |
+| 23 | security | critical | Force-adopt promised to audit a newly established durability target, but the strict audit schema had no field for it. | Added a required nullable target snapshot to each force-adopt audit event and tests for both newly established and pre-existing targets. |
+| 24 | compatibility | medium | Required override history would reject pre-revision merge-plan nodes before they could be upgraded. | Added locked initialization of a missing legacy history to `[]` before schema-valid rewrite and fixture coverage. |
+| 25 | testability | medium | Changed-file Ruff rules did not say how generated Python mirrors were routed. | Excluded generated mirrors only after byte-for-byte drift validation and added drift-failure/exclusion tests; every remaining Python path is environment-routed. |
+| 26 | consistency | medium | Integration task dependencies omitted the completed inventory-consumer migration. | Added task `2.9` and merge migration `3.10` as explicit canonical-spec/documentation prerequisites. |
+| 27 | consistency | medium | Several shorthand sentences omitted generation/controller fields or mixed pre-I/O identity validation with post-fetch blob validation. | Aligned evidence, release, recovery, and validation prose with exact generation/triple and split pre-I/O envelope checks from post-fetch canonical-state checks. |
+| 28 | correctness | medium | The prerequisite schema accepted invalid 41-63-character object IDs through a broad length range. | Restricted every Git identity to exactly 40 or 64 lowercase hexadecimal characters and added invalid-length fixtures. |
+| 29 | contract mismatch | medium | A `present` external recovery envelope could carry null lease and registry generation despite live-registry authorization requirements. | Schema-constrained both fields to non-empty strings whenever checkout state is `present` and added representative state fixtures. |
+
+### Review Context
+
+- Three authorized read-only agents independently covered registry/recovery,
+  autopilot/session state, and workflow/package scope; their critical findings
+  were merged and deduplicated before edits.
+- Configured external-vendor dispatch was attempted locally but failed on
+  sandbox/home-state access. The required escalation was rejected because it
+  would export repository artifacts to third-party services, so no external
+  content was sent and vendor quorum remains unavailable.
+
+### Quality Checks
+
+- Strict OpenSpec validation: pass.
+- Work-package schema, dependency references, DAG, lock keys, scopes, and
+  architecture parallel-zone checks: pass.
+- All change-local Draft 2020-12 schemas self-validate; YAML contracts parse.
+- Canonical design registry example validates against the full registry schema.
+- `git diff --check`: pass.
+
+### Parallelizability Assessment
+
+- Independent roots: 2 (`wp-baseline-preflight` and `wp-registry`); preflight
+  runs in the managed shared feature worktree and its completion barrier records
+  exact feature HEAD before downstream worktrees exist.
+- Sequential chains: 3 (`preflight + registry -> phase lifecycle -> consumers ->
+  integration`, `registry -> phase lifecycle -> autopilot -> integration`, and
+  `preflight + registry -> PR delivery -> coordinator -> integration`).
+- Maximum parallel width: 3 (`wp-lifecycle-consumers`, `wp-autopilot`, and
+  `wp-coordinator-projections` after their respective dependencies complete).
+- Intra-change file and lock overlaps: none; package validation reports every
+  declared parallel pair safe.
+
+---
+
+## Current Summary
+
+- Plan revision: 5 across five recorded refinement iterations.
+- Total actionable findings addressed: 62; three final internal re-audits
+  report no residual criticals or nits.
+- Deterministic readiness: strict-valid, schema-valid, package-DAG-valid, and
+  representative-instance-valid.
+- Review readiness: external vendor quorum unavailable; consensus remains
+  explicitly non-quorate and loop state remains `ESCALATE`.
+- Implementation readiness: blocked until both named prerequisite changes land
+  and the authoritative shared-feature completion barrier succeeds.
