@@ -274,3 +274,63 @@ def test_dependent_dispatch_carries_the_exact_verified_feature_base() -> None:
 
     submission = scheduler.submission_for_dispatch("wp-pr-delivery")
     assert submission["input_data"]["package"]["minimum_base_sha"] == EVIDENCE_COMMIT
+
+
+def test_dispatch_reverifies_committed_evidence_immediately_before_publication() -> None:
+    scheduler = DAGScheduler(
+        WORK_PACKAGES,
+        ROOT,
+        runtime_revision=EVIDENCE_COMMIT,
+    )
+    assert scheduler.preflight()["valid"]
+    evidence_reads = 0
+
+    def read_revision_file(_revision: str, path: str) -> bytes:
+        nonlocal evidence_reads
+        if path in scheduler.runtime_sources:
+            return scheduler.runtime_sources[path]
+        evidence_reads += 1
+        return b"committed-evidence"
+
+    scheduler.complete_feature_head_gate(
+        "wp-baseline-preflight",
+        expected_feature_head=EVIDENCE_COMMIT,
+        resolve_feature_head=lambda: EVIDENCE_COMMIT,
+        read_revision_file=read_revision_file,
+        verify_evidence=lambda _payload, _head: None,
+        branch_lock=RecordingLock().acquire,
+    )
+    scheduler.mark_completed("wp-registry")
+
+    submission = scheduler.submission_for_dispatch("wp-pr-delivery")
+
+    assert submission["input_data"]["package"]["minimum_base_sha"] == EVIDENCE_COMMIT
+    assert evidence_reads == 2
+
+
+def test_dispatch_rejects_stale_gate_completion_after_feature_head_advances() -> None:
+    scheduler = DAGScheduler(
+        WORK_PACKAGES,
+        ROOT,
+        runtime_revision=EVIDENCE_COMMIT,
+    )
+    assert scheduler.preflight()["valid"]
+    current_head = [EVIDENCE_COMMIT]
+
+    scheduler.complete_feature_head_gate(
+        "wp-baseline-preflight",
+        expected_feature_head=EVIDENCE_COMMIT,
+        resolve_feature_head=lambda: current_head[0],
+        read_revision_file=lambda _revision, path: (
+            scheduler.runtime_sources[path]
+            if path in scheduler.runtime_sources
+            else b"committed-evidence"
+        ),
+        verify_evidence=lambda _payload, _head: None,
+        branch_lock=RecordingLock().acquire,
+    )
+    scheduler.mark_completed("wp-registry")
+    current_head[0] = "c" * 40
+
+    with pytest.raises(FeatureHeadBarrierError, match="differs"):
+        scheduler.submission_for_dispatch("wp-pr-delivery")

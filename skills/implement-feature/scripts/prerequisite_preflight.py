@@ -426,6 +426,10 @@ def _verify_existing(
             "authoritative_merge_sha",
         ):
             _require_oid(stored[key], f"stored {key}")
+        if stored["verified_head_sha"] != expected_feature_head:
+            raise PreflightError(
+                f"{stored['change_id']}: stored feature HEAD does not exactly match the gate HEAD"
+            )
         if not _is_ancestor(
             runner,
             repo_root,
@@ -434,15 +438,6 @@ def _verify_existing(
         ):
             raise PreflightError(
                 f"{stored['change_id']}: stored base is not ancestral to fetched base"
-            )
-        if not _is_ancestor(
-            runner,
-            repo_root,
-            stored["verified_head_sha"],
-            fresh["verified_head_sha"],
-        ):
-            raise PreflightError(
-                f"{stored['change_id']}: stored feature HEAD is not ancestral to current HEAD"
             )
     _require_oid(
         evidence["implementation_diff_base_sha"],

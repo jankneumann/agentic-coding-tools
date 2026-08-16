@@ -366,3 +366,21 @@ def test_verify_only_rejects_a_stale_gate_head_binding(preflight, tmp_path: Path
             runner=current,
             expected_feature_head=runner.head,
         )
+
+
+def test_verify_only_rejects_stored_heads_that_are_merely_ancestors(
+    preflight, tmp_path: Path
+) -> None:
+    runner = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, runner)
+    for prerequisite in evidence["prerequisites"]:
+        prerequisite["verified_head_sha"] = "0" * 40
+
+    with pytest.raises(preflight.PreflightError, match="stored feature HEAD"):
+        preflight.verify_evidence_bytes(
+            _write_requirements(tmp_path),
+            json.dumps(evidence).encode(),
+            tmp_path,
+            runner=FakeRunner(),
+            expected_feature_head=runner.head,
+        )

@@ -276,6 +276,7 @@ class DAGScheduler:
         }
         self.execution_gates: dict[str, dict[str, Any]] = {}
         self.verified_feature_heads: dict[str, str] = {}
+        self._completed_feature_head_barriers: dict[str, FeatureHeadCompletionBarrier] = {}
 
     def preflight(self) -> dict[str, Any]:
         """Execute the full Phase A preflight sequence.
@@ -486,6 +487,7 @@ class DAGScheduler:
             expected_feature_head=expected_feature_head,
         )
         self.verified_feature_heads[package_id] = recorded
+        self._completed_feature_head_barriers[package_id] = barrier
         self.package_statuses[package_id].state = PackageState.COMPLETED
         return recorded
 
@@ -506,7 +508,17 @@ class DAGScheduler:
                 recorded = self.verified_feature_heads.get(dependency)
                 if recorded is None:
                     raise FeatureHeadGateError(f"feature-HEAD gate {dependency} is not verified")
-                bases.add(recorded)
+                barrier = self._completed_feature_head_barriers.get(dependency)
+                if barrier is None:
+                    raise FeatureHeadGateError(
+                        f"feature-HEAD gate {dependency} has no completion barrier"
+                    )
+                reverified = barrier.reverify_recorded_head()
+                if reverified != recorded:
+                    raise FeatureHeadGateError(
+                        f"feature-HEAD gate {dependency} changed its verified base"
+                    )
+                bases.add(reverified)
             pending.extend(package_map.get(dependency, {}).get("depends_on", []))
         if len(bases) > 1:
             raise FeatureHeadGateError(f"{package_id} inherits conflicting verified feature bases")

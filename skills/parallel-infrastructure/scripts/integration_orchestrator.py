@@ -103,6 +103,14 @@ class FeatureHeadCompletionBarrier:
             self.minimum_dependent_base = observed
             return observed
 
+    def reverify_recorded_head(self) -> str:
+        """Revalidate the recorded gate HEAD immediately before dependent use."""
+        if self.minimum_dependent_base is None:
+            raise FeatureHeadBarrierError("feature-HEAD gate has no recorded completion")
+        return self.verify_and_record(
+            expected_feature_head=self.minimum_dependent_base,
+        )
+
 
 class ReviewDisposition(str, Enum):
     """Disposition from a review finding."""
