@@ -1386,6 +1386,7 @@ class TestRecoveryCommands:
 
         args_a = adopt_args("owner-a", "shared-lease", "controller-a")
         args_b = adopt_args("owner-b", "shared-lease" if same_lease else "lease-b", "controller-b")
+        monkeypatch.setattr(worktree.lifecycle, "_process_start_token", lambda _pid: "token")
         real_lock = worktree.lifecycle.registry_lock
         lock_state = threading.local()
 
