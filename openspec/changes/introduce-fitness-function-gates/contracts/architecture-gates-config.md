@@ -9,13 +9,24 @@ gates:
     block_on:
       new_dependency_cycles: true
     clean_runs_before_flip: 3 # documentation of the ratchet criterion, not enforced
+    severity_thresholds:      # gate vocabulary: {critical, major, minor}
+      new_cycle: critical
+      cross_layer_violation: major
+      file_size: minor
 
 health:
-  severity_thresholds:        # non-empty after this change
-    new_cycle: critical
-    cross_layer_violation: major
-    file_size: minor
+  severity_thresholds: {}     # belongs to the architecture report — graded
+                              # {error, warning, info}. NOT the gate's namespace.
 ```
+
+**Namespace separation (required).** The gate's thresholds live under
+`gates.architecture.severity_thresholds`, never under `health.severity_thresholds`.
+The two keys are read by different consumers grading on different vocabularies —
+`gate_logic.py` on `{critical, major, minor}`, `architecture_report.py` on
+`{error, warning, info}`. A category graded in the wrong vocabulary resolves to
+`min_level = 0` and filters nothing, i.e. a threshold that silently does nothing.
+`gate_logic.py` still reads `health.severity_thresholds` as a fallback for configs
+written before the gate namespace existed.
 
 Loader rules: file remains optional (per `report-configuration` spec — absent file ⇒
 built-in defaults, `mode: advisory`); unknown keys warn, never error.

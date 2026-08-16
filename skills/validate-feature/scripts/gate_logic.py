@@ -80,7 +80,7 @@ DEFAULT_SEVERITY_THRESHOLDS: dict[str, str] = {
 
 VALID_MODES = ("advisory", "blocking")
 
-_KNOWN_ARCHITECTURE_KEYS = frozenset(DEFAULT_ARCHITECTURE_GATE)
+_KNOWN_ARCHITECTURE_KEYS = frozenset(DEFAULT_ARCHITECTURE_GATE) | {"severity_thresholds"}
 
 # block_on toggle -> finding category it governs. `block_on` decides what
 # blocks; `severity_thresholds` decides how a category is labelled. Keeping the
@@ -188,8 +188,20 @@ def load_gate_config(config_path: str | Path | None = None) -> dict[str, Any]:
         if isinstance(flip, int):
             config["architecture"]["clean_runs_before_flip"] = flip
 
-    health = raw.get("health")
-    thresholds = health.get("severity_thresholds") if isinstance(health, dict) else None
+    # Thresholds live in the gate's own namespace. `health.severity_thresholds`
+    # is read as a fallback for configs written before the gate had one, but it
+    # belongs to the architecture report, which grades on {error, warning, info}
+    # rather than the gate's {critical, major, minor}. Two consumers sharing one
+    # key with different vocabularies is how a threshold ends up silently
+    # filtering nothing, so new config should use the gate namespace.
+    thresholds: Any = None
+    if isinstance(architecture, dict):
+        thresholds = architecture.get("severity_thresholds")
+    if not isinstance(thresholds, dict):
+        health = raw.get("health")
+        thresholds = (
+            health.get("severity_thresholds") if isinstance(health, dict) else None
+        )
     if isinstance(thresholds, dict):
         config["severity_thresholds"].update(
             {str(k): str(v) for k, v in thresholds.items()}

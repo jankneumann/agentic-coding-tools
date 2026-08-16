@@ -32,32 +32,32 @@ Scenario references use document order within each delta spec:
 
 ## Phase 2 — Gates, linters, degradation (wp-gates)
 
-- [ ] 2.1 Write linter schema-validation tests using jsonschema.validate [S]
+- [x] 2.1 Write linter schema-validation tests using jsonschema.validate [S]
   **Spec scenarios**: fitness-functions.6 (linter findings validate), fitness-functions.7 (tests enforce validity)
   **Dependencies**: 1.2
-- [ ] 2.2 Emit required axis, severity fields from the three architecture linters [S]
+- [x] 2.2 Emit required axis, severity fields from the three architecture linters [S]
   **Design decisions**: D2
   **Dependencies**: 2.1
-- [ ] 2.3 Write gate_logic tests — mode-conditional required phases, DEGRADED parsing, override flag [M]
+- [x] 2.3 Write gate_logic tests — mode-conditional required phases, DEGRADED parsing, override flag [M]
   **Spec scenarios**: fitness-functions.8, fitness-functions.9, fitness-functions.14, fitness-functions.15, fitness-functions.16
   **Design decisions**: D4, D6
   **Dependencies**: None
 - [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 2.4 Add gates.architecture section with populated severity_thresholds to architecture.config.yaml [S]
+- [x] 2.4 Add gates.architecture section with populated severity_thresholds to architecture.config.yaml [S]
   **Spec scenarios**: fitness-functions.10 (thresholds populated)
   **Contracts**: contracts/architecture-gates-config.md
   **Design decisions**: D4
   **Dependencies**: 2.3
-- [ ] 2.5 Wire mode-conditional Architecture phase into gate_logic.py REQUIRED_PHASES with new-cycle severity mapping [M]
+- [x] 2.5 Wire mode-conditional Architecture phase into gate_logic.py REQUIRED_PHASES with new-cycle severity mapping [M]
   **Spec scenarios**: fitness-functions.8 (advisory reports), fitness-functions.9 (blocking fails on cycle)
   **Design decisions**: D4
   **Dependencies**: 2.3, 2.4
-- [ ] 2.6 Add DEGRADED status to validation-report parsing with --accept-degraded override in gate_logic.py [M]
+- [x] 2.6 Add DEGRADED status to validation-report parsing with --accept-degraded override in gate_logic.py [M]
   **Spec scenarios**: fitness-functions.14, fitness-functions.15, fitness-functions.16
   **Design decisions**: D6
   **Dependencies**: 2.3
 - [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 2.7 Emit DEGRADED from fail-open producers — GATEKEEPER fallback, sub-2-vendor review, degraded security pass [M]
+- [x] 2.7 Emit DEGRADED from fail-open producers — GATEKEEPER fallback, sub-2-vendor review, degraded security pass [M]
   **Spec scenarios**: fitness-functions.14 (degraded status written)
   **Design decisions**: D6
   **Dependencies**: 2.6
