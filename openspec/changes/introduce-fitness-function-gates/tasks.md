@@ -15,17 +15,17 @@ Scenario references use document order within each delta spec:
   **Design decisions**: D2
   **Dependencies**: 1.1
 - [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 1.3 Write consensus axis tests — round-trip, same-line different-axis split [M]
+- [x] 1.3 Write consensus axis tests — round-trip, same-line different-axis split [M]
   **Spec scenarios**: fitness-functions.4 (axis round-trips), fitness-functions.5 (matching uses axis)
   **Design decisions**: D3
   **Dependencies**: 1.2
-- [ ] 1.4 Add axis to consensus_synthesizer.py Finding, ConsensusFinding, matching keys [M]
+- [x] 1.4 Add axis to consensus_synthesizer.py Finding, ConsensusFinding, matching keys [M]
   **Design decisions**: D3
   **Dependencies**: 1.3
-- [ ] 1.5 Update axis tables in parallel-review SKILL.md files, impl_review_driver prompt, skills catalogue [S]
+- [x] 1.5 Update axis tables in parallel-review SKILL.md files, impl_review_driver prompt, skills catalogue [S]
   **Design decisions**: D2
   **Dependencies**: 1.2
-- [ ] 1.6 Mark validate-feature-findings-gate proposal SUPERSEDED [XS]
+- [x] 1.6 Mark validate-feature-findings-gate proposal SUPERSEDED [XS]
   **Design decisions**: D7
   **Dependencies**: None
 - [ ] Checkpoint: run tests, review diff, verify scope
