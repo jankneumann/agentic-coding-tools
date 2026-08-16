@@ -181,6 +181,29 @@ def _relogin_hint(command: str) -> str:
     return f"{command} login"
 
 
+# ---------------------------------------------------------------------------
+# Degraded-gate reporting (OpenSpec introduce-fitness-function-gates, D6)
+# ---------------------------------------------------------------------------
+
+# Cross-vendor review needs at least two vendors. One vendor is a single
+# opinion, not a convergence. Falling below this is a documented fail-open
+# path, so it must announce itself rather than passing silently.
+MIN_REVIEW_VENDORS = 2
+
+DEGRADED_STATUS = "DEGRADED"
+
+
+def report_degraded(what_was_not_checked: str) -> str:
+    """Emit a DEGRADED line naming what was not checked and why.
+
+    Returns the emitted line so callers can also record it in a report. Written
+    to stderr so it survives callers that parse stdout as JSON.
+    """
+    line = f"{DEGRADED_STATUS}: {what_was_not_checked}"
+    print(line, file=sys.stderr, flush=True)
+    return line
+
+
 def classify_error(text: str) -> ErrorClass:
     """Classify a vendor error from its output text.
 
@@ -1726,7 +1749,20 @@ class ReviewOrchestrator:
 
         if not available:
             logger.warning("No vendors available for review dispatch")
+            report_degraded(
+                f"{review_type} review NOT CHECKED — no vendor is dispatchable "
+                f"(no CLI on PATH and no SDK key); zero reviews were run.",
+            )
             return []
+
+        if len({r.vendor for r in available}) < MIN_REVIEW_VENDORS:
+            report_degraded(
+                f"Cross-vendor {review_type} review NOT CHECKED — only "
+                f"{len({r.vendor for r in available})} of {MIN_REVIEW_VENDORS} "
+                f"required vendors dispatchable "
+                f"({', '.join(sorted({r.vendor for r in available}))}); findings "
+                f"are a single vendor's opinion with no consensus cross-check.",
+            )
 
         api_key_resolver = ApiKeyResolver()
         results: list[ReviewResult] = []
@@ -1902,6 +1938,10 @@ def _check_vendors(
             f"check-vendors: unable to resolve vendor roster ({exc})",
             file=sys.stderr,
         )
+        report_degraded(
+            f"Vendor availability NOT CHECKED — the roster could not be "
+            f"resolved ({exc}); multi-vendor review is unavailable.",
+        )
         return CHECK_VENDORS_BELOW_QUORUM
 
     names = sorted({r.vendor for r in reviewers})
@@ -1916,6 +1956,12 @@ def _check_vendors(
             f"check-vendors: below quorum ({len(names)} < {min_vendors}) — "
             f"multi-vendor review unavailable",
             file=sys.stderr,
+        )
+        report_degraded(
+            f"Cross-vendor review NOT CHECKED — only {len(names)} of "
+            f"{min_vendors} required vendors dispatchable "
+            f"({', '.join(names) or 'none'}); the review either does not run "
+            f"or produces a single vendor's unreviewed opinion.",
         )
         return CHECK_VENDORS_BELOW_QUORUM
     return 0
@@ -2127,6 +2173,14 @@ def main() -> int:
 
     succeeded = sum(1 for r in results if r.success)
     print(f"Results: {succeeded}/{len(results)} vendors succeeded")
+    if 0 < succeeded < MIN_REVIEW_VENDORS:
+        report_degraded(
+            f"Cross-vendor {args.review_type} review NOT CHECKED — only "
+            f"{succeeded} of {MIN_REVIEW_VENDORS} required vendors returned "
+            f"findings; consensus could not be computed, so these findings are "
+            f"a single vendor's opinion. Record this phase as {DEGRADED_STATUS} "
+            f"in validation-report.md.",
+        )
     return 0 if succeeded > 0 else 1
 
 

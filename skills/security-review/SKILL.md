@@ -215,6 +215,13 @@ Dry-run behavior:
 - `FAIL`: findings met/exceeded threshold.
 - `INCONCLUSIVE`: scanner execution incomplete (unless degraded pass is explicitly allowed).
 - For DAST-capable profiles, omitting `--zap-target` marks ZAP as unavailable and yields `INCONCLUSIVE` unless `--allow-degraded-pass` is set.
+- **A `PASS` produced under `--allow-degraded-pass` is a DEGRADED pass, not a clean one.**
+  `gate.json` `reasons` then begins with `DEGRADED — <scanner> NOT CHECKED …`, naming
+  every scanner that did not run. Propagate it: record the Security phase in
+  `validation-report.md` as `- **Status**: DEGRADED` with that one-line reason, rather
+  than `pass`. `gate_logic.py` blocks the pre-merge gate on a DEGRADED required phase
+  unless `--accept-degraded Security` is passed, and records the override in the gate
+  summary.
 
 ## Manual Scanner Commands (Optional)
 

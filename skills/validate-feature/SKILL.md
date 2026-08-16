@@ -371,14 +371,23 @@ else
   SECURITY_EXIT=$?
 
   if [ $SECURITY_EXIT -eq 0 ]; then
-    SECURITY_RESULT="pass"
-    echo "Security: PASS — No threshold findings"
+    # Exit 0 under --allow-degraded-pass can mean "no findings" OR "a scanner
+    # never ran and we passed anyway". Those are different facts, so read the
+    # gate reasons rather than trusting the exit code alone (D6).
+    if grep -q "DEGRADED" docs/security-review/gate.json 2>/dev/null; then
+      SECURITY_RESULT="DEGRADED"
+      SECURITY_NOT_CHECKED=$(python3 -c "import json,sys; print('; '.join(r for r in json.load(open('docs/security-review/gate.json')).get('reasons', []) if 'DEGRADED' in r))" 2>/dev/null)
+      echo "Security: DEGRADED — ${SECURITY_NOT_CHECKED:-a scanner did not run; coverage incomplete}"
+    else
+      SECURITY_RESULT="pass"
+      echo "Security: PASS — No threshold findings"
+    fi
   elif [ $SECURITY_EXIT -eq 10 ]; then
     SECURITY_RESULT="fail"
     echo "Security: FAIL — Threshold findings detected"
   elif [ $SECURITY_EXIT -eq 11 ]; then
-    SECURITY_RESULT="degraded"
-    echo "Security: INCONCLUSIVE — Scanners degraded (check prerequisites)"
+    SECURITY_RESULT="DEGRADED"
+    echo "Security: DEGRADED (INCONCLUSIVE) — Scanners could not run (check prerequisites)"
   else
     SECURITY_RESULT="fail"
     echo "Security: ERROR — Unexpected exit code $SECURITY_EXIT"
@@ -387,6 +396,21 @@ fi
 ```
 
 The Security phase reuses the `/security-review` skill's scripts without requiring a separate invocation. The `--allow-degraded-pass` flag ensures missing prerequisites (Java, container runtime) degrade gracefully instead of blocking validation.
+
+Write `$SECURITY_RESULT` into `validation-report.md` verbatim — including `DEGRADED`
+— together with a one-line "what was not checked and why". `DEGRADED` is **not** a
+pass: `gate_logic.py` blocks the pre-merge gate on a DEGRADED required phase unless the
+operator passes `--accept-degraded Security`, and that override is echoed into the gate
+summary:
+
+```bash
+# Blocks: Security could not be checked
+python3 "<skill-base-dir>/scripts/gate_logic.py" openspec/changes/"$CHANGE_ID"/validation-report.md
+
+# Proceeds, recording the override in the gate summary
+python3 "<skill-base-dir>/scripts/gate_logic.py" openspec/changes/"$CHANGE_ID"/validation-report.md \
+  --accept-degraded Security
+```
 
 ### 6. E2E Phase
 
@@ -431,7 +455,22 @@ fi
 ### 6b. Architecture Diagnostics Phase
 
 **Phase name:** `architecture`
-**Criticality:** Non-critical (continues on failure)
+**Criticality:** Config-ratcheted via `gates.architecture.mode` in `architecture.config.yaml`
+(OpenSpec `introduce-fitness-function-gates`, D4)
+
+| `gates.architecture.mode` | Effect |
+|---|---|
+| `advisory` (shipped default, and the fallback when the config file is absent or unreadable) | Findings are reported prominently in `validation-report.md` with their severities; the phase is **not** in `REQUIRED_PHASES` and never fails a run. |
+| `blocking` | `"Architecture"` joins `REQUIRED_PHASES` in `gate_logic.py`; a new dependency cycle (`severity_thresholds.new_cycle: critical`) fails the pre-merge gate. |
+
+The flip to `blocking` is a deliberate one-line config change made after
+`clean_runs_before_flip` (3) clean advisory runs, recorded with a date and rationale —
+not something a validation run decides for itself. Report the findings either way:
+
+```bash
+python3 -c "import sys; sys.path.insert(0, '<skill-base-dir>/scripts'); \
+  import gate_logic; print(gate_logic.architecture_mode())"
+```
 
 Run architecture flow validation and structural linters against the changed files:
 
