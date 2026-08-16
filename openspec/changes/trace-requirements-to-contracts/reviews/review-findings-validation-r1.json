@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "review_type": "validation",
+  "target": "trace-requirements-to-contracts",
+  "reviewed_commit": "4df049b1a86e985891c4597892c9e89a622f8815",
+  "reviewed_artifact": "openspec/changes/trace-requirements-to-contracts/validation-report.md",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "valreview-r1",
+      "success": true,
+      "findings_count": 3,
+      "error": null
+    }
+  ],
+  "verification_log": [
+    {
+      "claim": "dependency-direction linter exits 1 on 2 high findings (CI breaker)",
+      "recheck": "cd skills && ../agent-coordinator/.venv/bin/python validate-feature/scripts/linters/dependency_direction.py --skills-root .",
+      "result": "Dependency-direction validation passed; EXIT=0",
+      "verdict": "RESOLVED by 4df049b1 (<skill-base-dir> convention, used by 20+ other skills)"
+    },
+    {
+      "claim": "7.0 task-drift: exactly 3 unchecked, all deliberately open",
+      "recheck": "grep -nE '^\\s*- \\[ \\]' tasks.md",
+      "result": "547 Phase-4 Checkpoint; 883 5.7c [human]; 999 Final checkpoint. Count=3, no others at any indent level.",
+      "verdict": "CONFIRMED - no hidden unchecked implementation task"
+    },
+    {
+      "claim": "7.0b traceability gate passes at change scope",
+      "recheck": "cd packages/gen-eval && uv run python scripts/check_traceability.py --scope change --change trace-requirements-to-contracts",
+      "result": "EXIT=0; '18 operations cite 14 requirements. This gate does not check that any requirement is satisfied.'",
+      "verdict": "CONFIRMED verbatim, exit code and canonical line both match"
+    },
+    {
+      "claim": "skills/ suite 2392 passed",
+      "recheck": "cd skills && uv run pytest -q -m 'not e2e and not integration'",
+      "result": "2392 passed in 100.39s",
+      "verdict": "CONFIRMED"
+    },
+    {
+      "claim": "packages/gen-eval 1213 passed, 2 skipped, 37 deselected",
+      "recheck": "cd packages/gen-eval && uv run python -m pytest -q -m 'not e2e and not integration'",
+      "result": "1213 passed, 2 skipped, 37 deselected",
+      "verdict": "CONFIRMED"
+    },
+    {
+      "claim": "ruff clean; install.sh --check passes; openspec validate --strict 34/34",
+      "recheck": "uv run ruff check . ; bash install.sh --check ; openspec validate --strict --changes",
+      "result": "All checks passed! / Skill install portability validation passed / Totals: 34 passed, 0 failed (34 items)",
+      "verdict": "CONFIRMED"
+    },
+    {
+      "claim": "skip reasons: no tests/e2e, no artifacts/, only agent-coordinator has evaluation/descriptors/*.yaml, gen-eval ships singular descriptor.yaml",
+      "recheck": "find / ls",
+      "result": "all four confirmed; SKILL.md 1015 lines and test_ci_sweep_wiring.py 756 lines also match exactly",
+      "verdict": "CONFIRMED"
+    }
+  ],
+  "findings": [
+    {
+      "id": "V1-F1",
+      "severity": "critical",
+      "title": "PR #342 is merge-conflicted, so the new sweep job cannot run and never has",
+      "location": ".github/workflows/ci.yml (conflicts with origin/main); PR #342",
+      "summary": "validation-report.md's CI section says 'CI has simply not re-run since - not a failure, but not evidence for the current tree either.' That frames the absence as passive latency. It is not. `gh pr view 342` reports mergeable=false, mergeable_state='dirty': the branch is 113 commits behind origin/main and conflicts in two files, one of which is `.github/workflows/ci.yml` itself. GitHub cannot construct the pull_request merge ref for a dirty PR, so no pull_request workflow dispatches. Measured: 4df049b1 was pushed at 21:35:46Z and is the PR head; polled check-runs for that SHA at 21:40, 21:41, 21:42, 21:43 -> total_count=0 every time, 8 minutes post-push, while an unrelated PR on the same repo got its runs within ~30s at 21:25. Consequence: the requirement-traceability-sweep job -- the central deliverable of this change -- has ZERO live executions. Its only green CI history (2026-08-02, 4 runs) predates the job's current form by 13+ commits. The report's CI paragraph is factually true sentence by sentence but omits the blocking cause and leaves the reader believing a re-run would produce evidence; it would not.",
+      "recommendation": "Merge or rebase origin/main into the branch and resolve the ci.yml conflict (main added `context-eval` and `semantic-enablement-gate` jobs at the same tail region where this branch adds `requirement-traceability-sweep`; the resolution is additive, keep all three). Also resolve docs/architecture-analysis/contracts-inventory.md. Then re-push and require a green requirement-traceability-sweep before sign-off. Note the resolution edits the job definition itself, so the local 7.0b evidence is evidence for an artifact that will change before merge."
+    },
+    {
+      "id": "V1-N1",
+      "severity": "nit",
+      "title": "VAL_FIX did not propagate to walkthrough-handoff.md, which still hands an agent the canonical path",
+      "location": "openspec/changes/trace-requirements-to-contracts/walkthrough-handoff.md:34",
+      "summary": "4df049b1 rewrote the canonical `skills/cite-requirements/scripts/walkthrough.py` runtime path in SKILL.md:63 and walkthrough.py:22, but the same WALK= line survives verbatim at walkthrough-handoff.md:34: `WALK=\"uv run --project packages/gen-eval python skills/cite-requirements/scripts/walkthrough.py\"`. Not a CI breaker -- dependency_direction.py is invoked with --skills-root . from skills/, so it never scans openspec/ -- which is precisely why the linter went green without this file being touched. It is a live instruction an agent is told to copy. Same shape as the seven consecutive PLAN_REVIEW findings recorded in phase_history: the fix lands in the artifact the finding named, the artifact owning the consequence goes stale.",
+      "recommendation": "Update walkthrough-handoff.md:34 to the <skill-base-dir> form. Line 26 of the same file also asserts 'PR #342 (14/14 CI green as of last check)', which is now false (0 checks, dirty); it is hedged but worth correcting alongside V1-F1."
+    },
+    {
+      "id": "V1-N2",
+      "severity": "nit",
+      "title": "'matching test-infra-skills's effective scope' is not what CI runs",
+      "location": "validation-report.md:109-110; .github/workflows/ci.yml:69",
+      "summary": "The report ran the skills suite as `uv run pytest -v -m \"not e2e and not integration\"` and parenthesises it as '(matching test-infra-skills's effective scope)'. CI line 69 runs `uv run pytest -v` with no marker filter, and skills/pyproject.toml's addopts adds only --import-mode=importlib. Checked the delta: the only marker-carrying file under skills/ is tests/autopilot/test_phase_archetype_e2e.py (pytestmark = pytest.mark.integration), and running it bare gives 3 failed, 2 passed (jsonschema 'write_capable' is a required property). Inert in practice -- tests/autopilot is not among the 38 testpaths entries, so CI never collects it either way, and these failures sit inside the ~1161-hidden-tests / 23-real-failures bucket this change's own pyproject comment documents and defers to a separate issue. The 2392 count is reproducible and correct; only the justification for the filter is wrong.",
+      "recommendation": "Drop the '-m' filter for the skills suite or restate the parenthetical as 'CI runs pytest unfiltered; the filter is inert here because no testpaths entry carries e2e/integration markers'."
+    }
+  ],
+  "assessment": {
+    "report_accuracy": "high",
+    "numeric_claims_verified": 9,
+    "numeric_claims_contradicted": 0,
+    "state_report_contradictions": 1,
+    "note": "Every quantitative claim in validation-report.md reproduced exactly (2392, 1213/2/37, 34/34, exit 0, 18-cite-14, 3 unchecked, 1015, 756). The VAL_FIX at 4df049b1 genuinely resolves the dependency-direction FAIL. The single material gap is the CI section, which understates a hard blocker as latency."
+  }
+}

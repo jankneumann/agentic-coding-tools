@@ -1,0 +1,57 @@
+# agent-coordinator merge-queue contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Merge queue"
+  version: 1.0.0
+  description: >-
+    Merge queue listing and pre-merge checks. Spec lines 1482-1489.
+paths:
+  /merge-queue:
+    get:
+      operationId: getMergeQueue
+      summary: List queued features in priority order
+      description: >-
+        Spec 1484-1485: with a valid API key returns a JSON array of queued
+        features in priority order.
+      security:
+        - coordinatorApiKey: []
+      responses:
+        "200": {description: Queued features in priority order (spec 1485)}
+  /merge-queue/check/{feature_id}:
+    post:
+      operationId: runPreMergeChecks
+      summary: Run pre-merge checks for a feature
+      description: >-
+        Spec 1488-1489: with a valid API key returns a JSON object with
+        passed, checks, issues, and conflicts fields.
+      security:
+        - coordinatorApiKey: []
+      parameters:
+        - name: feature_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Pre-merge check result (spec 1489)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  passed: {type: boolean}
+                  checks: {type: array, items: {type: object}}
+                  issues: {type: array, items: {type: object}}
+                  conflicts: {type: array, items: {type: object}}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

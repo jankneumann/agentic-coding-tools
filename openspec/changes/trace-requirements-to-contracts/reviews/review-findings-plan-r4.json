@@ -1,0 +1,106 @@
+{
+  "review_type": "plan",
+  "target": "trace-requirements-to-contracts",
+  "reviewer_vendor": "claude_code/opus-5",
+  "round": 4,
+  "commit_under_review": "8b864cd2d59b925fb1b187bf8c41a9a5a4b39f07",
+  "method": "Verification of the round-3 fix commit against the working tree, by command. Round-3 findings preserved verbatim at reviews/review-findings-plan-r3.json. reviews/consensus-plan.json was not consulted. The operator's F1 and F3 decisions were treated as settled and were not re-litigated.",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "title": "The blocking job's SKIP is unconditional, so an empty or uncomputable diff fails open at exactly the merge point",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "517-522",
+      "description": "The new clause reads: 'The blocking job SHALL derive its change id from the change directory under `openspec/changes/` that the diff touches. Where the diff touches no change directory, the blocking job SHALL print an explicit SKIP naming the branch and SHALL NOT fail.' Two things are missing and their absence is load-bearing.\n\n(1) 'The diff' has no defined base. Contrast the change-scope requirement in the same file, which is precise about exactly this: 'the diff between the merge base and the working tree ... the merge base SHALL be computed against a named integration branch, and a merge base that cannot be resolved SHALL be an error rather than an empty scope' (spec.md:418-423), backed by scenario `gen-eval-framework.unresolvable-scope-errors`. The sweep's derivation rule inherits neither the base definition nor the error case.\n\n(2) Because 'SHALL NOT fail' is unconditional, an empty diff is indistinguishable from a legitimately non-OpenSpec pull request. Both touch zero change directories, so the spec as written mandates SKIP-and-exit-zero for both. That is the fail-open this change exists to eliminate, and this same spec file forbids it in terms: 'a scope that silently resolves to empty is worse than a broad one - a blocking gate that evaluates nothing while reporting success is the unfalsifiable-green failure this whole change exists to eliminate' (spec.md:433-436). Round 3's fix removed a loud failure ('no change id -> fail') and put a silent pass on the same input signature.\n\nThis is reachable, not hypothetical. `sed -n '1,20p' .github/workflows/ci.yml` shows lines 3-7 are `push: branches:[main]` / `pull_request:` / `merge_group:`, and the plan cites those exact lines (tasks.md:604, design.md:448). A job added to ci.yml runs on `merge_group` unless explicitly filtered, and under `merge_group` there is no `github.event.pull_request.base.sha`; a derivation written against PR base refs yields an empty diff there. The blocking sweep would then print SKIP and exit zero inside the merge queue - the last gate before a merge lands. `grep -rn 'merge_group|merge queue' tasks.md design.md specs/ work-packages.yaml` returns only the two citations that use merge_group as an argument against branch-name parsing, never as a case to handle; nothing anywhere says how the blocking job computes its diff there, or whether the job is filtered to `pull_request` only.\n\nNo acceptance task would catch it. Task 4.3's RED protocol mutates real artifacts and runs the gate directly. Task 5.7c runs `check_traceability.py --scope capability --change trace-requirements-to-contracts` by hand with an explicit flag. Neither exercises the CI job's derivation, so a job that skips on every pull request ships green.\n\nWhat should change: qualify the SKIP. State the base the blocking job's diff is computed against - the merge base with the integration branch, consistent with design.md:485-489, which already says 'An unresolvable merge base or missing change id is an error, never an empty scope' but is currently bound only to the change-scoped run's inputs. State that a diff which cannot be computed is an error rather than a SKIP, so the two cases are distinguishable in the log and in the exit code. State whether the blocking job runs on `merge_group` and what its base is there. Then extend `non-openspec-pr-skips`, or add a fifth scenario, so the uncomputable-diff case is asserted to fail rather than skip. This is not a re-litigation of the operator's F1 decision: the operator decided that work not planned through OpenSpec should skip, which is the semantic case; this is the mechanical case where the diff itself is unavailable and currently borrows the same exit path."
+    },
+    {
+      "id": 2,
+      "axis": "testability",
+      "severity": "nit",
+      "title": "wp-wiring received two new scenarios but not the named-test-file treatment F2 just established for wp-gate",
+      "file": "openspec/changes/trace-requirements-to-contracts/work-packages.yaml",
+      "line_range": "286-320",
+      "description": "The F2 fix itself is correct and complete for wp-gate; see finding 9. The same treatment was not applied to the other half of the round-3 fix.\n\nTask 5.7's two new scenarios - `non-openspec-pr-skips` and `ambiguous-change-fails` - are owned by wp-wiring, and task 5.7 instructs 'assert the SKIP path in the wiring tests'. wp-wiring names no test file anywhere. Its only writable test path is the directory glob `skills/tests/validate-feature/**`, and its verification step is `skills/.venv/bin/python -m pytest skills/tests/validate-feature -q`, which passes identically whether or not a CI-derivation test was ever written. Every other package enumerates its exact test files in write_allow (confirmed by dumping all five packages' write_allow lists) - that enumeration is the mechanism by which 'the test exists' becomes checkable, and wp-wiring has none.\n\nNot blocking, because the scenarios are genuinely buildable and testable there: wp-wiring can write `.github/workflows/ci.yml`, the glob permits creating a new file under `skills/tests/validate-feature/`, the verification step would run it, and the repository already contains the exact pattern to copy - `skills/tests/validate-feature/test_gen_eval_mode_selection.py` extracts a bash fragment from SKILL.md and runs it under three scenarios asserting the printed mode label. The same shape applied to the ci.yml derivation fragment tests zero / one / two touched change directories directly. So all four replacement scenarios pass the testability test that killed the clause they replaced.\n\nWhat should change: name the file (e.g. `skills/tests/validate-feature/test_ci_sweep_change_id.py`), add it to wp-wiring's write_allow explicitly rather than relying on the glob, and add a test-file-mapping line to wp-wiring's description in the same form wp-gate now uses. One line in each of three places."
+    },
+    {
+      "id": 3,
+      "axis": "testability",
+      "severity": "nit",
+      "title": "The non-openspec-pr-skips scenario asserts a second job's behavior that no single test can satisfy",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "580-587",
+      "description": "The scenario's final clause is '**AND** the post-merge run SHALL still evaluate every capability in full'. The WHEN establishes a blocking-job run on a pull request; the AND then asserts something about a different job on a different trigger, which the test under that WHEN cannot observe. It is a reassurance carried over from the design prose rather than an assertion, and it duplicates what `omitted-change-flag-unions-deltas` already covers testably.\n\nThis is the same shape as the clause round 3 removed - a THEN whose satisfaction cannot be demonstrated by the run its WHEN describes - which is why it is worth recording. It is a nit rather than a blocker because the two clauses above it ('SHALL print a SKIP naming the branch', 'SHALL NOT fail the pull request') are independently testable and carry the scenario on their own. What should change: drop the third AND, or move it into the requirement prose where it already appears at spec.md:535-536."
+    },
+    {
+      "id": 4,
+      "axis": "completeness",
+      "severity": "nit",
+      "title": "A spec scenario is cited by no task: cross-capability-exclusion-fails",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "175-182",
+      "description": "Systematic coverage check over both spec deltas (extract every `#### Scenario:` heading, case-insensitive substring match against tasks.md) returns exactly one uncited gen-eval-framework scenario: 'One capability cannot excuse another's requirement' (`gen-eval-framework.cross-capability-exclusion-fails`). It belongs to the 'Traceability exclusions state a reason' requirement, whose other three scenarios are enumerated on tasks 3.7 and 3.8 (tasks.md:233, 242); this one was left out of the enumeration. `grep -n 'excuse' tasks.md` returns only an unrelated line 675.\n\nPre-existing rather than a round-3 regression: `git log -S \"One capability cannot excuse another\"` shows it entered at 3891089b, the round-1 fix, and it has survived three review rounds. The skill-workflow delta's other uncited scenarios are covered by the aggregate references at tasks.md:573 and 640 ('all four scenarios'), and the three MODIFIED '3-Phase Incremental Generation' scenarios restate existing behavior; those are not findings. What should change: add the scenario to task 3.7's or 3.8's `**Spec scenarios**` line."
+    },
+    {
+      "id": 5,
+      "axis": "consistency",
+      "severity": "nit",
+      "title": "Carried from round 3: D12's heading still states the position its own body refutes",
+      "file": "openspec/changes/trace-requirements-to-contracts/design.md",
+      "line_range": "404",
+      "description": "D12's heading is still 'At validation the gate is diff-scoped; the full sweep runs on main', while the body directly beneath it (design.md:415-421) places the blocking sweep on `pull_request` and keeps the push-on-main run only as a non-blocking debt report. Raised as a nit in round 3 and unfixed. Restated because `docs/decisions/` is generated from archived change material, so the heading is what a future reader carries forward without the body. What should change: retitle to something like 'At validation the gate is diff-scoped; the blocking sweep runs on the merge candidate and a non-blocking sweep runs on main'."
+    },
+    {
+      "id": 6,
+      "axis": "clarity",
+      "severity": "nit",
+      "title": "Carried from round 3: 'keep the invocation bare' in task 5.7 still reads as contradicting the mandatory --change",
+      "file": "openspec/changes/trace-requirements-to-contracts/tasks.md",
+      "line_range": "631-634",
+      "description": "Task 5.7 instructs the pull_request job to pass `--change <id>` and, several notes later, to 'keep the invocation bare, as with `generate_tool_descriptor.py --check`'. Task 5.6 makes the intended meaning clear ('run it BARE, never piped'), so 'bare' means unpiped rather than argument-free, but the word does double duty inside a task whose central subject is which arguments each job passes. Raised in round 3 and unfixed. What should change: replace 'bare' with 'unpiped' in both notes, so exit status is plainly the subject and argv is not implied."
+    },
+    {
+      "id": 7,
+      "axis": "correctness",
+      "severity": "none",
+      "title": "F3 verified closed - the gate has exactly one resolution rule and no surface makes it aware of the calling job",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "508-529",
+      "description": "The old formulation is gone and left no residue. `grep -rn 'blocking-sweep-requires-a-change-id|blocking sweep resolves against|require an active change id'` across every .md/.json/.yaml outside reviews/ and handoffs/ returns nothing. The replacement states the rule once, keyed on the flag, and puts blocking-ness in the CI job explicitly: 'Which run blocks SHALL be a property of the CI job and not of the gate: the blocking job SHALL supply `--change`, and the post-merge job SHALL omit it.' Task 3.16's note reinforces the direction that actually causes bugs: 'Do NOT make the gate error on a missing `--change` at capability scope: absence is the post-merge job's signature.'\n\nNothing surviving in tasks.md, design.md, work-packages.yaml, proposal.md, or contracts/README.md asks the gate to discriminate its caller. The remaining 'blocking run' / 'post-merge run' phrases (spec.md:503, 543; design.md:415-460; tasks.md:664, 668) all describe CI jobs, which is correct after the fix. proposal.md's only nearby line (227, 'A change-scoped run whose merge base or change id cannot be resolved errors') is scoped to change runs and stays consistent. contracts/README.md contains no gate-resolution content at all.\n\nOne piece of prose imprecision, not worth its own finding: 'The gate SHALL have exactly one resolution rule ... With `--change` omitted, it SHALL resolve against the archived specs shadowed by every spec delta' is stated unqualified, while `gen-eval-framework.unresolvable-scope-errors` requires a change-scoped run given no change identifier to exit non-zero. The binding scenarios are correctly qualified ('at capability scope') and task 3.16 disambiguates explicitly, so an implementer is not misled."
+    },
+    {
+      "id": 8,
+      "axis": "correctness",
+      "severity": "none",
+      "title": "F1 verified closed for the case the operator decided - diff-derived change id, zero directories skips, no collision with task 5.6's SKIP",
+      "file": "openspec/changes/trace-requirements-to-contracts/tasks.md",
+      "line_range": "603-621",
+      "description": "The derivation-from-diff decision and the zero-directories SKIP are stated in all four places a ci.yml implementer would look: the spec requirement (spec.md:517-536), design.md's D12 body (448-458), task 5.7's notes (tasks.md:603-621, including why no branch-name rule survives OPENSPEC_BRANCH_OVERRIDE, agent-id suffixes, and unfiltered triggers), and wp-wiring's package description. The plan's factual claim about ci.yml is accurate - lines 3-7 are indeed `push: branches:[main]` / `pull_request:` / `merge_group:`. Two touched directories failing as ambiguous is stated consistently in all four.\n\nNo contradiction with task 5.6. Its SKIP is keyed on `packages/gen-eval/scripts/check_traceability.py` or `openspec/contracts/` being absent, which is the consumer-repo case created by `install.sh` shipping the skill downstream; task 5.7's SKIP is keyed on the diff touching no change directory. Different triggers, different jobs, different artifacts, and each task states its own reason. The change-scope requirement continues to require an explicit change id (spec.md:421-423), so `--scope change` without `--change` still errors - consistent with the new capability-scope rule rather than in tension with it.\n\nThe residue this leaves is the mechanical case recorded as finding 1: the SKIP's 'SHALL NOT fail' is unconditional and therefore also swallows a diff that could not be computed."
+    },
+    {
+      "id": 9,
+      "axis": "completeness",
+      "severity": "none",
+      "title": "F2 verified closed - all three placements confirmed, and 3.16 lands before 5.7 wires it",
+      "file": "openspec/changes/trace-requirements-to-contracts/work-packages.yaml",
+      "line_range": "258-310",
+      "description": "Checked all three, not one. `grep -n test_resolution_modes openspec/changes/trace-requirements-to-contracts/work-packages.yaml` returns line 262 (test-file mapping: 'test_resolution_modes.py <- 3.16. No sixth file.'), line 289 (write_allow), and line 307 (pytest verification command, now listing five files). wp-gate's description covers tasks 3.1-3.16, so 3.16 genuinely sits in the package that owns check_traceability.py, and the new paragraph in that description states both resolution modes plus the `--scope capability --change <id>` combination task 5.7c depends on. wp-wiring's `depends_on: [wp-gate, wp-matrix]` makes the sequencing claim true - both modes exist before the wiring package runs."
+    },
+    {
+      "id": 10,
+      "axis": "correctness",
+      "severity": "none",
+      "title": "Deterministic gates pass on the current tree",
+      "description": "`npx @fission-ai/openspec validate trace-requirements-to-contracts --strict` -> \"Change 'trace-requirements-to-contracts' is valid\". `agent-coordinator/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/trace-requirements-to-contracts/work-packages.yaml` -> \"work-packages validation: VALID\" with schema, depends_on_refs, dag_cycles, and lock_keys all passing. Both of the fix commit's validator claims check out."
+    },
+    {
+      "id": 11,
+      "axis": "process",
+      "severity": "fyi",
+      "title": "consensus-plan.json was not consulted; round 3's findings preserved",
+      "file": "openspec/changes/trace-requirements-to-contracts/reviews/consensus-plan.json",
+      "description": "Per instruction, and consistent with rounds 1-3: the round-1 artifact reported blocking_count 0 while ten blocking findings were live. It is stale as of round 1 and was ignored. Round 3's findings file was copied verbatim to reviews/review-findings-plan-r3.json before this file was overwritten."
+    }
+  ]
+}
