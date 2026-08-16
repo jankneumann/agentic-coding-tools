@@ -440,142 +440,6 @@
       "line": 1
     },
     {
-      "name": "public.memory_working",
-      "schema": "public",
-      "columns": [
-        {
-          "name": "id",
-          "type": "UUID",
-          "nullable": false,
-          "default": "gen_random_uuid()"
-        },
-        {
-          "name": "agent_id",
-          "type": "TEXT",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "session_id",
-          "type": "TEXT",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "value",
-          "type": "JSONB",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "expires_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "created_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": false,
-          "default": "now()"
-        },
-        {
-          "name": "updated_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": false,
-          "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
-        }
-      ],
-      "primary_key": [
-        "id"
-      ],
-      "file": "004_memory_tables.sql",
-      "line": 21
-    },
-    {
-      "name": "public.memory_procedural",
-      "schema": "public",
-      "columns": [
-        {
-          "name": "id",
-          "type": "UUID",
-          "nullable": false,
-          "default": "gen_random_uuid()"
-        },
-        {
-          "name": "skill_name",
-          "type": "TEXT",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "description",
-          "type": "TEXT",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "steps",
-          "type": "JSONB",
-          "nullable": false,
-          "default": "'[]'"
-        },
-        {
-          "name": "prerequisites",
-          "type": "TEXT",
-          "nullable": true,
-          "default": "'{}'"
-        },
-        {
-          "name": "success_count",
-          "type": "INT",
-          "nullable": true,
-          "default": "0"
-        },
-        {
-          "name": "failure_count",
-          "type": "INT",
-          "nullable": true,
-          "default": "0"
-        },
-        {
-          "name": "last_used",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "created_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": false,
-          "default": "now()"
-        },
-        {
-          "name": "updated_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": false,
-          "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
-        }
-      ],
-      "primary_key": [
-        "id"
-      ],
-      "file": "004_memory_tables.sql",
-      "line": 33
-    },
-    {
       "name": "public.changesets",
       "schema": "public",
       "columns": [
@@ -811,95 +675,6 @@
       ],
       "file": "005_verification_tables.sql",
       "line": 53
-    },
-    {
-      "name": "public.approval_queue",
-      "schema": "public",
-      "columns": [
-        {
-          "name": "id",
-          "type": "UUID",
-          "nullable": false,
-          "default": "gen_random_uuid()"
-        },
-        {
-          "name": "agent_id",
-          "type": "TEXT",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "agent_type",
-          "type": "TEXT",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "operation",
-          "type": "TEXT",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "resource",
-          "type": "TEXT",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "context",
-          "type": "JSONB",
-          "nullable": true,
-          "default": "'{}'"
-        },
-        {
-          "name": "status",
-          "type": "TEXT",
-          "nullable": false,
-          "default": "'pending'"
-        },
-        {
-          "name": "decided_by",
-          "type": "TEXT",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "decided_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "reason",
-          "type": "TEXT",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "expires_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": false,
-          "default": null
-        },
-        {
-          "name": "created_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": false,
-          "default": "now()"
-        },
-        {
-          "name": "enable",
-          "type": "UNKNOWN",
-          "nullable": true,
-          "default": null
-        }
-      ],
-      "primary_key": [
-        "id"
-      ],
-      "file": "014_fix_approval_queue_schema.sql",
-      "line": 20
     },
     {
       "name": "public.operation_guardrails",
@@ -1730,6 +1505,95 @@
       "line": 109
     },
     {
+      "name": "public.approval_queue",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "agent_type",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "operation",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "resource",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "context",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "'pending'"
+        },
+        {
+          "name": "decided_by",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "decided_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "expires_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "014_fix_approval_queue_schema.sql",
+      "line": 20
+    },
+    {
       "name": "public.notification_tokens",
       "schema": "public",
       "columns": [
@@ -2214,18 +2078,6 @@
       "on_delete": "NO ACTION"
     },
     {
-      "from_table": "public.approval_queue",
-      "from_columns": [
-        "changeset_id"
-      ],
-      "to_table": "public.changesets",
-      "to_columns": [
-        "id"
-      ],
-      "constraint_name": "",
-      "on_delete": "NO ACTION"
-    },
-    {
       "from_table": "public.agent_profile_assignments",
       "from_columns": [
         "profile_id"
@@ -2517,23 +2369,6 @@
       "unique": false
     },
     {
-      "name": "idx_memory_working_agent_session",
-      "table": "public.memory_working",
-      "columns": [
-        "agent_id",
-        "session_id"
-      ],
-      "unique": false
-    },
-    {
-      "name": "idx_memory_procedural_skill",
-      "table": "public.memory_procedural",
-      "columns": [
-        "skill_name"
-      ],
-      "unique": false
-    },
-    {
       "name": "idx_changesets_agent",
       "table": "public.changesets",
       "columns": [
@@ -2560,14 +2395,6 @@
     {
       "name": "idx_verification_results_status",
       "table": "public.verification_results",
-      "columns": [
-        "status"
-      ],
-      "unique": false
-    },
-    {
-      "name": "idx_approval_queue_status",
-      "table": "public.approval_queue",
       "columns": [
         "status"
       ],
@@ -3782,25 +3609,11 @@
       "function": "public.notify_approval_queue_change"
     },
     {
-      "name": "trg_work_queue_notify",
-      "table": "public.work_queue",
-      "event": "UPDATE",
-      "timing": "AFTER",
-      "function": "public.notify_work_queue_change"
-    },
-    {
       "name": "trg_agent_discovery_notify",
       "table": "public.agent_sessions",
       "event": "INSERT|UPDATE",
       "timing": "AFTER",
       "function": "public.notify_agent_discovery_change"
-    },
-    {
-      "name": "trg_audit_log_notify",
-      "table": "public.audit_log",
-      "event": "INSERT",
-      "timing": "AFTER",
-      "function": "public.notify_audit_log_change"
     },
     {
       "name": "trg_work_queue_notify",
@@ -3827,13 +3640,6 @@
     },
     {
       "from": "public.verification_results",
-      "to": "public.changesets",
-      "columns": [
-        "changeset_id"
-      ]
-    },
-    {
-      "from": "public.approval_queue",
       "to": "public.changesets",
       "columns": [
         "changeset_id"
@@ -3904,18 +3710,14 @@
     }
   ],
   "summary": {
-    "total_tables": 29,
-    "total_columns": 312,
-    "total_foreign_keys": 12,
-    "total_indexes": 72,
+    "total_tables": 27,
+    "total_columns": 293,
+    "total_foreign_keys": 11,
+    "total_indexes": 69,
     "most_referenced_tables": [
       {
         "table": "public.code_search_indexes",
         "references": 3
-      },
-      {
-        "table": "public.changesets",
-        "references": 2
       },
       {
         "table": "public.agent_profiles",
@@ -3927,6 +3729,10 @@
       },
       {
         "table": "public.agent_sessions",
+        "references": 1
+      },
+      {
+        "table": "public.changesets",
         "references": 1
       },
       {

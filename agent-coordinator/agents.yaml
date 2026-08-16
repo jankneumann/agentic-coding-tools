@@ -22,6 +22,14 @@
 # `agent_requirements.archetype = "architect"` will only be claimed by agents
 # whose archetypes list includes "architect". Agents with no archetypes
 # field (or an empty list) are backward-compatible and can claim any task.
+#
+# Because that filter is exact, an archetype rostered in teams.yaml but absent
+# from every agent's list here is UNCLAIMABLE: a task submitted for it sits
+# pending forever, with no error — the queue has nothing to reject, it simply
+# never matches (issue #390). `CrewManifest.validate_against` now cross-checks
+# this file against the roster and fails loud on such a role, so keep the two
+# in sync: adding a roster entry to teams.yaml means giving at least one agent
+# of an eligible vendor that archetype here.
 
 # vendor_diversity policy: when a worker (implementer) and a validator (reviewer
 # or behavioral validator) are dispatched to the same OpenSpec change, the
@@ -53,7 +61,23 @@ agents:
     transport: mcp
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
-    archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
+    # supervisor / gatekeeper are read-only adjudication roles and validator
+    # owns the evidence run; teams.yaml rosters all three to claude_code only
+    # (supervisor, gatekeeper) or to claude_code + codex (validator), and this
+    # is the claude_code agent that can actually run them — trust level 3, MCP
+    # transport, worktree isolation.
+    archetypes:
+      [
+        architect,
+        analyst,
+        implementer,
+        reviewer,
+        runner,
+        documenter,
+        validator,
+        supervisor,
+        gatekeeper,
+      ]
     description: Local Claude Code CLI agent with full coordination access
     cli:
       command: claude
@@ -124,7 +148,11 @@ agents:
     transport: mcp
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
-    archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
+    # validator: teams.yaml rosters it to [claude_code, codex]. Keeping a second
+    # vendor eligible is what lets vendor_diversity route the validator away
+    # from whichever vendor implemented the change.
+    archetypes:
+      [architect, analyst, implementer, reviewer, runner, documenter, validator]
     description: Local Codex worker with full coordination access
     cli:
       command: codex

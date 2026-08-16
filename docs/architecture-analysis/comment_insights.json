@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-16T16:25:51+00:00",
+  "generated_at": "2026-08-16T18:58:50+00:00",
   "summary": {
-    "total_comments": 2294,
+    "total_comments": 2297,
     "total_with_markers": 16,
     "marker_totals": {
       "NOTE": 4,
@@ -11,9 +11,9 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1839,
-    "documented_nodes": 267,
-    "documentation_coverage": 0.145
+    "total_graph_nodes": 1961,
+    "documented_nodes": 311,
+    "documentation_coverage": 0.159
   },
   "marker_hotspots": [
     {
@@ -121,6 +121,18 @@
       "comment_count": 1,
       "markers": [
         "WARN"
+      ]
+    },
+    "ts:kanban-viz/src/components/PRCardView": {
+      "comment_count": 1,
+      "markers": [
+        "WARNING"
+      ]
+    },
+    "ts:SyncPointBanner": {
+      "comment_count": 29,
+      "markers": [
+        "BUG"
       ]
     }
   },
@@ -959,7 +971,7 @@
     },
     {
       "file": "teams.py",
-      "total_comments": 17,
+      "total_comments": 20,
       "with_markers": 0,
       "languages": [
         "python"

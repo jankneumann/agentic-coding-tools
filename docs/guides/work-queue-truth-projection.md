@@ -93,7 +93,18 @@ it is the *only* execution-state artifact that exists.
 ## Invariant test
 
 `skills/tests/coordination-bridge/test_work_queue_projection_invariant.py`
-is a grep-enforced guard that fails if any skill source treats a `work/claim` /
-`get_work` result as the source of the current phase (i.e. couples the
-authoritative `current_phase` / loop-state symbol to a work-queue claim). It
+is an AST-enforced guard that fails if any skill source reads a run's phase,
+iteration, or package status back out of a `work/claim` / `get_work` result. It
 keeps the direction-of-truth arrow above from silently reversing.
+
+It tracks *dataflow*, not spelling: it follows the name a claim result is bound
+to (through nested subscripts and rebindings) and flags any read of an
+authoritative field off it, whatever the variables are called. `change_id` is
+deliberately exempt — a worker must be able to learn which change it is working
+on in order to find the loop-state file to read the truth from.
+
+It was previously a proximity regex over the literal symbols `current_phase` /
+`loop_state` / `LoopState`. That only fired when the variable happened to carry
+one of those names, so the realistic inversion — `claim = get_work()` then
+`phase = claim["input_data"]["phase"]` — went undetected (issue #387). Both
+verified false negatives are pinned as mutation cases in the test.
