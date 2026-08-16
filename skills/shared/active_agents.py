@@ -1,47 +1,21 @@
-"""Active-agent guard for sync-point skills.
+"""Conservative local activity and provisioning guard for sync points."""
 
-CLAUDE.md asserts that sync-point skills (/cleanup-feature, /merge-pull-requests,
-/update-specs) must verify no other agents hold active worktrees before touching
-main. This module is the implementation of that contract.
-
-Reads .git-worktrees/.registry.json (managed by skills/worktree/scripts/worktree.py).
-An entry is "active" when its last_heartbeat is within ``stale_threshold``
-(default 1h) or it is ``pinned: true``. Stale-and-unpinned entries do not block
-sync-point skills — they are assumed to be crashed agents that GC will clean up.
-
-Library use::
-
-    from shared.active_agents import check_no_active_agents
-    clear, active = check_no_active_agents()
-    if not clear:
-        raise RuntimeError(f"{len(active)} active agents block sync-point operation")
-
-CLI use (for skills shelling out from markdown instructions)::
-
-    python skills/shared/active_agents.py             # exit 0 if clear, 1 if blocked
-    python skills/shared/active_agents.py --force     # bypass; logs override; exit 0
-    python skills/shared/active_agents.py --json      # machine-readable output
-
-Sync-point skills (/cleanup-feature, /merge-pull-requests, /update-specs) should
-invoke this as their first action and abort if it returns non-zero unless the
-operator explicitly passes --force.
-
-Fail-open philosophy: if the registry is missing or corrupt, this module returns
-``clear=True``. The alternative (wedging every sync-point skill on a corrupt JSON
-file) is worse than the risk of a missed guard. Operators investigate corruption
-out-of-band; the registry write path in worktree.py is atomic via tmp+replace.
-"""
 from __future__ import annotations
 
 import argparse
 import json
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+try:
+    from shared import worktree_lifecycle as lifecycle
+except ModuleNotFoundError:  # direct execution from skills/shared/
+    import worktree_lifecycle as lifecycle  # type: ignore[no-redef]
+
+
 DEFAULT_STALE_THRESHOLD = timedelta(hours=1)
-REGISTRY_RELATIVE_PATH = Path(".git-worktrees") / ".registry.json"
 
 
 @dataclass(frozen=True)
@@ -51,54 +25,135 @@ class ActiveAgent:
     branch: str
     worktree_path: str
     last_heartbeat: str
-    pinned: bool
+    pinned: bool = False
+    owner: str | None = None
+    phase: str | None = None
+    expires_at: str | None = None
+    source: str = "activity-lease"
 
     @property
     def label(self) -> str:
         ident = f"{self.change_id}/{self.agent_id}" if self.agent_id else self.change_id
-        suffix = " (pinned)" if self.pinned else ""
-        return f"{ident} on {self.branch}{suffix}"
+        owner = f" ({self.owner})" if self.owner else ""
+        retained = " (retained)" if self.pinned and not owner else ""
+        return f"{ident} on {self.branch}{owner}{retained}"
 
 
-def _parse_iso(ts: str) -> datetime | None:
-    try:
-        parsed = datetime.fromisoformat(ts)
-    except (TypeError, ValueError):
-        return None
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed
+@dataclass(frozen=True)
+class GuardBlocker:
+    kind: str
+    reason: str
+    change_id: str | None = None
+    agent_id: str | None = None
+    setup_id: str | None = None
+    entry_generation: str | None = None
+    state: str | None = None
+    created_at: str | None = None
+    expires_at: str | None = None
+    recovery_required: bool = False
 
 
-def _registry_path(repo_root: Path) -> Path:
-    return repo_root / REGISTRY_RELATIVE_PATH
+@dataclass(frozen=True)
+class GuardInspection:
+    clear: bool
+    active: tuple[ActiveAgent, ...]
+    blockers: tuple[GuardBlocker, ...]
+    registry_state: str
+    inspected_at: str
 
 
-def _load_registry(path: Path) -> dict:
-    if not path.is_file():
-        return {"version": 1, "entries": []}
-    try:
-        with open(path) as f:
-            data = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return {"version": 1, "entries": []}
-    if not isinstance(data, dict) or "entries" not in data:
-        return {"version": 1, "entries": []}
-    return data
+def _main_root(root: Path) -> Path:
+    """Resolve a linked-worktree path to the repository that owns the registry."""
+    candidate = root.resolve()
+    git_file = candidate / ".git"
+    if git_file.is_file():
+        try:
+            text = git_file.read_text().strip()
+            if text.startswith("gitdir:"):
+                gitdir = Path(text.split(":", 1)[1].strip()).resolve()
+                common = gitdir / "commondir"
+                if common.is_file():
+                    common_dir = (gitdir / common.read_text().strip()).resolve()
+                    return common_dir.parent
+        except OSError:
+            pass
+    return candidate
 
 
-def _is_active(
-    entry: dict,
+def inspect_guard(
     *,
-    now: datetime,
-    stale_threshold: timedelta,
-) -> bool:
-    if entry.get("pinned"):
-        return True
-    hb = _parse_iso(entry.get("last_heartbeat", ""))
-    if hb is None:
-        return False
-    return now - hb <= stale_threshold
+    repo_root: Path | None = None,
+    stale_threshold: timedelta = DEFAULT_STALE_THRESHOLD,
+    now: datetime | None = None,
+) -> GuardInspection:
+    root = _main_root(repo_root or Path.cwd())
+    when = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    try:
+        registry = lifecycle.read_registry(root)
+    except lifecycle.RegistryCorrupt as exc:
+        blocker = GuardBlocker(kind="registry-corrupt", reason=str(exc), recovery_required=True)
+        return GuardInspection(False, (), (blocker,), "corrupt", when.isoformat())
+    except lifecycle.LockTimeout as exc:
+        blocker = GuardBlocker(
+            kind="registry-lock-timeout", reason=str(exc), recovery_required=True
+        )
+        return GuardInspection(False, (), (blocker,), "indeterminate", when.isoformat())
+
+    active: list[ActiveAgent] = []
+    for entry in registry["entries"]:
+        lease = entry.get("activity_lease")
+        live = lifecycle.lease_is_live(lease, now=when)
+        if lease and lease.get("phase") == "LEGACY":
+            heartbeat = lifecycle.parse_timestamp(lease.get("last_heartbeat"))
+            live = heartbeat is not None and when - heartbeat <= stale_threshold
+        if not live:
+            continue
+        # A normalized v1 heartbeat is a synthetic manual LEGACY lease; its
+        # fixed one-hour expiry supplies the transitional freshness rule.
+        active.append(
+            ActiveAgent(
+                change_id=entry["change_id"],
+                agent_id=entry.get("agent_id"),
+                branch=entry["branch"],
+                worktree_path=entry["worktree_path"],
+                last_heartbeat=lease["last_heartbeat"],
+                pinned=bool(entry.get("retained")),
+                owner=lease["owner"],
+                phase=lease["phase"],
+                expires_at=lease["expires_at"],
+                source="legacy-heartbeat" if lease["phase"] == "LEGACY" else "activity-lease",
+            )
+        )
+
+    blockers: list[GuardBlocker] = []
+    for reservation in registry["setup_reservations"]:
+        expiry = lifecycle.parse_timestamp(reservation["expires_at"])
+        expired = expiry is None or expiry < when
+        blockers.append(
+            GuardBlocker(
+                kind="setup-reservation-expired" if expired else "setup-reservation",
+                reason=(
+                    "expired setup reservation requires explicit reconciliation"
+                    if expired
+                    else "setup provisioning is unfinished"
+                ),
+                change_id=reservation["change_id"],
+                agent_id=reservation.get("agent_id"),
+                setup_id=reservation["setup_id"],
+                entry_generation=reservation["entry_generation"],
+                state=reservation["state"],
+                created_at=reservation["created_at"],
+                expires_at=reservation["expires_at"],
+                recovery_required=expired,
+            )
+        )
+    return GuardInspection(
+        clear=not active and not blockers,
+        active=tuple(active),
+        blockers=tuple(blockers),
+        registry_state="valid",
+        inspected_at=when.isoformat(),
+    )
 
 
 def check_no_active_agents(
@@ -107,81 +162,59 @@ def check_no_active_agents(
     stale_threshold: timedelta = DEFAULT_STALE_THRESHOLD,
     now: datetime | None = None,
 ) -> tuple[bool, list[ActiveAgent]]:
-    """Return ``(clear, active_list)``.
-
-    ``clear=True`` means it is safe for a sync-point skill to proceed.
-    ``active_list`` is informational; it is empty iff ``clear=True``.
-
-    An entry is active if it is pinned OR its ``last_heartbeat`` is within
-    ``stale_threshold`` of ``now``. Stale-and-unpinned entries are ignored.
-    """
-    root = (repo_root or Path.cwd()).resolve()
-    registry = _load_registry(_registry_path(root))
-    when = now or datetime.now(timezone.utc)
-    active: list[ActiveAgent] = []
-    for entry in registry.get("entries", []):
-        if not isinstance(entry, dict):
-            continue
-        if _is_active(entry, now=when, stale_threshold=stale_threshold):
-            active.append(ActiveAgent(
-                change_id=str(entry.get("change_id", "")),
-                agent_id=entry.get("agent_id"),
-                branch=str(entry.get("branch", "")),
-                worktree_path=str(entry.get("worktree_path", "")),
-                last_heartbeat=str(entry.get("last_heartbeat", "")),
-                pinned=bool(entry.get("pinned", False)),
-            ))
-    return (not active, active)
+    """Compatibility tuple: activity is separate from conservative blockers."""
+    inspection = inspect_guard(
+        repo_root=repo_root,
+        stale_threshold=stale_threshold,
+        now=now,
+    )
+    return inspection.clear, list(inspection.active)
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(
-        description="Verify no active agents hold worktrees before a sync-point operation"
+    parser = argparse.ArgumentParser(
+        description="Verify no activity or unfinished provisioning blocks a sync point"
     )
-    p.add_argument("--force", action="store_true",
-                   help="bypass the guard; logs override to stderr but still exits 0")
-    p.add_argument("--json", action="store_true",
-                   help="emit machine-readable output to stdout")
-    p.add_argument("--stale-hours", type=float, default=1.0,
-                   help="active-threshold in hours (default 1)")
-    p.add_argument("--repo-root", type=Path, default=None,
-                   help="repository root containing .git-worktrees/ (default: cwd)")
-    args = p.parse_args(argv)
-
-    clear, active = check_no_active_agents(
+    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--stale-hours", type=float, default=1.0)
+    parser.add_argument("--repo-root", type=Path, default=None)
+    args = parser.parse_args(argv)
+    inspection = inspect_guard(
         repo_root=args.repo_root,
         stale_threshold=timedelta(hours=args.stale_hours),
     )
-
     if args.json:
-        json.dump({
-            "clear": clear,
-            "force": args.force,
-            "active": [
+        print(
+            json.dumps(
                 {
-                    "change_id": a.change_id,
-                    "agent_id": a.agent_id,
-                    "branch": a.branch,
-                    "worktree_path": a.worktree_path,
-                    "last_heartbeat": a.last_heartbeat,
-                    "pinned": a.pinned,
-                }
-                for a in active
-            ],
-        }, sys.stdout, indent=2, sort_keys=True)
-        sys.stdout.write("\n")
+                    "clear": inspection.clear,
+                    "force": args.force,
+                    "registry_state": inspection.registry_state,
+                    "inspected_at": inspection.inspected_at,
+                    "active": [asdict(item) for item in inspection.active],
+                    "blockers": [asdict(item) for item in inspection.blockers],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    elif inspection.clear:
+        print("clear: no active agents or unfinished setup reservations")
     else:
-        if clear:
-            print("clear: no active agents")
-        else:
-            print(f"BLOCKED: {len(active)} active agent(s) hold worktrees:")
-            for a in active:
-                print(f"  - {a.label} (heartbeat {a.last_heartbeat})")
-
-    if not clear and args.force:
-        print("--force: bypassing active-agent guard", file=sys.stderr)
+        if inspection.active:
+            print(f"BLOCKED: {len(inspection.active)} active agent(s):")
+            for item in inspection.active:
+                print(f"  - {item.label} (heartbeat {item.last_heartbeat})")
+        if inspection.blockers:
+            print(f"BLOCKED: {len(inspection.blockers)} indeterminate lifecycle blocker(s):")
+            for item in inspection.blockers:
+                identity = item.setup_id or item.change_id or item.kind
+                print(f"  - {identity}: {item.reason}")
+    if not inspection.clear and args.force:
+        print("--force: bypassing lifecycle guard", file=sys.stderr)
         return 0
-    return 0 if clear else 1
+    return 0 if inspection.clear else 1
 
 
 if __name__ == "__main__":

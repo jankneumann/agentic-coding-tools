@@ -50,14 +50,14 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
   **Dependencies**: 1.3
   **Files**: `skills/shared/worktree_lifecycle.py`, `skills/worktree/scripts/worktree.py`, `skills/worktree/SKILL.md`
 
-- [ ] 1.5 (S) Write active-agent guard tests for live, released, expired, retained, legacy, malformed, corrupt entries, plus all unfinished setup reservations as indeterminate non-activity blockers with expired reservations explicitly marked recovery-required
+- [x] 1.5 (S) Write active-agent guard tests for live, released, expired, retained, legacy, malformed, corrupt entries, plus all unfinished setup reservations as indeterminate non-activity blockers with expired reservations explicitly marked recovery-required
   **Spec scenarios**: `worktree` — AC-08, AC-09, AC-11, Corrupt registry blocks safety decisions without rewrite; `coordinator-kanban-viz` — AC-02; Unfinished reservation blocks sync points without appearing active
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`
   **Design decisions**: D1-D6
   **Dependencies**: 1.2
   **Files**: `skills/shared/tests/test_active_agents.py`
 
-- [ ] 1.6 (S) Make the local active-agent guard report current activity separately while conservatively blocking sync points on current activity or any unfinished reservation and labeling expired reservations for explicit reconciliation
+- [x] 1.6 (S) Make the local active-agent guard report current activity separately while conservatively blocking sync points on current activity or any unfinished reservation and labeling expired reservations for explicit reconciliation
   **Dependencies**: 1.4, 1.5
   **Files**: `skills/shared/active_agents.py`
 
