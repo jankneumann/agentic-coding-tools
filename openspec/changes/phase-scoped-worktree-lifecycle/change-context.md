@@ -1,0 +1,63 @@
+# Change Context: phase-scoped-worktree-lifecycle
+
+## Requirement Traceability Matrix
+
+| Req ID | Spec Source | Description | Contract Ref | Design Decision | Files Changed | Test(s) | Evidence |
+|--------|------------|-------------|-------------|----------------|---------------|---------|----------|
+| worktree.1 | `specs/worktree/spec.md` — Registry v2 SHALL Separate Activity Leases from Retention | Registry v2 separates activity, retention, setup intent, and recovery state under atomic locking. | `contracts/schemas/worktree-registry-v2.schema.json`; `contracts/cli/worktree-lifecycle.yaml` | D1-D4 | --- | `skills/shared/tests/test_worktree_lifecycle.py`; `skills/worktree/scripts/tests/test_worktree.py` | --- |
+| worktree.2 | `specs/worktree/spec.md` — Activity Lease Operations SHALL Be Fenced and Crash-Tolerant | Lifecycle mutations use the exact fence, durability target, process evidence, and crash reconciliation. | `contracts/schemas/worktree-process-evidence.schema.json`; `contracts/cli/worktree-lifecycle.yaml` | D3-D5 | --- | `skills/shared/tests/test_worktree_lifecycle.py`; `skills/worktree/scripts/tests/test_worktree.py` | --- |
+| worktree.3 | `specs/worktree/spec.md` — Lease Inspection and Recovery SHALL Be Operator-Visible | Inspection, quarantine, adoption, target binding, and disposal expose safe operator recovery. | `contracts/cli/worktree-lifecycle.yaml`; `contracts/schemas/worktree-registry-v2.schema.json` | D5-D6 | --- | `skills/worktree/scripts/tests/test_worktree.py` | --- |
+| worktree.4 | `specs/worktree/spec.md` — Registry Migration SHALL Preserve Existing Local Workflow Compatibility | V1 reads normalize deterministically while legacy aliases retain explicitly bounded semantics. | `contracts/schemas/worktree-registry-v2.schema.json`; `contracts/cli/worktree-lifecycle.yaml` | D6 | --- | `skills/shared/tests/test_worktree_lifecycle.py`; `skills/tests/worktree/test_setup_prototype.py` | --- |
+| worktree.5 | `specs/worktree/spec.md` — Activity Lease Commands SHALL Respect Environment Isolation | Harness-provided isolation short-circuits local lifecycle mutation. | `contracts/cli/worktree-lifecycle.yaml` | D1 | --- | `skills/worktree/scripts/tests/test_environment_aware.py` | --- |
+| merge-pull-requests.1 | `specs/merge-pull-requests/spec.md` — OpenSpec PR Delivery Stage SHALL Be Deterministically Classified | Complete immutable evidence determines proposal, implementation, mixed, or ambiguous delivery. | `contracts/schemas/pr-delivery-classification.schema.json` | D11 | --- | `skills/tests/merge-pull-requests/test_delivery_classification.py`; `skills/tests/merge-pull-requests/test_classify.py` | --- |
+| merge-pull-requests.2 | `specs/merge-pull-requests/spec.md` — Author Identity, Origin, and Delivery Stage SHALL Remain Independent | Verified author vendor is independent of origin and stage and drives independent review selection. | `contracts/schemas/pr-delivery-classification.schema.json` | D12-D13 | --- | `skills/tests/merge-pull-requests/test_vendor_review.py` | --- |
+| merge-pull-requests.3 | `specs/merge-pull-requests/spec.md` — Merge Validation, Cleanup, and Archival SHALL Follow Delivery Stage | Merge planning and cleanup route from preserved stage evidence and auditable ambiguity disposition. | `contracts/schemas/merge-plan-delivery-fields.schema.json` | D14-D15 | --- | `skills/tests/merge-pull-requests/test_stage_routing.py`; `skills/merge-pull-requests/scripts/tests/test_post_merge_cleanup.py` | --- |
+| merge-pull-requests.4 | `specs/merge-pull-requests/spec.md` — OpenSpec Integration | Merge-plan convergence preserves stage-aware validation and cleanup behavior. | `contracts/schemas/merge-plan-delivery-fields.schema.json` | D15 | --- | `skills/tests/merge-pull-requests/test_stage_routing.py` | --- |
+| skill-workflow.1 | `specs/skill-workflow/spec.md` — Repository-Mutating Workflow Entrypoint Invariant | Every mutating entrypoint uses explicit lifecycle ownership or asserts inherited fencing. | `contracts/mutating-skill-inventory.yaml`; `contracts/cli/worktree-lifecycle.yaml` | D7-D8 | --- | `skills/tests/lifecycle-consumers/**`; phase skill contract tests | --- |
+| skill-workflow.2 | `specs/skill-workflow/spec.md` — Planning Skills Use Feature-Level Worktrees | Planning uses disposable proposal branches and durable delivery before finalization. | `contracts/cli/worktree-lifecycle.yaml` | D8 | --- | `skills/tests/plan-feature/test_skill_contract.py`; `skills/tests/iterate-on-plan/test_skill_contract.py` | --- |
+| skill-workflow.3 | `specs/skill-workflow/spec.md` — Implementation Orchestrator Worktree Setup | Ordinary packages get isolated fenced worktrees; the declared feature-HEAD root inherits the parent checkout. | `contracts/prerequisites.yaml#execution_gate`; `contracts/cli/worktree-lifecycle.yaml` | D7, D15 | --- | `skills/tests/implement-feature/test_coordinated_preflight.py`; `skills/parallel-infrastructure/scripts/tests/test_dag_scheduler.py` | --- |
+| skill-workflow.4 | `specs/skill-workflow/spec.md` — Protection SHALL Be Phase-Scoped Around Durable Handoffs | Standalone phases keep ownership through durable push and teardown-or-quarantine. | `contracts/cli/worktree-lifecycle.yaml` | D8 | --- | `skills/shared/tests/test_phase_lifecycle.py`; phase skill contract tests | --- |
+| skill-workflow.5 | `specs/skill-workflow/spec.md` — Standalone Implementation and Validation Phases SHALL Own Independent Worktrees | Implementation and validation invocations own independent leases and recreate from durable state. | `contracts/cli/worktree-lifecycle.yaml` | D8 | --- | `skills/tests/implement-feature/test_skill_contract.py`; `skills/tests/validate-feature/test_skill_contract.py` | --- |
+| skill-workflow.6 | `specs/skill-workflow/spec.md` — Autopilot SHALL Hold One Continuous Owner Lease Through Submission | Autopilot owns one null-session lease, fenced external recovery envelope, terminal DONE, and dedicated GC. | `contracts/schemas/autopilot-run-recovery.schema.json`; `contracts/cli/worktree-lifecycle.yaml` | D9 | --- | `skills/autopilot/scripts/tests/test_autopilot_lifecycle.py`; `skills/autopilot/scripts/tests/test_autopilot_recovery.py` | --- |
+| skill-workflow.7 | `specs/skill-workflow/spec.md` — Session Finalization SHALL Provide a Best-Effort Lease Backstop | Session hooks invoke release-session only and quarantine preserved matching checkouts. | `contracts/mutating-skill-inventory.yaml`; `contracts/cli/worktree-lifecycle.yaml` | D10 | --- | `skills/tests/session-bootstrap/test_deregister_agent.py`; `agent-coordinator/tests/test_install_hooks.py` | --- |
+| skill-workflow.8 | `specs/skill-workflow/spec.md` — Prerequisite Evidence SHALL Be Visible Before Dependent Dispatch | Authoritative prerequisite evidence and exact feature HEAD gate every dependent checkout. | `contracts/prerequisites.yaml`; `contracts/schemas/baseline-gates.schema.json` | D15 | --- | `skills/tests/implement-feature/test_prerequisite_preflight.py`; `skills/tests/implement-feature/test_coordinated_preflight.py` | --- |
+| skill-workflow.9 | `specs/skill-workflow/spec.md` — Canonical Lifecycle Skills SHALL Generate Consistent Runtime Mirrors | Canonical skill and schema sources generate byte-identical runtime mirrors. | --- | D16 | --- | mirror drift and convergence schema parity tests | --- |
+| coordinator-kanban-viz.1 | `specs/coordinator-kanban-viz/spec.md` — New Coordinator Endpoint — Worktree Active Projection | Coordinator active projection renders only live leases and keeps retention/provisioning distinct. | `contracts/schemas/worktree-registry-v2.schema.json` | D15 | --- | `agent-coordinator/tests/test_worktrees_view.py`; `agent-coordinator/tests/test_coordination_api.py` | --- |
+| coordinator-kanban-viz.2 | `specs/coordinator-kanban-viz/spec.md` — Coordinator Sync-Point Status SHALL Use Live Activity Semantics | Sync points share canonical blockers, including non-active unfinished setup reservations. | `contracts/mutating-skill-inventory.yaml`; `contracts/schemas/worktree-registry-v2.schema.json` | D15 | --- | `agent-coordinator/tests/test_sync_points.py`; API/SSE projection tests | --- |
+| coordinator-kanban-viz.3 | `specs/coordinator-kanban-viz/spec.md` — Coordinator Merge Views SHALL Preserve Delivery-Stage Evidence | Coordinator merge views expose current classification and auditable disposition state. | `contracts/schemas/pr-delivery-classification.schema.json`; `contracts/schemas/merge-plan-delivery-fields.schema.json` | D15 | --- | `agent-coordinator/tests/test_kanban_viz_endpoints.py` | --- |
+
+## Design Decision Trace
+
+| Decision | Rationale | Implementation | Why This Approach |
+|----------|-----------|----------------|-------------------|
+| D1 | One interpreter must own lifecycle meaning. | `skills/shared/worktree_lifecycle.py` and all projections consume it. | Prevents duplicated pin/heartbeat semantics. |
+| D2 | Activity, retention, setup, and recovery are distinct state. | Registry v2 schema and CLI transitions. | Prevents retained or provisioning state from granting write authority. |
+| D3 | Safety mutations require locked atomic replacement. | Shared registry transactions and crash checkpoints. | Prevents lost updates and one-sided cleanup. |
+| D4 | Activity is bounded and renewable. | 30-minute leases, five-minute renewal, fixed setup retry expiry. | Dead writers stop being active without deleting work. |
+| D5 | Every automatic mutation is exactly fenced. | Owner/lease/controller/generation checks and explicit recovery commands. | Excludes stale and duplicate controllers. |
+| D6 | Migration must be readable and deterministic. | V1 normalization and compatibility aliases. | Supports recovery without silently changing legacy meaning. |
+| D7 | Lifecycle authority travels in explicit context. | Shared phase controller and dispatch assertions. | Makes the finalizer and renewer unambiguous. |
+| D8 | Phase durability precedes local disposal. | Standalone teardown-or-quarantine after push. | Avoids release-then-remove races and data loss. |
+| D9 | Autopilot owns one continuous fence and external recovery record. | Null-session parent lease, terminal tombstone, identity-bound recovery CAS, dedicated GC. | Preserves resumability without granting stale authority. |
+| D10 | Session cleanup is a conservative backstop. | Release-session-only hooks. | Never turns preserved state into ordinary adoptable state. |
+| D11 | Delivery stage is a pure evidence classifier. | Shared classifier plus schema-enforced ambiguity. | Prevents metadata guesses from bypassing gates. |
+| D12 | Author, origin, and stage remain independent. | Verified vendor evidence fields. | Avoids spoofed or conflated routing. |
+| D13 | Review must be vendor-independent when required. | Codex/Grok/Pi routing for verified Claude proposal work. | Reduces same-vendor blind spots. |
+| D14 | Cleanup follows effective delivery stage. | Stage-aware validation, archival, and ambiguity disposition. | Prevents proposal-only work from being archived as implementation. |
+| D15 | Merge and coordinator views project the same evidence. | Shared schemas, exact preflight gate, API/SSE projections. | Keeps UI, scheduler, and merge safety aligned. |
+| D16 | Canonical sources generate mirrors. | `skills/install.sh` and parity checks. | Prevents runtime drift. |
+| D17 | Rollout remains dual-read and single-write. | Compatibility readers before legacy writer removal. | Keeps rollback and migration safe. |
+
+## Review Findings Summary
+
+| Finding ID | Package | Type | Criticality | Disposition | Resolution |
+|------------|---------|------|-------------|-------------|------------|
+| plan-r6 | all | multi-vendor plan review | critical | fixed | Revision 6 remediates all distinct actionable findings; raw reports remain under `reviews/`. |
+
+## Coverage Summary
+
+- **Requirements traced**: 21/21
+- **Tests mapped**: 21 requirements have at least one planned test
+- **Evidence collected**: 0/21 requirements have pass/fail evidence
+- **Gaps identified**: Implementation and validation evidence pending
+- **Deferred items**: Live prerequisite evidence remains gated by authoritative PR state

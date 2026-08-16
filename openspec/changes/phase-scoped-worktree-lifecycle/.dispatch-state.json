@@ -1,0 +1,7 @@
+{
+  "change_id": "phase-scoped-worktree-lifecycle",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "codex"
+  ]
+}
