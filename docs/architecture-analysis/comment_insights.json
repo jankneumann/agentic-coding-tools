@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-16T18:58:50+00:00",
+  "generated_at": "2026-08-16T20:16:48+00:00",
   "summary": {
     "total_comments": 2297,
     "total_with_markers": 16,
@@ -11,9 +11,9 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1961,
-    "documented_nodes": 311,
-    "documentation_coverage": 0.159
+    "total_graph_nodes": 1871,
+    "documented_nodes": 267,
+    "documentation_coverage": 0.143
   },
   "marker_hotspots": [
     {
@@ -121,18 +121,6 @@
       "comment_count": 1,
       "markers": [
         "WARN"
-      ]
-    },
-    "ts:kanban-viz/src/components/PRCardView": {
-      "comment_count": 1,
-      "markers": [
-        "WARNING"
-      ]
-    },
-    "ts:SyncPointBanner": {
-      "comment_count": 29,
-      "markers": [
-        "BUG"
       ]
     }
   },
