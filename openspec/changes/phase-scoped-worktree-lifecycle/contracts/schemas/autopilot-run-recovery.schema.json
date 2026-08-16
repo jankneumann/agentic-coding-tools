@@ -20,6 +20,7 @@
     "registry_entry_generation",
     "checkout_state",
     "finalization_intent",
+    "gc_eligible_at",
     "updated_at"
   ],
   "properties": {
@@ -73,8 +74,19 @@
     },
     "lease_id": { "type": ["string", "null"], "minLength": 1 },
     "registry_entry_generation": { "type": ["string", "null"], "minLength": 1 },
-    "checkout_state": { "enum": ["present", "teardown_pending", "removed", "quarantined"] },
-    "finalization_intent": { "enum": ["none", "done", "escalate", "exception"] },
+    "checkout_state": {
+      "enum": ["present", "teardown_pending", "removed", "quarantined"],
+      "description": "A removed envelope with finalization_intent=done is a terminal tombstone and MUST NOT authorize checkout recreation, lease acquisition, or phase dispatch."
+    },
+    "finalization_intent": {
+      "enum": ["none", "done", "escalate", "exception"],
+      "description": "The producer validates this against canonical loop state. A done intent becomes externally reportable only after the envelope records removal; quarantine remains an escalated recovery outcome."
+    },
+    "gc_eligible_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "For removed+done only, the removal CAS timestamp plus the fixed 30-day retention interval. All other states and intents require null. Eligibility is necessary but not sufficient for dedicated recovery GC."
+    },
     "updated_at": { "type": "string", "format": "date-time" }
   },
   "allOf": [
@@ -87,13 +99,30 @@
         "properties": {
           "finalization_intent": { "const": "none" },
           "lease_id": { "type": "string", "minLength": 1 },
-          "registry_entry_generation": { "type": "string", "minLength": 1 }
+          "registry_entry_generation": { "type": "string", "minLength": 1 },
+          "gc_eligible_at": { "type": "null" }
         }
       }
     },
     {
       "if": {
-        "properties": { "checkout_state": { "enum": ["teardown_pending", "removed"] } },
+        "properties": { "checkout_state": { "enum": ["teardown_pending", "quarantined"] } },
+        "required": ["checkout_state"]
+      },
+      "then": {
+        "properties": {
+          "durable_head": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" },
+          "loop_state_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "lease_id": { "type": "string", "minLength": 1 },
+          "registry_entry_generation": { "type": "string", "minLength": 1 },
+          "finalization_intent": { "enum": ["done", "escalate", "exception"] },
+          "gc_eligible_at": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "checkout_state": { "const": "removed" } },
         "required": ["checkout_state"]
       },
       "then": {
@@ -103,6 +132,34 @@
           "lease_id": { "type": "string", "minLength": 1 },
           "registry_entry_generation": { "type": "string", "minLength": 1 },
           "finalization_intent": { "enum": ["done", "escalate", "exception"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checkout_state": { "const": "removed" },
+          "finalization_intent": { "const": "done" }
+        },
+        "required": ["checkout_state", "finalization_intent"]
+      },
+      "then": {
+        "properties": {
+          "gc_eligible_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checkout_state": { "const": "removed" },
+          "finalization_intent": { "enum": ["escalate", "exception"] }
+        },
+        "required": ["checkout_state", "finalization_intent"]
+      },
+      "then": {
+        "properties": {
+          "gc_eligible_at": { "type": "null" }
         }
       }
     }

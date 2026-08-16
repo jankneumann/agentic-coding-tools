@@ -54,11 +54,23 @@ autopilot planning SHALL instead use its explicit parent-owned
 ### Requirement: Implementation Orchestrator Worktree Setup
 
 The implementation orchestrator SHALL create a dedicated worktree and fenced
-lease for every root or parallel work package before mutation. Each package
-lease SHALL be independent from the parent phase lease, included in dispatch
-context, asserted before integration, and disposed after integration or
-atomically quarantined-and-cleared on failure. Retention aliases MUST NOT be used as
-activity protection.
+lease for every root or parallel work package before mutation, except a root
+package named by `contracts/prerequisites.yaml#execution_gate` with
+`completion_visibility=feature-head`. That package SHALL run synchronously in
+the already managed feature worktree under the parent phase lease and feature
+branch lock; its logical `worktree.name=feature` MUST NOT create or switch a
+checkout or acquire a second package lease. Every ordinary package lease SHALL
+remain independent from the parent phase lease, be included in dispatch
+context, be asserted before integration, and be disposed after integration or
+atomically quarantined-and-cleared on failure. Retention aliases MUST NOT be
+used as activity protection.
+
+#### Scenario: Feature-HEAD barrier package inherits the parent checkout
+
+- **WHEN** the declared feature-HEAD preflight root package starts
+- **THEN** it SHALL run synchronously in the existing managed feature checkout under the parent fence and feature-branch lock
+- **AND** it MUST NOT create a package checkout or second lease
+- **AND** ordinary root and parallel packages SHALL continue to receive dedicated worktrees and package leases
 
 #### Scenario: Package worktrees use leases rather than pins
 
@@ -140,7 +152,11 @@ lifecycle mode to all nested write-capable skills. The parent controller alone
 SHALL renew the lease at every write-capable phase transition through
 PLAN, PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, VALIDATE,
 optional VAL_REVIEW, and SUBMIT_PR. Nested skills SHALL only assert the inherited
-triple and MUST NOT renew, release, or replace the parent-owned lease.
+triple and MUST NOT renew, release, or replace the parent-owned lease. A
+continuous autopilot lease SHALL always persist `session_id=null`, even when an
+orchestrating session identity exists. It MUST NOT be selected by generic
+`release-session`; controller-finally, TTL fencing, and explicit recovery own
+its cleanup.
 
 Autopilot SHALL retain canonical workflow state at the existing feature-branch
 `loop-state.json` path and persist a schema-valid recovery envelope outside the
@@ -154,13 +170,46 @@ lease acquisition. All
 envelope writes SHALL use a per-run lock, generation CAS, atomic replace, file
 fsync, and directory fsync; present/pending writes SHALL additionally prove the
 exact live registry triple plus entry generation, and post-removal CAS SHALL be
-bound to the unchanged pending identity. The envelope SHALL locate and verify restored canonical state
-but SHALL NOT independently authorize a phase or lease. After the pull request and checkpoint
-are durable, autopilot SHALL CAS teardown intent, safely tear down while its
-exact lease is live, and record removal before entering DONE or presenting any human merge
-gate. Terminal failure and ESCALATE use the same checkpoint-before-teardown
+bound to the unchanged pending identity. After unsafe finalization atomically
+sets registry recovery-required state, records `source=unsafe-finalization` and
+the exact prior owner, lease, and controller identity, and clears the activity
+lease, a reconciler MAY CAS `teardown_pending` to `quarantined` only when the
+expected envelope generation, owner, lease id, registry entry generation, and
+finalization intent remain unchanged and the registry entry still has that
+generation, no live lease, and the matching immutable recovery context. This
+identity-bound transition does not require the old controller process to remain
+live. Missing or mismatched evidence, a replacement lease, adoption, or a
+generation change SHALL be a non-mutating conflict. The envelope SHALL locate
+and verify restored canonical state but SHALL NOT independently authorize a
+phase or lease.
+
+After the pull request and canonical DONE checkpoint are durable, autopilot
+SHALL record the exact durable head and digest, CAS teardown intent, safely tear
+down while its exact lease is live, and record removal before reporting DONE or
+presenting any human merge gate. A crash after the canonical DONE checkpoint
+MAY resume only to complete finalization and MUST NOT redispatch a workflow
+phase. Terminal failure and ESCALATE use the same checkpoint-before-teardown
 protocol; a non-durable checkpoint MUST quarantine rather than delete the
-checkout.
+checkout. A `removed` envelope with `finalization_intent=done` whose exact-tip
+canonical blob validates as DONE is a terminal tombstone: resume SHALL return
+the stored terminal result without recreating a checkout, acquiring a lease, or
+dispatching a phase. Further execution requires a new run id. Inconsistent
+envelope/canonical-state combinations SHALL remain escalated without dispatch.
+
+Every envelope SHALL include `gc_eligible_at`. It SHALL be null for present,
+pending, quarantined, and removed exception/escalate state. The successful
+`teardown_pending` to `removed` CAS for DONE SHALL set it to exactly 30 days
+after that CAS. Generic worktree GC MUST treat
+`.git-worktrees/.autopilot-runs/` as opaque. A dedicated autopilot recovery GC
+MAY delete an expired record only after reloading it under the recovery-GC and
+per-run locks and proving schema validity, `removed` plus `done`, exact-tip and
+digest-valid canonical DONE state, absence of a registry entry, setup
+reservation, and worktree, and `now >= gc_eligible_at`. Run create/update SHALL
+take the shared `.autopilot-runs/.gc.lock` before its exclusive per-run lock;
+GC SHALL take the exclusive GC lock before the per-run lock, reload and recheck
+generation and eligibility, safely rename/remove the run directory, and fsync
+the parent. It SHALL preserve and report corrupt, inconsistent, raced, active,
+resumable, and quarantined records.
 
 #### Scenario: AC-07 — One autopilot owner remains stable and is gone before the merge gate
 
@@ -176,12 +225,36 @@ checkout.
 - **AND** a replacement controller SHALL reject live or indeterminate old evidence and rotate the lease/controller only after stale evidence and safe durable state are proven
 - **AND** it MUST NOT create a second phase-owned lease
 
+#### Scenario: Unsafe teardown projects quarantine through the prior fence
+
+- **WHEN** unsafe finalization has a `teardown_pending` envelope and atomically records registry recovery context with `source=unsafe-finalization`, the exact prior owner, lease id, and controller id before clearing the lease
+- **THEN** a reconciler MAY CAS the envelope to `quarantined` when the expected envelope generation, owner, lease id, registry entry generation, and finalization intent match and the unchanged registry generation has no live lease
+- **AND** the reconciler need not be the prior controller process because the immutable registry recovery context supplies the fence
+- **AND** a missing or different recovery context, replacement lease, adopted entry, changed registry generation, changed intent, or stale envelope generation SHALL leave both records unmodified and remain escalated
+
 #### Scenario: Released or removed autopilot checkout resumes from durable state
 
 - **WHEN** ESCALATE or exception finalization recorded `checkout_state=removed` outside the worktree
 - **AND** the configured remote URL digest still matches and the freshly fetched stored ref tip equals the recorded durable HEAD exactly
 - **THEN** resume SHALL hash and schema-validate the loop-state blob at that exact OID before recreating the checkout and registry entry, acquire a new lease/controller under the stable owner, checkpoint them, and continue from the phase derived from canonical state
 - **AND** advanced, rewound, missing, URL-mismatched, quarantined, or partially present state SHALL remain escalated
+
+#### Scenario: Completed removed autopilot run is terminal
+
+- **WHEN** an envelope records `checkout_state=removed` and `finalization_intent=done`
+- **AND** its exact-tip digest-valid canonical loop state records DONE
+- **THEN** resume SHALL return the stored terminal result and merge-gate evidence
+- **AND** it MUST NOT recreate a checkout or registry entry, acquire a lease, or dispatch any workflow phase
+- **AND** further execution SHALL require a new run id
+- **AND** a removed DONE envelope whose canonical state is not DONE, or canonical DONE state paired with a resumable removed intent, SHALL remain escalated without dispatch
+
+#### Scenario: Dedicated recovery GC retains terminal tombstones for 30 days
+
+- **WHEN** a successful DONE finalizer CASes `teardown_pending` to `removed`
+- **THEN** it SHALL set `gc_eligible_at` to exactly 30 days after the removal CAS
+- **AND** generic worktree GC MUST NOT traverse or delete `.git-worktrees/.autopilot-runs/`
+- **AND** dedicated recovery GC before that timestamp, or against present, pending, quarantined, exception, escalate, corrupt, inconsistent, or raced state, SHALL preserve and report the record
+- **AND** after that timestamp dedicated recovery GC MAY delete the record only under the recovery-GC and per-run locks after rechecking generation, exact-tip digest-valid canonical DONE state, and absence of any registry entry, setup reservation, or worktree
 
 #### Scenario: Fresh description bootstraps before PLAN mutation
 
@@ -204,11 +277,14 @@ end and stop hooks SHALL additionally attempt local, owner-scoped release for al
 leases belonging to the terminating session when that identity is available.
 The hook SHALL work without coordinator connectivity, SHALL be idempotent, and
 MUST NOT release another session's or run's lease. It SHALL NOT invoke teardown
-or mutate an autopilot recovery envelope.
+or mutate an autopilot recovery envelope; its inventory finalizer is
+`release-session-only`. Because continuous autopilot always
+persists `session_id=null`, generic session release SHALL never select or clear
+its lease.
 
 #### Scenario: Session end releases only matching owners
 
-- **WHEN** session `session-7` ends with two matching leases and a third autopilot lease whose session id is different or null
+- **WHEN** session `session-7` ends with two matching leases and a third continuous autopilot lease whose session id is null
 - **THEN** the session hook SHALL best-effort release the two matching leases
 - **AND** it MUST leave `autopilot:run-9` unchanged
 - **AND** coordinator unavailability SHALL NOT prevent the local attempt

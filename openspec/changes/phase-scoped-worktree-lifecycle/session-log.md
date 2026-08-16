@@ -191,3 +191,44 @@ Resolved the final lifecycle, resume, and delivery-override blockers without cha
 
 ### Context
 Revision 5 closes the lifecycle transaction, recovery fencing, delivery-audit, inventory, and package-scheduling gaps found by three independent internal reviews. All internal re-audits and deterministic validators are clean, but external vendor quorum remains unavailable because repository export approval was not granted; loop state therefore remains ESCALATE and implementation stays gated on both named prerequisite changes plus the authoritative preflight.
+
+---
+
+## Phase: Plan Iteration 4 (2026-08-16)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Bound setup retries without discarding orphaned effects** `architectural: worktree` — A fixed reservation window ends automatic retry authority; explicit generation-fenced reconciliation either removes proven-empty intent or preserves attributable state in quarantine.
+2. **Keep automatic teardown force-free** `architectural: worktree` — Safe lease-free cleanup and separately confirmed audited force-teardown make operator intent explicit while preserving exact automatic fencing.
+3. **Treat completed autopilot state as a terminal tombstone** `architectural: skill-workflow` — DONE is committed and pushed before teardown; removed DONE state cannot recreate or redispatch, and quarantine projection after lease clear requires matching immutable recovery context.
+4. **Bootstrap the feature-HEAD barrier from one exact declaration** `architectural: skill-workflow` — The shared root lands and reloads the generic scheduler barrier before live prerequisite evidence and dependent checkout creation.
+
+### Alternatives Considered
+- Let expired setup reservations disappear or unblock silently: rejected because Expiry cannot prove that checkout or evidence side effects are absent; explicit reconciliation preserves uncertainty without granting activity.
+- Allow generic session cleanup to release continuous autopilot: rejected because That would split registry and external envelope authority; a null session keeps cleanup under the fenced parent and explicit recovery protocol.
+
+### Trade-offs
+- Accepted one bounded non-recursive remediation pass over another vendor dispatch because the review skill forbids recursive re-review and the raw evidence already reached quorum
+- Accepted preserving the mechanical consensus snapshot over rewriting semantic confirmation groups because the matcher missed duplicates, so the durable plan findings record the human synthesis without altering raw reviewer evidence
+
+### Open Questions
+- [ ] The two named prerequisite changes must be authoritatively merged and reconciled before dependent implementation packages can dispatch.
+
+### Completed Work
+- Exported revision 5 to Antigravity, Claude, Grok, and Pi after operator approval; retained three valid reports, one invalid result, manifest, and consensus snapshot.
+- Remediated all distinct actionable vendor findings across registry, CLI, autopilot, workflow, inventory, classifier, coordinator, tasks, and package contracts.
+- Passed strict OpenSpec, package DAG/scope/lock, architecture-zone, JSON Schema/YAML, representative-instance, review-artifact, and whitespace validation.
+
+### Next Steps
+- Run the ordered shared-feature preflight; only after both named prerequisites and the reloaded feature-HEAD barrier pass should implementation packages start.
+
+### Relevant Files
+- `openspec/changes/phase-scoped-worktree-lifecycle/plan-findings.md` — Revision-6 vendor remediation synthesis
+- `openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml` — Executable eight-package plan revision 6
+- `openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json` — Bound reservation and audited recovery contract
+- `openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/autopilot-run-recovery.schema.json` — Terminal and GC recovery envelope
+- `openspec/changes/phase-scoped-worktree-lifecycle/reviews/consensus-plan.json` — Schema-valid quorum snapshot
+
+### Context
+Revision 6 remediates the exported multi-vendor review: bounded setup recovery, lease-free disposal, stale-controller-safe autopilot quarantine, terminal DONE tombstones, complete inventory/classifier contracts, and an executable feature-HEAD bootstrap barrier. External quorum was met; deterministic gates are clean, while implementation dispatch remains prerequisite-gated.

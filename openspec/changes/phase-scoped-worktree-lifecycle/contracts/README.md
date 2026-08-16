@@ -52,23 +52,30 @@ JSON Schema cannot compare timestamps. Producers additionally enforce:
    cadence is 300 seconds.
 6. Dirty, dirty-submodule, or remote-unreachable state enters
    `recovery_required` quarantine and cannot be adopted by an ordinary acquire.
-7. Fresh automatic setup first publishes a non-active reservation with a
-   timestamp-free lease intent and advances
-   generation-bound Git/evidence checkpoints before atomically replacing it
-   with entry generation, exact durability target, process evidence, and an initial
-   lease whose timestamps are derived from the final publication time. Any
-   separately observed unleased or legacy entry receives
-   the full adoption assessment rather than immediate acquisition.
+7. Fresh automatic setup first publishes a non-active reservation with
+   `setup_id`, `ttl_seconds`, `expires_at`, and a timestamp-free lease intent,
+   then advances generation-bound Git/evidence checkpoints before atomically
+   replacing it with an entry that retains the same `setup_id` and generation,
+   exact durability target, process evidence, and an initial lease whose
+   timestamps are derived from the final publication time. An exact
+   setup-id/generation/identity/target/ownership retry returns that completed
+   result idempotently; any other separately observed unleased or legacy entry
+   receives the full adoption assessment rather than immediate acquisition.
 8. Takeover refreshes the stored target outside the global lock, then revalidates
    generation/target under lock before evaluating checkout cleanliness,
    submodules, HEAD reachability, and exact-entry process evidence. Unsafe or
    indeterminate state is quarantined instead of acquired.
-9. Setup reservations are unique per entry key and setup id and conservatively
-   block sync points until exact-generation reconciliation completes.
-10. Force-adopt appends immutable top-level recovery audit in the same registry
-    replacement that clears quarantine and rotates ownership; later teardown
-    does not erase it. The event snapshots a newly established durability
-    target, or records null when the target already existed.
+9. Setup reservations are unique per entry key and setup id. Their bounded TTL
+   ends only the original caller's exact-retry window: expiry does not remove the
+   indeterminate sync-point blocker. `setup reconcile` requires the exact setup
+   id and generation and either removes a reservation proven to have no side
+   effects or atomically converts attributable side effects into an unleased
+   `setup-failure` quarantine without deleting the checkout.
+10. Top-level `recovery_audit` is an append-only union of force-adoption,
+    setup-reconciliation, and recovery-teardown events. Each event is appended
+    in the same registry replacement as its transition and survives recovery
+    clearing and entry removal. Force adoption snapshots a newly established
+    durability target, or records null when the target already existed.
 11. The remote component of the tracking ref equals `remote_name`;
     `git-remote-url-v1` removes URI userinfo or the scp prefix through `@` but
     otherwise hashes the exact remaining UTF-8 configured value without
@@ -76,7 +83,13 @@ JSON Schema cannot compare timestamps. Producers additionally enforce:
     that exact remote/ref, and locked code revalidates the complete target plus
     generation against the observed tip.
 
-Fresh v1 heartbeat normalization populates every required v2 lease field:
+Legacy entries use the stable generation
+`legacy-v1-entry:<sha256(versioned-length-prefix(change_id,agent_id-or-null,branch,worktree_path,created_at))>`.
+The versioned length-prefix encoding is over the exact UTF-8 source values and a
+distinct null token for absent `agent_id`. `inspect`, `migration-report`, and
+the first v2 rewrite all produce the same value; the rewrite persists it without
+regeneration. Fresh v1 heartbeat normalization populates every required v2
+lease field:
 `owner=legacy:<change-id>:<agent-id-or-parent>`,
 `lease_id=legacy-v1:<sha256(change-id|agent-id-or-parent|created-at)>`,
 `controller_instance_id=null`, `session_id=null`, `phase=LEGACY`, `reason=legacy-heartbeat-migration`,
@@ -85,8 +98,10 @@ original heartbeat, `expires_at=last_heartbeat+3600s`, and `ttl_seconds=3600`.
 The legacy heartbeat command performs this mapping only while the source entry
 is v1. After canonicalization, its separate compatibility handler requires the
 explicit synthetic owner and lease id and may omit controller identity only for
-that stored manual `LEGACY` null-controller lease. All other v2 leases require a
-non-empty controller and follow the normal renew contract.
+that stored manual `LEGACY` null-controller lease. `lease release` applies the
+same narrow omission rule only when the supplied owner and lease id exactly
+match that deterministic synthetic lease. Null is never a wildcard; all other
+v2 renewals and releases require a non-empty controller.
 
 Process evidence is stored atomically at a digest of the versioned,
 length-prefixed `(change_id, agent_id-or-null, entry_generation, lease_id)` identity and validates
@@ -105,14 +120,38 @@ release preserves it and records the key plus former identity in
 `recovery_context` until safe adoption or teardown. A stale orphan record may
 be GC'd.
 
-For a quarantined entry whose durability target is null, `recovery adopt` and
-`recovery force-adopt` require a complete remote/ref pair. The command validates
-and fetches that exact target outside the registry lock, revalidates the entry
-generation under lock, and establishes the target in the same transaction that
-publishes the recovery lease. Adoption cannot replace an existing non-null
-target. Explicit single-lease release uses deterministic defaults
+An expired setup reservation remains an indeterminate blocker until explicit
+`setup reconcile`; it never expires into ordinary acquisition eligibility.
+Reconciliation requires actor, reason, exact setup id and generation, and
+termination confirmation. It refuses matching locally live evidence, appends a
+`setup-reconciled` audit event, and preserves any attributable checkout as an
+unleased quarantined entry with the same `setup_id` and generation.
+
+For a quarantined entry whose durability target is null, normal `recovery
+adopt` requires and atomically establishes a complete validated remote/ref
+pair. Audited `recovery force-adopt` may instead issue a manual recovery lease
+with a null target so an operator can inspect and push preserved legacy work;
+all operations except exact release, force-teardown, and `recovery bind-target`
+remain fenced while it is null. Bind-target fetches and validates one complete
+remote/ref tuple, proves the checkout HEAD reachable, then revalidates the exact
+manual triple and generation under lock before storing it. Neither path can
+replace an existing target. Explicit single-lease release uses deterministic defaults
 `recovery_reason=explicit-lease-release` and
 `recovery_context.source=explicit-release` when the caller omits a reason.
+
+Disposal has three deliberately separate paths. Automatic `teardown` requires
+the live exact owner/lease/controller triple plus generation and has no force
+mode; a legacy `teardown --force` request is rejected. `recovery teardown` is an
+explicit lease-free path that requires `activity_lease=null`, exact generation,
+termination confirmation, and the same clean/submodule-clean/stored-target
+durability proof. `recovery force-teardown` is the separately named audited
+operator-only path for intentional discard and additionally requires actor,
+rationale, `--confirm-terminated`, and `--confirm-discard`; any present lease is
+still identity-fenced, with only the normalized LEGACY null-controller
+exception. Both recovery paths hold the lifecycle lock through Git removal and
+atomic entry/evidence removal, preserve registry state if Git removal fails,
+refuse matching locally live evidence, and append a durable
+`recovery-torn-down` audit event.
 
 ### Autopilot run recovery
 

@@ -47,9 +47,11 @@ activity.
 
 The coordinator SHALL expose sync-point blocker status by reusing the canonical
 active-agent check. A blocker SHALL be a live schema-v2 activity lease or a
-fresh legacy heartbeat during migration. Retention alone and expired activity
-MUST NOT block `/cleanup-feature`, `/merge-pull-requests`, or `/update-specs`.
-The coordinator MUST NOT duplicate or weaken the local guard's lifecycle logic.
+fresh legacy heartbeat during migration. An unfinished schema-v2 setup
+reservation SHALL be reported separately as an indeterminate provisioning
+blocker, never as active activity. Retention alone and expired activity MUST NOT
+block `/cleanup-feature`, `/merge-pull-requests`, or `/update-specs`. The
+coordinator MUST NOT duplicate or weaken the local guard's lifecycle logic.
 
 #### Scenario: AC-02 — Released proposal worktree does not block merge triage
 
@@ -70,7 +72,12 @@ The coordinator MUST NOT duplicate or weaken the local guard's lifecycle logic.
 - **THEN** coordinator sync-point status SHALL report an indeterminate blocker with diagnostic evidence
 - **AND** it MUST NOT rewrite the registry or silently report the sync point clear
 
-## ADDED Requirements
+#### Scenario: Unfinished reservation blocks sync points without appearing active
+
+- **WHEN** the registry contains an unfinished setup reservation without a published active entry
+- **THEN** coordinator sync-point status SHALL report an indeterminate provisioning blocker with the reservation id, setup stage, and timing evidence
+- **AND** `GET /worktrees/active` and event-stream `active_agents` payloads MUST NOT synthesize an active owner or activity lease for that reservation
+- **AND** the coordinator MUST NOT report the applicable sync point clear until canonical reconciliation removes or completes the reservation
 
 ### Requirement: Coordinator Merge Views SHALL Preserve Delivery-Stage Evidence
 

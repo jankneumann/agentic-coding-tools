@@ -77,6 +77,7 @@ Canonical writes use the following shape (timestamps are UTC RFC 3339 values):
       "worktree_path": "/repo/.git-worktrees/add-user-export",
       "created_at": "2026-08-15T12:00:00Z",
       "entry_generation": "01K2ENTRY",
+      "setup_id": "01K2SETUP",
       "durability_target": {
         "remote_name": "origin",
         "remote_url_hash_algorithm": "git-remote-url-v1",
@@ -92,7 +93,7 @@ Canonical writes use the following shape (timestamps are UTC RFC 3339 values):
         "owner": "autopilot:01K2RUN",
         "lease_id": "01K2LEASE",
         "controller_instance_id": "01K2CONTROLLER",
-        "session_id": "session-123",
+        "session_id": null,
         "phase": "IMPLEMENT",
         "lifecycle_mode": "continuous",
         "reason": "autopilot-run",
@@ -122,7 +123,16 @@ non-authoritative `setup_reservation` whose timestamp-free `lease_intent`
 contains the requested initial ownership. It advances that reservation through
 `reserved`, `checkout-created`, and `evidence-created`, then atomically replaces
 it with the active entry and derives the lease timestamps from that final
-publication time. Retry may complete or clean up only side effects proven
+publication time. Each reservation has a fixed 30-minute `ttl_seconds` and
+`expires_at` bounding the original controller's exact-retry window. Every
+unfinished reservation blocks sync points as indeterminate provisioning, but
+only an unexpired exact retry may advance it. Expiry never silently clears the
+blocker or side effects: explicit, generation-fenced setup reconciliation
+either removes a reservation proven to have no side effects or publishes its
+attributable checkout and evidence as an unleased, `recovery_required` entry.
+The completed entry retains nullable `setup_id` provenance, so an exact setup
+id, generation, target, and ownership-triple retry after response loss returns
+the original success while an unrelated existing entry still refuses. Retry may complete or clean up only side effects proven
 to belong to that exact reservation and generation; conflicting or unprovable
 state is quarantined. Reservations never count as activity or satisfy an
 ownership assertion.
@@ -137,7 +147,8 @@ inspection, but an expired lease is not active and may be replaced only by an
 acquire carrying a new lease id. Explicit release sets it to `null`; GC may
 compact expired lease details when it otherwise updates an entry.
 
-Successful force-adoption appends a top-level `recovery_audit` event in the same
+Successful force-adoption, expired-setup reconciliation, and lease-free
+recovery teardown append typed top-level `recovery_audit` events in the same
 registry transaction that clears active `recovery_context` and issues the new
 manual lease. The event records its unique id, actor, rationale, termination
 confirmation, entry generation, prior identity, new identity, timestamp, and
@@ -146,7 +157,7 @@ That append-only safety history survives both quarantine clearing and later
 entry teardown.
 
 The registry is state, not a general event log. The narrow exception is the
-append-only force-adoption safety audit. Operator-visible command results and
+append-only operator-recovery safety audit. Operator-visible command results and
 coordinator status events carry acquire/renew/release/conflict outcomes; durable
 workflow history remains in the owning workflow's state and handoff artifacts.
 
@@ -159,7 +170,7 @@ temporary file, flush it, and atomically replace the registry. Read paths that
 make a safety decision take a shared lock. Lock acquisition has a bounded
 timeout and fails visibly; it never falls back to an unlocked write.
 
-Reservation stage changes, active-entry publication, quarantine, teardown
+Reservation stage changes/reconciliation, active-entry publication, quarantine, teardown
 removal, and recovery-audit append are atomic registry replacements. Git and
 process-evidence side effects occur between those checkpoints and are reconciled
 by exact reservation id, entry generation, and ownership triple. Fault tests
@@ -248,12 +259,26 @@ wildcard.
   automatic workflows. It appends the durable audit event in the same
   transaction that rotates ownership, so clearing quarantine cannot erase the
   authorization.
+- `setup reconcile` accepts only an expired exact setup id and entry
+  generation plus actor, rationale, and termination confirmation. It removes a
+  side-effect-free reservation or converts attributable side effects to an
+  unleased quarantine entry and audits that outcome; it never deletes
+  unproven work.
+- `recovery teardown` is the safe disposal route for an entry with no lease.
+  It requires the exact entry generation and operator attribution, revalidates
+  cleanliness and durability, and removes a missing checkout or clean durable
+  checkout. Dirty, null-target, or non-durable state refuses.
+- `recovery force-teardown` is a separately named, audited compatibility path.
+  It requires exact stored lease identity when a lease remains, explicit
+  process-termination and data-loss confirmation, and preserves the entry if
+  Git removal fails. Automatic workflows never invoke it; legacy
+  `teardown --force` fails with migration guidance to this command.
 - When a recovery entry has a null durability target (including normalized v1
-  and compatibility setup), both adoption commands require a complete
-  remote/ref pair. They validate and fetch the exact target outside the lock,
-  revalidate the entry generation inside it, and establish the target in the
-  same adoption transaction. Existing non-null targets cannot be replaced by
-  these commands.
+  and compatibility setup), force-adopt may issue a manual recovery lease
+  without pretending durability. Automatic mutation and safe teardown remain
+  forbidden until `recovery bind-target`, under that exact manual lease and
+  generation, validates and establishes one complete remote/ref tuple.
+  Existing non-null targets cannot be replaced.
 - Normal teardown refuses to remove a worktree with another owner's live lease.
   Expired leases do not authorize deletion, and dirty/non-durable safety checks
   still apply.
@@ -293,8 +318,9 @@ Readers accept both the existing top-level `version: 1` registry and canonical
 - A stale or invalid heartbeat does not create live activity.
 - Branch, path, agent, and creation fields are preserved byte-for-value where
   the v2 schema permits them.
-- V1 entries normalize with a fresh `entry_generation`, null
-  `durability_target`, and null automatic controller identity. Ordinary
+- V1 entries normalize with a deterministic, inspection-visible
+  `entry_generation`, null `setup_id`, null `durability_target`, and null
+  automatic controller identity. Ordinary
   acquisition cannot silently adopt that unknown state; recovery must establish
   a trusted durability target and prior-process termination evidence.
 
@@ -324,6 +350,9 @@ compatibility handler may omit controller identity only when the stored lease
 is that manual `LEGACY` null-controller lease; every other v2 lease requires a
 controller and delegates to `lease renew`. Help and status output label these
 compatibility semantics explicitly.
+The same exact synthetic identity permits controller omission for `lease
+release` only on a manual `LEGACY` lease whose stored controller is null; every
+other release requires a non-empty controller identity.
 
 ### D7 — Lifecycle context is explicit and reports who must release
 
@@ -382,6 +411,10 @@ unmerged into `main` is not unsafe once the commit is durable on that remote
 branch. If disposal refuses dirty or non-durable state, teardown atomically
 marks the entry `recovery_required` and clears the matching lease with
 operator-visible recovery evidence; it never force-deletes it.
+Automatic teardown has no force mode. Compatibility callers and coordinator
+kick operations inspect state and choose expired-setup reconciliation, safe
+lease-free recovery teardown, or the separately confirmed and audited force
+path.
 The controller invokes disposal from the resolved main-repository directory,
 not with its current working directory inside the worktree being removed.
 
@@ -445,6 +478,12 @@ stale controller cannot gain authority by reloading the latest envelope
 generation. After registry deletion, only the expected
 `teardown_pending -> removed` CAS is allowed, bound to unchanged envelope
 generation, lease id, entry generation, and finalization intent.
+After unsafe teardown has atomically cleared the lease, a second narrow
+exception permits `teardown_pending -> quarantined` only when the expected
+envelope generation and prior fence match immutable registry recovery context
+for the same entry generation and `unsafe-finalization` event, the entry has no
+replacement lease, and finalization intent is unchanged. A stale controller,
+adoption, generation change, or missing evidence is a non-mutating conflict.
 Autopilot passes
 the current exact lease triple into PLAN, PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT,
 IMPL_ITERATE, IMPL_REVIEW, VALIDATE, optional VAL_REVIEW, and SUBMIT_PR. Nested
@@ -456,7 +495,7 @@ On resume, autopilot loads the external checkpoint. A still-running same
 controller may idempotently continue its exact triple. A replacement controller
 uses `lease resume`, which rejects live/indeterminate old evidence and rotates
 the lease/controller only after stale evidence and safety checks. If the
-checkout and registry were cleanly removed after ESCALATE, exception, or submit,
+checkout and registry were cleanly removed after ESCALATE or exception,
 resume verifies the currently configured remote URL digest, fetches the stored
 ref, and requires its tip to equal `durable_head` exactly. Mere reachability is
 insufficient; an advanced, rewound, deleted, or mismatched ref remains
@@ -467,20 +506,40 @@ digest against the envelope, atomically acquires a new lease/controller under
 the stable owner, checkpoints the new identity in both views, and only then dispatches.
 Partial presence, `teardown_pending`, quarantine, missing/non-durable refs, or
 identity mismatch remains escalated until reconciliation proves one safe state.
+An exact `removed` envelope with `finalization_intent=done` and canonical
+`current_phase=DONE` is a terminal tombstone: resume returns the stored result
+and never recreates a checkout or dispatches a phase. Inconsistent removed/done
+evidence fails closed; further work requires a new run id.
 
-After SUBMIT_PR has persisted the PR/evidence checkpoint, autopilot first writes
-`finalization_intent` plus the durable loop-state digest outside the checkout,
-CASes `checkout_state=teardown_pending`, stops renewal, and uses the still-live
-exact triple plus entry generation for fenced teardown. Successful teardown
-removes the entry and evidence before autopilot CASes
-`checkout_state=removed` before entering DONE and presenting the human merge
-gate. The same `teardown_pending`/removed protocol applies on exception, failed
-outcome, or ESCALATE. Unsafe teardown atomically quarantines and clears the exact
+Continuous autopilot always stores `session_id=null`; session hooks therefore
+cannot clear its lease. The parent controller's `finally`, TTL fencing, and
+explicit envelope recovery remain its cleanup authorities.
+
+After SUBMIT_PR has persisted the PR/evidence checkpoint, autopilot writes the
+canonical `current_phase=DONE` result, commits and pushes it, and records its
+exact durable HEAD and blob digest in the still-present envelope. It then CASes
+`finalization_intent=done` plus `checkout_state=teardown_pending`, stops
+renewal, and uses the still-live exact triple plus entry generation for fenced
+teardown. Successful teardown removes the entry and evidence before autopilot
+CASes `checkout_state=removed`, and only then presents the human merge gate. A
+crash after DONE resumes finalization only, never a workflow phase. Exception,
+failed-outcome, and ESCALATE checkpoints follow the same durable-checkpoint,
+pending, teardown, and removed ordering with their respective intents. Unsafe
+teardown atomically quarantines and clears the exact
 lease, then CASes the envelope to `quarantined`; it does not perform a second
 release. A crash after Git/registry removal but before the removed CAS is
 reconciled from unchanged pending generation and identity. A checkpoint write
 failure is a hard recovery error and never authorizes deletion; quarantine and
 bounded expiry remain the backstops.
+
+External envelopes have a dedicated retention protocol. Generic worktree GC
+never traverses `.git-worktrees/.autopilot-runs`. Only a schema-valid
+`removed+done` tombstone receives `gc_eligible_at=removed_at+30 days`; all
+active, resumable, quarantined, corrupt, or inconsistent records retain null
+eligibility. Dedicated recovery GC takes the global-then-per-run lock order,
+revalidates DONE/digest/ref plus absence of checkout, entry, and reservation,
+then safely renames/removes and fsyncs. Corrupt records are preserved and
+reported.
 
 ### D10 — Session end performs local, best-effort owner-scoped release first
 
@@ -501,9 +560,8 @@ still authoritative when a process is killed too abruptly for hooks. Explicit
 workflow finalization remains the primary mechanism; session release is a
 backstop, not a substitute for it.
 `release-session` never reads or mutates an autopilot recovery envelope. If it
-quarantines a continuous checkout, later resume preserves the envelope/registry
-mismatch and remains ESCALATE until explicit reconciliation; it does not
-silently reacquire or rewrite either evidence set.
+encounters continuous autopilot, its required null session is never a match and
+the hook leaves both lease and envelope untouched.
 
 ### D11 — Delivery stage is a pure classifier over diff, base state, and marker
 
@@ -654,13 +712,18 @@ and base ref in schema-valid evidence, fetches that configured ref, and proves
 the merge commit is ancestral to both the fetched base and feature HEAD. The
 preflight root package runs in the managed shared feature worktree, so its
 verified commit is feature HEAD rather than an isolated result awaiting final
-integration. The scheduler's feature-HEAD completion barrier re-verifies that
-evidence under the branch lock, records the resulting HEAD as the minimum base
+integration. The scheduler reads the feature-HEAD completion barrier from the
+exact `contracts/prerequisites.yaml#execution_gate` declaration, re-verifies
+that evidence under the branch lock, and records the resulting HEAD as the minimum base
 for dependents, and only then marks the package complete or creates their
 worktrees. Only after that barrier may `wp-pr-delivery` extend
 `add-merge-plan-orchestration` or `wp-phase-lifecycle` wrap
 `validate-feature-findings-gate`. A caller-supplied or unrelated ancestor SHA is
 never sufficient, and dependent worktrees are not created before preflight.
+For this bootstrap run, the shared root package first lands the generic barrier
+implementation, reloads or reinstantiates the scheduler from that feature
+commit, then produces and verifies the live evidence before releasing
+dependents.
 
 ### D16 — Canonical skills are edited first and mirrors are generated
 
@@ -709,6 +772,7 @@ For a registry entry, the relevant transitions are:
 ```text
 fresh setup --reserve(setup-id, generation, target, exact triple)--> provisioning
 provisioning --checkout/evidence/publish--> active(exact triple) | quarantine
+provisioning --expires/reconcile--> removed(no side effects) | quarantine(no lease)
 pre-existing idle --assess/adopt--> active(new exact triple) | quarantine
 active(same triple) --renew/retry--> active(same triple, new expires_at)
 active(different controller) --resume--> reject live | rotate after stale+safe
@@ -716,6 +780,7 @@ active(other owner) --acquire--> conflict (no mutation)
 active --time passes expiry--> expired/idle (files untouched)
 active(same triple) --abandon/release--> quarantine(no lease)
 idle --retain/unretain--> idle + GC policy change
+idle/quarantine --recovery teardown--> removed | explicit audited force teardown
 ```
 
 For standalone workflows, `push/PR durable` precedes teardown. For

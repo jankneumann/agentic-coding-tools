@@ -8,6 +8,7 @@ description: >-
 
 defaults:
   lease_ttl_seconds: 1800
+  setup_reservation_ttl_seconds: 1800
   heartbeat_interval_seconds: 300
   lock_timeout_seconds: 10
 
@@ -59,6 +60,10 @@ identity:
     type: string
     min_length: 1
     description: Per-process controller identity generated once and never persisted as resumable workflow identity.
+  legacy_entry_generation:
+    algorithm: legacy-v1-entry-sha256
+    format: legacy-v1-entry:<sha256(versioned-length-prefix(change_id,agent_id-or-null,branch,worktree_path,created_at))>
+    description: Deterministic generation exposed by v1 inspection and migration-report and persisted unchanged by the first v2 rewrite.
 
 global_exit_codes:
   0: success_or_idempotent_noop
@@ -92,18 +97,33 @@ commands:
       --setup-id SETUP_ID --durability-remote REMOTE --durability-ref REF --owner OWNER
       --lease-id LEASE_ID --controller-instance-id CONTROLLER
       [--session-id SESSION_ID] --phase PHASE --reason REASON
-      [--mode standalone|continuous] [--ttl-seconds N] [--json]
+      [--mode standalone|continuous] [--ttl-seconds N]
+      [--setup-reservation-ttl-seconds N] [--json]
     mutation: true
     required: [change_id, setup_id, durability_remote, durability_ref, owner, lease_id, controller_instance_id, phase, reason]
     behavior:
-      - Under the lifecycle lock, atomically create a non-active setup reservation containing caller-generated setup_id, exact entry generation, target, timestamp-free lease intent, and state=reserved; reservations never satisfy activity or ownership assertions and conservatively block sync points as indeterminate provisioning.
+      - Under the lifecycle lock, atomically create a non-active setup reservation containing caller-generated setup_id, exact entry generation, target, timestamp-free lease intent, state=reserved, ttl_seconds, and expires_at=created_at+ttl_seconds; reservations never satisfy activity or ownership assertions and conservatively block sync points as indeterminate provisioning, including after expiry until explicit reconciliation.
       - Create the Git checkout outside the lock, then advance the same-generation reservation through checkout-created and evidence-created using locked atomic registry rewrites. In one final locked transaction, derive acquired_at and last_heartbeat from one publication timestamp, derive expires_at from that timestamp plus the intent TTL, publish the schema-valid entry and first lease, and remove the reservation.
-      - Retry reconciles only the exact same setup_id, generation, and requested triple. It verifies or completes each side effect idempotently; a different setup/controller cannot consume the reservation, and conflicting identity quarantines preserved state. A failure before publication removes a side effect proven to belong to that reservation or preserves it as explicit recovery state, never as an ordinary unleased entry.
+      - While the reservation is unexpired, retry reconciles only the exact same setup_id, generation, entry identity, target, and requested ownership triple. It verifies or completes each side effect idempotently; a different setup/controller cannot consume the reservation. After reservation expiry, setup-and-acquire refuses and only setup reconcile may classify its side effects.
       - Fresh automatic workflow operation therefore creates the checkout, schema-valid entry, exact durability target, exact-entry process evidence, and first lease as one crash-reconciled lifecycle operation without pretending Git and registry writes are one filesystem transaction.
-      - Refuse when an entry already exists; callers must use assessed acquire, resume, or explicit recovery instead.
+      - If a completed entry already stores the same setup_id, entry generation, entry identity, target, and requested ownership triple, return the original successful result idempotently without renewing or changing the lease. Refuse every other existing entry; callers must use assessed acquire, resume, or explicit recovery instead.
       - A package entry MUST store the parent feature remote ref as its durability target.
     json_output:
       required: [setup_id, change_id, agent_id, branch, worktree_path, entry_generation, durability_target, owner, lease_id, controller_instance_id, acquired]
+
+  - name: setup reconcile
+    synopsis: >-
+      worktree.py setup reconcile SETUP_ID --entry-generation GENERATION
+      --actor ACTOR --reason REASON --confirm-terminated [--json]
+    mutation: true
+    required: [setup_id, entry_generation, actor, reason, confirm_terminated]
+    behavior:
+      - Explicit audited recovery operation for an expired setup reservation; an unexpired reservation remains reserved for the exact setup-and-acquire retry and MUST NOT be reconciled.
+      - Require the exact setup_id and entry generation, inspect only checkout and evidence side effects attributable to that reservation, and refuse matching locally live process evidence. Missing, unreadable, unsupported, or cross-host evidence requires explicit termination confirmation and never permits silent cleanup.
+      - When no attributable side effects exist, remove only the reservation. When any checkout or evidence side effect exists, atomically replace the reservation with an unleased recovery_required entry using the same setup_id and generation, source=setup-failure, and preserved evidence; never delete or clean the checkout.
+      - In the same registry replacement, append a setup-reconciled audit event with actor, rationale, prior intended ownership, process-evidence key, termination confirmation, and outcome. A wrong generation or a different completed entry is a non-mutating conflict.
+    json_output:
+      required: [setup_id, change_id, agent_id, entry_generation, reconciled, outcome, recovery_required, recovery_audit_event]
 
   - name: lease acquire
     synopsis: >-
@@ -163,12 +183,13 @@ commands:
   - name: lease release
     synopsis: >-
       worktree.py lease release CHANGE_ID [--agent-id ID] --owner OWNER
-      --lease-id LEASE_ID --controller-instance-id CONTROLLER
+      --lease-id LEASE_ID [--controller-instance-id CONTROLLER]
       [--recovery-reason REASON] [--json]
     mutation: true
-    required: [change_id, owner, lease_id, controller_instance_id]
+    required: [change_id, owner, lease_id]
     behavior:
       - This is an abandonment/recovery operation for a preserved checkout, not the successful finalization path. Clear only a lease held by the exact owner, lease_id, and controller_instance_id.
+      - controller-instance-id may be omitted only when the stored lease is the normalized manual LEGACY lease with controller_instance_id=null and the supplied owner and lease id exactly equal its deterministic synthetic identity. Every other lease requires a non-empty controller id; null is never a wildcard.
       - When the checkout remains, atomically mark recovery_required and retain recovery_context plus matching process evidence before clearing the lease; normal successful finalization invokes teardown while the lease is live and never releases first. recovery_context.source is always explicit-release; if recovery-reason is omitted, use recovery_reason=explicit-lease-release, otherwise preserve the supplied non-empty reason.
       - Releasing an already absent lease is an idempotent success that makes no assertion about prior ownership.
       - Refuse a different live owner with exit code 4 or fencing mismatch with exit code 6.
@@ -228,11 +249,27 @@ commands:
     required: [change_id, owner, lease_id, controller_instance_id, actor, reason, confirm_terminated]
     behavior:
       - Separately named audited operator path for missing or cross-host evidence; never invoked by automatic workflows.
-      - Apply the same null-target establishment rule as recovery adopt. The force-adopt audit records the newly established target digest when this path supplies it.
+      - When the stored target is null, a complete durability pair MAY be supplied and established as for recovery adopt. If omitted, force-adopt MAY issue the manual recovery lease with a null target so the operator can inspect and push preserved legacy work; every operation except exact release, force-teardown, and recovery bind-target MUST refuse while the target remains null.
+      - The force-adopt audit records the newly established target digest when this path supplies it and null otherwise.
       - In the same registry transaction that rotates ownership and clears active recovery_context, append actor, rationale, explicit termination confirmation, prior identity, new identity, and timestamp to recovery_audit; successful adoption MUST NOT erase this history.
       - Refuse when matching prior-process evidence is locally live.
     json_output:
       required: [change_id, agent_id, owner, lease_id, controller_instance_id, adopted, recovery_required, recovery_audit_event]
+
+  - name: recovery bind-target
+    synopsis: >-
+      worktree.py recovery bind-target CHANGE_ID [--agent-id ID]
+      --entry-generation GENERATION --owner OWNER --lease-id LEASE_ID
+      --controller-instance-id CONTROLLER --durability-remote REMOTE
+      --durability-ref REF --actor ACTOR --reason REASON [--json]
+    mutation: true
+    required: [change_id, entry_generation, owner, lease_id, controller_instance_id, durability_remote, durability_ref, actor, reason]
+    behavior:
+      - Operator-only completion of a null-target manual RECOVERY lease. Require the exact live owner, lease, controller, and entry generation; refuse automatic or non-RECOVERY leases and every entry whose target is already non-null.
+      - Validate the remote URL identity, fetch the exact ref, and prove checkout HEAD reachable from it outside the lock; under the lock reload and revalidate generation, exact triple, null target, URL digest, ref, and observed tip before atomically storing the target.
+      - A dirty checkout MAY bind after the operator has deliberately preserved and pushed it, but a failed fetch, non-reachable HEAD, changed observation, or fencing mismatch is non-mutating. The command never changes lease identity or clears recovery audit history.
+    json_output:
+      required: [change_id, agent_id, entry_generation, owner, lease_id, controller_instance_id, durability_target, bound]
 
   - name: teardown
     synopsis: >-
@@ -246,10 +283,42 @@ commands:
       - Permit a branch not merged into main when HEAD is reachable from the stored durable remote ref; caller-supplied alternate refs are forbidden.
       - On dirty, dirty-submodule, or non-durable state, preserve the worktree, atomically enter recovery quarantine, and clear the exact lease before returning; the caller MUST NOT issue a second release.
       - Never run destructive submodule deinitialization before dirtiness is proven absent.
+      - The automatic command has no force mode. A supplied legacy --force option MUST be rejected with instructions naming the separate recovery force-teardown command; coordinators MUST NOT invoke recovery force-teardown.
       - Repeating teardown after the registry entry and worktree are already absent is an idempotent success and does not attest prior ownership.
       - If Git removal succeeded but the exact generation and owner/lease/controller registry entry remain after a crash, repeated teardown SHALL reconcile the missing checkout by removing that entry and matching process evidence; a wrong generation, owner, lease_id, or controller_instance_id remains a non-mutating conflict.
     json_output:
       required: [change_id, agent_id, entry_generation, owner, lease_id, controller_instance_id, removed, recovery_required, reason]
+
+  - name: recovery teardown
+    synopsis: >-
+      worktree.py recovery teardown CHANGE_ID [--agent-id ID]
+      --entry-generation GENERATION --actor ACTOR --reason REASON
+      --confirm-terminated [--json]
+    mutation: true
+    required: [change_id, entry_generation, actor, reason, confirm_terminated]
+    behavior:
+      - Explicit lease-free disposal for an entry whose activity_lease is null. Refuse any present lease, wrong entry generation, or matching locally live process evidence; this command never adopts or invents ownership.
+      - When the checkout exists, fetch and bind the exact stored durability target outside the lock, then under the lifecycle lock revalidate generation and target and require a clean checkout, clean submodules, and HEAD reachable from that target. A present checkout with a null target, failed fetch, changed observation, dirty state, or non-durable HEAD refuses without mutation.
+      - Hold the lifecycle lock through Git removal and atomic entry/evidence removal. A missing checkout with the exact unleased generation is a recoverable orphan and may be removed; if Git removal fails, preserve both registry entry and evidence.
+      - Append a recovery-torn-down audit event in the same registry replacement with the nullable prior lease identity, discard_confirmed=false, and a clean-durable or missing-checkout outcome. The audit survives entry removal.
+    json_output:
+      required: [change_id, agent_id, entry_generation, removed, reason, recovery_audit_event]
+
+  - name: recovery force-teardown
+    synopsis: >-
+      worktree.py recovery force-teardown CHANGE_ID [--agent-id ID]
+      --entry-generation GENERATION --actor ACTOR --reason REASON
+      --confirm-terminated --confirm-discard [--owner OWNER --lease-id LEASE_ID
+      --controller-instance-id CONTROLLER] [--json]
+    mutation: true
+    required: [change_id, entry_generation, actor, reason, confirm_terminated, confirm_discard]
+    behavior:
+      - Separately named, audited operator-only destructive path for intentionally discarding dirty, null-target, or non-durable state. Automatic workflows and coordinator kick/finalization MUST NOT invoke it, and bare teardown --force is rejected.
+      - Require the exact entry generation. When activity_lease is non-null, additionally require the exact owner, lease id, and controller id; the controller may be omitted only for the exact normalized manual LEGACY null-controller lease. Refuse matching locally live process evidence even with both confirmations.
+      - Hold the lifecycle lock through forced Git removal and atomic entry/evidence removal. If Git removal fails, preserve the registry entry and evidence; never clear registry state merely because force was requested.
+      - Append a recovery-torn-down audit event in the same registry replacement with actor, rationale, termination confirmation, prior lease identity, discard_confirmed=true, process-evidence key, and removed-explicit-discard outcome. The audit survives entry removal.
+    json_output:
+      required: [change_id, agent_id, entry_generation, removed, discard_confirmed, reason, recovery_audit_event]
 
   - name: lease status
     synopsis: >-
@@ -295,7 +364,7 @@ commands:
     synopsis: worktree.py inspect [CHANGE_ID] [--agent-id ID] [--json]
     mutation: false
     behavior:
-      - Report schema version, migration interpretation, retention, and lease liveness.
+      - Report schema version, migration interpretation, retention, lease liveness, setup reservation expiry/reconciliation status, and the deterministic entry generation that legacy normalization would persist.
       - Never rewrites the registry or deletes a worktree.
 
   - name: migration-report
@@ -303,7 +372,7 @@ commands:
     mutation: false
     behavior:
       - Validate the current registry and preview each v1-to-v2 interpretation.
-      - Interpret pinned=true as retention and heartbeat freshness only as transitional activity evidence.
+      - Interpret pinned=true as retention and heartbeat freshness only as transitional activity evidence, and report the same deterministic legacy entry generation that the first v2 rewrite will persist.
       - Never rewrites the registry.
 
 compatibility_aliases:
@@ -329,8 +398,10 @@ safety_invariants:
   - Ordinary takeover of an expired lease is allowed only after a locked clean/durable/process-evidence assessment; unsafe or indeterminate state is quarantined.
   - Remote refresh happens outside the global registry lock; the locked mutation revalidates entry_generation and the stored durability target before using the observation.
   - Setup reservations are non-active, generation-fenced intents; crash recovery either completes their exact side effects or quarantines them and never publishes an ordinary unleased entry.
+  - Reservation expiry ends the original setup's exclusive retry window but does not unblock sync points; only explicit setup reconcile removes the reservation or converts attributable side effects to recovery quarantine.
   - GC skips retained entries and refuses dirty or unmerged worktrees unless an existing explicit operator force path separately authorizes removal.
   - Automatic teardown requires a live matching owner, lease_id, and controller_instance_id and holds the exclusive registry lock through revalidation, dirty/submodule checks, remote-reachability proof, git removal, and registry removal.
+  - Lease-free recovery teardown requires a null lease and clean durable state. Intentional discard is available only through separately named audited recovery force-teardown; bare teardown never accepts force.
   - The lifecycle controller runs teardown with the resolved main repository as cwd, never from inside the worktree being removed.
   - A pushed but unmerged branch is disposable when HEAD is reachable from the entry's stored durability target; an unpushed commit or dirty submodule is not.
   - Clean teardown happens while the exact lease remains live. Unsafe teardown atomically quarantines before exact-triple release; nested phases cannot release a continuous parent lease.

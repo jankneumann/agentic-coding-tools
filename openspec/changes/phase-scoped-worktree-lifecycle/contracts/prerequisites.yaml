@@ -7,6 +7,28 @@ execution_gate:
   completion_visibility: feature-head
   evidence_path: openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json
   dependent_base_rule: exact-verified-feature-head
+  shared_worktree:
+    logical_name: feature
+    mode: shared
+    checkout_action: none
+  dependent_dispatch: held-until-gate-complete
+  bootstrap:
+    ordered_actions:
+      - action: implement-prerequisite-resolver
+        task_ids: ["0.1", "0.2"]
+      - action: test-feature-head-barrier
+        task_ids: ["0.3"]
+      - action: implement-and-commit-feature-head-barrier
+        task_ids: ["0.4"]
+      - action: reload-or-reinstantiate-scheduler
+        runtime_source: committed-feature-head
+      - action: generate-and-commit-live-evidence
+        task_ids: ["0.5"]
+      - action: reverify-and-record-feature-head
+        lock: feature-branch
+      - action: release-dependent-dispatch
+    scheduler_runtime_requirement: fresh-process-or-instance-after-barrier-commit
+    pre_reload_evidence_satisfies_gate: false
 prerequisites:
   - change_id: add-merge-plan-orchestration
     expected_head_ref: openspec/add-merge-plan-orchestration
@@ -22,5 +44,6 @@ verification:
   - Read merge SHA and base ref from authoritative pull-request metadata; caller-supplied SHAs are forbidden.
   - Fetch the configured remote/base and prove the merge SHA ancestral to both fetched base tip and feature HEAD.
   - Verify the named required surface, schema-validate evidence, and atomically write baseline-gates.json.
-  - Run the preflight package in the managed shared feature worktree; under the feature-branch lock, reverify evidence and record exact feature HEAD before marking the package complete.
+  - Run the preflight package in the existing managed shared feature worktree without creating or switching checkout; commit the barrier implementation and reload or reinstantiate the scheduler before generating live evidence.
+  - Under the feature-branch lock, reverify evidence with that fresh scheduler runtime and record exact feature HEAD before marking the package complete.
   - Create each dependent worktree only from that recorded feature HEAD; a changed HEAD requires locked re-verification and a new recorded base.

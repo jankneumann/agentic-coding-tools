@@ -80,6 +80,54 @@
       "then": {
         "properties": { "delivery_stage": { "const": "ambiguous" } }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidence": {
+            "properties": {
+              "diff_status": { "enum": ["truncated", "failed"] }
+            },
+            "required": ["diff_status"]
+          }
+        },
+        "required": ["evidence"]
+      },
+      "then": {
+        "properties": { "delivery_stage": { "const": "ambiguous" } }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidence": {
+            "anyOf": [
+              {
+                "properties": {
+                  "base_state": {
+                    "properties": { "inspection_status": { "const": "failed" } },
+                    "required": ["inspection_status"]
+                  }
+                },
+                "required": ["base_state"]
+              },
+              {
+                "properties": {
+                  "head_state": {
+                    "properties": { "inspection_status": { "const": "failed" } },
+                    "required": ["inspection_status"]
+                  }
+                },
+                "required": ["head_state"]
+              }
+            ]
+          }
+        },
+        "required": ["evidence"]
+      },
+      "then": {
+        "properties": { "delivery_stage": { "const": "ambiguous" } }
+      }
     }
   ],
   "$defs": {

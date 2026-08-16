@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-16T16:58:33.366070+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Revision 6 remediates the exported multi-vendor review: bounded setup recovery, lease-free disposal, stale-controller-safe autopilot quarantine, terminal DONE tombstones, complete inventory/classifier contracts, and an executable feature-HEAD bootstrap barrier. External quorum was met; deterministic gates are clean, while implementation dispatch remains prerequisite-gated.",
+    "completed_work": [
+      "Exported revision 5 to Antigravity, Claude, Grok, and Pi after operator approval; retained three valid reports, one invalid result, manifest, and consensus snapshot.",
+      "Remediated all distinct actionable vendor findings across registry, CLI, autopilot, workflow, inventory, classifier, coordinator, tasks, and package contracts.",
+      "Passed strict OpenSpec, package DAG/scope/lock, architecture-zone, JSON Schema/YAML, representative-instance, review-artifact, and whitespace validation."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Bound setup retries without discarding orphaned effects",
+        "rationale": "A fixed reservation window ends automatic retry authority; explicit generation-fenced reconciliation either removes proven-empty intent or preserves attributable state in quarantine.",
+        "capability": "worktree",
+        "supersedes": null
+      },
+      {
+        "title": "Keep automatic teardown force-free",
+        "rationale": "Safe lease-free cleanup and separately confirmed audited force-teardown make operator intent explicit while preserving exact automatic fencing.",
+        "capability": "worktree",
+        "supersedes": null
+      },
+      {
+        "title": "Treat completed autopilot state as a terminal tombstone",
+        "rationale": "DONE is committed and pushed before teardown; removed DONE state cannot recreate or redispatch, and quarantine projection after lease clear requires matching immutable recovery context.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Bootstrap the feature-HEAD barrier from one exact declaration",
+        "rationale": "The shared root lands and reloads the generic scheduler barrier before live prerequisite evidence and dependent checkout creation.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run the ordered shared-feature preflight; only after both named prerequisites and the reloaded feature-HEAD barrier pass should implementation packages start."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/plan-findings.md",
+        "description": "Revision-6 vendor remediation synthesis"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml",
+        "description": "Executable eight-package plan revision 6"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json",
+        "description": "Bound reservation and audited recovery contract"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/autopilot-run-recovery.schema.json",
+        "description": "Terminal and GC recovery envelope"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/reviews/consensus-plan.json",
+        "description": "Schema-valid quorum snapshot"
+      }
+    ]
+  }
+}

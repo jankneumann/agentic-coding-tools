@@ -135,7 +135,7 @@
         }
       }
     },
-    "recoveryAuditTransition": {
+    "forceAdoptAuditTransition": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -184,6 +184,74 @@
       },
       "allOf": [{ "properties": { "termination_confirmed": { "const": true } } }]
     },
+    "setupRecoveryAuditTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id", "event", "recorded_at", "setup_id", "change_id",
+        "agent_id", "entry_generation", "actor", "rationale",
+        "prior_owner", "prior_lease_id", "prior_controller_instance_id",
+        "process_evidence_key", "termination_confirmed", "outcome"
+      ],
+      "properties": {
+        "event_id": { "type": "string", "minLength": 1 },
+        "event": { "const": "setup-reconciled" },
+        "recorded_at": { "$ref": "#/$defs/timestamp" },
+        "setup_id": { "type": "string", "minLength": 1 },
+        "change_id": { "type": "string", "minLength": 1 },
+        "agent_id": { "type": ["string", "null"], "minLength": 1 },
+        "entry_generation": { "type": "string", "minLength": 1 },
+        "actor": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "prior_owner": { "type": "string", "minLength": 1 },
+        "prior_lease_id": { "type": "string", "minLength": 1 },
+        "prior_controller_instance_id": { "type": "string", "minLength": 1 },
+        "process_evidence_key": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "termination_confirmed": { "const": true },
+        "outcome": { "enum": ["removed-empty-side-effects", "quarantined-entry"] }
+      }
+    },
+    "recoveryTeardownAuditTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id", "event", "recorded_at", "change_id", "agent_id",
+        "entry_generation", "actor", "rationale", "prior_owner",
+        "prior_lease_id", "prior_controller_instance_id", "process_evidence_key",
+        "termination_confirmed", "discard_confirmed", "outcome"
+      ],
+      "properties": {
+        "event_id": { "type": "string", "minLength": 1 },
+        "event": { "const": "recovery-torn-down" },
+        "recorded_at": { "$ref": "#/$defs/timestamp" },
+        "change_id": { "type": "string", "minLength": 1 },
+        "agent_id": { "type": ["string", "null"], "minLength": 1 },
+        "entry_generation": { "type": "string", "minLength": 1 },
+        "actor": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "prior_owner": { "type": ["string", "null"], "minLength": 1 },
+        "prior_lease_id": { "type": ["string", "null"], "minLength": 1 },
+        "prior_controller_instance_id": { "type": ["string", "null"], "minLength": 1 },
+        "process_evidence_key": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "termination_confirmed": { "const": true },
+        "discard_confirmed": { "type": "boolean" },
+        "outcome": { "enum": ["removed-clean-durable", "removed-explicit-discard", "removed-missing-checkout"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "outcome": { "const": "removed-explicit-discard" } }, "required": ["outcome"] },
+          "then": { "properties": { "discard_confirmed": { "const": true } } },
+          "else": { "properties": { "discard_confirmed": { "const": false } } }
+        }
+      ]
+    },
+    "recoveryAuditTransition": {
+      "oneOf": [
+        { "$ref": "#/$defs/forceAdoptAuditTransition" },
+        { "$ref": "#/$defs/setupRecoveryAuditTransition" },
+        { "$ref": "#/$defs/recoveryTeardownAuditTransition" }
+      ]
+    },
     "recoveryContext": {
       "type": "object",
       "additionalProperties": false,
@@ -214,6 +282,7 @@
         "worktree_path",
         "created_at",
         "entry_generation",
+        "setup_id",
         "durability_target",
         "retained",
         "retention_reason",
@@ -231,7 +300,12 @@
         "entry_generation": {
           "type": "string",
           "minLength": 1,
-          "description": "Opaque generation changed whenever setup recreates an entry; used to revalidate observations made outside the registry lock."
+          "description": "Opaque generation changed whenever setup recreates an entry; used to revalidate observations made outside the registry lock. Legacy producers use legacy-v1-entry:<sha256(versioned-length-prefix(change_id,agent_id-or-null,branch,worktree_path,created_at))> consistently for inspection, migration reporting, and first v2 rewrite."
+        },
+        "setup_id": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Completed setup-and-acquire id used for response-loss idempotency; null for legacy and compatibility setup entries."
         },
         "durability_target": {
           "oneOf": [
@@ -322,7 +396,9 @@
         "lease_intent",
         "state",
         "created_at",
-        "updated_at"
+        "updated_at",
+        "ttl_seconds",
+        "expires_at"
       ],
       "properties": {
         "setup_id": { "type": "string", "minLength": 1 },
@@ -335,9 +411,20 @@
         "lease_intent": { "$ref": "#/$defs/leaseIntent" },
         "state": { "enum": ["reserved", "checkout-created", "evidence-created"] },
         "created_at": { "$ref": "#/$defs/timestamp" },
-        "updated_at": { "$ref": "#/$defs/timestamp" }
+        "updated_at": { "$ref": "#/$defs/timestamp" },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400,
+          "default": 1800,
+          "description": "Exclusive exact-retry interval measured from created_at. Producers enforce expires_at = created_at + ttl_seconds."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/timestamp",
+          "description": "Bounded exclusive-retry window. Expiry does not unblock by itself; it enables explicit setup reconciliation."
+        }
       },
-      "description": "Non-active setup-and-acquire intent. Its lease_intent has no activity timestamps, is never interpreted as a writable entry, and is reconciled by exact generation before retry."
+      "description": "Non-active setup-and-acquire intent. Its lease_intent has no activity timestamps, is never interpreted as a writable entry, and is reconciled by exact setup_id and generation before retry."
     },
     "registryV2": {
       "type": "object",
@@ -352,12 +439,12 @@
         "setup_reservations": {
           "type": "array",
           "items": { "$ref": "#/$defs/setupReservation" },
-          "description": "Crash-recoverable setup-and-acquire operations; reservations never grant activity or satisfy ownership assertions."
+          "description": "Crash-recoverable setup-and-acquire operations; reservations never grant activity or satisfy ownership assertions, and expired reservations continue to block until explicit setup reconciliation."
         },
         "recovery_audit": {
           "type": "array",
           "items": { "$ref": "#/$defs/recoveryAuditTransition" },
-          "description": "Append-only force-adoption safety history. Producer enforces unique event ids and preserves events after entry removal."
+          "description": "Append-only force-adoption, setup-reconciliation, and recovery-teardown safety history. Producer enforces unique event ids and preserves events after entry removal."
         },
         "extensions": {
           "type": "object",

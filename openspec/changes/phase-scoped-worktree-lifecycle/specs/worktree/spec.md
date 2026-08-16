@@ -8,13 +8,14 @@ and `activity_lease` describes current write activity. An activity lease MUST
 contain an owner identity, phase, reason, acquisition time, last heartbeat, and
 expiry, plus a single-acquisition `lease_id`, per-process
 `controller_instance_id`, nullable `session_id`, lifecycle mode, and TTL. Each
-entry SHALL carry an `entry_generation` and exact
+entry SHALL carry an `entry_generation`, nullable completed-setup `setup_id`, and exact
 durability target; package entries target the parent feature ref. Retention MUST
 NOT, by itself, be interpreted as current activity.
 Entries with preserved dirty or non-durable work SHALL expose
 `recovery_required` independently from activity and retention.
-Schema v2 SHALL also carry non-active, generation-fenced setup reservations for
-crash reconciliation and append-only force-adoption audit events that survive
+Schema v2 SHALL also carry non-active, generation-fenced setup reservations with
+bounded retry TTLs for crash reconciliation and an append-only audit union for
+force adoption, setup reconciliation, and recovery teardown that survives
 quarantine clearing and entry teardown.
 
 Every read-modify-write registry operation SHALL hold an inter-process file lock
@@ -39,7 +40,11 @@ retain, teardown, and garbage-collection operations cannot lose updates.
 The worktree command surface SHALL provide acquire, resume, assert-owned, renew, release,
 owner/session release, and status operations for activity leases. Acquire SHALL
 reject a different live owner, fencing token, or controller, renew SHALL require
-the current ownership triple, and release SHALL remove only that exact lease. Releasing
+the current ownership triple, and release SHALL remove only that exact lease.
+Only a normalized manual `LEGACY` lease whose stored controller is null MAY be
+released without a controller argument, and then only when its deterministic
+synthetic owner and lease id match exactly; every other release requires the
+non-empty stored controller. Releasing
 an absent lease or repeating safe teardown SHALL succeed as a no-op without
 attesting prior ownership or changing another owner's state. Replacing an
 expired or pre-existing unleased entry SHALL require a new lease/controller
@@ -104,6 +109,7 @@ reset, clean, or otherwise mutate worktree contents or unmerged branches.
 
 - **WHEN** setup-and-acquire receives a new setup id, entry generation, durability target, and exact ownership triple
 - **THEN** it SHALL publish a non-active reservation before creating the checkout
+- **AND** the reservation SHALL record `ttl_seconds` and `expires_at=created_at+ttl_seconds`
 - **AND** it SHALL advance only that reservation through checkout and evidence checkpoints
 - **AND** the active entry and lease SHALL become visible only when the matching reservation is removed in the final atomic registry replacement
 - **AND** the reservation SHALL contain only a timestamp-free lease intent, with acquisition, heartbeat, and expiry timestamps derived from the final publication time
@@ -111,15 +117,25 @@ reset, clean, or otherwise mutate worktree contents or unmerged branches.
 #### Scenario: Setup crash boundaries reconcile exact side effects
 
 - **WHEN** setup crashes after reservation, checkout creation, evidence creation, active-entry publication, or response loss
-- **THEN** an exact setup-id/generation/triple retry SHALL complete or report the already completed operation idempotently
+- **THEN** an unexpired exact setup-id/generation/entry/target/triple retry SHALL complete the operation
+- **AND** if final publication already succeeded, the entry's matching `setup_id`, generation, entry identity, target, and ownership triple SHALL return the original success without renewal or mutation
 - **AND** a different setup or controller MUST NOT consume, overwrite, or clean up those side effects
-- **AND** dirty, mismatched, live, missing-indeterminate, or cross-host state SHALL become explicit setup-failure quarantine
+- **AND** an expired reservation MUST refuse setup-and-acquire and require explicit setup reconciliation
 
 #### Scenario: Provisioning reservation blocks sync points
 
 - **WHEN** a setup reservation remains without a published active entry
 - **THEN** active-agent safety checks SHALL report indeterminate provisioning and block the sync point
 - **AND** ordinary lease acquire MUST NOT consume the reservation
+- **AND** expiration alone MUST NOT remove the blocker or authorize cleanup
+
+#### Scenario: Expired setup reservation is explicitly reconciled
+
+- **WHEN** an operator supplies an expired reservation's exact setup id and entry generation plus actor, reason, and termination confirmation
+- **AND** matching local process evidence is not live
+- **THEN** reconciliation SHALL remove only a reservation proven to have no attributable checkout or evidence side effects
+- **AND** if any attributable side effect remains, it SHALL atomically replace the reservation with an unleased `setup-failure` recovery entry preserving the same setup id and generation
+- **AND** it SHALL append a `setup-reconciled` audit event in that same registry replacement and SHALL NOT clean or delete the checkout
 
 #### Scenario: Durability target binds remote identity and fetched ref
 
@@ -171,8 +187,9 @@ reset, clean, or otherwise mutate worktree contents or unmerged branches.
 
 The worktree tooling SHALL provide read-only status and migration-report output
 that distinguishes live activity, expired activity, retention, and legacy
-interpretation. It SHALL provide explicit owner-scoped recovery commands for
-quarantine release and exact-triple-and-generation-checked teardown. Inspection
+interpretation. It SHALL provide explicit recovery commands for quarantine
+release, lease-free generation-checked recovery teardown, and a
+separately named audited force teardown. Inspection
 MUST NOT rewrite registry entries.
 
 #### Scenario: Inspection reports lifecycle categories without mutation
@@ -182,12 +199,13 @@ MUST NOT rewrite registry entries.
 - **AND** the migration report SHALL describe the prospective v1-to-v2 mapping
 - **AND** neither command SHALL modify the registry bytes
 
-#### Scenario: Recovery refuses destructive teardown
+#### Scenario: Automatic teardown refuses destructive force
 
-- **WHEN** an operator requests teardown of a dirty worktree, dirty submodule, or a HEAD not reachable from the stored durability target
+- **WHEN** automatic teardown encounters a dirty worktree, dirty submodule, or a HEAD not reachable from the stored durability target
 - **THEN** the command MUST refuse automatic deletion and report the unsafe condition
 - **AND** dirty submodules SHALL be detected before any destructive deinitialization
 - **AND** it SHALL NOT use force to bypass the condition
+- **AND** a legacy bare `teardown --force` request MUST be rejected rather than serving as an automatic or coordinator recovery shortcut
 
 #### Scenario: Pushed proposal branch is safely disposable before merge
 
@@ -227,6 +245,23 @@ MUST NOT rewrite registry entries.
 - **THEN** repeated teardown with that generation and exact triple SHALL remove the orphan entry and matching process evidence
 - **AND** a different generation, owner, lease id, or controller id MUST remain a non-mutating conflict
 
+#### Scenario: Lease-free recovery teardown removes only safe durable state
+
+- **WHEN** an operator invokes recovery teardown with exact entry generation, actor, reason, and termination confirmation for an entry whose activity lease is null
+- **AND** matching locally live process evidence is absent, the checkout and submodules are clean, and HEAD is reachable from the exact stored durability target
+- **THEN** the command SHALL hold the lifecycle lock through Git removal and atomic entry/evidence removal
+- **AND** it SHALL append a `recovery-torn-down` audit event with `discard_confirmed=false` in that same registry replacement
+- **AND** a present lease, wrong generation, live evidence, Git removal failure, or a present checkout with a null target, dirty state, or failed durability proof MUST preserve the entry and evidence
+- **AND** an already missing checkout with that exact unleased generation MAY be removed as a recoverable registry orphan
+
+#### Scenario: Separately named force teardown records intentional discard
+
+- **WHEN** an operator invokes recovery force-teardown with exact generation, actor, rationale, termination confirmation, and discard confirmation
+- **THEN** the command MAY use forced Git removal for dirty, null-target, or non-durable state and SHALL append a `recovery-torn-down` audit event with `discard_confirmed=true`
+- **AND** if a lease remains, the exact owner, lease id, and controller id are additionally required, subject only to the exact normalized `LEGACY` null-controller exception
+- **AND** matching locally live evidence or Git removal failure MUST refuse registry and evidence removal
+- **AND** automatic workflows and coordinator kick/finalization MUST NOT invoke this command
+
 #### Scenario: Bulk owner release quarantines preserved checkouts
 
 - **WHEN** recovery release targets every lease with one exact owner
@@ -239,13 +274,27 @@ MUST NOT rewrite registry entries.
 - **THEN** the command SHALL clear recovery state and atomically create a schema-valid manual `RECOVERY` lease with nullable session, timestamps, and TTL
 - **AND** live or indeterminate prior-process evidence SHALL fail without mutation
 - **AND** missing or cross-host evidence SHALL require the separately named audited force-adopt command with actor, rationale, and explicit termination confirmation
-- **AND** when the stored durability target is null, either adoption command SHALL require and atomically establish a validated complete remote/ref target; an existing target SHALL not be replaced through adoption
+- **AND** when the stored durability target is null, normal adoption SHALL require and atomically establish a validated complete remote/ref target
+- **AND** audited force-adopt MAY instead issue a manual recovery lease with a null target for inspection and push, but all operations except exact release, force-teardown, and recovery bind-target MUST remain fenced until the target is established
+
+#### Scenario: Manual legacy recovery binds durability after push
+
+- **WHEN** audited force-adopt issues an exact manual RECOVERY lease for preserved legacy work with a null durability target
+- **AND** the operator pushes that work and invokes recovery bind-target with the exact lease/controller/generation plus one complete remote/ref tuple
+- **THEN** the command SHALL fetch and validate that tuple, prove checkout HEAD reachable, revalidate all observations under the lifecycle lock, and atomically store the target without changing the lease
+- **AND** a pre-existing target, failed fetch, non-reachable HEAD, changed observation, or fencing mismatch SHALL be non-mutating
 
 #### Scenario: Force-adopt audit survives recovery clearing and teardown
 
 - **WHEN** force-adopt successfully clears recovery state and publishes a new manual lease
 - **THEN** the same registry transaction SHALL append actor, rationale, termination confirmation, generation, prior identity, new identity, timestamp, and a newly established durability target or null to top-level recovery audit
 - **AND** that audit MUST remain after `recovery_context` becomes null and after the entry is later torn down
+
+#### Scenario: Recovery audit is a durable discriminated union
+
+- **WHEN** force adoption, setup reconciliation, or recovery teardown succeeds
+- **THEN** the same atomic registry replacement SHALL append respectively a `force-adopted`, `setup-reconciled`, or `recovery-torn-down` event with the fields required by that transition
+- **AND** unique event ids and all prior audit events SHALL survive later entry mutation or removal
 
 ### Requirement: Registry Migration SHALL Preserve Existing Local Workflow Compatibility
 
@@ -285,6 +334,19 @@ worktree behavior SHALL otherwise remain compatible.
 - **AND** a later heartbeat against the v2 entry SHALL require that explicit owner and lease id
 - **AND** only this stored manual `LEGACY` null-controller lease MAY renew through the heartbeat compatibility handler without a controller id; every other v2 lease SHALL require one
 
+#### Scenario: Legacy entry generation is deterministic across preview and rewrite
+
+- **WHEN** a reader inspects or migration-reports a v1 entry and a later mutation rewrites that entry as v2
+- **THEN** every producer SHALL use `legacy-v1-entry:<sha256(versioned-length-prefix(change_id,agent_id-or-null,branch,worktree_path,created_at))>` over exact UTF-8 values and a distinct null token
+- **AND** inspection, migration report, and the first v2 rewrite SHALL expose the same generation, which the rewrite persists unchanged
+
+#### Scenario: Exact legacy null-controller lease may be explicitly released
+
+- **WHEN** a v2 entry stores the normalized manual `LEGACY` lease with `controller_instance_id=null`
+- **AND** lease release supplies its exact deterministic synthetic owner and lease id while omitting controller identity
+- **THEN** release MAY clear that lease and quarantine any preserved checkout under the ordinary release rules
+- **AND** any other null-controller omission, owner mismatch, or lease-id mismatch MUST fail without mutation because null is not a wildcard
+
 #### Scenario: Missing or invalid legacy heartbeat is diagnosable and idle
 
 - **WHEN** a schema-v1 entry has no `last_heartbeat` or has an unparsable value
@@ -308,7 +370,7 @@ describe the in-place checkout without claiming a repository-owned live lease.
 #### Scenario: Lease mutations short-circuit under harness isolation
 
 - **WHEN** `EnvironmentProfile.detect()` returns `isolation_provided=true`
-- **AND** a caller invokes acquire, renew, release, owner/session release, retain, or teardown
+- **AND** a caller invokes acquire, renew, release, owner/session release, setup reconciliation, retain, teardown, or either recovery teardown command
 - **THEN** the command MUST NOT mutate `.git-worktrees/` or its registry
 - **AND** it SHALL exit successfully with an explicit short-circuit message
 

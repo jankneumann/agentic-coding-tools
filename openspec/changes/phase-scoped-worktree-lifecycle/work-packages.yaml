@@ -3,12 +3,12 @@ schema_version: 1
 feature:
   id: phase-scoped-worktree-lifecycle
   title: "Phase-scoped worktree lifecycle and proposal-only PRs"
-  plan_revision: 5
+  plan_revision: 6
   created_by: codex-autopilot
   created_at: "2026-08-15T00:00:00Z"
 
 contracts:
-  revision: 5
+  revision: 6
   openapi:
     primary: "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
     files:
@@ -33,16 +33,21 @@ defaults:
 
 packages:
   - package_id: wp-baseline-preflight
-    title: "Authoritative prerequisite preflight"
+    title: "Authoritative prerequisite preflight and barrier bootstrap"
     task_type: validation
     description: |
-      Tasks 0.1-0.5. Resolve both named prerequisite pull requests from
-      authoritative repository metadata, verify merged/base/ancestry and named
-      surfaces, record the implementation diff base, and atomically publish
-      schema-valid baseline evidence in the managed shared feature worktree.
-      Package completion is a synchronous feature-HEAD barrier: verify the
-      evidence under the branch lock, record that exact HEAD as the minimum
-      dependent base, and only then satisfy dependencies or create worktrees.
+      Tasks 0.1-0.5, executed in bootstrap order 0.1, 0.2, 0.3, 0.4,
+      scheduler reload/reinstantiation, then 0.5. First implement, test, and
+      commit the feature-HEAD completion barrier. A fresh scheduler runtime
+      loaded from that commit then resolves both named prerequisite pull
+      requests from authoritative repository metadata, verifies merged/base/
+      ancestry and named surfaces, records the implementation diff base, and
+      atomically publishes schema-valid baseline evidence in the managed shared
+      feature worktree. Under the branch lock, that fresh runtime reverifies
+      evidence on the exact feature HEAD, records it as the minimum dependent
+      base, and only then satisfies dependencies or creates dependent
+      worktrees. This shared package uses the already managed feature checkout;
+      it MUST NOT create or switch to another checkout.
     role: integration-engineer
     archetype: analyst
     priority: 1
@@ -73,7 +78,7 @@ packages:
     context_impact:
       surfaces: [architecture, decisions, semantic_code]
     worktree:
-      name: phase-lifecycle-baseline-preflight
+      name: feature
       mode: shared
     timeout_minutes: 90
     retry_budget: 1
@@ -114,6 +119,7 @@ packages:
       contracts:
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/prerequisites.yaml"
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/baseline-gates.schema.json"
+      execution_gate_pointer: "openspec/changes/phase-scoped-worktree-lifecycle/contracts/prerequisites.yaml#execution_gate"
     outputs:
       result_keys: [prerequisite_preflight_tests, baseline_preflight_evidence, baseline_integration_ordering]
       artifacts:
@@ -313,6 +319,7 @@ packages:
         - "skills/autopilot-roadmap/**"
         - "skills/changelog-version/**"
         - "skills/cleanup-feature/**"
+        - "skills/context-engineering/**"
         - "skills/explore-feature/**"
         - "skills/fix-scrub/**"
         - "skills/plan-roadmap/**"
@@ -324,6 +331,7 @@ packages:
         - "skills/expedite/**"
         - "skills/review-artifacts/**"
         - "skills/tests/lifecycle-consumers/**"
+        - "skills/tests/context-engineering/**"
       read_allow:
         - "**"
       deny:
@@ -343,7 +351,7 @@ packages:
       steps:
         - name: "Lifecycle inventory and consumer tests"
           kind: command
-          command: "uv run --project skills pytest skills/tests/lifecycle-consumers -q"
+          command: "uv run --project skills pytest skills/tests/lifecycle-consumers skills/tests/context-engineering -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -515,15 +523,18 @@ packages:
     title: "Coordinator lifecycle and delivery projections"
     task_type: backend
     description: |
-      Tasks 5.1-5.2. Make coordinator sync-point and worktree views consume the
-      canonical live-lease semantics and preserve delivery-stage evidence in
-      merge/UI projections without reviving stale pins as activity.
+      Tasks 5.1-5.2. Make coordinator API, event-stream, sync-point, and
+      worktree-view projections consume canonical live-lease semantics and
+      preserve delivery-stage evidence in merge/UI projections without
+      reviving stale pins as activity or rendering setup reservations as active.
     role: python-engineer
     archetype: implementer
     priority: 3
     depends_on: [wp-registry, wp-pr-delivery]
     locks:
       files:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/event_stream.py"
         - "agent-coordinator/src/sync_points.py"
         - "agent-coordinator/src/worktrees_view.py"
         - "agent-coordinator/Dockerfile"
@@ -534,6 +545,8 @@ packages:
       reason: "Coordinator projection parity"
     scope:
       write_allow:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/event_stream.py"
         - "agent-coordinator/src/sync_points.py"
         - "agent-coordinator/src/worktrees_view.py"
         - "agent-coordinator/src/openspec_proposals_api.py"
@@ -541,6 +554,8 @@ packages:
         - "agent-coordinator/Dockerfile"
         - "agent-coordinator/tests/test_sync_points.py"
         - "agent-coordinator/tests/test_worktrees_view.py"
+        - "agent-coordinator/tests/test_coordination_api.py"
+        - "agent-coordinator/tests/test_coordination_api_new_endpoints.py"
         - "agent-coordinator/tests/test_kanban_viz_endpoints.py"
         - "agent-coordinator/tests/test_check_docker_imports.py"
         - "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py"
@@ -562,7 +577,7 @@ packages:
       steps:
         - name: "Coordinator projection tests"
           kind: command
-          command: "uv run --project agent-coordinator pytest agent-coordinator/tests/test_sync_points.py agent-coordinator/tests/test_worktrees_view.py agent-coordinator/tests/test_kanban_viz_endpoints.py agent-coordinator/tests/test_check_docker_imports.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py -q"
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests/test_sync_points.py agent-coordinator/tests/test_worktrees_view.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_coordination_api_new_endpoints.py agent-coordinator/tests/test_kanban_viz_endpoints.py agent-coordinator/tests/test_check_docker_imports.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -674,7 +689,7 @@ packages:
             result_keys: [convergence_schema_parity]
         - name: "Lifecycle, merge-routing, autopilot, and coordinator regression suites"
           kind: command
-          command: "uv run --project skills pytest skills/worktree/scripts/tests skills/shared/tests/test_active_agents.py skills/shared/tests/test_worktree_lifecycle.py skills/shared/tests/test_phase_lifecycle.py skills/tests/contracts/test_phase_scoped_worktree_contracts.py skills/tests/worktree skills/tests/plan-feature skills/tests/implement-feature skills/tests/iterate-on-plan skills/tests/iterate-on-implementation skills/tests/validate-feature skills/tests/session-bootstrap skills/tests/lifecycle-consumers skills/tests/merge-pull-requests skills/merge-pull-requests/scripts/tests skills/autopilot/scripts/tests skills/tests/autopilot -q && uv run --project agent-coordinator pytest agent-coordinator/tests/test_sync_points.py agent-coordinator/tests/test_worktrees_view.py agent-coordinator/tests/test_kanban_viz_endpoints.py agent-coordinator/tests/test_check_docker_imports.py agent-coordinator/tests/test_install_hooks.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py -q"
+          command: "uv run --project skills pytest skills/worktree/scripts/tests skills/shared/tests/test_active_agents.py skills/shared/tests/test_worktree_lifecycle.py skills/shared/tests/test_phase_lifecycle.py skills/tests/contracts/test_phase_scoped_worktree_contracts.py skills/tests/worktree skills/tests/plan-feature skills/tests/implement-feature skills/tests/iterate-on-plan skills/tests/iterate-on-implementation skills/tests/validate-feature skills/tests/session-bootstrap skills/tests/lifecycle-consumers skills/tests/context-engineering skills/tests/merge-pull-requests skills/merge-pull-requests/scripts/tests skills/autopilot/scripts/tests skills/tests/autopilot -q && uv run --project agent-coordinator pytest agent-coordinator/tests/test_sync_points.py agent-coordinator/tests/test_worktrees_view.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_coordination_api_new_endpoints.py agent-coordinator/tests/test_kanban_viz_endpoints.py agent-coordinator/tests/test_check_docker_imports.py agent-coordinator/tests/test_install_hooks.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence:

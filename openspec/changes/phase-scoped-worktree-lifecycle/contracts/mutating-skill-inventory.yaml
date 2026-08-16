@@ -32,11 +32,16 @@ skills:
   - {skill: cleanup-feature, mutation_mode: hybrid_sync_point, canonical_path: skills/cleanup-feature/SKILL.md, tests: skills/tests/lifecycle-consumers}
   - {skill: merge-pull-requests, mutation_mode: sync_point, canonical_path: skills/merge-pull-requests/SKILL.md, tests: skills/tests/merge-pull-requests}
   - {skill: update-specs, mutation_mode: sync_point, canonical_path: skills/update-specs/SKILL.md, tests: skills/tests/lifecycle-consumers}
-  - {skill: project-context-refresh-sync-point, mutation_mode: sync_point, canonical_path: skills/project-context-refresh/SKILL.md, tests: skills/tests/lifecycle-consumers}
+  - {skill: project-context-refresh-sync-point, mutation_mode: sync_point, canonical_path: skills/project-context-refresh/SKILL.md, tests: skills/tests/lifecycle-consumers, active_guard: inherited-from-sync-point-caller}
   - {skill: expedite, mutation_mode: registry_reader, canonical_path: skills/expedite/SKILL.md, tests: skills/tests/lifecycle-consumers}
   - {skill: review-artifacts, mutation_mode: registry_reader, canonical_path: skills/review-artifacts/SKILL.md, tests: skills/tests/lifecycle-consumers}
-  - {skill: coordinator-projections, mutation_mode: registry_reader, canonical_path: agent-coordinator/src/worktrees_view.py, tests: agent-coordinator/tests/test_worktrees_view.py}
-  - {skill: session-hooks, mutation_mode: registry_reader, canonical_path: skills/session-bootstrap/scripts/hooks/deregister_agent.py, tests: skills/tests/session-bootstrap}
+  - {skill: context-engineering, mutation_mode: documentation_consumer, canonical_path: skills/context-engineering/SKILL.md, tests: skills/tests/context-engineering, setup_owner: none, renew_owner: none, finalizer: none, retention_behavior: none, active_guard: inherited-from-owning-controller}
+  - {skill: worktree-infrastructure, mutation_mode: infrastructure_provider, canonical_path: skills/worktree/SKILL.md, tests: skills/tests/worktree, setup_owner: invoking-controller, renew_owner: invoking-controller, finalizer: invoking-controller}
+  - {skill: coordinator-api-projection, mutation_mode: registry_projection, canonical_path: agent-coordinator/src/coordination_api.py, tests: agent-coordinator/tests/test_coordination_api.py, setup_owner: none, renew_owner: none, finalizer: none}
+  - {skill: coordinator-event-stream-projection, mutation_mode: registry_projection, canonical_path: agent-coordinator/src/event_stream.py, tests: agent-coordinator/tests/test_coordination_api.py, setup_owner: none, renew_owner: none, finalizer: none}
+  - {skill: coordinator-sync-point-projection, mutation_mode: registry_projection, canonical_path: agent-coordinator/src/sync_points.py, tests: agent-coordinator/tests/test_sync_points.py, setup_owner: none, renew_owner: none, finalizer: none}
+  - {skill: coordinator-worktree-projection, mutation_mode: registry_projection, canonical_path: agent-coordinator/src/worktrees_view.py, tests: agent-coordinator/tests/test_worktrees_view.py, setup_owner: none, renew_owner: none, finalizer: none}
+  - {skill: session-hooks, mutation_mode: session_backstop, canonical_path: skills/session-bootstrap/scripts/hooks/deregister_agent.py, tests: skills/tests/session-bootstrap, setup_owner: none, renew_owner: none, finalizer: release-session-only, retention_behavior: preserve-prior-controller-evidence, active_guard: none}
 
 inherited_only:
   rule: >-

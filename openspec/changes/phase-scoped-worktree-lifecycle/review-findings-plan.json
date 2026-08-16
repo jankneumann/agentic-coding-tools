@@ -9,8 +9,8 @@
       "criticality": "low",
       "axis": "correctness",
       "severity": "none",
-      "description": "The revision-5 lifecycle contract now separates timestamp-free setup intent, active ownership, retention, indeterminate provisioning, quarantine, and append-only recovery audit while preserving exact generation and controller fencing at every mutation boundary.",
-      "resolution": "Preserve the schema, CLI, design, scenario, and fault-test alignment during implementation.",
+      "description": "Revision 6 bounds the exact setup retry window, preserves completed setup provenance for response-loss replay, and provides audited setup reconciliation plus safe and destructive lease-free disposal without weakening automatic teardown fencing.",
+      "resolution": "Preserve fixed reservation expiry, exact replay identity, recovery audit, null-target bind, and automatic force refusal during implementation.",
       "disposition": "accept",
       "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
     },
@@ -20,8 +20,8 @@
       "criticality": "low",
       "axis": "security",
       "severity": "none",
-      "description": "Autopilot recovery now validates derived identity before I/O, authorizes present and pending writes against the live registry fence, uses generation CAS and durability barriers, and permits removed-checkout recreation only at the exact fetched checkpoint tip.",
-      "resolution": "Retain stale-controller, exact-tip, fsync, and pending-to-removed fault fixtures as required gates.",
+      "description": "Autopilot quarantine after lease clearing is authorized only by matching immutable registry recovery context; removed DONE state is terminal, continuous leases have null session identity, and dedicated GC retains tombstones for 30 days.",
+      "resolution": "Retain stale-controller, replacement-lease, finalization-only, terminal-resume-refusal, null-session, exact-tip, and GC race fixtures as required gates.",
       "disposition": "accept",
       "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/autopilot-run-recovery.schema.json"
     },
@@ -31,8 +31,8 @@
       "criticality": "low",
       "axis": "architecture",
       "severity": "none",
-      "description": "The authoritative prerequisite preflight is a managed shared-feature root package whose owned scheduler completion barrier records and verifies exact feature HEAD before dependent worktree creation.",
-      "resolution": "Keep resolver, scheduler, branch-lock, dependent-base, and no-early-dispatch tests in the preflight package.",
+      "description": "The exact machine-readable preflight gate now declares shared feature-HEAD visibility, installs and commits the generic scheduler barrier before live evidence, reloads the runtime, and records the verified dependent base before checkout creation.",
+      "resolution": "Keep the ordered bootstrap, scheduler reload, branch-lock CAS, exact declaration pointer, and no-early-dispatch tests in the preflight package.",
       "disposition": "accept",
       "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml"
     },
@@ -42,8 +42,8 @@
       "criticality": "low",
       "axis": "architecture",
       "severity": "none",
-      "description": "Delivery routing preserves immutable discovery evidence, current classification, active operator disposition, and append-only record, honor, and invalidation history while rejecting overrides for clear classifications.",
-      "resolution": "Preserve legacy-node initialization, JCS golden parity, and execution-time reclassification coverage.",
+      "description": "Delivery classification now schema-enforces ambiguous routing whenever diff acquisition is truncated or failed or base/head inspection fails, in addition to marker conflict rules.",
+      "resolution": "Preserve all four negative schema fixtures and the existing execution-time reclassification coverage.",
       "disposition": "accept",
       "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json"
     },
@@ -53,8 +53,8 @@
       "criticality": "low",
       "axis": "architecture",
       "severity": "none",
-      "description": "The eight-package DAG assigns every mutating launcher, sync point, registry projection, generated mirror, contract fixture, and quality gate to an explicit non-overlapping implementation surface with test-first ordering.",
-      "resolution": "Use the declared package scopes, completion barriers, and verification commands as implementation admission gates.",
+      "description": "The lifecycle inventory and eight-package DAG now cover coordinator API/SSE/sync-point projections, session release mutation, worktree infrastructure, context consumers, and the exact launcher scope without parallel write overlap.",
+      "resolution": "Use the declared inventory roles, package scopes, completion barriers, and verification commands as implementation admission gates.",
       "disposition": "accept",
       "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/mutating-skill-inventory.yaml"
     }

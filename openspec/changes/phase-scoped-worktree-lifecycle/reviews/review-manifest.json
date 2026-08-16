@@ -2,55 +2,71 @@
   "schema_version": 1,
   "change_id": "phase-scoped-worktree-lifecycle",
   "review_type": "plan",
-  "created_at": "2026-08-16T13:24:52Z",
+  "created_at": "2026-08-16T16:40:48Z",
   "target": "phase-scoped-worktree-lifecycle",
   "dispatches": [
     {
       "vendor": "antigravity",
-      "success": false,
-      "model_used": null,
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
       "models_attempted": [
         "gemini-3.6-flash-medium"
       ],
-      "elapsed_seconds": 0.3957946659065783,
-      "error": "ERROR: logging before google.Init: E0816 09:24:43.934497       1 main.go:440] Failed to redirect output for CLI: creating log file: opening log file: open /Users/jankneumann/.gemini/antigravity-cli/log/cli-20260816_092443.log: operation not permitted\nERROR: logging before google.Init: I0816 09:24:43.936937       1 resolver.go:85] Model ID gemini-3.6-flash-medium not in local config, defaulting to CCPA\nERROR: logging before google.Init: I0816 09:24:43.936954       1 resolver.go:111] Model resolve",
-      "error_class": "unknown"
+      "elapsed_seconds": 53.38975716684945,
+      "error": null,
+      "error_class": null
     },
     {
       "vendor": "claude_code",
-      "success": false,
-      "model_used": null,
+      "success": true,
+      "model_used": "(default)",
       "models_attempted": [
         "(default)"
       ],
-      "elapsed_seconds": 3.513820917112753,
-      "error": "Unknown error",
-      "error_class": "unknown"
+      "elapsed_seconds": 493.8146092921961,
+      "error": null,
+      "error_class": null
     },
     {
       "vendor": "grok",
-      "success": false,
-      "model_used": null,
+      "success": true,
+      "model_used": "grok-4.5",
       "models_attempted": [
         "grok-4.5"
       ],
-      "elapsed_seconds": 4.599167790962383,
-      "error": "Error: Couldn't create session: Permission denied.: {\n  \"code\": \"FS_PERMISSION_DENIED\",\n  \"detail\": \"Operation not permitted (os error 1)\"\n}\n",
-      "error_class": "unknown"
+      "elapsed_seconds": 439.6604895829223,
+      "error": null,
+      "error_class": null
     },
     {
       "vendor": "pi",
       "success": false,
-      "model_used": null,
+      "model_used": "qwen/qwen3-coder",
       "models_attempted": [
         "qwen/qwen3-coder"
       ],
-      "elapsed_seconds": 0.9106333749368787,
-      "error": "No API key found for openrouter.\n\nUse /login to log into a provider via OAuth or API key. See:\n  /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/docs/providers.md\n  /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/docs/models.md\n",
-      "error_class": "unknown"
+      "elapsed_seconds": 16.214442207943648,
+      "error": "Invalid JSON output",
+      "error_class": null
     }
   ],
   "quorum_requested": 4,
-  "quorum_received": 0,
-  "vendors": []
+  "quorum_received": 3,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-plan.json",
+      "finding_count": 7
+    },
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-plan.json",
+      "finding_count": 16
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-plan.json",
+      "finding_count": 11
+    }
+  ]
 }

@@ -1,0 +1,128 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Autopilot recovery specifies that unsafe teardown first clears the registry lease into quarantine and only then CASes the external envelope to checkout_state=quarantined. Present/teardown_pending envelope writes are gated on the live registry ownership triple, which is gone after that clear, and unlike the explicit identity-bound teardown_pending\u2192removed CAS (envelope generation + lease_id + entry_generation + finalization_intent) the plan never defines authorization for teardown_pending\u2192quarantined. A generation-only CAS would let a stale controller that reloads the latest envelope poison recovery state; requiring a still-live triple would make the legitimate unsafe-teardown path impossible.",
+      "resolution": "Define teardown_pending\u2192quarantined as an identity-bound CAS using the same lease_id, registry_entry_generation, finalization_intent, and envelope_generation bindings as pending\u2192removed (without requiring a still-live registry triple after the atomic quarantine-and-clear). Document that a wrong identity is a non-mutating conflict, and add a concurrent stale-controller fixture covering the unsafe-teardown path.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: contracts/mutating-skill-inventory.yaml classifies session-hooks as mutation_mode registry_reader and inherits defaults finalizer=teardown-or-quarantine / setup_owner=shared-phase-lifecycle. Design D10 and skill-workflow require session hooks to invoke only release-session as a non-destructive crash backstop and never phase finalization or teardown. Treating hooks as pure readers (or as teardown finalizers via defaults) will mis-shape inventory completeness tests and can authorize the wrong hook contract.",
+      "resolution": "Add an explicit session-release/backstop mutation mode (or equivalent), set session-hooks to that mode with finalizer=release-session-only and no setup ownership, and make inventory tests assert hooks call release-session, quarantine preserved checkouts, and never teardown or mutate autopilot recovery envelopes.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/mutating-skill-inventory.yaml"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: contracts/cli/worktree-lifecycle.yaml setup-and-acquire both requires exact setup-id/generation/triple retry to complete or report success idempotently after reservation, checkout, evidence, publication, or response-loss crashes, and also says 'Refuse when an entry already exists; callers must use assessed acquire, resume, or explicit recovery instead.' A literal reading of the refuse rule breaks post-publication response-loss recovery that the worktree and skill-workflow specs require.",
+      "resolution": "Rewrite the refuse rule so it applies only to a pre-existing entry that is not the already-published result of this exact setup_id, entry_generation, and ownership triple; keep exact-match retry as an idempotent acquired=true success.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: coordinator-kanban-viz states that sync-point blockers are a live schema-v2 activity lease or a fresh legacy heartbeat, while design D15, worktree 'Provisioning reservation blocks sync points', active-agent tasks 1.5\u20131.6, and coordinator task 5.1 require unfinished setup reservations to be indeterminate non-activity blockers. Reusing the canonical active-agent check is helpful but the normative blocker enumeration still omits reservations and there is no coordinator scenario for them.",
+      "resolution": "Extend the coordinator sync-point requirement and add a scenario: unfinished setup reservations are indeterminate provisioning blockers, never active owners, and must appear in sync-point status without appearing in /worktrees/active.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/specs/coordinator-kanban-viz/spec.md"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Optional: Task 0.5 and skill-workflow talk about packages declaring a feature-HEAD completion barrier, but work-packages.yaml has only prose on wp-baseline-preflight and the sole machine-readable signal lives in contracts/prerequisites.yaml (execution_gate.completion_visibility). openspec/schemas/work-packages.schema.json has no barrier field, so the scheduler declaration surface is easy to hardcode incorrectly.",
+      "resolution": "Either add a structured package field (for example completion_barrier: feature-head) that the DAG scheduler reads, or explicitly state that prerequisites.yaml execution_gate is the only declaration and that the scheduler keys off that package_id.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Optional: Normalized LEGACY leases store controller_instance_id=null and may renew through the heartbeat compatibility handler without a controller, but lease release and teardown always require a non-empty controller_instance_id. Operators can clear those leases only via release-owner, expiry, or recovery adopt\u2014not exact-triple release\u2014which is workable but easy to miss beside the LEGACY renew exception.",
+      "resolution": "Document that LEGACY null-controller leases are released through release-owner/expiry/recovery, or add a narrow compatibility release path for the exact synthetic owner/lease with null controller, parallel to the heartbeat handler.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Timestamp-free setup is implementable end-to-end: lease_intent omits acquired_at/last_heartbeat/expires_at, the registry schema rejects timestamped intents via additionalProperties:false, setup reservations advance reserved\u2192checkout-created\u2192evidence-created without granting activity, and the final locked publication derives all lease timestamps from one publication time before replacing the reservation with the active entry.",
+      "resolution": "Preserve reservation stage tests and publication-time lease construction as written in tasks 1.3\u20131.4 and the worktree scenarios.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Live-lease ownership is consistently fenced across acquire, same-controller retry, resume with new fence after stale same-host evidence, renew/assert/release conflicts, teardown-before-release, atomic quarantine-plus-clear, session/owner bulk quarantine, and recovery adopt/force-adopt with null-target establishment and append-only force-adopt audit that survives entry teardown.",
+      "resolution": "Keep the exact-triple-and-generation command/output contract and the locked assessment order (refresh outside lock, revalidate generation/target under lock) as the implementation admission gate.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "low",
+      "description": "Removed-checkout autopilot resume is exact-tip safe: durable_head and loop_state_sha256 are required for teardown_pending/removed, recreation demands current URL digest match plus freshly fetched ref tip equal to durable_head (not mere reachability), and the loop-state blob is hashed and schema-validated at that OID before worktree creation or lease acquisition.",
+      "resolution": "Retain advanced/rewound/missing/URL-mismatched refusal fixtures from task 4.3 when implementing recovery.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/autopilot-run-recovery.schema.json"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The shared feature-HEAD preflight completion barrier is owned and sequenced: wp-baseline-preflight is a shared-mode root package, depends_on edges gate wp-pr-delivery and wp-phase-lifecycle, tasks 0.1\u20130.5 cover fail-closed PR evidence plus scheduler barrier behavior, and prerequisites.yaml names the blocked packages and dependent_base_rule.",
+      "resolution": "Implement the barrier in dag_scheduler/integration_orchestrator under the preflight package scope and keep the no-early-dependent-worktree regressions green before dispatching dependents.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Delivery routing, append-only override invalidation, inventory coverage, and package DAG are coherent: the classifier truth table and merge-plan schema force stage-consistent routing, overrides are ambiguous-only with SHA/ruleset/JCS digest bindings, invalidation appends history before clearing, inventory enumerates standalone/continuous/child/sync-point/reader consumers with a dedicated migration package, and parallel package write scopes do not overlap once baseline and registry complete.",
+      "resolution": "Execute the stage-routing, override-history, inventory-scan, and package-validation gates already listed in tasks 2.7\u20133.10 and wp-integration verification.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json"
+    }
+  ]
+}

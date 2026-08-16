@@ -228,14 +228,58 @@
 
 ---
 
+## Iteration 6
+
+<!-- Date: 2026-08-16 -->
+
+### Findings
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | resilience | critical | A crashed setup reservation had no bounded retry window or safe operator escape. | Added fixed reservation expiry, exact completed-setup replay, and audited reconciliation that removes only side-effect-free intent or preserves attributable state in quarantine. |
+| 2 | architecture | critical | Feature-HEAD completion ownership and current-run bootstrap ordering were ambiguous. | Made `contracts/prerequisites.yaml#execution_gate` the exact declaration; barrier tests and implementation land before scheduler reload, live evidence, and dependent dispatch. |
+| 3 | correctness | critical | Shared preflight contradicted the universal dedicated-package-worktree rule. | Added the narrow declared feature-HEAD root exception; it inherits the managed feature checkout and parent fence while ordinary packages remain isolated. |
+| 4 | compatibility | critical | Unleased, quarantined, and null-target legacy state lacked safe disposal or preservation paths, while coordinator kick depended on unsafe bare force. | Added safe recovery teardown, separately confirmed/audited force-teardown, null-controller legacy release, force-adopt inspection, and generation-fenced target binding; automatic teardown remains force-free. |
+| 5 | architecture | critical | Coordinator API/SSE/sync-point surfaces, worktree infrastructure, context consumers, and session-hook mutation were absent or misclassified. | Expanded the inventory and package scopes, gave hooks `session_backstop`/`release-session-only`, and narrowed launcher migration to package-owned paths. |
+| 6 | security | critical | A stale autopilot controller could not safely record quarantine after teardown cleared its lease. | Authorized only an identity-bound pending-to-quarantined CAS backed by matching immutable unsafe-finalization recovery context and no replacement lease. |
+| 7 | correctness | high | A completed removed autopilot run could be recreated and redispatched. | Made `removed+done` a terminal tombstone, ordered canonical DONE durability before teardown, and restricted recreation to exception/escalate state. |
+| 8 | resilience | medium | External recovery envelopes had no bounded retention or race-safe GC. | Added null-by-default `gc_eligible_at`, a 30-day DONE tombstone window, generic-GC exclusion, and dedicated global-then-run locked GC. |
+| 9 | correctness | medium | Autopilot session ownership and generic session release behavior were unspecified. | Required continuous autopilot `session_id=null`; generic release-session never selects it. |
+| 10 | correctness | medium | Setup response-loss retry conflicted with unconditional existing-entry refusal. | Stored nullable completed `setup_id` provenance and made the exact matching receipt replay success without mutation. |
+| 11 | observability | medium | Coordinator sync blockers omitted unfinished setup reservations. | Added explicit non-active provisioning blockers to sync-point, API, and SSE scenarios. |
+| 12 | contract mismatch | medium | Incomplete diff or base/head evidence was only prose-level ambiguous. | Added JSON Schema conditionals and negative fixtures forcing `delivery_stage=ambiguous`. |
+| 13 | consistency | medium | Two task scenario references were nonexistent or misnamed. | Corrected them to `Worktrees are finalized after integration` and `Lease mutations short-circuit under harness isolation`. |
+
+### Review Context
+
+- The operator explicitly authorized repository export for this review.
+- Antigravity, Claude, and Grok returned schema-valid reviews; Pi returned
+  invalid JSON. External quorum was therefore met at 3/4 plus Codex.
+- The mechanical consensus matcher reported 39 unconfirmed findings because it
+  missed semantic duplicates; Claude and Grok independently identified the
+  stale-controller quarantine gap. The raw reports and schema-valid consensus
+  snapshot are preserved, and one non-recursive remediation pass addressed all
+  distinct actionable findings.
+
+### Quality Checks
+
+- Strict OpenSpec validation: pass.
+- Work-package schema, references, DAG, locks, scopes, and architecture zones: pass.
+- All change-local Draft 2020-12 schemas and YAML contracts: pass.
+- Representative registry, autopilot terminal/GC, classifier-negative, and review artifacts: pass.
+- `git diff --check`: pass.
+
+---
+
 ## Current Summary
 
-- Plan revision: 5 across five recorded refinement iterations.
-- Total actionable findings addressed: 62; three final internal re-audits
-  report no residual criticals or nits.
-- Deterministic readiness: strict-valid, schema-valid, package-DAG-valid, and
-  representative-instance-valid.
-- Review readiness: external vendor quorum unavailable; consensus remains
-  explicitly non-quorate and loop state remains `ESCALATE`.
-- Implementation readiness: blocked until both named prerequisite changes land
-  and the authoritative shared-feature completion barrier succeeds.
+- Plan revision: 6 across six recorded refinement iterations.
+- External review quorum: met; all distinct critical/high/medium actionable
+  concerns from the exported revision-5 review are remediated in revision 6.
+- Deterministic readiness: strict-valid, schema-valid, package-DAG-valid,
+  architecture-zone-valid, and representative-instance-valid.
+- Review artifacts: raw vendor reports and consensus snapshot retained; final
+  Codex re-audit reports no residual actionable finding.
+- Implementation readiness: contract-ready, but dependent package dispatch
+  remains blocked until both named prerequisite changes land and the ordered
+  shared-feature completion barrier succeeds.

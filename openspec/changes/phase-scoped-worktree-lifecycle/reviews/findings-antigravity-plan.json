@@ -1,0 +1,91 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "The setup reservation pipeline atomically bridges Git worktree creation and process evidence without intermediate unleased state. Reservations store a timestamp-free lease_intent, conservatively block sync points as indeterminate provisioning, and derive lease timestamps from the final publication transaction.",
+      "resolution": "Maintain the generation-fenced setup reservation state machine and publication-time lease construction.",
+      "disposition": "accept",
+      "package_id": "wp-registry",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "high",
+      "axis": "architecture",
+      "severity": "none",
+      "description": "Lease ownership is strictly bound to the exact (owner, lease_id, controller_instance_id) triple across acquire, resume, renew, release, teardown, and recovery. Expired takeover requires proof of stale same-host process evidence and clean durable state, issuing a fresh lease and controller identity while force-adoption appends to an immutable recovery audit.",
+      "resolution": "Keep the locked atomic transaction discipline and exact-triple ownership verification across all mutation boundaries.",
+      "disposition": "accept",
+      "package_id": "wp-phase-lifecycle",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "high",
+      "axis": "security",
+      "severity": "none",
+      "description": "Autopilot run recovery state is stored outside disposable worktrees under monotonic generation CAS and requires proving the exact live registry triple and entry generation before mutation. Recreating a removed checkout validates the exact durable ref tip SHA against durable_head and hashes the raw loop state blob prior to worktree instantiation.",
+      "resolution": "Preserve the identity-bound recovery envelope and exact-tip SHA validation during autopilot resume.",
+      "disposition": "accept",
+      "package_id": "wp-autopilot",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/autopilot-run-recovery.schema.json"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "high",
+      "axis": "architecture",
+      "severity": "none",
+      "description": "The prerequisite preflight completes as an authoritative feature-HEAD barrier in the shared feature worktree, verifying merge ancestry and surface assertions under the branch lock before satisfying DAG dependencies or constructing dependent package worktrees.",
+      "resolution": "Retain the synchronous feature-HEAD barrier and locked ancestry revalidation sequence.",
+      "disposition": "accept",
+      "package_id": "wp-baseline-preflight",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/prerequisites.yaml"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "PR delivery stage classification uses a 4-way truth table over changed files and base state, failing safe to ambiguous on diff truncation or marker conflict. Operator overrides are restricted to ambiguous state, bound to RFC-8785 canonical classification digests (pr-delivery-v1+jcs-sha256), and append invalidation events to operator_override_history whenever SHA or ruleset bindings change.",
+      "resolution": "Maintain pure classifier stage routing, canonical JCS digest bindings, and append-only override history tracking.",
+      "disposition": "accept",
+      "package_id": "wp-pr-delivery",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "medium",
+      "axis": "architecture",
+      "severity": "none",
+      "description": "Schema v2 registry readers maintain seamless backward compatibility with v1 entries, mapping legacy pinned=true to GC retention while reserving active status for unexpired leases or fresh legacy heartbeats. The pin and unpin aliases remain non-blocking GC controls without granting write leases.",
+      "resolution": "Sustain dual-read registry parsing and the explicit separation of GC retention from activity leases.",
+      "disposition": "accept",
+      "package_id": "wp-registry",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/specs/worktree/spec.md"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "medium",
+      "axis": "readability",
+      "severity": "none",
+      "description": "The mutating skill inventory comprehensively classifies all 24 repository-mutating entrypoints and consumers across standalone, continuous, child, hybrid sync-point, sync-point, and registry-reader modes, backed by automated scan tests that prevent unclassified lifecycle drift.",
+      "resolution": "Enforce the comprehensive inventory mapping and automated consumer verification scan.",
+      "disposition": "accept",
+      "package_id": "wp-lifecycle-consumers",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/mutating-skill-inventory.yaml"
+    }
+  ]
+}
