@@ -481,16 +481,21 @@ CHANGED_FILES=$(git diff --name-only main...HEAD | tr '\n' ',')
 # --- Sub-phase 1: Flow validation (validate_flows.py) ---
 if [ -f "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
   echo "Running architecture flow validation on changed files..."
+  # Scoped run: omit --output so the validator writes the scoped artifact
+  # (architecture.diagnostics.scoped.json) rather than the committed full-scope
+  # architecture.diagnostics.json, which only refresh-architecture's full run
+  # should produce. Passing --output here would overwrite a full analysis with a
+  # narrow one, and the result still parses as valid diagnostics.
+  ARCH_DIAGNOSTICS="docs/architecture-analysis/architecture.diagnostics.scoped.json"
   python3 "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" \
     --graph docs/architecture-analysis/architecture.graph.json \
-    --output docs/architecture-analysis/architecture.diagnostics.json \
     --files "$CHANGED_FILES" 2>&1
   ARCH_EXIT=$?
 
   if [ $ARCH_EXIT -eq 0 ]; then
     ARCH_RESULT="pass"
-    ARCH_ERRORS=$(python3 -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['errors'])" 2>/dev/null || echo 0)
-    ARCH_WARNINGS=$(python3 -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['warnings'])" 2>/dev/null || echo 0)
+    ARCH_ERRORS=$(python3 -c "import json; d=json.load(open('$ARCH_DIAGNOSTICS')); print(d['summary']['errors'])" 2>/dev/null || echo 0)
+    ARCH_WARNINGS=$(python3 -c "import json; d=json.load(open('$ARCH_DIAGNOSTICS')); print(d['summary']['warnings'])" 2>/dev/null || echo 0)
     if [ "$ARCH_ERRORS" -gt 0 ]; then
       ARCH_RESULT="fail"
     elif [ "$ARCH_WARNINGS" -gt 0 ]; then
