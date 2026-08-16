@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-16T12:29:04+00:00",
+  "generated_at": "2026-08-16T13:45:08+00:00",
   "independent_groups": [
     {
       "id": 0,
@@ -507,8 +507,9 @@
         "py:sync_points._load_registry",
         "py:sync_points._parse_iso",
         "py:sync_points.get_sync_points_status",
-        "py:teams.TeamsConfig.from_dict",
-        "py:teams.TeamsConfig.validate",
+        "py:teams.CrewManifest.from_dict",
+        "py:teams.CrewManifest.validate",
+        "py:teams.get_crew_manifest",
         "py:telemetry._init_metrics",
         "py:telemetry._init_traces",
         "py:telemetry._metrics_enabled",
@@ -536,7 +537,7 @@
       "language_mix": [
         "python"
       ],
-      "size": 528
+      "size": 529
     },
     {
       "id": 1,
@@ -11717,7 +11718,7 @@
     {
       "id": 1102,
       "modules": [
-        "py:teams.AgentDefinition"
+        "py:teams.CrewManifest"
       ],
       "language_mix": [
         "python"
@@ -11727,7 +11728,7 @@
     {
       "id": 1103,
       "modules": [
-        "py:teams.TeamsConfig"
+        "py:teams.CrewManifest.from_file"
       ],
       "language_mix": [
         "python"
@@ -11737,7 +11738,7 @@
     {
       "id": 1104,
       "modules": [
-        "py:teams.TeamsConfig.from_file"
+        "py:teams.CrewManifest.get_role"
       ],
       "language_mix": [
         "python"
@@ -11747,7 +11748,7 @@
     {
       "id": 1105,
       "modules": [
-        "py:teams.TeamsConfig.get_agent"
+        "py:teams.CrewManifest.validate_against"
       ],
       "language_mix": [
         "python"
@@ -11757,7 +11758,7 @@
     {
       "id": 1106,
       "modules": [
-        "py:teams.TeamsConfig.get_agents_with_capability"
+        "py:teams.CrewManifest.vendors_for"
       ],
       "language_mix": [
         "python"
@@ -11767,7 +11768,7 @@
     {
       "id": 1107,
       "modules": [
-        "py:teams.get_teams_config"
+        "py:teams.RoleAssignment"
       ],
       "language_mix": [
         "python"
@@ -11777,7 +11778,7 @@
     {
       "id": 1108,
       "modules": [
-        "py:teams.reset_teams_config"
+        "py:teams.reset_crew_manifest"
       ],
       "language_mix": [
         "python"
@@ -11857,7 +11858,7 @@
     {
       "id": 1116,
       "modules": [
-        "py:watchdog.WatchdogService"
+        "py:test:tests.test_architecture.test_analysis.TestFlowValidator"
       ],
       "language_mix": [
         "python"
@@ -11867,7 +11868,7 @@
     {
       "id": 1117,
       "modules": [
-        "py:watchdog.WatchdogService.__init__"
+        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format"
       ],
       "language_mix": [
         "python"
@@ -11877,7 +11878,7 @@
     {
       "id": 1118,
       "modules": [
-        "py:watchdog.WatchdogService._check_aging_approvals"
+        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection"
       ],
       "language_mix": [
         "python"
@@ -11887,7 +11888,7 @@
     {
       "id": 1119,
       "modules": [
-        "py:watchdog.WatchdogService._check_expiring_locks"
+        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream"
       ],
       "language_mix": [
         "python"
@@ -11897,7 +11898,7 @@
     {
       "id": 1120,
       "modules": [
-        "py:watchdog.WatchdogService._check_stale_agents"
+        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection"
       ],
       "language_mix": [
         "python"
@@ -11907,7 +11908,7 @@
     {
       "id": 1121,
       "modules": [
-        "py:watchdog.WatchdogService._check_vendor_health"
+        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check"
       ],
       "language_mix": [
         "python"
@@ -11917,7 +11918,7 @@
     {
       "id": 1122,
       "modules": [
-        "py:watchdog.WatchdogService._cleanup_expired_tokens"
+        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler"
       ],
       "language_mix": [
         "python"
@@ -11927,7 +11928,7 @@
     {
       "id": 1123,
       "modules": [
-        "py:watchdog.WatchdogService._emit_event"
+        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output"
       ],
       "language_mix": [
         "python"
@@ -11937,7 +11938,7 @@
     {
       "id": 1124,
       "modules": [
-        "py:watchdog.WatchdogService._loop"
+        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges"
       ],
       "language_mix": [
         "python"
@@ -11947,7 +11948,7 @@
     {
       "id": 1125,
       "modules": [
-        "py:watchdog.WatchdogService.run_once"
+        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers"
       ],
       "language_mix": [
         "python"
@@ -11957,7 +11958,7 @@
     {
       "id": 1126,
       "modules": [
-        "py:watchdog.WatchdogService.running"
+        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking"
       ],
       "language_mix": [
         "python"
@@ -11967,7 +11968,7 @@
     {
       "id": 1127,
       "modules": [
-        "py:watchdog.WatchdogService.start"
+        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization"
       ],
       "language_mix": [
         "python"
@@ -11977,7 +11978,7 @@
     {
       "id": 1128,
       "modules": [
-        "py:watchdog.WatchdogService.stop"
+        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges"
       ],
       "language_mix": [
         "python"
@@ -11987,7 +11988,7 @@
     {
       "id": 1129,
       "modules": [
-        "py:watchdog.reset_watchdog"
+        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold"
       ],
       "language_mix": [
         "python"
@@ -11997,7 +11998,7 @@
     {
       "id": 1130,
       "modules": [
-        "py:work_queue.ClaimResult"
+        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid"
       ],
       "language_mix": [
         "python"
@@ -12007,7 +12008,7 @@
     {
       "id": 1131,
       "modules": [
-        "py:work_queue.ClaimResult.from_dict"
+        "py:test:tests.test_architecture.test_analysis.TestParallelZones"
       ],
       "language_mix": [
         "python"
@@ -12017,7 +12018,7 @@
     {
       "id": 1132,
       "modules": [
-        "py:work_queue.CompleteResult"
+        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure"
       ],
       "language_mix": [
         "python"
@@ -12027,7 +12028,7 @@
     {
       "id": 1133,
       "modules": [
-        "py:work_queue.CompleteResult.from_dict"
+        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection"
       ],
       "language_mix": [
         "python"
@@ -12037,7 +12038,7 @@
     {
       "id": 1134,
       "modules": [
-        "py:work_queue.SubmitResult"
+        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection"
       ],
       "language_mix": [
         "python"
@@ -12047,7 +12048,7 @@
     {
       "id": 1135,
       "modules": [
-        "py:work_queue.SubmitResult.from_dict"
+        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius"
       ],
       "language_mix": [
         "python"
@@ -12057,7 +12058,7 @@
     {
       "id": 1136,
       "modules": [
-        "py:work_queue.Task"
+        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification"
       ],
       "language_mix": [
         "python"
@@ -12067,7 +12068,7 @@
     {
       "id": 1137,
       "modules": [
-        "py:work_queue.Task.from_dict.parse_dt"
+        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli"
       ],
       "language_mix": [
         "python"
@@ -12077,7 +12078,7 @@
     {
       "id": 1138,
       "modules": [
-        "py:work_queue.WorkQueueService"
+        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components"
       ],
       "language_mix": [
         "python"
@@ -12087,7 +12088,7 @@
     {
       "id": 1139,
       "modules": [
-        "py:work_queue.WorkQueueService.__init__"
+        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer"
       ],
       "language_mix": [
         "python"
@@ -12097,7 +12098,7 @@
     {
       "id": 1140,
       "modules": [
-        "py:work_queue.WorkQueueService.cancel_task_convention"
+        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction"
       ],
       "language_mix": [
         "python"
@@ -12107,7 +12108,7 @@
     {
       "id": 1141,
       "modules": [
-        "py:work_queue.WorkQueueService.get_pending"
+        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction"
       ],
       "language_mix": [
         "python"
@@ -12117,7 +12118,7 @@
     {
       "id": 1142,
       "modules": [
-        "py:work_queue.WorkQueueService.get_task"
+        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics"
       ],
       "language_mix": [
         "python"
@@ -12127,7 +12128,7 @@
     {
       "id": 1143,
       "modules": [
-        "py:work_queue.reset_instruments"
+        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction"
       ],
       "language_mix": [
         "python"
@@ -12137,7 +12138,7 @@
     {
       "id": 1144,
       "modules": [
-        "py:worktrees_view._parse_dt"
+        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling"
       ],
       "language_mix": [
         "python"
@@ -12147,900 +12148,520 @@
     {
       "id": 1145,
       "modules": [
-        "ts:App"
+        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1146,
       "modules": [
-        "ts:Board"
+        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1147,
       "modules": [
-        "ts:Card"
+        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1148,
       "modules": [
-        "ts:ClusterBadge"
+        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1149,
       "modules": [
-        "ts:ClusterBadgeInner"
+        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1150,
       "modules": [
-        "ts:ClusterHighlightWrapper"
+        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1151,
       "modules": [
-        "ts:Column"
+        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1152,
       "modules": [
-        "ts:ConsentPrompt"
+        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1153,
       "modules": [
-        "ts:HiddenReposToggle"
+        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1154,
       "modules": [
-        "ts:IssueSourceRow"
+        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1155,
       "modules": [
-        "ts:PRCardView"
+        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1156,
       "modules": [
-        "ts:PROriginFilter"
+        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1157,
       "modules": [
-        "ts:PRSourceRow"
+        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1158,
       "modules": [
-        "ts:PartialResultChip"
+        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1159,
       "modules": [
-        "ts:ProposalCardView"
+        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1160,
       "modules": [
-        "ts:ProposalSourceRow"
+        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1161,
       "modules": [
-        "ts:RefreshButton"
+        "py:test:tests.test_architecture.test_analysis.TestViewGenerator"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1162,
       "modules": [
-        "ts:RepoBadge"
+        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1163,
       "modules": [
-        "ts:SaveViewButton"
+        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1164,
       "modules": [
-        "ts:SourceSwimlanes"
+        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1165,
       "modules": [
-        "ts:SyncPointBanner"
+        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1166,
       "modules": [
-        "ts:VendorSwimlanes"
+        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1167,
       "modules": [
-        "ts:assertNever"
+        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1168,
       "modules": [
-        "ts:bucketIssues"
+        "py:watchdog.WatchdogService"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1169,
       "modules": [
-        "ts:bucketPRs"
+        "py:watchdog.WatchdogService.__init__"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1170,
       "modules": [
-        "ts:bucketProposals"
+        "py:watchdog.WatchdogService._check_aging_approvals"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1171,
       "modules": [
-        "ts:classify"
+        "py:watchdog.WatchdogService._check_expiring_locks"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1172,
       "modules": [
-        "ts:classifyOrDefault"
+        "py:watchdog.WatchdogService._check_stale_agents"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1173,
       "modules": [
-        "ts:clusterBoardCards"
+        "py:watchdog.WatchdogService._check_vendor_health"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1174,
       "modules": [
-        "ts:deriveIssueRepo"
+        "py:watchdog.WatchdogService._cleanup_expired_tokens"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1175,
       "modules": [
-        "ts:determineConsensus"
+        "py:watchdog.WatchdogService._emit_event"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1176,
       "modules": [
-        "ts:emitHighlight"
+        "py:watchdog.WatchdogService._loop"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1177,
       "modules": [
-        "ts:extractVendor"
+        "py:watchdog.WatchdogService.run_once"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1178,
       "modules": [
-        "ts:fetchIssuesForSingleChange"
+        "py:watchdog.WatchdogService.running"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1179,
       "modules": [
-        "ts:fetchIssuesUnioned"
+        "py:watchdog.WatchdogService.start"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1180,
       "modules": [
-        "ts:fetchPRs"
+        "py:watchdog.WatchdogService.stop"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1181,
       "modules": [
-        "ts:fetchProposals"
+        "py:watchdog.reset_watchdog"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1182,
       "modules": [
-        "ts:fetchSyncStatus"
+        "py:work_queue.ClaimResult"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1183,
       "modules": [
-        "ts:filterByOrigin"
+        "py:work_queue.ClaimResult.from_dict"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1184,
       "modules": [
-        "ts:formatRelative"
+        "py:work_queue.CompleteResult"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1185,
       "modules": [
-        "ts:getClusterKey"
+        "py:work_queue.CompleteResult.from_dict"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1186,
       "modules": [
-        "ts:groupByVendor"
+        "py:work_queue.SubmitResult"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1187,
       "modules": [
-        "ts:hashString"
+        "py:work_queue.SubmitResult.from_dict"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1188,
       "modules": [
-        "ts:isBrowser"
+        "py:work_queue.Task"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1189,
       "modules": [
-        "ts:isTauri"
+        "py:work_queue.Task.from_dict.parse_dt"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1190,
       "modules": [
-        "ts:issueStatusToColumn"
+        "py:work_queue.WorkQueueService"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1191,
       "modules": [
-        "ts:kanban-viz/src/App"
+        "py:work_queue.WorkQueueService.__init__"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1192,
       "modules": [
-        "ts:kanban-viz/src/__tests__/fixtures"
+        "py:work_queue.WorkQueueService.cancel_task_convention"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1193,
       "modules": [
-        "ts:kanban-viz/src/__tests__/setup"
+        "py:work_queue.WorkQueueService.get_pending"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1194,
       "modules": [
-        "ts:kanban-viz/src/components/Board"
+        "py:work_queue.WorkQueueService.get_task"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1195,
       "modules": [
-        "ts:kanban-viz/src/components/Card"
+        "py:work_queue.reset_instruments"
       ],
       "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     },
     {
       "id": 1196,
       "modules": [
-        "ts:kanban-viz/src/components/ClusterBadge"
+        "py:worktrees_view._parse_dt"
       ],
       "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1197,
-      "modules": [
-        "ts:kanban-viz/src/components/Column"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1198,
-      "modules": [
-        "ts:kanban-viz/src/components/ConsentPrompt"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1199,
-      "modules": [
-        "ts:kanban-viz/src/components/HiddenReposToggle"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1200,
-      "modules": [
-        "ts:kanban-viz/src/components/PRCardView"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1201,
-      "modules": [
-        "ts:kanban-viz/src/components/PROriginFilter"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1202,
-      "modules": [
-        "ts:kanban-viz/src/components/ProposalCardView"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1203,
-      "modules": [
-        "ts:kanban-viz/src/components/RefreshButton"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1204,
-      "modules": [
-        "ts:kanban-viz/src/components/RepoBadge"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1205,
-      "modules": [
-        "ts:kanban-viz/src/components/SaveViewButton"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1206,
-      "modules": [
-        "ts:kanban-viz/src/components/SourceSwimlanes"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1207,
-      "modules": [
-        "ts:kanban-viz/src/components/SyncPointBanner"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1208,
-      "modules": [
-        "ts:kanban-viz/src/components/VendorSwimlanes"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1209,
-      "modules": [
-        "ts:kanban-viz/src/hooks/useBoardCards"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1210,
-      "modules": [
-        "ts:kanban-viz/src/hooks/useCoordinator"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1211,
-      "modules": [
-        "ts:kanban-viz/src/lib/coordinator-types"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1212,
-      "modules": [
-        "ts:kanban-viz/src/lib/reversibility"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1213,
-      "modules": [
-        "ts:kanban-viz/src/lib/runtime"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1214,
-      "modules": [
-        "ts:kanban-viz/src/lib/saveView"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1215,
-      "modules": [
-        "ts:kanban-viz/src/main"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1216,
-      "modules": [
-        "ts:kanban-viz/src/vite-env.d"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1217,
-      "modules": [
-        "ts:kanban-viz/vite.config"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1218,
-      "modules": [
-        "ts:loadFromStorage"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1219,
-      "modules": [
-        "ts:mintEventsToken"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1220,
-      "modules": [
-        "ts:prStatusToColumn"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1221,
-      "modules": [
-        "ts:proposalStatusToColumn"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1222,
-      "modules": [
-        "ts:relativeTime"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1223,
-      "modules": [
-        "ts:repoToColor"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1224,
-      "modules": [
-        "ts:requiresConsent"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1225,
-      "modules": [
-        "ts:saveBrowser"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1226,
-      "modules": [
-        "ts:saveTauri"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1227,
-      "modules": [
-        "ts:saveToStorage"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1228,
-      "modules": [
-        "ts:saveView"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1229,
-      "modules": [
-        "ts:shortForm"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1230,
-      "modules": [
-        "ts:slugify"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1231,
-      "modules": [
-        "ts:toIssueCard"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1232,
-      "modules": [
-        "ts:useBoardCards"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1233,
-      "modules": [
-        "ts:useCoordinator"
-      ],
-      "language_mix": [
-        "typescript"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1234,
-      "modules": [
-        "ts:useHighlightState"
-      ],
-      "language_mix": [
-        "typescript"
+        "python"
       ],
       "size": 1
     }
@@ -20012,42 +19633,47 @@
       "file": "teams.py"
     },
     {
-      "id": "py:teams.AgentDefinition",
+      "id": "py:teams.CrewManifest",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.TeamsConfig",
+      "id": "py:teams.CrewManifest.from_dict",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.TeamsConfig.from_dict",
+      "id": "py:teams.CrewManifest.from_file",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.TeamsConfig.from_file",
+      "id": "py:teams.CrewManifest.get_role",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.TeamsConfig.get_agent",
+      "id": "py:teams.CrewManifest.validate_against",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.TeamsConfig.get_agents_with_capability",
+      "id": "py:teams.CrewManifest.vendors_for",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.get_teams_config",
+      "id": "py:teams.RoleAssignment",
       "language": "python",
       "file": "teams.py"
     },
     {
-      "id": "py:teams.reset_teams_config",
+      "id": "py:teams.get_crew_manifest",
+      "language": "python",
+      "file": "teams.py"
+    },
+    {
+      "id": "py:teams.reset_crew_manifest",
       "language": "python",
       "file": "teams.py"
     },
@@ -20085,6 +19711,266 @@
       "id": "py:telemetry.reset_telemetry",
       "language": "python",
       "file": "telemetry.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated",
+      "language": "python",
+      "file": "tests/test_architecture/test_analysis.py"
     },
     {
       "id": "py:watchdog.WatchdogService",
@@ -20285,456 +20171,6 @@
       "id": "py:worktrees_view.get_active_worktrees",
       "language": "python",
       "file": "worktrees_view.py"
-    },
-    {
-      "id": "ts:App",
-      "language": "typescript",
-      "file": "kanban-viz/src/App.tsx"
-    },
-    {
-      "id": "ts:Board",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/Board.tsx"
-    },
-    {
-      "id": "ts:Card",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/Card.tsx"
-    },
-    {
-      "id": "ts:ClusterBadge",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx"
-    },
-    {
-      "id": "ts:ClusterBadgeInner",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx"
-    },
-    {
-      "id": "ts:ClusterHighlightWrapper",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx"
-    },
-    {
-      "id": "ts:Column",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/Column.tsx"
-    },
-    {
-      "id": "ts:ConsentPrompt",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/ConsentPrompt.tsx"
-    },
-    {
-      "id": "ts:HiddenReposToggle",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx"
-    },
-    {
-      "id": "ts:IssueSourceRow",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx"
-    },
-    {
-      "id": "ts:PRCardView",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/PRCardView.tsx"
-    },
-    {
-      "id": "ts:PROriginFilter",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx"
-    },
-    {
-      "id": "ts:PRSourceRow",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx"
-    },
-    {
-      "id": "ts:PartialResultChip",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx"
-    },
-    {
-      "id": "ts:ProposalCardView",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/ProposalCardView.tsx"
-    },
-    {
-      "id": "ts:ProposalSourceRow",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx"
-    },
-    {
-      "id": "ts:RefreshButton",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/RefreshButton.tsx"
-    },
-    {
-      "id": "ts:RepoBadge",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/RepoBadge.tsx"
-    },
-    {
-      "id": "ts:SaveViewButton",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx"
-    },
-    {
-      "id": "ts:SourceSwimlanes",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx"
-    },
-    {
-      "id": "ts:SyncPointBanner",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx"
-    },
-    {
-      "id": "ts:VendorSwimlanes",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx"
-    },
-    {
-      "id": "ts:assertNever",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/coordinator-types.ts"
-    },
-    {
-      "id": "ts:bucketIssues",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx"
-    },
-    {
-      "id": "ts:bucketPRs",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx"
-    },
-    {
-      "id": "ts:bucketProposals",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx"
-    },
-    {
-      "id": "ts:classify",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/reversibility.ts"
-    },
-    {
-      "id": "ts:classifyOrDefault",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/reversibility.ts"
-    },
-    {
-      "id": "ts:clusterBoardCards",
-      "language": "typescript",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts"
-    },
-    {
-      "id": "ts:deriveIssueRepo",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/coordinator-types.ts"
-    },
-    {
-      "id": "ts:determineConsensus",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx"
-    },
-    {
-      "id": "ts:emitHighlight",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx"
-    },
-    {
-      "id": "ts:extractVendor",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx"
-    },
-    {
-      "id": "ts:fetchIssuesForSingleChange",
-      "language": "typescript",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts"
-    },
-    {
-      "id": "ts:fetchIssuesUnioned",
-      "language": "typescript",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts"
-    },
-    {
-      "id": "ts:fetchPRs",
-      "language": "typescript",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts"
-    },
-    {
-      "id": "ts:fetchProposals",
-      "language": "typescript",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts"
-    },
-    {
-      "id": "ts:fetchSyncStatus",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx"
-    },
-    {
-      "id": "ts:filterByOrigin",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx"
-    },
-    {
-      "id": "ts:formatRelative",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/RefreshButton.tsx"
-    },
-    {
-      "id": "ts:getClusterKey",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/coordinator-types.ts"
-    },
-    {
-      "id": "ts:groupByVendor",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx"
-    },
-    {
-      "id": "ts:hashString",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/RepoBadge.tsx"
-    },
-    {
-      "id": "ts:isBrowser",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/runtime.ts"
-    },
-    {
-      "id": "ts:isTauri",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/runtime.ts"
-    },
-    {
-      "id": "ts:issueStatusToColumn",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/coordinator-types.ts"
-    },
-    {
-      "id": "ts:kanban-viz/src/App",
-      "language": "typescript",
-      "file": "kanban-viz/src/App.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/__tests__/fixtures",
-      "language": "typescript",
-      "file": "kanban-viz/src/__tests__/fixtures.ts"
-    },
-    {
-      "id": "ts:kanban-viz/src/__tests__/setup",
-      "language": "typescript",
-      "file": "kanban-viz/src/__tests__/setup.ts"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/Board",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/Board.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/Card",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/Card.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/ClusterBadge",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/Column",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/Column.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/ConsentPrompt",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/ConsentPrompt.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/HiddenReposToggle",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/PRCardView",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/PRCardView.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/PROriginFilter",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/ProposalCardView",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/ProposalCardView.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/RefreshButton",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/RefreshButton.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/RepoBadge",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/RepoBadge.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/SaveViewButton",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/SourceSwimlanes",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/SyncPointBanner",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/components/VendorSwimlanes",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/hooks/useBoardCards",
-      "language": "typescript",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts"
-    },
-    {
-      "id": "ts:kanban-viz/src/hooks/useCoordinator",
-      "language": "typescript",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts"
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/coordinator-types",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/coordinator-types.ts"
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/reversibility",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/reversibility.ts"
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/runtime",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/runtime.ts"
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/saveView",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/saveView.ts"
-    },
-    {
-      "id": "ts:kanban-viz/src/main",
-      "language": "typescript",
-      "file": "kanban-viz/src/main.tsx"
-    },
-    {
-      "id": "ts:kanban-viz/src/vite-env.d",
-      "language": "typescript",
-      "file": "kanban-viz/src/vite-env.d.ts"
-    },
-    {
-      "id": "ts:kanban-viz/vite.config",
-      "language": "typescript",
-      "file": "kanban-viz/vite.config.ts"
-    },
-    {
-      "id": "ts:loadFromStorage",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx"
-    },
-    {
-      "id": "ts:mintEventsToken",
-      "language": "typescript",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts"
-    },
-    {
-      "id": "ts:prStatusToColumn",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/coordinator-types.ts"
-    },
-    {
-      "id": "ts:proposalStatusToColumn",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/coordinator-types.ts"
-    },
-    {
-      "id": "ts:relativeTime",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/Card.tsx"
-    },
-    {
-      "id": "ts:repoToColor",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/RepoBadge.tsx"
-    },
-    {
-      "id": "ts:requiresConsent",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/reversibility.ts"
-    },
-    {
-      "id": "ts:saveBrowser",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/saveView.ts"
-    },
-    {
-      "id": "ts:saveTauri",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/saveView.ts"
-    },
-    {
-      "id": "ts:saveToStorage",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx"
-    },
-    {
-      "id": "ts:saveView",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/saveView.ts"
-    },
-    {
-      "id": "ts:shortForm",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx"
-    },
-    {
-      "id": "ts:slugify",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx"
-    },
-    {
-      "id": "ts:toIssueCard",
-      "language": "typescript",
-      "file": "kanban-viz/src/lib/coordinator-types.ts"
-    },
-    {
-      "id": "ts:useBoardCards",
-      "language": "typescript",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts"
-    },
-    {
-      "id": "ts:useCoordinator",
-      "language": "typescript",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts"
-    },
-    {
-      "id": "ts:useHighlightState",
-      "language": "typescript",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx"
     }
   ],
   "high_impact_modules": [
@@ -21916,6 +21352,29 @@
       ]
     },
     {
+      "id": "py:teams.CrewManifest.validate",
+      "dependent_count": 17,
+      "dependents": [
+        "py:agents_config.get_agent_config",
+        "py:agents_config.get_agent_isolation",
+        "py:agents_config.get_agents_config",
+        "py:agents_config.get_api_key_identities",
+        "py:agents_config.get_dispatch_configs",
+        "py:agents_config.get_mcp_env",
+        "py:agents_config.get_phase_mapping",
+        "py:agents_config.load_agents_config",
+        "py:agents_config.load_archetypes_config",
+        "py:agents_config.resolve_archetype_for_phase",
+        "py:config.ApiConfig.from_env",
+        "py:coordination_api.create_coordination_api",
+        "py:coordination_api.create_coordination_api.get_agent_dispatch_configs",
+        "py:coordination_mcp.get_agent_dispatch_configs",
+        "py:teams.CrewManifest.from_dict",
+        "py:teams.get_crew_manifest",
+        "py:work_queue.WorkQueueService.claim"
+      ]
+    },
+    {
       "id": "py:profile_loader._load_secrets_file",
       "dependent_count": 16,
       "dependents": [
@@ -21934,28 +21393,6 @@
         "py:profile_loader._load_secrets",
         "py:profile_loader.apply_profile",
         "py:profile_loader.load_profile",
-        "py:work_queue.WorkQueueService.claim"
-      ]
-    },
-    {
-      "id": "py:teams.TeamsConfig.validate",
-      "dependent_count": 16,
-      "dependents": [
-        "py:agents_config.get_agent_config",
-        "py:agents_config.get_agent_isolation",
-        "py:agents_config.get_agents_config",
-        "py:agents_config.get_api_key_identities",
-        "py:agents_config.get_dispatch_configs",
-        "py:agents_config.get_mcp_env",
-        "py:agents_config.get_phase_mapping",
-        "py:agents_config.load_agents_config",
-        "py:agents_config.load_archetypes_config",
-        "py:agents_config.resolve_archetype_for_phase",
-        "py:config.ApiConfig.from_env",
-        "py:coordination_api.create_coordination_api",
-        "py:coordination_api.create_coordination_api.get_agent_dispatch_configs",
-        "py:coordination_mcp.get_agent_dispatch_configs",
-        "py:teams.TeamsConfig.from_dict",
         "py:work_queue.WorkQueueService.claim"
       ]
     },
@@ -22204,10 +21641,10 @@
     }
   ],
   "summary": {
-    "total_modules": 1928,
-    "total_groups": 1235,
-    "largest_group_size": 528,
-    "leaf_count": 1538,
+    "total_modules": 1891,
+    "total_groups": 1197,
+    "largest_group_size": 529,
+    "leaf_count": 1501,
     "high_impact_count": 38
   }
 }
