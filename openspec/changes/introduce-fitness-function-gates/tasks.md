@@ -65,17 +65,17 @@ Scenario references use document order within each delta spec:
 
 ## Phase 3 — Planning templates, discovery rubric (wp-templates)
 
-- [ ] 3.1 Write template-contract tests for NFR sections in templates plus rubric category [S]
+- [x] 3.1 Write template-contract tests for NFR sections in templates plus rubric category [S]
   **Spec scenarios**: fitness-functions.1, fitness-functions.2, fitness-functions.3
   **Design decisions**: D8
   **Dependencies**: None
-- [ ] 3.2 Add Non-Functional Requirements section to the proposal.md template [XS]
+- [x] 3.2 Add Non-Functional Requirements section to the proposal.md template [XS]
   **Spec scenarios**: fitness-functions.1
   **Dependencies**: 3.1
-- [ ] 3.3 Add fitness-function mapping subsection to the design.md template [XS]
+- [x] 3.3 Add fitness-function mapping subsection to the design.md template [XS]
   **Spec scenarios**: fitness-functions.2
   **Dependencies**: 3.1
-- [ ] 3.4 Add NFR elicitation category 7 to plan-feature discovery rubric [S]
+- [x] 3.4 Add NFR elicitation category 7 to plan-feature discovery rubric [S]
   **Spec scenarios**: fitness-functions.3
   **Design decisions**: D8
   **Dependencies**: 3.1
