@@ -1,0 +1,76 @@
+{
+  "schema_version": 4,
+  "change_id": "phase-scoped-worktree-lifecycle",
+  "current_phase": "ESCALATE",
+  "iteration": 3,
+  "total_iterations": 9,
+  "max_phase_iterations": 3,
+  "findings_trend": [
+    8,
+    8,
+    8
+  ],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-phase-scoped-worktree-lifecycle-1",
+    "plan-iteration-1-1",
+    "plan-review-1-1",
+    "plan-review-2-1",
+    "plan-review-3-1"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-08-16T01:00:57.134211+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-08-16T01:25:36.870210+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-08-16T01:44:00.868998+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-08-16T01:54:30.417981+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-08-16T02:12:08.215353+00:00",
+      "outcome": "max_iter",
+      "phase": "PLAN_REVIEW"
+    }
+  ],
+  "last_handoff_id": "plan-review-3-1",
+  "started_at": "2026-08-16T00:58:04.819479+00:00",
+  "phase_started_at": "2026-08-16T02:12:08.330414+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "escalation_reason": "PLAN_REVIEW reached max_phase_iterations=3 without multi-vendor convergence; review evidence retained for operator resolution",
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "reviewer",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": true,
+    "has_proposal": true,
+    "has_security_signal": true,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 5,
+    "total_loc_estimate": 4050
+  },
+  "gate_verdict": "proceed_with_review"
+}

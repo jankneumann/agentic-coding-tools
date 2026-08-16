@@ -7,7 +7,7 @@
       "vendor": "codex",
       "agent_id": "codex",
       "success": true,
-      "findings_count": 8,
+      "findings_count": 11,
       "elapsed_seconds": 0.0,
       "error": null
     }
@@ -23,10 +23,10 @@
       "primary_finding_id": 1,
       "matched_findings": [],
       "match_score": 0.0,
-      "agreed_type": "architecture",
+      "agreed_type": "security",
       "agreed_criticality": "critical",
       "recommended_disposition": "accept",
-      "description": "Critical: Expired-lease takeover is conditioned on the absence of contradictory live-process evidence, but the plan never defines what process identity is recorded, where that record lives, how PID reuse or host identity is handled, or how the takeover checker distinguishes a live old writer from stale process metadata. The registry schema has no process token, and the only related statement says the controller persists unspecified non-authoritative process context. Implementers must therefore either fail every expired takeover as indeterminate or silently omit the zombie check that the fencing model relies on."
+      "description": "Critical: A second controller can resume a still-live lease using the owner and lease_id copied from loop-state, and same-owner/same-token acquire or renew is explicitly accepted without checking controller_instance_id or live process evidence. Both controllers then pass every owner/token assertion and can mutate, integrate, commit, and push concurrently, so the fencing token does not provide active-writer exclusion during duplicate resume\u2014the precise case the lease is meant to guard."
     },
     {
       "id": 2,
@@ -38,7 +38,7 @@
       "agreed_type": "contract_mismatch",
       "agreed_criticality": "critical",
       "recommended_disposition": "accept",
-      "description": "Critical: The spec requires a changed head SHA to invalidate an operator delivery-stage disposition, but the durable operatorOverride contract stores only actor, selected_stage, reason, and recorded_at. It does not bind the override to the base/head SHAs or a classification digest. After an ambiguous PR is overridden as proposal, new code can be pushed while the persisted override still selects planning-only validation and preserve-active-change cleanup, and the executor has no durable value against which to detect staleness."
+      "description": "Critical: Expired acquire must prove HEAD reachable from an expected remote, but neither the registry nor `lease acquire` stores or accepts that remote ref. This is unresolvable for package worktrees whose durable proof is the pushed parent feature ref rather than the child's branch, so an expired package checkout cannot deterministically be judged durable and implementations must either quarantine every such checkout or guess a ref and risk discarding unpublished state."
     },
     {
       "id": 3,
@@ -50,7 +50,7 @@
       "agreed_type": "security",
       "agreed_criticality": "critical",
       "recommended_disposition": "accept",
-      "description": "Critical: lease release-owner clears every exact-owner lease without the quarantine rule applied to release-session or unsafe per-entry release. A recovery operator can therefore clear a live or crashed owner's bulk leases while preserved dirty/non-durable worktrees remain recovery_required=false, making them ordinary-acquire eligible and reopening both concurrent-writer and silent-dirty-state adoption risks."
+      "description": "Critical: Process evidence is keyed only by sha256(lease_id), while lease ids are arbitrary non-empty client strings and are not required to be unique across registry entries. Two active entries can therefore share a lease id and overwrite or delete each other's evidence. On expiry, one entry may observe stale evidence from the other and pass takeover while its original writer is still live, defeating the zombie-writer check."
     },
     {
       "id": 4,
@@ -59,10 +59,10 @@
       "primary_finding_id": 4,
       "matched_findings": [],
       "match_score": 0.0,
-      "agreed_type": "spec_gap",
-      "agreed_criticality": "medium",
+      "agreed_type": "compatibility",
+      "agreed_criticality": "critical",
       "recommended_disposition": "accept",
-      "description": "Nit: Package worktrees are required to be disposed after integration only when remotely durable, but the plan never states which remote ref proves durability for a child branch or when the parent feature branch must be pushed relative to child disposal. Existing package branches are local integration children and are not necessarily pushed under their own names, so checking each entry's branch would quarantine successful packages even when their commits are reachable from the pushed parent feature branch."
+      "description": "Critical: `lease acquire` immediately leases any entry with no current lease, but v1 entries with stale, absent, or invalid heartbeats normalize into exactly that state without any cleanliness, durability, or process assessment. A dirty or unpushed legacy checkout can therefore become ordinarily writable during migration without recovery quarantine, contradicting the plan's guarantee that preserved unknown state is not silently adopted."
     },
     {
       "id": 5,
@@ -71,10 +71,10 @@
       "primary_finding_id": 5,
       "matched_findings": [],
       "match_score": 0.0,
-      "agreed_type": "resilience",
-      "agreed_criticality": "medium",
+      "agreed_type": "security",
+      "agreed_criticality": "critical",
       "recommended_disposition": "accept",
-      "description": "Nit: Holding the registry lock across Git removal and registry deletion prevents concurrent acquisition but does not make the two side effects atomic. A crash after git worktree remove succeeds and before the registry entry is deleted leaves a live leased orphan entry; the contract defines idempotency only when both the entry and checkout are absent and does not specify owner-fenced reconciliation for this one-sided state."
+      "description": "Critical: `release-owner` and `release-session` may quarantine a checkout while its controller is still running, but `recovery adopt` does not explicitly require stale process evidence or an operator-confirmed termination before clearing quarantine and issuing a new lease. The old controller can have a repository mutation already in flight while the adopted controller starts writing, recreating concurrent-writer risk even though both individual registry transitions are locked."
     },
     {
       "id": 6,
@@ -83,10 +83,10 @@
       "primary_finding_id": 6,
       "matched_findings": [],
       "match_score": 0.0,
-      "agreed_type": "contract_mismatch",
-      "agreed_criticality": "medium",
+      "agreed_type": "correctness",
+      "agreed_criticality": "critical",
       "recommended_disposition": "accept",
-      "description": "Nit: recovery adopt says it atomically acquires a manual lease but does not define the resulting session_id, phase, TTL/timestamps, recovery reason clearing, exit codes, or JSON output, even though every one of those fields is mandatory or operationally relevant in schema v2. The safety-critical adoption path is therefore less specified than ordinary acquire."
+      "description": "Critical: Autopilot always releases and may safely tear down its checkout on exception or ESCALATE, but its resume contract handles only a matching live lease or an expired existing lease. A normal later resume after successful teardown finds neither registry entry nor worktree and is specified only as an identity mismatch/escalation, so the durable checkpoint cannot actually restore the run it was written to recover."
     },
     {
       "id": 7,
@@ -95,10 +95,10 @@
       "primary_finding_id": 7,
       "matched_findings": [],
       "match_score": 0.0,
-      "agreed_type": "architecture",
-      "agreed_criticality": "low",
+      "agreed_type": "security",
+      "agreed_criticality": "critical",
       "recommended_disposition": "accept",
-      "description": "The revised plan correctly separates retention, activity, and recovery quarantine, and it carries one acquisition-specific lease id through mutation boundaries so same-owner resumes cannot revive an expired writer."
+      "description": "Critical: The merge-plan schema permits `decision_source=operator_override` for any latest classification, even though the specification authorizes disposition only to resolve an ambiguous node. Without an explicit producer/command invariant tying an override to `latest_delivery_classification.delivery_stage=ambiguous`, an override can downgrade a clearly classified implementation PR to proposal routing and bypass full validation, holdout, cleanup, and archival."
     },
     {
       "id": 8,
@@ -107,16 +107,52 @@
       "primary_finding_id": 8,
       "matched_findings": [],
       "match_score": 0.0,
-      "agreed_type": "security",
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Operator overrides bind a SHA-256 digest of the 'canonical' classification, but no canonical JSON serialization is named. Different key ordering, Unicode handling, or timestamp formatting across the CLI and executor can produce different digests for semantically identical evidence and make valid overrides unusable or inconsistently accepted."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The integration task and verification step claim a formatting gate, but the command runs only `ruff check`; it never runs `ruff format --check`. Formatting drift can therefore pass the declared final quality gate."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
       "agreed_criticality": "low",
       "recommended_disposition": "accept",
-      "description": "The delivery classifier fails closed on incomplete primary evidence and conflicting markers, while author-vendor claims remain unverified routing evidence rather than authentication; these are sound safety boundaries."
+      "description": "The revised plan now gives expired takeover concrete PID/start/host evidence, conservatively quarantines missing and cross-host evidence, and fences the Git-removal/registry-removal crash boundary with exact-owner reconciliation."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The operator override now carries base/head SHAs, ruleset version, and a classification digest, and execution is required to invalidate stale evidence rather than silently reusing a prior disposition."
     }
   ],
   "summary": {
-    "total_unique_findings": 8,
+    "total_unique_findings": 11,
     "confirmed_count": 0,
-    "unconfirmed_count": 8,
+    "unconfirmed_count": 11,
     "disagreement_count": 0,
     "blocking_count": 0
   }

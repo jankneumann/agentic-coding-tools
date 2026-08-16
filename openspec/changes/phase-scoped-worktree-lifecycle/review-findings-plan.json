@@ -5,15 +5,15 @@
   "findings": [
     {
       "id": 1,
-      "type": "architecture",
+      "type": "security",
       "criticality": "critical",
-      "axis": "architecture",
+      "axis": "security",
       "severity": "critical",
-      "description": "Critical: Expired-lease takeover is conditioned on the absence of contradictory live-process evidence, but the plan never defines what process identity is recorded, where that record lives, how PID reuse or host identity is handled, or how the takeover checker distinguishes a live old writer from stale process metadata. The registry schema has no process token, and the only related statement says the controller persists unspecified non-authoritative process context. Implementers must therefore either fail every expired takeover as indeterminate or silently omit the zombie check that the fencing model relies on.",
-      "resolution": "Define a concrete, local-first process-evidence contract (storage path/schema, PID plus process-start/host identity, writer and cleanup ownership, atomic ordering relative to lease acquire/release, stale-record rules, and takeover outcomes) and add process-level fixtures for live zombie, PID reuse, missing evidence, stale evidence, and cross-host/indeterminate cases. If reliable evidence cannot be obtained, make quarantine the explicit deterministic fallback rather than claiming clean takeover.",
+      "description": "Critical: A second controller can resume a still-live lease using the owner and lease_id copied from loop-state, and same-owner/same-token acquire or renew is explicitly accepted without checking controller_instance_id or live process evidence. Both controllers then pass every owner/token assertion and can mutate, integrate, commit, and push concurrently, so the fencing token does not provide active-writer exclusion during duplicate resume—the precise case the lease is meant to guard.",
+      "resolution": "Bind a live lease to a controller instance/process identity and permit idempotent retry only from that same controller. A different controller resuming a live token must inspect process evidence under the lifecycle lock: reject/quarantine when the prior controller is live or indeterminate, and rotate to a new lease_id only after stale-process and checkout-safety checks. Add duplicate-live-resume and lost-response-same-controller fixtures.",
       "disposition": "fix",
       "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md",
-      "line_range": { "start": 156, "end": 164 }
+      "line_range": { "start": 169, "end": 175 }
     },
     {
       "id": 2,
@@ -21,11 +21,11 @@
       "criticality": "critical",
       "axis": "correctness",
       "severity": "critical",
-      "description": "Critical: The spec requires a changed head SHA to invalidate an operator delivery-stage disposition, but the durable operatorOverride contract stores only actor, selected_stage, reason, and recorded_at. It does not bind the override to the base/head SHAs or a classification digest. After an ambiguous PR is overridden as proposal, new code can be pushed while the persisted override still selects planning-only validation and preserve-active-change cleanup, and the executor has no durable value against which to detect staleness.",
-      "resolution": "Add the exact base_sha and head_sha (and preferably ruleset/classification digest) that the operator inspected to operatorOverride, require execution to compare them with the refreshed classification before honoring the override, and force the node back to blocked when either SHA changes. Add schema fixtures and resume/execution tests for stale overrides.",
+      "description": "Critical: Expired acquire must prove HEAD reachable from an expected remote, but neither the registry nor `lease acquire` stores or accepts that remote ref. This is unresolvable for package worktrees whose durable proof is the pushed parent feature ref rather than the child's branch, so an expired package checkout cannot deterministically be judged durable and implementations must either quarantine every such checkout or guess a ref and risk discarding unpublished state.",
+      "resolution": "Persist the expected durability ref (and remote identity) in the entry/lease setup contract or require it on every takeover-capable acquire, then compare the exact checkout HEAD to that ref under lock. Carry the parent feature ref for package entries and add expired-package fixtures for reachable and unreachable parent refs.",
       "disposition": "fix",
-      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json",
-      "line_range": { "start": 33, "end": 42 }
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml",
+      "line_range": { "start": 63, "end": 79 }
     },
     {
       "id": 3,
@@ -33,69 +33,105 @@
       "criticality": "critical",
       "axis": "security",
       "severity": "critical",
-      "description": "Critical: lease release-owner clears every exact-owner lease without the quarantine rule applied to release-session or unsafe per-entry release. A recovery operator can therefore clear a live or crashed owner's bulk leases while preserved dirty/non-durable worktrees remain recovery_required=false, making them ordinary-acquire eligible and reopening both concurrent-writer and silent-dirty-state adoption risks.",
-      "resolution": "Make release-owner non-destructive but quarantine every still-present matching checkout before clearing ownership, unless it performs the same owner-fenced clean/durable disposal transaction as explicit finalization. Return quarantined_count and per-entry outcomes, and add tests showing a bulk recovery release cannot make preserved state ordinarily adoptable.",
+      "description": "Critical: Process evidence is keyed only by sha256(lease_id), while lease ids are arbitrary non-empty client strings and are not required to be unique across registry entries. Two active entries can therefore share a lease id and overwrite or delete each other's evidence. On expiry, one entry may observe stale evidence from the other and pass takeover while its original writer is still live, defeating the zombie-writer check.",
+      "resolution": "Make the evidence key include the canonical entry identity plus lease id, or require and transactionally enforce registry-wide cryptographically strong lease-id uniqueness. Validate that the evidence payload matches both the target entry and lease before using or deleting it, and add collision/cleanup fixtures across two entries.",
       "disposition": "fix",
       "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml",
-      "line_range": { "start": 102, "end": 111 }
+      "line_range": { "start": 28, "end": 50 }
     },
     {
       "id": 4,
-      "type": "spec_gap",
-      "criticality": "medium",
+      "type": "compatibility",
+      "criticality": "critical",
       "axis": "correctness",
-      "severity": "nit",
-      "description": "Nit: Package worktrees are required to be disposed after integration only when remotely durable, but the plan never states which remote ref proves durability for a child branch or when the parent feature branch must be pushed relative to child disposal. Existing package branches are local integration children and are not necessarily pushed under their own names, so checking each entry's branch would quarantine successful packages even when their commits are reachable from the pushed parent feature branch.",
-      "resolution": "Specify that package HEAD durability is proven against the pushed parent feature ref after integration (or require child branches to be pushed explicitly), persist/pass that expected ref to teardown, and add a fixture where an unpushed child ref is safely removed because its exact HEAD is reachable from the pushed parent ref.",
+      "severity": "critical",
+      "description": "Critical: `lease acquire` immediately leases any entry with no current lease, but v1 entries with stale, absent, or invalid heartbeats normalize into exactly that state without any cleanliness, durability, or process assessment. A dirty or unpushed legacy checkout can therefore become ordinarily writable during migration without recovery quarantine, contradicting the plan's guarantee that preserved unknown state is not silently adopted.",
+      "resolution": "Distinguish an entry atomically created by the current setup from a pre-existing unleased/legacy entry. Require the full locked clean/submodule/durability/process assessment before acquiring any pre-existing unleased entry whose safety provenance is unknown, quarantining indeterminate legacy state. Add dirty, clean-durable, missing-path, and invalid-heartbeat v1 acquisition tests.",
       "disposition": "fix",
-      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/specs/skill-workflow/spec.md",
-      "line_range": { "start": 64, "end": 68 }
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md",
+      "line_range": { "start": 156, "end": 168 }
     },
     {
       "id": 5,
-      "type": "resilience",
-      "criticality": "medium",
-      "axis": "architecture",
-      "severity": "nit",
-      "description": "Nit: Holding the registry lock across Git removal and registry deletion prevents concurrent acquisition but does not make the two side effects atomic. A crash after git worktree remove succeeds and before the registry entry is deleted leaves a live leased orphan entry; the contract defines idempotency only when both the entry and checkout are absent and does not specify owner-fenced reconciliation for this one-sided state.",
-      "resolution": "Define repeated teardown of a missing checkout with a still-present exact owner/lease registry entry to remove or tombstone the entry safely, and define release-session behavior for the same state. Add fault-injection tests at the boundary after Git removal and before registry replacement so restart cannot leave a live blocker until TTL expiry.",
+      "type": "security",
+      "criticality": "critical",
+      "axis": "security",
+      "severity": "critical",
+      "description": "Critical: `release-owner` and `release-session` may quarantine a checkout while its controller is still running, but `recovery adopt` does not explicitly require stale process evidence or an operator-confirmed termination before clearing quarantine and issuing a new lease. The old controller can have a repository mutation already in flight while the adopted controller starts writing, recreating concurrent-writer risk even though both individual registry transitions are locked.",
+      "resolution": "Define recovery adoption's safety assessment field by field, including matching old process evidence. Refuse adoption when the old PID/start token is live or evidence is indeterminate unless a separately named, audited force transition confirms termination; rotate the fence and preserve the old evidence for diagnostics. Test adoption immediately after session/owner release with live, stale, missing, and cross-host evidence.",
       "disposition": "fix",
       "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml",
-      "line_range": { "start": 136, "end": 149 }
+      "line_range": { "start": 137, "end": 150 }
     },
     {
       "id": 6,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: Autopilot always releases and may safely tear down its checkout on exception or ESCALATE, but its resume contract handles only a matching live lease or an expired existing lease. A normal later resume after successful teardown finds neither registry entry nor worktree and is specified only as an identity mismatch/escalation, so the durable checkpoint cannot actually restore the run it was written to recover.",
+      "resolution": "Specify a released/removed resume transition: verify the persisted branch and checkpoint are durable on the expected remote, recreate the same managed worktree and registry entry, issue a new lease id under the stable autopilot owner, checkpoint it, then resume. Add tests for post-ESCALATE and post-exception resume after clean teardown, plus quarantined and non-durable variants.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md",
+      "line_range": { "start": 326, "end": 340 }
+    },
+    {
+      "id": 7,
+      "type": "security",
+      "criticality": "critical",
+      "axis": "security",
+      "severity": "critical",
+      "description": "Critical: The merge-plan schema permits `decision_source=operator_override` for any latest classification, even though the specification authorizes disposition only to resolve an ambiguous node. Without an explicit producer/command invariant tying an override to `latest_delivery_classification.delivery_stage=ambiguous`, an override can downgrade a clearly classified implementation PR to proposal routing and bypass full validation, holdout, cleanup, and archival.",
+      "resolution": "Schema-enforce and command-check that operator overrides are accepted only when the latest classification is ambiguous and all bound digest/SHA/ruleset fields match. Reject override creation for proposal, implementation, or mixed classifier results, and add a fixture proving a clear implementation cannot be overridden to proposal.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json",
+      "line_range": { "start": 54, "end": 145 }
+    },
+    {
+      "id": 8,
       "type": "contract_mismatch",
       "criticality": "medium",
       "axis": "readability",
       "severity": "nit",
-      "description": "Nit: recovery adopt says it atomically acquires a manual lease but does not define the resulting session_id, phase, TTL/timestamps, recovery reason clearing, exit codes, or JSON output, even though every one of those fields is mandatory or operationally relevant in schema v2. The safety-critical adoption path is therefore less specified than ordinary acquire.",
-      "resolution": "Define recovery adopt as a complete field-by-field transition, include required machine-readable output and conflict/inspection-failure exits, and add schema-valid fixtures for successful adoption plus dirty, missing, and concurrent-owner failures.",
+      "description": "Nit: Operator overrides bind a SHA-256 digest of the 'canonical' classification, but no canonical JSON serialization is named. Different key ordering, Unicode handling, or timestamp formatting across the CLI and executor can produce different digests for semantically identical evidence and make valid overrides unusable or inconsistently accepted.",
+      "resolution": "Name a canonicalization algorithm such as RFC 8785/JCS or specify the exact UTF-8 serialization, included fields, key ordering, and normalization rules. Publish one shared digest helper and cross-process fixtures with a fixed expected hash.",
       "disposition": "fix",
-      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml",
-      "line_range": { "start": 126, "end": 134 }
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md",
+      "line_range": { "start": 464, "end": 469 }
     },
     {
-      "id": 7,
+      "id": 9,
+      "type": "style",
+      "criticality": "medium",
+      "axis": "readability",
+      "severity": "nit",
+      "description": "Nit: The integration task and verification step claim a formatting gate, but the command runs only `ruff check`; it never runs `ruff format --check`. Formatting drift can therefore pass the declared final quality gate.",
+      "resolution": "Add `ruff format --check` for both skills and coordinator paths (or rename the gate and task text if formatting is intentionally out of scope).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml",
+      "line_range": { "start": 480, "end": 487 }
+    },
+    {
+      "id": 10,
       "type": "architecture",
       "criticality": "low",
       "axis": "architecture",
       "severity": "none",
-      "description": "The revised plan correctly separates retention, activity, and recovery quarantine, and it carries one acquisition-specific lease id through mutation boundaries so same-owner resumes cannot revive an expired writer.",
-      "resolution": "Preserve these state boundaries and fencing assertions during implementation.",
+      "description": "The revised plan now gives expired takeover concrete PID/start/host evidence, conservatively quarantines missing and cross-host evidence, and fences the Git-removal/registry-removal crash boundary with exact-owner reconciliation.",
+      "resolution": "Preserve these conservative takeover and reconciliation rules while closing the remaining identity and durability-reference gaps.",
       "disposition": "accept",
       "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md"
     },
     {
-      "id": 8,
-      "type": "security",
+      "id": 11,
+      "type": "correctness",
       "criticality": "low",
-      "axis": "security",
+      "axis": "correctness",
       "severity": "none",
-      "description": "The delivery classifier fails closed on incomplete primary evidence and conflicting markers, while author-vendor claims remain unverified routing evidence rather than authentication; these are sound safety boundaries.",
-      "resolution": "Retain the conservative ambiguity and reviewer-routing behavior in implementation tests.",
+      "description": "The operator override now carries base/head SHAs, ruleset version, and a classification digest, and execution is required to invalidate stale evidence rather than silently reusing a prior disposition.",
+      "resolution": "Retain the stale-override checks and add the ambiguous-only/canonicalization constraints described above.",
       "disposition": "accept",
-      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/specs/merge-pull-requests/spec.md"
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json"
     }
   ]
 }

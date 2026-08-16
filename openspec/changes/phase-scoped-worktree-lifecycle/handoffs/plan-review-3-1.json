@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-16T02:11:21Z",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "Phase sub-agent persisted the structured review handoff locally for orchestrator pickup.",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "PLAN_REVIEW reached the configured third-attempt limit without convergence. The primary review found seven critical lifecycle and merge-routing blockers plus two nits and two positive observations. The recorded vendor manifest has no valid external review (Antigravity, Claude, Grok, and Pi all failed), so the synthesized single-vendor artifact is non-quorate; its automatic zero-blocking/accept recommendations must not override the seven primary critical findings.",
+    "completed_work": [
+      "Read proposal, design, tasks, all delta specs, contracts, and work-packages.yaml after Plan Iteration 3.",
+      "Wrote and schema-validated 11 Codex findings: 7 critical, 2 nit, and 2 positive observations.",
+      "Attempted multi-vendor dispatch and used the recorded review-manifest.json participation evidence: Antigravity, Claude, Grok, and Pi produced no valid findings.",
+      "Synthesized consensus-plan.json from the only valid review; external quorum was not met and all findings remain unconfirmed by another vendor.",
+      "Applied the configured max-phase-iterations policy after the third PLAN_REVIEW attempt."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Plan review exhausted without convergence",
+        "rationale": "Live same-token resume can create two valid writers; durability refs are unavailable to expired acquire; process evidence can collide across entries; legacy unleased state bypasses safety assessment; recovery adoption can race a live old writer; post-ESCALATE teardown has no resume transition; and operator overrides are not constrained to ambiguous classifications.",
+        "capability": "worktree",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Bind live lease retry/resume to controller identity and rotate the fence only after stale-process proof; reject duplicate live resume.",
+      "Persist or require the exact durability ref for takeover, including parent-feature refs for integrated package worktrees.",
+      "Scope process-evidence keys to the registry entry plus lease or enforce registry-wide unique strong lease ids.",
+      "Run the full safety assessment before acquiring pre-existing unleased/legacy entries and before recovery adoption; quarantine live or indeterminate process evidence.",
+      "Define autopilot resume after clean teardown by recreating the durable branch/worktree and issuing a new fenced lease.",
+      "Allow operator delivery overrides only for an ambiguous latest classification and specify canonical classification digest serialization.",
+      "Add the missing Ruff format-check gate, then request operator disposition because PLAN_REVIEW has reached max iterations."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/review-findings-plan.json",
+        "description": "Primary schema-valid findings with seven critical blockers"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/reviews/review-manifest.json",
+        "description": "Recorded external vendor failures and zero-valid-review participation evidence"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/reviews/consensus-plan.json",
+        "description": "Non-quorate single-vendor synthesis; automated accept recommendations are not authoritative"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md",
+        "description": "Live resume, migration acquire, recovery, and autopilot resume contracts requiring revision"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml",
+        "description": "Durability-ref, process-evidence identity, and recovery-adoption contracts requiring revision"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json",
+        "description": "Operator override must be restricted to ambiguous latest classifications"
+      }
+    ]
+  }
+}
