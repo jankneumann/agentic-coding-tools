@@ -14,6 +14,16 @@ import re
 import sys
 from pathlib import Path
 
+try:
+    from .severity import severity_for_criticality
+except ImportError:  # executed directly as a script (install-payload check in CI)
+    from severity import severity_for_criticality  # type: ignore[no-redef]
+
+# A layering/boundary violation is an architecture-axis concern: it is about
+# module boundaries and dependency direction, not about local code quality.
+_AXIS = "architecture"
+_CRITICALITY = "high"
+
 # Runtime reference patterns that indicate an installed-payload boundary
 # violation. They intentionally operate line-by-line so findings point to the
 # exact executable snippet, hook, or import that must be repaired.
@@ -132,7 +142,9 @@ def check_dependency_direction(
                     findings.append({
                         "id": finding_id,
                         "type": "architecture",
-                        "criticality": "high",
+                        "axis": _AXIS,
+                        "severity": severity_for_criticality(_CRITICALITY),
+                        "criticality": _CRITICALITY,
                         "disposition": "fix",
                         "description": (
                             f"{file_path} {reason} "

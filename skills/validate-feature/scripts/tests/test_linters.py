@@ -11,11 +11,13 @@ Tests cover:
 
 from __future__ import annotations
 
+import copy
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 import pytest
 
 # Ensure scripts dir is importable
@@ -28,19 +30,38 @@ from linters.dependency_direction import check_dependency_direction  # noqa: E40
 from linters.file_size import check_file_size  # noqa: E402
 from linters.naming_conventions import check_naming_conventions  # noqa: E402
 
-# Path to the review-findings schema for validation
-_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[5]
-    / "openspec"
-    / "schemas"
-    / "review-findings.schema.json"
-)
+# Path to the review-findings schema for validation.
+# Resolved by walking up to the repo root rather than a fixed parent index —
+# the previous fixed index pointed above the repo, and because nothing ever
+# called the loader the broken path went unnoticed.
+_SCHEMA_RELATIVE = Path("openspec") / "schemas" / "review-findings.schema.json"
+
+
+def _resolve_schema_path() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / _SCHEMA_RELATIVE
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError(f"Could not locate {_SCHEMA_RELATIVE} above {__file__}")
+
+
+_SCHEMA_PATH = _resolve_schema_path()
 
 
 def _load_review_findings_schema() -> dict[str, Any]:
     """Load the review-findings JSON schema."""
     with open(_SCHEMA_PATH) as f:
         return json.load(f)
+
+
+def _as_review_document(findings: list[dict[str, Any]]) -> dict[str, Any]:
+    """Wrap bare linter findings in a review-findings envelope for validation."""
+    return {
+        "review_type": "implementation",
+        "target": "wp-architecture-linters",
+        "reviewer_vendor": "structural-linter",
+        "findings": findings,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -514,3 +535,113 @@ class TestSchemaConformance:
         assert isinstance(finding["description"], str)
         assert isinstance(finding["resolution"], str)
         assert finding["disposition"] in ["fix", "regenerate", "accept", "escalate"]
+
+
+# ---------------------------------------------------------------------------
+# Integration: jsonschema.validate against review-findings.schema.json
+#
+# The pre-existing conformance tests above hand-check a few keys, which let the
+# linters ship findings missing the schema-required `axis` and `severity`
+# fields. These tests call jsonschema.validate for real, plus a negative
+# control so a vacuously-passing assertion cannot hide the gap again.
+# ---------------------------------------------------------------------------
+
+
+class TestJsonSchemaValidation:
+    """Every linter's emitted findings must validate against the schema."""
+
+    def test_dependency_direction_findings_validate(self, tmp_path: Path) -> None:
+        bad_file = tmp_path / "skills" / "test-skill" / "scripts" / "bad.py"
+        bad_file.parent.mkdir(parents=True)
+        bad_file.write_text("from agent_coordinator.src.locks import acquire_lock\n")
+
+        findings = check_dependency_direction([str(bad_file)])
+        assert findings, "fixture must produce at least one finding"
+
+        jsonschema.validate(
+            instance=_as_review_document(findings),
+            schema=_load_review_findings_schema(),
+        )
+
+    def test_file_size_findings_validate(self, tmp_path: Path) -> None:
+        big_file = tmp_path / "big.py"
+        big_file.write_text("line\n" * 600)
+
+        findings = check_file_size([str(big_file)], max_lines=500)
+        assert findings, "fixture must produce at least one finding"
+
+        jsonschema.validate(
+            instance=_as_review_document(findings),
+            schema=_load_review_findings_schema(),
+        )
+
+    def test_naming_conventions_findings_validate(self, tmp_path: Path) -> None:
+        script = tmp_path / "skills" / "my_bad_skill" / "scripts" / "analyze-failures.py"
+        script.parent.mkdir(parents=True)
+        script.write_text("")
+
+        findings = check_naming_conventions([str(script)])
+        assert findings, "fixture must produce at least one finding"
+
+        jsonschema.validate(
+            instance=_as_review_document(findings),
+            schema=_load_review_findings_schema(),
+        )
+
+    def test_run_all_linters_output_validates(self, tmp_path: Path) -> None:
+        """The orchestrator's full document validates end to end."""
+        bad_file = tmp_path / "skills" / "bad_skill" / "scripts" / "huge-bad.py"
+        bad_file.parent.mkdir(parents=True)
+        lines = ["from agent_coordinator.src.locks import acquire_lock\n"]
+        lines += ["x = 1\n"] * 550
+        bad_file.write_text("".join(lines))
+
+        result = run_all_linters([str(bad_file)], config={"max_lines": 500})
+        assert len(result["findings"]) >= 3
+
+        jsonschema.validate(
+            instance=result,
+            schema=_load_review_findings_schema(),
+        )
+
+    @pytest.mark.parametrize("dropped_field", ["axis", "severity", "criticality"])
+    def test_finding_missing_required_field_is_rejected(
+        self, tmp_path: Path, dropped_field: str
+    ) -> None:
+        """Negative control — validation must actually reject an invalid finding.
+
+        Without this, the assertions above could pass vacuously if the schema
+        were loaded but never enforced.
+        """
+        big_file = tmp_path / "big.py"
+        big_file.write_text("line\n" * 600)
+
+        findings = check_file_size([str(big_file)], max_lines=500)
+        broken = copy.deepcopy(findings)
+        broken[0].pop(dropped_field)
+
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(
+                instance=_as_review_document(broken),
+                schema=_load_review_findings_schema(),
+            )
+
+    def test_axis_and_severity_use_schema_vocabulary(self, tmp_path: Path) -> None:
+        """Emitted axis/severity values come from the 8-axis / 5-severity enums."""
+        schema = _load_review_findings_schema()
+        item_props = schema["properties"]["findings"]["items"]["properties"]
+        axis_values = set(item_props["axis"]["enum"])
+        severity_values = set(item_props["severity"]["enum"])
+
+        bad_file = tmp_path / "skills" / "bad_skill" / "scripts" / "huge-bad.py"
+        bad_file.parent.mkdir(parents=True)
+        lines = ["from agent_coordinator.src.locks import acquire_lock\n"]
+        lines += ["x = 1\n"] * 550
+        bad_file.write_text("".join(lines))
+
+        result = run_all_linters([str(bad_file)], config={"max_lines": 500})
+        assert result["findings"]
+
+        for finding in result["findings"]:
+            assert finding["axis"] in axis_values
+            assert finding["severity"] in severity_values

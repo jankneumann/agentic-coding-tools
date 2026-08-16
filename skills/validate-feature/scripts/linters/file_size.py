@@ -10,6 +10,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .severity import severity_for_criticality
+
+# An oversized file is a module-decomposition concern — the architecture axis
+# (cohesion and module boundaries) rather than a local readability nit.
+_AXIS = "architecture"
+_CRITICALITY = "medium"
+
 _DEFAULT_MAX_LINES = 500
 
 _REMEDIATION_TEMPLATE = (
@@ -51,7 +58,9 @@ def check_file_size(
             findings.append({
                 "id": finding_id,
                 "type": "architecture",
-                "criticality": "medium",
+                "axis": _AXIS,
+                "severity": severity_for_criticality(_CRITICALITY),
+                "criticality": _CRITICALITY,
                 "disposition": "fix",
                 "description": (
                     f"{file_path} has {line_count} lines, "

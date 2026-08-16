@@ -13,6 +13,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from .severity import severity_for_criticality
+
+# Naming is what the next maintainer reads first — the readability axis.
+_AXIS = "readability"
+_CRITICALITY = "low"
+
 # kebab-case: lowercase letters, digits, and hyphens only
 _KEBAB_CASE_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 
@@ -88,7 +94,9 @@ def check_naming_conventions(
                     findings.append({
                         "id": finding_id,
                         "type": "architecture",
-                        "criticality": "low",
+                        "axis": _AXIS,
+                        "severity": severity_for_criticality(_CRITICALITY),
+                        "criticality": _CRITICALITY,
                         "disposition": "fix",
                         "description": (
                             f"Skill directory '{skill_dir}' does not follow "
@@ -113,7 +121,9 @@ def check_naming_conventions(
                     findings.append({
                         "id": finding_id,
                         "type": "architecture",
-                        "criticality": "low",
+                        "axis": _AXIS,
+                        "severity": severity_for_criticality(_CRITICALITY),
+                        "criticality": _CRITICALITY,
                         "disposition": "fix",
                         "description": (
                             f"Script file '{path.name}' does not follow "
@@ -141,7 +151,9 @@ def check_naming_conventions(
                 findings.append({
                     "id": finding_id,
                     "type": "architecture",
-                    "criticality": "low",
+                    "axis": _AXIS,
+                    "severity": severity_for_criticality(_CRITICALITY),
+                    "criticality": _CRITICALITY,
                     "disposition": "fix",
                     "description": (
                         f"Schema file '{path.name}' does not follow "
