@@ -1,5 +1,16 @@
 schema_version: 3
 
+# Host class of the machine serving the `local` provider (ASUS Ascent GX10 /
+# NVIDIA GB10: 128 GB unified LPDDR5x at ~273 GB/s). Decode throughput is
+# BANDWIDTH-bound, not capacity-bound, so the local roster is chosen by active
+# parameters (MoE-first), not by what fits in 128 GB. Enforced at coordinator
+# startup by agents_config._validate_local_roster — see OpenSpec change
+# add-local-model-provider-tier (D4) and contracts/local-roster-entry.schema.json.
+local_host_class:
+  name: gb10
+  active_params_ceiling_b: 12
+  dense_params_limit_b: 30
+
 # `frontier` is an OPTIONAL tier: providers that omit it resolve frontier
 # requests to their premium model (graceful degradation in agents_config).
 #
@@ -51,6 +62,24 @@ model_aliases:
     premium: qwen/qwen3-coder-plus
     standard: qwen/qwen3-coder
     economy: qwen/qwen3-coder-flash
+  # Always-on local host (see local_host_class above). Entries use the extended
+  # form {model, total_params_b, active_params_b, reviewed} so the MoE-first
+  # rule is validated, not merely documented; `reviewed` is the operator's
+  # sign-off date and must be re-signed when the roster rotates. `frontier` and
+  # `premium` are deliberately omitted — they degrade to the best defined tier
+  # (`standard`), and the archetype trust boundary keeps premium-critical
+  # phases off `local` entirely. Kept in sync with DEFAULT_PROVIDER_MODEL_MAP.
+  local:
+    standard:
+      model: gpt-oss-120b
+      total_params_b: 117
+      active_params_b: 5.1
+      reviewed: "2026-08-16"
+    economy:
+      model: qwen3-coder-30b-a3b
+      total_params_b: 30.5
+      active_params_b: 3.3
+      reviewed: "2026-08-16"
 
 archetypes:
   # Every archetype declares `write_capable` explicitly. The runner's archetype

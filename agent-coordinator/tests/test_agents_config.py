@@ -10,6 +10,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.agents_config import (
+    ALL_MODEL_TIERS as ALL_TIERS,
+)
+from src.agents_config import (
     AgentEntry,
     DuplicateApiKeyError,
     get_agent_config,
@@ -823,12 +826,14 @@ agents:
 # Provider model-map roster (add-agy-grok-pi-harnesses)
 # ---------------------------------------------------------------------------
 
-# The canonical five-provider roster (contracts/roster.md). Derived from the
-# contract's provider-key column, NOT from model-id literals (feedback:
-# tests-derive-from-config). `gemini` is retired and MUST NOT be a provider key.
-ROSTER_PROVIDER_KEYS = frozenset(
+# The canonical provider roster (contracts/roster.md, extended by
+# add-local-model-provider-tier). Derived from the contract's provider-key
+# column, NOT from model-id literals (feedback: tests-derive-from-config).
+# `gemini` is retired and MUST NOT be a provider key.
+CLOUD_ROSTER_PROVIDER_KEYS = frozenset(
     {"claude_code", "codex", "antigravity", "grok", "pi"}
 )
+ROSTER_PROVIDER_KEYS = CLOUD_ROSTER_PROVIDER_KEYS | {"local"}
 BASE_MODEL_TIERS = frozenset({"premium", "standard", "economy"})
 
 
@@ -838,7 +843,7 @@ def _tier_model(value: Any) -> str:
 
 
 class TestProviderModelMapRoster:
-    """DEFAULT_PROVIDER_MODEL_MAP reflects the five-vendor roster.
+    """DEFAULT_PROVIDER_MODEL_MAP reflects the vendor roster.
 
     Spec: configuration.2 (provider map includes all first-class providers;
     pi maps to OpenRouter slugs). Contract: contracts/roster.md.
@@ -855,13 +860,29 @@ class TestProviderModelMapRoster:
 
         assert "gemini" not in DEFAULT_PROVIDER_MODEL_MAP["providers"]
 
-    def test_every_provider_defines_base_tiers(self) -> None:
+    def test_every_cloud_provider_defines_base_tiers(self) -> None:
         from src.agents_config import DEFAULT_PROVIDER_MODEL_MAP
 
-        for provider, mapping in DEFAULT_PROVIDER_MODEL_MAP["providers"].items():
+        for provider in CLOUD_ROSTER_PROVIDER_KEYS:
+            mapping = DEFAULT_PROVIDER_MODEL_MAP["providers"][provider]
             assert BASE_MODEL_TIERS <= set(mapping), (
                 f"{provider} must define {sorted(BASE_MODEL_TIERS)}; got {sorted(mapping)}"
             )
+
+    def test_local_provider_defines_its_required_tiers(self) -> None:
+        """agent-archetypes.1: `local` defines at minimum standard + economy.
+
+        Omitted tiers (frontier/premium) resolve through graceful degradation,
+        so the local roster is NOT held to the full base-tier requirement.
+        """
+        from src.agents_config import (
+            DEFAULT_PROVIDER_MODEL_MAP,
+            LOCAL_PROVIDER,
+            LOCAL_REQUIRED_TIERS,
+        )
+
+        mapping = DEFAULT_PROVIDER_MODEL_MAP["providers"][LOCAL_PROVIDER]
+        assert set(LOCAL_REQUIRED_TIERS) <= set(mapping)
 
     def test_pi_tiers_are_openrouter_slugs(self) -> None:
         # Spec configuration.2 "pi maps to OpenRouter slugs": every tier value is
@@ -876,3 +897,577 @@ class TestProviderModelMapRoster:
                 f"pi {tier}={slug!r} is not <publisher>/<model> form"
             )
         assert _tier_model(pi["standard"]) == "qwen/qwen3-coder"
+
+
+# ---------------------------------------------------------------------------
+# `local` provider tier (OpenSpec change add-local-model-provider-tier)
+#
+# Spec: openspec/changes/add-local-model-provider-tier/specs/agent-archetypes/
+#       spec.md — "Local Roster Hardware Matching", "Local Provider Archetype
+#       Trust Boundary", and the MODIFIED "Archetype Definition Schema".
+# Contract: contracts/local-roster-entry.schema.json
+# Design: D3 (trust boundary in the resolver), D4 (hardware matching is
+#         validated roster metadata), D6 (byte-identical regression), D7.
+# ---------------------------------------------------------------------------
+
+_LOCAL_ARCHETYPES_YAML = """\
+schema_version: 3
+
+local_host_class:
+  name: gb10
+  active_params_ceiling_b: 12
+  dense_params_limit_b: 30
+
+model_aliases:
+  claude_code:
+    frontier: fable
+    premium: opus
+    standard: sonnet
+    economy: haiku
+  local:
+    standard:
+      model: big-moe
+      total_params_b: 117
+      active_params_b: 5.1
+      reviewed: "2026-08-16"
+    economy:
+      model: small-moe
+      total_params_b: 30.5
+      active_params_b: 3.3
+      reviewed: "2026-08-16"
+
+archetypes:
+  runner:
+    write_capable: false
+    model: economy
+    system_prompt: Run it.
+  analyst:
+    write_capable: false
+    model: frontier
+    system_prompt: Analyze it.
+  documenter:
+    write_capable: true
+    model: standard
+    system_prompt: Document it.
+  validator:
+    write_capable: true
+    model: premium
+    system_prompt: Validate it.
+  architect:
+    write_capable: true
+    model: frontier
+    system_prompt: Design it.
+  reviewer:
+    write_capable: true
+    model: premium
+    system_prompt: Review it.
+  gatekeeper:
+    write_capable: false
+    model: premium
+    system_prompt: Judge it.
+  implementer:
+    write_capable: true
+    model: standard
+    system_prompt: Implement it.
+
+phase_mapping:
+  INIT:        {archetype: runner}
+  SUBMIT_PR:   {archetype: analyst}
+  VALIDATE:    {archetype: validator}
+  VAL_FIX:     {archetype: documenter}
+  PLAN:        {archetype: architect}
+  PLAN_REVIEW: {archetype: reviewer}
+  GATEKEEPER:  {archetype: gatekeeper}
+  IMPLEMENT:   {archetype: implementer}
+"""
+
+_REAL_ARCHETYPES_YAML = Path(__file__).resolve().parent.parent / "archetypes.yaml"
+
+
+@pytest.fixture()
+def _clean_archetypes() -> Any:
+    from src.agents_config import reset_archetypes_config
+
+    reset_archetypes_config()
+    yield
+    reset_archetypes_config()
+
+
+def _write_local_yaml(
+    tmp_path: Path,
+    mutate: Any = None,
+    *,
+    name: str = "archetypes.yaml",
+) -> Path:
+    """Write the local-roster test config, optionally mutating the raw dict."""
+    import yaml as _yaml
+
+    raw = _yaml.safe_load(_LOCAL_ARCHETYPES_YAML)
+    if mutate is not None:
+        mutate(raw)
+    path = tmp_path / name
+    path.write_text(_yaml.safe_dump(raw, sort_keys=False))
+    return path
+
+
+# ---------------------------------------------------------------------------
+# 1.1 — roster loading + hardware-matching validation (D4)
+# ---------------------------------------------------------------------------
+
+
+class TestLocalRosterValidation:
+    """Startup validation of the `local` roster's hardware-matching rules."""
+
+    def test_extended_entry_form_accepted(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """agent-archetypes.4: MoE entries under the ceiling load cleanly."""
+        from src.agents_config import (
+            LOCAL_PROVIDER,
+            get_provider_model_map,
+            load_archetypes_config,
+        )
+
+        load_archetypes_config(_write_local_yaml(tmp_path))
+        roster = get_provider_model_map()["providers"][LOCAL_PROVIDER]
+
+        assert roster["economy"]["model"] == "small-moe"
+        assert roster["economy"]["total_params_b"] == 30.5
+        assert roster["economy"]["active_params_b"] == 3.3
+        assert roster["economy"]["reviewed"] == "2026-08-16"
+
+    def test_extended_entry_resolves_to_its_model_id(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """agent-archetypes.1: the extended form still dispatches a model id."""
+        from src.agents_config import load_archetypes_config, resolve_archetype_for_phase
+
+        load_archetypes_config(_write_local_yaml(tmp_path))
+        resolved = resolve_archetype_for_phase("INIT", {}, provider="local")
+
+        assert resolved.archetype == "runner"
+        assert resolved.model == "small-moe"
+        assert resolved.thinking is None
+
+    def test_active_params_over_host_ceiling_rejected(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """A MoE whose active params exceed the host-class ceiling is refused."""
+        from src.agents_config import LocalRosterConfigError, load_archetypes_config
+
+        def _mutate(raw: dict[str, Any]) -> None:
+            raw["model_aliases"]["local"]["standard"]["active_params_b"] = 24.0
+
+        with pytest.raises(LocalRosterConfigError) as exc_info:
+            load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+
+        err = exc_info.value
+        assert isinstance(err, ValueError)
+        assert err.tier == "standard"
+        assert "active" in err.rule
+        message = str(err)
+        assert "24" in message
+        assert "12" in message  # the configured ceiling
+
+    def test_dense_large_model_rejected(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """agent-archetypes.5: dense >= 30B is refused even if it fits in RAM."""
+        from src.agents_config import LocalRosterConfigError, load_archetypes_config
+
+        def _mutate(raw: dict[str, Any]) -> None:
+            raw["model_aliases"]["local"]["standard"] = {
+                "model": "dense-32b",
+                "total_params_b": 32,
+                "active_params_b": 32,
+                "reviewed": "2026-08-16",
+            }
+
+        with pytest.raises(LocalRosterConfigError) as exc_info:
+            load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+
+        err = exc_info.value
+        assert err.tier == "standard"
+        assert "dense" in err.rule
+        assert "32" in str(err)
+
+    def test_missing_review_date_rejected(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """Roster entries carry an operator-signed review date (D4)."""
+        from src.agents_config import LocalRosterConfigError, load_archetypes_config
+
+        def _mutate(raw: dict[str, Any]) -> None:
+            del raw["model_aliases"]["local"]["economy"]["reviewed"]
+
+        with pytest.raises(LocalRosterConfigError) as exc_info:
+            load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+
+        err = exc_info.value
+        assert err.tier == "economy"
+        assert "reviewed" in str(err)
+
+    def test_malformed_review_date_rejected(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        from src.agents_config import LocalRosterConfigError, load_archetypes_config
+
+        def _mutate(raw: dict[str, Any]) -> None:
+            raw["model_aliases"]["local"]["economy"]["reviewed"] = "last tuesday"
+
+        with pytest.raises(LocalRosterConfigError):
+            load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+
+    def test_missing_parameter_metadata_rejected(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """The extended entry form is mandatory for `local` (contract required)."""
+        from src.agents_config import LocalRosterConfigError, load_archetypes_config
+
+        def _mutate(raw: dict[str, Any]) -> None:
+            del raw["model_aliases"]["local"]["economy"]["active_params_b"]
+
+        with pytest.raises(LocalRosterConfigError) as exc_info:
+            load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+        assert "active_params_b" in str(exc_info.value)
+
+    def test_active_params_over_total_rejected(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        from src.agents_config import LocalRosterConfigError, load_archetypes_config
+
+        def _mutate(raw: dict[str, Any]) -> None:
+            raw["model_aliases"]["local"]["economy"]["total_params_b"] = 2.0
+
+        with pytest.raises(LocalRosterConfigError):
+            load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+
+    def test_no_local_roster_means_no_local_validation(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """Nothing requires the local provider to be configured (Rule 4)."""
+        from src.agents_config import load_archetypes_config
+
+        def _mutate(raw: dict[str, Any]) -> None:
+            del raw["model_aliases"]["local"]
+            del raw["local_host_class"]
+
+        archetypes = load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+        assert "runner" in archetypes
+
+    def test_real_archetypes_yaml_local_roster_is_valid(
+        self, _clean_archetypes: None,
+    ) -> None:
+        """The shipped roster obeys its own host-class ceiling (D7)."""
+        import yaml as _yaml
+
+        from src.agents_config import (
+            LOCAL_PROVIDER,
+            LOCAL_REQUIRED_TIERS,
+            load_archetypes_config,
+        )
+
+        # Loading is itself the assertion: validation raises on violation.
+        load_archetypes_config(_REAL_ARCHETYPES_YAML)
+
+        raw = _yaml.safe_load(_REAL_ARCHETYPES_YAML.read_text())
+        host_class = raw["local_host_class"]
+        roster = raw["model_aliases"][LOCAL_PROVIDER]
+
+        assert set(LOCAL_REQUIRED_TIERS) <= set(roster)
+        for tier, entry in roster.items():
+            assert entry["active_params_b"] <= host_class["active_params_ceiling_b"], tier
+            assert entry["active_params_b"] < entry["total_params_b"], tier
+            assert isinstance(entry["reviewed"], str), tier
+
+    def test_default_map_local_tiers_match_the_yaml_roster(self) -> None:
+        """1.4: DEFAULT_PROVIDER_MODEL_MAP is the tier->model-id view of the roster."""
+        import yaml as _yaml
+
+        from src.agents_config import DEFAULT_PROVIDER_MODEL_MAP, LOCAL_PROVIDER
+
+        raw = _yaml.safe_load(_REAL_ARCHETYPES_YAML.read_text())
+        yaml_roster = raw["model_aliases"][LOCAL_PROVIDER]
+        default_roster = DEFAULT_PROVIDER_MODEL_MAP["providers"][LOCAL_PROVIDER]
+
+        assert set(default_roster) == set(yaml_roster)
+        for tier, entry in yaml_roster.items():
+            assert _tier_model(default_roster[tier]) == entry["model"]
+
+
+class TestLocalTierDegradation:
+    """agent-archetypes.2: omitted local tiers degrade to the best defined tier."""
+
+    def test_frontier_request_degrades_with_recorded_reason(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        from src.agents_config import load_archetypes_config, resolve_archetype_for_phase
+
+        load_archetypes_config(_write_local_yaml(tmp_path))
+        # SUBMIT_PR -> analyst, whose tier is `frontier` (absent from the roster).
+        resolved = resolve_archetype_for_phase("SUBMIT_PR", {}, provider="local")
+
+        assert resolved.model == "big-moe"  # best defined tier == standard
+        assert any(
+            "frontier" in reason and "standard" in reason for reason in resolved.reasons
+        ), f"degradation not recorded in reasons: {resolved.reasons}"
+
+    def test_premium_request_degrades_with_recorded_reason(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        from src.agents_config import load_archetypes_config, resolve_archetype_for_phase
+
+        load_archetypes_config(_write_local_yaml(tmp_path))
+        # VALIDATE -> validator, whose tier is `premium` (absent from the roster).
+        resolved = resolve_archetype_for_phase("VALIDATE", {}, provider="local")
+
+        assert resolved.model == "big-moe"
+        assert any(
+            "premium" in reason and "standard" in reason for reason in resolved.reasons
+        ), f"degradation not recorded in reasons: {resolved.reasons}"
+
+    def test_cloud_provider_frontier_fallback_is_silent(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """The pre-existing frontier->premium fallback records no new reason."""
+        from src.agents_config import load_archetypes_config, resolve_archetype_for_phase
+
+        def _mutate(raw: dict[str, Any]) -> None:
+            del raw["model_aliases"]["claude_code"]["frontier"]
+
+        load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+        resolved = resolve_archetype_for_phase("PLAN", {}, provider="claude_code")
+
+        assert resolved.model == "opus"
+        assert not any("degrad" in reason.lower() for reason in resolved.reasons)
+
+    def test_best_defined_tier_degradation_is_local_only(self) -> None:
+        """Rule 4: a cloud provider missing a base tier still fails loudly.
+
+        Best-defined-tier degradation exists for the `local` roster; extending
+        it to every provider would silently downgrade a misconfigured cloud
+        roster instead of raising.
+        """
+        from src.agents_config import (
+            ProviderModelMappingError,
+            resolve_provider_model,
+        )
+
+        partial_map = {
+            "schema_version": 2,
+            "tiers": list(ALL_TIERS),
+            "providers": {
+                "codex": {"standard": "s", "economy": "e"},
+                "local": {"standard": "s", "economy": "e"},
+            },
+        }
+        with pytest.raises(ProviderModelMappingError):
+            resolve_provider_model("premium", provider="codex", model_map=partial_map)
+        assert (
+            resolve_provider_model("premium", provider="local", model_map=partial_map)
+            == "s"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 1.2 — byte-identical regression guard (D6, agent-archetypes.3)
+# ---------------------------------------------------------------------------
+
+
+def _snapshot_resolutions(
+    config_path: Path, providers: list[str],
+) -> dict[tuple[str, str, str], Any]:
+    """Resolve every (archetype x provider) and (phase x provider) pair.
+
+    Archetypes are snapshotted directly (some are not reachable through
+    ``phase_mapping``); phases are snapshotted too so the full resolver path —
+    boundary checks, escalation, reasons — is compared, not just the map.
+    """
+    from src.agents_config import (
+        _resolve_model_spec,
+        get_phase_mapping,
+        load_archetypes_config,
+        reset_archetypes_config,
+        resolve_archetype_for_phase,
+    )
+
+    reset_archetypes_config()
+    archetypes = load_archetypes_config(config_path)
+    snapshot: dict[tuple[str, str, str], Any] = {}
+    for name in sorted(archetypes):
+        for provider in providers:
+            spec, reasons = _resolve_model_spec(
+                archetypes[name], {}, provider=provider,
+            )
+            snapshot[("archetype", name, provider)] = (spec, reasons)
+    for phase in sorted(get_phase_mapping()):
+        for provider in providers:
+            snapshot[("phase", phase, provider)] = resolve_archetype_for_phase(
+                phase, {}, provider=provider,
+            )
+    reset_archetypes_config()
+    return snapshot
+
+
+class TestExistingProvidersAreByteIdentical:
+    """agent-archetypes.3: the `local` roster changes nothing for other providers."""
+
+    def test_resolution_identical_with_and_without_local_roster(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        import yaml as _yaml
+
+        from src.agents_config import LOCAL_PROVIDER
+
+        raw = _yaml.safe_load(_REAL_ARCHETYPES_YAML.read_text())
+        assert LOCAL_PROVIDER in raw["model_aliases"], (
+            "guard: the real config must carry the local roster for this test to mean anything"
+        )
+
+        existing_providers = sorted(
+            p for p in raw["model_aliases"] if p != LOCAL_PROVIDER
+        )
+        assert set(existing_providers) == set(CLOUD_ROSTER_PROVIDER_KEYS)
+
+        # "Before": the same config with the local roster + host class removed.
+        del raw["model_aliases"][LOCAL_PROVIDER]
+        raw.pop("local_host_class", None)
+        before_path = tmp_path / "archetypes-before.yaml"
+        before_path.write_text(_yaml.safe_dump(raw, sort_keys=False))
+
+        before = _snapshot_resolutions(before_path, existing_providers)
+        after = _snapshot_resolutions(_REAL_ARCHETYPES_YAML, existing_providers)
+
+        # Every archetype x existing-provider pair must be in the snapshot.
+        covered = {key[1] for key in before if key[0] == "archetype"}
+        assert covered == set(raw["archetypes"])
+        assert len(before) == (
+            len(raw["archetypes"]) + len(raw["phase_mapping"])
+        ) * len(existing_providers)
+
+        assert set(before) == set(after)
+        for key in sorted(before):
+            assert before[key] == after[key], f"resolution changed for {key}"
+
+
+# ---------------------------------------------------------------------------
+# 2.1 — local provider archetype trust boundary (D3)
+# ---------------------------------------------------------------------------
+
+
+class TestLocalProviderTrustBoundary:
+    """agent-archetypes.6 / .7 — only cheap-to-discard archetypes go local."""
+
+    @pytest.mark.parametrize(
+        ("phase", "archetype"),
+        [
+            ("INIT", "runner"),
+            ("SUBMIT_PR", "analyst"),
+            ("VAL_FIX", "documenter"),
+            ("VALIDATE", "validator"),
+        ],
+    )
+    def test_permitted_archetype_resolves_locally(
+        self, phase: str, archetype: str, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        from src.agents_config import (
+            LOCAL_TRUSTED_ARCHETYPES,
+            load_archetypes_config,
+            resolve_archetype_for_phase,
+        )
+
+        assert archetype in LOCAL_TRUSTED_ARCHETYPES
+        load_archetypes_config(_write_local_yaml(tmp_path))
+        resolved = resolve_archetype_for_phase(phase, {}, provider="local")
+
+        assert resolved.archetype == archetype
+        assert resolved.provider == "local"
+        assert any("trust boundary" in r.lower() for r in resolved.reasons), (
+            f"boundary check not noted in reasons: {resolved.reasons}"
+        )
+
+    @pytest.mark.parametrize(
+        ("phase", "archetype"),
+        [
+            ("PLAN", "architect"),
+            ("PLAN_REVIEW", "reviewer"),
+            ("GATEKEEPER", "gatekeeper"),
+            # `implementer` is not on the permitted list either: the requirement
+            # is an allowlist ("permit ... only for runner, analyst, documenter,
+            # validator"), not merely a denylist of the three named archetypes.
+            ("IMPLEMENT", "implementer"),
+        ],
+    )
+    def test_boundary_archetype_refused(
+        self, phase: str, archetype: str, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        from src.agents_config import (
+            LOCAL_TRUSTED_ARCHETYPES,
+            LocalProviderTrustBoundaryError,
+            load_archetypes_config,
+            resolve_archetype_for_phase,
+        )
+
+        load_archetypes_config(_write_local_yaml(tmp_path))
+        with pytest.raises(LocalProviderTrustBoundaryError) as exc_info:
+            resolve_archetype_for_phase(phase, {}, provider="local")
+
+        err = exc_info.value
+        assert isinstance(err, ValueError)
+        assert err.archetype == archetype
+        assert err.provider == "local"
+        assert set(err.permitted) == set(LOCAL_TRUSTED_ARCHETYPES)
+
+        message = str(err)
+        assert "trust boundary" in message.lower()
+        assert archetype in message
+        for permitted in LOCAL_TRUSTED_ARCHETYPES:
+            assert permitted in message, f"permitted list incomplete in {message!r}"
+
+    @pytest.mark.parametrize(
+        "phase", ["PLAN", "PLAN_REVIEW", "GATEKEEPER", "IMPLEMENT"],
+    )
+    def test_same_phases_resolve_for_cloud_providers(
+        self, phase: str, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """The boundary is local-only — cloud providers are untouched."""
+        from src.agents_config import load_archetypes_config, resolve_archetype_for_phase
+
+        load_archetypes_config(_write_local_yaml(tmp_path))
+        resolved = resolve_archetype_for_phase(phase, {}, provider="claude_code")
+        assert resolved.model
+        assert not any("trust boundary" in r.lower() for r in resolved.reasons)
+
+    def test_boundary_holds_without_a_provider(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """No provider selected → no local boundary, no boundary reason."""
+        from src.agents_config import load_archetypes_config, resolve_archetype_for_phase
+
+        load_archetypes_config(_write_local_yaml(tmp_path))
+        resolved = resolve_archetype_for_phase("PLAN", {})
+        assert resolved.archetype == "architect"
+        assert not any("trust boundary" in r.lower() for r in resolved.reasons)
+
+    def test_real_config_boundary_phases_refuse_local(
+        self, _clean_archetypes: None,
+    ) -> None:
+        """The shipped phase_mapping refuses `local` for its judgment phases."""
+        from src.agents_config import (
+            LOCAL_TRUSTED_ARCHETYPES,
+            LocalProviderTrustBoundaryError,
+            get_phase_mapping,
+            load_archetypes_config,
+            resolve_archetype_for_phase,
+        )
+
+        load_archetypes_config(_REAL_ARCHETYPES_YAML)
+        refused: set[str] = set()
+        for phase, entry in get_phase_mapping().items():
+            if entry.archetype in LOCAL_TRUSTED_ARCHETYPES:
+                continue
+            with pytest.raises(LocalProviderTrustBoundaryError):
+                resolve_archetype_for_phase(phase, {}, provider="local")
+            refused.add(entry.archetype)
+
+        assert {"architect", "reviewer", "gatekeeper"} <= refused

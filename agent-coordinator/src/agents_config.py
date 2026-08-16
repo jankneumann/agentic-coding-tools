@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -40,6 +41,38 @@ LEGACY_CLAUDE_ALIAS_TO_TIER: dict[str, str] = {
     "sonnet": "standard",
     "haiku": "economy",
 }
+
+# ---------------------------------------------------------------------------
+# `local` provider (OpenSpec change add-local-model-provider-tier)
+#
+# The always-on host is bandwidth-bound, not capacity-bound, so its roster is
+# selected by ARCHITECTURE (small-active-parameter MoE) rather than by what
+# fits in memory. Roster entries rotate; the two rules below do not, which is
+# why they live in code and are enforced at startup instead of in comments.
+# ---------------------------------------------------------------------------
+LOCAL_PROVIDER = "local"
+# Tiers the local roster MUST define. Everything else degrades to the best
+# tier it does define (agent-archetypes: "Local roster omits a tier").
+LOCAL_REQUIRED_TIERS: tuple[str, ...] = ("standard", "economy")
+# Archetypes whose output is cheap to discard or verified downstream. This is
+# an allowlist, not a denylist: an archetype absent from it (architect,
+# reviewer, gatekeeper, implementer, ...) MUST NOT resolve to `local` (D3).
+LOCAL_TRUSTED_ARCHETYPES: frozenset[str] = frozenset({
+    "runner",
+    "analyst",
+    "documenter",
+    "validator",
+})
+# Host-class defaults used when archetypes.yaml omits `local_host_class`.
+# GB10 (128 GB unified LPDDR5x @ ~273 GB/s): decode throughput tracks ACTIVE
+# parameters, so a 30B-total/3B-active MoE runs ~9x faster than a dense 32B.
+DEFAULT_LOCAL_HOST_CLASS: dict[str, Any] = {
+    "name": "gb10",
+    "active_params_ceiling_b": 12,
+    "dense_params_limit_b": 30,
+}
+_REVIEWED_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
 # Tier entries are either a bare model-id string or {"model": ..., "thinking": ...}.
 # Thinking level is part of the model definition, not a dispatch afterthought:
 # it shifts both cost and capability enough that a standard model at xhigh
@@ -89,6 +122,16 @@ DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
             "standard": "qwen/qwen3-coder",
             "economy": "qwen/qwen3-coder-flash",
         },
+        # Always-on local host (GB10 class). This is the tier -> model-id view
+        # of `model_aliases.local` in archetypes.yaml; the parameter metadata
+        # and operator review date live there, where startup validation
+        # enforces the MoE-first hardware rule (D4). `frontier`/`premium` are
+        # deliberately omitted — they degrade to the best defined tier. Keep
+        # both in sync; a test asserts the two rosters agree.
+        "local": {
+            "standard": "gpt-oss-120b",
+            "economy": "qwen3-coder-30b-a3b",
+        },
     },
 }
 
@@ -123,6 +166,42 @@ _TIER_VALUE_SCHEMA: dict[str, Any] = {
             },
         },
     ],
+}
+
+# The `local` roster uses an extended entry form so the hardware-matching rule
+# is machine-checkable (contracts/local-roster-entry.schema.json). Only `model`
+# is required *here*; the remaining fields are checked by
+# :func:`_validate_local_roster` so every violation surfaces as one structured
+# LocalRosterConfigError naming the rule it broke, rather than a raw
+# jsonschema error for some rules and a config error for others.
+_LOCAL_TIER_VALUE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["model"],
+    "additionalProperties": False,
+    "properties": {
+        "model": {"type": "string", "minLength": 1, "maxLength": 128},
+        "total_params_b": {"type": "number", "exclusiveMinimum": 0},
+        "active_params_b": {"type": "number", "exclusiveMinimum": 0},
+        "reviewed": {"type": "string", "minLength": 1},
+    },
+}
+
+_LOCAL_ROSTER_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": list(LOCAL_REQUIRED_TIERS),
+    "additionalProperties": False,
+    "properties": dict.fromkeys(ALL_MODEL_TIERS, _LOCAL_TIER_VALUE_SCHEMA),
+}
+
+_LOCAL_HOST_CLASS_SCHEMA: dict[str, Any] = {
+    "type": ["object", "null"],
+    "required": ["name", "active_params_ceiling_b"],
+    "additionalProperties": False,
+    "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "active_params_ceiling_b": {"type": "number", "exclusiveMinimum": 0},
+        "dense_params_limit_b": {"type": "number", "exclusiveMinimum": 0},
+    },
 }
 
 # Autopilot phases that produce files, artifacts, or handoffs and therefore
@@ -177,8 +256,15 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
         # design D3 — no implicit default). A pre-existing v1 file that omits it must add
         # `write_capable` on migration; the version does NOT grandfather the field away.
         "schema_version": {"type": "integer", "enum": [1, 2, 3]},
+        # Host class of the machine serving the `local` provider. Optional:
+        # absent means the GB10 defaults apply (DEFAULT_LOCAL_HOST_CLASS).
+        "local_host_class": _LOCAL_HOST_CLASS_SCHEMA,
         "model_aliases": {
             "type": ["object", "null"],
+            # `local` carries parameter metadata and may omit frontier/premium
+            # (they degrade to its best defined tier); every other provider
+            # keeps the bare-slug form with all base tiers required.
+            "properties": {LOCAL_PROVIDER: _LOCAL_ROSTER_SCHEMA},
             "additionalProperties": {
                 "type": "object",
                 # Base tiers stay required; optional tiers (frontier) may be
@@ -619,6 +705,48 @@ class ProviderModelMappingError(ValueError):
                 f"source_model={model!r}"
             )
         super().__init__(message)
+
+
+class LocalRosterConfigError(ValueError):
+    """Raised at startup when a `local` roster entry breaks a hardware rule.
+
+    Structured on purpose (``rule`` / ``tier`` / ``detail``): an unattended
+    loop must be able to say which rule was violated, not just that the config
+    is bad. Uses the same fail-fast mechanism as the undefined-archetype
+    ``ValueError`` in :func:`load_archetypes_config`.
+    """
+
+    def __init__(self, rule: str, detail: str, *, tier: str | None = None) -> None:
+        self.rule = rule
+        self.tier = tier
+        self.detail = detail
+        location = (
+            f"model_aliases.{LOCAL_PROVIDER}.{tier}"
+            if tier
+            else f"model_aliases.{LOCAL_PROVIDER}"
+        )
+        super().__init__(f"invalid local roster at {location}: {rule} — {detail}")
+
+
+class LocalProviderTrustBoundaryError(ValueError):
+    """Raised when an archetype outside the local trust boundary asks for `local`.
+
+    Design D3: the boundary is enforced in the resolver (the single decision
+    point every client goes through), not in the dispatching caller, and the
+    refusal happens before any dispatch is attempted.
+    """
+
+    def __init__(self, archetype: str, *, phase: str | None = None) -> None:
+        self.archetype = archetype
+        self.phase = phase
+        self.provider = LOCAL_PROVIDER
+        self.permitted: tuple[str, ...] = tuple(sorted(LOCAL_TRUSTED_ARCHETYPES))
+        where = f" (phase={phase})" if phase else ""
+        super().__init__(
+            f"local provider trust boundary: archetype {archetype!r}{where} may not "
+            f"resolve to provider {LOCAL_PROVIDER!r}; permitted archetypes: "
+            f"{', '.join(self.permitted)}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1726,6 +1854,118 @@ def _default_archetypes_path() -> Path:
     return Path(__file__).resolve().parent.parent / "archetypes.yaml"
 
 
+def _as_positive_number(value: Any) -> float | None:
+    """Return *value* as a float when it is a positive, non-boolean number."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return float(value) if value > 0 else None
+
+
+def _validate_local_roster(
+    raw_aliases: dict[str, Any] | None,
+    raw_host_class: dict[str, Any] | None,
+) -> None:
+    """Validate the `local` roster against its host class (design D4).
+
+    No-op unless ``model_aliases.local`` exists — nothing requires the local
+    provider to be configured. When it does exist, every entry must use the
+    extended form and satisfy both hardware rules, or startup fails with a
+    :class:`LocalRosterConfigError` naming the rule.
+
+    Contract: ``contracts/local-roster-entry.schema.json``.
+    """
+    if not raw_aliases:
+        return
+    roster = raw_aliases.get(LOCAL_PROVIDER)
+    if not roster:
+        return
+
+    host_class = {**DEFAULT_LOCAL_HOST_CLASS, **(raw_host_class or {})}
+    ceiling = _as_positive_number(host_class.get("active_params_ceiling_b"))
+    dense_limit = _as_positive_number(host_class.get("dense_params_limit_b"))
+    if ceiling is None or dense_limit is None:
+        raise LocalRosterConfigError(
+            "host-class-config",
+            f"local_host_class must define positive active_params_ceiling_b and "
+            f"dense_params_limit_b; got {host_class!r}",
+        )
+
+    missing_tiers = [tier for tier in LOCAL_REQUIRED_TIERS if tier not in roster]
+    if missing_tiers:
+        raise LocalRosterConfigError(
+            "required-tiers",
+            f"local roster must define {list(LOCAL_REQUIRED_TIERS)}; "
+            f"missing {missing_tiers}",
+        )
+
+    for tier, entry in roster.items():
+        if not isinstance(entry, dict):
+            raise LocalRosterConfigError(
+                "extended-entry-form",
+                "local roster entries must be objects of the form "
+                "{model, total_params_b, active_params_b, reviewed}; "
+                f"got {entry!r}",
+                tier=tier,
+            )
+
+        for required_field in ("model", "total_params_b", "active_params_b", "reviewed"):
+            if required_field not in entry:
+                raise LocalRosterConfigError(
+                    "extended-entry-form",
+                    f"local roster entry is missing required field "
+                    f"{required_field!r} (declared fields: {sorted(entry)})",
+                    tier=tier,
+                )
+
+        reviewed = entry["reviewed"]
+        if not isinstance(reviewed, str) or not _REVIEWED_DATE_RE.match(reviewed):
+            raise LocalRosterConfigError(
+                "operator-review-date",
+                f"'reviewed' must be an operator-signed YYYY-MM-DD date "
+                f"(quote it in YAML); got {reviewed!r}",
+                tier=tier,
+            )
+
+        total = _as_positive_number(entry["total_params_b"])
+        active = _as_positive_number(entry["active_params_b"])
+        if total is None or active is None:
+            raise LocalRosterConfigError(
+                "extended-entry-form",
+                f"total_params_b and active_params_b must be positive numbers; "
+                f"got total={entry['total_params_b']!r}, "
+                f"active={entry['active_params_b']!r}",
+                tier=tier,
+            )
+        if active > total:
+            raise LocalRosterConfigError(
+                "extended-entry-form",
+                f"active_params_b ({active}) exceeds total_params_b ({total})",
+                tier=tier,
+            )
+
+        # Dense first: a dense model violates both rules, and the dense rule is
+        # the one that explains *why* it can never be a roster entry here.
+        if active == total and total >= dense_limit:
+            raise LocalRosterConfigError(
+                "dense-model-hardware-matching",
+                f"{entry['model']!r} is dense ({total}B total == {active}B active) "
+                f"and at or above the {dense_limit}B dense limit for host class "
+                f"{host_class.get('name')!r}; this host is bandwidth-bound, so "
+                f"dense models at this size must not be roster entries even "
+                f"though they fit in memory",
+                tier=tier,
+            )
+        if active > ceiling:
+            raise LocalRosterConfigError(
+                "active-parameter-hardware-matching",
+                f"{entry['model']!r} declares {active}B active parameters, above "
+                f"the {ceiling}B active ceiling for host class "
+                f"{host_class.get('name')!r}; local rosters on bandwidth-bound "
+                f"hardware must be MoE-first",
+                tier=tier,
+            )
+
+
 def load_archetypes_config(
     path: Path | None = None,
 ) -> dict[str, ArchetypeConfig]:
@@ -1763,6 +2003,7 @@ def load_archetypes_config(
         raise ValueError("Empty archetypes.yaml file")
 
     validate(instance=raw, schema=ARCHETYPES_SCHEMA)
+    _validate_local_roster(raw.get("model_aliases"), raw.get("local_host_class"))
     _provider_model_map = _normalize_provider_model_map(raw.get("model_aliases"))
 
     result: dict[str, ArchetypeConfig] = {}
@@ -1906,11 +2147,21 @@ def _tier_entry_to_spec(entry: Any) -> ModelSpec | None:
     return None
 
 
+def _best_defined_tier(provider_map: dict[str, Any]) -> tuple[str, ModelSpec] | None:
+    """Return the highest tier this provider actually defines, if any."""
+    for candidate in ALL_MODEL_TIERS:
+        spec = _tier_entry_to_spec(provider_map.get(candidate))
+        if spec is not None:
+            return candidate, spec
+    return None
+
+
 def resolve_provider_model_spec(
     model: str,
     *,
     provider: str | None,
     model_map: dict[str, Any] | None = None,
+    reasons: list[str] | None = None,
 ) -> ModelSpec:
     """Resolve a logical/legacy model value for *provider* to a ModelSpec.
 
@@ -1919,6 +2170,9 @@ def resolve_provider_model_spec(
     translated through the provider map. Exact provider-specific model IDs
     already present in that provider's mapping are accepted as explicit
     aliases (their tier's thinking level applies).
+
+    When *reasons* is supplied, tier degradations beyond the pre-existing
+    optional-tier fallback are appended to it so callers can surface them.
     """
     if not provider:
         return ModelSpec(model=model)
@@ -1949,6 +2203,25 @@ def resolve_provider_model_spec(
                     provider, tier, fallback.model,
                 )
                 return fallback
+        # The `local` roster may omit base tiers (frontier/premium): those
+        # requests degrade to the best tier it does define. Scoped to `local`
+        # on purpose — for every other provider a missing base tier stays a
+        # structured mapping error, so their behavior is unchanged.
+        degraded = (
+            _best_defined_tier(provider_map) if provider == LOCAL_PROVIDER else None
+        )
+        if degraded is not None:
+            best_tier, best_spec = degraded
+            logger.info(
+                "Provider %r has no %r mapping; degrading to best defined tier "
+                "%r (%s)", provider, tier, best_tier, best_spec.model,
+            )
+            if reasons is not None:
+                reasons.append(
+                    f"provider={provider} roster omits tier {tier}; degraded to "
+                    f"best defined tier {best_tier}"
+                )
+            return best_spec
         raise ProviderModelMappingError(provider, model, tier)
 
     for entry in provider_map.values():
@@ -2063,11 +2336,15 @@ def _resolve_model_spec(
 ) -> tuple[ModelSpec, list[str]]:
     """Escalation pipeline returning the full ModelSpec (model + thinking)."""
     def _finalize(source_model: str, reasons: list[str]) -> tuple[ModelSpec, list[str]]:
+        degradation: list[str] = []
         spec = resolve_provider_model_spec(
             source_model,
             provider=provider,
             model_map=model_map,
+            reasons=degradation,
         )
+        if degradation:
+            reasons = [*reasons, *degradation]
         if provider and spec.model != source_model:
             suffix = f" (thinking={spec.thinking})" if spec.thinking else ""
             reasons = [
@@ -2145,6 +2422,9 @@ def resolve_archetype_for_phase(
         KeyError: If *phase* is not present in ``phase_mapping``.
         RuntimeError: If the cached archetypes config has been mutated such
             that the phase entry's archetype reference is no longer valid.
+        LocalProviderTrustBoundaryError: If *provider* is ``local`` and the
+            phase's archetype is outside :data:`LOCAL_TRUSTED_ARCHETYPES`
+            (design D3) — raised before any model resolution or dispatch.
     """
     if _phase_mapping is None:
         load_archetypes_config()
@@ -2164,6 +2444,20 @@ def resolve_archetype_for_phase(
             f"phase_mapping[{phase!r}] references undefined archetype "
             f"{entry.archetype!r} (cache may be stale; call "
             f"reset_archetypes_config() and reload)"
+        )
+
+    # Enforce the `local` provider trust boundary (design D3) before anything
+    # is resolved or dispatched: local models are permitted only where their
+    # output is cheap to discard or verified downstream. The coordinator is the
+    # single decision point, so no client can route around this check.
+    boundary_reasons: list[str] = []
+    if provider == LOCAL_PROVIDER:
+        if archetype.name not in LOCAL_TRUSTED_ARCHETYPES:
+            raise LocalProviderTrustBoundaryError(archetype.name, phase=phase)
+        boundary_reasons.append(
+            f"provider={LOCAL_PROVIDER} trust boundary checked: archetype="
+            f"{archetype.name} is permitted "
+            f"({', '.join(sorted(LOCAL_TRUSTED_ARCHETYPES))})"
         )
 
     # Enforce the write-capability contract at resolution time (design D3 /
@@ -2192,6 +2486,9 @@ def resolve_archetype_for_phase(
 
     reasons: list[str] = [
         f"phase={phase} maps to archetype={archetype.name}",
+        # Empty for every provider except `local`, so existing providers keep
+        # byte-identical reasons.
+        *boundary_reasons,
         *escalation_reasons,
     ]
     if not escalation_reasons:

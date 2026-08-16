@@ -422,6 +422,137 @@ def test_endpoint_resolve_for_phase_audit_logged(
 
 
 # ---------------------------------------------------------------------------
+# add-local-model-provider-tier 2.1 / agent-archetypes.7 — the `local` trust
+# boundary refusal is recorded on the same audit path successful resolutions
+# use, and no dispatch is attempted.
+# ---------------------------------------------------------------------------
+
+
+_LOCAL_ROSTER_YAML = """
+schema_version: 3
+local_host_class:
+  name: gb10
+  active_params_ceiling_b: 12
+  dense_params_limit_b: 30
+model_aliases:
+  claude_code:
+    frontier: fable
+    premium: opus
+    standard: sonnet
+    economy: haiku
+  local:
+    standard:
+      model: big-moe
+      total_params_b: 117
+      active_params_b: 5.1
+      reviewed: "2026-08-16"
+    economy:
+      model: small-moe
+      total_params_b: 30.5
+      active_params_b: 3.3
+      reviewed: "2026-08-16"
+archetypes:
+  architect:
+    write_capable: true
+    model: frontier
+    system_prompt: |
+      You are a software architect.
+  runner:
+    write_capable: false
+    model: economy
+    system_prompt: |
+      Execute and report.
+phase_mapping:
+  PLAN: {archetype: architect}
+  INIT: {archetype: runner}
+"""
+
+
+def _patch_loader_with_local_roster(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from src import agents_config
+
+    config_path = _write_yaml(tmp_path, _LOCAL_ROSTER_YAML)
+    monkeypatch.setattr(agents_config, "_default_archetypes_path", lambda: config_path)
+    reset_archetypes_config()
+
+
+def _stub_audit(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    captured: list[dict[str, Any]] = []
+
+    from src import audit
+
+    class _StubAuditService:
+        async def log_operation(self, **kwargs: Any) -> Any:
+            captured.append(kwargs)
+            from src.audit import AuditResult
+            return AuditResult(success=True)
+
+    monkeypatch.setattr(audit, "_audit_service", _StubAuditService())
+    return captured
+
+
+def test_endpoint_local_permitted_archetype_200(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_loader_with_local_roster(monkeypatch, tmp_path)
+
+    response = client.post(
+        "/archetypes/resolve_for_phase",
+        headers=_auth(),
+        json={"phase": "INIT", "signals": {}, "provider": "local"},
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["archetype"] == "runner"
+    assert body["model"] == "small-moe"
+    assert any("trust boundary" in r.lower() for r in body["reasons"])
+
+
+def test_endpoint_local_boundary_archetype_refused_and_audited(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.agents_config import LOCAL_TRUSTED_ARCHETYPES
+
+    _patch_loader_with_local_roster(monkeypatch, tmp_path)
+    captured = _stub_audit(monkeypatch)
+
+    response = client.post(
+        "/archetypes/resolve_for_phase",
+        headers=_auth(),
+        json={"phase": "PLAN", "signals": {}, "provider": "local"},
+    )
+
+    assert response.status_code == 403, response.text
+    detail = response.json()["detail"]
+    assert "trust boundary" in str(detail).lower()
+    assert detail["archetype"] == "architect"
+    assert set(detail["permitted_archetypes"]) == set(LOCAL_TRUSTED_ARCHETYPES)
+
+    matches = [
+        c for c in captured if c.get("operation") == "resolve_archetype_for_phase"
+    ]
+    assert matches, f"refusal not recorded on the audit path: {captured}"
+    entry = matches[0]
+    assert entry.get("success") is False
+    assert (entry.get("parameters") or {}).get("provider") == "local"
+    assert (entry.get("parameters") or {}).get("phase") == "PLAN"
+    result = entry.get("result") or {}
+    assert result.get("archetype") == "architect"
+    # No model was resolved — the refusal precedes any dispatch decision.
+    assert "model" not in result
+    assert set(result.get("permitted_archetypes") or []) == set(
+        LOCAL_TRUSTED_ARCHETYPES
+    )
+
+
+# ---------------------------------------------------------------------------
 # 4.3 / agent-coordinator.3 — POST /status/report accepts phase_archetype
 # ---------------------------------------------------------------------------
 
