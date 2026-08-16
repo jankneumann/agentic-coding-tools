@@ -31,25 +31,41 @@ items:
   title: Create supervise skill with conversational intake
   status: approved
   priority: 1
-  effort: M
+  effort: L
   depends_on:
   - ri-01
-  description: Scaffold `skills/supervise/` as the single conversational entry point
+  description: 'Scaffold skills/supervise/ as the single conversational entry point
     the human talks to, playing the supervisor archetype from the host harness session.
-    Implement the intake verb, which turns a natural-language request into an OpenSpec
-    change or proposal and slots it via `/plan-roadmap`.
-  rationale: Establishes the missing layer above the orchestration stack, the persistent
+    Two verbs. INTAKE turns a natural-language request into an OpenSpec change or
+    proposal and slots it via /plan-roadmap. CYCLE runs the recurring operating loop:
+    SENSE (bug-scrub, improve-harness, explore-feature emit candidate-work stubs per
+    ri-11) -> RANK (/prioritize-proposals) -> digest to the human -> APPROVE (one
+    batch gate at roadmap altitude, not per item) -> PLAN (/plan-roadmap) -> EXECUTE
+    (ready-queue batches dispatched to archetype workers) -> LAND (integrate, PR,
+    human merge gate). The loop body is idempotent and resumable so a scheduled wake
+    or a rehydrated session can run it without duplicating work.'
+  rationale: 'Establishes the missing layer above the orchestration stack, the persistent
     conversational counterpart (Mayor / First Mate role), so the human no longer invokes
-    each skill by hand.
+    each skill by hand. The CYCLE verb is what makes the supervisor a standing operator
+    rather than a one-shot dispatcher: the human approves a roadmap once per cycle
+    and the supervisor owns everything below that gate. Batch approval at roadmap
+    altitude is the deliberate placement of scarce human attention on intent rather
+    than correctness, which structural checks (validation phases, vendor-diverse review)
+    already cover.'
   change_id: create-supervise-skill-with-conversational-intake
   acceptance_outcomes:
   - Invoking /supervise with a natural-language feature request produces an OpenSpec
     change or proposal stub slotted through /plan-roadmap without the human invoking
     plan-roadmap directly.
+  - Invoking the CYCLE verb runs sense -> rank -> digest end to end and presents one
+    ranked approval batch at roadmap altitude; approving it produces roadmap items
+    without per-item prompting.
+  - 'The cycle is idempotent: running it twice with no intervening repository change
+    produces no duplicate candidate stubs, proposals, or roadmap items.'
   - The skill makes no direct LLM API calls, honoring the host-assisted invariant
     in skills/autopilot-roadmap/SKILL.md.
   - The supervisor session never edits implementation files itself, verified by an
-    audit check over the session's file writes.
+    audit check over the session file writes.
 - item_id: ri-03
   title: Wire supervise execution through the dispatch_fn seam
   status: approved
@@ -392,4 +408,39 @@ items:
     are expressed as typed edges, replacing their prose blocked_by encodings.
   - An item whose only blocker is an external prerequisite becomes ready automatically
     when that prerequisite completes, with no manual status edit, covered by a test.
-updated_at: '2026-08-13T08:27:19.122009+00:00'
+- item_id: ri-18
+  title: Declare the routing cost policy the router obeys
+  status: approved
+  priority: 2
+  effort: S
+  depends_on: []
+  description: 'Express the operator cost preference as a policy artifact the task
+    router reads, rather than prose or per-dispatch improvisation. Preference ladder,
+    highest first: (1) subscription plus local CLI (marginal cost about zero), (2)
+    subscription plus vendor cloud (still flat rate, used for overflow and parallelism),
+    (3) metered API such as OpenRouter via pi, reserved for models no subscription
+    reaches (Kimi, Qwen) or when tiers 1 and 2 are rate limited. Includes degradation
+    rules so an exhausted subscription window steps down the ladder instead of stalling.'
+  rationale: 'Maximizing local execution and subscription usage is an operator objective
+    that currently lives only in conversation, so every dispatch re-derives the economics
+    and some worker eventually burns metered tokens on work a subscription would have
+    covered. Flat-rate subscriptions also invert the usual optimization: they reward
+    maximizing useful work per rate-limit window rather than minimizing tokens per
+    task, so the router should bias toward width on tiers 1 and 2 and reserve thrift
+    for tier 3. Depends on the dispatch-governance router (dg-04), which owns the
+    vendor x location axis this policy ranks.'
+  change_id: declare-the-routing-cost-policy-the-router-obeys
+  acceptance_outcomes:
+  - A schema-validated routing cost policy artifact declares the three-tier preference
+    ladder and its degradation rules, and the router reads it rather than hardcoding
+    tier choice.
+  - Given an archetype and an available-vendor set, the router selects the highest-ranked
+    tier that can serve it, covered by tests including a rate-limited tier-1 stepping
+    down to tier 2.
+  - A metered tier-3 dispatch is selected only when no subscription tier can serve
+    the requested model or all subscription tiers are exhausted, asserted by a test.
+  - 'The policy is observable: each dispatch records which tier served it, so subscription-vs-metered
+    spend is auditable after a run.'
+  external_depends_on:
+  - dispatch-governance:dg-04
+updated_at: '2026-08-16T20:10:01.336071+00:00'

@@ -11,6 +11,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 from decomposer import validate_cross_roadmap, validate_roadmap
 
@@ -138,6 +139,45 @@ class TestDuplicateChangeId:
         )
         errors = validate_cross_roadmap(tmp_path)
         assert not any("multiple roadmaps" in e for e in errors)
+
+    @pytest.mark.parametrize("ceded_status", ["skipped", "superseded"])
+    def test_ceded_item_does_not_claim_its_change_id(self, tmp_path, ceded_status):
+        """Ceding ownership must actually resolve the duplicate.
+
+        Regression: the check counted every item regardless of status, so a
+        roadmap that marked its copy `skipped` to hand the change to another
+        roadmap still tripped the collision — leaving it unresolvable and
+        blocking the check from ever becoming a CI gate. Seen live: the
+        repo-improvement roadmap ceded four router changes to
+        dispatch-governance and validate-repo stayed red.
+        """
+        _write_roadmap(tmp_path, "owner", [_item("ri-01", change_id="add-foo")])
+        _write_roadmap(
+            tmp_path,
+            "ceder",
+            [_item("ri-01", change_id="add-foo", status=ceded_status)],
+        )
+        assert validate_cross_roadmap(tmp_path) == []
+
+    def test_two_ceded_claims_still_leave_no_owner_conflict(self, tmp_path):
+        """Two roadmaps both ceding the same change is not a collision either."""
+        _write_roadmap(
+            tmp_path, "a", [_item("ri-01", change_id="add-foo", status="skipped")]
+        )
+        _write_roadmap(
+            tmp_path, "b", [_item("ri-01", change_id="add-foo", status="superseded")]
+        )
+        assert not any("multiple roadmaps" in e for e in validate_cross_roadmap(tmp_path))
+
+    def test_active_duplicate_still_detected_when_a_third_cedes(self, tmp_path):
+        """Ceding one copy must not mask a genuine collision between two others."""
+        _write_roadmap(tmp_path, "a", [_item("ri-01", change_id="add-foo")])
+        _write_roadmap(tmp_path, "b", [_item("ri-01", change_id="add-foo")])
+        _write_roadmap(
+            tmp_path, "c", [_item("ri-01", change_id="add-foo", status="skipped")]
+        )
+        errors = validate_cross_roadmap(tmp_path)
+        assert any("add-foo" in e and "multiple roadmaps" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------
