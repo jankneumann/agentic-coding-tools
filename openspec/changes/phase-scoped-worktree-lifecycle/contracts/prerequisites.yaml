@@ -32,18 +32,36 @@ execution_gate:
 prerequisites:
   - change_id: add-merge-plan-orchestration
     expected_head_ref: openspec/add-merge-plan-orchestration
-    required_surface: file-tier merge-plan schema and executor
+    required_surface:
+      id: file-tier-merge-plan-schema-and-executor
+      files:
+        - path: openspec/changes/add-merge-plan-orchestration/contracts/schemas/merge-plan.schema.json
+          kind: json-schema
+        - path: skills/merge-pull-requests/scripts/build_plan.py
+          kind: python
+        - path: skills/merge-pull-requests/scripts/merge_plan.py
+          kind: python
+        - path: skills/merge-pull-requests/scripts/execute_merge_plan.py
+          kind: python
+      verify_at: [authoritative-merge-sha, feature-head]
     blocks: [wp-pr-delivery]
   - change_id: validate-feature-findings-gate
     expected_head_ref: openspec/validate-feature-findings-gate
-    required_surface: selected ephemeral validation worktree
+    required_surface:
+      id: selected-ephemeral-validation-worktree
+      files:
+        - path: skills/validate-feature/scripts/validation_worktree.py
+          kind: python
+        - path: skills/tests/validate-feature/test_validation_worktree.py
+          kind: python
+      verify_at: [authoritative-merge-sha, feature-head]
     blocks: [wp-phase-lifecycle]
 
 verification:
   - Resolve exactly one merged pull request for the expected head ref in the current repository.
   - Read merge SHA and base ref from authoritative pull-request metadata; caller-supplied SHAs are forbidden.
   - Fetch the configured remote/base and prove the merge SHA ancestral to both fetched base tip and feature HEAD.
-  - Verify the named required surface, schema-validate evidence, and atomically write baseline-gates.json.
+  - Verify every exact required-surface file as a non-deleted blob at both the authoritative merge SHA and feature HEAD; parse Python and JSON Schema kinds before atomically writing schema-valid baseline-gates.json.
   - Run the preflight package in the existing managed shared feature worktree without creating or switching checkout; commit the barrier implementation and reload or reinstantiate the scheduler before generating live evidence.
   - Under the feature-branch lock, reverify evidence with that fresh scheduler runtime and record exact feature HEAD before marking the package complete.
   - Create each dependent worktree only from that recorded feature HEAD; a changed HEAD requires locked re-verification and a new recorded base.

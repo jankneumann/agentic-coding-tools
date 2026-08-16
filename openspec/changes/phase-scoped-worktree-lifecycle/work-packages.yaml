@@ -58,6 +58,7 @@ packages:
         - "skills/implement-feature/SKILL.md"
         - "skills/parallel-infrastructure/scripts/dag_scheduler.py"
         - "skills/parallel-infrastructure/scripts/integration_orchestrator.py"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/tasks.md"
         - "openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json"
       keys:
         - "feature:phase_lifecycle:preflight"
@@ -72,6 +73,7 @@ packages:
         - "skills/parallel-infrastructure/scripts/tests/test_dag_scheduler.py"
         - "skills/tests/implement-feature/test_prerequisite_preflight.py"
         - "skills/tests/implement-feature/test_coordinated_preflight.py"
+        - "openspec/changes/phase-scoped-worktree-lifecycle/tasks.md"
         - "openspec/changes/phase-scoped-worktree-lifecycle/baseline-gates.json"
       read_allow:
         - "**"
