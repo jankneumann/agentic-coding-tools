@@ -20,6 +20,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -32,6 +33,7 @@ if str(_RUNTIME_DIR) not in sys.path:
 
 from models import (  # type: ignore[import-untyped]
     ROADMAP_SCHEMA,
+    ItemStatus,
     Roadmap,
     is_valid_item_ref,
     load_all_roadmaps_strict,
@@ -184,10 +186,16 @@ def validate_cross_roadmap(repo_root: Path) -> list[str]:
     1. ``external_depends_on`` / ``superseded_by`` item_refs resolve — the
        referenced ``<roadmap-id>`` exists among the loaded roadmaps and the
        ``<item-id>`` exists within it. Unresolvable refs fail.
-    2. Repo-wide acyclicity across the combined edge set: in-roadmap
+    2. No ``external_depends_on`` ref points at a ``superseded`` item.
+       ``superseded`` is terminal and is NOT ``completed``, so readiness
+       withholds the dependent forever — silently, since a non-ready item just
+       does not appear in ``ready_items()``. The edge has to be repointed at
+       the successor; this turns the permanent stall into a loud failure at the
+       moment the supersession is recorded.
+    3. Repo-wide acyclicity across the combined edge set: in-roadmap
        ``depends_on`` edges plus fully-qualified ``external_depends_on`` edges,
        treated as one global graph over ``<roadmap-id>:<item-id>`` nodes.
-    3. No ``change_id`` is claimed by two different roadmaps.
+    4. No ``change_id`` is claimed by two different roadmaps.
 
     Read-only and side-effect-free. Returns a list of human-readable error
     messages (empty = valid).
@@ -198,11 +206,14 @@ def validate_cross_roadmap(repo_root: Path) -> list[str]:
     # change_ids it claims all become invisible. Report those first.
     roadmaps, errors = load_all_roadmaps_strict(repo_root)
 
-    # Global node set: every fully-qualified item_ref that exists.
-    node_ids: set[str] = set()
+    # Global node set: every fully-qualified item_ref that exists, plus the
+    # item behind each ref (check 1b needs the target's status and its
+    # superseded_by edge, not just its existence).
+    items_by_ref: dict[str, Any] = {}
     for roadmap_id, roadmap in roadmaps.items():
         for item in roadmap.items:
-            node_ids.add(f"{roadmap_id}:{item.item_id}")
+            items_by_ref[f"{roadmap_id}:{item.item_id}"] = item
+    node_ids: set[str] = set(items_by_ref)
 
     # 1. External ref resolution (external_depends_on + superseded_by).
     for roadmap_id, roadmap in sorted(roadmaps.items()):
@@ -228,6 +239,39 @@ def validate_cross_roadmap(repo_root: Path) -> list[str]:
                             f"{roadmap_id}:{item.item_id} {field_name} ref "
                             f"{ref!r} does not resolve to a declared item."
                         )
+
+    # 1b. No external_depends_on may point at a superseded item.
+    #
+    #     `superseded` is terminal (ri-17) and is not `completed`, so
+    #     `completed_external_refs` never contains the target and
+    #     `Roadmap.ready_items` withholds the dependent on every run — forever,
+    #     and silently, because a non-ready item is simply absent from the
+    #     returned list. Blocking is the right semantics (the work moved), but
+    #     it has to be said out loud, with the successor named, so the operator
+    #     can repoint the edge instead of watching an item never come up.
+    for roadmap_id, roadmap in sorted(roadmaps.items()):
+        for item in roadmap.items:
+            for ref in item.external_depends_on:
+                target = items_by_ref.get(ref)
+                if target is None:
+                    continue  # unresolvable — already reported above
+                if target.status.value != ItemStatus.SUPERSEDED.value:
+                    continue
+                successors = list(target.superseded_by)
+                remedy = (
+                    f"repoint it at {', '.join(successors)}"
+                    if successors
+                    else (
+                        "record the successor in that item's superseded_by "
+                        "edge and repoint this dependency at it"
+                    )
+                )
+                errors.append(
+                    f"{roadmap_id}:{item.item_id} external_depends_on ref "
+                    f"{ref!r} points at a superseded item, which can never "
+                    f"become completed — {roadmap_id}:{item.item_id} would "
+                    f"stay non-ready forever. Fix: {remedy}."
+                )
 
     # 2. Repo-wide acyclicity over depends_on + external_depends_on edges.
     #    Only build edges to nodes that exist so an unresolved ref surfaces as a

@@ -13,6 +13,7 @@ import yaml
 from jsonschema import ValidationError
 
 from src.teams import (
+    AgentClaimant,
     CrewManifest,
     RoleAssignment,
     get_crew_manifest,
@@ -238,6 +239,123 @@ class TestCrossValidation:
 
 
 # =============================================================================
+# Claimability — a rostered role nobody can claim (issue #390)
+# =============================================================================
+
+
+class TestClaimability:
+    """A roster entry that exists and names real vendors can still be dead.
+
+    ``claim_task`` filters on the *agent's own* declared archetypes, so a role
+    no registered agent declares is unclaimable: its tasks sit pending with no
+    error and no rejection. Existence checks cannot see that; this one can.
+    """
+
+    _KNOWN_ARCHETYPES = {"supervisor": False, "architect": True, "implementer": True}
+    _KNOWN_VENDORS = {"claude_code", "codex", "grok"}
+
+    def _validate(self, manifest, agents):
+        return manifest.validate_against(
+            known_archetypes=self._KNOWN_ARCHETYPES,
+            known_vendors=self._KNOWN_VENDORS,
+            agents=agents,
+        )
+
+    def test_fully_staffed_roster_passes(self, valid_crew_data):
+        manifest = CrewManifest.from_dict(valid_crew_data)
+        agents = [
+            AgentClaimant("claude-local", "claude_code", ("supervisor", "architect")),
+            AgentClaimant("grok-local", "grok", ("implementer",)),
+        ]
+        assert self._validate(manifest, agents) == []
+
+    def test_undeclared_archetype_is_flagged(self, valid_crew_data):
+        """The #390 shape: the role exists, the vendor is real, nobody declares it."""
+        manifest = CrewManifest.from_dict(valid_crew_data)
+        agents = [
+            AgentClaimant("claude-local", "claude_code", ("architect", "implementer")),
+            AgentClaimant("grok-local", "grok", ("implementer",)),
+        ]
+        errors = self._validate(manifest, agents)
+        assert any(
+            "supervisor" in e and "unclaimable" in e and "do not declare it" in e
+            for e in errors
+        ), errors
+
+    def test_wrong_vendor_declaring_it_does_not_count(self, valid_crew_data):
+        """Declaring the archetype is not enough — the roster gates the vendor.
+
+        ``supervisor`` is rostered to claude_code only. A grok agent declaring
+        it would never be routed the work, so the role is still dead.
+        """
+        manifest = CrewManifest.from_dict(valid_crew_data)
+        agents = [
+            AgentClaimant("claude-local", "claude_code", ("architect",)),
+            AgentClaimant("grok-local", "grok", ("supervisor", "implementer")),
+        ]
+        errors = self._validate(manifest, agents)
+        assert any("supervisor" in e and "unclaimable" in e for e in errors), errors
+
+    def test_no_agent_of_an_eligible_vendor_is_flagged_distinctly(
+        self, valid_crew_data
+    ):
+        """An empty vendor pool gets its own diagnosis, not 'do not declare it'.
+
+        ``supervisor`` is rostered to claude_code alone; with no claude_code
+        agent registered at all, the fix is a different one (register an agent
+        / widen the pool) than for a vendor that is present but silent.
+        """
+        manifest = CrewManifest.from_dict(valid_crew_data)
+        agents = [AgentClaimant("grok-local", "grok", ("implementer",))]
+        errors = self._validate(manifest, agents)
+        supervisor = [e for e in errors if "supervisor" in e]
+        assert supervisor, errors
+        assert all("no registered agent" in e for e in supervisor), supervisor
+
+    def test_agent_with_no_declared_archetypes_is_a_wildcard(self, valid_crew_data):
+        """Empty ``archetypes`` means 'claims anything', matching claim_task.
+
+        The SQL admits the task when ``p_agent_archetypes IS NULL``; reading an
+        empty list as 'claims nothing' here would report roles that are in fact
+        perfectly claimable.
+        """
+        manifest = CrewManifest.from_dict(valid_crew_data)
+        agents = [
+            AgentClaimant("legacy-claude", "claude_code", ()),
+            AgentClaimant("legacy-grok", "grok", ()),
+        ]
+        assert self._validate(manifest, agents) == []
+
+    def test_check_is_skipped_when_agents_not_supplied(self, valid_crew_data):
+        """Structure-only callers keep their existing behaviour."""
+        manifest = CrewManifest.from_dict(valid_crew_data)
+        errors = manifest.validate_against(
+            known_archetypes=self._KNOWN_ARCHETYPES,
+            known_vendors=self._KNOWN_VENDORS,
+        )
+        assert errors == []
+
+    def test_error_names_both_remedies(self, valid_crew_data):
+        manifest = CrewManifest.from_dict(valid_crew_data)
+        agents = [AgentClaimant("grok-local", "grok", ("implementer",))]
+        errors = [e for e in self._validate(manifest, agents) if "supervisor" in e]
+        assert errors
+        assert "agents.yaml" in errors[0] and "teams.yaml" in errors[0]
+
+
+class TestAgentClaimant:
+    def test_declared_archetype_can_be_claimed(self):
+        agent = AgentClaimant("a", "codex", ("implementer", "reviewer"))
+        assert agent.can_claim("implementer")
+        assert not agent.can_claim("validator")
+
+    def test_empty_archetypes_claims_anything(self):
+        agent = AgentClaimant("a", "codex")
+        assert agent.can_claim("validator")
+        assert agent.can_claim("anything-at-all")
+
+
+# =============================================================================
 # Lookup
 # =============================================================================
 
@@ -354,6 +472,45 @@ class TestRealManifest:
         finally:
             reset_crew_manifest()
             reset_archetypes_config()
+
+    def test_every_rostered_role_is_claimable_by_a_registered_agent(self):
+        """No shipped roster entry may be dead on arrival (issue #390).
+
+        Roles and vendors are read from the live teams.yaml/agents.yaml — never
+        spelled out here — so adding a roster entry without staffing it fails
+        this test rather than silently producing an unclaimable archetype.
+        """
+        from src.agents_config import (
+            get_agents_config,
+            reset_agents_config,
+            reset_archetypes_config,
+        )
+
+        reset_crew_manifest()
+        reset_archetypes_config()
+        reset_agents_config()
+        try:
+            manifest = get_crew_manifest(cross_validate=False)
+            agents = [
+                AgentClaimant(e.name, e.type, tuple(e.archetypes))
+                for e in get_agents_config()
+            ]
+            unstaffed = {
+                role.archetype
+                for role in manifest.roster
+                if not any(
+                    a.vendor in role.vendors and a.can_claim(role.archetype)
+                    for a in agents
+                )
+            }
+            assert unstaffed == set(), (
+                f"rostered but unclaimable: {sorted(unstaffed)} — tasks "
+                f"requiring these would sit pending forever"
+            )
+        finally:
+            reset_crew_manifest()
+            reset_archetypes_config()
+            reset_agents_config()
 
 
 # =============================================================================

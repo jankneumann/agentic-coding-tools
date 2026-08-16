@@ -249,29 +249,6 @@ erDiagram
         TEXT summary
         TEXT tags
     }
-    public__memory_procedural {
-        TIMESTAMPTZ created_at
-        TEXT description
-        UNKNOWN enable
-        INT failure_count
-        UUID id
-        TIMESTAMPTZ last_used
-        TEXT prerequisites
-        TEXT skill_name
-        JSONB steps
-        INT success_count
-        TIMESTAMPTZ updated_at
-    }
-    public__memory_working {
-        TEXT agent_id
-        TIMESTAMPTZ created_at
-        UNKNOWN enable
-        TIMESTAMPTZ expires_at
-        UUID id
-        TEXT session_id
-        TIMESTAMPTZ updated_at
-        JSONB value
-    }
     public__network_access_log {
         TEXT agent_id
         BOOLEAN allowed

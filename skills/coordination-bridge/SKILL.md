@@ -57,4 +57,7 @@ See the full contract — idempotent submission keyed by
 enqueue), resume re-derivation, and tier applicability (claim atomicity is
 exercised only in the coordinated tier) — in the repo guide
 `docs/guides/work-queue-truth-projection.md`. The invariant is guarded by
-`skills/tests/coordination-bridge/test_work_queue_projection_invariant.py`.
+`skills/tests/coordination-bridge/test_work_queue_projection_invariant.py`,
+an AST check that follows the name a claim result is bound to and fails on any
+read of phase / iteration / package status off it — whatever the variable is
+called (`change_id` is exempt; a worker needs it to locate loop-state).

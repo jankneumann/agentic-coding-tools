@@ -23,7 +23,7 @@ Consumers:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -74,6 +74,28 @@ class RoleAssignment:
 
     archetype: str
     vendors: list[str]
+
+
+@dataclass(frozen=True)
+class AgentClaimant:
+    """A registered agent, reduced to what decides whether it can claim a role.
+
+    Built from ``agents.yaml`` entries. ``vendor`` is the agent's ``type``
+    (``claude_code``, ``codex``, …) — the same vocabulary teams.yaml rosters
+    use. ``archetypes`` is the agent's declared list; an EMPTY list is a
+    wildcard, not "claims nothing", mirroring ``claim_task``:
+
+        OR p_agent_archetypes IS NULL  -- agents without declared archetypes
+                                       -- can claim anything
+    """
+
+    name: str
+    vendor: str
+    archetypes: tuple[str, ...] = ()
+
+    def can_claim(self, archetype: str) -> bool:
+        """True when this agent would match a task requiring *archetype*."""
+        return not self.archetypes or archetype in self.archetypes
 
 
 @dataclass
@@ -183,6 +205,7 @@ class CrewManifest:
         *,
         known_archetypes: Mapping[str, bool],
         known_vendors: set[str],
+        agents: Sequence[AgentClaimant] | None = None,
     ) -> list[str]:
         """Cross-validate against the live archetypes + provider roster.
 
@@ -191,6 +214,10 @@ class CrewManifest:
                 flag, as loaded from ``archetypes.yaml``.
             known_vendors: The set of known provider ids from the provider
                 model map.
+            agents: Optional registered agents, as :class:`AgentClaimant`
+                records derived from ``agents.yaml``. When supplied, every
+                roster role is additionally checked for *claimability*. Omit
+                it to skip that check (structure-only validation).
 
         Checks that every roster archetype exists, every vendor is a known
         provider, and that the supervisor archetype exists AND is declared
@@ -215,6 +242,9 @@ class CrewManifest:
                     f"vendors: {unknown}"
                 )
 
+        if agents is not None:
+            errors.extend(self._claimability_errors(agents))
+
         if self.supervisor not in known_archetypes:
             errors.append(
                 f"Supervisor archetype '{self.supervisor}' is not defined in "
@@ -227,6 +257,47 @@ class CrewManifest:
                 f"delegates every change)"
             )
 
+        return errors
+
+    def _claimability_errors(
+        self, agents: Sequence[AgentClaimant]
+    ) -> list[str]:
+        """Every rostered role must have at least one agent able to claim it.
+
+        The existing cross-checks confirm a roster archetype *exists* and its
+        vendors are real providers. Neither implies anyone can take the work:
+        ``claim_task`` matches on the agent's own declared ``archetypes``, so a
+        role that no registered agent declares is unclaimable and its tasks sit
+        pending indefinitely — no error, no rejection, just silence (#390).
+
+        A vendor is only eligible for a role if the roster lists it, so the
+        check is per-role over that role's vendor pool. Reported errors name
+        the vendor pool and the agents in it, because the fix is always one of
+        two edits: widen the pool in teams.yaml, or add the archetype to an
+        agent in agents.yaml.
+        """
+        errors: list[str] = []
+        for role in self.roster:
+            eligible = [a for a in agents if a.vendor in role.vendors]
+            claimants = [a.name for a in eligible if a.can_claim(role.archetype)]
+            if claimants:
+                continue
+            if not eligible:
+                detail = (
+                    f"no registered agent has a vendor type in "
+                    f"{sorted(role.vendors)}"
+                )
+            else:
+                detail = (
+                    f"eligible agents {sorted(a.name for a in eligible)} do "
+                    f"not declare it"
+                )
+            errors.append(
+                f"Roster archetype '{role.archetype}' is unclaimable: "
+                f"{detail}. A task requiring it would stay pending forever. "
+                f"Add '{role.archetype}' to an agent's archetypes in "
+                f"agents.yaml, or widen the role's vendors in teams.yaml"
+            )
         return errors
 
 
@@ -277,6 +348,7 @@ def get_crew_manifest(
     # disabled for the life of the process.
     if cross_validate and not _crew_manifest_cross_validated:
         from src.agents_config import (
+            get_agents_config,
             get_provider_model_map,
             load_archetypes_config,
         )
@@ -286,9 +358,21 @@ def get_crew_manifest(
             name: cfg.write_capable for name, cfg in archetypes.items()
         }
         providers = set((get_provider_model_map().get("providers") or {}).keys())
+        # agents.yaml is what decides claimability — the roster can name a role
+        # every part of the config agrees exists and still have nobody able to
+        # take it (#390), so the registered agents are part of cross-validation.
+        agents = [
+            AgentClaimant(
+                name=entry.name,
+                vendor=entry.type,
+                archetypes=tuple(entry.archetypes),
+            )
+            for entry in get_agents_config()
+        ]
         errors = _crew_manifest.validate_against(
             known_archetypes=known_archetypes,
             known_vendors=providers,
+            agents=agents,
         )
         if errors:
             # Do not cache a manifest that failed: a retry must re-raise rather

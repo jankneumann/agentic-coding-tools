@@ -1529,7 +1529,8 @@
       "called_by": [
         "agents_config.get_agent_config",
         "agents_config.get_dispatch_configs",
-        "agents_config.get_agent_isolation"
+        "agents_config.get_agent_isolation",
+        "teams.get_crew_manifest"
       ],
       "db_tables": [],
       "tags": [],
@@ -24578,11 +24579,25 @@
       "docstring": "Return a sorted list of sync-point status dicts.\n\nEach element follows the contract in contracts/README.md:\n    {\n      \"skill\": str,\n      \"blocked\": bool,\n      \"blockers\": [{\"agent_id\": str, \"last_heartbeat_iso\": str}],\n      \"suggested_actions\": [\"wait\", \"kick:<agent_id>\", ...]\n    }\n\nThe ``blockers`` list comes from reading ``.git-worktrees/.registry.json``.\nWhen the check returns ``clear=True``, ``blocked=False`` and the other\narrays are empty."
     },
     {
+      "name": "can_claim",
+      "qualified_name": "teams.AgentClaimant.can_claim",
+      "file": "teams.py",
+      "line_start": 96,
+      "line_end": 98,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "True when this agent would match a task requiring *archetype*."
+    },
+    {
       "name": "from_file",
       "qualified_name": "teams.CrewManifest.from_file",
       "file": "teams.py",
-      "line_start": 95,
-      "line_end": 110,
+      "line_start": 117,
+      "line_end": 132,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -24606,8 +24621,8 @@
       "name": "from_dict",
       "qualified_name": "teams.CrewManifest.from_dict",
       "file": "teams.py",
-      "line_start": 113,
-      "line_end": 143,
+      "line_start": 135,
+      "line_end": 165,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -24634,8 +24649,8 @@
       "name": "get_role",
       "qualified_name": "teams.CrewManifest.get_role",
       "file": "teams.py",
-      "line_start": 145,
-      "line_end": 150,
+      "line_start": 167,
+      "line_end": 172,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -24648,8 +24663,8 @@
       "name": "vendors_for",
       "qualified_name": "teams.CrewManifest.vendors_for",
       "file": "teams.py",
-      "line_start": 152,
-      "line_end": 158,
+      "line_start": 174,
+      "line_end": 180,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -24665,8 +24680,8 @@
       "name": "validate",
       "qualified_name": "teams.CrewManifest.validate",
       "file": "teams.py",
-      "line_start": 160,
-      "line_end": 179,
+      "line_start": 182,
+      "line_end": 201,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -24689,24 +24704,46 @@
       "name": "validate_against",
       "qualified_name": "teams.CrewManifest.validate_against",
       "file": "teams.py",
-      "line_start": 181,
-      "line_end": 230,
+      "line_start": 203,
+      "line_end": 260,
       "is_async": false,
       "decorators": [],
       "calls": [
-        "errors.append"
+        "errors.append",
+        "errors.extend",
+        "self._claimability_errors"
       ],
       "called_by": [],
       "db_tables": [],
       "tags": [],
-      "docstring": "Cross-validate against the live archetypes + provider roster.\n\nArgs:\n    known_archetypes: Mapping of archetype name -> ``write_capable``\n        flag, as loaded from ``archetypes.yaml``.\n    known_vendors: The set of known provider ids from the provider\n        model map.\n\nChecks that every roster archetype exists, every vendor is a known\nprovider, and that the supervisor archetype exists AND is declared\n``write_capable: false`` (a read-only orchestrator, mirroring the\nsupervisor invariant enforced in ``agents_config``).\n\nReturns:\n    A list of error messages (empty if the manifest is consistent)."
+      "docstring": "Cross-validate against the live archetypes + provider roster.\n\nArgs:\n    known_archetypes: Mapping of archetype name -> ``write_capable``\n        flag, as loaded from ``archetypes.yaml``.\n    known_vendors: The set of known provider ids from the provider\n        model map.\n    agents: Optional registered agents, as :class:`AgentClaimant`\n        records derived from ``agents.yaml``. When supplied, every\n        roster role is additionally checked for *claimability*. Omit\n        it to skip that check (structure-only validation).\n\nChecks that every roster archetype exists, every vendor is a known\nprovider, and that the supervisor archetype exists AND is declared\n``write_capable: false`` (a read-only orchestrator, mirroring the\nsupervisor invariant enforced in ``agents_config``).\n\nReturns:\n    A list of error messages (empty if the manifest is consistent)."
+    },
+    {
+      "name": "_claimability_errors",
+      "qualified_name": "teams.CrewManifest._claimability_errors",
+      "file": "teams.py",
+      "line_start": 262,
+      "line_end": 301,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "a.can_claim",
+        "sorted",
+        "errors.append"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Every rostered role must have at least one agent able to claim it.\n\nThe existing cross-checks confirm a roster archetype *exists* and its\nvendors are real providers. Neither implies anyone can take the work:\n``claim_task`` matches on the agent's own declared ``archetypes``, so a\nrole that no registered agent declares is unclaimable and its tasks sit\npending indefinitely — no error, no rejection, just silence (#390).\n\nA vendor is only eligible for a role if the roster lists it, so the\ncheck is per-role over that role's vendor pool. Reported errors name\nthe vendor pool and the agents in it, because the fix is always one of\ntwo edits: widen the pool in teams.yaml, or add the archetype to an\nagent in agents.yaml."
     },
     {
       "name": "get_crew_manifest",
       "qualified_name": "teams.get_crew_manifest",
       "file": "teams.py",
-      "line_start": 240,
-      "line_end": 301,
+      "line_start": 311,
+      "line_end": 385,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -24718,6 +24755,9 @@
         "keys",
         "get_provider_model_map.get",
         "get_provider_model_map",
+        "AgentClaimant",
+        "tuple",
+        "get_agents_config",
         "_crew_manifest.validate_against",
         "ValueError",
         "join"
@@ -24733,8 +24773,8 @@
       "name": "reset_crew_manifest",
       "qualified_name": "teams.reset_crew_manifest",
       "file": "teams.py",
-      "line_start": 304,
-      "line_end": 308,
+      "line_start": 388,
+      "line_end": 392,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -29300,11 +29340,25 @@
       ]
     },
     {
+      "name": "AgentClaimant",
+      "qualified_name": "teams.AgentClaimant",
+      "file": "teams.py",
+      "line_start": 80,
+      "line_end": 98,
+      "bases": [],
+      "methods": [
+        "can_claim"
+      ],
+      "decorators": [
+        "dataclass(frozen=True)"
+      ]
+    },
+    {
       "name": "CrewManifest",
       "qualified_name": "teams.CrewManifest",
       "file": "teams.py",
-      "line_start": 80,
-      "line_end": 230,
+      "line_start": 102,
+      "line_end": 301,
       "bases": [],
       "methods": [
         "from_file",
@@ -29312,7 +29366,8 @@
         "get_role",
         "vendors_for",
         "validate",
-        "validate_against"
+        "validate_against",
+        "_claimability_errors"
       ],
       "decorators": [
         "dataclass"
@@ -34235,8 +34290,8 @@
     }
   ],
   "summary": {
-    "total_functions": 1064,
-    "total_classes": 242,
+    "total_functions": 1066,
+    "total_classes": 243,
     "total_modules": 75,
     "async_functions": 431,
     "entry_points": 96,
@@ -34705,10 +34760,12 @@
       "sse_log_redaction.redact_token",
       "status.cleanup_expired_tokens",
       "sync_points.get_sync_points_status",
+      "teams.AgentClaimant.can_claim",
       "teams.CrewManifest.from_dict",
       "teams.CrewManifest.get_role",
       "teams.CrewManifest.vendors_for",
       "teams.CrewManifest.validate_against",
+      "teams.CrewManifest._claimability_errors",
       "teams.get_crew_manifest",
       "teams.reset_crew_manifest",
       "telemetry._NoOpSpan.set_attribute",
