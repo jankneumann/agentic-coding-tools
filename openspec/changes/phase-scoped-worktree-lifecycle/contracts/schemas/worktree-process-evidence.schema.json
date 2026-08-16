@@ -7,6 +7,8 @@
   "additionalProperties": false,
   "required": [
     "schema_version",
+    "change_id",
+    "agent_id",
     "lease_id",
     "owner",
     "pid",
@@ -18,6 +20,8 @@
   ],
   "properties": {
     "schema_version": { "type": "integer", "const": 1 },
+    "change_id": { "type": "string", "minLength": 1 },
+    "agent_id": { "type": ["string", "null"], "minLength": 1 },
     "lease_id": { "type": "string", "minLength": 1 },
     "owner": { "type": "string", "minLength": 1 },
     "pid": { "type": "integer", "minimum": 1 },

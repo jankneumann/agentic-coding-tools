@@ -76,13 +76,21 @@ Canonical writes use the following shape (timestamps are UTC RFC 3339 values):
       "branch": "openspec/add-user-export",
       "worktree_path": "/repo/.git-worktrees/add-user-export",
       "created_at": "2026-08-15T12:00:00Z",
+      "entry_generation": "01K2ENTRY",
+      "durability_target": {
+        "remote_name": "origin",
+        "canonical_remote_url_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "ref_name": "refs/remotes/origin/openspec/add-user-export"
+      },
       "retained": false,
       "retention_reason": null,
       "recovery_required": false,
       "recovery_reason": null,
+      "recovery_context": null,
       "activity_lease": {
         "owner": "autopilot:01K2RUN",
         "lease_id": "01K2LEASE",
+        "controller_instance_id": "01K2CONTROLLER",
         "session_id": "session-123",
         "phase": "IMPLEMENT",
         "lifecycle_mode": "continuous",
@@ -98,12 +106,20 @@ Canonical writes use the following shape (timestamps are UTC RFC 3339 values):
 ```
 
 `owner` is an opaque, namespaced identity; `lease_id` is a client-generated,
-single-acquisition fencing token; and `session_id` is independently matchable by
-session-end cleanup. A worktree has at most one current lease, so ownership
-arbitration remains simple and auditable. `retained=true` prevents ordinary GC
+single-acquisition fencing token; `controller_instance_id` binds that token to
+one live controller process; and `session_id` is independently matchable by
+session-end cleanup. Automatic ownership is the exact
+`(owner, lease_id, controller_instance_id)` triple. `entry_generation` fences
+observations made outside the registry lock. Automatic workflows use one
+setup-and-acquire transaction to create the checkout entry, process evidence,
+and first lease without exposing intermediate unleased state.
+`durability_target` stores the exact remote/ref that must
+contain the checkout HEAD (the parent feature ref for package worktrees). A
+worktree has at most one current lease. `retained=true` prevents ordinary GC
 but never makes an entry active. `recovery_required=true` quarantines preserved
 dirty or non-durable state from automatic adoption without making it a sync-point
-activity blocker. `activity_lease` may remain present after expiry for
+activity blocker. `recovery_context` retains prior controller/process evidence
+whenever ownership is cleared into quarantine. `activity_lease` may remain present after expiry for
 inspection, but an expired lease is not active and may be replaced only by an
 acquire carrying a new lease id. Explicit release sets it to `null`; GC may
 compact expired lease details when it otherwise updates an entry.
@@ -134,7 +150,7 @@ explicit CLI arguments for tests and exceptional operators; normal skills do
 not select their own values. Time-dependent code accepts an injected clock.
 
 The executable phase lifecycle wrapper starts renewal after acquire and stops
-it in `finally`. Long-running orchestrators also renew at write-capable phase
+it in `finally`. The owning controller also renews at write-capable phase
 transitions, before dispatch, after dispatch, and on resume. Renewal sets
 `last_heartbeat=now` and `expires_at=now+ttl`; it does not extend from a possibly
 stale prior expiry. The five-minute cadence leaves six missed-renewal windows
@@ -146,32 +162,38 @@ branch, resets files, or clears retention.
 
 ### D5 — Acquire, renew, release, and teardown are owner checked
 
-The lifecycle CLI exposes owner- and lease-id-scoped `lease acquire`, `lease renew`,
-`lease release`, `lease status`, `lease release-owner`, and
+The lifecycle CLI exposes owner-, lease-, and controller-scoped `lease acquire`,
+`lease resume`, `lease renew`, `lease release`, `lease status`, `lease release-owner`, and
 `lease release-session` operations in addition to setup/teardown and retention
 commands. Acquire accepts an optional non-empty session id and stores it as a
 nullable, explicit lease field; release-session never treats null or empty as a
 wildcard.
 
-- Acquiring an unleased entry succeeds with a caller-generated lease id. An
-  expired entry is not automatically equivalent to an unleased entry: under
-  the lifecycle lock, takeover first inspects worktree and submodule
-  cleanliness, expected-remote reachability, and local process evidence from
-  `.git-worktrees/.lifecycle-processes/<sha256(lease_id)>.json`. The record
+- Initial acquisition is published in the same transaction that creates a
+  fresh entry and its process evidence. Every separately observed unleased or
+  legacy entry is unknown state and receives the same assessment as an expired
+  entry. Takeover first refreshes the stored durability target outside the
+  global lock, then under the lock revalidates entry generation and target
+  before inspecting worktree/submodule cleanliness, exact HEAD reachability,
+  and local process evidence from a digest of the canonical entry identity plus
+  lease id. The record
   contains PID, platform process-start token, host/boot id, controller-instance
-  id, owner/lease id, and timestamps. Exact same-host PID/start matches are
+  id, entry identity, owner/lease id, and timestamps. Exact same-host PID/start matches are
   live; absent PIDs and start-token mismatches are stale; missing, unreadable,
   cross-host, and unsupported checks are indeterminate. Dirty, non-durable,
   live-writer, or indeterminate state is atomically marked `recovery_required`
   and ordinary acquisition fails. Only a checkout proven clean and durable with
   stale same-host process evidence may replace the expired lease, and
-  replacement uses a caller-generated lease id not equal to the expired id.
-- Reacquiring a live lease with the same owner and lease id is idempotent,
+  replacement uses a caller-generated lease and controller id not equal to the expired identity.
+- Reacquiring a live lease with the same owner, lease id, and controller id is idempotent,
   preserves `acquired_at`, and may update phase/reason before renewing expiry.
-  The same owner with a different lease id conflicts while the lease is live.
+  The same token from a different controller conflicts. `lease resume` rotates
+  lease/controller identities only after stale same-host evidence and safe,
+  durable checkout state are proven; live or indeterminate evidence refuses or
+  quarantines the transition even when the TTL expired.
 - Acquiring an entry held by a different live owner fails with both owner,
   phase, and expiry evidence; it never steals the lease.
-- Renewing, releasing, or disposing with the wrong owner or lease id is a
+- Renewing, releasing, or disposing with the wrong owner, lease id, or controller id is a
   non-mutating conflict.
 - Releasing an already absent lease is an idempotent no-op. Because a null lease
   retains no prior owner or lease id, this result makes no claim that the
@@ -182,10 +204,16 @@ wildcard.
   backstop it never makes a preserved checkout automatically adoptable: while
   holding the lifecycle lock it marks each matching, still-present checkout
   `recovery_required` with session-termination evidence before clearing the
-  lease. A checkout already removed by its explicit finalizer is a no-op.
+  lease. It preserves the prior evidence and identity in `recovery_context`. A
+  checkout already removed by its explicit finalizer is a no-op.
 - `release-owner` applies the same quarantine-before-clear rule to every
   still-present exact-owner checkout and reports per-entry outcomes; bulk
   recovery never makes preserved state ordinarily adoptable.
+- Normal `recovery adopt` requires the former controller evidence to be stale
+  on the same host. Live or indeterminate evidence refuses adoption. A separate
+  audited `recovery force-adopt` requires actor, rationale, and explicit process
+  termination confirmation for missing/cross-host evidence and is never used by
+  automatic workflows.
 - Normal teardown refuses to remove a worktree with another owner's live lease.
   Expired leases do not authorize deletion, and dirty/non-durable safety checks
   still apply.
@@ -216,6 +244,10 @@ Readers accept both the existing top-level `version: 1` registry and canonical
 - A stale or invalid heartbeat does not create live activity.
 - Branch, path, agent, and creation fields are preserved byte-for-value where
   the v2 schema permits them.
+- V1 entries normalize with a fresh `entry_generation`, null
+  `durability_target`, and null automatic controller identity. Ordinary
+  acquisition cannot silently adopt that unknown state; recovery must establish
+  a trusted durability target and prior-process termination evidence.
 
 Read-only `inspect --migration-report` shows the exact normalization and any
 invalid entries without writing. The first successful mutating transaction
@@ -237,12 +269,14 @@ output label these compatibility semantics explicitly.
 ### D7 — Lifecycle context is explicit and reports who must release
 
 Write-capable skills receive a lifecycle context with `lifecycle_mode`, `owner`,
-`session_id`, worktree identity, and `release_responsibility=caller|parent`.
+`session_id`, worktree identity, `controller_instance_id`, and
+`release_responsibility=caller|parent`.
 Release responsibility is explicit input, not inferred from whether an
 idempotent acquire happened to create a new lease record. A standalone caller
 uses a unique phase owner and has `release_responsibility=caller`; a nested
-caller presented with a live, same-owner continuous lease may update its phase
-and renew it, but has `release_responsibility=parent` and must not release or
+caller presented with a live continuous lease may assert the exact inherited
+triple, but only the parent controller updates phase or renews it. The child has
+`release_responsibility=parent` and must not release or
 tear down the parent's worktree. This avoids leaking a standalone lease when an
 acquire response is retried after its original output was lost.
 
@@ -255,7 +289,7 @@ standalone versus continuous ownership.
 The concrete `skills/shared/phase_lifecycle.py` controller starts and monitors
 the renewer, persists non-authoritative process context, and provides idempotent
 `begin`, `assert-owned`, and `finalize` operations for all Markdown-driven
-skills. It latches renewal failures and verifies the matching owner plus lease id
+skills. It latches renewal failures and verifies the matching ownership triple
 before each subsequent repository mutation boundary, integration, commit, and
 push. An expired lease, fencing mismatch, or failed renew aborts the phase
 instead of allowing an unfenced writer to publish. A tool already in flight may
@@ -265,9 +299,12 @@ only ownership authority.
 
 The controller also owns process evidence. It derives the process-start token
 and host/boot id, atomically creates the schema-valid evidence file before
-publishing an automatic lease, refreshes it with renewal, and deletes it after
-the matching release/disposal registry transition. Stale records whose lease no
-longer exists are harmless and GC-eligible. Evidence can veto automatic expired
+publishing an automatic lease and refreshes it with renewal. Clean disposal
+deletes matching evidence; quarantine release archives or preserves it and
+binds the key into `recovery_context` until safe adoption or teardown. Evidence
+keys hash a versioned length-prefix encoding of `(change_id,
+agent_id-or-null, lease_id)`, and every operation validates entry, owner, lease,
+and controller fields before use. Stale orphan records are GC-eligible. Evidence can veto automatic expired
 takeover but can never grant ownership or replace owner/lease assertions.
 
 ### D8 — Standalone phases push, release, and dispose independently
@@ -276,9 +313,9 @@ Direct `plan-feature` uses branch `openspec/<change-id>--proposal`, acquires a
 PLAN lease, validates all plan artifacts, commits and pushes them, opens a PR
 whose body contains `OpenSpec-Delivery: proposal`, and then finalizes. While the
 lease is still live, finalization takes the exclusive lifecycle lock, verifies
-owner plus lease id, checks dirtiness (including submodules) before any
-destructive submodule operation, proves `HEAD` is reachable from the expected
-remote branch, removes the worktree, and deletes its registry entry. Being
+owner, lease id, and controller instance, checks dirtiness (including submodules) before any
+destructive submodule operation, proves `HEAD` is reachable from the entry's
+stored durability target, removes the worktree, and deletes its registry entry. Being
 unmerged into `main` is not unsafe once the commit is durable on that remote
 branch. If disposal refuses dirty or non-durable state, finalization releases
 the matching lease and atomically marks the entry `recovery_required` with
@@ -295,7 +332,7 @@ output, and finalize independently. This rule applies to sequential,
 local-parallel, and coordinated tiers. Package worktrees have their own leases
 and are released/removed after integration or on failure. Successful package
 integration first pushes the parent feature ref, then proves the exact package
-HEAD is reachable from that expected parent remote ref; the child branch need
+HEAD is reachable from its stored parent-feature durability target; the child branch need
 not be pushed under its own name. Only then may owner-fenced disposal remove the
 package checkout.
 
@@ -316,29 +353,44 @@ Before PLAN mutates, autopilot resolves and persists the change id using the
 same deterministic normalization as `plan-feature` (or asks the operator when a
 description cannot resolve uniquely), creates the continuous implementation
 branch/worktree `openspec/<change-id>`, then creates `autopilot:<run-id>` plus a
-new lease id. It stores the owner, lease id, session, lifecycle mode, worktree identity,
-and lease phase in `loop-state.json`, and
-passes that context into PLAN, PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT,
-IMPL_ITERATE, IMPL_REVIEW, VALIDATE, optional VAL_REVIEW, and SUBMIT_PR.
-Nested skills and review/fix callbacks renew the same lease; they do not create
-or release phase owners.
+new lease and ephemeral controller id. The canonical state-machine
+`openspec/changes/<change-id>/loop-state.json` remains in the feature branch for
+existing phase, audit, and coordinator consumers. A minimal schema-validated
+recovery envelope lives outside the disposable checkout at
+`.git-worktrees/.autopilot-runs/<run-id>/recovery.json`. It includes owner,
+lease id, branch, durability target, durable HEAD, path and SHA-256 of the
+committed canonical loop state, checkout state, finalization intent, and resume
+phase, but never treats the prior controller id as reusable identity. The
+envelope is lifecycle recovery metadata, not a second workflow-state authority.
+Autopilot passes
+the current exact lease triple into PLAN, PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT,
+IMPL_ITERATE, IMPL_REVIEW, VALIDATE, optional VAL_REVIEW, and SUBMIT_PR. Nested
+skills and review/fix callbacks assert that inherited triple; only the parent
+continuous controller renews it. Children do not create, rotate, or release
+phase owners.
 
-On resume, autopilot reloads the persisted owner and lease id before dispatching.
-It renews if both match a live lease. If the lease expired and no other owner or
-recovery quarantine exists, it acquires a new lease id under the stable owner
-and checkpoints that id before mutation. The old id is permanently fenced out.
-It escalates on any different live owner, live fencing mismatch, quarantine, or
-worktree/branch identity mismatch. Resume never steals ownership based only on
-the change id.
+On resume, autopilot loads the external checkpoint. A still-running same
+controller may idempotently continue its exact triple. A replacement controller
+uses `lease resume`, which rejects live/indeterminate old evidence and rotates
+the lease/controller only after stale evidence and safety checks. If the
+checkout and registry were cleanly removed after ESCALATE, exception, or submit,
+resume verifies `durable_head` against the checkpointed remote/ref, recreates
+the worktree and registry entry, verifies the restored canonical loop-state
+digest against the envelope, atomically acquires a new lease/controller under
+the stable owner, checkpoints the new identity in both views, and only then dispatches.
+Partial presence, `teardown_pending`, quarantine, missing/non-durable refs, or
+identity mismatch remains escalated until reconciliation proves one safe state.
 
-After SUBMIT_PR has persisted the PR/evidence checkpoint, autopilot stops the
-renewer, owner-checks release, safely tears down, records final lifecycle state,
-and only then enters DONE and presents the human merge gate. On exception,
-failed outcome, or ESCALATE, its outermost `finally` first flushes the latest
-loop state and handoff, then attempts release and safe teardown. A checkpoint
-write failure is reported as a hard recovery error, but does not justify an
-indefinite blocker: release is still attempted and bounded expiry remains the
-last backstop.
+After SUBMIT_PR has persisted the PR/evidence checkpoint, autopilot first writes
+`finalization_intent` plus the durable loop-state digest outside the checkout, stops
+the renewer, owner-checks release, safely tears down, then records
+`checkout_state=removed` before entering DONE and presenting the human merge
+gate. The same `teardown_pending`/removed protocol applies on exception, failed
+outcome, or ESCALATE. Its outermost `finally` flushes the external loop state and
+handoff before attempting release and safe teardown. If the checkpoint is not
+durable, the checkout is quarantined rather than deleted. A checkpoint write
+failure is a hard recovery error, but release is still attempted and bounded
+expiry remains the last backstop.
 
 ### D10 — Session end performs local, best-effort owner-scoped release first
 
@@ -471,11 +523,22 @@ against current SHAs and writes the result to
 `state.latest_delivery_classification` before merge without mutating the
 definition snapshot.
 
-An operator override is bound to the inspected `base_sha`, `head_sha`,
-`ruleset_version`, and SHA-256 digest of the canonical latest classification.
-Execution recomputes and compares all four before honoring the override. A base
-or head update, ruleset change, or digest mismatch restores blocked/ambiguous
-routing until a new operator disposition is recorded.
+An operator override is permitted only while the latest classification is
+`ambiguous`; clear proposal, implementation, or mixed classifications require
+classifier routing and reject an override. The override is bound to the
+inspected `base_sha`, `head_sha`, `ruleset_version`, digest algorithm, and digest
+of the canonical latest classification. Execution reclassifies and compares all
+bindings before honoring it. A base/head update, ruleset change, or digest
+mismatch discards the override: a newly clear classification uses classifier
+routing, while a still-ambiguous result returns to blocked routing.
+
+The digest algorithm identifier is `pr-delivery-v1+jcs-sha256`. The shared
+helper schema-validates, projects every classification field except
+`classified_at`, sorts all set-valued path/warning/reason/hint/conflict arrays
+by strict UTF-8 byte order, performs no Unicode normalization, rejects invalid
+Unicode scalar values, serializes with RFC 8785 JSON Canonicalization Scheme,
+and returns lowercase SHA-256 hex. Disposition and execution use this one
+helper; a checked-in Unicode-aware golden fixture fixes the expected hash.
 
 The coordinator's worktree projection uses the shared schema interpreter.
 Sync-point blockers and `/worktrees/active` include only unexpired activity
@@ -531,17 +594,20 @@ proposal-only change.
 For a registry entry, the relevant transitions are:
 
 ```text
-idle --acquire(owner)--> active(owner, expires_at)
-active(same owner) --renew/reacquire--> active(same owner, new expires_at)
+fresh setup --acquire(nonce, owner, lease, controller)--> active(exact triple)
+pre-existing idle --assess/adopt--> active(new exact triple) | quarantine
+active(same triple) --renew/retry--> active(same triple, new expires_at)
+active(different controller) --resume--> reject live | rotate after stale+safe
 active(other owner) --acquire--> conflict (no mutation)
 active --time passes expiry--> expired/idle (files untouched)
-active(same owner) --release--> idle
+active(same triple) --release--> idle
 idle --retain/unretain--> idle + GC policy change
 ```
 
 For standalone workflows, `push/PR durable` precedes release and teardown. For
-continuous autopilot, every nested phase returns to the same active owner;
-SUBMIT_PR checkpoint precedes release, and release precedes DONE.
+continuous autopilot, every nested phase returns to the same active controller;
+an external durable checkpoint precedes release/teardown. A removed checkout is
+recreated only from the recorded durable ref before a new controller resumes.
 
 ## Verification strategy
 

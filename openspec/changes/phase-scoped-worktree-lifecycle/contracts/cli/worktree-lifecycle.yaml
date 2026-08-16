@@ -26,11 +26,12 @@ registry:
     - idempotent_same_owner_retry
 
 process_evidence:
-  path: .git-worktrees/.lifecycle-processes/<sha256(lease_id)>.json
+  path: .git-worktrees/.lifecycle-processes/<sha256(versioned-length-prefix(change_id,agent_id-or-null,lease_id))>.json
   schema: ../schemas/worktree-process-evidence.schema.json
-  fields: [lease_id, owner, pid, process_start_token, host_id, controller_instance_id, written_at, last_seen_at]
+  fields: [change_id, agent_id, lease_id, owner, pid, process_start_token, host_id, controller_instance_id, written_at, last_seen_at]
   rules:
     - The lifecycle controller atomically writes evidence before publishing an automatic lease and refreshes it with renewal.
+    - Every evidence read, refresh, archive, or delete validates the exact entry key, owner, lease_id, and controller_instance_id; lease ids need not be registry-global.
     - Same-host pid plus exact process_start_token is live; absent pid or token mismatch is stale, including PID reuse.
     - Missing, unreadable, unsupported, or cross-host evidence is indeterminate and quarantines expired takeover.
     - Evidence may veto expired takeover but never grants ownership.
@@ -48,6 +49,10 @@ identity:
     type: string
     min_length: 1
     description: Client-generated single-acquisition fencing token.
+  controller_instance_id:
+    type: string
+    min_length: 1
+    description: Per-process controller identity generated once and never persisted as resumable workflow identity.
 
 global_exit_codes:
   0: success_or_idempotent_noop
@@ -60,36 +65,84 @@ global_exit_codes:
   7: recovery_required
 
 commands:
+  - name: setup
+    synopsis: >-
+      worktree.py setup CHANGE_ID [--agent-id ID] --durability-remote REMOTE
+      --durability-ref REF [--json]
+    mutation: true
+    required: [change_id, durability_remote, durability_ref]
+    behavior:
+      - Create the checkout and an unleased registry entry with a fresh entry_generation and canonicalized durability target for explicit non-workflow setup.
+      - A package entry MUST store the parent feature remote ref as its durability target, not its disposable child branch.
+      - Any later acquisition treats the separately visible unleased entry as pre-existing state and runs the full adoption assessment.
+    json_output:
+      required: [change_id, agent_id, branch, worktree_path, entry_generation, durability_target, created]
+
+  - name: setup-and-acquire
+    synopsis: >-
+      worktree.py setup-and-acquire CHANGE_ID [--agent-id ID]
+      --durability-remote REMOTE --durability-ref REF --owner OWNER
+      --lease-id LEASE_ID --controller-instance-id CONTROLLER
+      [--session-id SESSION_ID] --phase PHASE --reason REASON
+      [--mode standalone|continuous] [--ttl-seconds N] [--json]
+    mutation: true
+    required: [change_id, durability_remote, durability_ref, owner, lease_id, controller_instance_id, phase, reason]
+    behavior:
+      - Fresh automatic workflow operation that creates the checkout, schema-valid entry, exact durability target, exact-entry process evidence, and first lease as one crash-reconciled lifecycle transaction.
+      - Publish no separately visible unleased registry state; a failure before lease publication removes or quarantines the reservation rather than exposing it to ordinary acquire.
+      - Refuse when an entry already exists; callers must use assessed acquire, resume, or explicit recovery instead.
+      - A package entry MUST store the parent feature remote ref as its durability target.
+    json_output:
+      required: [change_id, agent_id, branch, worktree_path, entry_generation, durability_target, owner, lease_id, controller_instance_id, acquired]
+
   - name: lease acquire
     synopsis: >-
       worktree.py lease acquire CHANGE_ID [--agent-id ID] --owner OWNER
-      --lease-id LEASE_ID [--session-id SESSION_ID] --phase PHASE --reason REASON
+      --lease-id LEASE_ID --controller-instance-id CONTROLLER
+      [--session-id SESSION_ID] --phase PHASE --reason REASON
       [--mode standalone|continuous|manual] [--ttl-seconds N] [--json]
     mutation: true
-    required: [change_id, owner, lease_id, phase, reason]
+    required: [change_id, owner, lease_id, controller_instance_id, phase, reason]
     defaults:
       mode: standalone
       ttl_seconds: 1800
     behavior:
-      - Create a lease immediately when none exists.
-      - Before replacing an expired lease, hold the lifecycle lock and inspect worktree/submodule cleanliness, expected-remote reachability, and the schema-valid process-evidence record bound to the old lease id; unsafe, live-writer, or indeterminate state MUST be quarantined with recovery_required and return exit code 7.
+      - Treat every unleased entry, including normalized legacy and separately created setup state, as unknown and run the full locked adoption assessment; missing durability or stale-process proof quarantines it.
+      - Refresh the stored durability remote/ref outside the global registry lock, then under the lock revalidate entry_generation and durability_target before proving HEAD reachable from the exact ref. Network I/O is forbidden while the registry lock is held.
+      - Before replacing an expired lease, inspect worktree/submodule cleanliness, stored-target reachability, and schema-valid process evidence bound to the exact entry and old lease; unsafe, live-writer, or indeterminate state MUST be quarantined with recovery_context and return exit code 7.
       - Only a clean, durable expired entry with stale same-host evidence may be acquired, and replacement MUST use a new lease_id.
-      - Retry by the same owner and lease_id is idempotent and renews expiry.
+      - Retry by the same owner, lease_id, and controller_instance_id is idempotent and renews expiry; a different controller cannot reuse that token.
       - Refuse a live lease with a different owner using exit code 3 and a different lease_id using exit code 6.
       - Refuse automatic acquisition of recovery_required entries with exit code 7.
     json_output:
-      required: [change_id, agent_id, owner, lease_id, session_id, phase, lifecycle_mode, acquired_at, last_heartbeat, expires_at, acquired]
+      required: [change_id, agent_id, owner, lease_id, controller_instance_id, session_id, phase, lifecycle_mode, acquired_at, last_heartbeat, expires_at, acquired]
+
+  - name: lease resume
+    synopsis: >-
+      worktree.py lease resume CHANGE_ID [--agent-id ID] --owner OWNER
+      --prior-lease-id OLD --lease-id NEW --controller-instance-id CONTROLLER
+      --phase PHASE --reason REASON [--session-id SESSION_ID] [--json]
+    mutation: true
+    required: [change_id, owner, prior_lease_id, lease_id, controller_instance_id, phase, reason]
+    behavior:
+      - Rotate lease and controller identity only after exact old-entry evidence is stale on the same host and checkout state is safe and reachable from the stored durability target.
+      - Reject live old-controller evidence and quarantine missing, unreadable, unsupported, cross-host, or identity-mismatched evidence; TTL expiry alone never proves process death.
+      - Use the same refresh-outside-lock and generation/target revalidation protocol as assessed acquire.
+    json_output:
+      required: [change_id, agent_id, owner, prior_lease_id, lease_id, controller_instance_id, resumed, recovery_required]
 
   - name: lease renew
     synopsis: >-
       worktree.py lease renew CHANGE_ID [--agent-id ID] --owner OWNER
-      --lease-id LEASE_ID [--phase PHASE] [--ttl-seconds N] [--json]
+      --lease-id LEASE_ID [--controller-instance-id CONTROLLER] [--phase PHASE]
+      [--ttl-seconds N] [--json]
     mutation: true
     required: [change_id, owner, lease_id]
     defaults:
       ttl_seconds: 1800
     behavior:
-      - Renew only a non-expired lease held by the exact owner and lease_id.
+      - Renew only a non-expired lease held by the exact owner, lease_id, and controller_instance_id.
+      - A non-empty controller_instance_id is mandatory for automatic leases. Omission matches only a normalized manual legacy lease whose stored controller identity is null.
       - An optional phase updates the current phase without changing ownership.
       - Refuse a different owner with exit code 4 and a fencing mismatch/expired lease with exit code 6; an expired lease must be acquired again with a new lease_id.
     json_output:
@@ -98,12 +151,13 @@ commands:
   - name: lease release
     synopsis: >-
       worktree.py lease release CHANGE_ID [--agent-id ID] --owner OWNER
-      --lease-id LEASE_ID [--recovery-reason REASON] [--json]
+      --lease-id LEASE_ID --controller-instance-id CONTROLLER
+      [--recovery-reason REASON] [--json]
     mutation: true
-    required: [change_id, owner, lease_id]
+    required: [change_id, owner, lease_id, controller_instance_id]
     behavior:
-      - Clear only a lease held by the exact owner and lease_id.
-      - When recovery-reason is supplied, atomically mark recovery_required before clearing the lease.
+      - Clear only a lease held by the exact owner, lease_id, and controller_instance_id.
+      - When recovery-reason is supplied, atomically mark recovery_required and retain recovery_context plus the matching process evidence before clearing the lease.
       - Releasing an already absent lease is an idempotent success that makes no assertion about prior ownership.
       - Refuse a different live owner with exit code 4 or fencing mismatch with exit code 6.
     json_output:
@@ -116,6 +170,7 @@ commands:
     behavior:
       - Explicit recovery operation that handles every lease with an exact owner match under the lifecycle lock.
       - For every matching checkout still present, atomically set recovery_required with an owner-recovery reason before clearing the lease; never return preserved state to ordinary-acquire eligibility.
+      - Preserve matching process evidence and bind its key and prior controller identity into recovery_context for later termination assessment.
       - Never releases leases owned by another run, even when owner prefixes match.
       - Repeating the command is an idempotent success.
     json_output:
@@ -129,6 +184,7 @@ commands:
       - Best-effort session-end operation that handles every lease with an exact non-empty session_id match under the lifecycle lock.
       - Null, missing, empty, prefix, and owner matches are never treated as session matches.
       - For every matching checkout not already removed by explicit finalization, atomically set recovery_required with a session-termination reason before clearing the lease; never return preserved state to ordinary-acquire eligibility.
+      - Preserve matching process evidence and bind its key and prior controller identity into recovery_context for later termination assessment.
       - Never delete a worktree; a missing entry or one already removed by explicit finalization is an idempotent no-op.
       - Repeating the command is an idempotent success.
     json_output:
@@ -137,27 +193,39 @@ commands:
   - name: recovery adopt
     synopsis: >-
       worktree.py recovery adopt CHANGE_ID [--agent-id ID] --owner OWNER
-      --lease-id LEASE_ID --reason REASON [--session-id SESSION_ID]
+      --lease-id LEASE_ID --controller-instance-id CONTROLLER --reason REASON [--session-id SESSION_ID]
       [--ttl-seconds N] [--json]
     mutation: true
-    required: [change_id, owner, lease_id, reason]
+    required: [change_id, owner, lease_id, controller_instance_id, reason]
     behavior:
-      - Explicit operator action that inspects preserved state and atomically clears recovery_required plus recovery_reason while acquiring a new fenced manual lease.
+      - Explicit operator action that requires stale same-host prior-process evidence, then atomically clears recovery metadata while acquiring a new fenced manual lease.
       - The resulting lease stores owner and lease_id, nullable session_id, phase RECOVERY, the supplied reason, lifecycle_mode manual, acquired_at and last_heartbeat set to now, expires_at=now+ttl_seconds, and the default 1800-second TTL when omitted.
-      - Missing entries return exit code 1; live-owner conflicts return 3; inspection failure or unresolved unsafe state returns 7; wrong/stale fencing never mutates state.
+      - Live or indeterminate prior-process evidence returns 7 without mutation. Once termination is proven, intentionally preserved dirty/non-durable contents may be adopted for inspection under the manual lease.
       - Ordinary phase workflows MUST NOT pass this operation implicitly.
     json_output:
-      required: [change_id, agent_id, owner, lease_id, session_id, phase, reason, lifecycle_mode, acquired_at, last_heartbeat, expires_at, ttl_seconds, adopted, recovery_required]
+      required: [change_id, agent_id, owner, lease_id, controller_instance_id, session_id, phase, reason, lifecycle_mode, acquired_at, last_heartbeat, expires_at, ttl_seconds, adopted, recovery_required]
+
+  - name: recovery force-adopt
+    synopsis: >-
+      worktree.py recovery force-adopt CHANGE_ID [--agent-id ID] --owner OWNER
+      --lease-id LEASE_ID --controller-instance-id CONTROLLER --actor ACTOR
+      --reason REASON --confirm-terminated [--json]
+    mutation: true
+    required: [change_id, owner, lease_id, controller_instance_id, actor, reason, confirm_terminated]
+    behavior:
+      - Separately named audited operator path for missing or cross-host evidence; never invoked by automatic workflows.
+      - Persist actor, rationale, and explicit termination confirmation in recovery audit evidence before rotating ownership.
+      - Refuse when matching prior-process evidence is locally live.
 
   - name: teardown
     synopsis: >-
       worktree.py teardown CHANGE_ID [--agent-id ID] --owner OWNER
-      --lease-id LEASE_ID [--expected-remote REMOTE_REF] [--json]
+      --lease-id LEASE_ID --controller-instance-id CONTROLLER [--json]
     mutation: true
-    required: [change_id, owner, lease_id]
+    required: [change_id, owner, lease_id, controller_instance_id]
     behavior:
-      - Hold the exclusive registry lock from live owner/lease-id verification through dirty and submodule checks, remote-reachability proof, Git worktree removal, and registry-entry removal.
-      - Permit a branch not merged into main when HEAD is reachable from the expected durable remote ref.
+      - Refresh the stored durability target outside the global lock, then hold the exclusive registry lock from generation/target and live owner/lease/controller verification through dirty and submodule checks, HEAD-reachability proof, Git worktree removal, and registry-entry removal.
+      - Permit a branch not merged into main when HEAD is reachable from the stored durable remote ref; caller-supplied alternate refs are forbidden.
       - On dirty, dirty-submodule, or non-durable state, preserve the worktree and return an unsafe result so finalization can release it into recovery quarantine.
       - Never run destructive submodule deinitialization before dirtiness is proven absent.
       - Repeating teardown after the registry entry and worktree are already absent is an idempotent success and does not attest prior ownership.
@@ -179,11 +247,11 @@ commands:
   - name: lease assert-owned
     synopsis: >-
       worktree.py lease assert-owned CHANGE_ID [--agent-id ID] --owner OWNER
-      --lease-id LEASE_ID [--json]
+      --lease-id LEASE_ID --controller-instance-id CONTROLLER [--json]
     mutation: false
-    required: [change_id, owner, lease_id]
+    required: [change_id, owner, lease_id, controller_instance_id]
     behavior:
-      - Succeed only when the lease is live and both owner and lease_id match.
+      - Succeed only when the lease is live and owner, lease_id, and controller_instance_id all match.
       - Return exit code 4 for owner mismatch and exit code 6 for expiry, absence, or fencing mismatch.
     json_output:
       required: [change_id, agent_id, owner, lease_id, owned, expires_at]
@@ -235,16 +303,17 @@ compatibility_aliases:
     constraints:
       - For a v1 entry, heartbeat CHANGE_ID [--agent-id ID] atomically writes the complete deterministic synthetic lease mapping, with last_heartbeat=now, expires_at=now+3600, and ttl_seconds=3600.
       - The synthetic lease uses owner legacy:<change-id>:<agent-id-or-parent>, lease_id legacy-v1:<sha256(change-id|agent-id-or-parent|created-at)>, null session_id, phase LEGACY, reason legacy-heartbeat-migration, lifecycle_mode manual, and acquired_at=min(created_at,last_heartbeat).
-      - Once an entry is v2, explicit --owner and --lease-id are required and the alias behaves exactly as lease renew; omission returns exit code 1.
+      - Once an entry is v2, explicit --owner and --lease-id are required and the alias behaves exactly as lease renew; the normalized manual legacy lease omits controller identity, while every automatic lease also requires --controller-instance-id.
       - New workflows use lease renew directly.
 
 safety_invariants:
   - Expiry makes activity non-blocking but never removes a worktree or branch.
   - Ordinary takeover of an expired lease is allowed only after a locked clean/durable/process-evidence assessment; unsafe or indeterminate state is quarantined.
+  - Remote refresh happens outside the global registry lock; the locked mutation revalidates entry_generation and the stored durability target before using the observation.
   - GC skips retained entries and refuses dirty or unmerged worktrees unless an existing explicit operator force path separately authorizes removal.
-  - Automatic teardown requires a live matching owner and lease_id and holds the exclusive registry lock through dirty/submodule checks, remote-reachability proof, git removal, and registry removal.
+  - Automatic teardown requires a live matching owner, lease_id, and controller_instance_id and holds the exclusive registry lock through revalidation, dirty/submodule checks, remote-reachability proof, git removal, and registry removal.
   - The lifecycle controller runs teardown with the resolved main repository as cwd, never from inside the worktree being removed.
-  - A pushed but unmerged branch is disposable when HEAD is reachable from the expected remote branch; an unpushed commit or dirty submodule is not.
+  - A pushed but unmerged branch is disposable when HEAD is reachable from the entry's stored durability target; an unpushed commit or dirty submodule is not.
   - Unsafe teardown releases into recovery_required quarantine; nested phases cannot release a continuous parent lease.
   - Session release quarantines every preserved matching checkout before clearing the lease and never deletes a worktree.
   - A workflow pushes durable output before releasing its standalone phase lease.

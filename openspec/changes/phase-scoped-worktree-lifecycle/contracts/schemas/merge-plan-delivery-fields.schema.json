@@ -26,7 +26,91 @@
           "$ref": "pr-delivery-classification.schema.json"
         },
         "delivery_routing": { "$ref": "#/$defs/deliveryRouting" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "latest_delivery_classification": {
+                "properties": { "delivery_stage": { "const": "ambiguous" } },
+                "required": ["delivery_stage"]
+              }
+            },
+            "required": ["latest_delivery_classification"]
+          },
+          "then": {
+            "properties": {
+              "delivery_routing": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "decision_source": { "const": "classifier" },
+                      "effective_stage": { "const": "ambiguous" },
+                      "operator_override": { "type": "null" }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "decision_source": { "const": "operator_override" },
+                      "effective_stage": { "enum": ["proposal", "implementation", "mixed"] },
+                      "operator_override": { "$ref": "#/$defs/operatorOverride" }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "delivery_routing": {
+                "properties": {
+                  "decision_source": { "const": "classifier" },
+                  "operator_override": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "latest_delivery_classification": {
+                "properties": { "delivery_stage": { "const": "proposal" } },
+                "required": ["delivery_stage"]
+              }
+            }
+          },
+          "then": { "properties": { "delivery_routing": { "properties": { "effective_stage": { "const": "proposal" } } } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "latest_delivery_classification": {
+                "properties": { "delivery_stage": { "const": "implementation" } },
+                "required": ["delivery_stage"]
+              }
+            }
+          },
+          "then": { "properties": { "delivery_routing": { "properties": { "effective_stage": { "const": "implementation" } } } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "latest_delivery_classification": {
+                "properties": { "delivery_stage": { "const": "mixed" } },
+                "required": ["delivery_stage"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "delivery_routing": {
+                "properties": { "effective_stage": { "const": "mixed" } }
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "$defs": {
@@ -41,6 +125,7 @@
         "base_sha",
         "head_sha",
         "ruleset_version",
+        "classification_digest_algorithm",
         "classification_digest"
       ],
       "properties": {
@@ -51,6 +136,7 @@
         "base_sha": { "type": "string", "minLength": 7 },
         "head_sha": { "type": "string", "minLength": 7 },
         "ruleset_version": { "type": "string", "minLength": 1 },
+        "classification_digest_algorithm": { "const": "pr-delivery-v1+jcs-sha256" },
         "classification_digest": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$",
@@ -102,6 +188,57 @@
           },
           "else": {
             "properties": { "operator_override": { "type": "null" } }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_source": { "const": "operator_override" },
+              "effective_stage": { "const": "proposal" }
+            },
+            "required": ["decision_source", "effective_stage"]
+          },
+          "then": {
+            "properties": {
+              "operator_override": {
+                "properties": { "selected_stage": { "const": "proposal" } },
+                "required": ["selected_stage"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_source": { "const": "operator_override" },
+              "effective_stage": { "const": "implementation" }
+            },
+            "required": ["decision_source", "effective_stage"]
+          },
+          "then": {
+            "properties": {
+              "operator_override": {
+                "properties": { "selected_stage": { "const": "implementation" } },
+                "required": ["selected_stage"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision_source": { "const": "operator_override" },
+              "effective_stage": { "const": "mixed" }
+            },
+            "required": ["decision_source", "effective_stage"]
+          },
+          "then": {
+            "properties": {
+              "operator_override": {
+                "properties": { "selected_stage": { "const": "mixed" } },
+                "required": ["selected_stage"]
+              }
+            }
           }
         },
         {

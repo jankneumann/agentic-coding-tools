@@ -103,3 +103,48 @@ Resolved semantic blockers that strict OpenSpec validation did not catch: lease 
 
 ### Context
 PLAN_REVIEW did not converge. Codex found three critical blockers, three nits, and two positive observations. Antigravity, Claude, Grok, and Pi produced no valid review, so external quorum was 0/4; the single-vendor consensus summary must not override the primary critical findings.
+
+---
+
+## Phase: Plan Iteration 2 (2026-08-16)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Bind automatic ownership to the controller** `architectural: worktree` — Owner and lease identity alone cannot exclude a duplicate live resume; every automatic mutation now requires the exact owner, lease, and controller triple.
+2. **Persist durability and recovery identity** `architectural: worktree` — Takeover and disposal must use an entry-owned remote/ref and retain former process evidence until termination is proven.
+3. **Keep resumable autopilot state outside disposable checkouts** `architectural: skill-workflow` — ESCALATE and exception teardown must remain resumable after the worktree and registry entry are removed.
+4. **Permit delivery overrides only for ambiguous evidence** `architectural: merge-pull-requests` — A clear implementation classification must never be downgraded to proposal through operator disposition.
+
+### Alternatives Considered
+- Reuse the prior controller token during resume: rejected because It permits two simultaneously valid writers after duplicate resume.
+- Infer durability from branch naming: rejected because Package worktrees are durable through the parent feature ref and cannot be assessed safely from the child branch.
+- Keep loop-state inside the feature worktree: rejected because Clean finalization removes the state required to recreate and resume that checkout.
+
+### Trade-offs
+- Accepted an explicit audited force-adopt path over automatic cross-host recovery because missing or cross-host process evidence cannot prove the former writer terminated
+- Accepted external run checkpoints and generation revalidation over a simpler registry-only protocol because network refresh must stay outside the global lock while stale observations remain fenced
+
+### Open Questions
+- [ ] The two recorded cross-change baseline SHAs remain implementation-time no-dispatch gates until those changes are merged and this branch is rebased.
+- [ ] A fresh plan-review quorum is still required before implementation because the autopilot checkpoint remains ESCALATE.
+
+### Completed Work
+- Resolved all seven critical findings from the third plan review and both high testability/determinism findings.
+- Added schema-enforced controller, durability, recovery, ambiguous-override, and selected-stage invariants.
+- Split registry, phase, delivery, and autopilot work into focused test-first tasks and added executable ancestry, formatting, hook, and regression gates.
+- Validated strict OpenSpec, package DAG/scope, schema metaschemas, representative negative/positive instances, and diff whitespace.
+
+### Next Steps
+- Run a fresh independent plan review against plan revision 4.
+- Only after review convergence, satisfy baseline-gates.json and begin package implementation.
+
+### Relevant Files
+- `openspec/changes/phase-scoped-worktree-lifecycle/design.md` — Refined lifecycle and resume decisions
+- `openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json` — Controller, durability, and recovery invariants
+- `openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json` — Ambiguous-only override contract
+- `openspec/changes/phase-scoped-worktree-lifecycle/tasks.md` — Test-first implementation decomposition
+- `openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml` — Revision 4 package DAG and executable gates
+
+### Context
+Resolved the final lifecycle, resume, and delivery-override blockers without changing the persisted ESCALATE state. The plan now uses controller-bound leases, stored durability targets, collision-safe process evidence, external autopilot run state, ambiguous-only RFC-8785-bound overrides, and smaller executable work packages.

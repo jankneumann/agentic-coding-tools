@@ -6,8 +6,11 @@ The managed-worktree registry SHALL use a locked schema-v2 lifecycle contract in
 which `retained` and `retention_reason` describe garbage-collection protection
 and `activity_lease` describes current write activity. An activity lease MUST
 contain an owner identity, phase, reason, acquisition time, last heartbeat, and
-expiry, plus a single-acquisition `lease_id`, nullable `session_id`, lifecycle
-mode, and TTL. Retention MUST NOT, by itself, be interpreted as current activity.
+expiry, plus a single-acquisition `lease_id`, per-process
+`controller_instance_id`, nullable `session_id`, lifecycle mode, and TTL. Each
+entry SHALL carry an `entry_generation` and exact
+durability target; package entries target the parent feature ref. Retention MUST
+NOT, by itself, be interpreted as current activity.
 Entries with preserved dirty or non-durable work SHALL expose
 `recovery_required` independently from activity and retention.
 
@@ -30,18 +33,22 @@ retain, teardown, and garbage-collection operations cannot lose updates.
 
 ### Requirement: Activity Lease Operations SHALL Be Fenced and Crash-Tolerant
 
-The worktree command surface SHALL provide acquire, assert-owned, renew, release,
+The worktree command surface SHALL provide acquire, resume, assert-owned, renew, release,
 owner/session release, and status operations for activity leases. Acquire SHALL
-reject a different live owner or fencing token, renew SHALL require the current
-owner plus `lease_id`, and release SHALL remove only that exact lease. Releasing
+reject a different live owner, fencing token, or controller, renew SHALL require
+the current ownership triple, and release SHALL remove only that exact lease. Releasing
 an absent lease or repeating safe teardown SHALL succeed as a no-op without
 attesting prior ownership or changing another owner's state. Replacing an
-expired lease SHALL require a new `lease_id` plus an atomic, locked assessment
-of checkout/submodule cleanliness, expected-remote reachability, and remaining
+expired or pre-existing unleased entry SHALL require a new lease/controller
+plus an assessment of checkout/submodule cleanliness, stored-target
+reachability, and remaining
 process evidence; unsafe or indeterminate state SHALL enter recovery quarantine
-instead of ordinary acquisition. Every mutation, integration, commit, push,
-and automatic teardown boundary SHALL assert the live matching owner and lease
-id.
+instead of ordinary acquisition. Remote refresh SHALL occur outside the global
+registry lock; the locked mutation SHALL revalidate entry generation and target.
+Fresh automatic setup SHALL publish the entry, process evidence, and initial
+lease atomically; no separately visible unleased entry may bypass adoption checks. Every
+mutation, integration, commit, push, and automatic teardown boundary SHALL
+assert the live matching owner, lease id, and controller instance.
 
 Unless explicitly configured otherwise, acquisition SHALL create a 30-minute
 lease and an active workflow SHALL renew it at intervals no longer than 5
@@ -50,9 +57,9 @@ reset, clean, or otherwise mutate worktree contents or unmerged branches.
 
 #### Scenario: Owner acquires and renews the default lease
 
-- **WHEN** owner `phase:IMPLEMENT:run-42` acquires an activity lease at time T
+- **WHEN** owner `phase:IMPLEMENT:run-42` and controller `controller-a` use atomic setup-and-acquire at time T
 - **THEN** the lease SHALL expire at T plus 30 minutes
-- **AND** a heartbeat renewal by the same owner at or before T plus 5 minutes SHALL advance `last_heartbeat` and `expires_at`
+- **AND** a heartbeat renewal by the same ownership triple at or before T plus 5 minutes SHALL advance `last_heartbeat` and `expires_at`
 
 #### Scenario: Different owner cannot renew or release a live lease
 
@@ -61,10 +68,17 @@ reset, clean, or otherwise mutate worktree contents or unmerged branches.
 - **THEN** the operation MUST fail with an owner-mismatch result
 - **AND** the `autopilot:run-a` lease SHALL remain unchanged
 
+#### Scenario: Duplicate live controller cannot reuse the same fence
+
+- **WHEN** `controller-a` holds a live lease for an owner and lease id
+- **AND** `controller-b` retries acquire, renew, assert, or release with that owner and lease id
+- **THEN** every operation from `controller-b` MUST fail without mutation
+- **AND** an exact retry from `controller-a` MAY succeed idempotently
+
 #### Scenario: Expired writer is fenced after same-owner resume
 
 - **WHEN** a process holding owner `autopilot:run-a` and lease id `lease-old` expires
-- **AND** a resumed process acquires the same owner with lease id `lease-new`
+- **AND** a replacement controller proves the old evidence stale and safely resumes the same owner with lease id `lease-new`
 - **THEN** renew, mutation-boundary assertion, release, and teardown using `lease-old` MUST fail
 - **AND** only `lease-new` MAY proceed to integrate, commit, or push
 
@@ -82,18 +96,30 @@ reset, clean, or otherwise mutate worktree contents or unmerged branches.
 - **THEN** the active-agent guard SHALL stop reporting that lease as a blocker
 - **AND** the worktree, its dirty files, and its unmerged branch MUST remain untouched
 
+#### Scenario: Pre-existing unleased state is not silently adopted
+
+- **WHEN** acquire finds any separately visible unleased entry, including a normalized v1 entry
+- **THEN** it SHALL run the complete durability, cleanliness, and prior-process assessment
+- **AND** missing durability or indeterminate evidence SHALL quarantine the entry
+
 #### Scenario: Expired takeover quarantines live or unknown process evidence
 
 - **WHEN** an expired lease remains attached to a dirty or non-durable checkout, an exact same-host PID/start-token match, or missing, unreadable, unsupported, or cross-host process evidence
 - **AND** a later phase attempts ordinary acquisition
-- **THEN** the takeover assessment SHALL run while holding the lifecycle lock
+- **THEN** remote refresh SHALL run outside the lifecycle lock and the assessment SHALL revalidate its generation and stored target while holding the lock
 - **AND** it SHALL set `recovery_required` and refuse acquisition
 - **AND** only explicit operator adoption MAY make the checkout writable again
 
+#### Scenario: Process evidence is collision-safe across entries
+
+- **WHEN** two registry entries intentionally use the same lease id
+- **THEN** their evidence paths SHALL differ because the digest includes the canonical entry identity
+- **AND** releasing or disposing one entry MUST NOT read or remove the other's evidence
+
 #### Scenario: Clean durable expired takeover uses a new fence
 
-- **WHEN** an expired checkout is proven clean, submodule-clean, reachable from its expected remote, and its same-host PID is absent or has a different process-start token
-- **THEN** ordinary acquisition MAY replace the expired lease with a new `lease_id`
+- **WHEN** an expired checkout is proven clean, submodule-clean, reachable from its stored durability target, and its same-host PID is absent or has a different process-start token
+- **THEN** resume MAY replace the expired lease with a new lease and controller id
 - **AND** the old owner and lease id MUST remain fenced from every later mutation boundary
 
 #### Scenario: PID reuse is stale rather than live evidence
@@ -118,16 +144,16 @@ release and safe teardown. Inspection MUST NOT rewrite registry entries.
 
 #### Scenario: Recovery refuses destructive teardown
 
-- **WHEN** an operator requests teardown of a dirty worktree, dirty submodule, or a HEAD not reachable from the expected remote branch
+- **WHEN** an operator requests teardown of a dirty worktree, dirty submodule, or a HEAD not reachable from the stored durability target
 - **THEN** the command MUST refuse automatic deletion and report the unsafe condition
 - **AND** dirty submodules SHALL be detected before any destructive deinitialization
 - **AND** it SHALL NOT use force to bypass the condition
 
 #### Scenario: Pushed proposal branch is safely disposable before merge
 
-- **WHEN** a clean proposal worktree HEAD is reachable from its expected remote branch
+- **WHEN** a clean proposal worktree HEAD is reachable from its stored durability target
 - **AND** the proposal branch has not been merged into `main`
-- **THEN** owner-and-lease-id-checked automatic teardown MAY remove the local worktree
+- **THEN** ownership-triple-checked automatic teardown MAY remove the local worktree
 - **AND** being unmerged into `main` MUST NOT by itself be treated as data loss
 
 #### Scenario: Unsafe finalization quarantines recovery state
@@ -157,9 +183,10 @@ release and safe teardown. Inspection MUST NOT rewrite registry entries.
 
 #### Scenario: Explicit recovery adoption populates a complete manual lease
 
-- **WHEN** an operator adopts a quarantined entry with a new owner, lease id, and non-empty reason
+- **WHEN** an operator proves the prior controller's exact process evidence stale and adopts a quarantined entry with a new owner, lease id, controller id, and non-empty reason
 - **THEN** the command SHALL clear recovery state and atomically create a schema-valid manual `RECOVERY` lease with nullable session, timestamps, and TTL
-- **AND** missing, unsafe, or concurrently owned entries SHALL fail without mutation
+- **AND** live or indeterminate prior-process evidence SHALL fail without mutation
+- **AND** missing or cross-host evidence SHALL require the separately named audited force-adopt command with actor, rationale, and explicit termination confirmation
 
 ### Requirement: Registry Migration SHALL Preserve Existing Local Workflow Compatibility
 

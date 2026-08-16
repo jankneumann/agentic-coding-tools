@@ -139,9 +139,17 @@ coordinator state tier.
 #### Scenario: Operator disposition is explicit and auditable
 
 - **WHEN** an operator resolves an `ambiguous` node as proposal, implementation, or mixed
-- **THEN** the merge-plan command SHALL require the selected stage, actor, non-empty rationale, timestamp, inspected base/head SHAs, ruleset version, and canonical classification digest
+- **THEN** the merge-plan command SHALL lock and reload the plan, reclassify live state, require it still be `ambiguous`, and reject overrides of clear proposal, implementation, or mixed classifications
+- **AND** it SHALL require the selected stage, actor, non-empty rationale, timestamp, inspected base/head SHAs, ruleset version, algorithm `pr-delivery-v1+jcs-sha256`, and canonical classification digest
 - **AND** routing SHALL resume from that recorded override without rewriting either classification snapshot
-- **AND** a changed base SHA, head SHA, ruleset version, or classification digest SHALL restore blocked ambiguous routing and force a new disposition before execution
+- **AND** execution SHALL reclassify again and honor the override only while latest state remains ambiguous and every binding plus selected/effective stage matches
+- **AND** a changed binding SHALL discard the override, route a newly clear classification through the classifier, or restore blocked routing when still ambiguous
+
+#### Scenario: Classification digest is deterministic semantic evidence
+
+- **WHEN** the shared digest helper receives schema-valid classification evidence
+- **THEN** it SHALL exclude only `classified_at`, sort every set-valued path, warning, reason, hint, and conflict array by strict UTF-8 byte order, perform no Unicode normalization, and serialize the projection with RFC 8785 JCS
+- **AND** disposition and execution SHALL produce the same lowercase SHA-256 value verified by a fixed Unicode-aware golden fixture
 
 ## MODIFIED Requirements
 

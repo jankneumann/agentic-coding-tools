@@ -103,3 +103,53 @@
 
 - The second retry again had no valid external vendor result; Codex supplied 3 critical blockers, 3 nits, and 2 positive observations.
 - All six actionable findings were incorporated before the next convergence attempt.
+
+---
+
+## Iteration 4
+
+<!-- Date: 2026-08-16 -->
+
+### Findings
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | security | critical | Same owner/lease retries did not bind the live controller, allowing two resumed controllers to pass fencing checks concurrently. | Added `controller_instance_id` to automatic leases, exact-triple assertions, same-controller-only retry, parent-only renewal, and a separate resume transition that rejects live or indeterminate prior evidence. |
+| 2 | durability | critical | Expired takeover could not identify the authoritative remote ref, especially for package worktrees whose durable boundary is the parent feature ref. | Added entry-level remote/ref identity, canonical remote URL hashing, package-parent targets, refresh-outside-lock plus generation revalidation, and stored-target-only takeover/disposal checks. |
+| 3 | security | critical | Process evidence keyed only by client-supplied lease id could collide across registry entries. | Keyed evidence by a versioned length-prefix encoding of entry identity plus lease, added entry identity to the evidence schema, and required exact entry/owner/lease/controller validation before every evidence operation. |
+| 4 | correctness | critical | A pre-existing unleased or legacy entry bypassed safety assessment and was acquired immediately. | Added atomic setup-and-acquire publication plus entry generations; every separately visible unleased entry now uses full durability, cleanliness, and prior-process assessment or enters quarantine. |
+| 5 | security | critical | Recovery adoption after owner/session release could race a still-running former controller because release discarded its evidence. | Added durable recovery context, preserved matching evidence on quarantine release, required stale same-host proof for normal adoption, and isolated missing/cross-host handling behind an audited force-adopt command. |
+| 6 | resilience | critical | Autopilot clean teardown on ESCALATE/exception left no defined way to resume because state lived in the removed checkout. | Moved resumable run state outside disposable worktrees, added finalization-intent and checkout-state reconciliation, and specified verified durable-ref recreation with a new controller-bound lease. |
+| 7 | security | critical | Operator disposition could override a clear implementation classification to proposal and bypass implementation gates. | Schema- and command-constrained overrides to the latest ambiguous classification, enforced selected/effective-stage equality, and required live reclassification before disposition and execution. |
+| 8 | determinism | high | “Canonical classification digest” did not define a byte-level algorithm. | Defined `pr-delivery-v1+jcs-sha256`: semantic projection excluding only `classified_at`, UTF-8 byte sorting for set arrays, no Unicode normalization, RFC 8785 JCS, lowercase SHA-256, and a fixed Unicode-aware fixture. |
+| 9 | testability | high | Oversized tasks and incomplete gates hid controller, install-hook, merge-script, formatting, and external-baseline failures. | Split lifecycle, routing, and resume work into test-first M/S units; added executable ancestry gates, missing suites, Ruff format checks across all changed surfaces, and narrowed integration write scope. |
+
+### Review Context
+
+- Three independent read-only refinement passes converged on the controller,
+  durability, recovery, autopilot-resume, override, digest, and gate changes.
+- The persisted autopilot loop state intentionally remains `ESCALATE`; this
+  refinement resolves the recorded blockers but does not claim a new review
+  quorum or authorize implementation.
+
+### Quality Checks
+
+- Strict OpenSpec validation: pass.
+- Work-package schema, references, DAG, lock, and scope-overlap checks: pass.
+- Architecture parallel-zone validation: pass.
+- All change-local Draft 2020-12 schemas self-validate: pass.
+- Representative registry, external autopilot recovery, clear-classifier,
+  ambiguous-override, and selected-stage-mismatch instances validate with
+  cross-file reference resolution and date-time format checking: pass.
+- `git diff --check`: pass after session-log normalization.
+
+### Parallelizability Assessment
+
+- Independent roots: 2 (`wp-registry` and baseline-gated `wp-pr-delivery`).
+- Sequential chains: 3 (`registry -> phase lifecycle -> autopilot ->
+  integration`, `registry + PR delivery -> coordinator -> integration`, and PR
+  delivery direct to integration).
+- Maximum parallel width: 2 after controller propagation made autopilot depend
+  on the phase-lifecycle package.
+- Intra-change file and lock overlaps: none; cross-change paths are protected by
+  executable recorded-SHA ancestry gates before dispatch.

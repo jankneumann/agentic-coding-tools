@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-16T12:50:54.155191+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Resolved the final lifecycle, resume, and delivery-override blockers without changing the persisted ESCALATE state. The plan now uses controller-bound leases, stored durability targets, collision-safe process evidence, external autopilot run state, ambiguous-only RFC-8785-bound overrides, and smaller executable work packages.",
+    "completed_work": [
+      "Resolved all seven critical findings from the third plan review and both high testability/determinism findings.",
+      "Added schema-enforced controller, durability, recovery, ambiguous-override, and selected-stage invariants.",
+      "Split registry, phase, delivery, and autopilot work into focused test-first tasks and added executable ancestry, formatting, hook, and regression gates.",
+      "Validated strict OpenSpec, package DAG/scope, schema metaschemas, representative negative/positive instances, and diff whitespace."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Bind automatic ownership to the controller",
+        "rationale": "Owner and lease identity alone cannot exclude a duplicate live resume; every automatic mutation now requires the exact owner, lease, and controller triple.",
+        "capability": "worktree",
+        "supersedes": null
+      },
+      {
+        "title": "Persist durability and recovery identity",
+        "rationale": "Takeover and disposal must use an entry-owned remote/ref and retain former process evidence until termination is proven.",
+        "capability": "worktree",
+        "supersedes": null
+      },
+      {
+        "title": "Keep resumable autopilot state outside disposable checkouts",
+        "rationale": "ESCALATE and exception teardown must remain resumable after the worktree and registry entry are removed.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Permit delivery overrides only for ambiguous evidence",
+        "rationale": "A clear implementation classification must never be downgraded to proposal through operator disposition.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run a fresh independent plan review against plan revision 4.",
+      "Only after review convergence, satisfy baseline-gates.json and begin package implementation."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md",
+        "description": "Refined lifecycle and resume decisions"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json",
+        "description": "Controller, durability, and recovery invariants"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json",
+        "description": "Ambiguous-only override contract"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/tasks.md",
+        "description": "Test-first implementation decomposition"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml",
+        "description": "Revision 4 package DAG and executable gates"
+      }
+    ]
+  }
+}

@@ -18,6 +18,7 @@
       "required": [
         "owner",
         "lease_id",
+        "controller_instance_id",
         "session_id",
         "phase",
         "reason",
@@ -37,6 +38,11 @@
           "type": "string",
           "minLength": 1,
           "description": "Single-acquisition fencing token. Replacement after expiry MUST use a different value."
+        },
+        "controller_instance_id": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Per-controller process identity. Required for automatic leases; null is accepted only for normalized legacy manual leases."
         },
         "session_id": {
           "type": ["string", "null"],
@@ -64,7 +70,63 @@
           "maximum": 86400,
           "default": 1800
         }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "lifecycle_mode": { "enum": ["standalone", "continuous"] } },
+            "required": ["lifecycle_mode"]
+          },
+          "then": {
+            "properties": { "controller_instance_id": { "type": "string", "minLength": 1 } }
+          }
+        }
+      ]
+    },
+    "durabilityTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["remote_name", "canonical_remote_url_sha256", "ref_name"],
+      "properties": {
+        "remote_name": { "type": "string", "minLength": 1 },
+        "canonical_remote_url_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "ref_name": { "type": "string", "pattern": "^refs/remotes/[^/]+/.+" }
       }
+    },
+    "recoveryContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "prior_owner",
+        "prior_lease_id",
+        "prior_controller_instance_id",
+        "process_evidence_key",
+        "quarantined_at"
+      ],
+      "properties": {
+        "source": { "enum": ["expired-takeover", "owner-release", "session-release", "unsafe-finalization", "legacy-adoption", "operator-force"] },
+        "prior_owner": { "type": ["string", "null"], "minLength": 1 },
+        "prior_lease_id": { "type": ["string", "null"], "minLength": 1 },
+        "prior_controller_instance_id": { "type": ["string", "null"], "minLength": 1 },
+        "process_evidence_key": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "quarantined_at": { "$ref": "#/$defs/timestamp" },
+        "force_actor": { "type": "string", "minLength": 1 },
+        "force_reason": { "type": "string", "minLength": 1 },
+        "termination_confirmed": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "source": { "const": "operator-force" } },
+            "required": ["source"]
+          },
+          "then": {
+            "required": ["force_actor", "force_reason", "termination_confirmed"],
+            "properties": { "termination_confirmed": { "const": true } }
+          }
+        }
+      ]
     },
     "entryV2": {
       "type": "object",
@@ -75,10 +137,13 @@
         "branch",
         "worktree_path",
         "created_at",
+        "entry_generation",
+        "durability_target",
         "retained",
         "retention_reason",
         "recovery_required",
         "recovery_reason",
+        "recovery_context",
         "activity_lease"
       ],
       "properties": {
@@ -87,6 +152,18 @@
         "branch": { "type": "string", "minLength": 1 },
         "worktree_path": { "type": "string", "minLength": 1 },
         "created_at": { "$ref": "#/$defs/timestamp" },
+        "entry_generation": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque generation changed whenever setup recreates an entry; used to revalidate observations made outside the registry lock."
+        },
+        "durability_target": {
+          "oneOf": [
+            { "$ref": "#/$defs/durabilityTarget" },
+            { "type": "null" }
+          ],
+          "description": "Exact remote/ref that must contain HEAD before takeover or disposal. Package entries target the parent feature ref."
+        },
         "last_heartbeat": {
           "oneOf": [
             { "$ref": "#/$defs/timestamp" },
@@ -104,6 +181,12 @@
           "description": "True when dirty or non-durable state requires explicit operator adoption."
         },
         "recovery_reason": { "type": ["string", "null"], "minLength": 1 },
+        "recovery_context": {
+          "oneOf": [
+            { "$ref": "#/$defs/recoveryContext" },
+            { "type": "null" }
+          ]
+        },
         "activity_lease": {
           "oneOf": [
             { "$ref": "#/$defs/activityLease" },
@@ -135,10 +218,16 @@
             "required": ["recovery_required"]
           },
           "then": {
-            "properties": { "recovery_reason": { "type": "string", "minLength": 1 } }
+            "properties": {
+              "recovery_reason": { "type": "string", "minLength": 1 },
+              "recovery_context": { "$ref": "#/$defs/recoveryContext" }
+            }
           },
           "else": {
-            "properties": { "recovery_reason": { "type": "null" } }
+            "properties": {
+              "recovery_reason": { "type": "null" },
+              "recovery_context": { "type": "null" }
+            }
           }
         }
       ]

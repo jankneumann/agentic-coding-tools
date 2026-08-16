@@ -64,7 +64,7 @@ activity protection.
 #### Scenario: Worktrees are finalized after integration
 
 - **WHEN** package integration completes successfully
-- **THEN** the orchestrator SHALL push the parent feature ref and prove the exact package HEAD is reachable from that expected remote ref
+- **THEN** the orchestrator SHALL push the parent feature ref and prove the exact package HEAD is reachable from the package entry's stored durability target
 - **AND** it SHALL assert each package lease and safely dispose its clean remotely durable worktree without requiring the child branch name itself to be pushed
 - **AND** a dirty or non-durable package SHALL be quarantined rather than force-deleted
 
@@ -74,7 +74,7 @@ activity protection.
 
 Directly invoked write-capable lifecycle skills SHALL use an explicit standalone
 mode by default. Each phase SHALL create or adopt its managed worktree, acquire
-an owner-and-lease-id-scoped activity lease before mutation, maintain its
+an owner/lease/controller-scoped activity lease before mutation, maintain its
 heartbeat through the executable lifecycle controller, push its durable branch
 output, and finalize the local worktree without a release-then-remove race. A workflow MUST NOT return
 `awaiting review` while it owns a live local activity lease.
@@ -91,7 +91,7 @@ token; nested skills MUST NOT infer continuous mode from an existing worktree.
 #### Scenario: Failed phase still finalizes activity
 
 - **WHEN** a standalone phase fails after acquiring its lease
-- **THEN** executable finalization SHALL attempt owner-and-lease-id-checked disposal or recovery quarantine plus release
+- **THEN** executable finalization SHALL attempt ownership-triple-checked disposal or recovery quarantine plus release
 - **AND** dirty or unmerged state MUST NOT be force-deleted
 - **AND** recovery information SHALL identify any preserved worktree
 
@@ -127,18 +127,25 @@ integration or released into explicit recovery quarantine on failure.
 
 Autopilot SHALL resolve and persist the change id and continuous
 `openspec/<change-id>` worktree before PLAN mutation, create an owner token of
-the form `autopilot:<run-id>` plus a lease id, acquire one continuous activity
-lease, and pass that fenced identity and explicit
-continuous lifecycle mode to all nested write-capable skills. It SHALL renew the
-same lease at every write-capable phase transition and when resuming through
+the form `autopilot:<run-id>` plus a lease and controller id, acquire one
+continuous activity lease, and pass that fenced identity and explicit continuous
+lifecycle mode to all nested write-capable skills. The parent controller alone
+SHALL renew the lease at every write-capable phase transition through
 PLAN, PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, VALIDATE,
-optional VAL_REVIEW, and SUBMIT_PR. Nested skills MUST NOT release or replace the
-parent-owned lease.
+optional VAL_REVIEW, and SUBMIT_PR. Nested skills SHALL only assert the inherited
+triple and MUST NOT renew, release, or replace the parent-owned lease.
 
-After the pull request and a recoverable checkpoint are durable, autopilot SHALL
-release its lease and safely tear down before entering DONE or presenting any
-human merge gate. On terminal failure or ESCALATE, it SHALL persist a recoverable
-checkpoint before owner-checked release.
+Autopilot SHALL retain canonical workflow state at the existing feature-branch
+`loop-state.json` path and persist a schema-valid recovery envelope outside the
+disposable checkout, including branch, stored durability target, durable HEAD,
+canonical loop-state path and digest, resume phase, finalization intent, and
+checkout state. The envelope SHALL locate and verify restored canonical state
+but SHALL NOT independently authorize a phase or lease. After the pull request and checkpoint
+are durable, autopilot SHALL record teardown intent, release its lease, safely
+tear down, and record removal before entering DONE or presenting any human merge
+gate. Terminal failure and ESCALATE use the same checkpoint-before-release
+protocol; a non-durable checkpoint MUST quarantine rather than delete the
+checkout.
 
 #### Scenario: AC-07 — One autopilot owner remains stable and is gone before the merge gate
 
@@ -147,11 +154,19 @@ checkpoint before owner-checked release.
 - **AND** nested skills SHALL leave that lease owned by autopilot
 - **AND** autopilot SHALL release it before DONE presents the human merge gate
 
-#### Scenario: Resume renews rather than reacquires under another owner
+#### Scenario: Replacement controller resumes without duplicating a live writer
 
 - **WHEN** an autopilot run resumes from a durable loop-state checkpoint with its owner token
-- **THEN** it SHALL renew the matching owner and lease id when still live or reacquire under the same owner with a new lease id when expired
+- **THEN** the same live controller MAY retry its exact triple idempotently
+- **AND** a replacement controller SHALL reject live or indeterminate old evidence and rotate the lease/controller only after stale evidence and safe durable state are proven
 - **AND** it MUST NOT create a second phase-owned lease
+
+#### Scenario: Released or removed autopilot checkout resumes from durable state
+
+- **WHEN** ESCALATE or exception finalization recorded `checkout_state=removed` outside the worktree
+- **AND** the recorded durable HEAD remains reachable from the stored remote/ref
+- **THEN** resume SHALL recreate the checkout and registry entry, verify the restored canonical loop-state digest, acquire a new lease/controller under the stable owner, checkpoint them, and continue from that canonical phase
+- **AND** missing, non-durable, quarantined, or partially present state SHALL remain escalated
 
 #### Scenario: Fresh description bootstraps before PLAN mutation
 
@@ -176,11 +191,12 @@ MUST NOT release another session's or run's lease.
 
 #### Scenario: Session end releases only matching owners
 
-- **WHEN** session `session-7` ends with two leases owned by that session and one lease owned by `autopilot:run-9`
+- **WHEN** session `session-7` ends with two matching leases and a third autopilot lease whose session id is different or null
 - **THEN** the session hook SHALL best-effort release the two matching leases
 - **AND** it MUST leave `autopilot:run-9` unchanged
 - **AND** coordinator unavailability SHALL NOT prevent the local attempt
 - **AND** every matching checkout not already removed by explicit finalization SHALL be quarantined before its lease is cleared
+- **AND** its exact prior controller identity and process evidence SHALL remain bound to recovery context until safe adoption or teardown
 - **AND** the hook MUST NOT delete a worktree or make preserved state ordinarily adoptable
 
 ### Requirement: Canonical Lifecycle Skills SHALL Generate Consistent Runtime Mirrors
