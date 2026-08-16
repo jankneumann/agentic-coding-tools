@@ -52,7 +52,7 @@
 
 ## 3. Skills-side dispatch adapter
 
-- [ ] 3.1 Write tests for the `local` dispatch adapter — provider accepted in
+- [x] 3.1 Write tests for the `local` dispatch adapter — provider accepted in
   `_SUPPORTED_PROVIDERS`; unset/unreachable endpoint yields structured `fallback`
   result naming `local`; health-probe failure marks adapter unavailable without
   hanging; concurrency cap queues excess dispatches; results normalize to
@@ -63,13 +63,13 @@
   **Dependencies**: None
   **Files**: skills/autopilot/scripts/tests/test_provider_dispatch.py
 
-- [ ] 3.2 Add `local` to `_SUPPORTED_PROVIDERS`; implement the OpenAI-compatible
+- [x] 3.2 Add `local` to `_SUPPORTED_PROVIDERS`; implement the OpenAI-compatible
   adapter runner with `LOCAL_INFERENCE_BASE_URL` / `LOCAL_INFERENCE_API_KEY` /
   `LOCAL_INFERENCE_MAX_CONCURRENCY`, session health probe, and queueing cap (M)
   **Dependencies**: 3.1
   **Files**: skills/autopilot/scripts/provider_dispatch.py
 
-- [ ] 3.3 Expose probe status so the roadmap policy engine cannot switch to a dead
+- [x] 3.3 Expose probe status so the roadmap policy engine cannot switch to a dead
   local endpoint (S)
   **Spec scenarios**: skill-workflow.2 (policy engine excluded while probe fails)
   **Design decisions**: D5
@@ -80,7 +80,7 @@
 
 ## 4. Smoke path, docs, and integration
 
-- [ ] 4.1 Write smoke-path selector tests — `local` accepted in dry-run mode; real
+- [x] 4.1 Write smoke-path selector tests — `local` accepted in dry-run mode; real
   mode against an unreachable endpoint reports fallback degradation as the smoke
   outcome rather than hanging (S)
   **Spec scenarios**: skill-workflow smoke scenarios (local smoke succeeds; retired
@@ -89,7 +89,7 @@
   **Dependencies**: 3.2
   **Files**: skills/autopilot/scripts/tests/test_autopilot.py
 
-- [ ] 4.2 Extend `smoke_provider_dispatch.py` with the `local` selector (S)
+- [x] 4.2 Extend `smoke_provider_dispatch.py` with the `local` selector (S)
   **Dependencies**: 4.1
   **Files**: skills/autopilot/scripts/smoke_provider_dispatch.py
 

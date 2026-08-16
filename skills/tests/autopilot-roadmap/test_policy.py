@@ -227,3 +227,120 @@ class TestCostCeiling:
         assert "ceiling" in decision.reason.lower()
         assert decision.expected_cost_delta_usd is not None
         assert decision.expected_cost_delta_usd > policy.cost_ceiling_usd
+
+
+class TestLocalEndpointGate:
+    """The policy engine must not switch onto a dead local endpoint (D5)."""
+
+    def setup_method(self):
+        import policy as policy_mod
+
+        policy_mod.set_local_endpoint_probe(None)
+
+    def teardown_method(self):
+        import policy as policy_mod
+
+        policy_mod.set_local_endpoint_probe(None)
+
+    def test_local_excluded_when_probe_fails(self):
+        import policy as policy_mod
+
+        policy_mod.set_local_endpoint_probe(lambda: False)
+        decision = evaluate_policy(
+            policy=Policy(default_action=PolicyAction.SWITCH),
+            vendor_limit=VendorLimit(vendor="claude", reason="rate limit"),
+            available_vendors=["local", "codex"],
+            switch_attempts=0,
+        )
+
+        assert decision.action == "switch"
+        assert decision.to_vendor == "codex"
+
+    def test_local_selectable_when_probe_passes(self):
+        import policy as policy_mod
+
+        policy_mod.set_local_endpoint_probe(lambda: True)
+        decision = evaluate_policy(
+            policy=Policy(default_action=PolicyAction.SWITCH),
+            vendor_limit=VendorLimit(vendor="claude", reason="rate limit"),
+            available_vendors=["local", "codex"],
+            switch_attempts=0,
+        )
+
+        assert decision.action == "switch"
+        assert decision.to_vendor == "local"
+
+    def test_preferred_local_ignored_when_probe_fails(self):
+        import policy as policy_mod
+
+        policy_mod.set_local_endpoint_probe(lambda: False)
+        decision = evaluate_policy(
+            policy=Policy(default_action=PolicyAction.SWITCH, preferred_vendor="local"),
+            vendor_limit=VendorLimit(vendor="claude", reason="rate limit"),
+            available_vendors=["codex", "local"],
+            switch_attempts=0,
+        )
+
+        assert decision.action == "switch"
+        assert decision.to_vendor == "codex"
+
+    def test_only_local_and_probe_fails_is_fail_closed(self):
+        import policy as policy_mod
+
+        policy_mod.set_local_endpoint_probe(lambda: False)
+        decision = evaluate_policy(
+            policy=Policy(default_action=PolicyAction.SWITCH),
+            vendor_limit=VendorLimit(vendor="claude", reason="rate limit"),
+            available_vendors=["local"],
+            switch_attempts=0,
+        )
+
+        assert decision.action == "fail_closed"
+        assert decision.to_vendor is None
+
+    def test_raising_probe_is_treated_as_unavailable(self):
+        import policy as policy_mod
+
+        def _boom():
+            raise RuntimeError("probe blew up")
+
+        policy_mod.set_local_endpoint_probe(_boom)
+        decision = evaluate_policy(
+            policy=Policy(default_action=PolicyAction.SWITCH),
+            vendor_limit=VendorLimit(vendor="claude", reason="rate limit"),
+            available_vendors=["local", "codex"],
+            switch_attempts=0,
+        )
+
+        assert decision.to_vendor == "codex"
+
+    def test_non_local_vendors_are_never_gated(self, monkeypatch):
+        """Rule 4: the gate is inert for every pre-existing vendor."""
+        import policy as policy_mod
+
+        def _never_called():
+            raise AssertionError("probe must not be consulted for non-local vendors")
+
+        policy_mod.set_local_endpoint_probe(_never_called)
+        decision = evaluate_policy(
+            policy=Policy(default_action=PolicyAction.SWITCH),
+            vendor_limit=VendorLimit(vendor="claude", reason="rate limit"),
+            available_vendors=["codex", "antigravity", "grok", "pi"],
+            switch_attempts=0,
+        )
+
+        assert decision.action == "switch"
+        assert decision.to_vendor == "codex"
+
+    def test_default_probe_reports_unavailable_without_an_endpoint(self, monkeypatch):
+        """No hook wired + no LOCAL_INFERENCE_BASE_URL => local is not a target."""
+        monkeypatch.delenv("LOCAL_INFERENCE_BASE_URL", raising=False)
+
+        decision = evaluate_policy(
+            policy=Policy(default_action=PolicyAction.SWITCH),
+            vendor_limit=VendorLimit(vendor="claude", reason="rate limit"),
+            available_vendors=["local", "codex"],
+            switch_attempts=0,
+        )
+
+        assert decision.to_vendor == "codex"

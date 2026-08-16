@@ -33,8 +33,13 @@ _FALLBACK_MODELS = {
     "codex": "gpt-5.4",
     "grok": "grok-4.5",
     "pi": "qwen/qwen3-coder",
+    # `local` economy-tier roster identifier (OpenSpec
+    # add-local-model-provider-tier, D7). Used only when the coordinator does
+    # not resolve a local roster model for the phase.
+    "local": "qwen3-coder-30b-a3b",
 }
 _DEFAULT_FALLBACK_MODEL = "default"
+_SUPPORTED_PROVIDERS = ["claude_code", "codex", "antigravity", "grok", "pi", "local"]
 
 
 class ProviderModelMappingError(ValueError):
@@ -96,7 +101,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--provider",
         required=True,
-        choices=["claude_code", "codex", "antigravity", "grok", "pi"],
+        choices=_SUPPORTED_PROVIDERS,
+        help=(
+            "Provider selector, restricted to the supported roster. `local` "
+            "dispatches over the OpenAI-compatible protocol to "
+            "LOCAL_INFERENCE_BASE_URL in real mode; with that variable unset or "
+            "the endpoint unreachable the run reports the structured fallback "
+            "degradation instead of hanging."
+        ),
     )
     parser.add_argument("--model", help="Optional model override for negative smoke tests")
     parser.add_argument("--dry-run", action="store_true", help="Do not invoke a real provider")
