@@ -50,9 +50,7 @@ def git_repo(tmp_path: Path) -> Path:
         )
     # Create initial commit so we have a main branch
     (tmp_path / "README.md").write_text("test")
-    subprocess.run(
-        ["git", "add", "README.md"], cwd=str(tmp_path), check=True, capture_output=True
-    )
+    subprocess.run(["git", "add", "README.md"], cwd=str(tmp_path), check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "--no-gpg-sign", "-m", "init"],
         cwd=str(tmp_path),
@@ -106,11 +104,11 @@ class TestWorktreePath:
 class TestWorktreePathWithAgentId:
     def test_with_agent_id(self, tmp_path: Path) -> None:
         result = worktree_path(tmp_path, "change", agent_id="w1")
-        assert result == tmp_path / ".git-worktrees" / "change" / "w1"
+        assert result == tmp_path / ".git-worktrees" / "change--w1"
 
     def test_with_agent_id_and_prefix(self, tmp_path: Path) -> None:
         result = worktree_path(tmp_path, "change", agent_id="w1", prefix="fix")
-        assert result == tmp_path / ".git-worktrees" / "fix" / "change" / "w1"
+        assert result == tmp_path / ".git-worktrees" / "fix" / "change--w1"
 
     def test_without_agent_id_backward_compat(self, tmp_path: Path) -> None:
         result = worktree_path(tmp_path, "change")
@@ -125,14 +123,20 @@ class TestWorktreePathSibling:
 
     def test_sibling_places_agent_next_to_change_dir(self, tmp_path: Path) -> None:
         result = worktree_path(
-            tmp_path, "feat", agent_id="cleanup", sibling=True,
+            tmp_path,
+            "feat",
+            agent_id="cleanup",
+            sibling=True,
         )
         assert result == tmp_path / ".git-worktrees" / "feat--cleanup"
 
     def test_sibling_with_prefix(self, tmp_path: Path) -> None:
         result = worktree_path(
-            tmp_path, "feat", agent_id="cleanup",
-            prefix="fix", sibling=True,
+            tmp_path,
+            "feat",
+            agent_id="cleanup",
+            prefix="fix",
+            sibling=True,
         )
         assert result == tmp_path / ".git-worktrees" / "fix" / "feat--cleanup"
 
@@ -148,7 +152,10 @@ class TestWorktreePathSibling:
         cleanup/ subdirectory and forced --force on teardown."""
         impl = worktree_path(tmp_path, "feat")
         cleanup = worktree_path(
-            tmp_path, "feat", agent_id="cleanup", sibling=True,
+            tmp_path,
+            "feat",
+            agent_id="cleanup",
+            sibling=True,
         )
         # The cleanup path must NOT be inside the impl path
         assert impl not in cleanup.parents
@@ -186,7 +193,10 @@ class TestResolveBranch:
         env = {"OPENSPEC_BRANCH_OVERRIDE": "operator/branch"}
         assert resolve_branch("change", explicit="explicit/branch", env=env) == "explicit/branch"
         # Even with agent_id, explicit stays verbatim
-        assert resolve_branch("change", agent_id="w1", explicit="explicit/branch", env=env) == "explicit/branch"
+        assert (
+            resolve_branch("change", agent_id="w1", explicit="explicit/branch", env=env)
+            == "explicit/branch"
+        )
 
     def test_env_override_used_when_no_explicit(self) -> None:
         env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fix-branch-mismatch-9P9o1"}
@@ -214,9 +224,18 @@ class TestResolveBranch:
         """
         env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fix-branch-mismatch-9P9o1"}
         assert resolve_branch("change", env=env) == "claude/fix-branch-mismatch-9P9o1"
-        assert resolve_branch("change", agent_id="wp-backend", env=env) == "claude/fix-branch-mismatch-9P9o1--wp-backend"
-        assert resolve_branch("change", agent_id="wp-frontend", env=env) == "claude/fix-branch-mismatch-9P9o1--wp-frontend"
-        assert resolve_branch("change", agent_id="cleanup", env=env) == "claude/fix-branch-mismatch-9P9o1--cleanup"
+        assert (
+            resolve_branch("change", agent_id="wp-backend", env=env)
+            == "claude/fix-branch-mismatch-9P9o1--wp-backend"
+        )
+        assert (
+            resolve_branch("change", agent_id="wp-frontend", env=env)
+            == "claude/fix-branch-mismatch-9P9o1--wp-frontend"
+        )
+        assert (
+            resolve_branch("change", agent_id="cleanup", env=env)
+            == "claude/fix-branch-mismatch-9P9o1--cleanup"
+        )
 
     def test_env_override_with_prefix_ignores_prefix(self) -> None:
         """When env override is set, it replaces prefix — they don't compose."""
@@ -227,9 +246,15 @@ class TestResolveBranch:
     def test_default_path_still_composes_with_agent_id(self) -> None:
         """Baseline: without env override, resolve_branch matches default_branch exactly."""
         assert resolve_branch("change", env={}) == default_branch("change")
-        assert resolve_branch("change", agent_id="w1", env={}) == default_branch("change", agent_id="w1")
-        assert resolve_branch("change", prefix="fix", env={}) == default_branch("change", prefix="fix")
-        assert resolve_branch("change", agent_id="w1", prefix="fix", env={}) == default_branch("change", agent_id="w1", prefix="fix")
+        assert resolve_branch("change", agent_id="w1", env={}) == default_branch(
+            "change", agent_id="w1"
+        )
+        assert resolve_branch("change", prefix="fix", env={}) == default_branch(
+            "change", prefix="fix"
+        )
+        assert resolve_branch("change", agent_id="w1", prefix="fix", env={}) == default_branch(
+            "change", agent_id="w1", prefix="fix"
+        )
 
 
 class TestResolveParentBranch:
@@ -237,16 +262,19 @@ class TestResolveParentBranch:
 
     def test_default_parent(self) -> None:
         from worktree import resolve_parent_branch
+
         assert resolve_parent_branch("change", env={}) == "openspec/change"
 
     def test_env_override_parent(self) -> None:
         from worktree import resolve_parent_branch
+
         env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fix-branch-mismatch-9P9o1"}
         assert resolve_parent_branch("change", env=env) == "claude/fix-branch-mismatch-9P9o1"
 
     def test_parent_ignores_any_caller_agent_id_context(self) -> None:
         """resolve_parent_branch never takes agent_id — it's the integration target."""
         from worktree import resolve_parent_branch
+
         env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/op"}
         # Caller didn't even get to pass agent_id — the function intentionally
         # doesn't accept one, making it impossible to accidentally get a
@@ -257,41 +285,66 @@ class TestResolveParentBranch:
 class TestRegistry:
     def test_load_missing_file_returns_empty(self, tmp_path: Path) -> None:
         reg = load_registry(tmp_path)
-        assert reg == {"version": 1, "entries": []}
+        assert reg == {
+            "schema_version": 2,
+            "entries": [],
+            "setup_reservations": [],
+            "recovery_audit": [],
+        }
 
     def test_save_load_roundtrip(self, tmp_path: Path) -> None:
-        reg = {"version": 1, "entries": [
-            {"change_id": "c1", "agent_id": None, "branch": "openspec/c1",
-             "worktree_path": "/tmp/wt", "created_at": "2026-01-01T00:00:00+00:00",
-             "last_heartbeat": "2026-01-01T00:00:00+00:00", "pinned": False},
-        ]}
+        reg = {
+            "version": 1,
+            "entries": [
+                {
+                    "change_id": "c1",
+                    "agent_id": None,
+                    "branch": "openspec/c1",
+                    "worktree_path": "/tmp/wt",
+                    "created_at": "2026-01-01T00:00:00+00:00",
+                    "last_heartbeat": "2026-01-01T00:00:00+00:00",
+                    "pinned": False,
+                },
+            ],
+        }
         save_registry(tmp_path, reg)
         loaded = load_registry(tmp_path)
-        assert loaded == reg
+        assert loaded["schema_version"] == 2
+        assert loaded["entries"][0]["entry_generation"].startswith("legacy-v1-entry:")
+        assert loaded["entries"][0]["activity_lease"]["phase"] == "LEGACY"
 
     def test_find_entry_by_change_id_and_agent_id(self) -> None:
-        reg = {"version": 1, "entries": [
-            {"change_id": "c1", "agent_id": None},
-            {"change_id": "c1", "agent_id": "w1"},
-            {"change_id": "c2", "agent_id": None},
-        ]}
+        reg = {
+            "version": 1,
+            "entries": [
+                {"change_id": "c1", "agent_id": None},
+                {"change_id": "c1", "agent_id": "w1"},
+                {"change_id": "c2", "agent_id": None},
+            ],
+        }
         assert find_entry(reg, "c1", "w1") == {"change_id": "c1", "agent_id": "w1"}
         assert find_entry(reg, "c1") == {"change_id": "c1", "agent_id": None}
         assert find_entry(reg, "c3") is None
 
     def test_remove_entry_returns_true(self) -> None:
-        reg = {"version": 1, "entries": [
-            {"change_id": "c1", "agent_id": None},
-            {"change_id": "c2", "agent_id": None},
-        ]}
+        reg = {
+            "version": 1,
+            "entries": [
+                {"change_id": "c1", "agent_id": None},
+                {"change_id": "c2", "agent_id": None},
+            ],
+        }
         assert remove_entry(reg, "c1") is True
         assert len(reg["entries"]) == 1
         assert reg["entries"][0]["change_id"] == "c2"
 
     def test_remove_entry_missing_returns_false(self) -> None:
-        reg = {"version": 1, "entries": [
-            {"change_id": "c1", "agent_id": None},
-        ]}
+        reg = {
+            "version": 1,
+            "entries": [
+                {"change_id": "c1", "agent_id": None},
+            ],
+        }
         assert remove_entry(reg, "nonexistent") is False
         assert len(reg["entries"]) == 1
 
@@ -445,7 +498,7 @@ class TestCmdSetup:
             result = worktree.cmd_setup(args)
         assert result == 0
 
-        wt_path = git_repo / ".git-worktrees" / "feat" / "wp-backend"
+        wt_path = git_repo / ".git-worktrees" / "feat--wp-backend"
         assert (wt_path / "feature-only.txt").is_file()
         assert not (wt_path / "main-only.txt").exists()
 
@@ -483,7 +536,7 @@ class TestCmdSetup:
             result = worktree.cmd_setup(args)
         assert result == 0
 
-        wt_path = git_repo / ".git-worktrees" / "feat" / "wp-backend"
+        wt_path = git_repo / ".git-worktrees" / "feat--wp-backend"
         assert (wt_path / "feature-only.txt").is_file(), (
             "agent branch must start from the current feature branch HEAD"
         )
@@ -519,7 +572,9 @@ class TestCmdSetup:
         captured = capsys.readouterr()
         assert "WORKTREE_BRANCH=openspec/test-feature" in captured.out
 
-    def test_output_contains_worktree_path(self, git_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_output_contains_worktree_path(
+        self, git_repo: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         args = _make_args("setup", change_id="test-feature")
         with _chdir(git_repo):
             worktree.cmd_setup(args)
@@ -659,9 +714,14 @@ class TestCmdTeardown:
         with _chdir(git_repo):
             # Both worktrees exist independently
             worktree.cmd_setup(_make_args("setup", change_id="feat"))
-            worktree.cmd_setup(_make_args(
-                "setup", change_id="feat", agent_id="cleanup", sibling=True,
-            ))
+            worktree.cmd_setup(
+                _make_args(
+                    "setup",
+                    change_id="feat",
+                    agent_id="cleanup",
+                    sibling=True,
+                )
+            )
 
         assert impl.is_dir()
         assert sibling_path.is_dir()
@@ -670,38 +730,51 @@ class TestCmdTeardown:
 
         # Tear down only the cleanup; impl untouched
         with _chdir(git_repo):
-            result = worktree.cmd_teardown(_make_args(
-                "teardown", change_id="feat", agent_id="cleanup", sibling=True,
-            ))
+            result = worktree.cmd_teardown(
+                _make_args(
+                    "teardown",
+                    change_id="feat",
+                    agent_id="cleanup",
+                    sibling=True,
+                )
+            )
         assert result == 0
         assert not sibling_path.is_dir()
         assert impl.is_dir()  # impl survives
 
-    def test_teardown_falls_back_to_alternate_layout(self, git_repo: Path) -> None:
-        """Mixed-layout robustness: a setup that used the nested default
-        layout is teardownable with --sibling and vice versa, so the
-        migration window doesn't strand cleanup worktrees."""
+    def test_agent_setup_never_nests_inside_feature_checkout(self, git_repo: Path) -> None:
+        """Managed agent worktrees cannot pollute the parent feature checkout."""
         nested_path = git_repo / ".git-worktrees" / "feat" / "cleanup"
+        sibling_path = git_repo / ".git-worktrees" / "feat--cleanup"
 
         with _chdir(git_repo):
-            # Setup with default (nested) layout
-            worktree.cmd_setup(_make_args(
-                "setup", change_id="feat", agent_id="cleanup",
-            ))
-        assert nested_path.is_dir()
+            worktree.cmd_setup(
+                _make_args(
+                    "setup",
+                    change_id="feat",
+                    agent_id="cleanup",
+                )
+            )
+        assert sibling_path.is_dir()
+        assert not nested_path.exists()
 
-        # Teardown with --sibling (operator updated the SKILL but worktree
-        # was created on the old version)
         with _chdir(git_repo):
-            result = worktree.cmd_teardown(_make_args(
-                "teardown", change_id="feat", agent_id="cleanup", sibling=True,
-            ))
+            result = worktree.cmd_teardown(
+                _make_args(
+                    "teardown",
+                    change_id="feat",
+                    agent_id="cleanup",
+                    sibling=True,
+                )
+            )
         assert result == 0
-        assert not nested_path.is_dir()
+        assert not sibling_path.is_dir()
 
 
 class TestCmdStatus:
-    def test_specific_worktree_exists(self, git_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_specific_worktree_exists(
+        self, git_repo: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         setup_args = _make_args("setup", change_id="test-feature")
         with _chdir(git_repo):
             worktree.cmd_setup(setup_args)
@@ -713,7 +786,9 @@ class TestCmdStatus:
         captured = capsys.readouterr()
         assert "EXISTS=true" in captured.out
 
-    def test_specific_worktree_not_found(self, git_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_specific_worktree_not_found(
+        self, git_repo: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         status_args = _make_args("status", change_id="nonexistent")
         with _chdir(git_repo):
             result = worktree.cmd_status(status_args)
@@ -804,7 +879,7 @@ class TestCmdPinUnpin:
         reg = load_registry(git_repo)
         entry = find_entry(reg, "pin-test")
         assert entry is not None
-        assert entry["pinned"] is True
+        assert entry["retained"] is True
 
     def test_unpin_sets_pinned_false(self, git_repo: Path) -> None:
         setup_args = _make_args("setup", change_id="unpin-test")
@@ -825,7 +900,7 @@ class TestCmdPinUnpin:
         reg = load_registry(git_repo)
         entry = find_entry(reg, "unpin-test")
         assert entry is not None
-        assert entry["pinned"] is False
+        assert entry["retained"] is False
 
     def test_pin_unknown_returns_1(self, git_repo: Path) -> None:
         pin_args = _make_args("pin", change_id="nonexistent")
@@ -950,6 +1025,140 @@ class TestCmdGc:
         reg_after = load_registry(git_repo)
         assert find_entry(reg_after, "gc-force") is None
 
+    def test_gc_never_removes_automatic_or_recovery_entries(self, git_repo: Path) -> None:
+        for change_id in ("automatic", "recovery"):
+            with _chdir(git_repo):
+                worktree.cmd_setup(_make_args("setup", change_id=change_id))
+            registry = load_registry(git_repo)
+            entry = find_entry(registry, change_id)
+            assert entry is not None
+            entry["last_heartbeat"] = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+            if change_id == "automatic":
+                entry["setup_id"] = "completed-setup"
+            else:
+                entry["recovery_required"] = True
+                entry["recovery_reason"] = "preserved"
+                entry["recovery_context"] = {
+                    "source": "setup-failure",
+                    "prior_owner": None,
+                    "prior_lease_id": None,
+                    "prior_controller_instance_id": None,
+                    "process_evidence_key": None,
+                    "quarantined_at": datetime.now(timezone.utc).isoformat(),
+                }
+            save_registry(git_repo, registry)
+
+        with _chdir(git_repo):
+            assert cmd_gc(_make_args("gc", stale_after="1h", force=True)) == 0
+
+        registry = load_registry(git_repo)
+        assert find_entry(registry, "automatic") is not None
+        assert find_entry(registry, "recovery") is not None
+
+
+class TestRecoveryCommands:
+    def _reservation(self, git_repo: Path) -> dict[str, object]:
+        target = {
+            "remote_name": "origin",
+            "remote_url_hash_algorithm": "git-remote-url-v1",
+            "canonical_remote_url_sha256": "a" * 64,
+            "ref_name": "refs/remotes/origin/openspec/recovery",
+        }
+        intent = {
+            "owner": "owner",
+            "lease_id": "lease",
+            "controller_instance_id": "controller",
+            "session_id": None,
+            "phase": "IMPLEMENT",
+            "reason": "test",
+            "lifecycle_mode": "standalone",
+            "ttl_seconds": 1800,
+        }
+        return worktree.lifecycle.reserve_setup(
+            git_repo,
+            setup_id="setup",
+            change_id="recovery",
+            agent_id=None,
+            branch="openspec/recovery",
+            worktree_path=str(git_repo / "missing"),
+            entry_generation="generation",
+            durability_target=target,
+            lease_intent=intent,
+            now=datetime.now(timezone.utc) - timedelta(hours=2),
+            ttl_seconds=1800,
+        )
+
+    def test_expired_side_effect_free_setup_reconciliation_is_audited(
+        self,
+        git_repo: Path,
+    ) -> None:
+        self._reservation(git_repo)
+        args = argparse.Namespace(
+            setup_id="setup",
+            entry_generation="generation",
+            actor="operator",
+            reason="controller terminated",
+            confirm_terminated=True,
+            json_output=True,
+            agent_id=None,
+        )
+        with _chdir(git_repo):
+            assert worktree.cmd_setup_reconcile(args) == 0
+        registry = load_registry(git_repo)
+        assert registry["setup_reservations"] == []
+        assert registry["entries"] == []
+        assert registry["recovery_audit"][0]["event"] == "setup-reconciled"
+        assert registry["recovery_audit"][0]["outcome"] == "removed-empty-side-effects"
+
+    def test_force_teardown_of_missing_quarantine_preserves_audit(
+        self,
+        git_repo: Path,
+    ) -> None:
+        entry = {
+            "change_id": "recovery",
+            "agent_id": None,
+            "branch": "openspec/recovery",
+            "worktree_path": str(git_repo / "missing"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "entry_generation": "generation",
+            "setup_id": None,
+            "durability_target": None,
+            "retained": False,
+            "retention_reason": None,
+            "recovery_required": True,
+            "recovery_reason": "legacy work",
+            "recovery_context": {
+                "source": "legacy-adoption",
+                "prior_owner": None,
+                "prior_lease_id": None,
+                "prior_controller_instance_id": None,
+                "process_evidence_key": None,
+                "quarantined_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "activity_lease": None,
+        }
+        save_registry(git_repo, worktree.lifecycle.empty_registry(entries=[entry]))
+        args = argparse.Namespace(
+            change_id="recovery",
+            agent_id=None,
+            entry_generation="generation",
+            actor="operator",
+            reason="discard legacy orphan",
+            confirm_terminated=True,
+            confirm_discard=True,
+            force=True,
+            owner=None,
+            lease_id=None,
+            controller_instance_id=None,
+            json_output=True,
+        )
+        with _chdir(git_repo):
+            assert worktree.cmd_recovery_teardown(args) == 0
+        registry = load_registry(git_repo)
+        assert registry["entries"] == []
+        assert registry["recovery_audit"][0]["event"] == "recovery-torn-down"
+        assert registry["recovery_audit"][0]["discard_confirmed"] is True
+
 
 class TestParseDurationHours:
     def test_hours(self) -> None:
@@ -967,6 +1176,7 @@ class TestParseDurationHours:
 
 
 # --- Helpers ---
+
 
 class _chdir:
     """Context manager to temporarily change directory."""

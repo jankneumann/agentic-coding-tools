@@ -182,9 +182,7 @@ class TestWriteOpsShortCircuit:
         monkeypatch.chdir(git_repo)
         monkeypatch.setenv("AGENT_EXECUTION_ENV", "cloud")
 
-        ns = worktree.argparse.Namespace(
-            change_id="feature-x", agent_id=None, prefix=None
-        )
+        ns = worktree.argparse.Namespace(change_id="feature-x", agent_id=None, prefix=None)
         rc = worktree.cmd_teardown(ns)
         assert rc == 0
 
@@ -193,7 +191,9 @@ class TestWriteOpsShortCircuit:
         assert "skipped teardown" in out.err
 
     def test_heartbeat_short_circuits(
-        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         monkeypatch.chdir(git_repo)
@@ -205,7 +205,9 @@ class TestWriteOpsShortCircuit:
         assert "skipped heartbeat" in capsys.readouterr().err
 
     def test_pin_short_circuits(
-        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         monkeypatch.chdir(git_repo)
@@ -217,7 +219,9 @@ class TestWriteOpsShortCircuit:
         assert "skipped pin" in capsys.readouterr().err
 
     def test_unpin_short_circuits(
-        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         monkeypatch.chdir(git_repo)
@@ -229,7 +233,9 @@ class TestWriteOpsShortCircuit:
         assert "skipped unpin" in capsys.readouterr().err
 
     def test_gc_short_circuits(
-        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         monkeypatch.chdir(git_repo)
@@ -239,6 +245,34 @@ class TestWriteOpsShortCircuit:
         rc = worktree.cmd_gc(ns)
         assert rc == 0
         assert "skipped gc" in capsys.readouterr().err
+
+    @pytest.mark.parametrize(
+        ("handler", "namespace"),
+        [
+            (worktree.cmd_lease_acquire, {"change_id": "x", "agent_id": None}),
+            (worktree.cmd_lease_renew, {"change_id": "x", "agent_id": None}),
+            (worktree.cmd_lease_release, {"change_id": "x", "agent_id": None}),
+            (worktree.cmd_setup_reconcile, {"setup_id": "s", "agent_id": None}),
+            (worktree.cmd_recovery_teardown, {"change_id": "x", "agent_id": None, "force": False}),
+            (
+                worktree.cmd_retention,
+                {"change_id": "x", "agent_id": None, "retention_command": "set"},
+            ),
+        ],
+    )
+    def test_registry_v2_mutations_short_circuit_under_harness_isolation(
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        handler: object,
+        namespace: dict[str, object],
+    ) -> None:
+        monkeypatch.chdir(git_repo)
+        monkeypatch.setenv("AGENT_EXECUTION_ENV", "cloud")
+        before = list(git_repo.iterdir())
+        args = worktree.argparse.Namespace(**namespace, json_output=True)
+        assert handler(args) == 0  # type: ignore[operator]
+        assert list(git_repo.iterdir()) == before
 
 
 class TestLocalBackwardCompat:
@@ -277,9 +311,7 @@ class TestOrthogonalBranchOverride:
         monkeypatch.chdir(git_repo)
         # Branch override is set, but no cloud signal of any kind
         monkeypatch.setenv("AGENT_EXECUTION_ENV", "local")
-        monkeypatch.setenv(
-            "OPENSPEC_BRANCH_OVERRIDE", "claude/review-branch"
-        )
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "claude/review-branch")
         monkeypatch.delenv("KUBERNETES_SERVICE_HOST", raising=False)
         monkeypatch.delenv("CODESPACES", raising=False)
 
