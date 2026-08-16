@@ -83,12 +83,26 @@ def _validate_findings_or_error(
         return None, None
     mod = _schema_mod()
     if mod is None:
-        return findings, None
+        # The canonical schema module is what makes this check meaningful.
+        # Returning the payload as valid here would report success for findings
+        # nothing ever inspected — the false-consensus failure ri-14 exists to
+        # prevent — so an unloadable module fails the dispatch instead.
+        msg = (
+            "review-findings schema module could not be loaded; refusing to "
+            "accept unvalidated findings (expected review_findings_schema.py "
+            f"beside {Path(__file__).name})"
+        )
+        print(f"[ERROR] {msg}", file=sys.stderr)
+        return None, msg
     try:
         errors = mod.validate_findings_payload(findings)
-    except Exception as exc:  # noqa: BLE001 — never let validation crash dispatch
-        logger.warning("review-findings validation error (skipping): %s", exc)
-        return findings, None
+    except Exception as exc:  # noqa: BLE001 — surfaced, never swallowed
+        # Includes ValidationUnavailableError (jsonschema missing) and a
+        # missing/malformed canonical schema file. Every one of those means the
+        # contract could not be checked, which is not the same as it holding.
+        msg = f"review-findings validation could not run: {exc}"
+        print(f"[ERROR] {msg}", file=sys.stderr)
+        return None, msg
     if errors:
         detail = "; ".join(errors[:5])
         msg = f"Findings failed review-findings schema validation: {detail}"
@@ -100,6 +114,14 @@ def _validate_findings_or_error(
 # ---------------------------------------------------------------------------
 # Error classification
 # ---------------------------------------------------------------------------
+
+class SchemaInjectionError(RuntimeError):
+    """Raised when the canonical review-findings schema cannot be injected.
+
+    A configuration fault, not a vendor fault: agents.yaml asked for the
+    schema sentinel and the schema could not be resolved to fill it.
+    """
+
 
 class ErrorClass(str, Enum):
     """Classification of vendor subprocess errors."""
@@ -280,36 +302,35 @@ class CliVendorAdapter:
         the schema derived from the canonical ``review-findings.schema.json``.
         This is what keeps agents.yaml from carrying a hand-copied — and
         drift-prone — ``--json-schema`` blob: the schema is injected here from
-        the single canonical file at dispatch time. If the schema cannot be
-        resolved, both the sentinel and its preceding ``--json-schema`` flag are
-        dropped so the CLI still runs (degrading to schema-less output) rather
-        than passing a literal placeholder the vendor would reject.
+        the single canonical file at dispatch time.
+
+        Raises :class:`SchemaInjectionError` when the schema cannot be resolved.
+        Dropping ``--json-schema`` and dispatching anyway used to look like
+        graceful degradation, but grok only populates ``structuredOutput`` when
+        that flag is present (see the agents.yaml comment on the review mode) —
+        so the "degraded" path reliably produced output the dispatcher then
+        rejected as invalid JSON, while the real cause (an unresolvable
+        canonical schema) appeared only as a warning. Failing here names the
+        actual problem.
         """
         mod = _schema_mod()
         sentinel = getattr(mod, "GROK_SCHEMA_SENTINEL", "@review-findings-schema")
         if sentinel not in args:
             return list(args)
 
-        schema_arg: str | None = None
-        if mod is not None:
-            try:
-                schema_arg = mod.grok_schema_arg()
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "could not inject canonical review-findings schema: %s", exc
-                )
+        if mod is None:
+            raise SchemaInjectionError(
+                "review_findings_schema module could not be loaded, so the "
+                f"{sentinel!r} placeholder in agents.yaml cannot be resolved"
+            )
+        try:
+            schema_arg = mod.grok_schema_arg()
+        except Exception as exc:  # noqa: BLE001 — re-raised with context
+            raise SchemaInjectionError(
+                f"could not derive the canonical review-findings schema: {exc}"
+            ) from exc
 
-        resolved: list[str] = []
-        for arg in args:
-            if arg != sentinel:
-                resolved.append(arg)
-                continue
-            if schema_arg is not None:
-                resolved.append(schema_arg)
-            elif resolved and resolved[-1] == "--json-schema":
-                # Drop the dangling --json-schema flag we just appended.
-                resolved.pop()
-        return resolved
+        return [schema_arg if arg == sentinel else arg for arg in args]
 
     def build_command(
         self,
@@ -367,7 +388,21 @@ class CliVendorAdapter:
             model_name = model or "(default)"
             models_attempted.append(model_name)
 
-            cmd = self.build_command(mode, prompt, model)
+            try:
+                cmd = self.build_command(mode, prompt, model)
+            except SchemaInjectionError as exc:
+                # Fail this vendor, not the whole panel: the other vendors'
+                # dispatches are independent and a partial panel beats none.
+                # Retrying the fallback models would not help — schema
+                # resolution is model-independent.
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    models_attempted=models_attempted,
+                    elapsed_seconds=time.monotonic() - dispatch_start,
+                    error=f"Schema injection failed: {exc}",
+                    error_class=ErrorClass.UNKNOWN,
+                )
             stdin_text = prompt if self.cli_config.prompt_via_stdin else None
             start = time.monotonic()
 
@@ -613,7 +648,19 @@ class CliVendorAdapter:
             model_name = model or "(default)"
             models_attempted.append(model_name)
 
-            cmd = self.build_command(mode, prompt, model)
+            try:
+                cmd = self.build_command(mode, prompt, model)
+            except SchemaInjectionError as exc:
+                # Same posture as the sync path: fail this vendor loudly rather
+                # than submitting a schema-less async task whose result would
+                # be unparseable for a reason the logs never name.
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    models_attempted=models_attempted,
+                    error=f"Schema injection failed: {exc}",
+                    error_class=ErrorClass.UNKNOWN,
+                )
             stdin_text = prompt if self.cli_config.prompt_via_stdin else None
             start = time.monotonic()
 

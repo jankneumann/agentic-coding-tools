@@ -34,7 +34,11 @@ from jsonschema import validate
 # JSON Schema for crew manifest validation. Structural only — cross-references
 # to archetypes.yaml / providers are checked semantically in validate_against.
 CREW_SCHEMA: dict[str, Any] = {
-    "$schema": "https://json-schema.org/draft-07/schema#",
+    # 2020-12, matching every other schema in this repo. The draft-07 URI this
+    # previously carried was also spelled with https://, which jsonschema
+    # cannot resolve to a metaschema — it fell back to the latest draft and
+    # emitted a DeprecationWarning that is scheduled to become a hard error.
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "required": ["crew", "supervisor", "roster"],
     "properties": {
@@ -228,6 +232,9 @@ class CrewManifest:
 
 # Global config instance
 _crew_manifest: CrewManifest | None = None
+# Tracks whether the cached manifest has passed cross-validation, so a
+# `cross_validate=True` caller is never served an unchecked cached object.
+_crew_manifest_cross_validated: bool = False
 
 
 def get_crew_manifest(
@@ -255,35 +262,47 @@ def get_crew_manifest(
         ValueError: If cross-validation finds an undefined archetype/vendor or
             a write-capable supervisor.
     """
-    global _crew_manifest
+    global _crew_manifest, _crew_manifest_cross_validated
     if _crew_manifest is None:
         if path is None:
             path = Path(__file__).parent.parent / "teams.yaml"
-        manifest = CrewManifest.from_file(path)
-        if cross_validate:
-            from src.agents_config import (
-                get_provider_model_map,
-                load_archetypes_config,
-            )
+        _crew_manifest = CrewManifest.from_file(path)
+        _crew_manifest_cross_validated = False
 
-            archetypes = load_archetypes_config()
-            known_archetypes = {
-                name: cfg.write_capable for name, cfg in archetypes.items()
-            }
-            providers = set((get_provider_model_map().get("providers") or {}).keys())
-            errors = manifest.validate_against(
-                known_archetypes=known_archetypes,
-                known_vendors=providers,
+    # Cross-validate whenever the caller asks for it, not only on the call that
+    # happened to populate the singleton. Gating this on `_crew_manifest is
+    # None` meant one early `get_crew_manifest(p, cross_validate=False)` cached
+    # an unchecked manifest, and every later default call returned it while
+    # believing it had been validated — the fail-loud guarantee silently
+    # disabled for the life of the process.
+    if cross_validate and not _crew_manifest_cross_validated:
+        from src.agents_config import (
+            get_provider_model_map,
+            load_archetypes_config,
+        )
+
+        archetypes = load_archetypes_config()
+        known_archetypes = {
+            name: cfg.write_capable for name, cfg in archetypes.items()
+        }
+        providers = set((get_provider_model_map().get("providers") or {}).keys())
+        errors = _crew_manifest.validate_against(
+            known_archetypes=known_archetypes,
+            known_vendors=providers,
+        )
+        if errors:
+            # Do not cache a manifest that failed: a retry must re-raise rather
+            # than hand back the bad object.
+            _crew_manifest = None
+            raise ValueError(
+                f"Crew manifest cross-validation failed: {'; '.join(errors)}"
             )
-            if errors:
-                raise ValueError(
-                    f"Crew manifest cross-validation failed: {'; '.join(errors)}"
-                )
-        _crew_manifest = manifest
+        _crew_manifest_cross_validated = True
     return _crew_manifest
 
 
 def reset_crew_manifest() -> None:
     """Reset the global crew manifest. Useful for testing."""
-    global _crew_manifest
+    global _crew_manifest, _crew_manifest_cross_validated
     _crew_manifest = None
+    _crew_manifest_cross_validated = False

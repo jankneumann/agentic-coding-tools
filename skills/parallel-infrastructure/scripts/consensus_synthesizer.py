@@ -667,44 +667,57 @@ def _schema_mod() -> Any:
         return None
 
 
-def _resolve_canonical_schema(schema_arg: str | None) -> dict[str, Any] | None:
+def _resolve_canonical_schema(schema_arg: str | None) -> dict[str, Any]:
     """Load the canonical review-findings schema for per-vendor validation.
 
     Uses an explicit ``--schema`` path when given, else the canonical file
-    discovered via the shared module. Returns ``None`` when neither the schema
-    nor jsonschema is available, in which case validation is skipped
-    (best-effort — matches the pre-existing behavioral-source contract).
+    discovered via the shared module.
+
+    Raises :class:`ConsensusInputError` when the schema cannot be loaded. This
+    used to return ``None`` and downgrade validation to a no-op, which meant an
+    unreadable ``--schema`` path or a missing canonical file produced a
+    consensus report that looked identically trustworthy to a validated one.
+    An unenforceable contract is a hard error, not a quiet pass.
     """
     if schema_arg:
         try:
             return json.loads(Path(schema_arg).read_text())
         except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("could not read --schema %s: %s", schema_arg, exc)
-            return None
+            raise ConsensusInputError(
+                f"could not read --schema {schema_arg}: {exc}"
+            ) from exc
     mod = _schema_mod()
     if mod is None:
-        return None
+        raise ConsensusInputError(
+            "review_findings_schema module could not be loaded, so per-vendor "
+            "findings cannot be validated against the canonical schema"
+        )
     try:
         return mod.load_schema()
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("could not load canonical review-findings schema: %s", exc)
-        return None
+    except Exception as exc:  # noqa: BLE001 — re-raised with context
+        raise ConsensusInputError(
+            f"could not load the canonical review-findings schema: {exc}"
+        ) from exc
 
 
 def _validate_vendor_document(
-    data: dict[str, Any], path: Path, schema: dict[str, Any] | None
+    data: dict[str, Any], path: Path, schema: dict[str, Any]
 ) -> None:
     """Validate a per-vendor findings document, raising loudly on drift.
 
     Raises :class:`ConsensusInputError` when the document violates the
-    canonical review-findings schema. No-op when validation is unavailable.
+    canonical review-findings schema, and equally when the check cannot run
+    because ``jsonschema`` is missing — "could not verify" must never be
+    reported as "verified".
     """
-    if schema is None:
-        return
     try:
         import jsonschema  # type: ignore[import-untyped]
-    except ImportError:
-        return
+    except ImportError as exc:
+        raise ConsensusInputError(
+            "the 'jsonschema' package is required to validate per-vendor "
+            f"findings against the canonical schema but is not importable "
+            f"(while reading {path})"
+        ) from exc
     validator = jsonschema.Draft202012Validator(schema)
     errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
     if errors:

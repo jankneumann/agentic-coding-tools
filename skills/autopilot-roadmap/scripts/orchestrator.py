@@ -98,8 +98,8 @@ def execute_roadmap(
 
     Returns
     -------
-    Summary dict with completed_count, failed_count, blocked_count, status,
-    and policy_decisions list.
+    Summary dict with completed_count, failed_count, blocked_count,
+    skipped_count, superseded_count, status, and policy_decisions list.
     """
     dispatch = dispatch_fn or _default_dispatch
     policy_decisions: list[dict[str, Any]] = []
@@ -306,7 +306,9 @@ def _get_ready_items(
     ready — so an item whose only remaining blocker is an external prerequisite
     becomes ready automatically when that prerequisite completes, with no
     manual status edit. ``superseded`` items are never ready (their status is
-    not in the executable set). Deterministic and side-effect-free.
+    not in the executable set), and neither is an item carrying a non-empty
+    ``superseded_by`` edge whose status was never flipped — mirrors
+    :meth:`Roadmap.ready_items`. Deterministic and side-effect-free.
     """
     external_completed = external_completed or set()
     completed_ids = set(checkpoint.completed_items)
@@ -317,6 +319,8 @@ def _get_ready_items(
     ready = []
     for item in roadmap.items:
         if item.item_id in skip_ids:
+            continue
+        if item.superseded_by:
             continue
         if item.status in (ItemStatus.APPROVED, ItemStatus.IN_PROGRESS):
             if all(dep in completed_ids for dep in item.depends_on) and all(
@@ -395,10 +399,24 @@ def _build_summary(
         1 for item in roadmap.items
         if item.status == ItemStatus.SKIPPED
     )
+    # SUPERSEDED is terminal: the work migrated to another roadmap's item via a
+    # ri-17 `superseded_by` edge, so it will never become ready here. Omitting
+    # it from terminal_count leaves a roadmap whose remaining items are all
+    # superseded permanently reporting "partial" — the run can never finish.
+    superseded_count = sum(
+        1 for item in roadmap.items
+        if item.status == ItemStatus.SUPERSEDED
+    )
 
     total = len(roadmap.items)
-    terminal_count = completed_count + failed_count + blocked_count + skipped_count
-    if completed_count == total:
+    terminal_count = (
+        completed_count + failed_count + blocked_count
+        + skipped_count + superseded_count
+    )
+    # A roadmap whose every item is either completed or superseded IS complete:
+    # nothing remains to execute here. Requiring completed_count == total would
+    # report "blocked_all" for a fully-resolved roadmap.
+    if completed_count + superseded_count == total:
         status = "completed"
     elif terminal_count >= total:
         status = "blocked_all"
@@ -412,6 +430,7 @@ def _build_summary(
         "failed_count": failed_count,
         "blocked_count": blocked_count,
         "skipped_count": skipped_count,
+        "superseded_count": superseded_count,
         "status": status,
         "policy_decisions": policy_decisions,
     }

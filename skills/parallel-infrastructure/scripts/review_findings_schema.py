@@ -19,10 +19,17 @@ This module makes all of them read the ONE canonical file:
 * the synthesizer validates each per-vendor findings file against the schema
   (:func:`validate_findings_document`).
 
-Validation is best-effort with respect to the ``jsonschema`` dependency: when
-it is not importable the validators return ``[]`` (no errors) so environments
-without the optional dep keep working, exactly as the pre-existing
-``load_behavioral_findings`` path did.
+Validation is MANDATORY on the review path, not best-effort. ``jsonschema`` is
+a declared dependency of both ``skills/pyproject.toml`` and
+``agent-coordinator/pyproject.toml``, so its absence is a broken environment,
+not a supported degraded mode. When it cannot be imported the validators raise
+:class:`ValidationUnavailableError` instead of returning ``[]``.
+
+That distinction is the whole point of the item. A validator that returns "no
+errors" when it could not run is indistinguishable from one that checked and
+found nothing — which is exactly how a drifted finding reaches consensus while
+the logs claim enforcement. Every unenforceable condition on this path fails
+loudly; none of them degrade to a pass.
 """
 
 from __future__ import annotations
@@ -112,16 +119,31 @@ def grok_schema_arg(schema: dict[str, Any] | None = None) -> str:
     return json.dumps(derive_output_schema(schema), separators=(",", ":"))
 
 
+class ValidationUnavailableError(RuntimeError):
+    """Raised when the schema cannot be enforced because ``jsonschema`` is absent.
+
+    Distinct from a validation *failure*: this says the check could not run at
+    all. Callers on the review path must treat it as a hard error rather than
+    as "no errors found" — see the module docstring.
+    """
+
+
 def _validate(data: Any, schema: dict[str, Any]) -> list[str]:
     """Validate *data* against *schema*; return human-readable error strings.
 
-    Returns ``[]`` when valid OR when ``jsonschema`` is unavailable (best-effort
-    — mirrors the synthesizer's pre-existing graceful-degradation contract).
+    Returns ``[]`` only when *data* is actually valid. When ``jsonschema`` is
+    not importable this raises :class:`ValidationUnavailableError` rather than
+    returning ``[]``: an empty error list is indistinguishable from "checked
+    and clean", and returning it here is what let an unenforceable schema read
+    as an enforced one.
     """
     try:
         import jsonschema  # type: ignore[import-untyped]
-    except ImportError:
-        return []
+    except ImportError as exc:
+        raise ValidationUnavailableError(
+            "the 'jsonschema' package is required to enforce "
+            f"{SCHEMA_FILENAME} but is not importable"
+        ) from exc
 
     validator = jsonschema.Draft202012Validator(schema)
     errors = []

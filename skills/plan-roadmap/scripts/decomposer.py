@@ -34,7 +34,7 @@ from models import (  # type: ignore[import-untyped]
     ROADMAP_SCHEMA,
     Roadmap,
     is_valid_item_ref,
-    load_all_roadmaps,
+    load_all_roadmaps_strict,
     parse_item_ref,
     validate_against_schema,
 )
@@ -192,8 +192,11 @@ def validate_cross_roadmap(repo_root: Path) -> list[str]:
     Read-only and side-effect-free. Returns a list of human-readable error
     messages (empty = valid).
     """
-    errors: list[str] = []
-    roadmaps = load_all_roadmaps(repo_root)
+    # Strict load: a roadmap that silently fails to parse, or a duplicated
+    # roadmap_id that silently overwrites another, would make every check below
+    # fail open — refs into the dropped workspace, cycles through it, and
+    # change_ids it claims all become invisible. Report those first.
+    roadmaps, errors = load_all_roadmaps_strict(repo_root)
 
     # Global node set: every fully-qualified item_ref that exists.
     node_ids: set[str] = set()
@@ -250,14 +253,27 @@ def validate_cross_roadmap(repo_root: Path) -> list[str]:
             "depends_on + external_depends_on edges: " + " -> ".join(cycle)
         )
 
-    # 3. Duplicate change_id across roadmaps.
+    # 3. Duplicate change_id — both across roadmaps and within one.
+    #    A change_id names exactly one OpenSpec change directory, so two items
+    #    claiming it means one change's completion silently satisfies both. The
+    #    intra-roadmap case is checked here rather than in validate_roadmap
+    #    because both cases have the same cause and the same fix, and a
+    #    per-roadmap check would report the cross-roadmap case twice.
     change_owners: dict[str, list[str]] = {}
-    for roadmap_id, roadmap in roadmaps.items():
-        seen_here: set[str] = set()
+    for roadmap_id, roadmap in sorted(roadmaps.items()):
+        seen_here: dict[str, str] = {}
         for item in roadmap.items:
-            if item.change_id and item.change_id not in seen_here:
-                seen_here.add(item.change_id)
-                change_owners.setdefault(item.change_id, []).append(roadmap_id)
+            if not item.change_id:
+                continue
+            if item.change_id in seen_here:
+                errors.append(
+                    f"change_id {item.change_id!r} is claimed twice within "
+                    f"roadmap {roadmap_id!r}: by items "
+                    f"{seen_here[item.change_id]!r} and {item.item_id!r}."
+                )
+                continue
+            seen_here[item.change_id] = item.item_id
+            change_owners.setdefault(item.change_id, []).append(roadmap_id)
     for change_id, owners in sorted(change_owners.items()):
         if len(owners) > 1:
             errors.append(

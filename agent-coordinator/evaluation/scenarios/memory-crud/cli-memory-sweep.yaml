@@ -1,6 +1,6 @@
 id: "cli-memory-sweep"
 name: "CLI memory command sweep"
-description: "Exercise all CLI memory commands: memory store, memory query, memory working-update, memory working-get"
+description: "Exercise all CLI memory commands: memory store, memory query"
 category: "memory-crud"
 priority: 2
 interfaces: ["cli"]
@@ -19,14 +19,6 @@ steps:
     expect:
       exit_code: 0
 
-  - id: cli_working_update
-    transport: cli
-    command: "memory working-update --key cli_sweep_key --value test_val"
-    expect:
-      exit_code: 0
-
-  - id: cli_working_get
-    transport: cli
-    command: "memory working-get --key cli_sweep_key"
-    expect:
-      exit_code: 0
+# The `memory working-update` / `memory working-get` steps were removed with
+# ri-15: migration 031 dropped the backing tables and the commands no longer
+# exist. Episodic store/query is the whole CLI memory surface.

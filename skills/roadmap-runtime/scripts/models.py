@@ -275,8 +275,13 @@ class RoadmapItem:
             learning_refs=data.get("learning_refs", []),
             dep_edges=dep_edges,
             scope=scope,
-            external_depends_on=list(data.get("external_depends_on", [])),
-            superseded_by=list(data.get("superseded_by", [])),
+            # `or []` rather than a .get default: YAML renders a key with an
+            # empty value (`external_depends_on:`) as None, and list(None)
+            # raises TypeError. That exception is swallowed by the tolerant
+            # sibling loader, so one blank line in a roadmap.yaml would drop
+            # the whole workspace from cross-roadmap resolution.
+            external_depends_on=list(data.get("external_depends_on") or []),
+            superseded_by=list(data.get("superseded_by") or []),
         )
 
 
@@ -339,6 +344,13 @@ class Roadmap:
         ``external_depends_on`` edge is withheld until callers supply the set.
 
         ``superseded`` items are never ready (their status is not ``approved``).
+        Neither is an item carrying a non-empty ``superseded_by`` edge, whatever
+        its status: declaring that another roadmap's item took over this work is
+        sufficient on its own. Keying only on ``status`` would schedule an item
+        whose ``superseded_by`` edge was added without the paired status flip —
+        a one-field edit away, and the resulting run would duplicate work the
+        successor item owns.
+
         This method performs no file IO and does not mutate anything.
         """
         external_completed = external_completed or set()
@@ -346,6 +358,7 @@ class Roadmap:
         return [
             i for i in self.items
             if i.status == ItemStatus.APPROVED
+            and not i.superseded_by
             and all(dep in completed_ids for dep in i.depends_on)
             and all(ref in external_completed for ref in i.external_depends_on)
         ]
@@ -624,6 +637,51 @@ def is_valid_item_ref(ref: str) -> bool:
     return True
 
 
+def load_all_roadmaps_strict(
+    repo_root: Path,
+) -> tuple[dict[str, Roadmap], list[str]]:
+    """Load every sibling roadmap, reporting rather than swallowing failures.
+
+    Returns ``({roadmap_id: Roadmap}, errors)``. Two classes of failure that
+    :func:`load_all_roadmaps` hides are surfaced here as error strings:
+
+    * a ``roadmap.yaml`` that does not parse or does not model — silently
+      dropping it makes every cross-roadmap check *fail open*, because refs
+      into it, cycles through it, and change_ids it claims all become
+      invisible;
+    * two directories declaring the same ``roadmap_id`` — last-writer-wins
+      would discard one workspace's items entirely.
+
+    Read-only and side-effect-free. Validation callers want this loader; the
+    readiness path keeps the tolerant :func:`load_all_roadmaps`.
+    """
+    result: dict[str, Roadmap] = {}
+    errors: list[str] = []
+    origin: dict[str, Path] = {}
+    roadmaps_dir = repo_root / ROADMAPS_DIRNAME
+    if not roadmaps_dir.is_dir():
+        return result, errors
+    for path in sorted(roadmaps_dir.glob("*/roadmap.yaml")):
+        try:
+            data = yaml.safe_load(path.read_text())
+            roadmap = Roadmap.from_dict(data)
+        except Exception as exc:  # noqa: BLE001 — reported, not raised
+            rel = path.relative_to(repo_root)
+            errors.append(f"{rel}: could not be loaded ({type(exc).__name__}: {exc}).")
+            continue
+        if roadmap.roadmap_id in origin:
+            rel = path.relative_to(repo_root)
+            prev = origin[roadmap.roadmap_id].relative_to(repo_root)
+            errors.append(
+                f"{rel}: roadmap_id {roadmap.roadmap_id!r} is already declared "
+                f"by {prev} — roadmap_id must be unique across workspaces."
+            )
+            continue
+        origin[roadmap.roadmap_id] = path
+        result[roadmap.roadmap_id] = roadmap
+    return result, errors
+
+
 def load_all_roadmaps(repo_root: Path) -> dict[str, Roadmap]:
     """Load every ``openspec/roadmaps/*/roadmap.yaml`` under ``repo_root``.
 
@@ -631,20 +689,20 @@ def load_all_roadmaps(repo_root: Path) -> dict[str, Roadmap]:
     each roadmap's declared ``roadmap_id`` (not its directory name). Archived
     roadmaps under ``openspec/roadmaps/archive/<...>/roadmap.yaml`` are nested a
     level deeper and are naturally excluded by the ``*/roadmap.yaml`` glob.
-    Files that fail to parse are skipped rather than raising.
+
+    Tolerant by design: a malformed sibling must not break the readiness path.
+    Failures are logged at WARNING (not debug) because a dropped roadmap
+    silently withholds every item that externally depends on it — see
+    :func:`load_all_roadmaps_strict` for the validation-side loader that
+    reports failures instead of hiding them.
     """
-    result: dict[str, Roadmap] = {}
-    roadmaps_dir = repo_root / ROADMAPS_DIRNAME
-    if not roadmaps_dir.is_dir():
-        return result
-    for path in sorted(roadmaps_dir.glob("*/roadmap.yaml")):
-        try:
-            data = yaml.safe_load(path.read_text())
-            roadmap = Roadmap.from_dict(data)
-        except Exception:  # noqa: BLE001 — a malformed sibling must not break callers
-            logger.debug("Skipping unparseable roadmap at %s", path, exc_info=True)
-            continue
-        result[roadmap.roadmap_id] = roadmap
+    result, errors = load_all_roadmaps_strict(repo_root)
+    for err in errors:
+        logger.warning(
+            "roadmap excluded from cross-roadmap resolution — %s "
+            "Items with external_depends_on into it will stay non-ready.",
+            err,
+        )
     return result
 
 

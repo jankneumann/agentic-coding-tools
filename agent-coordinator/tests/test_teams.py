@@ -285,6 +285,51 @@ class TestGlobalSingleton:
         assert m1 is not m2
         assert m1.crew == m2.crew
 
+    def test_cached_manifest_is_still_cross_validated_on_demand(
+        self, tmp_path, valid_crew_data
+    ):
+        """An early ``cross_validate=False`` load must not disable the guard.
+
+        Cross-validation used to run only on the call that populated the
+        singleton. So one ``get_crew_manifest(path, cross_validate=False)``
+        cached an unchecked manifest, and every later default call returned it
+        while believing it had been validated — the fail-loud guarantee
+        silently disabled for the life of the process. Here the manifest names
+        an archetype that does not exist in archetypes.yaml: the unchecked load
+        must succeed, and the next checked load must raise.
+        """
+        bad = dict(valid_crew_data)
+        bad["roster"] = [
+            {"archetype": "supervisor", "vendors": ["claude_code"]},
+            {"archetype": "not-a-real-archetype", "vendors": ["claude_code"]},
+        ]
+        path = tmp_path / "teams.yaml"
+        with open(path, "w") as f:
+            yaml.dump(bad, f)
+
+        # Structural load only — deliberately skips the roster cross-check.
+        assert get_crew_manifest(path, cross_validate=False).crew == "test-crew"
+
+        with pytest.raises(ValueError, match="cross-validation failed"):
+            get_crew_manifest()
+
+    def test_failed_cross_validation_is_not_cached(self, tmp_path, valid_crew_data):
+        """A manifest that failed validation must not be handed out later."""
+        bad = dict(valid_crew_data)
+        bad["roster"] = [
+            {"archetype": "supervisor", "vendors": ["claude_code"]},
+            {"archetype": "not-a-real-archetype", "vendors": ["claude_code"]},
+        ]
+        path = tmp_path / "teams.yaml"
+        with open(path, "w") as f:
+            yaml.dump(bad, f)
+
+        with pytest.raises(ValueError):
+            get_crew_manifest(path)
+        # A retry must re-raise rather than return the rejected object.
+        with pytest.raises(ValueError):
+            get_crew_manifest(path)
+
 
 # =============================================================================
 # Real manifest — the shipped teams.yaml cross-validates against archetypes.yaml
