@@ -33,11 +33,15 @@ retain, teardown, and garbage-collection operations cannot lose updates.
 The worktree command surface SHALL provide acquire, assert-owned, renew, release,
 owner/session release, and status operations for activity leases. Acquire SHALL
 reject a different live owner or fencing token, renew SHALL require the current
-owner plus `lease_id`, and release SHALL remove only that exact lease. Repeating
-a matching release or safe teardown SHALL succeed without changing another
-owner's state. Replacing an expired lease SHALL require a new `lease_id`; every
-mutation, integration, commit, push, and automatic teardown boundary SHALL
-assert the live matching owner and lease id.
+owner plus `lease_id`, and release SHALL remove only that exact lease. Releasing
+an absent lease or repeating safe teardown SHALL succeed as a no-op without
+attesting prior ownership or changing another owner's state. Replacing an
+expired lease SHALL require a new `lease_id` plus an atomic, locked assessment
+of checkout/submodule cleanliness, expected-remote reachability, and remaining
+process evidence; unsafe or indeterminate state SHALL enter recovery quarantine
+instead of ordinary acquisition. Every mutation, integration, commit, push,
+and automatic teardown boundary SHALL assert the live matching owner and lease
+id.
 
 Unless explicitly configured otherwise, acquisition SHALL create a 30-minute
 lease and an active workflow SHALL renew it at intervals no longer than 5
@@ -77,6 +81,20 @@ reset, clean, or otherwise mutate worktree contents or unmerged branches.
 - **AND** an injected clock advances beyond the lease's `expires_at`
 - **THEN** the active-agent guard SHALL stop reporting that lease as a blocker
 - **AND** the worktree, its dirty files, and its unmerged branch MUST remain untouched
+
+#### Scenario: Expired takeover quarantines unknown work
+
+- **WHEN** an expired lease remains attached to a dirty, non-durable, or process-indeterminate checkout
+- **AND** a later phase attempts ordinary acquisition
+- **THEN** the takeover assessment SHALL run while holding the lifecycle lock
+- **AND** it SHALL set `recovery_required` and refuse acquisition
+- **AND** only explicit operator adoption MAY make the checkout writable again
+
+#### Scenario: Clean durable expired takeover uses a new fence
+
+- **WHEN** an expired checkout is proven clean, submodule-clean, reachable from its expected remote, and free of contradictory process evidence
+- **THEN** ordinary acquisition MAY replace the expired lease with a new `lease_id`
+- **AND** the old owner and lease id MUST remain fenced from every later mutation boundary
 
 ### Requirement: Lease Inspection and Recovery SHALL Be Operator-Visible
 
@@ -143,6 +161,12 @@ worktree behavior SHALL otherwise remain compatible.
 - **WHEN** a schema-v1 entry has a heartbeat inside the documented legacy freshness window
 - **THEN** the active-agent guard SHALL report it as transitional active work
 - **AND** inspection output SHALL identify that the evidence came from a legacy heartbeat
+
+#### Scenario: Fresh legacy heartbeat maps every canonical lease field
+
+- **WHEN** a fresh schema-v1 heartbeat is normalized or renewed through the compatibility alias
+- **THEN** the synthetic v2 lease SHALL contain the deterministic legacy owner and lease id, null session, `LEGACY` phase, migration reason, manual mode, acquisition and heartbeat timestamps, one-hour expiry, and `ttl_seconds: 3600`
+- **AND** a later heartbeat against the v2 entry SHALL require that explicit owner and lease id
 
 #### Scenario: Missing or invalid legacy heartbeat is diagnosable and idle
 

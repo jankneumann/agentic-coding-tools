@@ -1,0 +1,95 @@
+{
+  "review_type": "plan",
+  "target": "phase-scoped-worktree-lifecycle",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: Expiry can make a crashed phase's worktree automatically adoptable without ever determining whether it contains dirty or non-durable state. D5 permits ordinary acquisition of any expired entry whose recovery_required flag is still false, but only orderly finalization sets that flag; an abrupt crash followed by TTL expiry therefore bypasses the quarantine guarantee and can make a later phase build on unknown files.",
+      "resolution": "Specify and test an atomic expired-lease takeover rule that inspects worktree cleanliness, submodules, expected remote reachability, and any remaining process evidence under the lifecycle lock before acquisition. Unsafe or indeterminate state must be marked recovery_required and require explicit adoption; ordinary acquire must not silently replace the lease.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "high",
+      "axis": "security",
+      "severity": "critical",
+      "description": "Critical: The session-end backstop clears matching live leases without fencing teardown or quarantining the preserved checkout. If the hook runs while an in-flight tool is finishing, another owner may acquire immediately; if the process dies with dirty state, release-session leaves that state ordinary-acquire eligible. This conflicts with the claimed crash-tolerant recovery boundary.",
+      "resolution": "Define release-session as a safe terminal transition: for each matching lease, stop/confirm the local renewer, inspect the checkout under the lifecycle lock, and either perform owner-fenced safe disposal or atomically set recovery_required before clearing the lease. At minimum, session-hook releases that cannot prove clean durable state must quarantine rather than return an idle adoptable entry.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "description": "Critical: The v1 migration contract says a fresh legacy heartbeat becomes a synthetic lease, but defines only the synthetic owner and expiry even though schema v2 requires lease_id, session_id, phase, reason, lifecycle_mode, acquired_at, last_heartbeat, expires_at, and ttl_seconds. The compatibility heartbeat command is likewise said to support v1 while its CLI alias maps to lease renew, which requires an explicit v2 owner and lease id. Implementations can therefore produce incompatible canonical v2 state or disagree on legacy command behavior.",
+      "resolution": "Add a deterministic field-by-field v1-to-v2 lease mapping, including fencing-token derivation or generation, lifecycle mode, phase, acquisition time, TTL, session nullability, and reason. Define whether legacy heartbeat mutates v1 after canonicalization and its exact arguments/exit/output behavior, then add representative migration and heartbeat fixtures.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "architecture",
+      "severity": "nit",
+      "description": "Nit: Package verification does not run the principal shared-controller tests assigned to the packages: wp-registry omits skills/shared/tests/test_worktree_lifecycle.py and wp-phase-lifecycle omits skills/shared/tests/test_phase_lifecycle.py. Both only run later in wp-integration, so a package can be marked successful and integrated despite failing its own core contract tests.",
+      "resolution": "Add the omitted shared test modules to each package's verification command so package completion is gated on the tests it owns; retain the integration rerun as regression coverage.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "medium",
+      "axis": "architecture",
+      "severity": "nit",
+      "description": "Nit: Task 5.1 assigns agent-coordinator/tests/test_check_docker_imports.py to wp-coordinator-projections, but that package neither allows the file in write_allow nor runs it in verification. The package therefore cannot implement and validate its required source/container import contract within its declared scope.",
+      "resolution": "Add agent-coordinator/tests/test_check_docker_imports.py to wp-coordinator-projections.write_allow and to its verification command, or move that task explicitly to wp-integration and update dependencies/traceability.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "readability",
+      "severity": "nit",
+      "description": "Nit: The contract calls release of an absent lease idempotent only for the same requested owner, but activity_lease=null retains no prior owner or lease id, so that condition cannot be verified. The CLI also leaves repeated teardown behavior unclear when the registry entry has already been removed despite the spec promising idempotent safe teardown.",
+      "resolution": "State the observable no-op semantics directly: either any release against an absent lease succeeds without implying prior ownership, or retain auditable last-owner metadata. Define repeated teardown of an absent entry consistently in the CLI exit-code table and tests.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "none",
+      "description": "The plan cleanly separates retention, active ownership, and delivery-stage provenance, and its immutable-versus-latest merge classification model preserves both auditability and live safety decisions.",
+      "resolution": "Preserve these boundaries during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "low",
+      "axis": "security",
+      "severity": "none",
+      "description": "The author-vendor design correctly treats PR trailers as unverified claims, keeps exact identity mapping independent from delivery stage, and fails conservatively on conflicts or unavailable independent reviewers.",
+      "resolution": "Retain the evidence model and conservative routing tests.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/phase-scoped-worktree-lifecycle/specs/merge-pull-requests/spec.md"
+    }
+  ]
+}

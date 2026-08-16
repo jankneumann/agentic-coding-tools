@@ -58,3 +58,26 @@
 - Termination reason: threshold met after semantic contract refinement
 - Proposal readiness: strict-valid, contract-aligned, testable, and gated for
   safe parallel implementation after the two recorded external baselines land
+
+---
+
+## Iteration 2
+
+<!-- Date: 2026-08-15 -->
+
+### Findings
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | correctness | critical | An expired checkout could be ordinary-acquired after a crash without proving its preserved state safe. | Required a locked expired-takeover assessment of cleanliness, submodules, remote durability, and process evidence; unsafe or indeterminate entries enter recovery quarantine. |
+| 2 | security | critical | Session release could clear ownership while leaving an in-flight or dirty checkout immediately adoptable. | Made session release quarantine every preserved matching checkout before clearing its lease; the hook remains non-destructive and explicit finalization is the only clean-disposal path. |
+| 3 | contract mismatch | critical | Fresh v1 heartbeats did not define every required v2 lease field or exact post-migration alias behavior. | Defined deterministic owner/token derivation, all timestamps and metadata, one-hour TTL, v1 canonicalization, and explicit owner/token requirements after v2 conversion. |
+| 4 | testability | medium | Registry and phase packages omitted their owned shared-controller tests. | Added `test_worktree_lifecycle.py` and `test_phase_lifecycle.py` to their package gates. |
+| 5 | architecture | medium | The coordinator package could not write or run its assigned Docker import-contract test. | Added the test path to package scope and verification. |
+| 6 | correctness | medium | Absent release and repeated teardown claimed unverifiable same-owner idempotency. | Defined observable no-op semantics without attesting prior ownership. |
+
+### Review Context
+
+- Codex produced 8 schema-valid findings: 3 critical, 3 nits, and 2 positive observations.
+- Antigravity, Claude, and Grok timed out; Pi returned invalid JSON, so external quorum was not met and all findings remained unconfirmed.
+- The critical findings were nevertheless concrete contract defects and were fixed before review retry.

@@ -153,8 +153,15 @@ commands. Acquire accepts an optional non-empty session id and stores it as a
 nullable, explicit lease field; release-session never treats null or empty as a
 wildcard.
 
-- Acquiring an unleased or expired entry succeeds only with a caller-generated
-  lease id not equal to the expired lease id.
+- Acquiring an unleased entry succeeds with a caller-generated lease id. An
+  expired entry is not automatically equivalent to an unleased entry: under
+  the lifecycle lock, takeover first inspects worktree and submodule
+  cleanliness, expected-remote reachability, and remaining local process
+  evidence. Dirty, non-durable, or indeterminate state is atomically marked
+  `recovery_required` and ordinary acquisition fails. Only a checkout proven
+  clean and durable with no contradictory live-process evidence may replace
+  the expired lease, and replacement uses a caller-generated lease id not equal
+  to the expired lease id.
 - Reacquiring a live lease with the same owner and lease id is idempotent,
   preserves `acquired_at`, and may update phase/reason before renewing expiry.
   The same owner with a different lease id conflicts while the lease is live.
@@ -162,9 +169,16 @@ wildcard.
   phase, and expiry evidence; it never steals the lease.
 - Renewing, releasing, or disposing with the wrong owner or lease id is a
   non-mutating conflict.
-- Releasing an already absent lease for the same requested owner is idempotent.
+- Releasing an already absent lease is an idempotent no-op. Because a null lease
+  retains no prior owner or lease id, this result makes no claim that the
+  caller formerly owned it; a live lease still requires exact owner and lease-id
+  equality.
 - `release-session` clears only leases whose stored `session_id` exactly
-  matches; an empty or missing session id is not a wildcard.
+  matches; an empty or missing session id is not a wildcard. As a crash
+  backstop it never makes a preserved checkout automatically adoptable: while
+  holding the lifecycle lock it marks each matching, still-present checkout
+  `recovery_required` with session-termination evidence before clearing the
+  lease. A checkout already removed by its explicit finalizer is a no-op.
 - Normal teardown refuses to remove a worktree with another owner's live lease.
   Expired leases do not authorize deletion, and dirty/non-durable safety checks
   still apply.
@@ -186,8 +200,12 @@ Readers accept both the existing top-level `version: 1` registry and canonical
 
 - `pinned=true` becomes `retained=true` with reason `legacy-pin`.
 - A parseable legacy `last_heartbeat` within the existing one-hour activity
-  window becomes a synthetic `legacy:<change-id>:<agent-id-or-parent>` lease
-  expiring at `last_heartbeat + 1 hour`.
+  window becomes a complete synthetic lease: owner
+  `legacy:<change-id>:<agent-id-or-parent>`, deterministic lease id
+  `legacy-v1:<sha256(change-id|agent-id-or-parent|created-at)>`, null session,
+  phase `LEGACY`, reason `legacy-heartbeat-migration`, lifecycle mode `manual`,
+  `acquired_at=min(created_at,last_heartbeat)`, the original heartbeat,
+  `expires_at=last_heartbeat + 1 hour`, and `ttl_seconds=3600`.
 - A stale or invalid heartbeat does not create live activity.
 - Branch, path, agent, and creation fields are preserved byte-for-value where
   the v2 schema permits them.
@@ -201,10 +219,13 @@ discarded. Canonical v2 writers never emit unknown fields beside the
 schema-defined properties.
 
 `pin` and `unpin` remain migration aliases for setting and clearing retention.
-They do not acquire, renew, or release activity. The legacy `heartbeat` command
-continues to support v1 entries during the transition, but a v2 lease can only
-be renewed with its owner identity. Help and status output label these
-compatibility semantics explicitly.
+They do not acquire, renew, or release activity. For a v1 entry only, the legacy
+`heartbeat CHANGE_ID [--agent-id ID]` command atomically canonicalizes the entry
+using the deterministic mapping above, sets `last_heartbeat=now` and
+`expires_at=now+3600`, and reports the synthetic owner and lease id. Once an
+entry is v2, the alias requires explicit `--owner` and `--lease-id` and is
+exactly `lease renew`; omission is an invalid-arguments result. Help and status
+output label these compatibility semantics explicitly.
 
 ### D7 — Lifecycle context is explicit and reports who must release
 
@@ -303,7 +324,13 @@ The session-end hook resolves the repository from the hook project directory,
 reads the terminating `SESSION_ID`, and invokes the stdlib lifecycle helper's
 `release-session` operation before optional coordinator handoff/status calls.
 This path works with no coordinator URL or network. It never uses a blank id,
-never releases another session's lease, and never deletes a worktree.
+never releases another session's lease, and never deletes a worktree. For every
+matching lease whose explicit phase finalizer has not already removed the
+checkout, the operation atomically records `recovery_required` with a
+session-termination reason before clearing ownership. This conservative
+backstop prevents a concurrent or abruptly terminated writer's checkout from
+becoming ordinarily adoptable; explicit finalization remains the clean,
+durable disposal path.
 
 Hook failures are logged but cannot block process shutdown. The lease TTL is
 still authoritative when a process is killed too abruptly for hooks. Explicit
@@ -524,12 +551,15 @@ human merge question is rendered.
   executable renewer plus transition renewals provides margin inside the
   30-minute TTL; renewal failure is surfaced before further mutation.
 - **An expired writer is still physically running.** Expiry unblocks dead
-  sessions but cannot prove process death. Every replacement acquisition gets a
-  new lease id; mutation-boundary assertions fence the old id before its next
-  mutation, integration, commit, or push.
-- **Session hooks release the wrong run.** Release matches a non-empty stored
-  session id and remains non-destructive; explicit workflow release uses the
-  stronger full owner identity.
+  sessions but cannot prove process death. Expired takeover runs a locked
+  clean/durable/process-evidence assessment and quarantines unsafe or
+  indeterminate state; every permitted replacement gets a new lease id, and
+  mutation-boundary assertions fence the old id before its next mutation,
+  integration, commit, or push.
+- **Session hooks release the wrong run or expose half-finished state.** Release
+  matches a non-empty stored session id and remains non-destructive; preserved
+  checkouts are quarantined before ownership is cleared, while explicit
+  workflow finalization uses the stronger owner/lease pair and clean disposal.
 - **Classifier mistakes archive planning work.** Changed files and base state
   are primary, marker disagreement and incomplete evidence become ambiguous,
   and cleanup consumes the classified stage rather than OpenSpec origin.

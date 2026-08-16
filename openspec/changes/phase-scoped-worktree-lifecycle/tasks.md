@@ -14,7 +14,7 @@ paths concurrently.
 ## 1. Registry and activity-guard contract
 
 - [ ] 1.1 (M) Write deterministic registry-v2 contract fixtures and lease tests covering migration, locking, session release, fencing, recovery quarantine, atomic disposal, remote reachability, retention, inspection, corruption, plus isolation
-  **Spec scenarios**: `worktree` — Owner acquires and renews the default lease; Different owner cannot renew or release a live lease; Expired writer is fenced after same-owner resume; Matching release is idempotent; AC-08; AC-09; AC-11; Concurrent lifecycle updates preserve both owners' records; Inspection reports lifecycle categories without mutation; Pushed proposal branch is safely disposable before merge; Unsafe finalization quarantines recovery state; Acquire cannot race owner-checked disposal; Missing or invalid legacy heartbeat is diagnosable and idle; Corrupt registry blocks safety decisions without rewrite; Activity lease commands respect environment isolation
+  **Spec scenarios**: `worktree` — Owner acquires and renews the default lease; Different owner cannot renew or release a live lease; Expired writer is fenced after same-owner resume; Matching release is idempotent; AC-08; Expired takeover quarantines unknown work; Clean durable expired takeover uses a new fence; AC-09; AC-11; Concurrent lifecycle updates preserve both owners' records; Inspection reports lifecycle categories without mutation; Pushed proposal branch is safely disposable before merge; Unsafe finalization quarantines recovery state; Acquire cannot race owner-checked disposal; Fresh legacy heartbeat maps every canonical lease field; Missing or invalid legacy heartbeat is diagnosable and idle; Corrupt registry blocks safety decisions without rewrite; Activity lease commands respect environment isolation
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D1-D6
   **Dependencies**: None
@@ -50,8 +50,8 @@ paths concurrently.
   **Dependencies**: 2.1
   **Files**: `skills/shared/phase_lifecycle.py`, `skills/plan-feature/SKILL.md`, `skills/implement-feature/SKILL.md`, `skills/iterate-on-plan/SKILL.md`, `skills/iterate-on-implementation/SKILL.md`, `skills/validate-feature/SKILL.md`
 
-- [ ] 2.3 (S) Write session-finalization tests for exact owner/session release without coordinator connectivity
-  **Spec scenarios**: `skill-workflow` — Session end releases only matching owners; `worktree` — Different owner cannot renew or release a live lease
+- [ ] 2.3 (S) Write session-finalization tests for exact owner/session release, preserved-checkout quarantine, and absent-entry idempotency without coordinator connectivity
+  **Spec scenarios**: `skill-workflow` — Session end releases only matching owners; `worktree` — Different owner cannot renew or release a live lease; Unsafe finalization quarantines recovery state
   **Contracts**: `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D5, D10
   **Dependencies**: 1.2

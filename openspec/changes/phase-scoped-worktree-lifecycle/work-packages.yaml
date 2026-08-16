@@ -74,7 +74,7 @@ packages:
       steps:
         - name: "Registry and guard tests"
           kind: command
-          command: "uv run --project skills pytest skills/worktree/scripts/tests skills/shared/tests/test_active_agents.py skills/tests/worktree -q"
+          command: "uv run --project skills pytest skills/worktree/scripts/tests skills/shared/tests/test_active_agents.py skills/shared/tests/test_worktree_lifecycle.py skills/tests/worktree -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -162,7 +162,7 @@ packages:
       steps:
         - name: "Phase lifecycle contract tests"
           kind: command
-          command: "uv run --project skills pytest skills/tests/plan-feature skills/tests/implement-feature skills/tests/iterate-on-plan skills/tests/iterate-on-implementation skills/tests/validate-feature skills/tests/session-bootstrap -q"
+          command: "uv run --project skills pytest skills/shared/tests/test_phase_lifecycle.py skills/tests/plan-feature skills/tests/implement-feature skills/tests/iterate-on-plan skills/tests/iterate-on-implementation skills/tests/validate-feature skills/tests/session-bootstrap -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -350,6 +350,7 @@ packages:
         - "agent-coordinator/tests/test_sync_points.py"
         - "agent-coordinator/tests/test_worktrees_view.py"
         - "agent-coordinator/tests/test_kanban_viz_endpoints.py"
+        - "agent-coordinator/tests/test_check_docker_imports.py"
         - "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py"
       read_allow:
         - "**"
@@ -369,7 +370,7 @@ packages:
       steps:
         - name: "Coordinator projection tests"
           kind: command
-          command: "uv run --project agent-coordinator pytest agent-coordinator/tests/test_sync_points.py agent-coordinator/tests/test_worktrees_view.py agent-coordinator/tests/test_kanban_viz_endpoints.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py -q"
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests/test_sync_points.py agent-coordinator/tests/test_worktrees_view.py agent-coordinator/tests/test_kanban_viz_endpoints.py agent-coordinator/tests/test_check_docker_imports.py skills/tests/agent-coordinator/test_kanban_viz_endpoints.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence:

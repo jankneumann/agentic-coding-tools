@@ -179,6 +179,8 @@ MUST NOT release another session's or run's lease.
 - **THEN** the session hook SHALL best-effort release the two matching leases
 - **AND** it MUST leave `autopilot:run-9` unchanged
 - **AND** coordinator unavailability SHALL NOT prevent the local attempt
+- **AND** every matching checkout not already removed by explicit finalization SHALL be quarantined before its lease is cleared
+- **AND** the hook MUST NOT delete a worktree or make preserved state ordinarily adoptable
 
 ### Requirement: Canonical Lifecycle Skills SHALL Generate Consistent Runtime Mirrors
 

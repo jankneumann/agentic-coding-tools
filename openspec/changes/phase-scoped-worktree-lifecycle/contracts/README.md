@@ -49,6 +49,19 @@ JSON Schema cannot compare timestamps. Producers additionally enforce:
    cadence is 300 seconds.
 6. Dirty, dirty-submodule, or remote-unreachable state enters
    `recovery_required` quarantine and cannot be adopted by an ordinary acquire.
+7. Replacing an expired lease requires a locked takeover assessment of checkout
+   cleanliness, submodules, expected-remote reachability, and remaining process
+   evidence. Unsafe or indeterminate state is quarantined instead of acquired.
+
+Fresh v1 heartbeat normalization populates every required v2 lease field:
+`owner=legacy:<change-id>:<agent-id-or-parent>`,
+`lease_id=legacy-v1:<sha256(change-id|agent-id-or-parent|created-at)>`,
+`session_id=null`, `phase=LEGACY`, `reason=legacy-heartbeat-migration`,
+`lifecycle_mode=manual`, `acquired_at=min(created_at,last_heartbeat)`, the
+original heartbeat, `expires_at=last_heartbeat+3600s`, and `ttl_seconds=3600`.
+The legacy heartbeat command performs this mapping only while the source entry
+is v1; after canonicalization it requires the explicit synthetic owner and
+lease id and follows the normal renew contract.
 
 ### PR delivery classification
 

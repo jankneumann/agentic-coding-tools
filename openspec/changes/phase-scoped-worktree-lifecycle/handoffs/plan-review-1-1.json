@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-16T01:42:45Z",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "Phase sub-agent persisted the structured review handoff locally for orchestrator pickup.",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "PLAN_REVIEW did not converge. The primary review found three critical correctness/security/contract blockers and three package/CLI nits. Antigravity, Claude, and Grok timed out and Pi returned invalid JSON, so external quorum was 0/4; the single-vendor consensus artifact is explicitly non-quorate and its automatic zero-blocking summary must not override the primary critical findings.",
+    "completed_work": [
+      "Read proposal, design, tasks, all delta specs, contracts, and work-packages.yaml.",
+      "Wrote and schema-validated 8 Codex findings: 3 critical, 3 nit, and 2 positive observations.",
+      "Dispatched plan review to Antigravity, Claude, Grok, and Pi and recorded every failure in review-manifest.json.",
+      "Synthesized consensus-plan.json from the only valid review; quorum was not met and all findings remain unconfirmed."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Plan review is not converged",
+        "rationale": "Abrupt expiry and session release can leave unknown checkout state automatically adoptable, v1 synthetic lease migration is incomplete, and multi-vendor quorum was lost.",
+        "capability": "worktree",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Specify atomic expired-lease takeover so dirty, non-durable, or indeterminate state is quarantined before ordinary acquisition.",
+      "Make session-end release quarantine or safely dispose preserved state instead of creating an idle adoptable checkout.",
+      "Define every required synthetic lease field and exact legacy heartbeat migration behavior.",
+      "Add omitted package-owned shared lifecycle tests and the coordinator Docker import test to package scope and verification.",
+      "Clarify absent-release and repeated-teardown idempotency, then rerun multi-vendor PLAN_REVIEW."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/review-findings-plan.json",
+        "description": "Primary schema-valid findings"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/reviews/review-manifest.json",
+        "description": "Vendor failures and quorum evidence"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/reviews/consensus-plan.json",
+        "description": "Non-quorate single-vendor synthesis"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/design.md",
+        "description": "Lease and recovery design requiring revision"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml",
+        "description": "CLI lifecycle contract requiring revision"
+      },
+      {
+        "path": "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml",
+        "description": "Package scopes and verification requiring revision"
+      }
+    ]
+  }
+}

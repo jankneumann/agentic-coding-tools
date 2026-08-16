@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "phase-scoped-worktree-lifecycle",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": false,
+  "quorum_requested": 1,
+  "quorum_received": 1,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: Expiry can make a crashed phase's worktree automatically adoptable without ever determining whether it contains dirty or non-durable state. D5 permits ordinary acquisition of any expired entry whose recovery_required flag is still false, but only orderly finalization sets that flag; an abrupt crash followed by TTL expiry therefore bypasses the quarantine guarantee and can make a later phase build on unknown files."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: The session-end backstop clears matching live leases without fencing teardown or quarantining the preserved checkout. If the hook runs while an in-flight tool is finishing, another owner may acquire immediately; if the process dies with dirty state, release-session leaves that state ordinary-acquire eligible. This conflicts with the claimed crash-tolerant recovery boundary."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: The v1 migration contract says a fresh legacy heartbeat becomes a synthetic lease, but defines only the synthetic owner and expiry even though schema v2 requires lease_id, session_id, phase, reason, lifecycle_mode, acquired_at, last_heartbeat, expires_at, and ttl_seconds. The compatibility heartbeat command is likewise said to support v1 while its CLI alias maps to lease renew, which requires an explicit v2 owner and lease id. Implementations can therefore produce incompatible canonical v2 state or disagree on legacy command behavior."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Package verification does not run the principal shared-controller tests assigned to the packages: wp-registry omits skills/shared/tests/test_worktree_lifecycle.py and wp-phase-lifecycle omits skills/shared/tests/test_phase_lifecycle.py. Both only run later in wp-integration, so a package can be marked successful and integrated despite failing its own core contract tests."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Task 5.1 assigns agent-coordinator/tests/test_check_docker_imports.py to wp-coordinator-projections, but that package neither allows the file in write_allow nor runs it in verification. The package therefore cannot implement and validate its required source/container import contract within its declared scope."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The contract calls release of an absent lease idempotent only for the same requested owner, but activity_lease=null retains no prior owner or lease id, so that condition cannot be verified. The CLI also leaves repeated teardown behavior unclear when the registry entry has already been removed despite the spec promising idempotent safe teardown."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan cleanly separates retention, active ownership, and delivery-stage provenance, and its immutable-versus-latest merge classification model preserves both auditability and live safety decisions."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The author-vendor design correctly treats PR trailers as unverified claims, keeps exact identity mapping independent from delivery stage, and fails conservatively on conflicts or unavailable independent reviewers."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 8,
+    "confirmed_count": 0,
+    "unconfirmed_count": 8,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}
