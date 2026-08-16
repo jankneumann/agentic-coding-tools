@@ -129,12 +129,23 @@ class ErrorClass(str, Enum):
     CAPACITY = "capacity_exhausted"
     AUTH = "auth_required"
     TRANSIENT = "transient"
+    UNAVAILABLE = "vendor_unavailable"
     UNKNOWN = "unknown"
 
 
 _CAPACITY_PATTERNS = ["429", "resource_exhausted", "capacity", "rate limit", "rate_limit"]
 _AUTH_PATTERNS = ["401", "unauthenticated", "token expired", "login required", "unauthorized"]
 _TRANSIENT_PATTERNS = ["500", "503", "unavailable", "internal server error"]
+_UNAVAILABLE_PATTERNS = [
+    "insufficient credits",
+    "insufficient_credits",
+    "payment required",
+    "payment_required",
+    "insufficient_quota",
+]
+# HTTP 402 as a standalone token — not part of a larger number ("8,402 items")
+# or an identifier ("v402").
+_UNAVAILABLE_402_RE = re.compile(r"(?<![\d,.\w])402(?![\d\w])")
 
 # Re-login command per CLI binary, keyed by ``cli.command`` (E4). Only harnesses
 # with a real ``<cmd> login`` subcommand appear here.
@@ -170,9 +181,18 @@ def _relogin_hint(command: str) -> str:
     return f"{command} login"
 
 
-def classify_error(stderr: str) -> ErrorClass:
-    """Classify a vendor error from stderr text."""
-    lower = stderr.lower()
+def classify_error(text: str) -> ErrorClass:
+    """Classify a vendor error from its output text.
+
+    Accepts stderr OR stdout — some CLIs (pi) exit 0 with the provider's
+    error body on stdout (issue #383), so classification cannot assume the
+    text arrived on stderr. UNAVAILABLE is checked first: a billing body
+    ("Insufficient credits … upgrade your limit") contains words that would
+    otherwise false-positive the capacity patterns.
+    """
+    lower = text.lower()
+    if any(p in lower for p in _UNAVAILABLE_PATTERNS) or _UNAVAILABLE_402_RE.search(lower):
+        return ErrorClass.UNAVAILABLE
     if any(p in lower for p in _AUTH_PATTERNS):
         return ErrorClass.AUTH
     if any(p in lower for p in _CAPACITY_PATTERNS):
@@ -225,6 +245,10 @@ class CliConfig:
     # antigravity ignores stdin and a trailing positional — the prompt must be
     # the value of ``--prompt``/``-p``.
     prompt_via_flag: str | None = None
+    # Env var the CLI resolves its provider credential from (pi:
+    # OPENROUTER_API_KEY). A present binary with this var unset cannot serve
+    # a request — can_dispatch() fails closed on it (issue #383).
+    api_key_env: str = ""
 
 
 @dataclass
@@ -290,10 +314,19 @@ class CliVendorAdapter:
         self.transport = transport
 
     def can_dispatch(self, mode: str) -> bool:
-        """Check if this adapter can dispatch the given mode."""
+        """Check if this adapter can dispatch the given mode.
+
+        A binary on PATH is not enough when the config declares a required
+        credential env var: pi with OPENROUTER_API_KEY unset cannot serve a
+        single request, so it must not count as available (issue #383).
+        """
         if mode not in self.cli_config.dispatch_modes:
             return False
-        return shutil.which(self.cli_config.command) is not None
+        if shutil.which(self.cli_config.command) is None:
+            return False
+        if self.cli_config.api_key_env and not os.environ.get(self.cli_config.api_key_env):
+            return False
+        return True
 
     def _resolve_args(self, args: list[str]) -> list[str]:
         """Expand config placeholders in a mode's args.
@@ -422,28 +455,68 @@ class CliVendorAdapter:
                     # canonical review-findings schema so a drifted finding
                     # fails here instead of silently reaching consensus.
                     findings = self._parse_findings(result.stdout)
-                    parse_error = None if findings else "Invalid JSON output"
-                    findings, schema_error = _validate_findings_or_error(findings)
-                    return ReviewResult(
-                        vendor=self.vendor,
-                        success=findings is not None,
-                        findings=findings,
-                        model_used=model_name,
-                        models_attempted=models_attempted,
-                        elapsed_seconds=elapsed,
-                        error=schema_error or parse_error,
+                    if findings is not None:
+                        findings, schema_error = _validate_findings_or_error(findings)
+                        return ReviewResult(
+                            vendor=self.vendor,
+                            success=findings is not None,
+                            findings=findings,
+                            model_used=model_name,
+                            models_attempted=models_attempted,
+                            elapsed_seconds=elapsed,
+                            error=schema_error,
+                        )
+                    # Exit 0 but no findings. Some CLIs (pi, issue #383) exit 0
+                    # when the provider refused the request, with the error body
+                    # on stdout — classify the raw output before treating this
+                    # as a format failure, and always carry an excerpt so the
+                    # raw output is never silently discarded.
+                    raw = "\n".join(
+                        part for part in (result.stdout.strip(), result.stderr.strip()) if part
                     )
+                    excerpt = raw[:500]
+                    zero_exit_class = classify_error(raw)
+                    if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE):
+                        last_error = excerpt
+                        last_error_class = zero_exit_class
+                    elif zero_exit_class == ErrorClass.CAPACITY:
+                        logger.info(
+                            "%s model %s reported capacity exhaustion on stdout, "
+                            "trying fallback",
+                            self.vendor, model_name,
+                        )
+                        last_error = excerpt
+                        last_error_class = zero_exit_class
+                        continue
+                    else:
+                        return ReviewResult(
+                            vendor=self.vendor,
+                            success=False,
+                            model_used=model_name,
+                            models_attempted=models_attempted,
+                            elapsed_seconds=elapsed,
+                            error=f"Invalid JSON output: {excerpt}" if excerpt
+                            else "Invalid JSON output (empty stdout)",
+                        )
+                else:
+                    # Non-zero exit — classify error
+                    last_error = result.stderr
+                    last_error_class = classify_error(result.stderr)
 
-                # Non-zero exit — classify error
-                last_error = result.stderr
-                last_error_class = classify_error(result.stderr)
-
-                if last_error_class == ErrorClass.AUTH:
-                    # Auth errors can't be fixed by model fallback
+                if last_error_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE):
+                    # Neither auth nor billing/entitlement errors can be fixed
+                    # by model fallback — they are account-scoped.
                     relogin = _relogin_hint(self.cli_config.command)
+                    if last_error_class == ErrorClass.AUTH:
+                        summary = f"Auth expired. Run: {relogin}"
+                    else:
+                        summary = (
+                            f"Vendor unavailable (billing/credits): "
+                            f"{last_error[:500] if last_error else 'no error output'}"
+                        )
                     msg = (
-                        f"[WARN] {self.vendor} review failed: auth expired.\n"
-                        f"       Run: {relogin}"
+                        f"[WARN] {self.vendor} review failed: "
+                        f"{last_error_class.value}.\n       {summary}"
                     )
                     print(msg, file=sys.stderr)
                     return ReviewResult(
@@ -451,8 +524,8 @@ class CliVendorAdapter:
                         success=False,
                         models_attempted=models_attempted,
                         elapsed_seconds=time.monotonic() - start,
-                        error=f"Auth expired. Run: {relogin}",
-                        error_class=ErrorClass.AUTH,
+                        error=summary,
+                        error_class=last_error_class,
                     )
 
                 if last_error_class == ErrorClass.CAPACITY:
@@ -1369,6 +1442,7 @@ class ReviewOrchestrator:
                         model_fallbacks=cli.get("model_fallbacks", []),
                         prompt_via_stdin=cli.get("prompt_via_stdin", False),
                         prompt_via_flag=cli.get("prompt_via_flag"),
+                        api_key_env=cli.get("api_key_env") or "",
                     ),
                     transport=agent.get("transport", "mcp"),
                 )
@@ -1579,11 +1653,12 @@ class ReviewOrchestrator:
         reviewers: list[ReviewerInfo] = []
 
         for vendor in sorted(all_vendors):
-            # Tier 1: Local CLI
+            # Tier 1: Local CLI. can_dispatch() checks mode + PATH + declared
+            # credential env — a pi binary without OPENROUTER_API_KEY must not
+            # be reported available (issue #383).
             if vendor in cli_by_vendor:
                 agent_id, cli_adapter = cli_by_vendor[vendor]
-                cli_available = shutil.which(cli_adapter.cli_config.command) is not None
-                if cli_available:
+                if cli_adapter.can_dispatch(dispatch_mode):
                     logger.info("Tier 1 (CLI) selected for %s: %s", vendor, agent_id)
                     reviewers.append(ReviewerInfo(
                         vendor=vendor,

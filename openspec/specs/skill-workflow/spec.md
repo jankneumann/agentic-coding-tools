@@ -2117,6 +2117,20 @@ The review dispatcher SHALL produce a `reviews/review-manifest.json` file captur
 - AND the Codex entry shows success=true with findings_count and elapsed_seconds
 - AND the grok entry shows success=false with error_class="capacity_exhausted" and the models attempted
 
+#### Scenario: Provider billing error behind a zero exit code
+
+- GIVEN a vendor CLI that exits 0 while the provider refused the request (pi on OpenRouter HTTP 402 "Insufficient credits")
+- WHEN the dispatcher fails to parse findings from stdout
+- THEN it SHALL classify the raw output before reporting a format failure, yielding error_class="vendor_unavailable" for billing/credit errors
+- AND it SHALL NOT attempt model fallback for that vendor (the error is account-scoped, not model-scoped)
+- AND the result error SHALL carry an excerpt of the raw output, so no vendor output is silently discarded
+
+#### Scenario: Declared CLI credential missing
+
+- GIVEN an agent whose `cli` config declares `api_key_env` (pi declares `OPENROUTER_API_KEY`)
+- WHEN reviewer discovery or `--check-vendors` runs with that variable unset
+- THEN the vendor SHALL NOT be counted as available, even though the binary is on PATH
+
 ### Requirement: Autopilot Skill
 
 The system SHALL provide an `/autopilot` skill that orchestrates the full plan-review-implement-validate-PR lifecycle as a state machine. The skill SHALL accept either a `change-id` (existing proposal) or a feature description (creates proposal first via `/parallel-plan-feature` or `/linear-plan-feature`).

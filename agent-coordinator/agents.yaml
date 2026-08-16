@@ -336,3 +336,7 @@ agents:
       model_flag: "--model"
       model: "qwen/qwen3-coder"
       model_fallbacks: ["qwen/qwen3-coder-flash"]
+      # pi cannot serve a single request without this key; availability
+      # checks fail closed on it instead of reporting the bare binary as
+      # a usable vendor (issue #383).
+      api_key_env: OPENROUTER_API_KEY
