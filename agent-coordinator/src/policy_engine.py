@@ -179,19 +179,36 @@ class NativePolicyEngine:
         ctx = context or {}
         trust_level = ctx.get("trust_level")
 
-        # If trust_level provided in context, use it directly
-        # Otherwise try to get profile from DB
+        # If trust_level provided in context, use it directly. Otherwise resolve
+        # it through the single shared resolver (design D12) rather than a local
+        # copy: this path previously accepted whatever profile resolved, with no
+        # registry check, no `enabled` check, and `except Exception` falling back
+        # to the default trust level. That was the third copy of the fail-open
+        # this change exists to remove, and the most dangerous one — it feeds the
+        # suspension check immediately below, so a projection failure promoted a
+        # suspended agent (trust 0) to the default and un-suspended it.
+        #
+        # `resolve_trust_level` still returns the default for principals the
+        # registry does not name; it raises only when a *declared* agent's
+        # projection is broken. Here that becomes a deny, because this method's
+        # contract is to return a decision, never to raise.
         if trust_level is None:
+            from .trust_resolution import TrustResolutionError, resolve_trust_level
+
             try:
-                profile_result = await profiles.get_profile(
-                    agent_id=agent_id, agent_type=agent_type
+                trust_level = await resolve_trust_level(agent_id, agent_type)
+            except TrustResolutionError as exc:
+                decision = PolicyDecision.deny(f"trust_resolution_failed: {exc}")
+                await self._log_policy_decision(
+                    agent_id=agent_id,
+                    agent_type=agent_type,
+                    operation=operation,
+                    resource=resource,
+                    context=ctx,
+                    decision=decision,
+                    engine="native",
                 )
-                if profile_result.success and profile_result.profile:
-                    trust_level = profile_result.profile.trust_level
-                else:
-                    trust_level = get_config().profiles.default_trust_level
-            except Exception:
-                trust_level = get_config().profiles.default_trust_level
+                return decision
 
         # Suspended agents (TrustLevel.UNTRUSTED) are denied all operations
         if trust_level == TrustLevel.UNTRUSTED:
