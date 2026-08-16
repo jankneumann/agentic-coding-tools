@@ -12,6 +12,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import socket
 import subprocess
 import tempfile
@@ -168,6 +169,39 @@ _V1_FIELDS = {
 }
 
 
+def _validate_v1_input(data: dict[str, Any]) -> None:
+    if (
+        "schema_version" in data
+        or isinstance(data.get("version"), bool)
+        or data.get("version") != 1
+        or not isinstance(data.get("entries"), list)
+    ):
+        raise RegistryCorrupt("legacy registry fields do not match schema")
+    required = {"change_id", "branch", "worktree_path", "created_at", "pinned"}
+    for entry in data["entries"]:
+        if not isinstance(entry, dict) or not required <= set(entry):
+            raise RegistryCorrupt("legacy registry entry is missing required fields")
+        for field in ("change_id", "branch", "worktree_path"):
+            if not isinstance(entry[field], str) or not entry[field]:
+                raise RegistryCorrupt(f"legacy registry entry.{field} must be non-empty")
+        if not isinstance(entry["created_at"], str):
+            raise RegistryCorrupt("legacy registry entry.created_at must be a string")
+        if not isinstance(entry["pinned"], bool):
+            raise RegistryCorrupt("legacy registry entry.pinned must be boolean")
+        if (
+            "agent_id" in entry
+            and entry["agent_id"] is not None
+            and (not isinstance(entry["agent_id"], str) or not entry["agent_id"])
+        ):
+            raise RegistryCorrupt("legacy registry entry.agent_id is invalid")
+        if (
+            "last_heartbeat" in entry
+            and entry["last_heartbeat"] is not None
+            and not isinstance(entry["last_heartbeat"], str)
+        ):
+            raise RegistryCorrupt("legacy registry entry.last_heartbeat is invalid")
+
+
 def normalize_registry(data: dict[str, Any], *, now: datetime | None = None) -> dict[str, Any]:
     """Return a canonical v2 interpretation without mutating *data*."""
     del now  # liveness is evaluated by callers; normalization is time-stable.
@@ -177,15 +211,9 @@ def normalize_registry(data: dict[str, Any], *, now: datetime | None = None) -> 
         normalized = copy.deepcopy(data)
         _validate_v2(normalized)
         return normalized
-    if data.get("version") != 1 or not isinstance(data.get("entries"), list):
-        raise RegistryCorrupt("registry is neither schema v1 nor schema v2")
+    _validate_v1_input(data)
     entries: list[dict[str, Any]] = []
     for raw in data["entries"]:
-        if not isinstance(raw, dict):
-            raise RegistryCorrupt("legacy registry entry must be an object")
-        required = ("change_id", "branch", "worktree_path", "created_at", "pinned")
-        if any(key not in raw for key in required):
-            raise RegistryCorrupt("legacy registry entry is missing required fields")
         extensions = {
             key: copy.deepcopy(value) for key, value in raw.items() if key not in _V1_FIELDS
         }
@@ -233,107 +261,175 @@ def _require_nonempty(obj: dict[str, Any], names: tuple[str, ...], label: str) -
             raise RegistryCorrupt(f"{label}.{name} must be a non-empty string")
 
 
-def _validate_v2(data: dict[str, Any]) -> None:
-    if set(data) - {
-        "schema_version",
-        "entries",
-        "setup_reservations",
-        "recovery_audit",
-        "extensions",
+def _require_object_shape(
+    obj: object,
+    *,
+    required: set[str],
+    allowed: set[str],
+    label: str,
+) -> dict[str, Any]:
+    if not isinstance(obj, dict):
+        raise RegistryCorrupt(f"{label} must be an object")
+    if not required <= set(obj) or set(obj) - allowed:
+        raise RegistryCorrupt(f"{label} fields do not match schema")
+    return obj
+
+
+def _validate_nullable_string(value: object, label: str) -> None:
+    if value is not None and (not isinstance(value, str) or not value):
+        raise RegistryCorrupt(f"{label} must be null or a non-empty string")
+
+
+def _validate_extensions(value: object, label: str) -> None:
+    if not isinstance(value, dict):
+        raise RegistryCorrupt(f"{label} must be an object")
+
+
+def _validate_evidence_key(value: object, label: str) -> None:
+    if value is not None and (
+        not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None
+    ):
+        raise RegistryCorrupt(f"{label} must be null or a lowercase sha256 digest")
+
+
+def _validate_recovery_context(context: object) -> None:
+    fields = {
+        "source",
+        "prior_owner",
+        "prior_lease_id",
+        "prior_controller_instance_id",
+        "process_evidence_key",
+        "quarantined_at",
+    }
+    context = _require_object_shape(
+        context, required=fields, allowed=fields, label="recovery context"
+    )
+    if not isinstance(context["source"], str) or context["source"] not in {
+        "expired-takeover",
+        "explicit-release",
+        "owner-release",
+        "session-release",
+        "unsafe-finalization",
+        "legacy-adoption",
+        "setup-failure",
     }:
-        raise RegistryCorrupt("registry contains unknown fields")
-    if data.get("schema_version") != 2:
-        raise RegistryCorrupt("schema_version must equal 2")
+        raise RegistryCorrupt("invalid recovery context source")
+    for field in ("prior_owner", "prior_lease_id", "prior_controller_instance_id"):
+        _validate_nullable_string(context[field], f"recovery context.{field}")
+    _validate_evidence_key(context["process_evidence_key"], "recovery context evidence key")
+    if parse_timestamp(context["quarantined_at"]) is None:
+        raise RegistryCorrupt("invalid recovery quarantine timestamp")
+
+
+def _validate_v2(data: dict[str, Any]) -> None:
+    required_top = {"schema_version", "entries", "setup_reservations", "recovery_audit"}
+    allowed_top = required_top | {"extensions"}
+    data = _require_object_shape(data, required=required_top, allowed=allowed_top, label="registry")
+    if data.get("schema_version") != 2 or isinstance(data.get("schema_version"), bool):
+        raise RegistryCorrupt("schema_version must equal integer 2")
+    if "extensions" in data:
+        _validate_extensions(data["extensions"], "registry.extensions")
     for name in ("entries", "setup_reservations", "recovery_audit"):
-        if not isinstance(data.get(name), list):
+        if not isinstance(data[name], list):
             raise RegistryCorrupt(f"{name} must be an array")
     keys: set[tuple[str, str | None]] = set()
     generations: set[str] = set()
-    for entry in data["entries"]:
-        if not isinstance(entry, dict):
-            raise RegistryCorrupt("entry must be an object")
+    entry_required = {
+        "change_id",
+        "agent_id",
+        "branch",
+        "worktree_path",
+        "created_at",
+        "entry_generation",
+        "setup_id",
+        "durability_target",
+        "retained",
+        "retention_reason",
+        "recovery_required",
+        "recovery_reason",
+        "recovery_context",
+        "activity_lease",
+    }
+    entry_allowed = entry_required | {"last_heartbeat", "extensions"}
+    for raw_entry in data["entries"]:
+        entry = _require_object_shape(
+            raw_entry, required=entry_required, allowed=entry_allowed, label="entry"
+        )
         _require_nonempty(
             entry,
             ("change_id", "branch", "worktree_path", "created_at", "entry_generation"),
             "entry",
         )
-        allowed = {
-            "change_id",
-            "agent_id",
-            "branch",
-            "worktree_path",
-            "created_at",
-            "entry_generation",
-            "setup_id",
-            "durability_target",
-            "last_heartbeat",
-            "retained",
-            "retention_reason",
-            "recovery_required",
-            "recovery_reason",
-            "recovery_context",
-            "activity_lease",
-            "extensions",
-        }
-        if set(entry) - allowed or parse_timestamp(entry["created_at"]) is None:
-            raise RegistryCorrupt("entry fields do not match schema")
-        if not isinstance(entry.get("retained"), bool) or not isinstance(
-            entry.get("recovery_required"), bool
+        _validate_nullable_string(entry["agent_id"], "entry.agent_id")
+        _validate_nullable_string(entry["setup_id"], "entry.setup_id")
+        _validate_nullable_string(entry["retention_reason"], "entry.retention_reason")
+        _validate_nullable_string(entry["recovery_reason"], "entry.recovery_reason")
+        if parse_timestamp(entry["created_at"]) is None:
+            raise RegistryCorrupt("entry.created_at must be a timestamp")
+        if (
+            "last_heartbeat" in entry
+            and entry["last_heartbeat"] is not None
+            and not isinstance(entry["last_heartbeat"], str)
+        ):
+            raise RegistryCorrupt("entry.last_heartbeat must be null or a string")
+        if "extensions" in entry:
+            _validate_extensions(entry["extensions"], "entry.extensions")
+        if not isinstance(entry["retained"], bool) or not isinstance(
+            entry["recovery_required"], bool
         ):
             raise RegistryCorrupt("entry flags must be booleans")
-        if entry.get("durability_target") is not None:
+        if entry["durability_target"] is not None:
             _validate_target(entry["durability_target"])
-        key = (entry["change_id"], entry.get("agent_id"))
+        key = (entry["change_id"], entry["agent_id"])
         if key in keys:
             raise RegistryCorrupt(f"duplicate registry entry {key!r}")
         keys.add(key)
         generations.add(entry["entry_generation"])
-        for required in (
-            "setup_id",
-            "durability_target",
-            "retained",
-            "retention_reason",
-            "recovery_required",
-            "recovery_reason",
-            "recovery_context",
-            "activity_lease",
-        ):
-            if required not in entry:
-                raise RegistryCorrupt(f"entry missing {required}")
-        if entry["retained"] and not entry["retention_reason"]:
+        if entry["retained"] and entry["retention_reason"] is None:
             raise RegistryCorrupt("retained entry requires retention_reason")
         if not entry["retained"] and entry["retention_reason"] is not None:
             raise RegistryCorrupt("unretained entry must have null retention_reason")
-        if entry["recovery_required"] and (
-            not entry["recovery_reason"] or not isinstance(entry["recovery_context"], dict)
-        ):
-            raise RegistryCorrupt("recovery entry requires reason and context")
         if entry["recovery_required"]:
-            context = entry["recovery_context"]
-            if (
-                set(context)
-                != {
-                    "source",
-                    "prior_owner",
-                    "prior_lease_id",
-                    "prior_controller_instance_id",
-                    "process_evidence_key",
-                    "quarantined_at",
-                }
-                or parse_timestamp(context.get("quarantined_at")) is None
-            ):
-                raise RegistryCorrupt("recovery context does not match schema")
-        if not entry["recovery_required"] and (
-            entry["recovery_reason"] is not None or entry["recovery_context"] is not None
-        ):
+            if entry["recovery_reason"] is None:
+                raise RegistryCorrupt("recovery entry requires reason")
+            _validate_recovery_context(entry["recovery_context"])
+        elif entry["recovery_reason"] is not None or entry["recovery_context"] is not None:
             raise RegistryCorrupt("ordinary entry cannot retain recovery metadata")
-        lease = entry["activity_lease"]
-        if lease is not None:
-            _validate_lease(lease)
+        if entry["activity_lease"] is not None:
+            _validate_lease(entry["activity_lease"])
     setup_ids: set[str] = set()
-    for reservation in data["setup_reservations"]:
-        if not isinstance(reservation, dict):
-            raise RegistryCorrupt("setup reservation must be an object")
+    reservation_fields = {
+        "setup_id",
+        "change_id",
+        "agent_id",
+        "branch",
+        "worktree_path",
+        "entry_generation",
+        "durability_target",
+        "lease_intent",
+        "state",
+        "created_at",
+        "updated_at",
+        "ttl_seconds",
+        "expires_at",
+    }
+    intent_fields = {
+        "owner",
+        "lease_id",
+        "controller_instance_id",
+        "session_id",
+        "phase",
+        "reason",
+        "lifecycle_mode",
+        "ttl_seconds",
+    }
+    for raw_reservation in data["setup_reservations"]:
+        reservation = _require_object_shape(
+            raw_reservation,
+            required=reservation_fields,
+            allowed=reservation_fields,
+            label="setup reservation",
+        )
         _require_nonempty(
             reservation,
             (
@@ -348,140 +444,158 @@ def _validate_v2(data: dict[str, Any]) -> None:
             ),
             "reservation",
         )
-        allowed = {
-            "setup_id",
-            "change_id",
-            "agent_id",
-            "branch",
-            "worktree_path",
-            "entry_generation",
-            "durability_target",
-            "lease_intent",
-            "state",
-            "created_at",
-            "updated_at",
-            "ttl_seconds",
-            "expires_at",
-        }
-        if set(reservation) != allowed:
-            raise RegistryCorrupt("reservation fields do not match schema")
+        _validate_nullable_string(reservation["agent_id"], "reservation.agent_id")
         _validate_target(reservation["durability_target"])
-        intent = reservation.get("lease_intent")
-        intent_fields = {
-            "owner",
-            "lease_id",
-            "controller_instance_id",
-            "session_id",
-            "phase",
-            "reason",
-            "lifecycle_mode",
-            "ttl_seconds",
-        }
-        if (
-            not isinstance(intent, dict)
-            or set(intent) != intent_fields
-            or intent.get("lifecycle_mode") not in {"standalone", "continuous"}
-        ):
-            raise RegistryCorrupt("lease intent does not match schema")
-        for field in ("owner", "lease_id", "controller_instance_id", "phase", "reason"):
-            if not isinstance(intent.get(field), str) or not intent[field]:
-                raise RegistryCorrupt("invalid lease intent identity")
-        if (
-            isinstance(intent.get("ttl_seconds"), bool)
-            or not isinstance(intent.get("ttl_seconds"), int)
-            or not 60 <= intent["ttl_seconds"] <= 86400
-        ):
+        intent = _require_object_shape(
+            reservation["lease_intent"],
+            required=intent_fields,
+            allowed=intent_fields,
+            label="lease intent",
+        )
+        _require_nonempty(
+            intent,
+            ("owner", "lease_id", "controller_instance_id", "phase", "reason"),
+            "lease intent",
+        )
+        _validate_nullable_string(intent["session_id"], "lease intent.session_id")
+        if not isinstance(intent["lifecycle_mode"], str) or intent["lifecycle_mode"] not in {
+            "standalone",
+            "continuous",
+        }:
+            raise RegistryCorrupt("invalid lease intent lifecycle mode")
+        if not _valid_ttl(intent["ttl_seconds"]):
             raise RegistryCorrupt("invalid lease intent ttl")
         if reservation["setup_id"] in setup_ids:
             raise RegistryCorrupt("duplicate setup id")
         setup_ids.add(reservation["setup_id"])
-        if reservation["state"] not in {"reserved", "checkout-created", "evidence-created"}:
+        if not isinstance(reservation["state"], str) or reservation["state"] not in {
+            "reserved",
+            "checkout-created",
+            "evidence-created",
+        }:
             raise RegistryCorrupt("invalid reservation state")
         if reservation["entry_generation"] in generations:
             raise RegistryCorrupt("reservation and entry share a generation")
         created = parse_timestamp(reservation["created_at"])
+        updated = parse_timestamp(reservation["updated_at"])
         expires = parse_timestamp(reservation["expires_at"])
-        ttl = reservation.get("ttl_seconds")
-        if created is None or expires is None or not isinstance(ttl, int) or not 60 <= ttl <= 86400:
+        ttl = reservation["ttl_seconds"]
+        if created is None or updated is None or expires is None or not _valid_ttl(ttl):
             raise RegistryCorrupt("invalid reservation timing")
         if expires != created + timedelta(seconds=ttl):
             raise RegistryCorrupt("reservation expiry does not match fixed ttl")
+    _validate_audit(data["recovery_audit"])
+
+
+def _valid_ttl(value: object) -> bool:
+    is_json_integer = isinstance(value, int) or (isinstance(value, float) and value.is_integer())
+    return not isinstance(value, bool) and is_json_integer and 60 <= value <= 86400
+
+
+def _validate_audit(events: list[object]) -> None:
+    common = {
+        "event_id",
+        "event",
+        "recorded_at",
+        "change_id",
+        "agent_id",
+        "entry_generation",
+        "actor",
+        "rationale",
+        "prior_owner",
+        "prior_lease_id",
+        "prior_controller_instance_id",
+        "process_evidence_key",
+        "termination_confirmed",
+    }
+    event_fields = {
+        "force-adopted": common
+        | {
+            "new_owner",
+            "new_lease_id",
+            "new_controller_instance_id",
+            "established_durability_target",
+        },
+        "setup-reconciled": common | {"setup_id", "outcome"},
+        "recovery-torn-down": common | {"discard_confirmed", "outcome"},
+    }
     audit_ids: set[str] = set()
-    for event in data["recovery_audit"]:
-        if not isinstance(event, dict) or not event.get("event_id"):
+    for raw_event in events:
+        if (
+            not isinstance(raw_event, dict)
+            or not isinstance(raw_event.get("event"), str)
+            or raw_event["event"] not in event_fields
+        ):
             raise RegistryCorrupt("invalid recovery audit event")
+        event = _require_object_shape(
+            raw_event,
+            required=event_fields[raw_event["event"]],
+            allowed=event_fields[raw_event["event"]],
+            label="recovery audit event",
+        )
+        _require_nonempty(
+            event,
+            (
+                "event_id",
+                "event",
+                "recorded_at",
+                "change_id",
+                "entry_generation",
+                "actor",
+                "rationale",
+            ),
+            "recovery audit event",
+        )
+        _validate_nullable_string(event["agent_id"], "recovery audit event.agent_id")
+        for field in ("prior_owner", "prior_lease_id", "prior_controller_instance_id"):
+            _validate_nullable_string(event[field], f"recovery audit event.{field}")
+        _validate_evidence_key(event["process_evidence_key"], "recovery audit evidence key")
+        if (
+            event["termination_confirmed"] is not True
+            or parse_timestamp(event["recorded_at"]) is None
+        ):
+            raise RegistryCorrupt("recovery audit confirmation or timestamp is invalid")
         if event["event_id"] in audit_ids:
             raise RegistryCorrupt("duplicate recovery audit event id")
         audit_ids.add(event["event_id"])
-        if (
-            event.get("event") not in {"force-adopted", "setup-reconciled", "recovery-torn-down"}
-            or event.get("termination_confirmed") is not True
-            or parse_timestamp(event.get("recorded_at")) is None
-        ):
-            raise RegistryCorrupt("recovery audit event does not match schema")
-        required = {
-            "force-adopted": {
-                "event_id",
-                "event",
-                "recorded_at",
-                "change_id",
-                "agent_id",
-                "entry_generation",
-                "actor",
-                "rationale",
-                "prior_owner",
-                "prior_lease_id",
-                "prior_controller_instance_id",
-                "new_owner",
-                "new_lease_id",
-                "new_controller_instance_id",
-                "process_evidence_key",
-                "established_durability_target",
-                "termination_confirmed",
-            },
-            "setup-reconciled": {
-                "event_id",
-                "event",
-                "recorded_at",
-                "setup_id",
-                "change_id",
-                "agent_id",
-                "entry_generation",
-                "actor",
-                "rationale",
-                "prior_owner",
-                "prior_lease_id",
-                "prior_controller_instance_id",
-                "process_evidence_key",
-                "termination_confirmed",
-                "outcome",
-            },
-            "recovery-torn-down": {
-                "event_id",
-                "event",
-                "recorded_at",
-                "change_id",
-                "agent_id",
-                "entry_generation",
-                "actor",
-                "rationale",
-                "prior_owner",
-                "prior_lease_id",
-                "prior_controller_instance_id",
-                "process_evidence_key",
-                "termination_confirmed",
-                "discard_confirmed",
-                "outcome",
-            },
-        }[event["event"]]
-        if set(event) != required:
-            raise RegistryCorrupt("recovery audit fields do not match schema")
+        if event["event"] == "force-adopted":
+            _require_nonempty(
+                event,
+                ("new_owner", "new_lease_id", "new_controller_instance_id"),
+                "force adoption audit",
+            )
+            if event["established_durability_target"] is not None:
+                _validate_target(event["established_durability_target"])
+        elif event["event"] == "setup-reconciled":
+            _require_nonempty(
+                event,
+                ("setup_id", "prior_owner", "prior_lease_id", "prior_controller_instance_id"),
+                "setup recovery audit",
+            )
+            if not isinstance(event["outcome"], str) or event["outcome"] not in {
+                "removed-empty-side-effects",
+                "quarantined-entry",
+            }:
+                raise RegistryCorrupt("invalid setup recovery outcome")
+        else:
+            if not isinstance(event["discard_confirmed"], bool):
+                raise RegistryCorrupt("discard confirmation must be boolean")
+            if not isinstance(event["outcome"], str) or event["outcome"] not in {
+                "removed-clean-durable",
+                "removed-explicit-discard",
+                "removed-missing-checkout",
+            }:
+                raise RegistryCorrupt("invalid recovery teardown outcome")
+            expected_discard = event["outcome"] == "removed-explicit-discard"
+            if event["discard_confirmed"] is not expected_discard:
+                raise RegistryCorrupt("recovery teardown discard relationship is invalid")
 
 
 def _validate_target(target: object) -> None:
     fields = {"remote_name", "remote_url_hash_algorithm", "canonical_remote_url_sha256", "ref_name"}
-    if not isinstance(target, dict) or set(target) != fields:
-        raise RegistryCorrupt("durability target fields do not match schema")
+    target = _require_object_shape(
+        target, required=fields, allowed=fields, label="durability target"
+    )
     remote, digest, ref = (
         target["remote_name"],
         target["canonical_remote_url_sha256"],
@@ -489,7 +603,7 @@ def _validate_target(target: object) -> None:
     )
     if (
         not isinstance(remote, str)
-        or not remote
+        or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", remote) is None
         or target["remote_url_hash_algorithm"] != "git-remote-url-v1"
     ):
         raise RegistryCorrupt("invalid durability target remote")
@@ -499,7 +613,11 @@ def _validate_target(target: object) -> None:
         or any(c not in "0123456789abcdef" for c in digest)
     ):
         raise RegistryCorrupt("invalid durability target digest")
-    if not isinstance(ref, str) or not ref.startswith(f"refs/remotes/{remote}/"):
+    if (
+        not isinstance(ref, str)
+        or re.fullmatch(r"refs/remotes/[A-Za-z0-9][A-Za-z0-9._-]*/.+", ref) is None
+        or not ref.startswith(f"refs/remotes/{remote}/")
+    ):
         raise RegistryCorrupt("durability target remote/ref mismatch")
 
 
@@ -517,9 +635,12 @@ def _validate_lease(lease: dict[str, Any]) -> None:
         "expires_at",
         "ttl_seconds",
     }
-    if set(lease) != allowed:
-        raise RegistryCorrupt("lease fields do not match schema")
-    if lease.get("lifecycle_mode") not in {"standalone", "continuous", "manual"}:
+    lease = _require_object_shape(lease, required=allowed, allowed=allowed, label="activity lease")
+    if not isinstance(lease.get("lifecycle_mode"), str) or lease["lifecycle_mode"] not in {
+        "standalone",
+        "continuous",
+        "manual",
+    }:
         raise RegistryCorrupt("invalid lease lifecycle mode")
     _require_nonempty(
         lease,
@@ -535,9 +656,9 @@ def _validate_lease(lease: dict[str, Any]) -> None:
         ),
         "lease",
     )
-    if lease.get("controller_instance_id") is None:
-        if lease.get("phase") != "LEGACY" or lease.get("lifecycle_mode") != "manual":
-            raise RegistryCorrupt("only normalized manual LEGACY lease may have a null controller")
+    if lease["controller_instance_id"] is None:
+        if lease["lifecycle_mode"] != "manual":
+            raise RegistryCorrupt("automatic lease requires a controller")
     elif (
         not isinstance(lease.get("controller_instance_id"), str)
         or not lease["controller_instance_id"]
@@ -547,8 +668,8 @@ def _validate_lease(lease: dict[str, Any]) -> None:
         not isinstance(lease["session_id"], str) or not lease["session_id"]
     ):
         raise RegistryCorrupt("empty session id is invalid")
-    ttl = lease.get("ttl_seconds")
-    if isinstance(ttl, bool) or not isinstance(ttl, int) or not 60 <= ttl <= 86400:
+    ttl = lease["ttl_seconds"]
+    if not _valid_ttl(ttl):
         raise RegistryCorrupt("invalid lease ttl")
     for field in ("acquired_at", "last_heartbeat", "expires_at"):
         if parse_timestamp(lease[field]) is None:
@@ -1174,12 +1295,15 @@ def _process_start_token(pid: int) -> str:
             return proc.read_text().split()[21]
         except (OSError, IndexError):
             pass
-    result = subprocess.run(
-        ["ps", "-o", "lstart=", "-p", str(pid)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["ps", "-o", "lstart=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise LifecycleError("process start token unsupported") from exc
     token = result.stdout.strip()
     if result.returncode == 0 and token:
         return f"ps:{token}"
@@ -1209,35 +1333,38 @@ def write_process_evidence(
 ) -> tuple[str, dict[str, Any]]:
     when = now or utc_now()
     actual_pid = pid or os.getpid()
-    payload = {
-        "schema_version": 1,
-        "change_id": change_id,
-        "agent_id": agent_id,
-        "entry_generation": entry_generation,
-        "lease_id": lease_id,
-        "owner": owner,
-        "pid": actual_pid,
-        "process_start_token": process_start_token or _process_start_token(actual_pid),
-        "host_id": host_id(),
-        "controller_instance_id": controller_instance_id,
-        "written_at": when.isoformat(),
-        "last_seen_at": when.isoformat(),
-    }
-    directory = evidence_directory(repo_root)
-    directory.mkdir(parents=True, exist_ok=True)
-    key = process_evidence_key(change_id, agent_id, entry_generation, lease_id)
-    path = directory / f"{key}.json"
-    fd, temporary = tempfile.mkstemp(prefix=f".{key}.", dir=str(directory))
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2, sort_keys=True)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    finally:
-        with contextlib.suppress(FileNotFoundError):
-            os.unlink(temporary)
+        payload = {
+            "schema_version": 1,
+            "change_id": change_id,
+            "agent_id": agent_id,
+            "entry_generation": entry_generation,
+            "lease_id": lease_id,
+            "owner": owner,
+            "pid": actual_pid,
+            "process_start_token": process_start_token or _process_start_token(actual_pid),
+            "host_id": host_id(),
+            "controller_instance_id": controller_instance_id,
+            "written_at": when.isoformat(),
+            "last_seen_at": when.isoformat(),
+        }
+        directory = evidence_directory(repo_root)
+        directory.mkdir(parents=True, exist_ok=True)
+        key = process_evidence_key(change_id, agent_id, entry_generation, lease_id)
+        path = directory / f"{key}.json"
+        fd, temporary = tempfile.mkstemp(prefix=f".{key}.", dir=str(directory))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle, indent=2, sort_keys=True)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(temporary)
+    except OSError as exc:
+        raise LifecycleError("cannot write process evidence") from exc
     return key, payload
 
 

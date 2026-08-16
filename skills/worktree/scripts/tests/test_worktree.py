@@ -1159,6 +1159,87 @@ class TestRecoveryCommands:
         assert registry["recovery_audit"][0]["event"] == "recovery-torn-down"
         assert registry["recovery_audit"][0]["discard_confirmed"] is True
 
+    @pytest.mark.parametrize("failure_boundary", ["token", "evidence"])
+    def test_force_adopt_evidence_failure_preserves_quarantine_for_exact_retry(
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        failure_boundary: str,
+    ) -> None:
+        entry = {
+            "change_id": "recovery",
+            "agent_id": None,
+            "branch": "openspec/recovery",
+            "worktree_path": str(git_repo / "missing"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "entry_generation": "generation",
+            "setup_id": None,
+            "durability_target": None,
+            "retained": False,
+            "retention_reason": None,
+            "recovery_required": True,
+            "recovery_reason": "legacy work",
+            "recovery_context": {
+                "source": "legacy-adoption",
+                "prior_owner": None,
+                "prior_lease_id": None,
+                "prior_controller_instance_id": None,
+                "process_evidence_key": None,
+                "quarantined_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "activity_lease": None,
+        }
+        save_registry(git_repo, worktree.lifecycle.empty_registry(entries=[entry]))
+        args = argparse.Namespace(
+            change_id="recovery",
+            agent_id=None,
+            owner="new-owner",
+            lease_id="new-lease",
+            controller_instance_id="new-controller",
+            session_id="new-session",
+            reason="operator adoption",
+            actor="operator",
+            ttl_seconds=1800,
+            durability_remote=None,
+            durability_ref=None,
+            confirm_terminated=True,
+            force=True,
+            json_output=True,
+        )
+        if failure_boundary == "token":
+            failure_owner = worktree.lifecycle
+            failure_name = "_process_start_token"
+        else:
+            failure_owner = worktree.lifecycle.tempfile
+            failure_name = "mkstemp"
+        with monkeypatch.context() as patcher:
+            patcher.setattr(
+                failure_owner,
+                failure_name,
+                lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                    worktree.lifecycle.LifecycleError("token unavailable")
+                    if failure_boundary == "token"
+                    else PermissionError("evidence prohibited")
+                ),
+            )
+            with _chdir(git_repo), pytest.raises(worktree.lifecycle.LifecycleError):
+                worktree.cmd_recovery_adopt(args)
+
+        after_failure = load_registry(git_repo)
+        preserved = find_entry(after_failure, "recovery")
+        assert preserved is not None
+        assert preserved["recovery_required"] is True
+        assert preserved["activity_lease"] is None
+        assert after_failure["recovery_audit"] == []
+
+        monkeypatch.setattr(worktree.lifecycle, "_process_start_token", lambda _pid: "token")
+        with _chdir(git_repo):
+            assert worktree.cmd_recovery_adopt(args) == 0
+        adopted = find_entry(load_registry(git_repo), "recovery")
+        assert adopted is not None
+        assert adopted["recovery_required"] is False
+        assert adopted["activity_lease"]["lease_id"] == "new-lease"
+
 
 class TestParseDurationHours:
     def test_hours(self) -> None:

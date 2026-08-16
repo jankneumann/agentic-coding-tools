@@ -2118,16 +2118,19 @@ def cmd_recovery_adopt(args: argparse.Namespace) -> int:
             )
         return current.copy(), audit
 
-    result, audit = lifecycle.mutate_registry(main_repo, adopt)
+    # Establish the new controller's process evidence before publishing its
+    # authority. A failed evidence write therefore leaves the entry fenced in
+    # recovery quarantine and the exact adoption request remains retryable.
     lifecycle.write_process_evidence(
         main_repo,
         change_id=args.change_id,
         agent_id=args.agent_id,
-        entry_generation=result["entry_generation"],
+        entry_generation=entry["entry_generation"],
         lease_id=args.lease_id,
         owner=args.owner,
         controller_instance_id=args.controller_instance_id,
     )
+    result, audit = lifecycle.mutate_registry(main_repo, adopt)
     _emit(
         {
             "change_id": args.change_id,

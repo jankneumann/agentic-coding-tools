@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -363,6 +364,19 @@ def test_evidence_files_do_not_collide_when_entries_share_lease_id(tmp_path: Pat
     assert len(list(lifecycle.evidence_directory(tmp_path).glob("*.json"))) == 2
 
 
+def test_process_start_token_converts_permission_failure_to_lifecycle_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(Path, "is_file", lambda _path: False)
+
+    def prohibited(*_args: object, **_kwargs: object) -> object:
+        raise PermissionError("ps prohibited")
+
+    monkeypatch.setattr(lifecycle.subprocess, "run", prohibited)
+    with pytest.raises(lifecycle.LifecycleError, match="process start token unsupported"):
+        lifecycle._process_start_token(123)
+
+
 def test_remote_url_canonicalization_strips_only_credentials() -> None:
     assert (
         lifecycle.canonicalize_remote_url("https://user:secret@Example.test:443/A%2Fb/repo.git/")
@@ -452,31 +466,392 @@ def test_writer_rejects_unknown_fields_and_invalid_targets(tmp_path: Path) -> No
         lifecycle.write_registry(tmp_path, malformed)
 
 
-def test_writer_matches_canonical_schema_for_representative_corpus(tmp_path: Path) -> None:
+def _systematic_schema_documents() -> list[tuple[str, dict[str, object]]]:
+    target = {
+        "remote_name": "origin",
+        "remote_url_hash_algorithm": "git-remote-url-v1",
+        "canonical_remote_url_sha256": "a" * 64,
+        "ref_name": "refs/remotes/origin/openspec/change",
+    }
+    lease = lifecycle.new_lease(
+        owner="owner",
+        lease_id="lease",
+        controller_instance_id="controller",
+        session_id="session",
+        phase="IMPLEMENT",
+        reason="test",
+        mode="standalone",
+        now=NOW,
+    )
+    recovery_context = {
+        "source": "expired-takeover",
+        "prior_owner": "old-owner",
+        "prior_lease_id": "old-lease",
+        "prior_controller_instance_id": "old-controller",
+        "process_evidence_key": "b" * 64,
+        "quarantined_at": NOW.isoformat(),
+    }
+    reservation = {
+        "setup_id": "setup",
+        "change_id": "reserved-change",
+        "agent_id": "reserved-agent",
+        "branch": "openspec/reserved-change--reserved-agent",
+        "worktree_path": "/repo/.git-worktrees/reserved-change--reserved-agent",
+        "entry_generation": "reserved-generation",
+        "durability_target": target,
+        "lease_intent": {
+            "owner": "setup-owner",
+            "lease_id": "setup-lease",
+            "controller_instance_id": "setup-controller",
+            "session_id": "setup-session",
+            "phase": "IMPLEMENT",
+            "reason": "setup",
+            "lifecycle_mode": "continuous",
+            "ttl_seconds": 1800,
+        },
+        "state": "reserved",
+        "created_at": NOW.isoformat(),
+        "updated_at": NOW.isoformat(),
+        "ttl_seconds": 1800,
+        "expires_at": (NOW + timedelta(seconds=1800)).isoformat(),
+    }
+    audits = [
+        {
+            "event_id": "force-event",
+            "event": "force-adopted",
+            "recorded_at": NOW.isoformat(),
+            "change_id": "change",
+            "agent_id": None,
+            "entry_generation": "generation-1",
+            "actor": "operator",
+            "rationale": "terminated",
+            "prior_owner": None,
+            "prior_lease_id": None,
+            "prior_controller_instance_id": None,
+            "new_owner": "owner",
+            "new_lease_id": "lease",
+            "new_controller_instance_id": "controller",
+            "process_evidence_key": None,
+            "established_durability_target": None,
+            "termination_confirmed": True,
+        },
+        {
+            "event_id": "setup-event",
+            "event": "setup-reconciled",
+            "recorded_at": NOW.isoformat(),
+            "setup_id": "prior-setup",
+            "change_id": "prior-change",
+            "agent_id": "prior-agent",
+            "entry_generation": "prior-generation",
+            "actor": "operator",
+            "rationale": "terminated",
+            "prior_owner": "prior-owner",
+            "prior_lease_id": "prior-lease",
+            "prior_controller_instance_id": "prior-controller",
+            "process_evidence_key": "c" * 64,
+            "termination_confirmed": True,
+            "outcome": "quarantined-entry",
+        },
+        {
+            "event_id": "teardown-event",
+            "event": "recovery-torn-down",
+            "recorded_at": NOW.isoformat(),
+            "change_id": "removed-change",
+            "agent_id": None,
+            "entry_generation": "removed-generation",
+            "actor": "operator",
+            "rationale": "safe removal",
+            "prior_owner": None,
+            "prior_lease_id": None,
+            "prior_controller_instance_id": None,
+            "process_evidence_key": None,
+            "termination_confirmed": True,
+            "discard_confirmed": False,
+            "outcome": "removed-clean-durable",
+        },
+    ]
+    valid: dict[str, object] = lifecycle.empty_registry(
+        entries=[
+            _v2_entry(
+                durability_target=target,
+                last_heartbeat=NOW.isoformat(),
+                activity_lease=lease,
+                extensions={"preserved": [1, True, None]},
+            ),
+            _v2_entry(
+                change_id="recovery-change",
+                agent_id="recovery-agent",
+                branch="openspec/recovery-change--recovery-agent",
+                worktree_path="/repo/.git-worktrees/recovery-change--recovery-agent",
+                entry_generation="generation-2",
+                recovery_required=True,
+                recovery_reason="preserved state",
+                recovery_context=recovery_context,
+            ),
+        ]
+    )
+    valid["setup_reservations"] = [reservation]
+    valid["recovery_audit"] = audits
+    valid["extensions"] = {"preserved": [1, True, None]}
+    cases = [("valid-v2", valid)]
+
+    def changed(name: str, path: tuple[object, ...], value: object) -> None:
+        document = copy.deepcopy(valid)
+        target_object: object = document
+        for part in path[:-1]:
+            target_object = target_object[part]  # type: ignore[index]
+        target_object[path[-1]] = value  # type: ignore[index]
+        cases.append((name, document))
+
+    def missing(name: str, path: tuple[object, ...]) -> None:
+        document = copy.deepcopy(valid)
+        target_object: object = document
+        for part in path[:-1]:
+            target_object = target_object[part]  # type: ignore[index]
+        del target_object[path[-1]]  # type: ignore[index]
+        cases.append((name, document))
+
+    # Every required list in registryV2 and its nested object definitions.
+    required_objects = [
+        ("registry", (), ("schema_version", "entries", "setup_reservations", "recovery_audit")),
+        (
+            "entry",
+            ("entries", 0),
+            (
+                "change_id",
+                "agent_id",
+                "branch",
+                "worktree_path",
+                "created_at",
+                "entry_generation",
+                "setup_id",
+                "durability_target",
+                "retained",
+                "retention_reason",
+                "recovery_required",
+                "recovery_reason",
+                "recovery_context",
+                "activity_lease",
+            ),
+        ),
+        (
+            "lease",
+            ("entries", 0, "activity_lease"),
+            (
+                "owner",
+                "lease_id",
+                "controller_instance_id",
+                "session_id",
+                "phase",
+                "reason",
+                "lifecycle_mode",
+                "acquired_at",
+                "last_heartbeat",
+                "expires_at",
+                "ttl_seconds",
+            ),
+        ),
+        (
+            "recovery-context",
+            ("entries", 1, "recovery_context"),
+            (
+                "source",
+                "prior_owner",
+                "prior_lease_id",
+                "prior_controller_instance_id",
+                "process_evidence_key",
+                "quarantined_at",
+            ),
+        ),
+        (
+            "reservation",
+            ("setup_reservations", 0),
+            (
+                "setup_id",
+                "change_id",
+                "agent_id",
+                "branch",
+                "worktree_path",
+                "entry_generation",
+                "durability_target",
+                "lease_intent",
+                "state",
+                "created_at",
+                "updated_at",
+                "ttl_seconds",
+                "expires_at",
+            ),
+        ),
+        (
+            "lease-intent",
+            ("setup_reservations", 0, "lease_intent"),
+            (
+                "owner",
+                "lease_id",
+                "controller_instance_id",
+                "session_id",
+                "phase",
+                "reason",
+                "lifecycle_mode",
+                "ttl_seconds",
+            ),
+        ),
+        (
+            "durability-target",
+            ("setup_reservations", 0, "durability_target"),
+            (
+                "remote_name",
+                "remote_url_hash_algorithm",
+                "canonical_remote_url_sha256",
+                "ref_name",
+            ),
+        ),
+    ]
+    audit_required = (
+        tuple(audits[0]),
+        tuple(audits[1]),
+        tuple(audits[2]),
+    )
+    for index, fields in enumerate(audit_required):
+        required_objects.append((f"audit-{index}", ("recovery_audit", index), fields))
+    for object_name, path, fields in required_objects:
+        for field in fields:
+            missing(f"{object_name}-missing-{field}", (*path, field))
+            current: object = valid
+            for part in (*path, field):
+                current = current[part]  # type: ignore[index]
+            if isinstance(current, bool):
+                invalid_type: object = 1
+            elif isinstance(current, int):
+                invalid_type = True
+            elif isinstance(current, str):
+                invalid_type = []
+            elif current is None:
+                invalid_type = True
+            elif isinstance(current, dict):
+                invalid_type = []
+            else:
+                invalid_type = {}
+            changed(f"{object_name}-invalid-type-{field}", (*path, field), invalid_type)
+
+    # Types, null/string unions, minLength, enum, const, pattern, and integer bounds.
+    invalid_values = [
+        (("schema_version",), True),
+        (("entries",), {}),
+        (("setup_reservations",), {}),
+        (("recovery_audit",), {}),
+        (("extensions",), []),
+        (("entries", 0, "extensions"), []),
+        (("entries", 0, "change_id"), 1),
+        (("entries", 0, "agent_id"), 1),
+        (("entries", 0, "agent_id"), True),
+        (("entries", 0, "branch"), ""),
+        (("entries", 0, "setup_id"), 1),
+        (("entries", 0, "last_heartbeat"), 1),
+        (("entries", 0, "retained"), 1),
+        (("entries", 0, "retention_reason"), 1),
+        (("entries", 0, "recovery_required"), 0),
+        (("entries", 0, "recovery_reason"), 1),
+        (("entries", 0, "durability_target"), []),
+        (("entries", 0, "activity_lease", "session_id"), 1),
+        (("entries", 0, "activity_lease", "lifecycle_mode"), "bogus"),
+        (("entries", 0, "activity_lease", "ttl_seconds"), True),
+        (("entries", 0, "activity_lease", "ttl_seconds"), 59),
+        (("entries", 0, "activity_lease", "ttl_seconds"), 86401),
+        (("entries", 1, "recovery_context", "source"), "bogus"),
+        (("entries", 1, "recovery_context", "prior_owner"), 1),
+        (("entries", 1, "recovery_context", "prior_lease_id"), ""),
+        (("entries", 1, "recovery_context", "process_evidence_key"), "bad"),
+        (("setup_reservations", 0, "agent_id"), True),
+        (("setup_reservations", 0, "setup_id"), 1),
+        (("setup_reservations", 0, "lease_intent", "session_id"), 1),
+        (("setup_reservations", 0, "lease_intent", "lifecycle_mode"), "manual"),
+        (("setup_reservations", 0, "lease_intent", "ttl_seconds"), True),
+        (("setup_reservations", 0, "state"), "done"),
+        (("setup_reservations", 0, "updated_at"), 1),
+        (("setup_reservations", 0, "ttl_seconds"), True),
+        (("setup_reservations", 0, "durability_target", "remote_name"), "bad/name"),
+        (("setup_reservations", 0, "durability_target", "ref_name"), "refs/remotes/origin/"),
+        (("setup_reservations", 0, "durability_target", "remote_url_hash_algorithm"), "sha256"),
+        (("setup_reservations", 0, "durability_target", "canonical_remote_url_sha256"), "A" * 64),
+        (("recovery_audit", 0, "agent_id"), 1),
+        (("recovery_audit", 0, "termination_confirmed"), 1),
+        (("recovery_audit", 0, "new_owner"), ""),
+        (("recovery_audit", 0, "process_evidence_key"), "bad"),
+        (("recovery_audit", 0, "established_durability_target"), []),
+        (("recovery_audit", 1, "prior_owner"), None),
+        (("recovery_audit", 1, "outcome"), "removed"),
+        (("recovery_audit", 2, "discard_confirmed"), 0),
+        (("recovery_audit", 2, "outcome"), "removed"),
+    ]
+    for index, (path, value) in enumerate(invalid_values):
+        changed(f"invalid-{index}-{'-'.join(str(item) for item in path)}", path, value)
+
+    changed("integral-float-lease-ttl", ("entries", 0, "activity_lease", "ttl_seconds"), 1800.0)
+    changed(
+        "integral-float-intent-ttl",
+        ("setup_reservations", 0, "lease_intent", "ttl_seconds"),
+        1800.0,
+    )
+    changed("integral-float-reservation-ttl", ("setup_reservations", 0, "ttl_seconds"), 1800.0)
+
+    # Conditional dependencies and additionalProperties on every closed object.
+    changed("retained-requires-reason", ("entries", 0, "retained"), True)
+    changed("recovery-required-requires-metadata", ("entries", 0, "recovery_required"), True)
+    changed(
+        "automatic-lease-requires-controller",
+        ("entries", 0, "activity_lease", "controller_instance_id"),
+        None,
+    )
+    changed(
+        "explicit-discard-requires-confirmation",
+        ("recovery_audit", 2, "outcome"),
+        "removed-explicit-discard",
+    )
+    for name, path in [
+        ("registry", ()),
+        ("entry", ("entries", 0)),
+        ("lease", ("entries", 0, "activity_lease")),
+        ("context", ("entries", 1, "recovery_context")),
+        ("reservation", ("setup_reservations", 0)),
+        ("intent", ("setup_reservations", 0, "lease_intent")),
+        ("target", ("setup_reservations", 0, "durability_target")),
+        ("force-audit", ("recovery_audit", 0)),
+        ("setup-audit", ("recovery_audit", 1)),
+        ("teardown-audit", ("recovery_audit", 2)),
+    ]:
+        changed(f"{name}-additional-property", (*path, "unknown"), True)
+    valid_v1 = {"version": 1, "entries": [_v1_entry(extra=[1, True, None])]}
+    cases.append(("valid-v1", valid_v1))
+    for name, path, value in [
+        ("v1-version-bool", ("version",), True),
+        ("v1-entries-type", ("entries",), {}),
+        ("v1-entry-type", ("entries", 0), []),
+        ("v1-agent-type", ("entries", 0, "agent_id"), True),
+        ("v1-pinned-type", ("entries", 0, "pinned"), 1),
+        ("v1-schema-version-forbidden", ("schema_version",), 2),
+    ]:
+        document = copy.deepcopy(valid_v1)
+        target_object: object = document
+        for part in path[:-1]:
+            target_object = target_object[part]  # type: ignore[index]
+        target_object[path[-1]] = value  # type: ignore[index]
+        cases.append((name, document))
+    for field in ("change_id", "branch", "worktree_path", "created_at", "pinned"):
+        document = copy.deepcopy(valid_v1)
+        del document["entries"][0][field]  # type: ignore[index]
+        cases.append((f"v1-entry-missing-{field}", document))
+    return cases
+
+
+def test_writer_matches_canonical_schema_for_systematic_matrix(tmp_path: Path) -> None:
     schema_path = (
         Path(__file__).resolve().parents[3]
         / "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
     )
     schema = json.loads(schema_path.read_text())
     validator = Draft202012Validator(schema)
-    valid = lifecycle.empty_registry(entries=[_v2_entry()])
-    bogus_mode = lifecycle.new_lease(
-        owner="o",
-        lease_id="l",
-        controller_instance_id="c",
-        session_id=None,
-        phase="P",
-        reason="r",
-        mode="standalone",
-        now=NOW,
-    )
-    bogus_mode["lifecycle_mode"] = "bogus"
-    corpus = [
-        valid,
-        lifecycle.empty_registry(entries=[_v2_entry(activity_lease=bogus_mode)]),
-        {**valid, "extra": True},
-    ]
-    for index, document in enumerate(corpus):
+    for index, (name, document) in enumerate(_systematic_schema_documents()):
         schema_accepts = validator.is_valid(document)
         try:
             lifecycle.write_registry(tmp_path / str(index), document)
@@ -484,7 +859,7 @@ def test_writer_matches_canonical_schema_for_representative_corpus(tmp_path: Pat
             writer_accepts = False
         else:
             writer_accepts = True
-        assert writer_accepts is schema_accepts
+        assert writer_accepts is schema_accepts, name
     with pytest.raises(lifecycle.RegistryCorrupt):
         lifecycle.write_registry(
             tmp_path,
