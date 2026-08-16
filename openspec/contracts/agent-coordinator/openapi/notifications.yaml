@@ -1,0 +1,51 @@
+# agent-coordinator notifications contract (issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Notifications"
+  version: 1.0.0
+  description: >-
+    Notification channel testing and status. Spec lines 1589-1600,
+    2037-2041 (HTTP-14).
+paths:
+  /notifications/test:
+    post:
+      operationId: testNotifications
+      summary: Send a test notification through all configured channels
+      description: >-
+        Spec 2040 (HTTP-14): sends a test notification through all configured
+        channels. Spec 1592-1594: channels implement the NotificationChannel
+        protocol, whose test() method this endpoint exercises.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.notification-service
+      responses:
+        "200": {description: Per-channel test results (spec 2040)}
+        "401": {description: Missing or invalid X-API-Key}
+  /notifications/status:
+    get:
+      operationId: getNotificationsStatus
+      summary: Get channel health and configuration status
+      description: >-
+        Spec 2041 (HTTP-14): returns channel health and configuration status
+        for the channels enabled via NOTIFICATION_CHANNELS (spec 1594-1595).
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.notification-service
+      responses:
+        "200": {description: Channel health and config status (spec 2041)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

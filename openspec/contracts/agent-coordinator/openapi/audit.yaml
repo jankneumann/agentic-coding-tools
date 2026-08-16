@@ -1,0 +1,54 @@
+# agent-coordinator audit contract (issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Audit trail"
+  version: 1.0.0
+  description: >-
+    Append-only audit-trail queries. Spec lines 506-530, 2026 (HTTP-12);
+    coordinator-kanban-viz spec 113-150.
+paths:
+  /audit:
+    get:
+      operationId: queryAudit
+      summary: Query audit-trail entries
+      description: >-
+        Spec 2026 (HTTP-12): returns audit-trail entries with optional since,
+        change_id, and limit filters. Spec 508-513: every coordination
+        operation is logged append-only with timestamp, agent_id, operation,
+        and result. coordinator-kanban-viz spec 117: the kanban UI polls this
+        endpoint with the same filters as its SSE fallback.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.audit-trail
+          - coordinator-kanban-viz.live-update-via-sse-with-polling-fallback
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema: {type: string}
+        - name: change_id
+          in: query
+          required: false
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200": {description: Matching audit entries (spec 2026)}
+        "401": {description: Missing or invalid X-API-Key}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
