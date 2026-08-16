@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator
 
 from shared import worktree_lifecycle as lifecycle
 
@@ -449,6 +450,41 @@ def test_writer_rejects_unknown_fields_and_invalid_targets(tmp_path: Path) -> No
     ]
     with pytest.raises(lifecycle.RegistryCorrupt):
         lifecycle.write_registry(tmp_path, malformed)
+
+
+def test_writer_matches_canonical_schema_for_representative_corpus(tmp_path: Path) -> None:
+    schema_path = (
+        Path(__file__).resolve().parents[3]
+        / "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/worktree-registry-v2.schema.json"
+    )
+    schema = json.loads(schema_path.read_text())
+    validator = Draft202012Validator(schema)
+    valid = lifecycle.empty_registry(entries=[_v2_entry()])
+    bogus_mode = lifecycle.new_lease(
+        owner="o",
+        lease_id="l",
+        controller_instance_id="c",
+        session_id=None,
+        phase="P",
+        reason="r",
+        mode="standalone",
+        now=NOW,
+    )
+    bogus_mode["lifecycle_mode"] = "bogus"
+    corpus = [
+        valid,
+        lifecycle.empty_registry(entries=[_v2_entry(activity_lease=bogus_mode)]),
+        {**valid, "extra": True},
+    ]
+    for index, document in enumerate(corpus):
+        schema_accepts = validator.is_valid(document)
+        try:
+            lifecycle.write_registry(tmp_path / str(index), document)
+        except lifecycle.RegistryCorrupt:
+            writer_accepts = False
+        else:
+            writer_accepts = True
+        assert writer_accepts is schema_accepts
     with pytest.raises(lifecycle.RegistryCorrupt):
         lifecycle.write_registry(
             tmp_path,
