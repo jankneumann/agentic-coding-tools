@@ -46,13 +46,19 @@ class FeatureHeadCompletionBarrier:
         *,
         declaration: dict[str, Any],
         repo_root: Path,
+        runtime_revision: str | None,
+        runtime_sources: dict[str, bytes],
         resolve_feature_head: Callable[[], str],
-        verify_evidence: Callable[[Path, str], None],
+        read_revision_file: Callable[[str, str], bytes],
+        verify_evidence: Callable[[bytes, str], None],
         branch_lock: Callable[[], ContextManager[None]],
     ) -> None:
         self.declaration = declaration
         self.repo_root = Path(repo_root)
+        self.runtime_revision = runtime_revision
+        self.runtime_sources = runtime_sources
         self.resolve_feature_head = resolve_feature_head
+        self.read_revision_file = read_revision_file
         self.verify_evidence = verify_evidence
         self.branch_lock = branch_lock
         self.minimum_dependent_base: str | None = None
@@ -61,27 +67,34 @@ class FeatureHeadCompletionBarrier:
         self,
         *,
         expected_feature_head: str,
-        runtime_revision: str | None,
     ) -> str:
         """Verify evidence under lock and record the unchanged exact HEAD."""
         bootstrap = self.declaration.get("bootstrap", {})
         if (
             bootstrap.get("scheduler_runtime_requirement")
             == "fresh-process-or-instance-after-barrier-commit"
-            and not runtime_revision
+            and self.runtime_revision != expected_feature_head
         ):
             raise FeatureHeadBarrierError(
-                "feature-HEAD gate requires a fresh scheduler runtime revision"
+                "scheduler runtime is not bound to the committed gate revision"
             )
+        if not self.runtime_sources:
+            raise FeatureHeadBarrierError("feature-HEAD gate has no bound runtime source bytes")
 
-        evidence_path = self.repo_root / self.declaration["evidence_path"]
         with self.branch_lock():
             observed = self.resolve_feature_head()
             if observed != expected_feature_head:
                 raise FeatureHeadBarrierError(
                     "feature HEAD differs from the expected completion CAS"
                 )
-            self.verify_evidence(evidence_path, observed)
+            for path, loaded_bytes in self.runtime_sources.items():
+                committed_bytes = self.read_revision_file(observed, path)
+                if committed_bytes != loaded_bytes:
+                    raise FeatureHeadBarrierError(
+                        f"loaded runtime bytes differ from committed gate revision: {path}"
+                    )
+            evidence_bytes = self.read_revision_file(observed, self.declaration["evidence_path"])
+            self.verify_evidence(evidence_bytes, observed)
             after_verification = self.resolve_feature_head()
             if after_verification != observed:
                 raise FeatureHeadBarrierError(

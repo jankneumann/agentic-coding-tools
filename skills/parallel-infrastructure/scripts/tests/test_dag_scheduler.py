@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -318,7 +319,7 @@ class TestDAGSchedulerPreflight:
         result = scheduler.preflight()
         assert result["valid"] is True
         assert len(result["topo_order"]) == 4
-        assert len(result["submissions"]) == 4
+        assert [item["package_id"] for item in result["submissions"]] == ["wp-contracts"]
 
     def test_missing_yaml(self, tmp_path: Path) -> None:
         scheduler = DAGScheduler(tmp_path / "nonexistent.yaml")
@@ -471,6 +472,28 @@ class TestCLI:
         data = json.loads(result.stdout)
         assert data["valid"] is True
         assert len(data["topo_order"]) == 4
+        assert [item["package_id"] for item in data["submissions"]] == ["wp-contracts"]
+
+    def test_cli_discovers_repo_root_for_real_work_packages_from_other_cwd(
+        self, tmp_path: Path
+    ) -> None:
+        repo_root = Path(__file__).resolve().parents[4]
+        work_packages = (
+            repo_root / "openspec/changes/phase-scoped-worktree-lifecycle/work-packages.yaml"
+        )
+        script = Path(__file__).resolve().parent.parent / "dag_scheduler.py"
+
+        result = subprocess.run(
+            [sys.executable, str(script), str(work_packages), "--json"],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+        )
+
+        assert result.returncode == 0, result.stderr or result.stdout
+        payload = json.loads(result.stdout)
+        assert payload["valid"] is True
+        assert payload["checks"]["execution_gates"]["packages"] == ["wp-baseline-preflight"]
 
     def test_cli_missing_file(self, tmp_path: Path) -> None:
         import subprocess

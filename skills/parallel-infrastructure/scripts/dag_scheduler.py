@@ -90,6 +90,15 @@ def load_execution_gate(pointer: str, base_dir: Path) -> dict[str, Any]:
     return declaration
 
 
+def discover_repo_root(work_packages_path: Path) -> Path:
+    """Resolve the repository root from an arbitrary work-package path."""
+    path = Path(work_packages_path).resolve()
+    for candidate in (path.parent, *path.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return path.parent
+
+
 class PackageState(str, Enum):
     """Lifecycle state for a work package."""
 
@@ -250,12 +259,21 @@ class DAGScheduler:
         runtime_revision: str | None = None,
     ):
         self.work_packages_path = Path(work_packages_path)
-        self.base_dir = Path(base_dir) if base_dir else self.work_packages_path.parent
+        self.base_dir = Path(base_dir) if base_dir else discover_repo_root(self.work_packages_path)
         self.data: dict[str, Any] = {}
         self.topo_order: list[str] = []
         self.package_statuses: dict[str, PackageStatus] = {}
-        self.submissions: list[dict[str, Any]] = []
+        self._submission_templates: dict[str, dict[str, Any]] = {}
         self.runtime_revision = runtime_revision
+        runtime_paths = (
+            "skills/parallel-infrastructure/scripts/dag_scheduler.py",
+            "skills/parallel-infrastructure/scripts/integration_orchestrator.py",
+        )
+        self.runtime_sources = {
+            path: (self.base_dir / path).read_bytes()
+            for path in runtime_paths
+            if (self.base_dir / path).is_file()
+        }
         self.execution_gates: dict[str, dict[str, Any]] = {}
         self.verified_feature_heads: dict[str, str] = {}
 
@@ -307,8 +325,8 @@ class DAGScheduler:
             return result
 
         # A4: Prepare task submissions
-        self.submissions = prepare_task_submissions(self.data, self.topo_order)
-        result["submissions"] = self.submissions
+        templates = prepare_task_submissions(self.data, self.topo_order)
+        self._submission_templates = {item["package_id"]: item for item in templates}
 
         # Initialize package statuses
         for pid in self.topo_order:
@@ -318,8 +336,17 @@ class DAGScheduler:
                 state=PackageState.READY if not pkg.get("depends_on") else PackageState.PENDING,
                 depends_on=list(pkg.get("depends_on", [])),
             )
+        result["submissions"] = self.submissions
 
         return result
+
+    @property
+    def submissions(self) -> list[dict[str, Any]]:
+        """Expose only submissions that are safe to dispatch right now."""
+        dispatchable = []
+        for package_id in self.get_ready_packages():
+            dispatchable.append(self.submission_for_dispatch(package_id))
+        return dispatchable
 
     def _step_validate(self) -> dict[str, Any]:
         """A1: Parse and validate work-packages.yaml."""
@@ -413,9 +440,9 @@ class DAGScheduler:
 
     def mark_submitted(self, package_id: str, task_id: str) -> None:
         """Mark a package as submitted to the work queue."""
-        if package_id in self.package_statuses:
-            self.package_statuses[package_id].state = PackageState.SUBMITTED
-            self.package_statuses[package_id].task_id = task_id
+        self.submission_for_dispatch(package_id)
+        self.package_statuses[package_id].state = PackageState.SUBMITTED
+        self.package_statuses[package_id].task_id = task_id
 
     def mark_in_progress(self, package_id: str) -> None:
         """Mark a package as in progress (claimed by agent)."""
@@ -437,6 +464,7 @@ class DAGScheduler:
         *,
         expected_feature_head: str,
         resolve_feature_head,
+        read_revision_file,
         verify_evidence,
         branch_lock,
     ) -> str:
@@ -447,13 +475,15 @@ class DAGScheduler:
         barrier = FeatureHeadCompletionBarrier(
             declaration=declaration,
             repo_root=self.base_dir,
+            runtime_revision=self.runtime_revision,
+            runtime_sources=self.runtime_sources,
             resolve_feature_head=resolve_feature_head,
+            read_revision_file=read_revision_file,
             verify_evidence=verify_evidence,
             branch_lock=branch_lock,
         )
         recorded = barrier.verify_and_record(
             expected_feature_head=expected_feature_head,
-            runtime_revision=self.runtime_revision,
         )
         self.verified_feature_heads[package_id] = recorded
         self.package_statuses[package_id].state = PackageState.COMPLETED
@@ -493,10 +523,7 @@ class DAGScheduler:
             raise FeatureHeadGateError(f"unknown package {package_id}")
         if package_id not in self.get_ready_packages():
             raise FeatureHeadGateError(f"{package_id} is not ready; dependencies remain incomplete")
-        submission = next(
-            (item for item in self.submissions if item["package_id"] == package_id),
-            None,
-        )
+        submission = self._submission_templates.get(package_id)
         if submission is None:
             raise FeatureHeadGateError(f"no prepared submission exists for {package_id}")
         fenced = copy.deepcopy(submission)

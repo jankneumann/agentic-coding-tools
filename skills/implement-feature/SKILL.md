@@ -420,20 +420,27 @@ or a package title cannot opt into this path. For that shared root package:
 2. Write the completion-barrier regression tests.
 3. Implement and commit the generic barrier.
 4. Reload the modules or instantiate a fresh `DAGScheduler` from that committed
-   feature revision, passing it as `runtime_revision`.
-5. Only that fresh runtime may generate and commit live evidence.
+   feature revision before generating live evidence.
+5. Generate and commit live evidence, then reload or reinstantiate once more
+   from that exact evidence commit and bind `runtime_revision` to its SHA.
 6. Under the feature-branch lock, call
-   `complete_feature_head_gate()` with the expected evidence commit. It
-   re-resolves HEAD before and after evidence verification; either mismatch
-   loses the CAS and leaves the package incomplete.
+   `complete_feature_head_gate()` with the expected evidence commit and a
+   revision reader backed by `git show <sha>:<path>`. The gate proves the loaded
+   scheduler/orchestrator bytes match that commit, passes the evidence bytes
+   from that commit—not the mutable worktree—to verification, and re-resolves
+   HEAD before and after verification. Any mismatch loses the CAS and leaves
+   the package incomplete.
 7. Obtain each now-ready dependent submission through
    `submission_for_dispatch()`. This adds `minimum_base_sha`; setup must create
    the dependent worktree from that exact SHA. Never dispatch the static
    preflight submission directly.
 
 Evidence generated before step 4 does not satisfy the gate. An unverified gate,
-failed evidence check, missing fresh-runtime revision, or changed HEAD keeps all
-dependent DAG edges blocked.
+failed evidence check, runtime/commit byte mismatch, or changed HEAD keeps all
+dependent DAG edges blocked. The scheduler's preflight result and `submissions`
+property expose only packages ready at that instant; callers cannot obtain a
+gated descendant payload except through `submission_for_dispatch()` after the
+gate records its exact `minimum_base_sha`.
 
 ##### Phase B: Package Execution Protocol (Every Worker Agent)
 
