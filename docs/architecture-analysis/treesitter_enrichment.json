@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-16T13:45:08+00:00",
+  "generated_at": "2026-08-16T16:25:51+00:00",
   "treesitter_version": "unknown",
   "comments": {
-    "total": 2287,
+    "total": 2294,
     "with_markers": 16,
     "items": [
       {
@@ -585,7 +585,43 @@
       },
       {
         "file": "agents_config.py",
-        "line": 416,
+        "line": 404,
+        "text": "# Env var the CLI needs to serve a request (e.g. pi",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 405,
+        "text": "# resolves OPENROUTER_API_KEY from the subprocess",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 406,
+        "text": "# env). Availability checks treat the binary as",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 407,
+        "text": "# unavailable when the var is unset (issue #383).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 421,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -594,7 +630,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 417,
+        "line": 422,
         "text": "# Data classes",
         "language": "python",
         "type": "inline",
@@ -603,7 +639,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 418,
+        "line": 423,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -612,7 +648,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 460,
+        "line": 465,
         "text": "# When set, the dispatching adapter attaches the prompt as this flag's",
         "language": "python",
         "type": "inline",
@@ -621,7 +657,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 461,
+        "line": 466,
         "text": "# value (``[prompt_via_flag, prompt]``) instead of via stdin or a trailing",
         "language": "python",
         "type": "inline",
@@ -630,7 +666,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 462,
+        "line": 467,
         "text": "# positional. Antigravity needs this: its prompt is the value of",
         "language": "python",
         "type": "inline",
@@ -639,7 +675,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 463,
+        "line": 468,
         "text": "# ``--prompt``/``--print`` and stdin is ignored (design.md E7).",
         "language": "python",
         "type": "inline",
@@ -648,7 +684,34 @@
       },
       {
         "file": "agents_config.py",
-        "line": 503,
+        "line": 470,
+        "text": "# Env var the CLI resolves its provider credential from (pi:",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.CliConfig"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 471,
+        "text": "# OPENROUTER_API_KEY). A present binary with this var unset cannot serve",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.CliConfig"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 472,
+        "text": "# a request, so availability checks fail closed on it (issue #383).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.CliConfig"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 512,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -657,7 +720,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 504,
+        "line": 513,
         "text": "# Archetype data classes",
         "language": "python",
         "type": "inline",
@@ -666,7 +729,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 505,
+        "line": 514,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -675,7 +738,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 601,
+        "line": 610,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -684,7 +747,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 602,
+        "line": 611,
         "text": "# Loading + validation",
         "language": "python",
         "type": "inline",
@@ -693,7 +756,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 603,
+        "line": 612,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -702,7 +765,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 659,
+        "line": 668,
         "text": "# Keep unresolved ${VAR} placeholders so that",
         "language": "python",
         "type": "inline",
@@ -711,7 +774,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 660,
+        "line": 669,
         "text": "# _resolve_api_key_from_openbao() can extract the variable",
         "language": "python",
         "type": "inline",
@@ -720,7 +783,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 661,
+        "line": 670,
         "text": "# name and fetch the secret from OpenBao at runtime.",
         "language": "python",
         "type": "inline",
@@ -729,7 +792,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 736,
+        "line": 746,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -738,7 +801,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 737,
+        "line": 747,
         "text": "# API key identity generation",
         "language": "python",
         "type": "inline",
@@ -747,7 +810,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 738,
+        "line": 748,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -756,7 +819,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 754,
+        "line": 764,
         "text": "# Use shared coordinator secrets \u2014 api_key already resolved from shared pool",
         "language": "python",
         "type": "inline",
@@ -765,7 +828,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 760,
+        "line": 770,
         "text": "# Authenticate with the agent's own AppRole, not the global coordinator token.",
         "language": "python",
         "type": "inline",
@@ -774,7 +837,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 761,
+        "line": 771,
         "text": "# The agent's secret_id is expected in BAO_SECRET_ID (shared bootstrap secret)",
         "language": "python",
         "type": "inline",
@@ -783,7 +846,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 762,
+        "line": 772,
         "text": "# while the role_id comes from the per-agent openbao_role_id field.",
         "language": "python",
         "type": "inline",
@@ -792,7 +855,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 773,
+        "line": 783,
         "text": "# Look for agent-specific key pattern or the interpolation source",
         "language": "python",
         "type": "inline",
@@ -801,7 +864,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 776,
+        "line": 786,
         "text": "# type: ignore[union-attr]",
         "language": "python",
         "type": "inline",
@@ -810,7 +873,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 781,
+        "line": 791,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -819,7 +882,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 806,
+        "line": 816,
         "text": "# Check if OpenBao is available for key resolution",
         "language": "python",
         "type": "inline",
@@ -828,7 +891,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 823,
+        "line": 833,
         "text": "# Skip unresolved ${VAR} placeholders \u2014 they're not usable as",
         "language": "python",
         "type": "inline",
@@ -837,7 +900,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 824,
+        "line": 834,
         "text": "# identity keys unless resolved via OpenBao above.",
         "language": "python",
         "type": "inline",
@@ -846,7 +909,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 844,
+        "line": 854,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -855,7 +918,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 845,
+        "line": 855,
         "text": "# MCP environment generation",
         "language": "python",
         "type": "inline",
@@ -864,25 +927,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 846,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 870,
-        "text": "# Include database connection settings from the current environment.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config.get_mcp_env"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 879,
+        "line": 856,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -892,6 +937,24 @@
       {
         "file": "agents_config.py",
         "line": 880,
+        "text": "# Include database connection settings from the current environment.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.get_mcp_env"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 889,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 890,
         "text": "# Global config singleton (lazy)",
         "language": "python",
         "type": "inline",
@@ -900,7 +963,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 881,
+        "line": 891,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -909,7 +972,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 916,
+        "line": 926,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -918,7 +981,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 917,
+        "line": 927,
         "text": "# Dispatch config helpers",
         "language": "python",
         "type": "inline",
@@ -927,7 +990,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 918,
+        "line": 928,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -936,7 +999,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 983,
+        "line": 994,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -945,7 +1008,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 984,
+        "line": 995,
         "text": "# Isolation helpers",
         "language": "python",
         "type": "inline",
@@ -954,7 +1017,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 985,
+        "line": 996,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -963,7 +1026,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 999,
+        "line": 1010,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -972,7 +1035,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1000,
+        "line": 1011,
         "text": "# Archetype loading + helpers",
         "language": "python",
         "type": "inline",
@@ -981,7 +1044,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1001,
+        "line": 1012,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -990,7 +1053,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1058,
+        "line": 1069,
         "text": "# D3 structured-field enforcement (supervisor invariant): the",
         "language": "python",
         "type": "inline",
@@ -999,7 +1062,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1059,
+        "line": 1070,
         "text": "# supervisor archetype is a read-only adjudicator that delegates every",
         "language": "python",
         "type": "inline",
@@ -1008,7 +1071,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1060,
+        "line": 1071,
         "text": "# change to a write-capable worker. Reject any config that marks it",
         "language": "python",
         "type": "inline",
@@ -1017,7 +1080,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1061,
+        "line": 1072,
         "text": "# write_capable at load time \u2014 fail loud, same posture as the",
         "language": "python",
         "type": "inline",
@@ -1026,7 +1089,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1062,
+        "line": 1073,
         "text": "# write-capable-phase gate in resolve_archetype_for_phase.",
         "language": "python",
         "type": "inline",
@@ -1035,7 +1098,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1078,
+        "line": 1089,
         "text": "# Phase mapping (optional, schema_version=2). Validate archetype refs after",
         "language": "python",
         "type": "inline",
@@ -1044,7 +1107,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1079,
+        "line": 1090,
         "text": "# all archetypes are constructed so cross-references resolve.",
         "language": "python",
         "type": "inline",
@@ -1053,7 +1116,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1221,
+        "line": 1232,
         "text": "# Optional tiers degrade gracefully: a provider without a",
         "language": "python",
         "type": "inline",
@@ -1062,7 +1125,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1222,
+        "line": 1233,
         "text": "# frontier model serves its premium model instead of failing.",
         "language": "python",
         "type": "inline",
@@ -1071,7 +1134,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1256,
+        "line": 1267,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1080,7 +1143,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1257,
+        "line": 1268,
         "text": "# Prompt composition (D2: composition, not replacement)",
         "language": "python",
         "type": "inline",
@@ -1089,7 +1152,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1258,
+        "line": 1269,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1098,7 +1161,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1272,
+        "line": 1283,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1107,7 +1170,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1273,
+        "line": 1284,
         "text": "# Complexity-based escalation (D3: at dispatch time)",
         "language": "python",
         "type": "inline",
@@ -1116,7 +1179,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1274,
+        "line": 1285,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1125,7 +1188,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1286,
+        "line": 1297,
         "text": "# Strip trailing wildcards and filename patterns",
         "language": "python",
         "type": "inline",
@@ -1134,7 +1197,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1288,
+        "line": 1299,
         "text": "# Keep only directory-like components (no wildcards)",
         "language": "python",
         "type": "inline",
@@ -1143,7 +1206,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1395,
+        "line": 1406,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1152,7 +1215,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1396,
+        "line": 1407,
         "text": "# Phase-aware archetype resolution (D2: coordinator-owned phase mapping)",
         "language": "python",
         "type": "inline",
@@ -1161,7 +1224,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1397,
+        "line": 1408,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1170,7 +1233,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1440,
+        "line": 1451,
         "text": "# Validated at load time; this branch only fires if the cache is mutated.",
         "language": "python",
         "type": "inline",
@@ -1179,7 +1242,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1447,
+        "line": 1458,
         "text": "# Enforce the write-capability contract at resolution time (design D3 /",
         "language": "python",
         "type": "inline",
@@ -1188,7 +1251,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1448,
+        "line": 1459,
         "text": "# Task 2.5): a write-capable phase MUST resolve to a write_capable archetype.",
         "language": "python",
         "type": "inline",
@@ -1197,7 +1260,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1449,
+        "line": 1460,
         "text": "# This is the structured-field gate \u2014 no substring matching over prompts.",
         "language": "python",
         "type": "inline",
@@ -1206,7 +1269,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1458,
+        "line": 1469,
         "text": "# Filter signals to keys listed in the phase entry \u2014 security-style",
         "language": "python",
         "type": "inline",
@@ -1215,7 +1278,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1459,
+        "line": 1470,
         "text": "# whitelist that mirrors the spec's \"unknown keys silently dropped\" rule.",
         "language": "python",
         "type": "inline",
@@ -2385,17 +2448,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 888,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
         "line": 889,
-        "text": "# MEMORY",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2404,6 +2458,15 @@
       {
         "file": "coordination_api.py",
         "line": 890,
+        "text": "# MEMORY",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 891,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2412,7 +2475,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 943,
+        "line": 944,
         "text": "# +1 sentinel row to detect truncation",
         "language": "python",
         "type": "inline",
@@ -2421,17 +2484,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 965,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
         "line": 966,
-        "text": "# WORK QUEUE",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2440,7 +2494,7 @@
       {
         "file": "coordination_api.py",
         "line": 967,
-        "text": "# --------------------------------------------------------------------- #",
+        "text": "# WORK QUEUE",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2448,7 +2502,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1113,
+        "line": 968,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2458,7 +2512,7 @@
       {
         "file": "coordination_api.py",
         "line": 1114,
-        "text": "# ISSUE TRACKING",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2467,6 +2521,15 @@
       {
         "file": "coordination_api.py",
         "line": 1115,
+        "text": "# ISSUE TRACKING",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 1116,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2475,7 +2538,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1147,
+        "line": 1148,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -2484,7 +2547,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1236,
+        "line": 1237,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -2493,7 +2556,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1266,
+        "line": 1267,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -2502,7 +2565,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1289,
+        "line": 1290,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -2511,17 +2574,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1294,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
         "line": 1295,
-        "text": "# GUARDRAILS",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2530,7 +2584,7 @@
       {
         "file": "coordination_api.py",
         "line": 1296,
-        "text": "# --------------------------------------------------------------------- #",
+        "text": "# GUARDRAILS",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2538,7 +2592,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1340,
+        "line": 1297,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2548,15 +2602,6 @@
       {
         "file": "coordination_api.py",
         "line": 1341,
-        "text": "# PROFILES",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 1342,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2565,7 +2610,16 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1384,
+        "line": 1342,
+        "text": "# PROFILES",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 1343,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2575,7 +2629,7 @@
       {
         "file": "coordination_api.py",
         "line": 1385,
-        "text": "# AUDIT",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2584,6 +2638,15 @@
       {
         "file": "coordination_api.py",
         "line": 1386,
+        "text": "# AUDIT",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 1387,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2592,7 +2655,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1425,
+        "line": 1426,
         "text": "# +1 sentinel row to detect truncation",
         "language": "python",
         "type": "inline",
@@ -2601,17 +2664,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1444,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
         "line": 1445,
-        "text": "# HANDOFFS",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2620,6 +2674,15 @@
       {
         "file": "coordination_api.py",
         "line": 1446,
+        "text": "# HANDOFFS",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 1447,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2628,7 +2691,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1485,
+        "line": 1486,
         "text": "# Truncation detection is owned by the service (detect_truncation) so the",
         "language": "python",
         "type": "inline",
@@ -2637,7 +2700,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1486,
+        "line": 1487,
         "text": "# over-fetch never inflates the audit trail's recorded limit/count.",
         "language": "python",
         "type": "inline",
@@ -2646,7 +2709,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1507,
+        "line": 1508,
         "text": "# No top-level ``next_steps`` here: each handoff row already carries a",
         "language": "python",
         "type": "inline",
@@ -2655,7 +2718,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1508,
+        "line": 1509,
         "text": "# semantic ``next_steps`` field, so reusing the key for command",
         "language": "python",
         "type": "inline",
@@ -2664,7 +2727,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1509,
+        "line": 1510,
         "text": "# suggestions would be ambiguous.",
         "language": "python",
         "type": "inline",
@@ -2673,17 +2736,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1514,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
         "line": 1515,
-        "text": "# POLICY",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2692,7 +2746,7 @@
       {
         "file": "coordination_api.py",
         "line": 1516,
-        "text": "# --------------------------------------------------------------------- #",
+        "text": "# POLICY",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2700,7 +2754,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1572,
+        "line": 1517,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2710,15 +2764,6 @@
       {
         "file": "coordination_api.py",
         "line": 1573,
-        "text": "# PORT ALLOCATION",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 1574,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2727,7 +2772,16 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1626,
+        "line": 1574,
+        "text": "# PORT ALLOCATION",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 1575,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2737,15 +2791,6 @@
       {
         "file": "coordination_api.py",
         "line": 1627,
-        "text": "# APPROVALS",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 1628,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2754,12 +2799,21 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1632,
-        "text": "# type: ignore[attr-defined]",
+        "line": 1628,
+        "text": "# APPROVALS",
         "language": "python",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api._approval_to_dict"
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 1629,
+        "text": "# --------------------------------------------------------------------- #",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
       },
       {
         "file": "coordination_api.py",
@@ -2808,7 +2862,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1639,
+        "line": 1638,
         "text": "# type: ignore[attr-defined]",
         "language": "python",
         "type": "inline",
@@ -2862,17 +2916,17 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1681,
-        "text": "# --------------------------------------------------------------------- #",
+        "line": 1645,
+        "text": "# type: ignore[attr-defined]",
         "language": "python",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
+        "enclosing_node": "py:coordination_api.create_coordination_api._approval_to_dict"
       },
       {
         "file": "coordination_api.py",
         "line": 1682,
-        "text": "# POLICY VERSIONING",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2881,7 +2935,7 @@
       {
         "file": "coordination_api.py",
         "line": 1683,
-        "text": "# --------------------------------------------------------------------- #",
+        "text": "# POLICY VERSIONING",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -2889,7 +2943,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1713,
+        "line": 1684,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2899,15 +2953,6 @@
       {
         "file": "coordination_api.py",
         "line": 1714,
-        "text": "# FEATURE REGISTRY",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 1715,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2916,7 +2961,16 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 1852,
+        "line": 1715,
+        "text": "# FEATURE REGISTRY",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 1716,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2926,15 +2980,6 @@
       {
         "file": "coordination_api.py",
         "line": 1853,
-        "text": "# MERGE QUEUE",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 1854,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2943,7 +2988,16 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2002,
+        "line": 1854,
+        "text": "# MERGE QUEUE",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 1855,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2953,15 +3007,6 @@
       {
         "file": "coordination_api.py",
         "line": 2003,
-        "text": "# MERGE TRAIN (speculative-merge-trains, task 5.3)",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2004,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2970,7 +3015,16 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2197,
+        "line": 2004,
+        "text": "# MERGE TRAIN (speculative-merge-trains, task 5.3)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2005,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2980,15 +3034,6 @@
       {
         "file": "coordination_api.py",
         "line": 2198,
-        "text": "# MERGE METRICS (merge-queue-scaling, task 5.5)",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2199,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -2997,7 +3042,16 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2233,
+        "line": 2199,
+        "text": "# MERGE METRICS (merge-queue-scaling, task 5.5)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2200,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3007,7 +3061,7 @@
       {
         "file": "coordination_api.py",
         "line": 2234,
-        "text": "# ARCHETYPES \u2014 per-phase resolution",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3016,6 +3070,15 @@
       {
         "file": "coordination_api.py",
         "line": 2235,
+        "text": "# ARCHETYPES \u2014 per-phase resolution",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2236,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3024,7 +3087,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2267,
+        "line": 2268,
         "text": "# Cache mutation / undefined archetype reference at lookup time.",
         "language": "python",
         "type": "inline",
@@ -3033,7 +3096,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2273,
+        "line": 2274,
         "text": "# Best-effort audit. Failures here MUST NOT block the resolution.",
         "language": "python",
         "type": "inline",
@@ -3042,17 +3105,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2291,
+        "line": 2292,
         "text": "# noqa: BLE001",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2305,
-        "text": "# Optional thinking/reasoning level from the tier entry. Additive:",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3061,6 +3115,15 @@
       {
         "file": "coordination_api.py",
         "line": 2306,
+        "text": "# Optional thinking/reasoning level from the tier entry. Additive:",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2307,
         "text": "# older clients ignore it; adapters translate it to CLI flags.",
         "language": "python",
         "type": "inline",
@@ -3069,17 +3132,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2310,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
         "line": 2311,
-        "text": "# STATUS REPORTING",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3088,6 +3142,15 @@
       {
         "file": "coordination_api.py",
         "line": 2312,
+        "text": "# STATUS REPORTING",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2313,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3096,7 +3159,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2340,
+        "line": 2341,
         "text": "# Update heartbeat for the reporting agent (not the coordinator itself).",
         "language": "python",
         "type": "inline",
@@ -3105,7 +3168,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2341,
+        "line": 2342,
         "text": "# wire-autopilot-phase-subagents (task 3.8): forward phase_archetype",
         "language": "python",
         "type": "inline",
@@ -3114,7 +3177,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2342,
+        "line": 2343,
         "text": "# so the value lands in agent_sessions.phase_archetype via the",
         "language": "python",
         "type": "inline",
@@ -3123,7 +3186,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2343,
+        "line": 2344,
         "text": "# agent_heartbeat RPC (and surfaces in /discovery/agents). The",
         "language": "python",
         "type": "inline",
@@ -3132,7 +3195,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2344,
+        "line": 2345,
         "text": "# archived per-phase-archetype-resolution change added the field to",
         "language": "python",
         "type": "inline",
@@ -3141,7 +3204,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2345,
+        "line": 2346,
         "text": "# the request body and the event-bus context, but stopped short of",
         "language": "python",
         "type": "inline",
@@ -3150,7 +3213,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2346,
+        "line": 2347,
         "text": "# the discovery persistence path \u2014 closing that gap inline here.",
         "language": "python",
         "type": "inline",
@@ -3159,7 +3222,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2353,
+        "line": 2354,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -3168,7 +3231,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2356,
+        "line": 2357,
         "text": "# Determine urgency",
         "language": "python",
         "type": "inline",
@@ -3177,7 +3240,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2361,
+        "line": 2362,
         "text": "# Emit coordinator_status NOTIFY via event bus.",
         "language": "python",
         "type": "inline",
@@ -3186,7 +3249,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2362,
+        "line": 2363,
         "text": "# phase_archetype (when present) flows into the event context so",
         "language": "python",
         "type": "inline",
@@ -3195,7 +3258,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2363,
+        "line": 2364,
         "text": "# downstream observers can correlate phase \u2194 archetype without a",
         "language": "python",
         "type": "inline",
@@ -3204,7 +3267,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2364,
+        "line": 2365,
         "text": "# separate query (per agent-coordinator.3).",
         "language": "python",
         "type": "inline",
@@ -3213,7 +3276,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2388,
+        "line": 2389,
         "text": "# noqa: SLF001",
         "language": "python",
         "type": "inline",
@@ -3222,7 +3285,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2398,
+        "line": 2399,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -3231,17 +3294,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2403,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
         "line": 2404,
-        "text": "# NOTIFICATIONS (status/diagnostics)",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3250,6 +3304,15 @@
       {
         "file": "coordination_api.py",
         "line": 2405,
+        "text": "# NOTIFICATIONS (status/diagnostics)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2406,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3258,7 +3321,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2429,
+        "line": 2430,
         "text": "# noqa: SLF001",
         "language": "python",
         "type": "inline",
@@ -3267,7 +3330,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2439,
+        "line": 2440,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -3276,17 +3339,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2457,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
         "line": 2458,
-        "text": "# DISCOVERY",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3295,6 +3349,15 @@
       {
         "file": "coordination_api.py",
         "line": 2459,
+        "text": "# DISCOVERY",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2460,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3303,7 +3366,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2517,
+        "line": 2518,
         "text": "# wire-autopilot-phase-subagents (D-1): surface the resolved",
         "language": "python",
         "type": "inline",
@@ -3312,7 +3375,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2518,
+        "line": 2519,
         "text": "# archetype for the agent's current phase. None for legacy",
         "language": "python",
         "type": "inline",
@@ -3321,7 +3384,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2519,
+        "line": 2520,
         "text": "# rows that pre-date the migration.",
         "language": "python",
         "type": "inline",
@@ -3330,17 +3393,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2586,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
         "line": 2587,
-        "text": "# GEN-EVAL",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3349,7 +3403,7 @@
       {
         "file": "coordination_api.py",
         "line": 2588,
-        "text": "# --------------------------------------------------------------------- #",
+        "text": "# GEN-EVAL",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3357,7 +3411,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2693,
+        "line": 2589,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3367,15 +3421,6 @@
       {
         "file": "coordination_api.py",
         "line": 2694,
-        "text": "# ISSUE SEARCH / READY / BLOCKED",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2695,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3384,7 +3429,25 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2732,
+        "line": 2695,
+        "text": "# ISSUE SEARCH / READY / BLOCKED",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2696,
+        "text": "# --------------------------------------------------------------------- #",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2733,
         "text": "# NOTE: GET /issues/blocked is registered earlier (before /issues/{issue_id})",
         "language": "python",
         "type": "inline",
@@ -3395,7 +3458,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2733,
+        "line": 2734,
         "text": "# to prevent FastAPI from matching \"blocked\" as an issue_id parameter.",
         "language": "python",
         "type": "inline",
@@ -3404,17 +3467,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2735,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
         "line": 2736,
-        "text": "# SESSION GRANTS",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3423,7 +3477,7 @@
       {
         "file": "coordination_api.py",
         "line": 2737,
-        "text": "# --------------------------------------------------------------------- #",
+        "text": "# SESSION GRANTS",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3431,7 +3485,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2774,
+        "line": 2738,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3441,15 +3495,6 @@
       {
         "file": "coordination_api.py",
         "line": 2775,
-        "text": "# APPROVALS (request + check)",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2776,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3458,7 +3503,16 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2845,
+        "line": 2776,
+        "text": "# APPROVALS (request + check)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2777,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3468,15 +3522,6 @@
       {
         "file": "coordination_api.py",
         "line": 2846,
-        "text": "# HEALTH",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2847,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3485,7 +3530,16 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2872,
+        "line": 2847,
+        "text": "# HEALTH",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2848,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3495,7 +3549,7 @@
       {
         "file": "coordination_api.py",
         "line": 2873,
-        "text": "# HELP \u2014 Progressive Discovery",
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3504,7 +3558,7 @@
       {
         "file": "coordination_api.py",
         "line": 2874,
-        "text": "# --------------------------------------------------------------------- #",
+        "text": "# HELP \u2014 Progressive Discovery",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3512,8 +3566,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2909,
-        "text": "# -------------------------------------------------------------------- #",
+        "line": 2875,
+        "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -3522,15 +3576,6 @@
       {
         "file": "coordination_api.py",
         "line": 2910,
-        "text": "# KANBAN-VIZ \u2014 sync-point status, worktrees, SSE, write/file-write    #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2911,
         "text": "# -------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -3539,7 +3584,25 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3137,
+        "line": 2911,
+        "text": "# KANBAN-VIZ \u2014 sync-point status, worktrees, SSE, write/file-write    #",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2912,
+        "text": "# -------------------------------------------------------------------- #",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 3139,
         "text": "# 1. Clear registry via worktree.py teardown --force",
         "language": "python",
         "type": "inline",
@@ -3548,7 +3611,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3138,
+        "line": 3140,
         "text": "#",
         "language": "python",
         "type": "inline",
@@ -3557,7 +3620,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3139,
+        "line": 3141,
         "text": "# IMPL_REVIEW (high architecture): in Docker/cloud",
         "language": "python",
         "type": "inline",
@@ -3566,7 +3629,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3140,
+        "line": 3142,
         "text": "# environments, skills/worktree/scripts/worktree.py is NOT copied",
         "language": "python",
         "type": "inline",
@@ -3575,7 +3638,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3141,
+        "line": 3143,
         "text": "# into the deployed image (skills/ is local-only tooling). Worktree",
         "language": "python",
         "type": "inline",
@@ -3584,7 +3647,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3142,
+        "line": 3144,
         "text": "# registry isolation is also not needed there \u2014 each agent runs in",
         "language": "python",
         "type": "inline",
@@ -3593,7 +3656,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3143,
+        "line": 3145,
         "text": "# its own container, so there's no registry to clear. Detect the",
         "language": "python",
         "type": "inline",
@@ -3602,7 +3665,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3144,
+        "line": 3146,
         "text": "# script's existence and skip gracefully when absent.",
         "language": "python",
         "type": "inline",
@@ -3611,7 +3674,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3148,
+        "line": 3150,
         "text": "# Docker/cloud path: registry isolation is provided by the",
         "language": "python",
         "type": "inline",
@@ -3620,7 +3683,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3149,
+        "line": 3151,
         "text": "# container, so registry teardown is vacuously complete.",
         "language": "python",
         "type": "inline",
@@ -3629,7 +3692,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3181,
+        "line": 3183,
         "text": "# 2. Update agent_sessions",
         "language": "python",
         "type": "inline",
@@ -3638,7 +3701,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3195,
+        "line": 3197,
         "text": "# 3. Collect held locks",
         "language": "python",
         "type": "inline",
@@ -3647,30 +3710,12 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3204,
+        "line": 3206,
         "text": "# 4. Audit",
         "language": "python",
         "type": "inline",
         "markers": [],
         "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 3328,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 3329,
-        "text": "# KANBAN-VIZ EXTENSIONS \u2014 open PRs + OpenSpec proposals",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
       },
       {
         "file": "coordination_api.py",
@@ -3683,7 +3728,25 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3403,
+        "line": 3331,
+        "text": "# KANBAN-VIZ EXTENSIONS \u2014 open PRs + OpenSpec proposals",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 3332,
+        "text": "# --------------------------------------------------------------------- #",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 3405,
         "text": "# openspec_sources_invalid: raised when OPENSPEC_SOURCES has bad entries",
         "language": "python",
         "type": "inline",
@@ -3692,7 +3755,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3417,
+        "line": 3419,
         "text": "# --- fail-closed semantic code search (v2) ----------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -3701,7 +3764,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3431,
+        "line": 3433,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -3710,30 +3773,12 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3482,
+        "line": 3484,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
         "markers": [],
         "enclosing_node": "py:coordination_api.create_coordination_api.search_code_endpoint"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 3489,
-        "text": "# =============================================================================",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 3490,
-        "text": "# MAIN",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
       },
       {
         "file": "coordination_api.py",
@@ -3746,7 +3791,25 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3498,
+        "line": 3492,
+        "text": "# MAIN",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 3493,
+        "text": "# =============================================================================",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 3500,
         "text": "# IMPL_REVIEW R2-id=13 (security): mask token= in uvicorn access log",
         "language": "python",
         "type": "inline",
@@ -3755,7 +3818,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3499,
+        "line": 3501,
         "text": "# BEFORE uvicorn writes its first line. The filter is idempotent.",
         "language": "python",
         "type": "inline",
@@ -3764,7 +3827,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3508,
+        "line": 3510,
         "text": "# Allow CLI overrides",
         "language": "python",
         "type": "inline",
@@ -20647,7 +20710,7 @@
       "items": [
         {
           "file": "agents_config.py",
-          "line": 781,
+          "line": 791,
           "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
         },
         {
@@ -20802,77 +20865,77 @@
         },
         {
           "file": "coordination_api.py",
-          "line": 2209,
+          "line": 2210,
           "enclosing_node": "py:coordination_api.create_coordination_api.merge_train_metrics_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2291,
+          "line": 2292,
           "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2353,
+          "line": 2354,
           "enclosing_node": "py:coordination_api.create_coordination_api.report_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2398,
+          "line": 2399,
           "enclosing_node": "py:coordination_api.create_coordination_api.report_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2439,
+          "line": 2440,
           "enclosing_node": "py:coordination_api.create_coordination_api.test_notification"
         },
         {
           "file": "coordination_api.py",
-          "line": 2867,
+          "line": 2868,
           "enclosing_node": "py:coordination_api.create_coordination_api._database_health"
         },
         {
           "file": "coordination_api.py",
-          "line": 3041,
+          "line": 3042,
           "enclosing_node": "py:coordination_api.create_coordination_api.patch_issue_labels"
         },
         {
           "file": "coordination_api.py",
-          "line": 3069,
+          "line": 3070,
           "enclosing_node": "py:coordination_api.create_coordination_api.patch_issue_labels"
         },
         {
           "file": "coordination_api.py",
-          "line": 3100,
+          "line": 3102,
           "enclosing_node": "py:coordination_api.create_coordination_api.force_release_lock"
         },
         {
           "file": "coordination_api.py",
-          "line": 3201,
+          "line": 3203,
           "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
         },
         {
           "file": "coordination_api.py",
-          "line": 3218,
+          "line": 3220,
           "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
         },
         {
           "file": "coordination_api.py",
-          "line": 3263,
+          "line": 3265,
           "enclosing_node": "py:coordination_api.create_coordination_api.put_saved_view"
         },
         {
           "file": "coordination_api.py",
-          "line": 3299,
+          "line": 3301,
           "enclosing_node": "py:coordination_api.create_coordination_api.post_kanban_audit"
         },
         {
           "file": "coordination_api.py",
-          "line": 3431,
+          "line": 3433,
           "enclosing_node": "py:coordination_api.create_coordination_api.code_search_status_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 3482,
+          "line": 3484,
           "enclosing_node": "py:coordination_api.create_coordination_api.search_code_endpoint"
         },
         {
@@ -21312,12 +21375,12 @@
       "items": [
         {
           "file": "agents_config.py",
-          "line": 638,
+          "line": 647,
           "enclosing_node": "py:agents_config.load_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1037,
+          "line": 1048,
           "enclosing_node": "py:agents_config.load_archetypes_config"
         },
         {
@@ -21547,371 +21610,371 @@
       "items": [
         {
           "file": "agents_config.py",
-          "line": 584,
+          "line": 593,
           "function": "__init__",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.ProviderModelMappingError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 584,
+          "line": 593,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.ProviderModelMappingError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 584,
+          "line": 593,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.ProviderModelMappingError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 605,
+          "line": 614,
           "function": "_default_agents_path",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._default_agents_path"
         },
         {
           "file": "agents_config.py",
-          "line": 609,
+          "line": 618,
           "function": "_default_secrets_path",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._default_secrets_path"
         },
         {
           "file": "agents_config.py",
-          "line": 613,
+          "line": 622,
           "function": "load_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.load_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 666,
+          "line": 675,
           "function": "_parse_mode",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.load_agents_config._parse_mode"
         },
         {
           "file": "agents_config.py",
-          "line": 666,
+          "line": 675,
           "parameter": "mode_data",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.load_agents_config._parse_mode"
         },
         {
           "file": "agents_config.py",
-          "line": 740,
+          "line": 750,
           "function": "_resolve_api_key_from_openbao",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
         },
         {
           "file": "agents_config.py",
-          "line": 740,
+          "line": 750,
           "parameter": "agent",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
         },
         {
           "file": "agents_config.py",
-          "line": 791,
+          "line": 801,
           "function": "get_api_key_identities",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_api_key_identities"
         },
         {
           "file": "agents_config.py",
-          "line": 848,
+          "line": 858,
           "function": "get_mcp_env",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_mcp_env"
         },
         {
           "file": "agents_config.py",
-          "line": 849,
+          "line": 859,
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_mcp_env"
         },
         {
           "file": "agents_config.py",
-          "line": 886,
+          "line": 896,
           "function": "get_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 902,
+          "line": 912,
           "function": "get_agent_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agent_config"
         },
         {
           "file": "agents_config.py",
-          "line": 902,
+          "line": 912,
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_agent_config"
         },
         {
           "file": "agents_config.py",
-          "line": 910,
+          "line": 920,
           "function": "reset_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.reset_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 920,
+          "line": 930,
           "function": "get_dispatch_configs",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_dispatch_configs"
         },
         {
           "file": "agents_config.py",
-          "line": 987,
+          "line": 998,
           "function": "get_agent_isolation",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agent_isolation"
         },
         {
           "file": "agents_config.py",
-          "line": 987,
+          "line": 998,
           "parameter": "agent_type",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_agent_isolation"
         },
         {
           "file": "agents_config.py",
-          "line": 1003,
+          "line": 1014,
           "function": "_default_archetypes_path",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._default_archetypes_path"
         },
         {
           "file": "agents_config.py",
-          "line": 1007,
+          "line": 1018,
           "function": "load_archetypes_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.load_archetypes_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1104,
+          "line": 1115,
           "function": "get_archetype",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_archetype"
         },
         {
           "file": "agents_config.py",
-          "line": 1104,
+          "line": 1115,
           "parameter": "name",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_archetype"
         },
         {
           "file": "agents_config.py",
-          "line": 1118,
+          "line": 1129,
           "function": "get_phase_mapping",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_phase_mapping"
         },
         {
           "file": "agents_config.py",
-          "line": 1130,
+          "line": 1141,
           "function": "reset_archetypes_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.reset_archetypes_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1138,
+          "line": 1149,
           "function": "_normalize_provider_model_map",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._normalize_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 1138,
+          "line": 1149,
           "parameter": "raw_map",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._normalize_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 1165,
+          "line": 1176,
           "function": "get_provider_model_map",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 1172,
+          "line": 1183,
           "function": "_tier_entry_to_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._tier_entry_to_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1172,
+          "line": 1183,
           "parameter": "entry",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._tier_entry_to_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1187,
+          "line": 1198,
           "function": "resolve_provider_model_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1188,
+          "line": 1199,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1190,
+          "line": 1201,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1240,
+          "line": 1251,
           "function": "resolve_provider_model",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1241,
+          "line": 1252,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1243,
+          "line": 1254,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1260,
+          "line": 1271,
           "function": "compose_prompt",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 1260,
+          "line": 1271,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 1260,
+          "line": 1271,
           "parameter": "task_prompt",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 1276,
+          "line": 1287,
           "function": "_unique_dir_prefixes",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._unique_dir_prefixes"
         },
         {
           "file": "agents_config.py",
-          "line": 1276,
+          "line": 1287,
           "parameter": "write_allow",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._unique_dir_prefixes"
         },
         {
           "file": "agents_config.py",
-          "line": 1295,
+          "line": 1306,
           "function": "resolve_model",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1296,
+          "line": 1307,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1297,
+          "line": 1308,
           "parameter": "package_metadata",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1334,
+          "line": 1345,
           "function": "_resolve_model_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1335,
+          "line": 1346,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1336,
+          "line": 1347,
           "parameter": "package_metadata",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1343,
+          "line": 1354,
           "function": "_finalize",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 1343,
+          "line": 1354,
           "parameter": "reasons",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 1343,
+          "line": 1354,
           "parameter": "source_model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 1400,
+          "line": 1411,
           "function": "resolve_archetype_for_phase",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
         },
         {
           "file": "agents_config.py",
-          "line": 1401,
+          "line": 1412,
           "parameter": "phase",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
@@ -24180,1028 +24243,1028 @@
         {
           "file": "coordination_api.py",
           "line": 868,
-          "parameter": "file_path",
+          "parameter": "path",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.check_lock_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 893,
+          "line": 894,
           "function": "store_memory",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.store_memory"
         },
         {
           "file": "coordination_api.py",
-          "line": 894,
+          "line": 895,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.store_memory"
         },
         {
           "file": "coordination_api.py",
-          "line": 925,
+          "line": 926,
           "function": "query_memories",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.query_memories"
         },
         {
           "file": "coordination_api.py",
-          "line": 926,
+          "line": 927,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.query_memories"
         },
         {
           "file": "coordination_api.py",
-          "line": 970,
+          "line": 971,
           "function": "claim_work",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.claim_work"
         },
         {
           "file": "coordination_api.py",
-          "line": 971,
+          "line": 972,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.claim_work"
         },
         {
           "file": "coordination_api.py",
-          "line": 1004,
+          "line": 1005,
           "function": "complete_work",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.complete_work"
         },
         {
           "file": "coordination_api.py",
-          "line": 1005,
+          "line": 1006,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.complete_work"
         },
         {
           "file": "coordination_api.py",
-          "line": 1036,
+          "line": 1037,
           "function": "submit_work",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.submit_work"
         },
         {
           "file": "coordination_api.py",
-          "line": 1037,
+          "line": 1038,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.submit_work"
         },
         {
           "file": "coordination_api.py",
-          "line": 1071,
+          "line": 1072,
           "function": "get_task_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_task_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1072,
+          "line": 1073,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_task_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1118,
+          "line": 1119,
           "function": "create_issue",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.create_issue"
         },
         {
           "file": "coordination_api.py",
-          "line": 1119,
+          "line": 1120,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.create_issue"
         },
         {
           "file": "coordination_api.py",
-          "line": 1152,
+          "line": 1153,
           "function": "list_issues",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.list_issues"
         },
         {
           "file": "coordination_api.py",
-          "line": 1153,
+          "line": 1154,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.list_issues"
         },
         {
           "file": "coordination_api.py",
-          "line": 1179,
+          "line": 1180,
           "function": "blocked_issues_early",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.blocked_issues_early"
         },
         {
           "file": "coordination_api.py",
-          "line": 1196,
+          "line": 1197,
           "function": "show_issue",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.show_issue"
         },
         {
           "file": "coordination_api.py",
-          "line": 1197,
+          "line": 1198,
           "parameter": "issue_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.show_issue"
         },
         {
           "file": "coordination_api.py",
-          "line": 1213,
+          "line": 1214,
           "function": "update_issue",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.update_issue"
         },
         {
           "file": "coordination_api.py",
-          "line": 1214,
+          "line": 1215,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.update_issue"
         },
         {
           "file": "coordination_api.py",
-          "line": 1245,
+          "line": 1246,
           "function": "close_issue",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.close_issue"
         },
         {
           "file": "coordination_api.py",
-          "line": 1246,
+          "line": 1247,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.close_issue"
         },
         {
           "file": "coordination_api.py",
-          "line": 1277,
+          "line": 1278,
           "function": "comment_issue",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.comment_issue"
         },
         {
           "file": "coordination_api.py",
-          "line": 1278,
+          "line": 1279,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.comment_issue"
         },
         {
           "file": "coordination_api.py",
-          "line": 1299,
+          "line": 1300,
           "function": "check_guardrails",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.check_guardrails"
         },
         {
           "file": "coordination_api.py",
-          "line": 1300,
+          "line": 1301,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.check_guardrails"
         },
         {
           "file": "coordination_api.py",
-          "line": 1345,
+          "line": 1346,
           "function": "get_my_profile",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_my_profile"
         },
         {
           "file": "coordination_api.py",
-          "line": 1375,
+          "line": 1376,
           "function": "get_agent_dispatch_configs",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_agent_dispatch_configs"
         },
         {
           "file": "coordination_api.py",
-          "line": 1389,
+          "line": 1390,
           "function": "query_audit",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.query_audit"
         },
         {
           "file": "coordination_api.py",
-          "line": 1449,
+          "line": 1450,
           "function": "write_handoff",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.write_handoff"
         },
         {
           "file": "coordination_api.py",
-          "line": 1450,
+          "line": 1451,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.write_handoff"
         },
         {
           "file": "coordination_api.py",
-          "line": 1478,
+          "line": 1479,
           "function": "read_handoff",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.read_handoff"
         },
         {
           "file": "coordination_api.py",
-          "line": 1479,
+          "line": 1480,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.read_handoff"
         },
         {
           "file": "coordination_api.py",
-          "line": 1519,
+          "line": 1520,
           "function": "check_policy",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.check_policy"
         },
         {
           "file": "coordination_api.py",
-          "line": 1520,
+          "line": 1521,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.check_policy"
         },
         {
           "file": "coordination_api.py",
-          "line": 1546,
+          "line": 1547,
           "function": "validate_cedar_policy",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.validate_cedar_policy"
         },
         {
           "file": "coordination_api.py",
-          "line": 1547,
+          "line": 1548,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.validate_cedar_policy"
         },
         {
           "file": "coordination_api.py",
-          "line": 1577,
+          "line": 1578,
           "function": "allocate_ports",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.allocate_ports"
         },
         {
           "file": "coordination_api.py",
-          "line": 1578,
+          "line": 1579,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.allocate_ports"
         },
         {
           "file": "coordination_api.py",
-          "line": 1599,
+          "line": 1600,
           "function": "release_ports",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.release_ports"
         },
         {
           "file": "coordination_api.py",
-          "line": 1600,
+          "line": 1601,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.release_ports"
         },
         {
           "file": "coordination_api.py",
-          "line": 1608,
+          "line": 1609,
           "function": "port_status",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.port_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 1630,
+          "line": 1631,
           "function": "_approval_to_dict",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api._approval_to_dict"
         },
         {
           "file": "coordination_api.py",
-          "line": 1630,
+          "line": 1631,
           "parameter": "r",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api._approval_to_dict"
         },
         {
           "file": "coordination_api.py",
-          "line": 1648,
+          "line": 1649,
           "function": "list_pending_approvals",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.list_pending_approvals"
         },
         {
           "file": "coordination_api.py",
-          "line": 1659,
+          "line": 1660,
           "function": "decide_approval",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.decide_approval"
         },
         {
           "file": "coordination_api.py",
-          "line": 1660,
+          "line": 1661,
           "parameter": "request_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.decide_approval"
         },
         {
           "file": "coordination_api.py",
-          "line": 1661,
+          "line": 1662,
           "parameter": "body",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.decide_approval"
         },
         {
           "file": "coordination_api.py",
-          "line": 1686,
+          "line": 1687,
           "function": "list_policy_versions_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.list_policy_versions_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1687,
+          "line": 1688,
           "parameter": "policy_name",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.list_policy_versions_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1699,
+          "line": 1700,
           "function": "rollback_policy_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.rollback_policy_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1700,
+          "line": 1701,
           "parameter": "policy_name",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.rollback_policy_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1701,
+          "line": 1702,
           "parameter": "body",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.rollback_policy_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1718,
+          "line": 1719,
           "function": "register_feature_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.register_feature_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1719,
+          "line": 1720,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.register_feature_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1752,
+          "line": 1753,
           "function": "deregister_feature_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.deregister_feature_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1753,
+          "line": 1754,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.deregister_feature_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1779,
+          "line": 1780,
           "function": "get_feature_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_feature_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1780,
+          "line": 1781,
           "parameter": "feature_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_feature_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1803,
+          "line": 1804,
           "function": "list_active_features_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.list_active_features_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1833,
+          "line": 1834,
           "function": "analyze_feature_conflicts_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.analyze_feature_conflicts_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1834,
+          "line": 1835,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.analyze_feature_conflicts_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1857,
+          "line": 1858,
           "function": "enqueue_merge_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.enqueue_merge_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1858,
+          "line": 1859,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.enqueue_merge_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1890,
+          "line": 1891,
           "function": "get_merge_queue_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_merge_queue_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1919,
+          "line": 1920,
           "function": "get_next_merge_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_next_merge_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1940,
+          "line": 1941,
           "function": "run_pre_merge_checks_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.run_pre_merge_checks_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1941,
+          "line": 1942,
           "parameter": "feature_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.run_pre_merge_checks_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1965,
+          "line": 1966,
           "function": "mark_merged_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.mark_merged_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1966,
+          "line": 1967,
           "parameter": "feature_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.mark_merged_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1984,
+          "line": 1985,
           "function": "remove_from_merge_queue_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.remove_from_merge_queue_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 1985,
+          "line": 1986,
           "parameter": "feature_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.remove_from_merge_queue_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2007,
+          "line": 2008,
           "function": "compose_train_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.compose_train_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2061,
+          "line": 2062,
           "function": "eject_from_train_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.eject_from_train_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2062,
+          "line": 2063,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.eject_from_train_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2110,
+          "line": 2111,
           "function": "get_train_status_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_train_status_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2111,
+          "line": 2112,
           "parameter": "train_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_train_status_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2140,
+          "line": 2141,
           "function": "report_spec_result_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.report_spec_result_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2141,
+          "line": 2142,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.report_spec_result_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2179,
+          "line": 2180,
           "function": "affected_tests_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.affected_tests_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2180,
+          "line": 2181,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.affected_tests_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2202,
+          "line": 2203,
           "function": "merge_train_metrics_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.merge_train_metrics_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2238,
+          "line": 2239,
           "function": "resolve_archetype_for_phase_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2239,
+          "line": 2240,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2315,
+          "line": 2316,
           "function": "report_status",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.report_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2316,
+          "line": 2317,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.report_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2408,
+          "line": 2409,
           "function": "test_notification",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.test_notification"
         },
         {
           "file": "coordination_api.py",
-          "line": 2445,
+          "line": 2446,
           "function": "notifications_status",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.notifications_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2462,
+          "line": 2463,
           "function": "discovery_register",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_register"
         },
         {
           "file": "coordination_api.py",
-          "line": 2463,
+          "line": 2464,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_register"
         },
         {
           "file": "coordination_api.py",
-          "line": 2493,
+          "line": 2494,
           "function": "discovery_agents",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_agents"
         },
         {
           "file": "coordination_api.py",
-          "line": 2527,
+          "line": 2528,
           "function": "discovery_heartbeat",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_heartbeat"
         },
         {
           "file": "coordination_api.py",
-          "line": 2528,
+          "line": 2529,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_heartbeat"
         },
         {
           "file": "coordination_api.py",
-          "line": 2554,
+          "line": 2555,
           "function": "discovery_cleanup",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_cleanup"
         },
         {
           "file": "coordination_api.py",
-          "line": 2555,
+          "line": 2556,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_cleanup"
         },
         {
           "file": "coordination_api.py",
-          "line": 2591,
+          "line": 2592,
           "function": "gen_eval_list_scenarios",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_list_scenarios"
         },
         {
           "file": "coordination_api.py",
-          "line": 2619,
+          "line": 2620,
           "function": "gen_eval_validate",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_validate"
         },
         {
           "file": "coordination_api.py",
-          "line": 2620,
+          "line": 2621,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_validate"
         },
         {
           "file": "coordination_api.py",
-          "line": 2643,
+          "line": 2644,
           "function": "gen_eval_create",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_create"
         },
         {
           "file": "coordination_api.py",
-          "line": 2644,
+          "line": 2645,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_create"
         },
         {
           "file": "coordination_api.py",
-          "line": 2668,
+          "line": 2669,
           "function": "gen_eval_run",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_run"
         },
         {
           "file": "coordination_api.py",
-          "line": 2669,
+          "line": 2670,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_run"
         },
         {
           "file": "coordination_api.py",
-          "line": 2698,
+          "line": 2699,
           "function": "search_issues",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.search_issues"
         },
         {
           "file": "coordination_api.py",
-          "line": 2699,
+          "line": 2700,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.search_issues"
         },
         {
           "file": "coordination_api.py",
-          "line": 2714,
+          "line": 2715,
           "function": "ready_issues",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.ready_issues"
         },
         {
           "file": "coordination_api.py",
-          "line": 2715,
+          "line": 2716,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.ready_issues"
         },
         {
           "file": "coordination_api.py",
-          "line": 2740,
+          "line": 2741,
           "function": "request_permission_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.request_permission_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2741,
+          "line": 2742,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.request_permission_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2779,
+          "line": 2780,
           "function": "request_approval_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.request_approval_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2780,
+          "line": 2781,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.request_approval_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2818,
+          "line": 2819,
           "function": "check_approval_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.check_approval_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2819,
+          "line": 2820,
           "parameter": "request_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.check_approval_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2849,
+          "line": 2850,
           "function": "_database_health",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api._database_health"
         },
         {
           "file": "coordination_api.py",
-          "line": 2877,
+          "line": 2878,
           "function": "help_overview",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.help_overview"
         },
         {
           "file": "coordination_api.py",
-          "line": 2887,
+          "line": 2888,
           "function": "help_topic",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.help_topic"
         },
         {
           "file": "coordination_api.py",
-          "line": 2887,
+          "line": 2888,
           "parameter": "topic",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.help_topic"
         },
         {
           "file": "coordination_api.py",
-          "line": 2914,
+          "line": 2915,
           "function": "get_sync_points_status",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_sync_points_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2927,
+          "line": 2928,
           "function": "get_active_worktrees",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_active_worktrees"
         },
         {
           "file": "coordination_api.py",
-          "line": 2939,
+          "line": 2940,
           "function": "mint_events_token",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.mint_events_token"
         },
         {
           "file": "coordination_api.py",
-          "line": 2940,
+          "line": 2941,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.mint_events_token"
         },
         {
           "file": "coordination_api.py",
-          "line": 2972,
+          "line": 2973,
           "function": "stream_work_events",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.stream_work_events"
         },
         {
           "file": "coordination_api.py",
-          "line": 3023,
+          "line": 3024,
           "function": "patch_issue_labels",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.patch_issue_labels"
         },
         {
           "file": "coordination_api.py",
-          "line": 3024,
+          "line": 3025,
           "parameter": "issue_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.patch_issue_labels"
         },
         {
           "file": "coordination_api.py",
-          "line": 3025,
+          "line": 3026,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.patch_issue_labels"
         },
         {
           "file": "coordination_api.py",
-          "line": 3075,
+          "line": 3076,
           "function": "force_release_lock",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.force_release_lock"
         },
         {
           "file": "coordination_api.py",
-          "line": 3076,
-          "parameter": "file_path",
+          "line": 3077,
+          "parameter": "path",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.force_release_lock"
         },
         {
           "file": "coordination_api.py",
-          "line": 3111,
+          "line": 3113,
           "function": "kick_agent",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
         },
         {
           "file": "coordination_api.py",
-          "line": 3112,
+          "line": 3114,
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
         },
         {
           "file": "coordination_api.py",
-          "line": 3113,
+          "line": 3115,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
         },
         {
           "file": "coordination_api.py",
-          "line": 3232,
+          "line": 3234,
           "function": "put_saved_view",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.put_saved_view"
         },
         {
           "file": "coordination_api.py",
-          "line": 3233,
+          "line": 3235,
           "parameter": "slug",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.put_saved_view"
         },
         {
           "file": "coordination_api.py",
-          "line": 3234,
+          "line": 3236,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.put_saved_view"
         },
         {
           "file": "coordination_api.py",
-          "line": 3269,
+          "line": 3271,
           "function": "post_kanban_audit",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.post_kanban_audit"
         },
         {
           "file": "coordination_api.py",
-          "line": 3270,
+          "line": 3272,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.post_kanban_audit"
         },
         {
           "file": "coordination_api.py",
-          "line": 3305,
+          "line": 3307,
           "function": "live",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.live"
         },
         {
           "file": "coordination_api.py",
-          "line": 3310,
+          "line": 3312,
           "function": "ready",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.ready"
         },
         {
           "file": "coordination_api.py",
-          "line": 3322,
+          "line": 3324,
           "function": "health",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.health"
         },
         {
           "file": "coordination_api.py",
-          "line": 3333,
+          "line": 3335,
           "function": "github_prs",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.github_prs"
         },
         {
           "file": "coordination_api.py",
-          "line": 3373,
+          "line": 3375,
           "function": "openspec_proposals",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.openspec_proposals"
         },
         {
           "file": "coordination_api.py",
-          "line": 3419,
+          "line": 3421,
           "function": "code_search_status_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.code_search_status_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 3439,
+          "line": 3441,
           "function": "verify_code_search_principal",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.verify_code_search_principal"
         },
         {
           "file": "coordination_api.py",
-          "line": 3439,
+          "line": 3441,
           "parameter": "http_request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.verify_code_search_principal"
         },
         {
           "file": "coordination_api.py",
-          "line": 3456,
+          "line": 3458,
           "function": "search_code_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.search_code_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 3457,
+          "line": 3459,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.search_code_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 3494,
+          "line": 3496,
           "function": "main",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.main"
@@ -35491,14 +35554,22 @@
     }
   },
   "security_patterns": {
-    "total": 4,
+    "total": 5,
     "by_severity": {
-      "medium": 4
+      "medium": 5
     },
     "items": [
       {
         "file": "agents_config.py",
-        "line": 480,
+        "line": 473,
+        "category": "hardcoded_secret",
+        "severity": "medium",
+        "detail": "Potential hardcoded secret in 'api_key_env'",
+        "enclosing_node": "py:agents_config.CliConfig"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 489,
         "category": "hardcoded_secret",
         "severity": "medium",
         "detail": "Potential hardcoded secret in 'api_key_env'",

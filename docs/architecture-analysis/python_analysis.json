@@ -1310,8 +1310,8 @@
       "name": "__init__",
       "qualified_name": "agents_config.ProviderModelMappingError.__init__",
       "file": "agents_config.py",
-      "line_start": 584,
-      "line_end": 598,
+      "line_start": 593,
+      "line_end": 607,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1329,8 +1329,8 @@
       "name": "_default_agents_path",
       "qualified_name": "agents_config._default_agents_path",
       "file": "agents_config.py",
-      "line_start": 605,
-      "line_end": 606,
+      "line_start": 614,
+      "line_end": 615,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1350,8 +1350,8 @@
       "name": "_default_secrets_path",
       "qualified_name": "agents_config._default_secrets_path",
       "file": "agents_config.py",
-      "line_start": 609,
-      "line_end": 610,
+      "line_start": 618,
+      "line_end": 619,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1371,8 +1371,8 @@
       "name": "load_agents_config",
       "qualified_name": "agents_config.load_agents_config",
       "file": "agents_config.py",
-      "line_start": 613,
-      "line_end": 733,
+      "line_start": 622,
+      "line_end": 743,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1416,8 +1416,8 @@
       "name": "_parse_mode",
       "qualified_name": "agents_config.load_agents_config._parse_mode",
       "file": "agents_config.py",
-      "line_start": 666,
-      "line_end": 688,
+      "line_start": 675,
+      "line_end": 697,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1440,8 +1440,8 @@
       "name": "_resolve_api_key_from_openbao",
       "qualified_name": "agents_config._resolve_api_key_from_openbao",
       "file": "agents_config.py",
-      "line_start": 740,
-      "line_end": 788,
+      "line_start": 750,
+      "line_end": 798,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1472,8 +1472,8 @@
       "name": "get_api_key_identities",
       "qualified_name": "agents_config.get_api_key_identities",
       "file": "agents_config.py",
-      "line_start": 791,
-      "line_end": 841,
+      "line_start": 801,
+      "line_end": 851,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1497,8 +1497,8 @@
       "name": "get_mcp_env",
       "qualified_name": "agents_config.get_mcp_env",
       "file": "agents_config.py",
-      "line_start": 848,
-      "line_end": 876,
+      "line_start": 858,
+      "line_end": 886,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1518,8 +1518,8 @@
       "name": "get_agents_config",
       "qualified_name": "agents_config.get_agents_config",
       "file": "agents_config.py",
-      "line_start": 886,
-      "line_end": 899,
+      "line_start": 896,
+      "line_end": 909,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1539,8 +1539,8 @@
       "name": "get_agent_config",
       "qualified_name": "agents_config.get_agent_config",
       "file": "agents_config.py",
-      "line_start": 902,
-      "line_end": 907,
+      "line_start": 912,
+      "line_end": 917,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1557,8 +1557,8 @@
       "name": "reset_agents_config",
       "qualified_name": "agents_config.reset_agents_config",
       "file": "agents_config.py",
-      "line_start": 910,
-      "line_end": 913,
+      "line_start": 920,
+      "line_end": 923,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -1571,8 +1571,8 @@
       "name": "get_dispatch_configs",
       "qualified_name": "agents_config.get_dispatch_configs",
       "file": "agents_config.py",
-      "line_start": 920,
-      "line_end": 980,
+      "line_start": 930,
+      "line_end": 991,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1593,8 +1593,8 @@
       "name": "get_agent_isolation",
       "qualified_name": "agents_config.get_agent_isolation",
       "file": "agents_config.py",
-      "line_start": 987,
-      "line_end": 996,
+      "line_start": 998,
+      "line_end": 1007,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1609,8 +1609,8 @@
       "name": "_default_archetypes_path",
       "qualified_name": "agents_config._default_archetypes_path",
       "file": "agents_config.py",
-      "line_start": 1003,
-      "line_end": 1004,
+      "line_start": 1014,
+      "line_end": 1015,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1630,8 +1630,8 @@
       "name": "load_archetypes_config",
       "qualified_name": "agents_config.load_archetypes_config",
       "file": "agents_config.py",
-      "line_start": 1007,
-      "line_end": 1096,
+      "line_start": 1018,
+      "line_end": 1107,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1672,8 +1672,8 @@
       "name": "get_archetype",
       "qualified_name": "agents_config.get_archetype",
       "file": "agents_config.py",
-      "line_start": 1104,
-      "line_end": 1115,
+      "line_start": 1115,
+      "line_end": 1126,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1693,8 +1693,8 @@
       "name": "get_phase_mapping",
       "qualified_name": "agents_config.get_phase_mapping",
       "file": "agents_config.py",
-      "line_start": 1118,
-      "line_end": 1127,
+      "line_start": 1129,
+      "line_end": 1138,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1709,8 +1709,8 @@
       "name": "reset_archetypes_config",
       "qualified_name": "agents_config.reset_archetypes_config",
       "file": "agents_config.py",
-      "line_start": 1130,
-      "line_end": 1135,
+      "line_start": 1141,
+      "line_end": 1146,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -1723,8 +1723,8 @@
       "name": "_normalize_provider_model_map",
       "qualified_name": "agents_config._normalize_provider_model_map",
       "file": "agents_config.py",
-      "line_start": 1138,
-      "line_end": 1162,
+      "line_start": 1149,
+      "line_end": 1173,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1748,8 +1748,8 @@
       "name": "get_provider_model_map",
       "qualified_name": "agents_config.get_provider_model_map",
       "file": "agents_config.py",
-      "line_start": 1165,
-      "line_end": 1169,
+      "line_start": 1176,
+      "line_end": 1180,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1767,8 +1767,8 @@
       "name": "_tier_entry_to_spec",
       "qualified_name": "agents_config._tier_entry_to_spec",
       "file": "agents_config.py",
-      "line_start": 1172,
-      "line_end": 1184,
+      "line_start": 1183,
+      "line_end": 1195,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1790,8 +1790,8 @@
       "name": "resolve_provider_model_spec",
       "qualified_name": "agents_config.resolve_provider_model_spec",
       "file": "agents_config.py",
-      "line_start": 1187,
-      "line_end": 1237,
+      "line_start": 1198,
+      "line_end": 1248,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1825,8 +1825,8 @@
       "name": "resolve_provider_model",
       "qualified_name": "agents_config.resolve_provider_model",
       "file": "agents_config.py",
-      "line_start": 1240,
-      "line_end": 1253,
+      "line_start": 1251,
+      "line_end": 1264,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1841,8 +1841,8 @@
       "name": "compose_prompt",
       "qualified_name": "agents_config.compose_prompt",
       "file": "agents_config.py",
-      "line_start": 1260,
-      "line_end": 1269,
+      "line_start": 1271,
+      "line_end": 1280,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -1855,8 +1855,8 @@
       "name": "_unique_dir_prefixes",
       "qualified_name": "agents_config._unique_dir_prefixes",
       "file": "agents_config.py",
-      "line_start": 1276,
-      "line_end": 1292,
+      "line_start": 1287,
+      "line_end": 1303,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1881,8 +1881,8 @@
       "name": "resolve_model",
       "qualified_name": "agents_config.resolve_model",
       "file": "agents_config.py",
-      "line_start": 1295,
-      "line_end": 1331,
+      "line_start": 1306,
+      "line_end": 1342,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1897,8 +1897,8 @@
       "name": "_resolve_model_spec",
       "qualified_name": "agents_config._resolve_model_spec",
       "file": "agents_config.py",
-      "line_start": 1334,
-      "line_end": 1392,
+      "line_start": 1345,
+      "line_end": 1403,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1926,8 +1926,8 @@
       "name": "_finalize",
       "qualified_name": "agents_config._resolve_model_spec._finalize",
       "file": "agents_config.py",
-      "line_start": 1343,
-      "line_end": 1355,
+      "line_start": 1354,
+      "line_end": 1366,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1946,8 +1946,8 @@
       "name": "resolve_archetype_for_phase",
       "qualified_name": "agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line_start": 1400,
-      "line_end": 1486,
+      "line_start": 1411,
+      "line_end": 1497,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -5727,7 +5727,7 @@
       "qualified_name": "coordination_api.create_coordination_api",
       "file": "coordination_api.py",
       "line_start": 577,
-      "line_end": 3486,
+      "line_end": 3488,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -6126,10 +6126,10 @@
       "qualified_name": "coordination_api.create_coordination_api.check_lock_status",
       "file": "coordination_api.py",
       "line_start": 868,
-      "line_end": 886,
+      "line_end": 887,
       "is_async": true,
       "decorators": [
-        "app.get('/locks/status/{file_path:path}')"
+        "app.get('/locks/status/{path:path}')"
       ],
       "calls": [
         "get_lock_service.check",
@@ -6149,8 +6149,8 @@
       "name": "store_memory",
       "qualified_name": "coordination_api.create_coordination_api.store_memory",
       "file": "coordination_api.py",
-      "line_start": 893,
-      "line_end": 922,
+      "line_start": 894,
+      "line_end": 923,
       "is_async": true,
       "decorators": [
         "app.post('/memory/store')"
@@ -6173,8 +6173,8 @@
       "name": "query_memories",
       "qualified_name": "coordination_api.create_coordination_api.query_memories",
       "file": "coordination_api.py",
-      "line_start": 925,
-      "line_end": 963,
+      "line_start": 926,
+      "line_end": 964,
       "is_async": true,
       "decorators": [
         "app.post('/memory/query')"
@@ -6202,8 +6202,8 @@
       "name": "claim_work",
       "qualified_name": "coordination_api.create_coordination_api.claim_work",
       "file": "coordination_api.py",
-      "line_start": 970,
-      "line_end": 1001,
+      "line_start": 971,
+      "line_end": 1002,
       "is_async": true,
       "decorators": [
         "app.post('/work/claim')"
@@ -6228,8 +6228,8 @@
       "name": "complete_work",
       "qualified_name": "coordination_api.create_coordination_api.complete_work",
       "file": "coordination_api.py",
-      "line_start": 1004,
-      "line_end": 1033,
+      "line_start": 1005,
+      "line_end": 1034,
       "is_async": true,
       "decorators": [
         "app.post('/work/complete')"
@@ -6254,8 +6254,8 @@
       "name": "submit_work",
       "qualified_name": "coordination_api.create_coordination_api.submit_work",
       "file": "coordination_api.py",
-      "line_start": 1036,
-      "line_end": 1068,
+      "line_start": 1037,
+      "line_end": 1069,
       "is_async": true,
       "decorators": [
         "app.post('/work/submit')"
@@ -6280,8 +6280,8 @@
       "name": "get_task_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.get_task_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1071,
-      "line_end": 1111,
+      "line_start": 1072,
+      "line_end": 1112,
       "is_async": true,
       "decorators": [
         "app.post('/work/get')"
@@ -6310,8 +6310,8 @@
       "name": "create_issue",
       "qualified_name": "coordination_api.create_coordination_api.create_issue",
       "file": "coordination_api.py",
-      "line_start": 1118,
-      "line_end": 1149,
+      "line_start": 1119,
+      "line_end": 1150,
       "is_async": true,
       "decorators": [
         "app.post('/issues/create')"
@@ -6338,8 +6338,8 @@
       "name": "list_issues",
       "qualified_name": "coordination_api.create_coordination_api.list_issues",
       "file": "coordination_api.py",
-      "line_start": 1152,
-      "line_end": 1176,
+      "line_start": 1153,
+      "line_end": 1177,
       "is_async": true,
       "decorators": [
         "app.post('/issues/list')"
@@ -6364,8 +6364,8 @@
       "name": "blocked_issues_early",
       "qualified_name": "coordination_api.create_coordination_api.blocked_issues_early",
       "file": "coordination_api.py",
-      "line_start": 1179,
-      "line_end": 1193,
+      "line_start": 1180,
+      "line_end": 1194,
       "is_async": true,
       "decorators": [
         "app.get('/issues/blocked')"
@@ -6388,8 +6388,8 @@
       "name": "show_issue",
       "qualified_name": "coordination_api.create_coordination_api.show_issue",
       "file": "coordination_api.py",
-      "line_start": 1196,
-      "line_end": 1210,
+      "line_start": 1197,
+      "line_end": 1211,
       "is_async": true,
       "decorators": [
         "app.get('/issues/{issue_id}')"
@@ -6412,8 +6412,8 @@
       "name": "update_issue",
       "qualified_name": "coordination_api.create_coordination_api.update_issue",
       "file": "coordination_api.py",
-      "line_start": 1213,
-      "line_end": 1242,
+      "line_start": 1214,
+      "line_end": 1243,
       "is_async": true,
       "decorators": [
         "app.post('/issues/update')"
@@ -6440,8 +6440,8 @@
       "name": "close_issue",
       "qualified_name": "coordination_api.create_coordination_api.close_issue",
       "file": "coordination_api.py",
-      "line_start": 1245,
-      "line_end": 1274,
+      "line_start": 1246,
+      "line_end": 1275,
       "is_async": true,
       "decorators": [
         "app.post('/issues/close')"
@@ -6468,8 +6468,8 @@
       "name": "comment_issue",
       "qualified_name": "coordination_api.create_coordination_api.comment_issue",
       "file": "coordination_api.py",
-      "line_start": 1277,
-      "line_end": 1292,
+      "line_start": 1278,
+      "line_end": 1293,
       "is_async": true,
       "decorators": [
         "app.post('/issues/comment')"
@@ -6494,8 +6494,8 @@
       "name": "check_guardrails",
       "qualified_name": "coordination_api.create_coordination_api.check_guardrails",
       "file": "coordination_api.py",
-      "line_start": 1299,
-      "line_end": 1338,
+      "line_start": 1300,
+      "line_end": 1339,
       "is_async": true,
       "decorators": [
         "app.post('/guardrails/check')"
@@ -6520,8 +6520,8 @@
       "name": "get_my_profile",
       "qualified_name": "coordination_api.create_coordination_api.get_my_profile",
       "file": "coordination_api.py",
-      "line_start": 1345,
-      "line_end": 1372,
+      "line_start": 1346,
+      "line_end": 1373,
       "is_async": true,
       "decorators": [
         "app.get('/profiles/me')"
@@ -6543,8 +6543,8 @@
       "name": "get_agent_dispatch_configs",
       "qualified_name": "coordination_api.create_coordination_api.get_agent_dispatch_configs",
       "file": "coordination_api.py",
-      "line_start": 1375,
-      "line_end": 1382,
+      "line_start": 1376,
+      "line_end": 1383,
       "is_async": true,
       "decorators": [
         "app.get('/agents/dispatch-configs')"
@@ -6564,8 +6564,8 @@
       "name": "query_audit",
       "qualified_name": "coordination_api.create_coordination_api.query_audit",
       "file": "coordination_api.py",
-      "line_start": 1389,
-      "line_end": 1442,
+      "line_start": 1390,
+      "line_end": 1443,
       "is_async": true,
       "decorators": [
         "app.get('/audit')"
@@ -6594,8 +6594,8 @@
       "name": "write_handoff",
       "qualified_name": "coordination_api.create_coordination_api.write_handoff",
       "file": "coordination_api.py",
-      "line_start": 1449,
-      "line_end": 1475,
+      "line_start": 1450,
+      "line_end": 1476,
       "is_async": true,
       "decorators": [
         "app.post('/handoffs/write')"
@@ -6618,8 +6618,8 @@
       "name": "read_handoff",
       "qualified_name": "coordination_api.create_coordination_api.read_handoff",
       "file": "coordination_api.py",
-      "line_start": 1478,
-      "line_end": 1512,
+      "line_start": 1479,
+      "line_end": 1513,
       "is_async": true,
       "decorators": [
         "app.post('/handoffs/read')"
@@ -6644,8 +6644,8 @@
       "name": "check_policy",
       "qualified_name": "coordination_api.create_coordination_api.check_policy",
       "file": "coordination_api.py",
-      "line_start": 1519,
-      "line_end": 1543,
+      "line_start": 1520,
+      "line_end": 1544,
       "is_async": true,
       "decorators": [
         "app.post('/policy/check')"
@@ -6668,8 +6668,8 @@
       "name": "validate_cedar_policy",
       "qualified_name": "coordination_api.create_coordination_api.validate_cedar_policy",
       "file": "coordination_api.py",
-      "line_start": 1546,
-      "line_end": 1570,
+      "line_start": 1547,
+      "line_end": 1571,
       "is_async": true,
       "decorators": [
         "app.post('/policy/validate')"
@@ -6692,8 +6692,8 @@
       "name": "allocate_ports",
       "qualified_name": "coordination_api.create_coordination_api.allocate_ports",
       "file": "coordination_api.py",
-      "line_start": 1577,
-      "line_end": 1596,
+      "line_start": 1578,
+      "line_end": 1597,
       "is_async": true,
       "decorators": [
         "app.post('/ports/allocate')"
@@ -6714,8 +6714,8 @@
       "name": "release_ports",
       "qualified_name": "coordination_api.create_coordination_api.release_ports",
       "file": "coordination_api.py",
-      "line_start": 1599,
-      "line_end": 1605,
+      "line_start": 1600,
+      "line_end": 1606,
       "is_async": true,
       "decorators": [
         "app.post('/ports/release')"
@@ -6736,8 +6736,8 @@
       "name": "port_status",
       "qualified_name": "coordination_api.create_coordination_api.port_status",
       "file": "coordination_api.py",
-      "line_start": 1608,
-      "line_end": 1624,
+      "line_start": 1609,
+      "line_end": 1625,
       "is_async": true,
       "decorators": [
         "app.get('/ports/status')"
@@ -6760,8 +6760,8 @@
       "name": "_approval_to_dict",
       "qualified_name": "coordination_api.create_coordination_api._approval_to_dict",
       "file": "coordination_api.py",
-      "line_start": 1630,
-      "line_end": 1645,
+      "line_start": 1631,
+      "line_end": 1646,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -6782,8 +6782,8 @@
       "name": "list_pending_approvals",
       "qualified_name": "coordination_api.create_coordination_api.list_pending_approvals",
       "file": "coordination_api.py",
-      "line_start": 1648,
-      "line_end": 1656,
+      "line_start": 1649,
+      "line_end": 1657,
       "is_async": true,
       "decorators": [
         "app.get('/approvals/pending')"
@@ -6805,8 +6805,8 @@
       "name": "decide_approval",
       "qualified_name": "coordination_api.create_coordination_api.decide_approval",
       "file": "coordination_api.py",
-      "line_start": 1659,
-      "line_end": 1679,
+      "line_start": 1660,
+      "line_end": 1680,
       "is_async": true,
       "decorators": [
         "app.post('/approvals/{request_id}/decide')"
@@ -6830,8 +6830,8 @@
       "name": "list_policy_versions_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.list_policy_versions_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1686,
-      "line_end": 1696,
+      "line_start": 1687,
+      "line_end": 1697,
       "is_async": true,
       "decorators": [
         "app.get('/policies/{policy_name}/versions')"
@@ -6852,8 +6852,8 @@
       "name": "rollback_policy_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.rollback_policy_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1699,
-      "line_end": 1711,
+      "line_start": 1700,
+      "line_end": 1712,
       "is_async": true,
       "decorators": [
         "app.post('/policies/{policy_name}/rollback')"
@@ -6877,8 +6877,8 @@
       "name": "register_feature_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.register_feature_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1718,
-      "line_end": 1749,
+      "line_start": 1719,
+      "line_end": 1750,
       "is_async": true,
       "decorators": [
         "app.post('/features/register')"
@@ -6901,8 +6901,8 @@
       "name": "deregister_feature_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.deregister_feature_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1752,
-      "line_end": 1776,
+      "line_start": 1753,
+      "line_end": 1777,
       "is_async": true,
       "decorators": [
         "app.post('/features/deregister')"
@@ -6925,8 +6925,8 @@
       "name": "get_feature_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.get_feature_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1779,
-      "line_end": 1800,
+      "line_start": 1780,
+      "line_end": 1801,
       "is_async": true,
       "decorators": [
         "app.get('/features/{feature_id}')"
@@ -6950,8 +6950,8 @@
       "name": "list_active_features_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.list_active_features_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1803,
-      "line_end": 1830,
+      "line_start": 1804,
+      "line_end": 1831,
       "is_async": true,
       "decorators": [
         "app.get('/features/active')"
@@ -6974,8 +6974,8 @@
       "name": "analyze_feature_conflicts_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.analyze_feature_conflicts_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1833,
-      "line_end": 1850,
+      "line_start": 1834,
+      "line_end": 1851,
       "is_async": true,
       "decorators": [
         "app.post('/features/conflicts')"
@@ -6996,8 +6996,8 @@
       "name": "enqueue_merge_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.enqueue_merge_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1857,
-      "line_end": 1887,
+      "line_start": 1858,
+      "line_end": 1888,
       "is_async": true,
       "decorators": [
         "app.post('/merge-queue/enqueue')"
@@ -7020,8 +7020,8 @@
       "name": "get_merge_queue_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.get_merge_queue_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1890,
-      "line_end": 1916,
+      "line_start": 1891,
+      "line_end": 1917,
       "is_async": true,
       "decorators": [
         "app.get('/merge-queue')"
@@ -7045,8 +7045,8 @@
       "name": "get_next_merge_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.get_next_merge_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1919,
-      "line_end": 1937,
+      "line_start": 1920,
+      "line_end": 1938,
       "is_async": true,
       "decorators": [
         "app.get('/merge-queue/next')"
@@ -7067,8 +7067,8 @@
       "name": "run_pre_merge_checks_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.run_pre_merge_checks_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1940,
-      "line_end": 1962,
+      "line_start": 1941,
+      "line_end": 1963,
       "is_async": true,
       "decorators": [
         "app.post('/merge-queue/check/{feature_id}')"
@@ -7091,8 +7091,8 @@
       "name": "mark_merged_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.mark_merged_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1965,
-      "line_end": 1981,
+      "line_start": 1966,
+      "line_end": 1982,
       "is_async": true,
       "decorators": [
         "app.post('/merge-queue/merged/{feature_id}')"
@@ -7115,8 +7115,8 @@
       "name": "remove_from_merge_queue_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.remove_from_merge_queue_endpoint",
       "file": "coordination_api.py",
-      "line_start": 1984,
-      "line_end": 2000,
+      "line_start": 1985,
+      "line_end": 2001,
       "is_async": true,
       "decorators": [
         "app.delete('/merge-queue/{feature_id}')"
@@ -7139,8 +7139,8 @@
       "name": "compose_train_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.compose_train_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2007,
-      "line_end": 2058,
+      "line_start": 2008,
+      "line_end": 2059,
       "is_async": true,
       "decorators": [
         "app.post('/merge-train/compose')"
@@ -7168,8 +7168,8 @@
       "name": "eject_from_train_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.eject_from_train_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2061,
-      "line_end": 2107,
+      "line_start": 2062,
+      "line_end": 2108,
       "is_async": true,
       "decorators": [
         "app.post('/merge-train/eject')"
@@ -7195,8 +7195,8 @@
       "name": "get_train_status_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.get_train_status_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2110,
-      "line_end": 2137,
+      "line_start": 2111,
+      "line_end": 2138,
       "is_async": true,
       "decorators": [
         "app.get('/merge-train/status/{train_id}')"
@@ -7217,8 +7217,8 @@
       "name": "report_spec_result_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.report_spec_result_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2140,
-      "line_end": 2176,
+      "line_start": 2141,
+      "line_end": 2177,
       "is_async": true,
       "decorators": [
         "app.post('/merge-train/report-result')"
@@ -7241,8 +7241,8 @@
       "name": "affected_tests_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.affected_tests_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2179,
-      "line_end": 2195,
+      "line_start": 2180,
+      "line_end": 2196,
       "is_async": true,
       "decorators": [
         "app.post('/merge-train/affected-tests')"
@@ -7262,8 +7262,8 @@
       "name": "merge_train_metrics_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.merge_train_metrics_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2202,
-      "line_end": 2231,
+      "line_start": 2203,
+      "line_end": 2232,
       "is_async": true,
       "decorators": [
         "app.get('/merge-train/metrics')"
@@ -7288,8 +7288,8 @@
       "name": "resolve_archetype_for_phase_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2238,
-      "line_end": 2308,
+      "line_start": 2239,
+      "line_end": 2309,
       "is_async": true,
       "decorators": [
         "app.post('/archetypes/resolve_for_phase')"
@@ -7318,8 +7318,8 @@
       "name": "report_status",
       "qualified_name": "coordination_api.create_coordination_api.report_status",
       "file": "coordination_api.py",
-      "line_start": 2315,
-      "line_end": 2401,
+      "line_start": 2316,
+      "line_end": 2402,
       "is_async": true,
       "decorators": [
         "app.post('/status/report')"
@@ -7353,8 +7353,8 @@
       "name": "test_notification",
       "qualified_name": "coordination_api.create_coordination_api.test_notification",
       "file": "coordination_api.py",
-      "line_start": 2408,
-      "line_end": 2442,
+      "line_start": 2409,
+      "line_end": 2443,
       "is_async": true,
       "decorators": [
         "app.post('/notifications/test')"
@@ -7381,8 +7381,8 @@
       "name": "notifications_status",
       "qualified_name": "coordination_api.create_coordination_api.notifications_status",
       "file": "coordination_api.py",
-      "line_start": 2445,
-      "line_end": 2455,
+      "line_start": 2446,
+      "line_end": 2456,
       "is_async": true,
       "decorators": [
         "app.get('/notifications/status')"
@@ -7402,8 +7402,8 @@
       "name": "discovery_register",
       "qualified_name": "coordination_api.create_coordination_api.discovery_register",
       "file": "coordination_api.py",
-      "line_start": 2462,
-      "line_end": 2490,
+      "line_start": 2463,
+      "line_end": 2491,
       "is_async": true,
       "decorators": [
         "app.post('/discovery/register')"
@@ -7426,8 +7426,8 @@
       "name": "discovery_agents",
       "qualified_name": "coordination_api.create_coordination_api.discovery_agents",
       "file": "coordination_api.py",
-      "line_start": 2493,
-      "line_end": 2524,
+      "line_start": 2494,
+      "line_end": 2525,
       "is_async": true,
       "decorators": [
         "app.get('/discovery/agents')"
@@ -7450,8 +7450,8 @@
       "name": "discovery_heartbeat",
       "qualified_name": "coordination_api.create_coordination_api.discovery_heartbeat",
       "file": "coordination_api.py",
-      "line_start": 2527,
-      "line_end": 2551,
+      "line_start": 2528,
+      "line_end": 2552,
       "is_async": true,
       "decorators": [
         "app.post('/discovery/heartbeat')"
@@ -7474,8 +7474,8 @@
       "name": "discovery_cleanup",
       "qualified_name": "coordination_api.create_coordination_api.discovery_cleanup",
       "file": "coordination_api.py",
-      "line_start": 2554,
-      "line_end": 2584,
+      "line_start": 2555,
+      "line_end": 2585,
       "is_async": true,
       "decorators": [
         "app.post('/discovery/cleanup')"
@@ -7498,8 +7498,8 @@
       "name": "gen_eval_list_scenarios",
       "qualified_name": "coordination_api.create_coordination_api.gen_eval_list_scenarios",
       "file": "coordination_api.py",
-      "line_start": 2591,
-      "line_end": 2616,
+      "line_start": 2592,
+      "line_end": 2617,
       "is_async": true,
       "decorators": [
         "app.get('/gen-eval/scenarios')"
@@ -7520,8 +7520,8 @@
       "name": "gen_eval_validate",
       "qualified_name": "coordination_api.create_coordination_api.gen_eval_validate",
       "file": "coordination_api.py",
-      "line_start": 2619,
-      "line_end": 2640,
+      "line_start": 2620,
+      "line_end": 2641,
       "is_async": true,
       "decorators": [
         "app.post('/gen-eval/validate')"
@@ -7544,8 +7544,8 @@
       "name": "gen_eval_create",
       "qualified_name": "coordination_api.create_coordination_api.gen_eval_create",
       "file": "coordination_api.py",
-      "line_start": 2643,
-      "line_end": 2665,
+      "line_start": 2644,
+      "line_end": 2666,
       "is_async": true,
       "decorators": [
         "app.post('/gen-eval/create')"
@@ -7569,8 +7569,8 @@
       "name": "gen_eval_run",
       "qualified_name": "coordination_api.create_coordination_api.gen_eval_run",
       "file": "coordination_api.py",
-      "line_start": 2668,
-      "line_end": 2691,
+      "line_start": 2669,
+      "line_end": 2692,
       "is_async": true,
       "decorators": [
         "app.post('/gen-eval/run')"
@@ -7594,8 +7594,8 @@
       "name": "search_issues",
       "qualified_name": "coordination_api.create_coordination_api.search_issues",
       "file": "coordination_api.py",
-      "line_start": 2698,
-      "line_end": 2711,
+      "line_start": 2699,
+      "line_end": 2712,
       "is_async": true,
       "decorators": [
         "app.post('/issues/search')"
@@ -7619,8 +7619,8 @@
       "name": "ready_issues",
       "qualified_name": "coordination_api.create_coordination_api.ready_issues",
       "file": "coordination_api.py",
-      "line_start": 2714,
-      "line_end": 2730,
+      "line_start": 2715,
+      "line_end": 2731,
       "is_async": true,
       "decorators": [
         "app.post('/issues/ready')"
@@ -7645,8 +7645,8 @@
       "name": "request_permission_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.request_permission_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2740,
-      "line_end": 2772,
+      "line_start": 2741,
+      "line_end": 2773,
       "is_async": true,
       "decorators": [
         "app.post('/permissions/request')"
@@ -7671,8 +7671,8 @@
       "name": "request_approval_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.request_approval_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2779,
-      "line_end": 2815,
+      "line_start": 2780,
+      "line_end": 2816,
       "is_async": true,
       "decorators": [
         "app.post('/approvals/request')"
@@ -7698,8 +7698,8 @@
       "name": "check_approval_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.check_approval_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2818,
-      "line_end": 2843,
+      "line_start": 2819,
+      "line_end": 2844,
       "is_async": true,
       "decorators": [
         "app.get('/approvals/{request_id}')"
@@ -7723,8 +7723,8 @@
       "name": "_database_health",
       "qualified_name": "coordination_api.create_coordination_api._database_health",
       "file": "coordination_api.py",
-      "line_start": 2849,
-      "line_end": 2870,
+      "line_start": 2850,
+      "line_end": 2871,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -7750,8 +7750,8 @@
       "name": "help_overview",
       "qualified_name": "coordination_api.create_coordination_api.help_overview",
       "file": "coordination_api.py",
-      "line_start": 2877,
-      "line_end": 2884,
+      "line_start": 2878,
+      "line_end": 2885,
       "is_async": true,
       "decorators": [
         "app.get('/help')"
@@ -7771,8 +7771,8 @@
       "name": "help_topic",
       "qualified_name": "coordination_api.create_coordination_api.help_topic",
       "file": "coordination_api.py",
-      "line_start": 2887,
-      "line_end": 2907,
+      "line_start": 2888,
+      "line_end": 2908,
       "is_async": true,
       "decorators": [
         "app.get('/help/{topic}')"
@@ -7794,8 +7794,8 @@
       "name": "get_sync_points_status",
       "qualified_name": "coordination_api.create_coordination_api.get_sync_points_status",
       "file": "coordination_api.py",
-      "line_start": 2914,
-      "line_end": 2924,
+      "line_start": 2915,
+      "line_end": 2925,
       "is_async": true,
       "decorators": [
         "app.get('/sync-points/status')"
@@ -7815,8 +7815,8 @@
       "name": "get_active_worktrees",
       "qualified_name": "coordination_api.create_coordination_api.get_active_worktrees",
       "file": "coordination_api.py",
-      "line_start": 2927,
-      "line_end": 2936,
+      "line_start": 2928,
+      "line_end": 2937,
       "is_async": true,
       "decorators": [
         "app.get('/worktrees/active')"
@@ -7838,8 +7838,8 @@
       "name": "mint_events_token",
       "qualified_name": "coordination_api.create_coordination_api.mint_events_token",
       "file": "coordination_api.py",
-      "line_start": 2939,
-      "line_end": 2969,
+      "line_start": 2940,
+      "line_end": 2970,
       "is_async": true,
       "decorators": [
         "app.post('/events/auth')"
@@ -7865,8 +7865,8 @@
       "name": "stream_work_events",
       "qualified_name": "coordination_api.create_coordination_api.stream_work_events",
       "file": "coordination_api.py",
-      "line_start": 2972,
-      "line_end": 3020,
+      "line_start": 2973,
+      "line_end": 3021,
       "is_async": true,
       "decorators": [
         "app.get('/events/work')"
@@ -7897,8 +7897,8 @@
       "name": "patch_issue_labels",
       "qualified_name": "coordination_api.create_coordination_api.patch_issue_labels",
       "file": "coordination_api.py",
-      "line_start": 3023,
-      "line_end": 3072,
+      "line_start": 3024,
+      "line_end": 3073,
       "is_async": true,
       "decorators": [
         "app.patch('/issues/{issue_id}/labels')"
@@ -7932,11 +7932,11 @@
       "name": "force_release_lock",
       "qualified_name": "coordination_api.create_coordination_api.force_release_lock",
       "file": "coordination_api.py",
-      "line_start": 3075,
-      "line_end": 3108,
+      "line_start": 3076,
+      "line_end": 3110,
       "is_async": true,
       "decorators": [
-        "app.delete('/locks/{file_path:path}')"
+        "app.delete('/locks/{path:path}')"
       ],
       "calls": [
         "principal.get",
@@ -7961,8 +7961,8 @@
       "name": "kick_agent",
       "qualified_name": "coordination_api.create_coordination_api.kick_agent",
       "file": "coordination_api.py",
-      "line_start": 3111,
-      "line_end": 3229,
+      "line_start": 3113,
+      "line_end": 3231,
       "is_async": true,
       "decorators": [
         "app.post('/agents/{agent_id}/kick')"
@@ -8001,8 +8001,8 @@
       "name": "put_saved_view",
       "qualified_name": "coordination_api.create_coordination_api.put_saved_view",
       "file": "coordination_api.py",
-      "line_start": 3232,
-      "line_end": 3266,
+      "line_start": 3234,
+      "line_end": 3268,
       "is_async": true,
       "decorators": [
         "app.put('/kanban-viz/saved-views/{slug}')"
@@ -8031,8 +8031,8 @@
       "name": "post_kanban_audit",
       "qualified_name": "coordination_api.create_coordination_api.post_kanban_audit",
       "file": "coordination_api.py",
-      "line_start": 3269,
-      "line_end": 3302,
+      "line_start": 3271,
+      "line_end": 3304,
       "is_async": true,
       "decorators": [
         "app.post('/kanban-viz/audit')"
@@ -8061,8 +8061,8 @@
       "name": "live",
       "qualified_name": "coordination_api.create_coordination_api.live",
       "file": "coordination_api.py",
-      "line_start": 3305,
-      "line_end": 3307,
+      "line_start": 3307,
+      "line_end": 3309,
       "is_async": true,
       "decorators": [
         "app.get('/live')"
@@ -8080,8 +8080,8 @@
       "name": "ready",
       "qualified_name": "coordination_api.create_coordination_api.ready",
       "file": "coordination_api.py",
-      "line_start": 3310,
-      "line_end": 3319,
+      "line_start": 3312,
+      "line_end": 3321,
       "is_async": true,
       "decorators": [
         "app.get('/ready')"
@@ -8102,8 +8102,8 @@
       "name": "health",
       "qualified_name": "coordination_api.create_coordination_api.health",
       "file": "coordination_api.py",
-      "line_start": 3322,
-      "line_end": 3326,
+      "line_start": 3324,
+      "line_end": 3328,
       "is_async": true,
       "decorators": [
         "app.get('/health')"
@@ -8123,8 +8123,8 @@
       "name": "github_prs",
       "qualified_name": "coordination_api.create_coordination_api.github_prs",
       "file": "coordination_api.py",
-      "line_start": 3333,
-      "line_end": 3370,
+      "line_start": 3335,
+      "line_end": 3372,
       "is_async": true,
       "decorators": [
         "app.get('/github/prs')"
@@ -8146,8 +8146,8 @@
       "name": "openspec_proposals",
       "qualified_name": "coordination_api.create_coordination_api.openspec_proposals",
       "file": "coordination_api.py",
-      "line_start": 3373,
-      "line_end": 3415,
+      "line_start": 3375,
+      "line_end": 3417,
       "is_async": true,
       "decorators": [
         "app.get('/openspec/proposals')"
@@ -8171,8 +8171,8 @@
       "name": "code_search_status_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.code_search_status_endpoint",
       "file": "coordination_api.py",
-      "line_start": 3419,
-      "line_end": 3437,
+      "line_start": 3421,
+      "line_end": 3439,
       "is_async": true,
       "decorators": [
         "app.get('/search/code/status')"
@@ -8197,8 +8197,8 @@
       "name": "verify_code_search_principal",
       "qualified_name": "coordination_api.create_coordination_api.verify_code_search_principal",
       "file": "coordination_api.py",
-      "line_start": 3439,
-      "line_end": 3453,
+      "line_start": 3441,
+      "line_end": 3455,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -8219,8 +8219,8 @@
       "name": "search_code_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.search_code_endpoint",
       "file": "coordination_api.py",
-      "line_start": 3456,
-      "line_end": 3484,
+      "line_start": 3458,
+      "line_end": 3486,
       "is_async": true,
       "decorators": [
         "app.post('/search/code')"
@@ -8247,8 +8247,8 @@
       "name": "main",
       "qualified_name": "coordination_api.main",
       "file": "coordination_api.py",
-      "line_start": 3494,
-      "line_end": 3523,
+      "line_start": 3496,
+      "line_end": 3525,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -26033,8 +26033,8 @@
       "name": "PollConfig",
       "qualified_name": "agents_config.PollConfig",
       "file": "agents_config.py",
-      "line_start": 421,
-      "line_end": 435,
+      "line_start": 426,
+      "line_end": 440,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26045,8 +26045,8 @@
       "name": "ModeConfig",
       "qualified_name": "agents_config.ModeConfig",
       "file": "agents_config.py",
-      "line_start": 439,
-      "line_end": 444,
+      "line_start": 444,
+      "line_end": 449,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26057,8 +26057,8 @@
       "name": "CliConfig",
       "qualified_name": "agents_config.CliConfig",
       "file": "agents_config.py",
-      "line_start": 448,
-      "line_end": 464,
+      "line_start": 453,
+      "line_end": 473,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26069,8 +26069,8 @@
       "name": "SdkConfig",
       "qualified_name": "agents_config.SdkConfig",
       "file": "agents_config.py",
-      "line_start": 468,
-      "line_end": 481,
+      "line_start": 477,
+      "line_end": 490,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26081,8 +26081,8 @@
       "name": "AgentEntry",
       "qualified_name": "agents_config.AgentEntry",
       "file": "agents_config.py",
-      "line_start": 485,
-      "line_end": 500,
+      "line_start": 494,
+      "line_end": 509,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26093,8 +26093,8 @@
       "name": "EscalationConfig",
       "qualified_name": "agents_config.EscalationConfig",
       "file": "agents_config.py",
-      "line_start": 508,
-      "line_end": 518,
+      "line_start": 517,
+      "line_end": 527,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26105,8 +26105,8 @@
       "name": "ArchetypeConfig",
       "qualified_name": "agents_config.ArchetypeConfig",
       "file": "agents_config.py",
-      "line_start": 522,
-      "line_end": 533,
+      "line_start": 531,
+      "line_end": 542,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26117,8 +26117,8 @@
       "name": "PhaseMappingEntry",
       "qualified_name": "agents_config.PhaseMappingEntry",
       "file": "agents_config.py",
-      "line_start": 537,
-      "line_end": 547,
+      "line_start": 546,
+      "line_end": 556,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26129,8 +26129,8 @@
       "name": "ModelSpec",
       "qualified_name": "agents_config.ModelSpec",
       "file": "agents_config.py",
-      "line_start": 551,
-      "line_end": 561,
+      "line_start": 560,
+      "line_end": 570,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26141,8 +26141,8 @@
       "name": "ResolvedArchetype",
       "qualified_name": "agents_config.ResolvedArchetype",
       "file": "agents_config.py",
-      "line_start": 565,
-      "line_end": 578,
+      "line_start": 574,
+      "line_end": 587,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26153,8 +26153,8 @@
       "name": "ProviderModelMappingError",
       "qualified_name": "agents_config.ProviderModelMappingError",
       "file": "agents_config.py",
-      "line_start": 581,
-      "line_end": 598,
+      "line_start": 590,
+      "line_end": 607,
       "bases": [
         "ValueError"
       ],
@@ -32169,7 +32169,7 @@
       "function": "coordination_api.create_coordination_api.check_lock_status",
       "kind": "route",
       "method": "GET",
-      "path": "/locks/status/{file_path:path}"
+      "path": "/locks/status/{path:path}"
     },
     {
       "function": "coordination_api.create_coordination_api.store_memory",
@@ -32589,7 +32589,7 @@
       "function": "coordination_api.create_coordination_api.force_release_lock",
       "kind": "route",
       "method": "DELETE",
-      "path": "/locks/{file_path:path}"
+      "path": "/locks/{path:path}"
     },
     {
       "function": "coordination_api.create_coordination_api.kick_agent",

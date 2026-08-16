@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-16T13:45:08+00:00",
+  "generated_at": "2026-08-16T16:25:51+00:00",
   "summary": {
-    "total_comments": 2287,
+    "total_comments": 2294,
     "total_with_markers": 16,
     "marker_totals": {
       "NOTE": 4,
@@ -11,9 +11,9 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1891,
+    "total_graph_nodes": 1839,
     "documented_nodes": 267,
-    "documentation_coverage": 0.141
+    "documentation_coverage": 0.145
   },
   "marker_hotspots": [
     {
@@ -127,7 +127,7 @@
   "file_summaries": [
     {
       "file": "agents_config.py",
-      "total_comments": 135,
+      "total_comments": 142,
       "with_markers": 1,
       "languages": [
         "python"

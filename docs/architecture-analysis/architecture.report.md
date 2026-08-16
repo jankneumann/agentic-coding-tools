@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-16T13:45:08+00:00  
-Git SHA: `56bc6ea3101901fcf2d577de88fe0b097cb6ece1`
+Generated: 2026-08-16T16:25:51+00:00  
+Git SHA: `d6f66c926b60db9986a52f093bd83d76f6933d49`
 
 ## System Overview
 
@@ -13,14 +13,14 @@ This is a **Python MCP server** with 75 modules exposing **96 MCP endpoints** (8
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1891 |
+| Total nodes | 1839 |
 | Total edges | 1162 |
 | Python modules | 75 |
 | Functions | 1064 (431 async) |
 | Classes | 242 |
 | Mcp Endpoints | 96 |
 | DB tables | 29 |
-| Python nodes | 1433 |
+| Python nodes | 1381 |
 | Sql nodes | 458 |
 
 ## Module Responsibility Map
@@ -232,8 +232,8 @@ This is a **Python MCP server** with 75 modules exposing **96 MCP endpoints** (8
 | `/live` | Cheap liveness probe for container platforms. |
 | `/locks/acquire` | Acquire a file lock. Cloud agents call this before modifying files. |
 | `/locks/release` | Release a file lock. |
-| `/locks/status/{file_path:path}` | Check lock status for a file. Read-only, no API key required. |
-| `/locks/{file_path:path}` | Force-release a lock regardless of holder (destructive-write). |
+| `/locks/status/{path:path}` | Check lock status for a file. Read-only, no API key required. |
+| `/locks/{path:path}` | Force-release a lock regardless of holder (destructive-write). |
 | `/memory/query` | Query relevant memories for a task. |
 | `/memory/store` | Store an episodic memory. |
 | `/merge-queue` | Get all features in the merge queue. |
@@ -457,7 +457,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1197 independent groups** identified. The largest interconnected group has 529 modules; 1501 modules are leaf nodes (safe to modify in isolation).
+**1145 independent groups** identified. The largest interconnected group has 529 modules; 1449 modules are leaf nodes (safe to modify in isolation).
 
 **38 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -485,9 +485,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1501)
+### Leaf Modules (1449)
 
-1501 modules have no dependents — changes are fully isolated. 1175 of the 1197 groups are singletons.
+1449 modules have no dependents — changes are fully isolated. 1123 of the 1145 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -497,7 +497,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1433 nodes)"]
+    Backend["Backend (1381 nodes)"]
     Database["Database (458 nodes)"]
 ```
 
@@ -577,7 +577,6 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (11 symbols)"]
     telemetry["telemetry (20 symbols)"]
-    tests__test_architecture["tests.test_architecture (52 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
