@@ -12,19 +12,19 @@ info:
   version: 1.0.0
   description: >-
     Fail-closed semantic code retrieval and availability status. Spec lines
-    3006-3020, 3054-3076, 2054-2057 (HTTP-17).
+    2975-2989, 3023-3045, 2023-2026 (HTTP-17).
 paths:
   /search/code:
     post:
       operationId: searchCode
       summary: Semantic code retrieval over one exact repository revision
       description: >-
-        Spec 3008-3016: one typed service exposed on the MCP search_code tool
+        Spec 2977-2985: one typed service exposed on the MCP search_code tool
         and this authenticated endpoint; both require query, repository slug,
         exact source revision, namespace, and authoritative scope; non-main
         namespaces additionally require an exact index ID; limit, offset,
         language, and caller path filters are bounded optional narrowings.
-        Spec 3057-3060: while CODE_SEARCH_ENABLED is off this endpoint
+        Spec 3026-3029: while CODE_SEARCH_ENABLED is off this endpoint
         returns 404.
       security:
         - coordinatorApiKey: []
@@ -45,23 +45,23 @@ paths:
                 source_revision: {type: string}
                 namespace: {type: object}
                 scope: {type: object}
-                index_id: {type: string, description: "Required for non-main namespaces (spec 2933-2934)"}
+                index_id: {type: string, description: "Required for non-main namespaces (spec 2902-2903)"}
                 limit: {type: integer}
                 offset: {type: integer}
                 language: {type: string}
                 path_filters: {type: array, items: {type: string}}
       responses:
-        "200": {description: Ready result or structured fail-closed operational state (spec 3008-3016)}
-        "404": {description: CODE_SEARCH_ENABLED is off (spec 3057-3060)}
+        "200": {description: Ready result or structured fail-closed operational state (spec 2977-2985)}
+        "404": {description: CODE_SEARCH_ENABLED is off (spec 3026-3029)}
   /search/code/status:
     get:
       operationId: getCodeSearchStatus
       summary: Report code-search availability
       description: >-
-        Spec 2057 (HTTP-17): reports code-search availability, returning a
+        Spec 2026 (HTTP-17): reports code-search availability, returning a
         disabled envelope when CODE_SEARCH_ENABLED is off and a sanitized
         unavailability envelope when the registry is unreachable.
-        Spec 3031-3040 (code-search direct read): the status check never
+        Spec 3000-3009 (code-search direct read): the status check never
         mutates or repairs coordination state.
       x-traceability:
         requirements:
@@ -69,7 +69,7 @@ paths:
           - agent-coordinator.code-search-is-a-direct-read
           - agent-coordinator.code-search-feature-flag
       responses:
-        "200": {description: Availability status envelope (spec 2057)}
+        "200": {description: Availability status envelope (spec 2026)}
 components:
   securitySchemes:
     coordinatorApiKey:
