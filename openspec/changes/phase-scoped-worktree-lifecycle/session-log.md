@@ -232,3 +232,48 @@ Revision 5 closes the lifecycle transaction, recovery fencing, delivery-audit, i
 
 ### Context
 Revision 6 remediates the exported multi-vendor review: bounded setup recovery, lease-free disposal, stale-controller-safe autopilot quarantine, terminal DONE tombstones, complete inventory/classifier contracts, and an executable feature-HEAD bootstrap barrier. External quorum was met; deterministic gates are clean, while implementation dispatch remains prerequisite-gated.
+
+---
+
+## Phase: Implementation Root Checkpoint (2026-08-16)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Publish gated work only through an atomic keyed handoff** `architectural: skill-workflow` — Evidence generation revision A is the sole parent of committed gate B; dependent publication occurs under the feature-branch lock and records the idempotency key plus external task ID before unlock.
+2. **Serialize recovery evidence with registry authority** `architectural: worktree` — Remote/ref and process-token discovery stay outside the lock, while quarantine revalidation, evidence write, and lease/audit publication share one exclusive critical section.
+3. **Stop at the authoritative prerequisite boundary** `architectural: skill-workflow` — Green root implementations do not authorize dependent worktrees when declared implementation surfaces are absent from authoritative prerequisite revisions.
+
+### Alternatives Considered
+- Return a verified gated submission after releasing the branch lock: rejected because the feature HEAD can advance before external publication.
+- Write recovery process evidence before acquiring the registry lock: rejected because competing adopters can share an evidence key and overwrite the winning fence.
+- Treat merged planning artifacts as satisfying the implementation prerequisite: rejected because exact typed required surfaces are the declared gate.
+
+### Trade-offs
+- Accepted an idempotent callback receipt protocol over a simpler returned payload because response loss must not duplicate external tasks.
+- Accepted local atomic evidence I/O inside the registry lock over a shorter critical section because exact winner identity is more important than allowing concurrent lifecycle mutation during bounded local writes.
+
+### Open Questions
+- [ ] PR #235 (`add-merge-plan-orchestration`) must land the declared schema and executor implementation surfaces; its current authoritative merge SHA `23478cedcf53efbbb1f59d3118343807dc7cb60a` lacks `skills/merge-pull-requests/scripts/build_plan.py`.
+- [ ] `openspec/validate-feature-findings-gate` has no authoritative pull request and must land both declared validation-worktree files.
+
+### Completed Work
+- Implemented and independently reviewed the generic preflight barrier, exact evidence provenance, feature-HEAD CAS, and callback-only dependent dispatch.
+- Implemented and squash-integrated registry v2, controller fencing, crash-safe reservations/recovery, schema-equivalent publication, migration compatibility, and activity guards.
+- Passed 77 combined-branch preflight tests, 187 combined-branch registry/worktree tests, Ruff, strict OpenSpec, package overlap, scope, and diff checks.
+- Recorded registry tasks 1.1–1.6 and their checkpoint as complete; task 0.5 remains open and `baseline-gates.json` remains absent.
+
+### Next Steps
+- Land both prerequisite implementations and rerun live task 0.5 in the managed feature checkout.
+- Commit the generated evidence as the single-parent gate commit, reload the scheduler, and reverify the exact committed blob and surfaces.
+- Only after that gate succeeds, dispatch `wp-phase-lifecycle` and `wp-pr-delivery` from the recorded feature HEAD.
+
+### Relevant Files
+- `skills/shared/worktree_lifecycle.py` — Canonical registry and lifecycle interpreter
+- `skills/worktree/scripts/worktree.py` — Fenced lifecycle CLI and recovery operations
+- `skills/implement-feature/scripts/prerequisite_preflight.py` — Authoritative evidence resolver/verifier
+- `skills/parallel-infrastructure/scripts/dag_scheduler.py` — Atomic feature-HEAD dispatch barrier
+- `openspec/changes/phase-scoped-worktree-lifecycle/handoffs/implement-1-1.json` — Blocked implementation handoff
+
+### Context
+Both implementation roots are reviewed and green, but the live authoritative gate fails closed. The feature branch is preserved at a pushed checkpoint with no dependent package worktrees created.

@@ -21,9 +21,18 @@
     "pi": false,
     "codex": true
   },
-  "packages_status": {},
-  "package_authors": {},
-  "implementation_strategy": {},
+  "packages_status": {
+    "wp-baseline-preflight": "blocked",
+    "wp-registry": "complete"
+  },
+  "package_authors": {
+    "wp-baseline-preflight": "codex coordinated root",
+    "wp-registry": "codex coordinated isolated package"
+  },
+  "implementation_strategy": {
+    "wp-baseline-preflight": "coordinated_shared_root",
+    "wp-registry": "coordinated_isolated_squash"
+  },
   "memory_ids": [],
   "handoff_ids": [
     "gatekeeper-phase-scoped-worktree-lifecycle-1",
@@ -32,7 +41,8 @@
     "plan-review-2-1",
     "plan-review-3-1",
     "plan-iteration-3-1",
-    "plan-iteration-4-1"
+    "plan-iteration-4-1",
+    "implement-1-1"
   ],
   "phase_history": [
     {
@@ -69,13 +79,18 @@
       "at": "2026-08-16T16:58:33.366070+00:00",
       "outcome": "external_quorum_met_revision_6_remediated",
       "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-08-16T18:17:31+00:00",
+      "outcome": "blocked_external_prerequisites_after_root_implementation",
+      "phase": "IMPLEMENT"
     }
   ],
-  "last_handoff_id": "plan-iteration-4-1",
+  "last_handoff_id": "implement-1-1",
   "started_at": "2026-08-16T00:58:04.819479+00:00",
-  "phase_started_at": "2026-08-16T16:58:33.366070+00:00",
-  "previous_phase": "PLAN_ITERATE",
-  "escalation_reason": "Revision 6 has external quorum, one completed remediation pass, no residual blocking findings, and clean deterministic validation; implementation dispatch remains fail-closed until both named prerequisites and the ordered shared-feature completion barrier succeed.",
+  "phase_started_at": "2026-08-16T18:17:31+00:00",
+  "previous_phase": "IMPLEMENT",
+  "escalation_reason": "Root implementation is reviewed and green, but live task 0.5 fails closed: merged PR #235 lacks required implementation surfaces at 23478cedcf53efbbb1f59d3118343807dc7cb60a, and no pull request exists for openspec/validate-feature-findings-gate. No dependent package may dispatch.",
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
