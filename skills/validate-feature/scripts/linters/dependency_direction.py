@@ -15,9 +15,12 @@ import sys
 from pathlib import Path
 
 try:
-    from .severity import severity_for_criticality
+    from .severity import prefix_description, severity_for_criticality
 except ImportError:  # executed directly as a script (install-payload check in CI)
-    from severity import severity_for_criticality  # type: ignore[no-redef]
+    from severity import (  # type: ignore[no-redef]
+        prefix_description,
+        severity_for_criticality,
+    )
 
 # A layering/boundary violation is an architecture-axis concern: it is about
 # module boundaries and dependency direction, not about local code quality.
@@ -146,9 +149,10 @@ def check_dependency_direction(
                         "severity": severity_for_criticality(_CRITICALITY),
                         "criticality": _CRITICALITY,
                         "disposition": "fix",
-                        "description": (
+                        "description": prefix_description(
                             f"{file_path} {reason} "
-                            f"(line {line_num}: {line.strip()})"
+                            f"(line {line_num}: {line.strip()})",
+                            severity_for_criticality(_CRITICALITY),
                         ),
                         "resolution": _REMEDIATION,
                         "file_path": str(file_path),
