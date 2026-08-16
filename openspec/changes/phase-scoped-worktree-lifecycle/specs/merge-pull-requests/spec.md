@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: D7 — OpenSpec PR Delivery Stage SHALL Be Deterministically Classified
+### Requirement: OpenSpec PR Delivery Stage SHALL Be Deterministically Classified
 
 Merge triage SHALL classify each OpenSpec pull request as `proposal`,
 `implementation`, `mixed`, or `ambiguous`. The classifier SHALL primarily use
@@ -10,15 +10,27 @@ request's base branch. It SHALL use branch naming and an exact PR-body marker
 evidence. The four-way result, evidence, and warnings SHALL be deterministic and
 serializable in the durable merge plan.
 
-Conflicting, missing, or incomplete evidence MUST produce `ambiguous`; triage
-MUST NOT silently infer completed implementation or archival from an
-`openspec/*` branch name alone.
+Conflicting or incomplete required primary diff/base/head evidence MUST produce
+`ambiguous`; a missing optional marker is a warning, not missing primary
+evidence. Triage MUST NOT silently infer completed implementation or archival
+from an `openspec/*` branch name alone.
+
+The versioned classifier SHALL implement this ordered truth table:
+
+| Required diff/base/head evidence | Marker | Changed-path and governing-plan state | Result |
+|---|---|---|---|
+| incomplete, truncated, or failed | any | any | `ambiguous` |
+| complete | conflicting, duplicate, or invalid | any | `ambiguous` |
+| complete | matching or missing | planning-only with a valid head change | `proposal` |
+| complete | matching or missing | implementation, optionally with plan refinements, with a governing active proposal on base | `implementation` |
+| complete | matching or missing | implementation plus a valid proposal introduced at head and no governing proposal on base | `mixed` |
+| complete | any | multiple change ids, unknown path partition, or no valid governing/head plan | `ambiguous` |
 
 #### Scenario: AC-10 — Proposal, implementation, and mixed classification
 
-- **WHEN** unit fixtures cover planning-artifact-only changes without a proposal on base, implementation changes with a governing proposal on base, and combined planning plus implementation changes
+- **WHEN** unit fixtures cover planning-artifact-only changes, implementation plus optional plan refinements with a governing proposal on base, and implementation plus a proposal introduced by the same PR with no governing proposal on base
 - **THEN** the classifier SHALL return `proposal`, `implementation`, and `mixed` respectively
-- **AND** each result SHALL record changed-file, base-state, branch, and marker evidence
+- **AND** each result SHALL record base/head SHAs, diff completeness, changed-file partition, base/head state, branch, marker status, and warnings
 
 #### Scenario: AC-10 — Conflicting marker fails safe and warns
 
@@ -33,10 +45,13 @@ MUST NOT silently infer completed implementation or archival from an
 - **THEN** the classifier SHALL classify it as `implementation` from primary evidence
 - **AND** absence of the corroborating marker alone MUST NOT make it unprocessable
 
-### Requirement: D8 — Author Identity, Origin, and Delivery Stage SHALL Remain Independent
+### Requirement: Author Identity, Origin, and Delivery Stage SHALL Remain Independent
 
 Discovery and merge-plan records SHALL preserve OpenSpec origin, delivery stage,
-GitHub author, and author vendor as separate fields. For a Claude-authored
+GitHub author, author vendor, and author-vendor evidence as separate fields.
+Exact configured identities are verified; PR-body/vendor trailers are claims
+and MUST NOT override conflicts. Unknown or unverified provenance SHALL use the
+conservative independent-review route. For a verified Claude-authored
 OpenSpec PR, independent local review SHALL request each configured Codex, Grok,
 and Pi reviewer. An unavailable reviewer SHALL be reported explicitly and MUST
 NOT be silently substituted with Claude or another same-author review.
@@ -66,7 +81,13 @@ SHALL remain merge gates.
 - **THEN** merge evidence SHALL name that unavailable vendor and the resulting quorum
 - **AND** the workflow MUST NOT record a same-author substitute as that vendor's review
 
-### Requirement: D9 — Merge Validation, Cleanup, and Archival SHALL Follow Delivery Stage
+#### Scenario: Unverified vendor claim cannot exclude a reviewer
+
+- **WHEN** an unmapped GitHub author claims `OpenSpec-Author-Vendor: claude` without verified identity evidence
+- **THEN** discovery SHALL persist the claim and classify author vendor as `unknown`
+- **AND** review routing SHALL attempt all configured independent vendors rather than excluding Claude based on the claim
+
+### Requirement: Merge Validation, Cleanup, and Archival SHALL Follow Delivery Stage
 
 A `proposal` PR SHALL run independent plan review and strict OpenSpec validation
 against the PR head. After merge it SHALL run the once-per-pass main-context
@@ -77,8 +98,11 @@ change-directory deletion.
 An `implementation` or `mixed` PR SHALL retain full implementation validation,
 post-merge cleanup, archival, and main-context convergence. An `ambiguous` PR
 MUST stop automatic stage-specific routing pending an explicit operator
-decision. These decisions and their evidence SHALL be durable in merge-plan
-orchestration so discovery, review, execution, and resume use the same stage.
+decision. The immutable discovery snapshot and refreshed current classification
+SHALL be durable in file-tier merge-plan orchestration so discovery, review,
+execution, and resume use explicit stage evidence. Coordinator APIs/UI SHALL
+project these fields without activating the overlapping change's deferred
+coordinator state tier.
 
 #### Scenario: AC-02 — Proposal PR passes active guard into triage
 
@@ -109,9 +133,19 @@ orchestration so discovery, review, execution, and resume use the same stage.
 
 - **WHEN** merge-plan orchestration records an OpenSpec PR and later resumes execution
 - **THEN** the plan SHALL retain delivery stage, primary evidence, marker evidence, author vendor, and ambiguity warnings
-- **AND** resumed execution MUST NOT reclassify from branch naming alone
+- **AND** resumed execution SHALL reclassify current base/head SHAs into mutable node state without rewriting the immutable discovery snapshot
+- **AND** it MUST NOT reclassify from branch naming alone
 
-### Requirement: D9 — OpenSpec Integration SHALL Be Delivery-Stage Aware
+#### Scenario: Operator disposition is explicit and auditable
+
+- **WHEN** an operator resolves an `ambiguous` node as proposal, implementation, or mixed
+- **THEN** the merge-plan command SHALL require the selected stage, actor, non-empty rationale, and timestamp
+- **AND** routing SHALL resume from that recorded override without rewriting either classification snapshot
+- **AND** a changed head SHA SHALL force revalidation before execution
+
+## MODIFIED Requirements
+
+### Requirement: OpenSpec Integration
 
 The skill SHALL route OpenSpec pull requests according to their deterministic
 delivery stage. Proposal merges SHALL keep the change active and SHALL NOT
@@ -125,7 +159,7 @@ operator disposition before merge-time validation or cleanup selection.
 - **THEN** the skill SHALL report that the proposal remains active for implementation
 - **AND** it MUST NOT recommend or invoke `/cleanup-feature <change-id>`
 
-#### Scenario: AC-11 — Existing implementation PR retains cleanup behavior
+#### Scenario: Legacy implementation PR retains cleanup behavior
 
 - **WHEN** a legacy or current OpenSpec PR is deterministically classified as `implementation`
 - **AND** it passes full validation and is merged

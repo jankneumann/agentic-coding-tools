@@ -3,12 +3,12 @@ schema_version: 1
 feature:
   id: phase-scoped-worktree-lifecycle
   title: "Phase-scoped worktree lifecycle and proposal-only PRs"
-  plan_revision: 1
+  plan_revision: 2
   created_by: codex-autopilot
   created_at: "2026-08-15T00:00:00Z"
 
 contracts:
-  revision: 1
+  revision: 2
   openapi:
     primary: "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
     files:
@@ -41,6 +41,7 @@ packages:
     locks:
       files:
         - "skills/worktree/scripts/worktree.py"
+        - "skills/shared/worktree_lifecycle.py"
         - "skills/shared/active_agents.py"
       keys:
         - "feature:worktree:lifecycle"
@@ -50,7 +51,9 @@ packages:
     scope:
       write_allow:
         - "skills/worktree/**"
+        - "skills/shared/worktree_lifecycle.py"
         - "skills/shared/active_agents.py"
+        - "skills/shared/tests/test_worktree_lifecycle.py"
         - "skills/shared/tests/test_active_agents.py"
         - "skills/tests/worktree/**"
       read_allow:
@@ -86,7 +89,7 @@ packages:
             artifacts: []
             result_keys: [registry_contract_valid]
     metadata:
-      loc_estimate: 850
+      loc_estimate: 1000
       alternatives_count: 3
       complexity: high
       package_kind: data_model
@@ -98,6 +101,7 @@ packages:
       result_keys: [registry_guard_tests, registry_contract_valid]
       artifacts:
         - "skills/worktree/scripts/worktree.py"
+        - "skills/shared/worktree_lifecycle.py"
         - "skills/shared/active_agents.py"
 
   - package_id: wp-phase-lifecycle
@@ -113,6 +117,7 @@ packages:
     depends_on: [wp-registry]
     locks:
       files:
+        - "skills/shared/phase_lifecycle.py"
         - "skills/plan-feature/SKILL.md"
         - "skills/implement-feature/SKILL.md"
         - "skills/validate-feature/SKILL.md"
@@ -123,6 +128,8 @@ packages:
     scope:
       write_allow:
         - "skills/plan-feature/**"
+        - "skills/shared/phase_lifecycle.py"
+        - "skills/shared/tests/test_phase_lifecycle.py"
         - "skills/implement-feature/**"
         - "skills/iterate-on-plan/**"
         - "skills/iterate-on-implementation/**"
@@ -162,7 +169,7 @@ packages:
             artifacts: []
             result_keys: [phase_lifecycle_tests]
     metadata:
-      loc_estimate: 650
+      loc_estimate: 800
       alternatives_count: 3
       complexity: high
       package_kind: integration
@@ -170,6 +177,9 @@ packages:
       contracts:
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/cli/worktree-lifecycle.yaml"
       dependencies: [wp-registry]
+      required_baseline:
+        change_id: validate-feature-findings-gate
+        gate: "merged_and_rebased_before_dispatch"
     outputs:
       result_keys: [phase_lifecycle_tests]
 
@@ -241,6 +251,9 @@ packages:
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/pr-delivery-classification.schema.json"
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/schemas/merge-plan-delivery-fields.schema.json"
       overlapping_change: add-merge-plan-orchestration
+      required_baseline:
+        change_id: add-merge-plan-orchestration
+        gate: "merged_and_rebased_before_dispatch"
     outputs:
       result_keys: [pr_delivery_tests, pr_delivery_contracts_valid]
       artifacts:
@@ -321,6 +334,7 @@ packages:
       files:
         - "agent-coordinator/src/sync_points.py"
         - "agent-coordinator/src/worktrees_view.py"
+        - "agent-coordinator/Dockerfile"
       keys:
         - "feature:coordinator:worktree"
         - "feature:coordinator:delivery"
@@ -332,6 +346,7 @@ packages:
         - "agent-coordinator/src/worktrees_view.py"
         - "agent-coordinator/src/openspec_proposals_api.py"
         - "agent-coordinator/src/kanban_viz.py"
+        - "agent-coordinator/Dockerfile"
         - "agent-coordinator/tests/test_sync_points.py"
         - "agent-coordinator/tests/test_worktrees_view.py"
         - "agent-coordinator/tests/test_kanban_viz_endpoints.py"
@@ -361,7 +376,7 @@ packages:
             artifacts: []
             result_keys: [coordinator_projection_tests]
     metadata:
-      loc_estimate: 450
+      loc_estimate: 500
       alternatives_count: 2
       complexity: medium
       package_kind: integration
@@ -410,6 +425,8 @@ packages:
         - "docs/guides/workflow.md"
         - "docs/mental-models.md"
         - "skills/install.sh"
+        - "skills/tests/contracts/test_phase_scoped_worktree_contracts.py"
+        - "skills/tests/contracts/fixtures/phase-scoped-worktree-lifecycle/**"
         - ".agents/skills/**"
         - ".claude/skills/**"
       read_allow:
@@ -449,6 +466,22 @@ packages:
           evidence:
             artifacts: []
             result_keys: [mirror_drift_gate]
+        - name: "Lifecycle, merge-routing, autopilot, and coordinator regression suites"
+          kind: command
+          command: "uv run --project skills pytest skills/worktree/scripts/tests skills/shared/tests/test_active_agents.py skills/shared/tests/test_worktree_lifecycle.py skills/shared/tests/test_phase_lifecycle.py skills/tests/contracts/test_phase_scoped_worktree_contracts.py skills/tests/worktree skills/tests/plan-feature skills/tests/implement-feature skills/tests/iterate-on-plan skills/tests/iterate-on-implementation skills/tests/validate-feature skills/tests/session-bootstrap skills/tests/merge-pull-requests skills/autopilot/scripts/tests skills/tests/autopilot -q && uv run --project agent-coordinator pytest agent-coordinator/tests/test_sync_points.py agent-coordinator/tests/test_worktrees_view.py agent-coordinator/tests/test_kanban_viz_endpoints.py agent-coordinator/tests/test_check_docker_imports.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [targeted_regression_tests]
+        - name: "Static, formatting, schema-instance, and diff gates"
+          kind: command
+          command: "uv run --project skills ruff check skills/worktree skills/shared skills/merge-pull-requests skills/autopilot && uv run --project agent-coordinator ruff check agent-coordinator/src agent-coordinator/tests && uv run --project agent-coordinator mypy agent-coordinator/src && git diff --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [static_and_diff_gates]
     metadata:
       loc_estimate: 350
       alternatives_count: 2
@@ -463,6 +496,6 @@ packages:
       contracts:
         - "openspec/changes/phase-scoped-worktree-lifecycle/contracts/README.md"
     outputs:
-      result_keys: [openspec_package_gates, architecture_scope_gate, mirror_drift_gate]
+      result_keys: [openspec_package_gates, architecture_scope_gate, mirror_drift_gate, targeted_regression_tests, static_and_diff_gates]
       artifacts:
         - "openspec/changes/phase-scoped-worktree-lifecycle/validation-report.md"

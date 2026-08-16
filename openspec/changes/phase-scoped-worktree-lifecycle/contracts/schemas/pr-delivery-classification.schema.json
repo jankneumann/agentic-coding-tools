@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools/openspec/contracts/merge-pull-requests/pr-delivery-classification.schema.json",
   "title": "OpenSpec PR Delivery Classification",
-  "description": "Deterministic, evidence-bearing classification of an OpenSpec pull request. Metadata corroborates but never overrides changed files and base-branch proposal state.",
+  "description": "Deterministic, evidence-bearing classification of an OpenSpec pull request. Metadata corroborates but never overrides complete changed-file and base/head proposal evidence.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,12 +10,17 @@
     "ruleset_version",
     "pr_number",
     "base_branch",
+    "base_sha",
+    "head_sha",
     "change_id",
     "origin",
     "github_author",
     "author_vendor",
+    "author_vendor_evidence",
     "delivery_stage",
+    "marker_status",
     "evidence",
+    "warnings",
     "ambiguity_reasons",
     "classified_at"
   ],
@@ -24,18 +29,29 @@
     "ruleset_version": { "type": "string", "minLength": 1 },
     "pr_number": { "type": "integer", "minimum": 1 },
     "base_branch": { "type": "string", "minLength": 1 },
+    "base_sha": { "type": "string", "minLength": 7 },
+    "head_sha": { "type": "string", "minLength": 7 },
     "change_id": { "type": ["string", "null"], "minLength": 1 },
     "origin": {
       "enum": ["openspec", "codex", "sentinel", "bolt", "palette", "jules", "dependabot", "renovate", "other"]
     },
     "github_author": { "type": ["string", "null"], "minLength": 1 },
     "author_vendor": {
-      "description": "Independent from origin and delivery stage; extensible for newly configured vendors.",
-      "type": ["string", "null"],
+      "description": "Verified vendor or the literal unknown; independent from origin and delivery stage.",
+      "type": "string",
       "minLength": 1
     },
+    "author_vendor_evidence": { "$ref": "#/$defs/authorVendorEvidence" },
     "delivery_stage": { "$ref": "#/$defs/deliveryStage" },
+    "marker_status": {
+      "enum": ["missing", "matching", "conflicting", "duplicate", "invalid"]
+    },
     "evidence": { "$ref": "#/$defs/evidence" },
+    "warnings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
     "ambiguity_reasons": {
       "type": "array",
       "uniqueItems": true,
@@ -55,6 +71,15 @@
       "else": {
         "properties": { "ambiguity_reasons": { "maxItems": 0 } }
       }
+    },
+    {
+      "if": {
+        "properties": { "marker_status": { "enum": ["conflicting", "duplicate", "invalid"] } },
+        "required": ["marker_status"]
+      },
+      "then": {
+        "properties": { "delivery_stage": { "const": "ambiguous" } }
+      }
     }
   ],
   "$defs": {
@@ -72,27 +97,51 @@
       "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 }
     },
+    "authorVendorEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mapping", "claimed_vendor", "corroborating_hints", "verification_status", "conflicts"],
+      "properties": {
+        "identity_mapping": { "type": ["string", "null"], "minLength": 1 },
+        "claimed_vendor": { "type": ["string", "null"], "minLength": 1 },
+        "corroborating_hints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "verification_status": { "enum": ["verified", "claimed", "unknown", "conflicting"] },
+        "conflicts": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "diff_status",
         "changed_files",
         "planning_artifacts",
         "implementation_files",
         "other_files",
         "base_state",
+        "head_state",
         "body_marker",
         "branch_hint",
         "marker_matches_classification"
       ],
       "properties": {
+        "diff_status": { "enum": ["complete", "truncated", "failed"] },
         "changed_files": { "$ref": "#/$defs/pathList" },
         "planning_artifacts": { "$ref": "#/$defs/pathList" },
         "implementation_files": { "$ref": "#/$defs/pathList" },
         "other_files": { "$ref": "#/$defs/pathList" },
-        "base_state": { "$ref": "#/$defs/baseState" },
+        "base_state": { "$ref": "#/$defs/proposalState" },
+        "head_state": { "$ref": "#/$defs/proposalState" },
         "body_marker": {
-          "description": "Parsed value of the OpenSpec-Delivery PR-body marker, if present.",
+          "description": "Single parsed OpenSpec-Delivery value when marker_status is missing or valid; otherwise null.",
           "$ref": "#/$defs/stageHint"
         },
         "branch_hint": {
@@ -100,15 +149,16 @@
           "$ref": "#/$defs/stageHint"
         },
         "marker_matches_classification": {
-          "description": "Null when no marker exists or the result is ambiguous for reasons unrelated to a marker.",
+          "description": "Null when the marker is missing/invalid or primary classification is ambiguous for another reason.",
           "type": ["boolean", "null"]
         }
       }
     },
-    "baseState": {
+    "proposalState": {
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "inspection_status",
         "change_path_exists",
         "proposal_present",
         "specs_present",
@@ -116,6 +166,7 @@
         "implementation_state"
       ],
       "properties": {
+        "inspection_status": { "enum": ["complete", "failed"] },
         "change_path_exists": { "type": "boolean" },
         "proposal_present": { "type": "boolean" },
         "specs_present": { "type": "boolean" },

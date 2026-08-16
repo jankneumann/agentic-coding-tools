@@ -33,17 +33,22 @@ accepted shapes:
 The reader must validate or report the source document before rewriting it. A
 locked mutation rewrites the complete registry as v2 via atomic replacement.
 Expiry only changes activity interpretation; it never authorizes deletion of a
-dirty worktree or an unmerged branch.
+dirty worktree or state not proven durable on the expected remote branch.
 
 JSON Schema cannot compare timestamps. Producers additionally enforce:
 
 1. `acquired_at <= last_heartbeat < expires_at` for a live lease.
 2. `(change_id, agent_id)` is unique across entries.
 3. `activity_lease.owner` is the only identity allowed to renew or release that
-   lease, except explicit operator recovery outside ordinary workflow commands.
-4. Every successful renew sets `expires_at` to the renewal time plus the
+   lease together with its single-acquisition `lease_id`, except explicit
+   owner/session recovery outside ordinary workflow commands.
+4. Replacement after expiry uses a new `lease_id`; a stale process retaining an
+   older id cannot renew, release, dispose, integrate, commit, or push.
+5. Every successful renew sets `expires_at` to the renewal time plus the
    requested/default TTL; the default TTL is 1,800 seconds and normal renewal
    cadence is 300 seconds.
+6. Dirty, dirty-submodule, or remote-unreachable state enters
+   `recovery_required` quarantine and cannot be adopted by an ordinary acquire.
 
 ### PR delivery classification
 
@@ -54,27 +59,37 @@ OpenSpec state on the base branch. The `OpenSpec-Delivery` PR-body marker and
 branch hint are corroborating evidence only. Origin, GitHub author, author
 vendor, and delivery stage remain independent fields.
 
-A result is `ambiguous` when evidence is incomplete or conflicts. The schema
-requires at least one operator-visible ambiguity reason. Producers additionally
-enforce that a contradictory body marker, an unpartitioned implementation-like
-file, or OpenSpec-only changes inconsistent with base task state cannot yield a
-non-ambiguous stage.
+A result is `ambiguous` when required primary diff/base/head evidence is
+incomplete or conflicts. A missing optional marker is only a warning; a
+conflicting, duplicate, or invalid marker is ambiguous. The schema requires at
+least one operator-visible ambiguity reason and separately preserves warnings,
+marker status, base/head SHAs, acquisition status, and author-vendor evidence.
+Producers additionally enforce the exhaustive truth table from the spec and
+that unpartitioned paths cannot yield a non-ambiguous stage.
 
 ### Durable merge-plan fields
 
 `schemas/merge-plan-delivery-fields.schema.json` is an extracted node view used
 to extend the `add-merge-plan-orchestration` node contract:
 
-- `definition.delivery_classification` is the immutable analysis snapshot.
+- `definition.delivery_classification` is the immutable discovery snapshot.
+- `state.latest_delivery_classification` is the refreshed classification at
+  the current base/head SHAs.
 - `state.delivery_routing` is live state and may be updated after an explicit
-  operator override or base-branch revalidation.
+  operator override or reclassification.
 
 The routing matrix is schema-enforced: proposal delivery gets planning-only
 review, strict OpenSpec validation, and preserves the active change;
 implementation and mixed delivery get plan-plus-code review, full validation,
 and archival after merge; ambiguous delivery is blocked. An operator override
 must record actor, timestamp, and rationale and changes the effective stage
-without rewriting the original classification evidence.
+without rewriting the original classification evidence. Producer checks require
+classifier-sourced routing to equal `state.latest_delivery_classification`, and
+operator disposition records actor, rationale, selected stage, and timestamp,
+with `selected_stage == effective_stage`.
+This change implements file-tier persistence; coordinator APIs/UI project those
+fields but do not activate the overlapping change's deferred coordinator
+system-of-record.
 
 ## Compatibility and promotion
 

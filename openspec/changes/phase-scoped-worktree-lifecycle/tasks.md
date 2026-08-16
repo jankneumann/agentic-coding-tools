@@ -2,21 +2,30 @@
 
 All tasks use test-first ordering. Sizes describe one focused agent session; no task is XL and no task is L.
 
+## 0. Enforced baseline gates
+
+- [ ] 0.1 Record the merged baseline SHA for `add-merge-plan-orchestration`, rebase this branch, and validate that its file-tier merge-plan schema is the one extended here before dispatching package `wp-pr-delivery`
+- [ ] 0.2 Record the merged baseline SHA for `validate-feature-findings-gate`, rebase this branch, and validate that its ephemeral validation worktree is the one wrapped here before dispatching package `wp-phase-lifecycle`
+
+These are no-dispatch prerequisites, not advisory notes. If either active change
+has not landed, the dependent package remains blocked rather than writing shared
+paths concurrently.
+
 ## 1. Registry and activity-guard contract
 
-- [ ] 1.1 (M) Write deterministic registry-v2 lease tests covering migration, locking, ownership, renewal, release, expiry, retention, inspection, plus isolation
-  **Spec scenarios**: `worktree` — Owner acquires and renews the default lease; Different owner cannot renew or release a live lease; Matching release is idempotent; AC-08; AC-09; AC-11; Concurrent lifecycle updates preserve both owners' records; Inspection reports lifecycle categories without mutation; Activity lease commands respect environment isolation
+- [ ] 1.1 (M) Write deterministic registry-v2 contract fixtures and lease tests covering migration, locking, session release, fencing, recovery quarantine, atomic disposal, remote reachability, retention, inspection, corruption, plus isolation
+  **Spec scenarios**: `worktree` — Owner acquires and renews the default lease; Different owner cannot renew or release a live lease; Expired writer is fenced after same-owner resume; Matching release is idempotent; AC-08; AC-09; AC-11; Concurrent lifecycle updates preserve both owners' records; Inspection reports lifecycle categories without mutation; Pushed proposal branch is safely disposable before merge; Unsafe finalization quarantines recovery state; Acquire cannot race owner-checked disposal; Missing or invalid legacy heartbeat is diagnosable and idle; Corrupt registry blocks safety decisions without rewrite; Activity lease commands respect environment isolation
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D1-D6
   **Dependencies**: None
-  **Files**: `skills/worktree/scripts/tests/test_worktree.py`, `skills/worktree/scripts/tests/test_environment_aware.py`, `skills/tests/worktree/test_setup_prototype.py`
+  **Files**: `skills/worktree/scripts/tests/test_worktree.py`, `skills/worktree/scripts/tests/test_environment_aware.py`, `skills/shared/tests/test_worktree_lifecycle.py`, `skills/tests/worktree/test_setup_prototype.py`, `skills/tests/worktree/fixtures/**`
 
-- [ ] 1.2 (M) Implement the locked schema-v2 registry plus retention/lease CLI operations
+- [ ] 1.2 (M) Implement the portable locked schema-v2 interpreter, fenced retention/lease/recovery/disposal CLI operations, and source/install import boundary
   **Dependencies**: 1.1
-  **Files**: `skills/worktree/scripts/worktree.py`, `skills/worktree/SKILL.md`
+  **Files**: `skills/shared/worktree_lifecycle.py`, `skills/worktree/scripts/worktree.py`, `skills/worktree/SKILL.md`
 
 - [ ] 1.3 (S) Write active-agent guard tests for live, released, expired, retained, legacy, malformed, plus corrupt entries
-  **Spec scenarios**: `worktree` — AC-08, AC-09, AC-11; `skill-workflow` — AC-02
+  **Spec scenarios**: `worktree` — AC-08, AC-09, AC-11, Corrupt registry blocks safety decisions without rewrite; `coordinator-kanban-viz` — AC-02
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`
   **Design decisions**: D1-D6
   **Dependencies**: 1.1
@@ -30,16 +39,16 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
 
 ## 2. Standalone phase lifecycle and session backstop
 
-- [ ] 2.1 (M) Write workflow contract tests for proposal branches, durable pushes, strict validation, all-tier finalization, plus continuous-owner nesting
-  **Spec scenarios**: `skill-workflow` — Durable push precedes phase release; Failed phase still finalizes activity; AC-01; Proposal artifacts fail strict validation; AC-06; Later phase recreates from durable remote state
+- [ ] 2.1 (M) Write process-level lifecycle-controller and workflow contract tests for proposal branches, durable pushes, strict validation, renewal loss, fencing assertions, atomic disposal/quarantine, all-tier finalization, plus continuous-owner nesting
+  **Spec scenarios**: `skill-workflow` — Durable push precedes phase release; Failed phase still finalizes activity; AC-01; Proposal artifacts fail strict validation; AC-06; Later phase recreates from durable remote state; `worktree` — Expired writer is fenced after same-owner resume; Unsafe finalization quarantines recovery state; Acquire cannot race owner-checked disposal
   **Contracts**: `contracts/cli/worktree-lifecycle.yaml`, `contracts/schemas/worktree-registry-v2.schema.json`
   **Design decisions**: D7-D8
   **Dependencies**: 1.2, 1.4
-  **Files**: `skills/tests/plan-feature/test_skill_contract.py`, `skills/tests/implement-feature/test_skill_contract.py`, `skills/tests/iterate-on-plan/test_skill_contract.py`, `skills/tests/iterate-on-implementation/test_skill_contract.py`, `skills/tests/validate-feature/test_skill_contract.py`
+  **Files**: `skills/shared/tests/test_phase_lifecycle.py`, `skills/tests/plan-feature/test_skill_contract.py`, `skills/tests/implement-feature/test_skill_contract.py`, `skills/tests/iterate-on-plan/test_skill_contract.py`, `skills/tests/iterate-on-implementation/test_skill_contract.py`, `skills/tests/validate-feature/test_skill_contract.py`
 
-- [ ] 2.2 (M) Add standalone/continuous lifecycle modes to planning, implementation, iteration, plus validation skills
+- [ ] 2.2 (M) Implement the executable renew/assert/finalize controller and add standalone/continuous lifecycle modes plus PR provenance trailers to planning, implementation, iteration, and validation skills
   **Dependencies**: 2.1
-  **Files**: `skills/plan-feature/SKILL.md`, `skills/implement-feature/SKILL.md`, `skills/iterate-on-plan/SKILL.md`, `skills/iterate-on-implementation/SKILL.md`, `skills/validate-feature/SKILL.md`
+  **Files**: `skills/shared/phase_lifecycle.py`, `skills/plan-feature/SKILL.md`, `skills/implement-feature/SKILL.md`, `skills/iterate-on-plan/SKILL.md`, `skills/iterate-on-implementation/SKILL.md`, `skills/validate-feature/SKILL.md`
 
 - [ ] 2.3 (S) Write session-finalization tests for exact owner/session release without coordinator connectivity
   **Spec scenarios**: `skill-workflow` — Session end releases only matching owners; `worktree` — Different owner cannot renew or release a live lease
@@ -56,7 +65,7 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
 
 ## 3. Pull-request delivery classification and merge routing
 
-- [ ] 3.1 (M) Write table-driven delivery classifier tests for proposal, implementation, mixed, legacy, conflicting, truncated, plus failed-base evidence
+- [ ] 3.1 (M) Write exhaustive truth-table and schema-fixture tests for proposal, implementation-with-plan-refinement, mixed-without-base-plan, legacy, unknown paths, conflicting/duplicate/invalid/missing markers, truncated diffs, failed base/head inspection, plus immutable base/head SHAs
   **Spec scenarios**: `merge-pull-requests` — AC-10 classification; Conflicting marker fails safe and warns; Legacy implementation PR remains processable
   **Contracts**: `contracts/schemas/pr-delivery-classification.schema.json`
   **Design decisions**: D11-D12
@@ -67,8 +76,8 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
   **Dependencies**: 3.1
   **Files**: `skills/merge-pull-requests/scripts/pr_delivery.py`, `skills/merge-pull-requests/scripts/discover_prs.py`, `skills/shared/github_classifier.py`
 
-- [ ] 3.3 (M) Write independent vendor-routing tests for Claude-authored proposal, implementation, mixed, plus unavailable-vendor cases
-  **Spec scenarios**: `merge-pull-requests` — AC-04; AC-05; Unavailable independent vendor is explicit
+- [ ] 3.3 (M) Write independent vendor-routing tests for verified Claude-authored proposal, implementation, mixed, unavailable-vendor, conflicting, plus unverified-claim cases
+  **Spec scenarios**: `merge-pull-requests` — AC-04; AC-05; Unavailable independent vendor is explicit; Unverified vendor claim cannot exclude a reviewer
   **Contracts**: `contracts/schemas/pr-delivery-classification.schema.json`
   **Design decisions**: D12-D13
   **Dependencies**: 3.1
@@ -80,8 +89,8 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
 
 - [ ] Checkpoint: run delivery-classifier plus vendor-review tests; inspect prompts to confirm proposal reviews cannot request a code diff.
 
-- [ ] 3.5 (M) Write routing tests for PR-head validation, implementation gates, ambiguity, durable plans, cleanup, archival, plus convergence
-  **Spec scenarios**: `merge-pull-requests` — AC-02; AC-03; Proposal routing skips implementation-only gates; Implementation and mixed routing preserves cleanup; Durable merge plan preserves stage evidence on resume; Proposal OpenSpec PR is merged without cleanup recommendation; AC-11 cleanup compatibility
+- [ ] 3.5 (M) Write routing tests for PR-head validation, implementation gates, ambiguity, immutable discovery versus latest classification, auditable operator disposition, cleanup, archival, plus convergence
+  **Spec scenarios**: `merge-pull-requests` — AC-02; AC-03; Proposal routing skips implementation-only gates; Implementation and mixed routing preserves cleanup; Durable merge plan preserves stage evidence on resume; Operator disposition is explicit and auditable; Proposal OpenSpec PR is merged without cleanup recommendation; Legacy implementation PR retains cleanup behavior
   **Contracts**: `contracts/schemas/merge-plan-delivery-fields.schema.json`, `contracts/schemas/pr-delivery-classification.schema.json`
   **Design decisions**: D14-D15
   **Dependencies**: 3.2
@@ -93,8 +102,8 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
 
 ## 4. Autopilot continuous ownership
 
-- [ ] 4.1 (M) Write loop-state lifecycle tests for one owner, acquisition, renewal, resume, escalation ordering, exception finalization, plus pre-DONE release
-  **Spec scenarios**: `skill-workflow` — AC-07; Resume renews rather than reacquires under another owner; Escalation checkpoints before releasing activity
+- [ ] 4.1 (M) Write loop-state lifecycle tests for fresh-description change-id/worktree bootstrap, one owner plus fenced lease id, renewal, expired resume, zombie rejection, quarantine escalation, exception finalization, plus pre-DONE release
+  **Spec scenarios**: `skill-workflow` — AC-07; Fresh description bootstraps before PLAN mutation; Resume renews rather than reacquires under another owner; Escalation checkpoints before releasing activity; `worktree` — Expired writer is fenced after same-owner resume
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D7, D9
   **Dependencies**: 1.2
@@ -119,16 +128,16 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
 
 ## 5. Coordinator and UI projections
 
-- [ ] 5.1 (M) Write coordinator projection tests for live, expired, retained, legacy, proposal-plan, plus ambiguous delivery records
-  **Spec scenarios**: `coordinator-kanban-viz` — Live lease is projected as active; AC-09; AC-08; AC-11; AC-02; Live continuous autopilot lease blocks sync points; Ambiguous delivery is operator-visible; Proposal plan omits archival action
+- [ ] 5.1 (M) Write coordinator source/container import-contract and projection tests for live, expired, retained, legacy, corrupt, proposal-plan, immutable/latest classification, plus ambiguous delivery records
+  **Spec scenarios**: `coordinator-kanban-viz` — Live lease is projected as active; AC-09; AC-08; AC-11; AC-02; Live continuous autopilot lease blocks sync points; Corrupt registry is an indeterminate blocker; Ambiguous delivery is operator-visible; Proposal plan omits archival action
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/schemas/merge-plan-delivery-fields.schema.json`
   **Design decisions**: D1, D15
   **Dependencies**: 1.2, 3.2
-  **Files**: `agent-coordinator/tests/test_sync_points.py`, `agent-coordinator/tests/test_worktrees_view.py`, `agent-coordinator/tests/test_kanban_viz_endpoints.py`, `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py`
+  **Files**: `agent-coordinator/tests/test_sync_points.py`, `agent-coordinator/tests/test_worktrees_view.py`, `agent-coordinator/tests/test_kanban_viz_endpoints.py`, `agent-coordinator/tests/test_check_docker_imports.py`, `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py`
 
-- [ ] 5.2 (M) Align coordinator sync-point, worktree, plus merge projections with canonical lifecycle/delivery evidence
+- [ ] 5.2 (M) Align coordinator sync-point, worktree, plus merge projections with canonical lifecycle/delivery evidence and ship the shared interpreter in the runtime image
   **Dependencies**: 5.1
-  **Files**: `agent-coordinator/src/sync_points.py`, `agent-coordinator/src/worktrees_view.py`, `agent-coordinator/src/openspec_proposals_api.py`, `agent-coordinator/src/kanban_viz.py`
+  **Files**: `agent-coordinator/src/sync_points.py`, `agent-coordinator/src/worktrees_view.py`, `agent-coordinator/src/openspec_proposals_api.py`, `agent-coordinator/src/kanban_viz.py`, `agent-coordinator/Dockerfile`
 
 ## 6. Canonical specifications, documentation, and integration
 
@@ -146,11 +155,11 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
   **Dependencies**: 6.1
   **Files**: `skills/install.sh`, generated `.agents/skills/**`, generated `.claude/skills/**`
 
-- [ ] 6.3 (M) Run direct-proposal, reviewed-implementation, autopilot, crash-expiry, retention, legacy-registry, vendor-routing, plus ambiguity verification
+- [ ] 6.3 (M) Run direct-proposal, reviewed-implementation, autopilot, crash-expiry/zombie fencing, atomic-disposal, recovery-quarantine, retention, legacy/corrupt-registry, vendor-provenance, plus ambiguity verification; run representative schema instances with reference resolution and format checking, full targeted pytest, Ruff, mypy/static checks, mirror drift, and `git diff --check`
   **Spec scenarios**: AC-01 through AC-12
   **Contracts**: all files under `contracts/`
   **Design decisions**: D1-D17
   **Dependencies**: 6.2
-  **Files**: validation evidence only under `openspec/changes/phase-scoped-worktree-lifecycle/`
+  **Files**: `skills/tests/contracts/test_phase_scoped_worktree_contracts.py`, `skills/tests/contracts/fixtures/phase-scoped-worktree-lifecycle/**`, validation evidence under `openspec/changes/phase-scoped-worktree-lifecycle/`
 
 - [ ] Checkpoint: run strict OpenSpec, package, architecture, pytest, formatting, static, mirror-drift, plus `git diff --check` gates.

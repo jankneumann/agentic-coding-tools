@@ -34,3 +34,36 @@
 
 ### Context
 Planned phase-scoped worktree leases and proposal-only PR routing from the agreed handoff. Selected a repository-owned locked registry-v2 contract with deterministic PR delivery classification and six isolated implementation packages.
+
+---
+
+## Phase: Plan Iteration 1 (2026-08-16)
+
+**Agent**: architect | **Session**: N/A
+
+### Decisions
+1. **Fence each acquisition with a lease id** — A stable owner alone cannot prevent an expired zombie from publishing after same-owner resume.
+2. **Dispose while ownership remains fenced** — Holding the lifecycle lock and live token through safe removal closes the release-then-remove race.
+3. **Separate immutable and current delivery evidence** — Resume needs live reclassification without rewriting the audit snapshot.
+4. **Block packages on overlapping change baselines** — Shared merge and validation paths cannot be safely implemented from divergent active-change contracts.
+
+### Alternatives Considered
+- Owner-only lease checks: rejected because an expired process and its resume can share the same owner string.
+- Release before ordinary teardown: rejected because another owner can acquire before the prior process removes the checkout.
+- Overwrite merge-plan definition during reclassification: rejected because it destroys discovery-time audit evidence.
+
+### Trade-offs
+- Accepted A wider explicit lifecycle and evidence contract over Smaller Markdown-only edits because The broader surface is required for executable fencing, portable consumers, recovery safety, and durable resume semantics.
+
+### Open Questions
+- [ ] Record the exact merged baseline SHAs for add-merge-plan-orchestration and validate-feature-findings-gate at implementation preflight.
+
+### Completed Work
+- Aligned registry schema, CLI, design, and specs on session identity, lifecycle mode, lease-id fencing, recovery quarantine, and atomic disposal.
+- Added a concrete shared interpreter and executable phase-controller boundary with source/install/container packaging tasks.
+- Defined an exhaustive delivery-stage truth table, complete serialized evidence, conservative author-vendor routing, and current classification state.
+- Modified conflicting active requirements and added enforced external baseline gates.
+- Expanded verification and produced plan-findings.md with all 12 findings resolved.
+
+### Context
+Resolved semantic blockers that strict OpenSpec validation did not catch: lease fencing/finalization, session and migration contracts, delivery-stage truth and evidence, active-spec conflicts, runtime packaging, and cross-change ordering. The refined plan now passes strict, package-DAG, architecture-scope, schema-instance, and diff checks.

@@ -17,6 +17,8 @@
       "additionalProperties": false,
       "required": [
         "owner",
+        "lease_id",
+        "session_id",
         "phase",
         "reason",
         "lifecycle_mode",
@@ -29,7 +31,17 @@
         "owner": {
           "type": "string",
           "minLength": 1,
-          "description": "Stable owner token, for example autopilot:<run-id> or plan-feature:<session-id>."
+          "description": "Stable owner token, for example autopilot:<run-id> or phase:<PHASE>:<run-id>."
+        },
+        "lease_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Single-acquisition fencing token. Replacement after expiry MUST use a different value."
+        },
+        "session_id": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Exact session identity used only by release-session; null is never a wildcard."
         },
         "phase": {
           "type": "string",
@@ -65,6 +77,8 @@
         "created_at",
         "retained",
         "retention_reason",
+        "recovery_required",
+        "recovery_reason",
         "activity_lease"
       ],
       "properties": {
@@ -85,11 +99,21 @@
           "description": "GC protection only; never evidence of an active writer."
         },
         "retention_reason": { "type": ["string", "null"], "minLength": 1 },
+        "recovery_required": {
+          "type": "boolean",
+          "description": "True when dirty or non-durable state requires explicit operator adoption."
+        },
+        "recovery_reason": { "type": ["string", "null"], "minLength": 1 },
         "activity_lease": {
           "oneOf": [
             { "$ref": "#/$defs/activityLease" },
             { "type": "null" }
           ]
+        },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Unknown legacy entry fields preserved during v1-to-v2 normalization."
         }
       },
       "allOf": [
@@ -104,6 +128,18 @@
           "else": {
             "properties": { "retention_reason": { "type": "null" } }
           }
+        },
+        {
+          "if": {
+            "properties": { "recovery_required": { "const": true } },
+            "required": ["recovery_required"]
+          },
+          "then": {
+            "properties": { "recovery_reason": { "type": "string", "minLength": 1 } }
+          },
+          "else": {
+            "properties": { "recovery_reason": { "type": "null" } }
+          }
         }
       ]
     },
@@ -116,6 +152,11 @@
         "entries": {
           "type": "array",
           "items": { "$ref": "#/$defs/entryV2" }
+        },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Unknown legacy top-level fields preserved during v1-to-v2 normalization."
         }
       }
     },
@@ -127,7 +168,6 @@
         "branch",
         "worktree_path",
         "created_at",
-        "last_heartbeat",
         "pinned"
       ],
       "properties": {
@@ -136,7 +176,10 @@
         "branch": { "type": "string", "minLength": 1 },
         "worktree_path": { "type": "string", "minLength": 1 },
         "created_at": { "$ref": "#/$defs/timestamp" },
-        "last_heartbeat": { "$ref": "#/$defs/timestamp" },
+        "last_heartbeat": {
+          "type": ["string", "null"],
+          "description": "Legacy compatibility input; absent, null, or unparsable values normalize as non-active with diagnostics."
+        },
         "pinned": { "type": "boolean" }
       }
     },

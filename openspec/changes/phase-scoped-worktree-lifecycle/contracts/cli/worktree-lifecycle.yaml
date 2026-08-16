@@ -31,9 +31,13 @@ identity:
     type: string
     min_length: 1
     examples:
-      - plan-feature:session-123
-      - implement-feature:session-123
+      - phase:PLAN:run-123
+      - phase:IMPLEMENT:run-123
       - autopilot:run-456
+  lease_id:
+    type: string
+    min_length: 1
+    description: Client-generated single-acquisition fencing token.
 
 global_exit_codes:
   0: success_or_idempotent_noop
@@ -42,62 +46,102 @@ global_exit_codes:
   3: live_lease_owned_by_another_owner
   4: owner_mismatch
   5: lock_timeout
+  6: expired_absent_or_fencing_mismatch
+  7: recovery_required
 
 commands:
   - name: lease acquire
     synopsis: >-
       worktree.py lease acquire CHANGE_ID [--agent-id ID] --owner OWNER
-      --phase PHASE --reason REASON [--mode standalone|continuous|manual]
-      [--ttl-seconds N] [--json]
+      --lease-id LEASE_ID [--session-id SESSION_ID] --phase PHASE --reason REASON
+      [--mode standalone|continuous|manual] [--ttl-seconds N] [--json]
     mutation: true
-    required: [change_id, owner, phase, reason]
+    required: [change_id, owner, lease_id, phase, reason]
     defaults:
       mode: standalone
       ttl_seconds: 1800
     behavior:
-      - Create a lease when none exists or the previous lease is expired.
-      - Retry by the same owner is idempotent and renews expiry.
-      - Refuse takeover of a live lease held by another owner with exit code 3.
+      - Create a lease when none exists or the previous lease is expired; replacement MUST use a new lease_id.
+      - Retry by the same owner and lease_id is idempotent and renews expiry.
+      - Refuse a live lease with a different owner using exit code 3 and a different lease_id using exit code 6.
+      - Refuse automatic acquisition of recovery_required entries with exit code 7.
     json_output:
-      required: [change_id, agent_id, owner, phase, acquired_at, last_heartbeat, expires_at, acquired]
+      required: [change_id, agent_id, owner, lease_id, session_id, phase, lifecycle_mode, acquired_at, last_heartbeat, expires_at, acquired]
 
   - name: lease renew
     synopsis: >-
       worktree.py lease renew CHANGE_ID [--agent-id ID] --owner OWNER
-      [--phase PHASE] [--ttl-seconds N] [--json]
+      --lease-id LEASE_ID [--phase PHASE] [--ttl-seconds N] [--json]
     mutation: true
-    required: [change_id, owner]
+    required: [change_id, owner, lease_id]
     defaults:
       ttl_seconds: 1800
     behavior:
-      - Renew only a non-expired lease held by the exact owner.
+      - Renew only a non-expired lease held by the exact owner and lease_id.
       - An optional phase updates the current phase without changing ownership.
-      - Refuse a different owner with exit code 4; an expired lease must be acquired again.
+      - Refuse a different owner with exit code 4 and a fencing mismatch/expired lease with exit code 6; an expired lease must be acquired again with a new lease_id.
     json_output:
-      required: [change_id, agent_id, owner, phase, last_heartbeat, expires_at, renewed]
+      required: [change_id, agent_id, owner, lease_id, phase, last_heartbeat, expires_at, renewed]
 
   - name: lease release
     synopsis: >-
-      worktree.py lease release CHANGE_ID [--agent-id ID] --owner OWNER [--json]
+      worktree.py lease release CHANGE_ID [--agent-id ID] --owner OWNER
+      --lease-id LEASE_ID [--recovery-reason REASON] [--json]
     mutation: true
-    required: [change_id, owner]
+    required: [change_id, owner, lease_id]
     behavior:
-      - Clear only a lease held by the exact owner.
+      - Clear only a lease held by the exact owner and lease_id.
+      - When recovery-reason is supplied, atomically mark recovery_required before clearing the lease.
       - Releasing an already absent lease is an idempotent success.
-      - Refuse a different live owner with exit code 4.
+      - Refuse a different live owner with exit code 4 or fencing mismatch with exit code 6.
     json_output:
-      required: [change_id, agent_id, owner, released]
+      required: [change_id, agent_id, owner, lease_id, released, recovery_required]
 
   - name: lease release-owner
     synopsis: worktree.py lease release-owner --owner OWNER [--json]
     mutation: true
     required: [owner]
     behavior:
-      - Best-effort session-end operation that clears every lease with an exact owner match.
+      - Explicit recovery operation that clears every lease with an exact owner match.
       - Never releases leases owned by another run, even when owner prefixes match.
       - Repeating the command is an idempotent success.
     json_output:
       required: [owner, released_count, released_entries]
+
+  - name: lease release-session
+    synopsis: worktree.py lease release-session --session-id SESSION_ID [--json]
+    mutation: true
+    required: [session_id]
+    behavior:
+      - Best-effort session-end operation that clears every lease with an exact non-empty session_id match.
+      - Null, missing, empty, prefix, and owner matches are never treated as session matches.
+      - Repeating the command is an idempotent success.
+    json_output:
+      required: [session_id, released_count, released_entries]
+
+  - name: recovery adopt
+    synopsis: >-
+      worktree.py recovery adopt CHANGE_ID [--agent-id ID] --owner OWNER
+      --lease-id LEASE_ID --reason REASON [--json]
+    mutation: true
+    required: [change_id, owner, lease_id, reason]
+    behavior:
+      - Explicit operator action that inspects preserved state, clears recovery_required, and acquires a new fenced manual lease atomically.
+      - Ordinary phase workflows MUST NOT pass this operation implicitly.
+
+  - name: teardown
+    synopsis: >-
+      worktree.py teardown CHANGE_ID [--agent-id ID] --owner OWNER
+      --lease-id LEASE_ID [--expected-remote REMOTE_REF] [--json]
+    mutation: true
+    required: [change_id, owner, lease_id]
+    behavior:
+      - Hold the exclusive registry lock from live owner/lease-id verification through dirty and submodule checks, remote-reachability proof, Git worktree removal, and registry-entry removal.
+      - Permit a branch not merged into main when HEAD is reachable from the expected durable remote ref.
+      - On dirty, dirty-submodule, or non-durable state, preserve the worktree and return an unsafe result so finalization can release it into recovery quarantine.
+      - Never run destructive submodule deinitialization before dirtiness is proven absent.
+    json_output:
+      required: [change_id, agent_id, owner, lease_id, removed, recovery_required, reason]
 
   - name: lease status
     synopsis: >-
@@ -109,6 +153,18 @@ commands:
       - Retention is reported independently and never changes lease liveness.
     json_output:
       required: [schema_version, inspected_at, entries]
+
+  - name: lease assert-owned
+    synopsis: >-
+      worktree.py lease assert-owned CHANGE_ID [--agent-id ID] --owner OWNER
+      --lease-id LEASE_ID [--json]
+    mutation: false
+    required: [change_id, owner, lease_id]
+    behavior:
+      - Succeed only when the lease is live and both owner and lease_id match.
+      - Return exit code 4 for owner mismatch and exit code 6 for expiry, absence, or fencing mismatch.
+    json_output:
+      required: [change_id, agent_id, owner, lease_id, owned, expires_at]
 
   - name: retention set
     synopsis: >-
@@ -161,6 +217,9 @@ compatibility_aliases:
 safety_invariants:
   - Expiry makes activity non-blocking but never removes a worktree or branch.
   - GC skips retained entries and refuses dirty or unmerged worktrees unless an existing explicit operator force path separately authorizes removal.
-  - Teardown is owner-aware and idempotent; nested phases cannot release a continuous parent lease.
+  - Automatic teardown requires a live matching owner and lease_id and holds the exclusive registry lock through dirty/submodule checks, remote-reachability proof, git removal, and registry removal.
+  - The lifecycle controller runs teardown with the resolved main repository as cwd, never from inside the worktree being removed.
+  - A pushed but unmerged branch is disposable when HEAD is reachable from the expected remote branch; an unpushed commit or dirty submodule is not.
+  - Unsafe teardown releases into recovery_required quarantine; nested phases cannot release a continuous parent lease.
   - A workflow pushes durable output before releasing its standalone phase lease.
   - Cloud isolation may make local registry mutations no-ops, but command output remains shape-compatible.

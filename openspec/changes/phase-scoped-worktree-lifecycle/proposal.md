@@ -9,7 +9,7 @@ The durable handoff should be the pushed branch and pull request, not an idle lo
 ## What Changes
 
 - **BREAKING**: replace the registry's overloaded `pinned` activity semantics with schema-v2 retention plus owner-scoped, expiring activity leases. Legacy `pinned=true` remains readable as retention, while only a fresh legacy heartbeat is transitional evidence of activity.
-- Serialize registry updates and add idempotent lease acquire, renew, release, owner/session release, status, and inspection/migration-report operations. Use a 30-minute default lease renewed every 5 minutes; expiry unblocks sync points but never deletes a dirty worktree.
+- Serialize registry updates and add fenced lease acquire, assert, renew, release, owner/session release, status, recovery-adoption, and inspection/migration-report operations. Use a 30-minute default lease renewed every 5 minutes; a new lease id fences expired writers, recovery quarantine prevents silent adoption of preserved work, and expiry never deletes a dirty worktree.
 - Make standalone planning create `openspec/<change-id>--proposal`, open a proposal-only PR after strict validation, then release and tear down its worktree in guaranteed success/failure finalization.
 - Give standalone implementation, plan iteration, implementation iteration, and validation independent phase worktrees and leases across sequential, local-parallel, and coordinated tiers. Each phase pushes durable output before owner-checked release and safe teardown.
 - Persist one `autopilot:<run-id>` lease owner across PLAN through SUBMIT_PR, propagate continuous lifecycle context into nested phase skills, renew at write-capable transitions and resume, and release after a recoverable checkpoint before DONE or ESCALATE presents a human gate.
@@ -111,14 +111,15 @@ and merge-plan orchestration integration.
 - `skills/shared/github_classifier.py` only where proposal-branch change-ID parsing must remain backward compatible; delivery-stage logic lives in merge workflow code.
 - `skills/merge-pull-requests/` discovery, vendor-review, validation, merge-plan, and post-merge cleanup paths.
 - `agent-coordinator/src/{sync_points.py,worktrees_view.py}` and matching API/UI tests so local and coordinator activity semantics agree.
+- `skills/shared/{worktree_lifecycle.py,phase_lifecycle.py}` plus the coordinator runtime image so CLI, installed-skill, source, and container consumers share one interpreter.
 - Canonical guides and generated runtime mirrors via `skills/install.sh`.
 
 ### Coordination and compatibility
 
-- Integrate or serialize the merge-package work with active change `add-merge-plan-orchestration`; its durable plan must retain delivery-stage evidence and ambiguity.
-- Reconcile validation worktree ownership with active change `validate-feature-findings-gate` rather than layering duplicate scratch-worktree lifecycles.
+- Block `wp-pr-delivery` dispatch until active change `add-merge-plan-orchestration` is merged/rebased; extend its file-tier durable plan in place and leave its deferred coordinator system-of-record deferred.
+- Block `wp-phase-lifecycle` dispatch until active change `validate-feature-findings-gate` is merged/rebased; wrap its selected validation worktree rather than layering a duplicate scratch lifecycle.
 - Preserve isolation posture, branch override, prototype retention, main-context convergence, dirty-worktree safety, and existing implementation/mixed PR behavior.
 
 ### Rollback
 
-The schema-v2 reader continues accepting v1 entries and `pin`/`unpin` remain retention aliases during migration. Rollback can restore legacy command behavior without rewriting entries destructively; new fields remain ignorable, proposal/mixed classification defaults to ambiguous rather than archival, and no rollback path force-deletes dirty or unmerged worktrees.
+The schema-v2 reader continues accepting v1 entries and `pin`/`unpin` remain retention aliases during migration. Rollback must retain the dual reader/v2 writer while higher-level workflow routing is disabled; a pre-v2 reader cannot safely interpret the disjoint shape. Proposal/mixed uncertainty defaults to ambiguous rather than archival, and no rollback path force-deletes dirty or non-durable worktrees.

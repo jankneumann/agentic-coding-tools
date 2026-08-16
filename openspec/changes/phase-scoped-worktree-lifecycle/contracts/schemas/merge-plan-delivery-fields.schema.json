@@ -20,8 +20,11 @@
     "state": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["delivery_routing"],
+      "required": ["latest_delivery_classification", "delivery_routing"],
       "properties": {
+        "latest_delivery_classification": {
+          "$ref": "pr-delivery-classification.schema.json"
+        },
         "delivery_routing": { "$ref": "#/$defs/deliveryRouting" }
       }
     }
@@ -30,9 +33,10 @@
     "operatorOverride": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["actor", "reason", "recorded_at"],
+      "required": ["actor", "selected_stage", "reason", "recorded_at"],
       "properties": {
         "actor": { "type": "string", "minLength": 1 },
+        "selected_stage": { "enum": ["proposal", "implementation", "mixed"] },
         "reason": { "type": "string", "minLength": 1 },
         "recorded_at": { "type": "string", "format": "date-time" }
       }

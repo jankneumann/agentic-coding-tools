@@ -1,12 +1,15 @@
 ## ADDED Requirements
 
-### Requirement: D5 — Registry v2 SHALL Separate Activity Leases from Retention
+### Requirement: Registry v2 SHALL Separate Activity Leases from Retention
 
 The managed-worktree registry SHALL use a locked schema-v2 lifecycle contract in
 which `retained` and `retention_reason` describe garbage-collection protection
 and `activity_lease` describes current write activity. An activity lease MUST
 contain an owner identity, phase, reason, acquisition time, last heartbeat, and
-expiry. Retention MUST NOT, by itself, be interpreted as current activity.
+expiry, plus a single-acquisition `lease_id`, nullable `session_id`, lifecycle
+mode, and TTL. Retention MUST NOT, by itself, be interpreted as current activity.
+Entries with preserved dirty or non-durable work SHALL expose
+`recovery_required` independently from activity and retention.
 
 Every read-modify-write registry operation SHALL hold an inter-process file lock
 and SHALL replace the registry atomically so concurrent acquire, renew, release,
@@ -25,13 +28,16 @@ retain, teardown, and garbage-collection operations cannot lose updates.
 - **THEN** each process SHALL serialize its read-modify-write operation under the registry lock
 - **AND** the final valid JSON document SHALL contain both updates
 
-### Requirement: D6 — Activity Lease Operations SHALL Be Owner-Scoped and Crash-Tolerant
+### Requirement: Activity Lease Operations SHALL Be Fenced and Crash-Tolerant
 
-The worktree command surface SHALL provide acquire, renew, release, owner/session
-release, and status operations for activity leases. Acquire SHALL reject a
-different live owner, renew SHALL require the current owner, and release SHALL
-remove only the matching owner's lease. Repeating a matching release or safe
-teardown SHALL succeed without changing another owner's state.
+The worktree command surface SHALL provide acquire, assert-owned, renew, release,
+owner/session release, and status operations for activity leases. Acquire SHALL
+reject a different live owner or fencing token, renew SHALL require the current
+owner plus `lease_id`, and release SHALL remove only that exact lease. Repeating
+a matching release or safe teardown SHALL succeed without changing another
+owner's state. Replacing an expired lease SHALL require a new `lease_id`; every
+mutation, integration, commit, push, and automatic teardown boundary SHALL
+assert the live matching owner and lease id.
 
 Unless explicitly configured otherwise, acquisition SHALL create a 30-minute
 lease and an active workflow SHALL renew it at intervals no longer than 5
@@ -40,16 +46,23 @@ reset, clean, or otherwise mutate worktree contents or unmerged branches.
 
 #### Scenario: Owner acquires and renews the default lease
 
-- **WHEN** owner `implement:run-42` acquires an activity lease at time T
+- **WHEN** owner `phase:IMPLEMENT:run-42` acquires an activity lease at time T
 - **THEN** the lease SHALL expire at T plus 30 minutes
 - **AND** a heartbeat renewal by the same owner at or before T plus 5 minutes SHALL advance `last_heartbeat` and `expires_at`
 
 #### Scenario: Different owner cannot renew or release a live lease
 
 - **WHEN** a live lease is owned by `autopilot:run-a`
-- **AND** owner `plan:run-b` requests renew or release
+- **AND** owner `phase:PLAN:run-b` requests renew or release
 - **THEN** the operation MUST fail with an owner-mismatch result
 - **AND** the `autopilot:run-a` lease SHALL remain unchanged
+
+#### Scenario: Expired writer is fenced after same-owner resume
+
+- **WHEN** a process holding owner `autopilot:run-a` and lease id `lease-old` expires
+- **AND** a resumed process acquires the same owner with lease id `lease-new`
+- **THEN** renew, mutation-boundary assertion, release, and teardown using `lease-old` MUST fail
+- **AND** only `lease-new` MAY proceed to integrate, commit, or push
 
 #### Scenario: Matching release is idempotent
 
@@ -81,9 +94,30 @@ release and safe teardown. Inspection MUST NOT rewrite registry entries.
 
 #### Scenario: Recovery refuses destructive teardown
 
-- **WHEN** an operator requests teardown of a dirty worktree or a worktree with an unmerged branch
+- **WHEN** an operator requests teardown of a dirty worktree, dirty submodule, or a HEAD not reachable from the expected remote branch
 - **THEN** the command MUST refuse automatic deletion and report the unsafe condition
+- **AND** dirty submodules SHALL be detected before any destructive deinitialization
 - **AND** it SHALL NOT use force to bypass the condition
+
+#### Scenario: Pushed proposal branch is safely disposable before merge
+
+- **WHEN** a clean proposal worktree HEAD is reachable from its expected remote branch
+- **AND** the proposal branch has not been merged into `main`
+- **THEN** owner-and-lease-id-checked automatic teardown MAY remove the local worktree
+- **AND** being unmerged into `main` MUST NOT by itself be treated as data loss
+
+#### Scenario: Unsafe finalization quarantines recovery state
+
+- **WHEN** phase finalization cannot dispose a dirty or non-durable worktree
+- **THEN** it SHALL atomically mark `recovery_required` with a non-empty reason before releasing the lease
+- **AND** a later ordinary acquire MUST fail until explicit operator adoption clears the quarantine
+
+#### Scenario: Acquire cannot race owner-checked disposal
+
+- **WHEN** one process begins automatic disposal with a live matching owner and lease id
+- **AND** another process attempts acquisition for the same registry entry
+- **THEN** the disposer SHALL hold the exclusive lifecycle lock through safety checks, Git removal, and registry removal
+- **AND** the acquire SHALL observe either the pre-disposal live lease or the completed removal, never an unfenced worktree being removed
 
 ### Requirement: Registry Migration SHALL Preserve Existing Local Workflow Compatibility
 
@@ -110,6 +144,12 @@ worktree behavior SHALL otherwise remain compatible.
 - **THEN** the active-agent guard SHALL report it as transitional active work
 - **AND** inspection output SHALL identify that the evidence came from a legacy heartbeat
 
+#### Scenario: Missing or invalid legacy heartbeat is diagnosable and idle
+
+- **WHEN** a schema-v1 entry has no `last_heartbeat` or has an unparsable value
+- **THEN** migration inspection SHALL preserve the source value under extensions and report a diagnostic
+- **AND** the entry MUST NOT be treated as live activity solely because it is pinned
+
 #### Scenario: Compatibility aliases affect retention only
 
 - **WHEN** the operator invokes `pin` and then `unpin` for a schema-v2 entry
@@ -130,3 +170,10 @@ describe the in-place checkout without claiming a repository-owned live lease.
 - **AND** a caller invokes acquire, renew, release, owner/session release, retain, or teardown
 - **THEN** the command MUST NOT mutate `.git-worktrees/` or its registry
 - **AND** it SHALL exit successfully with an explicit short-circuit message
+
+#### Scenario: Corrupt registry blocks safety decisions without rewrite
+
+- **WHEN** the registry is malformed or fails schema validation
+- **THEN** mutating lifecycle commands SHALL exit with the documented corrupt-registry result and preserve the file bytes
+- **AND** local and coordinator sync-point checks SHALL report an indeterminate blocker
+- **AND** continuation SHALL require the existing explicit operator override rather than failing open

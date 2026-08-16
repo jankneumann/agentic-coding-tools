@@ -64,14 +64,21 @@ The coordinator MUST NOT duplicate or weaken the local guard's lifecycle logic.
 - **THEN** each applicable sync-point status SHALL report the owner as a blocker
 - **AND** the response SHALL expose phase and heartbeat age for operator inspection
 
+#### Scenario: Corrupt registry is an indeterminate blocker
+
+- **WHEN** the canonical registry interpreter reports malformed or schema-invalid bytes
+- **THEN** coordinator sync-point status SHALL report an indeterminate blocker with diagnostic evidence
+- **AND** it MUST NOT rewrite the registry or silently report the sync point clear
+
 ## ADDED Requirements
 
 ### Requirement: Coordinator Merge Views SHALL Preserve Delivery-Stage Evidence
 
 Coordinator APIs and UI consumers that render durable merge plans SHALL carry
-the OpenSpec delivery stage independently from PR origin and author vendor. They
-SHALL display `proposal`, `implementation`, `mixed`, or `ambiguous` together
-with classifier evidence and warnings. An ambiguous result MUST be visibly
+the immutable and latest OpenSpec delivery classifications independently from
+PR origin and author-vendor evidence. They SHALL display `proposal`,
+`implementation`, `mixed`, or `ambiguous` together with base/head SHAs,
+classifier evidence, marker status, and warnings. An ambiguous result MUST be visibly
 blocked from automatic cleanup or archival actions.
 
 #### Scenario: Ambiguous delivery is operator-visible
