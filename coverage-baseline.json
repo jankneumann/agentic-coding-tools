@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "tolerance_pp": 0.5,
+  "updated_at": "2026-08-16T00:52:00+00:00",
+  "updated_by": "introduce-fitness-function-gates wp-coverage (seeded from first measured run)",
+  "suites": {
+    "agent-coordinator": {
+      "line_coverage_pct": 76.2,
+      "command": "cd agent-coordinator && uv run --with pytest-cov pytest -m \"not e2e and not integration\" -q --cov=src --cov-report=term --cov-report=xml:coverage.xml"
+    },
+    "skills": {
+      "line_coverage_pct": 87.42,
+      "command": "cd skills && uv run --with pytest-cov pytest -q --cov=. --cov-report=term --cov-report=xml:coverage.xml"
+    }
+  }
+}
