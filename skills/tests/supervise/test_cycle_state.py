@@ -142,6 +142,28 @@ class TestFingerprint:
         _roadmap(repo, "alpha", [_item("ri-01"), _item("ri-02")])
         assert is_unchanged(repo) is False
 
+    def test_committing_the_ledger_does_not_change_the_fingerprint(
+        self, repo: Path
+    ) -> None:
+        """Regression (review finding): the fingerprint hashed the HEAD commit
+        sha while the ledger is a tracked file, so record -> commit -> next cycle
+        always saw a 'changed' tree and the unchanged-tree early exit could never
+        fire after any recorded cycle. The tree component now excludes
+        openspec/supervise/, making a ledger-only commit invisible."""
+        record_cycle(repo, compute_fingerprint(repo), ["change:a"])
+        before = compute_fingerprint(repo)
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-m", "record supervise cycle")
+        assert compute_fingerprint(repo) == before
+        assert is_unchanged(repo) is True
+
+    def test_a_real_commit_still_changes_the_fingerprint(self, repo: Path) -> None:
+        before = compute_fingerprint(repo)
+        (repo / "src.py").write_text("VALUE = 1\n", encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-m", "real change")
+        assert compute_fingerprint(repo) != before
+
 
 # --------------------------------------------------------------------------- #
 # Idempotency: stub keys and dedupe
@@ -226,6 +248,22 @@ class TestLedger:
         ledger = record_cycle(repo, compute_fingerprint(repo), ["change:b"])
         assert ledger["seen_keys"] == ["change:a", "change:b"]
 
+    def test_wrong_typed_seen_keys_degrades_to_empty_not_garbage(self, repo: Path) -> None:
+        """Regression (review finding): a string seen_keys was iterated
+        character-by-character by dedupe and exploded into one-character keys by
+        record_cycle's set() merge — degradation to garbage, not to empty."""
+        path = repo / LEDGER_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps({"seen_keys": "change:add-foo", "last_fingerprint": 7}),
+            encoding="utf-8",
+        )
+        ledger = load_ledger(repo)
+        assert ledger["seen_keys"] == []
+        assert ledger["last_fingerprint"] is None
+        merged = record_cycle(repo, compute_fingerprint(repo), ["change:b"])
+        assert merged["seen_keys"] == ["change:b"]
+
 
 # --------------------------------------------------------------------------- #
 # Ready set honours typed external edges (ri-17)
@@ -247,6 +285,23 @@ class TestReadySet:
 
         # The prerequisite completes in its own roadmap; no edit to alpha.
         _roadmap(repo, "beta", [_item("bi-01", status="completed")])
+        assert [i["item_id"] for i in ready_across_roadmaps(repo)["alpha"]] == ["ri-01"]
+
+    def test_superseded_by_edge_excludes_even_an_approved_item(self, repo: Path) -> None:
+        """Regression (review finding): the first draft hand-rolled the admission
+        rule and admitted items carrying a superseded_by edge, which both
+        Roadmap.ready_items and the orchestrator exclude — the digest would have
+        listed work another roadmap's item already owns as 'Ready now'."""
+        _roadmap(repo, "beta", [_item("bi-01")])
+        _roadmap(
+            repo,
+            "alpha",
+            [_item("ri-01", status="approved", superseded_by=["beta:bi-01"])],
+        )
+        assert ready_across_roadmaps(repo)["alpha"] == []
+
+    def test_in_progress_items_appear_in_the_frontier(self, repo: Path) -> None:
+        _roadmap(repo, "alpha", [_item("ri-01", status="in_progress")])
         assert [i["item_id"] for i in ready_across_roadmaps(repo)["alpha"]] == ["ri-01"]
 
     def test_ready_items_are_priority_ordered(self, repo: Path) -> None:
@@ -292,6 +347,29 @@ class TestWriteBoundary:
     def test_implementation_and_specs_are_forbidden(self, path: str) -> None:
         assert classify_write(path) == "forbidden"
 
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "../openspec/roadmaps/x.yaml",
+            "openspec/roadmaps/../../agent-coordinator/src/x.py",
+            "openspec/roadmaps/../../../etc/passwd",
+            "/etc/passwd",
+            "./openspec/../skills/autopilot/scripts/autopilot.py",
+            "..",
+            "C:\\repo\\openspec\\roadmaps\\x.yaml",
+        ],
+    )
+    def test_traversal_and_absolute_paths_are_forbidden(self, path: str) -> None:
+        """Regression (review finding): lstrip('./') is a character strip, not a
+        prefix strip, and no '..' resolution ran — both verified traversal forms
+        classified 'allowed', silently defeating the write-boundary audit."""
+        assert classify_write(path) == "forbidden"
+
+    def test_normalized_inside_path_is_still_allowed(self) -> None:
+        # Normalization must not over-reject: a '..' that stays inside an
+        # allowed prefix is fine.
+        assert classify_write("openspec/roadmaps/a/../b/roadmap.yaml") == "allowed"
+
     def test_audit_reports_only_the_violations(self) -> None:
         violations = audit_writes(
             [
@@ -307,6 +385,35 @@ class TestWriteBoundary:
 
     def test_a_clean_run_audits_empty(self) -> None:
         assert audit_writes(["openspec/supervise/cycle-ledger.json"]) == []
+
+
+# --------------------------------------------------------------------------- #
+# Collection-order independence
+# --------------------------------------------------------------------------- #
+class TestImportIsolation:
+    def test_cycle_state_survives_a_foreign_models_module(self) -> None:
+        """Regression (review finding): cycle_state imported the bare name
+        'models' via sys.path insertion, so whichever test tree loaded its own
+        'models' first poisoned sys.modules and collection of this suite failed
+        under the documented all-tests command. cycle_state now loads
+        roadmap-runtime models by file path under a unique module name."""
+        import types
+
+        foreign = types.ModuleType("models")  # simulates another tree's models
+        previous = sys.modules.get("models")
+        sys.modules["models"] = foreign
+        try:
+            import importlib
+
+            importlib.reload(cycle_state)
+            # The reload must succeed and still resolve the real runtime symbols.
+            assert cycle_state.ItemStatus.APPROVED.value == "approved"
+        finally:
+            if previous is not None:
+                sys.modules["models"] = previous
+            else:
+                del sys.modules["models"]
+            importlib.reload(cycle_state)
 
 
 # --------------------------------------------------------------------------- #
