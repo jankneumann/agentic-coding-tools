@@ -68,7 +68,9 @@ The linter test suite SHALL assert schema validity with `jsonschema.validate`.
 
 The validate-feature Architecture phase SHALL be governed by a `gates.architecture`
 section in `architecture.config.yaml` with a `mode` of `advisory` or `blocking` and
-populated `severity_thresholds`. In `advisory` mode, findings SHALL be reported
+populated `severity_thresholds`. The gate's thresholds SHALL live in the gate's own
+namespace, distinct from `health.severity_thresholds`, which belongs to the
+architecture report and is graded in a different vocabulary. In `advisory` mode, findings SHALL be reported
 prominently in `validation-report.md` without failing the gate. In `blocking` mode, the
 Architecture phase SHALL be a required phase in `gate_logic.py`, and a new dependency
 cycle detected by the architecture diff SHALL be a critical finding that fails the hard
@@ -93,9 +95,16 @@ explicitly waived with a recorded reason
 #### Scenario: Thresholds are populated
 
 **WHEN** `architecture.config.yaml` is read
-**THEN** `health.severity_thresholds` SHALL contain at least one category-to-severity
-mapping
+**THEN** `gates.architecture.severity_thresholds` SHALL contain at least one
+category-to-severity mapping
 **AND** `gates.architecture.mode` SHALL be present with value `advisory` or `blocking`
+
+#### Scenario: Gate thresholds do not share the report's namespace
+
+**WHEN** `health.severity_thresholds` is read
+**THEN** it SHALL NOT contain severities from the gate vocabulary
+(`critical` / `major` / `minor`), since that key is graded
+`error` / `warning` / `info` by the architecture report
 
 ### Requirement: Coverage Signal With No-Decrease Ratchet
 

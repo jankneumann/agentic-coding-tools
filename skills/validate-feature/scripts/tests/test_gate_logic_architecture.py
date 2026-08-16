@@ -139,11 +139,29 @@ class TestShippedConfig:
 
     def test_repo_config_severity_thresholds_are_populated(self) -> None:
         raw = yaml.safe_load((_repo_root() / "architecture.config.yaml").read_text())
-        thresholds = raw["health"]["severity_thresholds"]
+        thresholds = raw["gates"]["architecture"]["severity_thresholds"]
         assert thresholds, "severity_thresholds must no longer be empty"
         assert thresholds["new_cycle"] == "critical"
         assert thresholds["cross_layer_violation"] == "major"
         assert thresholds["file_size"] == "minor"
+
+    def test_gate_thresholds_do_not_leak_into_report_namespace(self) -> None:
+        """The gate grades {critical, major, minor}; the architecture report grades
+        {error, warning, info}. They must not share `health.severity_thresholds` --
+        a category graded in the wrong vocabulary resolves to no filtering at all,
+        which is a threshold that silently does nothing."""
+        raw = yaml.safe_load((_repo_root() / "architecture.config.yaml").read_text())
+        report_thresholds = raw["health"]["severity_thresholds"] or {}
+        gate_vocabulary = {"critical", "major", "minor"}
+        offenders = {
+            cat: sev
+            for cat, sev in report_thresholds.items()
+            if str(sev) in gate_vocabulary
+        }
+        assert not offenders, (
+            f"gate-vocabulary severities found under health.severity_thresholds: "
+            f"{offenders}. Put gate thresholds under gates.architecture."
+        )
 
 
 class TestSeverityMapping:
