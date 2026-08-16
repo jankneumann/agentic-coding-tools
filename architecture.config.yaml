@@ -54,9 +54,14 @@ health:
     - disconnected_flow
   category_explanations:              # Override/extend explanations per category
     disconnected_flow: "MCP routes have no frontend callers — expected (clients are AI agents)"
-  severity_thresholds: {}             # Report-side filtering, graded {error, warning, info}.
-                                      # Gate thresholds live under gates.architecture below —
-                                      # they use a different vocabulary and a different consumer.
+  severity_thresholds: {}             # Report-side filtering, graded {error, warning, info}
+                                      # (see _SEVERITY_ORDER in
+                                      # skills/refresh-architecture/scripts/reports/architecture_report.py).
+                                      # A category graded in any other vocabulary resolves to
+                                      # min_level 0 here and filters nothing — silently.
+                                      # Gate thresholds are graded {critical, major, minor} and
+                                      # live under gates.architecture below. Two consumers, two
+                                      # vocabularies, deliberately two keys.
 
 best_practices:                       # Files whose content contextualizes findings
   - path: "CLAUDE.md"
