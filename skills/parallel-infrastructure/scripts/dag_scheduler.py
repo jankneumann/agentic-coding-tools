@@ -15,6 +15,7 @@ Usage as CLI:
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 from collections import defaultdict, deque
@@ -22,6 +23,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 # Import validation functions from sibling skill: validate-packages
 _VALIDATE_PKG_DIR = Path(__file__).resolve().parent.parent.parent / "validate-packages" / "scripts"
@@ -38,6 +41,61 @@ from validate_work_packages import (
     validate_schema,
     validate_scope_overlap,
 )
+
+from integration_orchestrator import FeatureHeadCompletionBarrier
+
+
+class FeatureHeadGateError(RuntimeError):
+    """Raised when dependent dispatch would bypass a feature-HEAD gate."""
+
+
+def load_execution_gate(pointer: str, base_dir: Path) -> dict[str, Any]:
+    """Load and validate an exact ``path#execution_gate`` declaration."""
+    path_text, separator, fragment = pointer.partition("#")
+    if not separator or fragment != "execution_gate":
+        raise FeatureHeadGateError(
+            f"invalid execution gate pointer {pointer!r}; expected #execution_gate"
+        )
+    path = Path(path_text)
+    if not path.is_absolute():
+        path = Path(base_dir) / path
+    try:
+        document = yaml.safe_load(path.read_text())
+    except (OSError, yaml.YAMLError) as exc:
+        raise FeatureHeadGateError(f"cannot load execution gate {path}: {exc}") from exc
+    declaration = document.get(fragment) if isinstance(document, dict) else None
+    if not isinstance(declaration, dict):
+        raise FeatureHeadGateError(f"execution gate is missing from {path}")
+
+    expected = {
+        "completion_visibility": "feature-head",
+        "dependent_base_rule": "exact-verified-feature-head",
+        "dependent_dispatch": "held-until-gate-complete",
+    }
+    for key, value in expected.items():
+        if declaration.get(key) != value:
+            raise FeatureHeadGateError(
+                f"execution gate {key} must be {value!r}"
+            )
+    if not declaration.get("package_id") or not declaration.get("evidence_path"):
+        raise FeatureHeadGateError(
+            "execution gate requires package_id and evidence_path"
+        )
+    bootstrap = declaration.get("bootstrap")
+    if not isinstance(bootstrap, dict):
+        raise FeatureHeadGateError("execution gate requires bootstrap metadata")
+    if (
+        bootstrap.get("scheduler_runtime_requirement")
+        != "fresh-process-or-instance-after-barrier-commit"
+    ):
+        raise FeatureHeadGateError(
+            "execution gate must require a fresh scheduler runtime"
+        )
+    if bootstrap.get("pre_reload_evidence_satisfies_gate") is not False:
+        raise FeatureHeadGateError(
+            "execution gate must reject pre-reload evidence"
+        )
+    return declaration
 
 
 class PackageState(str, Enum):
@@ -198,13 +256,22 @@ class DAGScheduler:
     A4. Prepare work queue task submissions
     """
 
-    def __init__(self, work_packages_path: Path, base_dir: Path | None = None):
+    def __init__(
+        self,
+        work_packages_path: Path,
+        base_dir: Path | None = None,
+        *,
+        runtime_revision: str | None = None,
+    ):
         self.work_packages_path = Path(work_packages_path)
         self.base_dir = Path(base_dir) if base_dir else self.work_packages_path.parent
         self.data: dict[str, Any] = {}
         self.topo_order: list[str] = []
         self.package_statuses: dict[str, PackageStatus] = {}
         self.submissions: list[dict[str, Any]] = []
+        self.runtime_revision = runtime_revision
+        self.execution_gates: dict[str, dict[str, Any]] = {}
+        self.verified_feature_heads: dict[str, str] = {}
 
     def preflight(self) -> dict[str, Any]:
         """Execute the full Phase A preflight sequence.
@@ -246,6 +313,14 @@ class DAGScheduler:
             result["errors"].extend(a3.get("errors", []))
             return result
         result["topo_order"] = self.topo_order
+
+        # A3.5: Load machine-declared feature-HEAD completion barriers.
+        gates = self._step_execution_gates()
+        result["checks"]["execution_gates"] = gates
+        if not gates["passed"]:
+            result["valid"] = False
+            result["errors"].extend(gates.get("errors", []))
+            return result
 
         # A4: Prepare task submissions
         self.submissions = prepare_task_submissions(self.data, self.topo_order)
@@ -313,6 +388,29 @@ class DAGScheduler:
         except ValueError as e:
             return {"passed": False, "errors": [str(e)]}
 
+    def _step_execution_gates(self) -> dict[str, Any]:
+        """A3.5: Load exact feature-HEAD gate declarations from package inputs."""
+        errors: list[str] = []
+        self.execution_gates = {}
+        for package in self.data.get("packages", []):
+            pointer = package.get("inputs", {}).get("execution_gate_pointer")
+            if not pointer:
+                continue
+            try:
+                declaration = load_execution_gate(pointer, self.base_dir)
+                if declaration["package_id"] != package["package_id"]:
+                    raise FeatureHeadGateError(
+                        "execution gate package_id does not match declaring package"
+                    )
+                self.execution_gates[package["package_id"]] = declaration
+            except FeatureHeadGateError as exc:
+                errors.append(f"{package['package_id']}: {exc}")
+        return {
+            "passed": not errors,
+            "packages": sorted(self.execution_gates),
+            "errors": errors,
+        }
+
     def get_ready_packages(self) -> list[str]:
         """Return package_ids that are ready to execute (all deps completed)."""
         ready = []
@@ -342,8 +440,104 @@ class DAGScheduler:
 
     def mark_completed(self, package_id: str) -> None:
         """Mark a package as completed and check for newly ready packages."""
+        if (
+            package_id in self.execution_gates
+            and package_id not in self.verified_feature_heads
+        ):
+            raise FeatureHeadGateError(
+                f"{package_id} has a feature-HEAD barrier; use complete_feature_head_gate"
+            )
         if package_id in self.package_statuses:
             self.package_statuses[package_id].state = PackageState.COMPLETED
+
+    def complete_feature_head_gate(
+        self,
+        package_id: str,
+        *,
+        expected_feature_head: str,
+        resolve_feature_head,
+        verify_evidence,
+        branch_lock,
+    ) -> str:
+        """Complete a declared gate only after locked evidence re-verification."""
+        declaration = self.execution_gates.get(package_id)
+        if declaration is None:
+            raise FeatureHeadGateError(f"{package_id} has no feature-HEAD barrier")
+        barrier = FeatureHeadCompletionBarrier(
+            declaration=declaration,
+            repo_root=self.base_dir,
+            resolve_feature_head=resolve_feature_head,
+            verify_evidence=verify_evidence,
+            branch_lock=branch_lock,
+        )
+        recorded = barrier.verify_and_record(
+            expected_feature_head=expected_feature_head,
+            runtime_revision=self.runtime_revision,
+        )
+        self.verified_feature_heads[package_id] = recorded
+        self.package_statuses[package_id].state = PackageState.COMPLETED
+        return recorded
+
+    def required_base_for(self, package_id: str) -> str | None:
+        """Return the exact verified base inherited from all gated ancestors."""
+        package_map = {
+            package["package_id"]: package
+            for package in self.data.get("packages", [])
+        }
+        if package_id not in package_map:
+            raise FeatureHeadGateError(f"unknown package {package_id}")
+        pending = list(package_map[package_id].get("depends_on", []))
+        visited: set[str] = set()
+        bases: set[str] = set()
+        while pending:
+            dependency = pending.pop()
+            if dependency in visited:
+                continue
+            visited.add(dependency)
+            if dependency in self.execution_gates:
+                recorded = self.verified_feature_heads.get(dependency)
+                if recorded is None:
+                    raise FeatureHeadGateError(
+                        f"feature-HEAD gate {dependency} is not verified"
+                    )
+                bases.add(recorded)
+            pending.extend(package_map.get(dependency, {}).get("depends_on", []))
+        if len(bases) > 1:
+            raise FeatureHeadGateError(
+                f"{package_id} inherits conflicting verified feature bases"
+            )
+        return next(iter(bases), None)
+
+    def submission_for_dispatch(self, package_id: str) -> dict[str, Any]:
+        """Return a submission fenced to its verified feature base.
+
+        Orchestrators must call this after dependencies complete rather than
+        dispatching the static preflight submission directly.
+        """
+        status = self.package_statuses.get(package_id)
+        if status is None:
+            raise FeatureHeadGateError(f"unknown package {package_id}")
+        if package_id not in self.get_ready_packages():
+            raise FeatureHeadGateError(
+                f"{package_id} is not ready; dependencies remain incomplete"
+            )
+        submission = next(
+            (
+                item
+                for item in self.submissions
+                if item["package_id"] == package_id
+            ),
+            None,
+        )
+        if submission is None:
+            raise FeatureHeadGateError(
+                f"no prepared submission exists for {package_id}"
+            )
+        fenced = copy.deepcopy(submission)
+        required_base = self.required_base_for(package_id)
+        if required_base is not None:
+            fenced["input_data"]["package"]["minimum_base_sha"] = required_base
+        return fenced
 
     def mark_failed(self, package_id: str, error: str) -> None:
         """Mark a package as failed."""

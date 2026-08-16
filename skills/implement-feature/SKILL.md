@@ -325,6 +325,11 @@ Compute topological order from `packages[].depends_on`.
 **B. Execute root packages sequentially:**
 
 For each root package (depends_on == []), implement within the feature worktree.
+When a root package declares
+`inputs.execution_gate_pointer` with `completion_visibility: feature-head`, it
+is a bootstrap package: use the existing managed shared feature checkout, make
+no second checkout, and follow the declared bootstrap order before considering
+that root complete.
 
 **C. Dispatch independent packages in parallel:**
 
@@ -396,11 +401,39 @@ A2. Validate contracts exist
 A3. Compute DAG order (topological sort, cycle detection)
 A3.5. Generate Change Context with relevant rows per package
 A4. Create or reuse feature branch
-A5. Implement root packages (sequentially, each in own worktree)
-A6. Setup worktrees for parallel packages (branch from feature branch)
+A5. Implement root packages sequentially. A root whose worktree mode is
+    `shared` and whose `inputs.execution_gate_pointer` declares
+    `completion_visibility: feature-head` runs in the existing managed feature
+    checkout; other root/parallel packages use dedicated worktrees.
+A6. Complete every declared feature-HEAD gate before setting up dependent
+    worktrees. Create those worktrees from the exact base returned by
+    `DAGScheduler.submission_for_dispatch()`.
 A7. Dispatch parallel agents with WORKTREE_PATH, BRANCH, CHANGE_ID, PACKAGE_ID
 A8. Begin monitoring loop (discover_agents, get_task polling)
 ```
+
+**Feature-HEAD bootstrap protocol (REQUIRED).** The scheduler reads the exact
+machine declaration named by a package's `inputs.execution_gate_pointer`; prose
+or a package title cannot opt into this path. For that shared root package:
+
+1. Write the resolver tests and implementation.
+2. Write the completion-barrier regression tests.
+3. Implement and commit the generic barrier.
+4. Reload the modules or instantiate a fresh `DAGScheduler` from that committed
+   feature revision, passing it as `runtime_revision`.
+5. Only that fresh runtime may generate and commit live evidence.
+6. Under the feature-branch lock, call
+   `complete_feature_head_gate()` with the expected evidence commit. It
+   re-resolves HEAD before and after evidence verification; either mismatch
+   loses the CAS and leaves the package incomplete.
+7. Obtain each now-ready dependent submission through
+   `submission_for_dispatch()`. This adds `minimum_base_sha`; setup must create
+   the dependent worktree from that exact SHA. Never dispatch the static
+   preflight submission directly.
+
+Evidence generated before step 4 does not satisfy the gate. An unverified gate,
+failed evidence check, missing fresh-runtime revision, or changed HEAD keeps all
+dependent DAG edges blocked.
 
 ##### Phase B: Package Execution Protocol (Every Worker Agent)
 

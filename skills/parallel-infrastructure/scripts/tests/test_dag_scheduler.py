@@ -427,6 +427,13 @@ class TestDAGSchedulerStateManagement:
         assert summary["all_done"] is True
         assert summary["counts"]["completed"] == 4
 
+    def test_non_barrier_packages_retain_legacy_completion_api(
+        self, sample_yaml: Path
+    ) -> None:
+        scheduler = self._setup_scheduler(sample_yaml)
+        scheduler.mark_completed("wp-contracts")
+        assert scheduler.package_statuses["wp-contracts"].state == PackageState.COMPLETED
+
 
 # --- Tests: CLI ---
 

@@ -13,12 +13,12 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
   **Dependencies**: 0.1
   **Files**: `skills/implement-feature/scripts/prerequisite_preflight.py`
 
-- [ ] 0.3 Write coordinated-execution regression coverage for the exact `contracts/prerequisites.yaml#execution_gate` declaration, proving the scheduler refuses completion until evidence is integrated and reverified on feature HEAD and every dependent worktree uses that recorded HEAD as its minimum base
+- [x] 0.3 Write coordinated-execution regression coverage for the exact `contracts/prerequisites.yaml#execution_gate` declaration, proving the scheduler refuses completion until evidence is integrated and reverified on feature HEAD and every dependent worktree uses that recorded HEAD as its minimum base
   **Dependencies**: 0.2
   **Spec scenarios**: `skill-workflow` — Verified preflight commit is the dependent worktree base
   **Files**: `skills/tests/implement-feature/test_coordinated_preflight.py`, `skills/parallel-infrastructure/scripts/tests/test_dag_scheduler.py`
 
-- [ ] 0.4 Implement the generic feature-HEAD completion barrier, then commit it and explicitly reload or reinstate the scheduler and integration orchestrator from that feature commit before this run attempts live preflight or dependent dispatch
+- [x] 0.4 Implement the generic feature-HEAD completion barrier, then commit it and explicitly reload or reinstate the scheduler and integration orchestrator from that feature commit before this run attempts live preflight or dependent dispatch
   **Dependencies**: 0.3
   **Files**: `skills/implement-feature/SKILL.md`, `skills/parallel-infrastructure/scripts/dag_scheduler.py`, `skills/parallel-infrastructure/scripts/integration_orchestrator.py`
 

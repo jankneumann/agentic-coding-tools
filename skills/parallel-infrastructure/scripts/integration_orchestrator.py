@@ -26,7 +26,69 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from pathlib import Path
+from typing import Any, Callable, ContextManager
+
+
+class FeatureHeadBarrierError(RuntimeError):
+    """Raised when a feature-HEAD completion barrier loses verification."""
+
+
+class FeatureHeadCompletionBarrier:
+    """Reverify committed evidence and fence dependent dispatch to one HEAD.
+
+    The caller supplies the branch lock and feature-HEAD resolver so this
+    primitive stays independent of the coordinator and worktree backends.
+    """
+
+    def __init__(
+        self,
+        *,
+        declaration: dict[str, Any],
+        repo_root: Path,
+        resolve_feature_head: Callable[[], str],
+        verify_evidence: Callable[[Path, str], None],
+        branch_lock: Callable[[], ContextManager[None]],
+    ) -> None:
+        self.declaration = declaration
+        self.repo_root = Path(repo_root)
+        self.resolve_feature_head = resolve_feature_head
+        self.verify_evidence = verify_evidence
+        self.branch_lock = branch_lock
+        self.minimum_dependent_base: str | None = None
+
+    def verify_and_record(
+        self,
+        *,
+        expected_feature_head: str,
+        runtime_revision: str | None,
+    ) -> str:
+        """Verify evidence under lock and record the unchanged exact HEAD."""
+        bootstrap = self.declaration.get("bootstrap", {})
+        if (
+            bootstrap.get("scheduler_runtime_requirement")
+            == "fresh-process-or-instance-after-barrier-commit"
+            and not runtime_revision
+        ):
+            raise FeatureHeadBarrierError(
+                "feature-HEAD gate requires a fresh scheduler runtime revision"
+            )
+
+        evidence_path = self.repo_root / self.declaration["evidence_path"]
+        with self.branch_lock():
+            observed = self.resolve_feature_head()
+            if observed != expected_feature_head:
+                raise FeatureHeadBarrierError(
+                    "feature HEAD differs from the expected completion CAS"
+                )
+            self.verify_evidence(evidence_path, observed)
+            after_verification = self.resolve_feature_head()
+            if after_verification != observed:
+                raise FeatureHeadBarrierError(
+                    "feature HEAD changed during verification; completion CAS lost"
+                )
+            self.minimum_dependent_base = observed
+            return observed
 
 
 class ReviewDisposition(str, Enum):
