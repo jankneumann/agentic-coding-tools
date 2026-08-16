@@ -171,6 +171,51 @@ Two sub-decisions:
   get wrong. Checking the row exists is a weaker claim than checking the agent reaches it, and
   only the weaker one was tested.
 
+### D12 — Enforce the claim at runtime, not only in CI (corrects D11)
+
+An adversarial security review after D11 landed found that the change's central claim —
+"every registry agent resolves to its declared trust" — was enforced by the CI invariant and
+**not** by the runtime gate. Two defects, both confirmed in code:
+
+**The gate checked "a profile resolved", not "the declared profile resolved."**
+`resolve_trust_level()` loaded `registry_entry.profile` and never compared it to
+`profile.name`. A registry agent resolving to a different, higher-trust profile was accepted
+silently. This is precisely the weaker claim D11 rewrote the invariant checker to stop
+making; only the checker was fixed.
+
+**Retiring an agent escalated it.** The success branch ran *before* the "not in the registry"
+branch, so a decommissioned agent kept resolving — through the `agent_type` fallback, to
+whatever sibling profile survived. Removing `codex-remote` disables `codex_remote` (trust 2)
+and deletes its assignment, after which the fallback lands on `codex_local` at trust 3,
+crossing `MIN_ADMIN_TRUST` and unlocking `force_push` / `delete_branch` / `cleanup_agents` /
+`rollback_policy`.
+
+That second defect was **introduced by D11's own sub-decision**, whose reasoning was wrong:
+deleting a pointer that *constrains* resolution does not lose information, it *relaxes*
+resolution. Before the assignment projection existed, the stale assignment row pinned the
+retired agent at trust 2. "A pointer is not authorization state" is false whenever the
+fallback behind it is more permissive than the pointer.
+
+The corrected rule uses `ProfileResult.source`, which the SQL function already returns:
+
+- **Registry-declared agent** — the resolved `profile.name` must equal the declared
+  `profile`; a mismatch is a projection failure (audit + `TrustResolutionError`).
+  `source == 'assignment'` is deliberately *not* also required, because with
+  `PROFILE_SYNC_ENABLED=false` or before the first sync there are no assignments and a
+  correct name match through the fallback is still correct.
+- **Non-registry principal** — a resolved profile counts only when `source == 'assignment'`,
+  i.e. a binding somebody deliberately created. Anything reached through the `agent_type`
+  fallback yields the default trust level.
+
+The resolver also moved to `src/trust_resolution.py` because there was more than one copy of
+it: `work_queue.py` carried a verbatim pre-change duplicate that still failed open, so a
+registry agent with a broken projection was denied on the HTTP path and silently granted
+trust 2 on the queue path. One implementation, two call sites.
+
+**Standing lesson for this roadmap**: a CI invariant proves the *projection* is correct; it
+says nothing about whether the *enforcement point* consults it. Both halves need the same
+test.
+
 ### D10 — OpenBao code is untouched
 
 `_resolve_api_key_from_openbao()` and `bao_seed.py` keep their current (flawed) behavior;

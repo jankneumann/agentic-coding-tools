@@ -104,6 +104,17 @@ class FakeDb:
         #: first read of that table, so the projection's INSERT hits
         #: ``UNIQUE (agent_id)`` exactly as it would in a real two-worker boot.
         self.race_assignments: list[dict[str, Any]] = []
+        #: A NON-uniqueness insert failure — RLS denial, FK violation, CHECK
+        #: failure. Unlike ``fail_insert`` no row is left behind, so a
+        #: fallback UPDATE would match zero rows and (with
+        #: ``return_data=False``) raise nothing.
+        self.profile_insert_error: BaseException | None = None
+        self.assignment_insert_error: BaseException | None = None
+        #: Exception ``fail_insert`` raises. Defaults to the PostgREST backend's
+        #: message text; override to exercise a driver that signals uniqueness
+        #: some other way (asyncpg raises ``UniqueViolationError`` and carries
+        #: SQLSTATE 23505 without the message text).
+        self.fail_insert_error: BaseException | None = None
 
     def _table(self, table: str) -> list[dict[str, Any]]:
         if table == PROFILES_TABLE:
@@ -133,6 +144,8 @@ class FakeDb:
         return_data: bool = True,
     ) -> dict[str, Any]:
         if table == ASSIGNMENTS_TABLE:
+            if self.assignment_insert_error is not None:
+                raise self.assignment_insert_error
             agent_id = data.get("agent_id")
             if any(a.get("agent_id") == agent_id for a in self.assignments):
                 raise RuntimeError(
@@ -145,6 +158,8 @@ class FakeDb:
             return dict(row)
 
         assert table == PROFILES_TABLE
+        if self.profile_insert_error is not None:
+            raise self.profile_insert_error
         row = {
             "id": _profile_id(str(data.get("name"))),
             "created_at": _next_created_at(),
@@ -155,7 +170,9 @@ class FakeDb:
             # the table even though *our* insert raised.
             if not any(r.get("name") == data.get("name") for r in self.rows):
                 self.rows.append(row)
-            raise RuntimeError("duplicate key value violates unique constraint")
+            raise self.fail_insert_error or RuntimeError(
+                "duplicate key value violates unique constraint"
+            )
         self.inserts.append(dict(data))
         self.rows.append(row)
         return dict(row)
@@ -865,3 +882,162 @@ class TestAuditContract:
             "source": "agents.yaml",
             "agent_id": "gemini-local",
         }
+
+
+# ---------------------------------------------------------------------------
+# Insert-failure fallback (must not report zero-row writes as success)
+# ---------------------------------------------------------------------------
+
+
+class _RlsDeniedError(RuntimeError):
+    """Stand-in for a non-uniqueness write failure (RLS / FK / CHECK).
+
+    Deliberately carries no ``sqlstate`` and no "duplicate key value violates
+    unique constraint" text, because that is exactly what distinguishes it from
+    the lost-INSERT race the fallback exists for.
+    """
+
+
+class _AsyncpgUniqueViolationError(RuntimeError):
+    """Shape of asyncpg's UniqueViolationError: class name plus SQLSTATE.
+
+    asyncpg does not put the PostgreSQL message text in ``str(exc)`` the way
+    the PostgREST backend does, so the narrowed fallback has to recognize the
+    driver's own signal too, or a real two-worker boot race would start failing
+    boots on the postgres backend.
+    """
+
+    sqlstate = "23505"
+
+
+_AsyncpgUniqueViolationError.__name__ = "UniqueViolationError"
+
+
+@pytest.mark.asyncio
+class TestInsertFailureFallbackIsNarrow:
+    """Only a lost UNIQUE race may be retried as an UPDATE.
+
+    ``db.update(..., return_data=False)`` never inspects rowcount, so a
+    zero-row UPDATE raises nothing. Retrying *any* failed insert as an update
+    therefore recorded an RLS denial or FK violation as a successful
+    projection: ``result.inserted``/``assigned`` grew and an audit event was
+    emitted for a row that does not exist.
+    """
+
+    async def test_non_unique_profile_insert_failure_raises(self) -> None:
+        db = FakeDb()
+        db.profile_insert_error = _RlsDeniedError("new row violates row-level security")
+        audit = FakeAudit()
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        with pytest.raises(ProfileSyncError, match="Could not project agent"):
+            await sync_profiles(agents, db=db, audit=audit)
+
+        # No phantom write, and no audit event claiming one happened.
+        assert db.updates == []
+        assert audit.payloads() == []
+        assert db.rows == []
+
+    async def test_non_unique_assignment_insert_failure_raises(self) -> None:
+        db = FakeDb()
+        db.assignment_insert_error = _RlsDeniedError("insert or update violates foreign key")
+        audit = FakeAudit()
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        with pytest.raises(ProfileSyncError, match="Could not assign agent"):
+            await sync_profiles(agents, db=db, audit=audit)
+
+        assert db.assignment_updates == []
+        assert db.assignments == []
+        assert [p["action"] for p in audit.payloads()] == ["insert"]
+
+    async def test_unique_violation_still_converges_via_update(self) -> None:
+        """The genuine race the fallback exists for keeps working."""
+        db = FakeDb()
+        db.fail_insert = True  # message text carries the UNIQUE signal
+        audit = FakeAudit()
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        result = await sync_profiles(agents, db=db, audit=audit)
+
+        assert result.updated == ["grok_local"]
+
+    async def test_asyncpg_unique_violation_recognized(self) -> None:
+        """The driver's own signal counts, not just the message text.
+
+        asyncpg's ``UniqueViolationError`` does not carry PostgreSQL's message
+        text in ``str(exc)``. Matching on text alone would turn every real
+        two-worker boot race into a failed boot on ``DB_BACKEND=postgres``.
+        """
+        db = FakeDb()
+        db.fail_insert = True
+        db.fail_insert_error = _AsyncpgUniqueViolationError(
+            "<class 'asyncpg.exceptions.UniqueViolationError'>"
+        )
+        audit = FakeAudit()
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        result = await sync_profiles(agents, db=db, audit=audit)
+
+        assert result.updated == ["grok_local"]
+
+
+# ---------------------------------------------------------------------------
+# synced_from_registry_at bookkeeping (migration 031)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+class TestSyncedFromRegistryAt:
+    """Migration 031's column has to actually be written.
+
+    Its COMMENT tells operators the column distinguishes registry-projected
+    rows from hand-maintained ones. Nothing wrote it, so it was permanently
+    NULL and the comment was false.
+    """
+
+    @staticmethod
+    def _assert_recent_iso(value: Any) -> None:
+        assert isinstance(value, str), f"expected an ISO timestamp, got {value!r}"
+        stamped = datetime.fromisoformat(value)
+        assert stamped.tzinfo is not None, "timestamp must be timezone-aware"
+        assert abs((datetime.now(UTC) - stamped).total_seconds()) < 60
+
+    async def test_insert_stamps_the_column(self) -> None:
+        db = FakeDb()
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        await sync_profiles(agents, db=db, audit=FakeAudit())
+
+        self._assert_recent_iso(db.inserts[0].get("synced_from_registry_at"))
+
+    async def test_drift_update_stamps_the_column(self) -> None:
+        db = FakeDb(
+            [
+                _row(
+                    "grok_local",
+                    agent_type="grok",
+                    trust_level=2,
+                    allowed_operations=derive_allowed_operations(["lock"], 3),
+                )
+            ]
+        )
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        await sync_profiles(agents, db=db, audit=FakeAudit())
+
+        self._assert_recent_iso(db.updates[0][1].get("synced_from_registry_at"))
+
+    async def test_orphan_disable_does_not_restamp(self) -> None:
+        """Disabling an orphan is not a projection *of* that row.
+
+        Leaving its stamp at the last successful projection is what makes
+        "registry-projected, then orphaned" reconstructible.
+        """
+        db = FakeDb([_row("gemini_local", agent_type="gemini")])
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        await sync_profiles(agents, db=db, audit=FakeAudit())
+
+        disable = next(u for u in db.updates if u[0] == {"name": "gemini_local"})
+        assert disable[1] == {"enabled": False}
