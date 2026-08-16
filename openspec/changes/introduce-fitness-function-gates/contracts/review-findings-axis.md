@@ -12,7 +12,11 @@ Rules all packages code against:
 1. **Three copies, one value.** The enum is byte-identical in:
    - `openspec/schemas/review-findings.schema.json` (canonical)
    - `skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json`
-   - `agent-coordinator/agents.yaml` inline `--json-schema` blocks (~lines 282, 289)
+     (verified byte-identical to canonical as of wp-contracts)
+   - `agent-coordinator/agents.yaml` inline `--json-schema` block — **the `axis` enum at
+     line 289 only**. Line 285 is the separate `type` enum, which already carries
+     `observability` / `compatibility` / `resilience` and MUST NOT be touched by this
+     change.
    The wp-schema test suite asserts identity across all three; drift is a test failure.
 2. **`axis` and `severity` remain required.** Producers (parallel-review skills,
    validate-feature linters, findings emitters) MUST emit both. Legacy migration
