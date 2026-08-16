@@ -173,7 +173,17 @@ class FakeRunner:
                 return self._done(args, returncode=1)
             return self._done(args)
         if args[:3] == ("git", "cat-file", "-e"):
-            revision, path = args[3].split(":", 1)
+            object_spec = args[3]
+            if object_spec.endswith("^{commit}"):
+                revision = object_spec.removesuffix("^{commit}")
+                known_commits = {
+                    "f" * 40,
+                    self.head,
+                    self.base_tip,
+                    *self.merge_shas.values(),
+                }
+                return self._done(args, returncode=0 if revision in known_commits else 1)
+            revision, path = object_spec.split(":", 1)
             if (
                 self.mode == "missing_surface"
                 and revision == self.merge_shas[1]
@@ -282,14 +292,16 @@ def test_verify_only_rechecks_ancestry_without_rewriting(preflight, tmp_path: Pa
     runner = FakeRunner()
     _, output = _run(preflight, tmp_path, runner)
     before = output.read_bytes()
+    committed = FakeRunner()
+    committed.head = "c" * 40
 
     verified = preflight.run_preflight(
         _write_requirements(tmp_path),
         output,
         tmp_path,
-        runner=FakeRunner(),
+        runner=committed,
         verify_only=True,
-        expected_feature_head=runner.head,
+        expected_feature_head=committed.head,
     )
 
     assert verified["implementation_diff_base_sha"] == runner.base_tip
@@ -357,6 +369,7 @@ def test_verify_only_rejects_a_stale_gate_head_binding(preflight, tmp_path: Path
     evidence, _ = _run(preflight, tmp_path, runner)
     current = FakeRunner()
     current.head = "c" * 40
+    expected_gate_head = "d" * 40
 
     with pytest.raises(preflight.PreflightError, match="exact feature HEAD"):
         preflight.verify_evidence_bytes(
@@ -364,7 +377,7 @@ def test_verify_only_rejects_a_stale_gate_head_binding(preflight, tmp_path: Path
             json.dumps(evidence).encode(),
             tmp_path,
             runner=current,
-            expected_feature_head=runner.head,
+            expected_feature_head=expected_gate_head,
         )
 
 
@@ -383,4 +396,79 @@ def test_verify_only_rejects_stored_heads_that_are_merely_ancestors(
             tmp_path,
             runner=FakeRunner(),
             expected_feature_head=runner.head,
+        )
+
+
+def test_generation_head_evidence_can_gate_its_distinct_commit_head(
+    preflight, tmp_path: Path
+) -> None:
+    generation = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, generation)
+    committed = FakeRunner()
+    committed.head = "c" * 40
+
+    verified = preflight.verify_evidence_bytes(
+        _write_requirements(tmp_path),
+        json.dumps(evidence).encode(),
+        tmp_path,
+        runner=committed,
+        expected_feature_head=committed.head,
+    )
+
+    assert {item["verified_head_sha"] for item in verified["prerequisites"]} == {generation.head}
+    surface_checks = [call[3] for call in committed.calls if call[:3] == ("git", "cat-file", "-e")]
+    assert f"{generation.head}:skills/build_plan.py" in surface_checks
+    assert f"{committed.head}:skills/build_plan.py" in surface_checks
+
+
+def test_verify_only_rejects_inconsistent_generation_heads(preflight, tmp_path: Path) -> None:
+    generation = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, generation)
+    evidence["prerequisites"][0]["verified_head_sha"] = "a" * 40
+    committed = FakeRunner()
+    committed.head = "c" * 40
+
+    with pytest.raises(preflight.PreflightError, match="one exact generation revision"):
+        preflight.verify_evidence_bytes(
+            _write_requirements(tmp_path),
+            json.dumps(evidence).encode(),
+            tmp_path,
+            runner=committed,
+            expected_feature_head=committed.head,
+        )
+
+
+def test_verify_only_rejects_modified_authoritative_metadata(preflight, tmp_path: Path) -> None:
+    generation = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, generation)
+    evidence["prerequisites"][0]["pr_url"] = "https://github.com/acme/tools/pull/999"
+    committed = FakeRunner()
+    committed.head = "c" * 40
+
+    with pytest.raises(preflight.PreflightError, match="metadata changed"):
+        preflight.verify_evidence_bytes(
+            _write_requirements(tmp_path),
+            json.dumps(evidence).encode(),
+            tmp_path,
+            runner=committed,
+            expected_feature_head=committed.head,
+        )
+
+
+def test_verify_only_rejects_changed_required_surfaces_at_gate_head(
+    preflight, tmp_path: Path
+) -> None:
+    generation = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, generation)
+    committed = FakeRunner()
+    committed.head = "c" * 40
+    committed.mode = "invalid_surface_content"
+
+    with pytest.raises(preflight.PreflightError, match="cannot parse"):
+        preflight.verify_evidence_bytes(
+            _write_requirements(tmp_path),
+            json.dumps(evidence).encode(),
+            tmp_path,
+            runner=committed,
+            expected_feature_head=committed.head,
         )

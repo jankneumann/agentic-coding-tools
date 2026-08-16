@@ -397,6 +397,34 @@ def _verify_existing(
         raise PreflightError("baseline evidence prerequisite IDs are not an exact one-to-one match")
     _validate_evidence(evidence, schema)
     expected_feature_head = _require_oid(expected_feature_head, "expected feature HEAD object id")
+    generation_heads = {
+        _require_oid(item["verified_head_sha"], "stored verified_head_sha")
+        for item in evidence["prerequisites"]
+    }
+    if len(generation_heads) != 1:
+        raise PreflightError(
+            "baseline evidence prerequisites must attest one exact generation revision"
+        )
+    generation_head = next(iter(generation_heads))
+    if generation_head == expected_feature_head:
+        raise PreflightError(
+            "baseline evidence generation revision must precede its committed gate HEAD"
+        )
+    generation_commit = _command(
+        runner,
+        ("git", "cat-file", "-e", f"{generation_head}^{{commit}}"),
+        repo_root,
+        check=False,
+    )
+    if generation_commit.returncode != 0:
+        raise PreflightError("stored feature HEAD is not an available generation commit")
+    if not _is_ancestor(runner, repo_root, generation_head, expected_feature_head):
+        raise PreflightError(
+            "baseline evidence generation revision is not ancestral to the committed gate HEAD"
+        )
+
+    # Resolve again at the committed gate HEAD. This independently verifies
+    # every required surface at B; the stored evidence continues to attest A.
     current = _resolve(requirements, repo_root, runner)
     current_feature_heads = {item["verified_head_sha"] for item in current["prerequisites"]}
     if current_feature_heads != {expected_feature_head}:
@@ -404,6 +432,7 @@ def _verify_existing(
     if evidence.get("repository") != current["repository"]:
         raise PreflightError("baseline evidence belongs to a different repository")
     current_by_change = {item["change_id"]: item for item in current["prerequisites"]}
+    requirements_by_change = {item["change_id"]: item for item in requirements["prerequisites"]}
     immutable = (
         "repository",
         "remote_name",
@@ -426,10 +455,14 @@ def _verify_existing(
             "authoritative_merge_sha",
         ):
             _require_oid(stored[key], f"stored {key}")
-        if stored["verified_head_sha"] != expected_feature_head:
-            raise PreflightError(
-                f"{stored['change_id']}: stored feature HEAD does not exactly match the gate HEAD"
-            )
+        _verify_required_surface(
+            requirements_by_change[stored["change_id"]]["required_surface"],
+            change_id=stored["change_id"],
+            merge_sha=stored["authoritative_merge_sha"],
+            feature_head=generation_head,
+            repo_root=repo_root,
+            runner=runner,
+        )
         if not _is_ancestor(
             runner,
             repo_root,

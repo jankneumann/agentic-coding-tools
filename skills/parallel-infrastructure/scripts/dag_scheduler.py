@@ -22,7 +22,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
@@ -346,6 +346,8 @@ class DAGScheduler:
         """Expose only submissions that are safe to dispatch right now."""
         dispatchable = []
         for package_id in self.get_ready_packages():
+            if self._gated_ancestors(package_id):
+                continue
             dispatchable.append(self.submission_for_dispatch(package_id))
         return dispatchable
 
@@ -491,45 +493,46 @@ class DAGScheduler:
         self.package_statuses[package_id].state = PackageState.COMPLETED
         return recorded
 
-    def required_base_for(self, package_id: str) -> str | None:
-        """Return the exact verified base inherited from all gated ancestors."""
+    def _gated_ancestors(self, package_id: str) -> list[str]:
         package_map = {package["package_id"]: package for package in self.data.get("packages", [])}
         if package_id not in package_map:
             raise FeatureHeadGateError(f"unknown package {package_id}")
         pending = list(package_map[package_id].get("depends_on", []))
         visited: set[str] = set()
-        bases: set[str] = set()
+        gates: list[str] = []
         while pending:
             dependency = pending.pop()
             if dependency in visited:
                 continue
             visited.add(dependency)
             if dependency in self.execution_gates:
-                recorded = self.verified_feature_heads.get(dependency)
-                if recorded is None:
-                    raise FeatureHeadGateError(f"feature-HEAD gate {dependency} is not verified")
-                barrier = self._completed_feature_head_barriers.get(dependency)
-                if barrier is None:
-                    raise FeatureHeadGateError(
-                        f"feature-HEAD gate {dependency} has no completion barrier"
-                    )
-                reverified = barrier.reverify_recorded_head()
-                if reverified != recorded:
-                    raise FeatureHeadGateError(
-                        f"feature-HEAD gate {dependency} changed its verified base"
-                    )
-                bases.add(reverified)
+                gates.append(dependency)
             pending.extend(package_map.get(dependency, {}).get("depends_on", []))
+        return sorted(gates)
+
+    def required_base_for(self, package_id: str) -> str | None:
+        """Reverify and return a diagnostic base; dispatch must use atomic handoff."""
+        bases: set[str] = set()
+        for dependency in self._gated_ancestors(package_id):
+            recorded = self.verified_feature_heads.get(dependency)
+            if recorded is None:
+                raise FeatureHeadGateError(f"feature-HEAD gate {dependency} is not verified")
+            barrier = self._completed_feature_head_barriers.get(dependency)
+            if barrier is None:
+                raise FeatureHeadGateError(
+                    f"feature-HEAD gate {dependency} has no completion barrier"
+                )
+            reverified = barrier.reverify_recorded_head()
+            if reverified != recorded:
+                raise FeatureHeadGateError(
+                    f"feature-HEAD gate {dependency} changed its verified base"
+                )
+            bases.add(reverified)
         if len(bases) > 1:
             raise FeatureHeadGateError(f"{package_id} inherits conflicting verified feature bases")
         return next(iter(bases), None)
 
-    def submission_for_dispatch(self, package_id: str) -> dict[str, Any]:
-        """Return a submission fenced to its verified feature base.
-
-        Orchestrators must call this after dependencies complete rather than
-        dispatching the static preflight submission directly.
-        """
+    def _ready_submission(self, package_id: str) -> dict[str, Any]:
         status = self.package_statuses.get(package_id)
         if status is None:
             raise FeatureHeadGateError(f"unknown package {package_id}")
@@ -538,11 +541,51 @@ class DAGScheduler:
         submission = self._submission_templates.get(package_id)
         if submission is None:
             raise FeatureHeadGateError(f"no prepared submission exists for {package_id}")
-        fenced = copy.deepcopy(submission)
-        required_base = self.required_base_for(package_id)
-        if required_base is not None:
-            fenced["input_data"]["package"]["minimum_base_sha"] = required_base
-        return fenced
+        return copy.deepcopy(submission)
+
+    def submission_for_dispatch(self, package_id: str) -> dict[str, Any]:
+        """Return an ungated submission that needs no feature-branch handoff.
+
+        Gated descendants cannot safely expose a payload after releasing the
+        branch lock; they must use :meth:`dispatch_with_handoff`.
+        """
+        submission = self._ready_submission(package_id)
+        if self._gated_ancestors(package_id):
+            raise FeatureHeadGateError(
+                f"{package_id} requires an atomic dispatch handoff under the feature-branch lock"
+            )
+        return submission
+
+    def dispatch_with_handoff(
+        self,
+        package_id: str,
+        handoff: Callable[[dict[str, Any]], None],
+    ) -> None:
+        """Publish or create a dependent atomically under its gate's branch lock."""
+        submission = self._ready_submission(package_id)
+        gated_ancestors = self._gated_ancestors(package_id)
+        if not gated_ancestors:
+            handoff(submission)
+            return
+        if len(gated_ancestors) != 1:
+            raise FeatureHeadGateError(
+                f"{package_id} has multiple feature-HEAD gates; atomic handoff is undefined"
+            )
+        dependency = gated_ancestors[0]
+        recorded = self.verified_feature_heads.get(dependency)
+        barrier = self._completed_feature_head_barriers.get(dependency)
+        if recorded is None or barrier is None:
+            raise FeatureHeadGateError(f"feature-HEAD gate {dependency} is not verified")
+
+        def publish(verified_head: str) -> None:
+            if verified_head != recorded:
+                raise FeatureHeadGateError(
+                    f"feature-HEAD gate {dependency} changed its verified base"
+                )
+            submission["input_data"]["package"]["minimum_base_sha"] = verified_head
+            handoff(submission)
+
+        barrier.handoff_recorded_head(publish)
 
     def mark_failed(self, package_id: str, error: str) -> None:
         """Mark a package as failed."""

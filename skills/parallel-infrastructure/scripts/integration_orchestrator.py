@@ -69,6 +69,13 @@ class FeatureHeadCompletionBarrier:
         expected_feature_head: str,
     ) -> str:
         """Verify evidence under lock and record the unchanged exact HEAD."""
+        self._validate_runtime_binding(expected_feature_head)
+        with self.branch_lock():
+            observed = self._verify_locked(expected_feature_head)
+            self.minimum_dependent_base = observed
+            return observed
+
+    def _validate_runtime_binding(self, expected_feature_head: str) -> None:
         bootstrap = self.declaration.get("bootstrap", {})
         if (
             bootstrap.get("scheduler_runtime_requirement")
@@ -81,27 +88,24 @@ class FeatureHeadCompletionBarrier:
         if not self.runtime_sources:
             raise FeatureHeadBarrierError("feature-HEAD gate has no bound runtime source bytes")
 
-        with self.branch_lock():
-            observed = self.resolve_feature_head()
-            if observed != expected_feature_head:
+    def _verify_locked(self, expected_feature_head: str) -> str:
+        observed = self.resolve_feature_head()
+        if observed != expected_feature_head:
+            raise FeatureHeadBarrierError("feature HEAD differs from the expected completion CAS")
+        for path, loaded_bytes in self.runtime_sources.items():
+            committed_bytes = self.read_revision_file(observed, path)
+            if committed_bytes != loaded_bytes:
                 raise FeatureHeadBarrierError(
-                    "feature HEAD differs from the expected completion CAS"
+                    f"loaded runtime bytes differ from committed gate revision: {path}"
                 )
-            for path, loaded_bytes in self.runtime_sources.items():
-                committed_bytes = self.read_revision_file(observed, path)
-                if committed_bytes != loaded_bytes:
-                    raise FeatureHeadBarrierError(
-                        f"loaded runtime bytes differ from committed gate revision: {path}"
-                    )
-            evidence_bytes = self.read_revision_file(observed, self.declaration["evidence_path"])
-            self.verify_evidence(evidence_bytes, observed)
-            after_verification = self.resolve_feature_head()
-            if after_verification != observed:
-                raise FeatureHeadBarrierError(
-                    "feature HEAD changed during verification; completion CAS lost"
-                )
-            self.minimum_dependent_base = observed
-            return observed
+        evidence_bytes = self.read_revision_file(observed, self.declaration["evidence_path"])
+        self.verify_evidence(evidence_bytes, observed)
+        after_verification = self.resolve_feature_head()
+        if after_verification != observed:
+            raise FeatureHeadBarrierError(
+                "feature HEAD changed during verification; completion CAS lost"
+            )
+        return observed
 
     def reverify_recorded_head(self) -> str:
         """Revalidate the recorded gate HEAD immediately before dependent use."""
@@ -110,6 +114,19 @@ class FeatureHeadCompletionBarrier:
         return self.verify_and_record(
             expected_feature_head=self.minimum_dependent_base,
         )
+
+    def handoff_recorded_head(
+        self,
+        handoff: Callable[[str], None],
+    ) -> None:
+        """Reverify and publish/create the dependent while still holding the lock."""
+        if self.minimum_dependent_base is None:
+            raise FeatureHeadBarrierError("feature-HEAD gate has no recorded completion")
+        expected_feature_head = self.minimum_dependent_base
+        self._validate_runtime_binding(expected_feature_head)
+        with self.branch_lock():
+            observed = self._verify_locked(expected_feature_head)
+            handoff(observed)
 
 
 class ReviewDisposition(str, Enum):

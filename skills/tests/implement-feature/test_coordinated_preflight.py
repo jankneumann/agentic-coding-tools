@@ -78,6 +78,24 @@ class RecordingLock:
             self.held = False
 
 
+class AdvanceOnSecondReleaseLock(RecordingLock):
+    def __init__(self, current_head: list[str]) -> None:
+        super().__init__()
+        self.current_head = current_head
+
+    @contextmanager
+    def acquire(self):
+        assert not self.held
+        self.held = True
+        self.entries += 1
+        try:
+            yield
+        finally:
+            self.held = False
+            if self.entries == 2:
+                self.current_head[0] = "c" * 40
+
+
 def test_barrier_uses_committed_evidence_bytes_and_records_exact_head(
     tmp_path: Path,
 ) -> None:
@@ -272,7 +290,9 @@ def test_dependent_dispatch_carries_the_exact_verified_feature_base() -> None:
     )
     scheduler.mark_completed("wp-registry")
 
-    submission = scheduler.submission_for_dispatch("wp-pr-delivery")
+    published: list[dict] = []
+    scheduler.dispatch_with_handoff("wp-pr-delivery", published.append)
+    submission = published[0]
     assert submission["input_data"]["package"]["minimum_base_sha"] == EVIDENCE_COMMIT
 
 
@@ -302,7 +322,9 @@ def test_dispatch_reverifies_committed_evidence_immediately_before_publication()
     )
     scheduler.mark_completed("wp-registry")
 
-    submission = scheduler.submission_for_dispatch("wp-pr-delivery")
+    published: list[dict] = []
+    scheduler.dispatch_with_handoff("wp-pr-delivery", published.append)
+    submission = published[0]
 
     assert submission["input_data"]["package"]["minimum_base_sha"] == EVIDENCE_COMMIT
     assert evidence_reads == 2
@@ -332,5 +354,50 @@ def test_dispatch_rejects_stale_gate_completion_after_feature_head_advances() ->
     scheduler.mark_completed("wp-registry")
     current_head[0] = "c" * 40
 
+    published: list[dict] = []
     with pytest.raises(FeatureHeadBarrierError, match="differs"):
+        scheduler.dispatch_with_handoff("wp-pr-delivery", published.append)
+    assert published == []
+
+
+def test_gated_dispatch_handoff_is_atomic_with_reverification_and_lock_release() -> None:
+    scheduler = DAGScheduler(
+        WORK_PACKAGES,
+        ROOT,
+        runtime_revision=EVIDENCE_COMMIT,
+    )
+    assert scheduler.preflight()["valid"]
+    current_head = [EVIDENCE_COMMIT]
+    lock = AdvanceOnSecondReleaseLock(current_head)
+    published: list[dict] = []
+
+    scheduler.complete_feature_head_gate(
+        "wp-baseline-preflight",
+        expected_feature_head=EVIDENCE_COMMIT,
+        resolve_feature_head=lambda: current_head[0],
+        read_revision_file=lambda _revision, path: (
+            scheduler.runtime_sources[path]
+            if path in scheduler.runtime_sources
+            else b"committed-evidence"
+        ),
+        verify_evidence=lambda _payload, _head: None,
+        branch_lock=lock.acquire,
+    )
+    scheduler.mark_completed("wp-registry")
+    assert "wp-pr-delivery" not in {
+        submission["package_id"] for submission in scheduler.submissions
+    }
+
+    def publish(submission: dict) -> None:
+        assert lock.held
+        assert current_head[0] == EVIDENCE_COMMIT
+        assert submission["input_data"]["package"]["minimum_base_sha"] == current_head[0]
+        published.append(submission)
+
+    result = scheduler.dispatch_with_handoff("wp-pr-delivery", publish)
+
+    assert result is None
+    assert len(published) == 1
+    assert current_head[0] == "c" * 40
+    with pytest.raises(FeatureHeadGateError, match="atomic dispatch handoff"):
         scheduler.submission_for_dispatch("wp-pr-delivery")

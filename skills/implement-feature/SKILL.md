@@ -406,8 +406,9 @@ A5. Implement root packages sequentially. A root whose worktree mode is
     `completion_visibility: feature-head` runs in the existing managed feature
     checkout; other root/parallel packages use dedicated worktrees.
 A6. Complete every declared feature-HEAD gate before setting up dependent
-    worktrees. Create those worktrees from the exact base returned by
-    `DAGScheduler.submission_for_dispatch()`.
+    worktrees. Publish each dependent dispatch or create its worktree only in
+    the callback passed to `DAGScheduler.dispatch_with_handoff()`; that callback
+    runs under the feature-branch lock and receives `minimum_base_sha`.
 A7. Dispatch parallel agents with WORKTREE_PATH, BRANCH, CHANGE_ID, PACKAGE_ID
 A8. Begin monitoring loop (discover_agents, get_task polling)
 ```
@@ -421,26 +422,31 @@ or a package title cannot opt into this path. For that shared root package:
 3. Implement and commit the generic barrier.
 4. Reload the modules or instantiate a fresh `DAGScheduler` from that committed
    feature revision before generating live evidence.
-5. Generate and commit live evidence, then reload or reinstantiate once more
-   from that exact evidence commit and bind `runtime_revision` to its SHA.
+5. At generation revision A, generate live evidence whose per-prerequisite
+   `verified_head_sha` values all attest that exact A revision. Commit those
+   immutable evidence bytes to distinct gate revision B, then reload or
+   reinstantiate once more from B and bind `runtime_revision` to B's SHA.
 6. Under the feature-branch lock, call
-   `complete_feature_head_gate()` with the expected evidence commit and a
+   `complete_feature_head_gate()` with expected gate revision B and a
    revision reader backed by `git show <sha>:<path>`. The gate proves the loaded
-   scheduler/orchestrator bytes match that commit, passes the evidence bytes
-   from that commit—not the mutable worktree—to verification, and re-resolves
-   HEAD before and after verification. Any mismatch loses the CAS and leaves
-   the package incomplete.
-7. Obtain each now-ready dependent submission through
-   `submission_for_dispatch()`. This adds `minimum_base_sha`; setup must create
-   the dependent worktree from that exact SHA. Never dispatch the static
-   preflight submission directly.
+   scheduler/orchestrator bytes match B, passes the exact evidence blob from B
+   (not the mutable worktree) to verification, proves A is the single available
+   generation commit ancestral to B, and independently re-resolves the exact
+   required surfaces at both A and B. The barrier alone records B as the
+   dependent base; evidence cannot self-reference B. Any mismatch loses the CAS
+   and leaves the package incomplete.
+7. For each now-ready gated dependent, call `dispatch_with_handoff()` with the
+   queue-publication or worktree-creation callback. The scheduler reverifies B,
+   adds `minimum_base_sha`, and invokes that callback before releasing the same
+   branch lock. `submission_for_dispatch()` fails closed for gated descendants;
+   never return or dispatch a gated payload after unlocking.
 
 Evidence generated before step 4 does not satisfy the gate. An unverified gate,
 failed evidence check, runtime/commit byte mismatch, or changed HEAD keeps all
 dependent DAG edges blocked. The scheduler's preflight result and `submissions`
 property expose only packages ready at that instant; callers cannot obtain a
-gated descendant payload except through `submission_for_dispatch()` after the
-gate records its exact `minimum_base_sha`.
+gated descendant payload except inside `dispatch_with_handoff()` after the gate
+records and locked reverification confirms its exact `minimum_base_sha`.
 
 ##### Phase B: Package Execution Protocol (Every Worker Agent)
 
