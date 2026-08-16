@@ -2067,6 +2067,7 @@ def cmd_recovery_adopt(args: argparse.Namespace) -> int:
             run_git("rev-parse", established["ref_name"], cwd=str(main_repo))
     elif args.durability_remote or args.durability_ref:
         raise lifecycle.FenceConflict("existing durability target cannot be replaced")
+    process_start_token = lifecycle._process_start_token(os.getpid())
     when = lifecycle.utc_now()
 
     def adopt(registry: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
@@ -2134,6 +2135,7 @@ def cmd_recovery_adopt(args: argparse.Namespace) -> int:
             lease_id=args.lease_id,
             owner=args.owner,
             controller_instance_id=args.controller_instance_id,
+            process_start_token=process_start_token,
         )
         lifecycle._write_unlocked(main_repo, registry)
     _emit(

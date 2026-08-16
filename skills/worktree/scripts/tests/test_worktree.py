@@ -1242,6 +1242,98 @@ class TestRecoveryCommands:
         assert adopted["recovery_required"] is False
         assert adopted["activity_lease"]["lease_id"] == "new-lease"
 
+    def test_force_adopt_discovers_process_token_before_exclusive_publication_lock(
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        entry = {
+            "change_id": "recovery",
+            "agent_id": None,
+            "branch": "openspec/recovery",
+            "worktree_path": str(git_repo / "missing"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "entry_generation": "generation",
+            "setup_id": None,
+            "durability_target": None,
+            "retained": False,
+            "retention_reason": None,
+            "recovery_required": True,
+            "recovery_reason": "legacy work",
+            "recovery_context": {
+                "source": "legacy-adoption",
+                "prior_owner": None,
+                "prior_lease_id": None,
+                "prior_controller_instance_id": None,
+                "process_evidence_key": None,
+                "quarantined_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "activity_lease": None,
+        }
+        save_registry(git_repo, worktree.lifecycle.empty_registry(entries=[entry]))
+        args = argparse.Namespace(
+            change_id="recovery",
+            agent_id=None,
+            owner="new-owner",
+            lease_id="new-lease",
+            controller_instance_id="new-controller",
+            session_id="new-session",
+            reason="operator adoption",
+            actor="operator",
+            ttl_seconds=1800,
+            durability_remote=None,
+            durability_ref=None,
+            confirm_terminated=True,
+            force=True,
+            json_output=True,
+        )
+        real_lock = worktree.lifecycle.registry_lock
+        exclusive = False
+        events: list[str] = []
+
+        @contextlib.contextmanager
+        def tracked_lock(*lock_args: object, **lock_kwargs: object):
+            nonlocal exclusive
+            with real_lock(*lock_args, **lock_kwargs):
+                prior = exclusive
+                exclusive = bool(lock_kwargs.get("exclusive"))
+                if exclusive:
+                    events.append("exclusive-enter")
+                try:
+                    yield
+                finally:
+                    exclusive = prior
+
+        monkeypatch.setattr(worktree.lifecycle, "registry_lock", tracked_lock)
+
+        def process_token(_pid: int) -> str:
+            assert not exclusive
+            events.append("process-token")
+            return "precomputed-token"
+
+        monkeypatch.setattr(worktree.lifecycle, "_process_start_token", process_token)
+        real_subprocess_run = worktree.subprocess.run
+
+        def guarded_subprocess(*run_args: object, **run_kwargs: object):
+            assert not exclusive
+            return real_subprocess_run(*run_args, **run_kwargs)
+
+        monkeypatch.setattr(worktree.subprocess, "run", guarded_subprocess)
+        with _chdir(git_repo):
+            assert worktree.cmd_recovery_adopt(args) == 0
+        assert events.count("process-token") == 1
+        assert events.index("process-token") < events.index("exclusive-enter")
+        evidence = worktree.lifecycle.read_process_evidence(
+            git_repo,
+            change_id="recovery",
+            agent_id=None,
+            entry_generation="generation",
+            lease_id="new-lease",
+            owner="new-owner",
+            controller_instance_id="new-controller",
+        )
+        assert evidence["process_start_token"] == "precomputed-token"
+
     @pytest.mark.parametrize("same_lease", [True, False], ids=["same-lease", "distinct-lease"])
     def test_concurrent_force_adopt_winner_exclusively_owns_its_evidence(
         self,
@@ -1315,11 +1407,8 @@ class TestRecoveryCommands:
 
         def ordered_write(*args: object, **kwargs: object):
             owner = str(kwargs["owner"])
-            result = real_write(
-                *args,
-                **kwargs,
-                process_start_token=f"token-{owner}",
-            )
+            kwargs.setdefault("process_start_token", f"token-{owner}")
+            result = real_write(*args, **kwargs)
             if owner == "owner-a":
                 a_written.set()
                 if not getattr(lock_state, "exclusive", False):
