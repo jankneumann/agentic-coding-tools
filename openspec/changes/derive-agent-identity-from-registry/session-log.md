@@ -76,3 +76,39 @@ Planned Phase 1 of the principal-credential-architecture roadmap: make agents.ya
 ### Context
 Implemented pca-01 across six work packages: agents.yaml is now canonical and the identity map, agent_profiles rows, and trust scale are derived projections, with fail-loud resolution and a CI invariant test. Full suite 2255 passed / 0 failed; mypy --strict and ruff clean. Two design decisions were amended from implementation findings, and integration surfaced a permission narrowing that was fixed at the registry.
 
+---
+
+## Phase: Validate (2026-08-16)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **D12 — enforce the registry claim at runtime, not only in CI** `architectural: agent-identity` — The CI invariant proved the projection correct; nothing proved the enforcement point consulted it. Resolution now requires declared-name equality for registry agents and source=='assignment' for others.
+2. **One resolver, three call sites** `architectural: agent-coordinator` — coordination_api, work_queue and policy_engine each carried a copy; two still failed open. Extracted to src/trust_resolution.py.
+3. **Degraded security scanners reported as inconclusive, not pass** `architectural: agent-coordinator` — Both scanners were unavailable; the gate's PASS was policy-granted degradation over zero scanning. Recording it as a pass would be the 'silence is not success' failure.
+
+### Alternatives Considered
+- Accept the security gate's PASS at face value: rejected because Zero findings over zero executed scanners is not evidence; the scanner_results block showed both as 'unavailable'.
+- Additionally require source=='assignment' for registry agents: rejected because Would break PROFILE_SYNC_ENABLED=false and pre-first-sync operation, where a correct name match through the fallback is still correct.
+
+### Trade-offs
+- Accepted Fixing findings 1-4, 6, 9 plus the policy-engine resolver inside this change over Deferring them to a follow-up because Two were HIGH and directly contradicted the change's central claim; shipping the claim unenforced would have been worse than the scope expansion.
+- Accepted Unit-level and static evidence only over Live verification because No container runtime or Postgres in this environment. The startup sync has never run against a real database.
+
+### Open Questions
+- [ ] The remediation has not been independently re-reviewed — two HIGH findings landed in the first pass, so a second review against 509ff07 is proportionate before merge.
+- [ ] The startup sync has only ever run against fakes; it needs one real Postgres boot before archive.
+- [ ] ProfilesService caches the profile but not its source, so the source=='assignment' gate for non-registry principals holds only until the first cache fill (fails in the deny direction, but incoherent).
+
+### Next Steps
+- Re-run the adversarial security review against 509ff07
+- Deploy to an environment with Postgres and exercise the startup sync for real
+- Then /cleanup-feature and archive; pca-02 (OpenBao per-agent secrets) is unblocked
+
+### Relevant Files
+- `openspec/changes/derive-agent-identity-from-registry/validation-report.md` — validation report with phase results and findings
+- `agent-coordinator/src/trust_resolution.py` — the single shared resolver (D12)
+
+### Context
+Ran validate-feature against the implemented change. Deploy/smoke/E2E/CI and both security scanners were unavailable in this cloud harness, so the only real security signal was an adversarial code review of the authorization diff. That review found two HIGH defects: retiring an agent escalated it via the agent_type fallback, and the runtime gate never compared the resolved profile to the declared one. Six findings were fixed and regression-tested; four filed. Suite 2312 passed, 0 failed.
+
