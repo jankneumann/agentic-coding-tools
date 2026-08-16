@@ -34,16 +34,19 @@ items:
   effort: L
   depends_on:
   - ri-01
-  description: 'Scaffold skills/supervise/ as the single conversational entry point
-    the human talks to, playing the supervisor archetype from the host harness session.
-    Two verbs. INTAKE turns a natural-language request into an OpenSpec change or
-    proposal and slots it via /plan-roadmap. CYCLE runs the recurring operating loop:
-    SENSE (bug-scrub, improve-harness, explore-feature emit candidate-work stubs per
-    ri-11) -> RANK (/prioritize-proposals) -> digest to the human -> APPROVE (one
-    batch gate at roadmap altitude, not per item) -> PLAN (/plan-roadmap) -> EXECUTE
-    (ready-queue batches dispatched to archetype workers) -> LAND (integrate, PR,
-    human merge gate). The loop body is idempotent and resumable so a scheduled wake
-    or a rehydrated session can run it without duplicating work.'
+  description: "Scaffold skills/supervise/ as the single conversational entry point\
+    \ the human talks to, playing the supervisor archetype from the host harness session.\
+    \ Two verbs. INTAKE turns a natural-language request into an OpenSpec change or\
+    \ proposal and slots it via /plan-roadmap. CYCLE runs the recurring operating\
+    \ loop: SENSE (bug-scrub, improve-harness, explore-feature emit candidate-work\
+    \ stubs per ri-11) -> RANK (/prioritize-proposals) -> digest to the human -> APPROVE\
+    \ (one batch gate at roadmap altitude, not per item) -> PLAN (/plan-roadmap) ->\
+    \ EXECUTE (ready-queue batches dispatched to archetype workers) -> LAND (integrate,\
+    \ PR, human merge gate). The loop body is idempotent and resumable so a scheduled\
+    \ wake or a rehydrated session can run it without duplicating work. CYCLE is invocable\
+    \ by hand as soon as this item lands; its automated weekday cadence is owned by\
+    \ always-on ri-08 (dispatcher daemon on the GX10) and is intentionally not a dependency\
+    \ here \u2014 the verb must work manually before anything schedules it."
   rationale: 'Establishes the missing layer above the orchestration stack, the persistent
     conversational counterpart (Mayor / First Mate role), so the human no longer invokes
     each skill by hand. The CYCLE verb is what makes the supervisor a standing operator
@@ -443,4 +446,4 @@ items:
     spend is auditable after a run.'
   external_depends_on:
   - dispatch-governance:dg-04
-updated_at: '2026-08-16T20:10:01.336071+00:00'
+updated_at: '2026-08-16T20:16:35.880832+00:00'
