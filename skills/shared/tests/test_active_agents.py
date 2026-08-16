@@ -1,4 +1,5 @@
 """Tests for skills.shared.active_agents."""
+
 from __future__ import annotations
 
 import json
@@ -10,6 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from shared import active_agents as aa
+from shared import worktree_lifecycle as lifecycle
 
 
 @pytest.fixture
@@ -27,8 +29,9 @@ def write_registry(repo: Path, entries: list[dict]) -> None:
 NOW = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
 
 
-def _entry(change_id: str, *, heartbeat: datetime, pinned: bool = False,
-           agent_id: str | None = None) -> dict:
+def _entry(
+    change_id: str, *, heartbeat: datetime, pinned: bool = False, agent_id: str | None = None
+) -> dict:
     return {
         "change_id": change_id,
         "agent_id": agent_id,
@@ -46,6 +49,17 @@ def _entry(change_id: str, *, heartbeat: datetime, pinned: bool = False,
 
 
 class TestCheckNoActiveAgents:
+    def test_main_root_uses_git_common_dir_from_nested_worktree_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        nested = tmp_path / "worktree" / "src" / "nested"
+        nested.mkdir(parents=True)
+        common = tmp_path / "main" / ".git"
+        common.mkdir(parents=True)
+        completed = aa.subprocess.CompletedProcess([], 0, str(common) + "\n", "")
+        monkeypatch.setattr(aa.subprocess, "run", lambda *a, **k: completed)
+        assert aa._main_root(nested) == common.parent
+
     def test_no_registry_means_clear(self, tmp_path: Path) -> None:
         clear, active = aa.check_no_active_agents(repo_root=tmp_path)
         assert clear is True
@@ -76,47 +90,57 @@ class TestCheckNoActiveAgents:
         assert clear is True
         assert active == []
 
-    def test_pinned_blocks_even_when_stale(self, repo: Path) -> None:
+    def test_pinned_is_retained_but_does_not_block_when_stale(self, repo: Path) -> None:
         write_registry(repo, [_entry("pin", heartbeat=NOW - timedelta(days=2), pinned=True)])
         clear, active = aa.check_no_active_agents(repo_root=repo, now=NOW)
-        assert clear is False
-        assert active[0].pinned is True
-
-    def test_only_active_entries_returned(self, repo: Path) -> None:
-        write_registry(repo, [
-            _entry("fresh", heartbeat=NOW - timedelta(minutes=2), agent_id="wp-1"),
-            _entry("stale", heartbeat=NOW - timedelta(hours=3)),
-            _entry("pinned", heartbeat=NOW - timedelta(days=1), pinned=True),
-        ])
-        clear, active = aa.check_no_active_agents(repo_root=repo, now=NOW)
-        assert clear is False
-        assert sorted(a.change_id for a in active) == ["fresh", "pinned"]
-
-    def test_unparseable_heartbeat_is_ignored(self, repo: Path) -> None:
-        write_registry(repo, [{
-            "change_id": "bad",
-            "agent_id": None,
-            "branch": "openspec/bad",
-            "worktree_path": "/x/bad",
-            "last_heartbeat": "not-a-timestamp",
-            "pinned": False,
-        }])
-        clear, _ = aa.check_no_active_agents(repo_root=repo, now=NOW)
-        assert clear is True
-
-    def test_corrupt_registry_returns_clear(self, repo: Path) -> None:
-        # Fail-open: corrupt registry must not wedge sync-point skills.
-        (repo / ".git-worktrees" / ".registry.json").write_text("{not json")
-        clear, active = aa.check_no_active_agents(repo_root=repo)
         assert clear is True
         assert active == []
 
-    def test_non_dict_entry_is_skipped(self, repo: Path) -> None:
+    def test_only_active_entries_returned(self, repo: Path) -> None:
+        write_registry(
+            repo,
+            [
+                _entry("fresh", heartbeat=NOW - timedelta(minutes=2), agent_id="wp-1"),
+                _entry("stale", heartbeat=NOW - timedelta(hours=3)),
+                _entry("pinned", heartbeat=NOW - timedelta(days=1), pinned=True),
+            ],
+        )
+        clear, active = aa.check_no_active_agents(repo_root=repo, now=NOW)
+        assert clear is False
+        assert [a.change_id for a in active] == ["fresh"]
+
+    def test_unparseable_heartbeat_is_ignored(self, repo: Path) -> None:
+        write_registry(
+            repo,
+            [
+                {
+                    "change_id": "bad",
+                    "agent_id": None,
+                    "branch": "openspec/bad",
+                    "worktree_path": "/x/bad",
+                    "created_at": NOW.isoformat(),
+                    "last_heartbeat": "not-a-timestamp",
+                    "pinned": False,
+                }
+            ],
+        )
+        clear, _ = aa.check_no_active_agents(repo_root=repo, now=NOW)
+        assert clear is True
+
+    def test_corrupt_registry_is_an_indeterminate_blocker(self, repo: Path) -> None:
+        (repo / ".git-worktrees" / ".registry.json").write_text("{not json")
+        clear, active = aa.check_no_active_agents(repo_root=repo)
+        assert clear is False
+        assert active == []
+        inspection = aa.inspect_guard(repo_root=repo)
+        assert inspection.blockers[0].kind == "registry-corrupt"
+
+    def test_non_dict_entry_is_an_indeterminate_blocker(self, repo: Path) -> None:
         (repo / ".git-worktrees" / ".registry.json").write_text(
             json.dumps({"version": 1, "entries": ["bogus", 42, None]})
         )
         clear, _ = aa.check_no_active_agents(repo_root=repo, now=NOW)
-        assert clear is True
+        assert clear is False
 
     def test_custom_stale_threshold(self, repo: Path) -> None:
         write_registry(repo, [_entry("recent-but-old", heartbeat=NOW - timedelta(minutes=30))])
@@ -127,28 +151,124 @@ class TestCheckNoActiveAgents:
         )
         assert clear_short is True
 
+    @pytest.mark.parametrize("expired", [False, True])
+    def test_unfinished_reservation_blocks_without_appearing_active(
+        self,
+        repo: Path,
+        expired: bool,
+    ) -> None:
+        created = NOW - timedelta(hours=2) if expired else NOW
+        expiry = created + timedelta(minutes=30)
+        registry = lifecycle.empty_registry()
+        registry["setup_reservations"].append(
+            {
+                "setup_id": "setup-1",
+                "change_id": "change",
+                "agent_id": None,
+                "branch": "openspec/change",
+                "worktree_path": "/x/change",
+                "entry_generation": "generation-1",
+                "durability_target": {
+                    "remote_name": "origin",
+                    "remote_url_hash_algorithm": "git-remote-url-v1",
+                    "canonical_remote_url_sha256": "a" * 64,
+                    "ref_name": "refs/remotes/origin/openspec/change",
+                },
+                "lease_intent": {
+                    "owner": "owner",
+                    "lease_id": "lease",
+                    "controller_instance_id": "controller",
+                    "session_id": None,
+                    "phase": "IMPLEMENT",
+                    "reason": "test",
+                    "lifecycle_mode": "standalone",
+                    "ttl_seconds": 1800,
+                },
+                "state": "checkout-created",
+                "created_at": created.isoformat(),
+                "updated_at": created.isoformat(),
+                "ttl_seconds": 1800,
+                "expires_at": expiry.isoformat(),
+            }
+        )
+        lifecycle.write_registry(repo, registry)
+
+        inspection = aa.inspect_guard(repo_root=repo, now=NOW)
+
+        assert inspection.clear is False
+        assert inspection.active == ()
+        assert inspection.blockers[0].setup_id == "setup-1"
+        assert inspection.blockers[0].recovery_required is expired
+        assert inspection.blockers[0].kind == (
+            "setup-reservation-expired" if expired else "setup-reservation"
+        )
+
+    def test_expired_v2_lease_is_not_active_or_a_sync_blocker(self, repo: Path) -> None:
+        lease = lifecycle.new_lease(
+            owner="owner",
+            lease_id="lease",
+            controller_instance_id="controller",
+            session_id=None,
+            phase="IMPLEMENT",
+            reason="test",
+            mode="standalone",
+            now=NOW - timedelta(hours=1),
+        )
+        entry = {
+            "change_id": "change",
+            "agent_id": None,
+            "branch": "openspec/change",
+            "worktree_path": "/x/change",
+            "created_at": NOW.isoformat(),
+            "entry_generation": "generation-1",
+            "setup_id": "setup-1",
+            "durability_target": None,
+            "retained": True,
+            "retention_reason": "keep",
+            "recovery_required": False,
+            "recovery_reason": None,
+            "recovery_context": None,
+            "activity_lease": lease,
+        }
+        lifecycle.write_registry(repo, lifecycle.empty_registry(entries=[entry]))
+        inspection = aa.inspect_guard(repo_root=repo, now=NOW)
+        assert inspection.clear is True
+        assert inspection.active == ()
+
 
 class TestActiveAgentLabel:
     def test_label_with_agent_id(self) -> None:
         a = aa.ActiveAgent(
-            change_id="abc", agent_id="wp-1", branch="openspec/abc--wp-1",
-            worktree_path="/x", last_heartbeat="...", pinned=False,
+            change_id="abc",
+            agent_id="wp-1",
+            branch="openspec/abc--wp-1",
+            worktree_path="/x",
+            last_heartbeat="...",
+            pinned=False,
         )
         assert a.label == "abc/wp-1 on openspec/abc--wp-1"
 
     def test_label_without_agent_id(self) -> None:
         a = aa.ActiveAgent(
-            change_id="abc", agent_id=None, branch="openspec/abc",
-            worktree_path="/x", last_heartbeat="...", pinned=False,
+            change_id="abc",
+            agent_id=None,
+            branch="openspec/abc",
+            worktree_path="/x",
+            last_heartbeat="...",
+            pinned=False,
         )
         assert a.label == "abc on openspec/abc"
 
     def test_label_pinned_suffix(self) -> None:
         a = aa.ActiveAgent(
-            change_id="abc", agent_id=None, branch="openspec/abc",
-            worktree_path="/x", last_heartbeat="...", pinned=True,
+            change_id="abc",
+            agent_id=None,
+            branch="openspec/abc",
+            worktree_path="/x",
+            last_heartbeat="...",
+            pinned=True,
         )
-        assert a.label == "abc on openspec/abc (pinned)"
+        assert a.label == "abc on openspec/abc (retained)"
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +291,9 @@ class TestCli:
         assert "BLOCKED" in out
         assert "abc" in out
 
-    def test_force_exits_zero_even_when_blocked(self, repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_force_exits_zero_even_when_blocked(
+        self, repo: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         write_registry(repo, [_entry("abc", heartbeat=datetime.now(timezone.utc))])
         rc = aa.main(["--repo-root", str(repo), "--force"])
         assert rc == 0
@@ -187,10 +309,15 @@ class TestCli:
         assert payload["active"][0]["change_id"] == "abc"
 
     def test_stale_hours_argument(self, repo: Path) -> None:
-        write_registry(repo, [_entry(
-            "recent-but-old",
-            heartbeat=datetime.now(timezone.utc) - timedelta(minutes=30),
-        )])
+        write_registry(
+            repo,
+            [
+                _entry(
+                    "recent-but-old",
+                    heartbeat=datetime.now(timezone.utc) - timedelta(minutes=30),
+                )
+            ],
+        )
         # Default 1h threshold -> blocked
         assert aa.main(["--repo-root", str(repo)]) == 1
         # Tighten to 10m -> clear
@@ -204,14 +331,19 @@ class TestCli:
         aware/naive subtraction doesn't crash check_no_active_agents.
         """
         recent = datetime.now(timezone.utc) - timedelta(minutes=5)
-        write_registry(repo, [{
-            "change_id": "naive-ts",
-            "agent_id": None,
-            "branch": "openspec/naive-ts",
-            "worktree_path": "/x/naive-ts",
-            "created_at": recent.replace(tzinfo=None).isoformat(),
-            "last_heartbeat": recent.replace(tzinfo=None).isoformat(),
-            "pinned": False,
-        }])
+        write_registry(
+            repo,
+            [
+                {
+                    "change_id": "naive-ts",
+                    "agent_id": None,
+                    "branch": "openspec/naive-ts",
+                    "worktree_path": "/x/naive-ts",
+                    "created_at": recent.replace(tzinfo=None).isoformat(),
+                    "last_heartbeat": recent.replace(tzinfo=None).isoformat(),
+                    "pinned": False,
+                }
+            ],
+        )
         # Recent (5min ago) under default 1h threshold => still active => blocked, no crash
         assert aa.main(["--repo-root", str(repo)]) == 1

@@ -63,9 +63,7 @@ class TestSetupCreatesPrototypeBranch:
     """``--branch-prefix prototype --agent-id v1`` lands on prototype/<change>/v1."""
 
     def test_branch_uses_slash_separator(self, git_repo: Path) -> None:
-        args = _make_setup_args(
-            change_id="add-foo", agent_id="v1", branch_prefix="prototype"
-        )
+        args = _make_setup_args(change_id="add-foo", agent_id="v1", branch_prefix="prototype")
         with _chdir(git_repo):
             assert cmd_setup(args) == 0
 
@@ -80,9 +78,7 @@ class TestSetupCreatesPrototypeBranch:
     def test_does_not_create_dash_dash_branch(self, git_repo: Path) -> None:
         # Regression: if branch_prefix wasn't honored end-to-end, we'd see
         # the openspec/<change>--<agent> name fall through.
-        args = _make_setup_args(
-            change_id="add-foo", agent_id="v1", branch_prefix="prototype"
-        )
+        args = _make_setup_args(change_id="add-foo", agent_id="v1", branch_prefix="prototype")
         with _chdir(git_repo):
             cmd_setup(args)
 
@@ -96,29 +92,23 @@ class TestSetupCreatesPrototypeBranch:
         assert "openspec/add-foo" not in branches.stdout
 
     def test_worktree_path_uses_standard_layout(self, git_repo: Path) -> None:
-        # Spec scenario: worktree at .git-worktrees/<change-id>/v1/
+        # Spec scenario: worktree at .git-worktrees/<change-id>--v1/
         # (No 'prototype/' segment in the path — only in the branch name.
         # This makes the worktree directory layout uniform whether we're
         # running prototype variants or normal parallel work-packages.)
-        args = _make_setup_args(
-            change_id="add-foo", agent_id="v1", branch_prefix="prototype"
-        )
+        args = _make_setup_args(change_id="add-foo", agent_id="v1", branch_prefix="prototype")
         with _chdir(git_repo):
             cmd_setup(args)
 
-        wt_path = git_repo / ".git-worktrees" / "add-foo" / "v1"
+        wt_path = git_repo / ".git-worktrees" / "add-foo--v1"
         assert wt_path.is_dir()
 
-    def test_three_variants_all_land_on_prototype_branches(
-        self, git_repo: Path
-    ) -> None:
+    def test_three_variants_all_land_on_prototype_branches(self, git_repo: Path) -> None:
         # End-to-end of the default 3-variant dispatch path: each variant
         # gets its own ``prototype/<change>/v<n>`` branch and its own
         # worktree directory.
         for vid in ("v1", "v2", "v3"):
-            args = _make_setup_args(
-                change_id="add-foo", agent_id=vid, branch_prefix="prototype"
-            )
+            args = _make_setup_args(change_id="add-foo", agent_id=vid, branch_prefix="prototype")
             with _chdir(git_repo):
                 assert cmd_setup(args) == 0
 
@@ -136,16 +126,14 @@ class TestSetupAutoPinsPrototypeWorktrees:
     """Spec scenario: PrototypeWorktreeSupport.worktree-pin."""
 
     def test_registry_entry_is_pinned(self, git_repo: Path) -> None:
-        args = _make_setup_args(
-            change_id="add-foo", agent_id="v1", branch_prefix="prototype"
-        )
+        args = _make_setup_args(change_id="add-foo", agent_id="v1", branch_prefix="prototype")
         with _chdir(git_repo):
             cmd_setup(args)
 
         registry = load_registry(git_repo)
         entry = find_entry(registry, "add-foo", "v1")
         assert entry is not None
-        assert entry["pinned"] is True, (
+        assert entry["retained"] is True, (
             "prototype worktrees must auto-pin to survive 24h GC per D4"
         )
 
@@ -159,17 +147,13 @@ class TestSetupAutoPinsPrototypeWorktrees:
         registry = load_registry(git_repo)
         entry = find_entry(registry, "add-foo")
         assert entry is not None
-        assert entry["pinned"] is False
+        assert entry["retained"] is False
 
-    def test_pinned_prototype_survives_gc_after_threshold(
-        self, git_repo: Path
-    ) -> None:
+    def test_pinned_prototype_survives_gc_after_threshold(self, git_repo: Path) -> None:
         # Spec scenario: worktree-pin says "they SHALL be pinned to survive
         # the default 24-hour GC timer". Simulate that by backdating the
         # heartbeat past the threshold and running GC.
-        args = _make_setup_args(
-            change_id="add-foo", agent_id="v1", branch_prefix="prototype"
-        )
+        args = _make_setup_args(change_id="add-foo", agent_id="v1", branch_prefix="prototype")
         with _chdir(git_repo):
             cmd_setup(args)
 
@@ -180,16 +164,12 @@ class TestSetupAutoPinsPrototypeWorktrees:
         entry["last_heartbeat"] = old
         save_registry(git_repo, registry)
 
-        gc_args = argparse.Namespace(
-            command="gc", stale_after="24h", force=False
-        )
+        gc_args = argparse.Namespace(command="gc", stale_after="24h", force=False)
         with _chdir(git_repo):
             assert cmd_gc(gc_args) == 0
 
-        wt_path = git_repo / ".git-worktrees" / "add-foo" / "v1"
-        assert wt_path.is_dir(), (
-            "GC should NOT remove a pinned prototype worktree"
-        )
+        wt_path = git_repo / ".git-worktrees" / "add-foo--v1"
+        assert wt_path.is_dir(), "GC should NOT remove a pinned prototype worktree"
         registry_after = load_registry(git_repo)
         assert find_entry(registry_after, "add-foo", "v1") is not None
 
@@ -205,9 +185,7 @@ class TestEnvOverrideComposition:
         # so cleanup-feature can find and delete the branches by pattern.
         monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "claude/op-9P9o1")
 
-        args = _make_setup_args(
-            change_id="add-foo", agent_id="v1", branch_prefix="prototype"
-        )
+        args = _make_setup_args(change_id="add-foo", agent_id="v1", branch_prefix="prototype")
         with _chdir(git_repo):
             assert cmd_setup(args) == 0
 

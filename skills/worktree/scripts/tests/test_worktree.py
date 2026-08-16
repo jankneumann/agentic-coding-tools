@@ -1,8 +1,10 @@
 """Tests for scripts/worktree.py."""
 
 import argparse
+import contextlib
 import os
 import subprocess
+import threading
 
 # Import the module under test
 import sys
@@ -50,9 +52,7 @@ def git_repo(tmp_path: Path) -> Path:
         )
     # Create initial commit so we have a main branch
     (tmp_path / "README.md").write_text("test")
-    subprocess.run(
-        ["git", "add", "README.md"], cwd=str(tmp_path), check=True, capture_output=True
-    )
+    subprocess.run(["git", "add", "README.md"], cwd=str(tmp_path), check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "--no-gpg-sign", "-m", "init"],
         cwd=str(tmp_path),
@@ -125,14 +125,20 @@ class TestWorktreePathSibling:
 
     def test_sibling_places_agent_next_to_change_dir(self, tmp_path: Path) -> None:
         result = worktree_path(
-            tmp_path, "feat", agent_id="cleanup", sibling=True,
+            tmp_path,
+            "feat",
+            agent_id="cleanup",
+            sibling=True,
         )
         assert result == tmp_path / ".git-worktrees" / "feat--cleanup"
 
     def test_sibling_with_prefix(self, tmp_path: Path) -> None:
         result = worktree_path(
-            tmp_path, "feat", agent_id="cleanup",
-            prefix="fix", sibling=True,
+            tmp_path,
+            "feat",
+            agent_id="cleanup",
+            prefix="fix",
+            sibling=True,
         )
         assert result == tmp_path / ".git-worktrees" / "fix" / "feat--cleanup"
 
@@ -148,7 +154,10 @@ class TestWorktreePathSibling:
         cleanup/ subdirectory and forced --force on teardown."""
         impl = worktree_path(tmp_path, "feat")
         cleanup = worktree_path(
-            tmp_path, "feat", agent_id="cleanup", sibling=True,
+            tmp_path,
+            "feat",
+            agent_id="cleanup",
+            sibling=True,
         )
         # The cleanup path must NOT be inside the impl path
         assert impl not in cleanup.parents
@@ -186,7 +195,10 @@ class TestResolveBranch:
         env = {"OPENSPEC_BRANCH_OVERRIDE": "operator/branch"}
         assert resolve_branch("change", explicit="explicit/branch", env=env) == "explicit/branch"
         # Even with agent_id, explicit stays verbatim
-        assert resolve_branch("change", agent_id="w1", explicit="explicit/branch", env=env) == "explicit/branch"
+        assert (
+            resolve_branch("change", agent_id="w1", explicit="explicit/branch", env=env)
+            == "explicit/branch"
+        )
 
     def test_env_override_used_when_no_explicit(self) -> None:
         env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fix-branch-mismatch-9P9o1"}
@@ -214,9 +226,18 @@ class TestResolveBranch:
         """
         env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fix-branch-mismatch-9P9o1"}
         assert resolve_branch("change", env=env) == "claude/fix-branch-mismatch-9P9o1"
-        assert resolve_branch("change", agent_id="wp-backend", env=env) == "claude/fix-branch-mismatch-9P9o1--wp-backend"
-        assert resolve_branch("change", agent_id="wp-frontend", env=env) == "claude/fix-branch-mismatch-9P9o1--wp-frontend"
-        assert resolve_branch("change", agent_id="cleanup", env=env) == "claude/fix-branch-mismatch-9P9o1--cleanup"
+        assert (
+            resolve_branch("change", agent_id="wp-backend", env=env)
+            == "claude/fix-branch-mismatch-9P9o1--wp-backend"
+        )
+        assert (
+            resolve_branch("change", agent_id="wp-frontend", env=env)
+            == "claude/fix-branch-mismatch-9P9o1--wp-frontend"
+        )
+        assert (
+            resolve_branch("change", agent_id="cleanup", env=env)
+            == "claude/fix-branch-mismatch-9P9o1--cleanup"
+        )
 
     def test_env_override_with_prefix_ignores_prefix(self) -> None:
         """When env override is set, it replaces prefix — they don't compose."""
@@ -227,9 +248,15 @@ class TestResolveBranch:
     def test_default_path_still_composes_with_agent_id(self) -> None:
         """Baseline: without env override, resolve_branch matches default_branch exactly."""
         assert resolve_branch("change", env={}) == default_branch("change")
-        assert resolve_branch("change", agent_id="w1", env={}) == default_branch("change", agent_id="w1")
-        assert resolve_branch("change", prefix="fix", env={}) == default_branch("change", prefix="fix")
-        assert resolve_branch("change", agent_id="w1", prefix="fix", env={}) == default_branch("change", agent_id="w1", prefix="fix")
+        assert resolve_branch("change", agent_id="w1", env={}) == default_branch(
+            "change", agent_id="w1"
+        )
+        assert resolve_branch("change", prefix="fix", env={}) == default_branch(
+            "change", prefix="fix"
+        )
+        assert resolve_branch("change", agent_id="w1", prefix="fix", env={}) == default_branch(
+            "change", agent_id="w1", prefix="fix"
+        )
 
 
 class TestResolveParentBranch:
@@ -237,16 +264,19 @@ class TestResolveParentBranch:
 
     def test_default_parent(self) -> None:
         from worktree import resolve_parent_branch
+
         assert resolve_parent_branch("change", env={}) == "openspec/change"
 
     def test_env_override_parent(self) -> None:
         from worktree import resolve_parent_branch
+
         env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fix-branch-mismatch-9P9o1"}
         assert resolve_parent_branch("change", env=env) == "claude/fix-branch-mismatch-9P9o1"
 
     def test_parent_ignores_any_caller_agent_id_context(self) -> None:
         """resolve_parent_branch never takes agent_id — it's the integration target."""
         from worktree import resolve_parent_branch
+
         env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/op"}
         # Caller didn't even get to pass agent_id — the function intentionally
         # doesn't accept one, making it impossible to accidentally get a
@@ -257,41 +287,66 @@ class TestResolveParentBranch:
 class TestRegistry:
     def test_load_missing_file_returns_empty(self, tmp_path: Path) -> None:
         reg = load_registry(tmp_path)
-        assert reg == {"version": 1, "entries": []}
+        assert reg == {
+            "schema_version": 2,
+            "entries": [],
+            "setup_reservations": [],
+            "recovery_audit": [],
+        }
 
     def test_save_load_roundtrip(self, tmp_path: Path) -> None:
-        reg = {"version": 1, "entries": [
-            {"change_id": "c1", "agent_id": None, "branch": "openspec/c1",
-             "worktree_path": "/tmp/wt", "created_at": "2026-01-01T00:00:00+00:00",
-             "last_heartbeat": "2026-01-01T00:00:00+00:00", "pinned": False},
-        ]}
+        reg = {
+            "version": 1,
+            "entries": [
+                {
+                    "change_id": "c1",
+                    "agent_id": None,
+                    "branch": "openspec/c1",
+                    "worktree_path": "/tmp/wt",
+                    "created_at": "2026-01-01T00:00:00+00:00",
+                    "last_heartbeat": "2026-01-01T00:00:00+00:00",
+                    "pinned": False,
+                },
+            ],
+        }
         save_registry(tmp_path, reg)
         loaded = load_registry(tmp_path)
-        assert loaded == reg
+        assert loaded["schema_version"] == 2
+        assert loaded["entries"][0]["entry_generation"].startswith("legacy-v1-entry:")
+        assert loaded["entries"][0]["activity_lease"]["phase"] == "LEGACY"
 
     def test_find_entry_by_change_id_and_agent_id(self) -> None:
-        reg = {"version": 1, "entries": [
-            {"change_id": "c1", "agent_id": None},
-            {"change_id": "c1", "agent_id": "w1"},
-            {"change_id": "c2", "agent_id": None},
-        ]}
+        reg = {
+            "version": 1,
+            "entries": [
+                {"change_id": "c1", "agent_id": None},
+                {"change_id": "c1", "agent_id": "w1"},
+                {"change_id": "c2", "agent_id": None},
+            ],
+        }
         assert find_entry(reg, "c1", "w1") == {"change_id": "c1", "agent_id": "w1"}
         assert find_entry(reg, "c1") == {"change_id": "c1", "agent_id": None}
         assert find_entry(reg, "c3") is None
 
     def test_remove_entry_returns_true(self) -> None:
-        reg = {"version": 1, "entries": [
-            {"change_id": "c1", "agent_id": None},
-            {"change_id": "c2", "agent_id": None},
-        ]}
+        reg = {
+            "version": 1,
+            "entries": [
+                {"change_id": "c1", "agent_id": None},
+                {"change_id": "c2", "agent_id": None},
+            ],
+        }
         assert remove_entry(reg, "c1") is True
         assert len(reg["entries"]) == 1
         assert reg["entries"][0]["change_id"] == "c2"
 
     def test_remove_entry_missing_returns_false(self) -> None:
-        reg = {"version": 1, "entries": [
-            {"change_id": "c1", "agent_id": None},
-        ]}
+        reg = {
+            "version": 1,
+            "entries": [
+                {"change_id": "c1", "agent_id": None},
+            ],
+        }
         assert remove_entry(reg, "nonexistent") is False
         assert len(reg["entries"]) == 1
 
@@ -445,7 +500,7 @@ class TestCmdSetup:
             result = worktree.cmd_setup(args)
         assert result == 0
 
-        wt_path = git_repo / ".git-worktrees" / "feat" / "wp-backend"
+        wt_path = git_repo / ".git-worktrees" / "feat--wp-backend"
         assert (wt_path / "feature-only.txt").is_file()
         assert not (wt_path / "main-only.txt").exists()
 
@@ -483,7 +538,7 @@ class TestCmdSetup:
             result = worktree.cmd_setup(args)
         assert result == 0
 
-        wt_path = git_repo / ".git-worktrees" / "feat" / "wp-backend"
+        wt_path = git_repo / ".git-worktrees" / "feat--wp-backend"
         assert (wt_path / "feature-only.txt").is_file(), (
             "agent branch must start from the current feature branch HEAD"
         )
@@ -519,7 +574,9 @@ class TestCmdSetup:
         captured = capsys.readouterr()
         assert "WORKTREE_BRANCH=openspec/test-feature" in captured.out
 
-    def test_output_contains_worktree_path(self, git_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_output_contains_worktree_path(
+        self, git_repo: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         args = _make_args("setup", change_id="test-feature")
         with _chdir(git_repo):
             worktree.cmd_setup(args)
@@ -659,9 +716,14 @@ class TestCmdTeardown:
         with _chdir(git_repo):
             # Both worktrees exist independently
             worktree.cmd_setup(_make_args("setup", change_id="feat"))
-            worktree.cmd_setup(_make_args(
-                "setup", change_id="feat", agent_id="cleanup", sibling=True,
-            ))
+            worktree.cmd_setup(
+                _make_args(
+                    "setup",
+                    change_id="feat",
+                    agent_id="cleanup",
+                    sibling=True,
+                )
+            )
 
         assert impl.is_dir()
         assert sibling_path.is_dir()
@@ -670,38 +732,51 @@ class TestCmdTeardown:
 
         # Tear down only the cleanup; impl untouched
         with _chdir(git_repo):
-            result = worktree.cmd_teardown(_make_args(
-                "teardown", change_id="feat", agent_id="cleanup", sibling=True,
-            ))
+            result = worktree.cmd_teardown(
+                _make_args(
+                    "teardown",
+                    change_id="feat",
+                    agent_id="cleanup",
+                    sibling=True,
+                )
+            )
         assert result == 0
         assert not sibling_path.is_dir()
         assert impl.is_dir()  # impl survives
 
-    def test_teardown_falls_back_to_alternate_layout(self, git_repo: Path) -> None:
-        """Mixed-layout robustness: a setup that used the nested default
-        layout is teardownable with --sibling and vice versa, so the
-        migration window doesn't strand cleanup worktrees."""
+    def test_agent_setup_never_nests_inside_feature_checkout(self, git_repo: Path) -> None:
+        """Managed agent worktrees cannot pollute the parent feature checkout."""
         nested_path = git_repo / ".git-worktrees" / "feat" / "cleanup"
+        sibling_path = git_repo / ".git-worktrees" / "feat--cleanup"
 
         with _chdir(git_repo):
-            # Setup with default (nested) layout
-            worktree.cmd_setup(_make_args(
-                "setup", change_id="feat", agent_id="cleanup",
-            ))
-        assert nested_path.is_dir()
+            worktree.cmd_setup(
+                _make_args(
+                    "setup",
+                    change_id="feat",
+                    agent_id="cleanup",
+                )
+            )
+        assert sibling_path.is_dir()
+        assert not nested_path.exists()
 
-        # Teardown with --sibling (operator updated the SKILL but worktree
-        # was created on the old version)
         with _chdir(git_repo):
-            result = worktree.cmd_teardown(_make_args(
-                "teardown", change_id="feat", agent_id="cleanup", sibling=True,
-            ))
+            result = worktree.cmd_teardown(
+                _make_args(
+                    "teardown",
+                    change_id="feat",
+                    agent_id="cleanup",
+                    sibling=True,
+                )
+            )
         assert result == 0
-        assert not nested_path.is_dir()
+        assert not sibling_path.is_dir()
 
 
 class TestCmdStatus:
-    def test_specific_worktree_exists(self, git_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_specific_worktree_exists(
+        self, git_repo: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         setup_args = _make_args("setup", change_id="test-feature")
         with _chdir(git_repo):
             worktree.cmd_setup(setup_args)
@@ -713,7 +788,9 @@ class TestCmdStatus:
         captured = capsys.readouterr()
         assert "EXISTS=true" in captured.out
 
-    def test_specific_worktree_not_found(self, git_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_specific_worktree_not_found(
+        self, git_repo: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         status_args = _make_args("status", change_id="nonexistent")
         with _chdir(git_repo):
             result = worktree.cmd_status(status_args)
@@ -804,7 +881,7 @@ class TestCmdPinUnpin:
         reg = load_registry(git_repo)
         entry = find_entry(reg, "pin-test")
         assert entry is not None
-        assert entry["pinned"] is True
+        assert entry["retained"] is True
 
     def test_unpin_sets_pinned_false(self, git_repo: Path) -> None:
         setup_args = _make_args("setup", change_id="unpin-test")
@@ -825,7 +902,7 @@ class TestCmdPinUnpin:
         reg = load_registry(git_repo)
         entry = find_entry(reg, "unpin-test")
         assert entry is not None
-        assert entry["pinned"] is False
+        assert entry["retained"] is False
 
     def test_pin_unknown_returns_1(self, git_repo: Path) -> None:
         pin_args = _make_args("pin", change_id="nonexistent")
@@ -950,6 +1027,446 @@ class TestCmdGc:
         reg_after = load_registry(git_repo)
         assert find_entry(reg_after, "gc-force") is None
 
+    def test_gc_never_removes_automatic_or_recovery_entries(self, git_repo: Path) -> None:
+        for change_id in ("automatic", "recovery"):
+            with _chdir(git_repo):
+                worktree.cmd_setup(_make_args("setup", change_id=change_id))
+            registry = load_registry(git_repo)
+            entry = find_entry(registry, change_id)
+            assert entry is not None
+            entry["last_heartbeat"] = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+            if change_id == "automatic":
+                entry["setup_id"] = "completed-setup"
+            else:
+                entry["recovery_required"] = True
+                entry["recovery_reason"] = "preserved"
+                entry["recovery_context"] = {
+                    "source": "setup-failure",
+                    "prior_owner": None,
+                    "prior_lease_id": None,
+                    "prior_controller_instance_id": None,
+                    "process_evidence_key": None,
+                    "quarantined_at": datetime.now(timezone.utc).isoformat(),
+                }
+            save_registry(git_repo, registry)
+
+        with _chdir(git_repo):
+            assert cmd_gc(_make_args("gc", stale_after="1h", force=True)) == 0
+
+        registry = load_registry(git_repo)
+        assert find_entry(registry, "automatic") is not None
+        assert find_entry(registry, "recovery") is not None
+
+
+class TestRecoveryCommands:
+    def _reservation(self, git_repo: Path) -> dict[str, object]:
+        target = {
+            "remote_name": "origin",
+            "remote_url_hash_algorithm": "git-remote-url-v1",
+            "canonical_remote_url_sha256": "a" * 64,
+            "ref_name": "refs/remotes/origin/openspec/recovery",
+        }
+        intent = {
+            "owner": "owner",
+            "lease_id": "lease",
+            "controller_instance_id": "controller",
+            "session_id": None,
+            "phase": "IMPLEMENT",
+            "reason": "test",
+            "lifecycle_mode": "standalone",
+            "ttl_seconds": 1800,
+        }
+        return worktree.lifecycle.reserve_setup(
+            git_repo,
+            setup_id="setup",
+            change_id="recovery",
+            agent_id=None,
+            branch="openspec/recovery",
+            worktree_path=str(git_repo / "missing"),
+            entry_generation="generation",
+            durability_target=target,
+            lease_intent=intent,
+            now=datetime.now(timezone.utc) - timedelta(hours=2),
+            ttl_seconds=1800,
+        )
+
+    def test_expired_side_effect_free_setup_reconciliation_is_audited(
+        self,
+        git_repo: Path,
+    ) -> None:
+        self._reservation(git_repo)
+        args = argparse.Namespace(
+            setup_id="setup",
+            entry_generation="generation",
+            actor="operator",
+            reason="controller terminated",
+            confirm_terminated=True,
+            json_output=True,
+            agent_id=None,
+        )
+        with _chdir(git_repo):
+            assert worktree.cmd_setup_reconcile(args) == 0
+        registry = load_registry(git_repo)
+        assert registry["setup_reservations"] == []
+        assert registry["entries"] == []
+        assert registry["recovery_audit"][0]["event"] == "setup-reconciled"
+        assert registry["recovery_audit"][0]["outcome"] == "removed-empty-side-effects"
+
+    def test_force_teardown_of_missing_quarantine_preserves_audit(
+        self,
+        git_repo: Path,
+    ) -> None:
+        entry = {
+            "change_id": "recovery",
+            "agent_id": None,
+            "branch": "openspec/recovery",
+            "worktree_path": str(git_repo / "missing"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "entry_generation": "generation",
+            "setup_id": None,
+            "durability_target": None,
+            "retained": False,
+            "retention_reason": None,
+            "recovery_required": True,
+            "recovery_reason": "legacy work",
+            "recovery_context": {
+                "source": "legacy-adoption",
+                "prior_owner": None,
+                "prior_lease_id": None,
+                "prior_controller_instance_id": None,
+                "process_evidence_key": None,
+                "quarantined_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "activity_lease": None,
+        }
+        save_registry(git_repo, worktree.lifecycle.empty_registry(entries=[entry]))
+        args = argparse.Namespace(
+            change_id="recovery",
+            agent_id=None,
+            entry_generation="generation",
+            actor="operator",
+            reason="discard legacy orphan",
+            confirm_terminated=True,
+            confirm_discard=True,
+            force=True,
+            owner=None,
+            lease_id=None,
+            controller_instance_id=None,
+            json_output=True,
+        )
+        with _chdir(git_repo):
+            assert worktree.cmd_recovery_teardown(args) == 0
+        registry = load_registry(git_repo)
+        assert registry["entries"] == []
+        assert registry["recovery_audit"][0]["event"] == "recovery-torn-down"
+        assert registry["recovery_audit"][0]["discard_confirmed"] is True
+
+    @pytest.mark.parametrize("failure_boundary", ["token", "evidence"])
+    def test_force_adopt_evidence_failure_preserves_quarantine_for_exact_retry(
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        failure_boundary: str,
+    ) -> None:
+        entry = {
+            "change_id": "recovery",
+            "agent_id": None,
+            "branch": "openspec/recovery",
+            "worktree_path": str(git_repo / "missing"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "entry_generation": "generation",
+            "setup_id": None,
+            "durability_target": None,
+            "retained": False,
+            "retention_reason": None,
+            "recovery_required": True,
+            "recovery_reason": "legacy work",
+            "recovery_context": {
+                "source": "legacy-adoption",
+                "prior_owner": None,
+                "prior_lease_id": None,
+                "prior_controller_instance_id": None,
+                "process_evidence_key": None,
+                "quarantined_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "activity_lease": None,
+        }
+        save_registry(git_repo, worktree.lifecycle.empty_registry(entries=[entry]))
+        args = argparse.Namespace(
+            change_id="recovery",
+            agent_id=None,
+            owner="new-owner",
+            lease_id="new-lease",
+            controller_instance_id="new-controller",
+            session_id="new-session",
+            reason="operator adoption",
+            actor="operator",
+            ttl_seconds=1800,
+            durability_remote=None,
+            durability_ref=None,
+            confirm_terminated=True,
+            force=True,
+            json_output=True,
+        )
+        if failure_boundary == "token":
+            failure_owner = worktree.lifecycle
+            failure_name = "_process_start_token"
+        else:
+            failure_owner = worktree.lifecycle.tempfile
+            failure_name = "mkstemp"
+        with monkeypatch.context() as patcher:
+            patcher.setattr(
+                failure_owner,
+                failure_name,
+                lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                    worktree.lifecycle.LifecycleError("token unavailable")
+                    if failure_boundary == "token"
+                    else PermissionError("evidence prohibited")
+                ),
+            )
+            with _chdir(git_repo), pytest.raises(worktree.lifecycle.LifecycleError):
+                worktree.cmd_recovery_adopt(args)
+
+        after_failure = load_registry(git_repo)
+        preserved = find_entry(after_failure, "recovery")
+        assert preserved is not None
+        assert preserved["recovery_required"] is True
+        assert preserved["activity_lease"] is None
+        assert after_failure["recovery_audit"] == []
+
+        monkeypatch.setattr(worktree.lifecycle, "_process_start_token", lambda _pid: "token")
+        with _chdir(git_repo):
+            assert worktree.cmd_recovery_adopt(args) == 0
+        adopted = find_entry(load_registry(git_repo), "recovery")
+        assert adopted is not None
+        assert adopted["recovery_required"] is False
+        assert adopted["activity_lease"]["lease_id"] == "new-lease"
+
+    def test_force_adopt_discovers_process_token_before_exclusive_publication_lock(
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        entry = {
+            "change_id": "recovery",
+            "agent_id": None,
+            "branch": "openspec/recovery",
+            "worktree_path": str(git_repo / "missing"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "entry_generation": "generation",
+            "setup_id": None,
+            "durability_target": None,
+            "retained": False,
+            "retention_reason": None,
+            "recovery_required": True,
+            "recovery_reason": "legacy work",
+            "recovery_context": {
+                "source": "legacy-adoption",
+                "prior_owner": None,
+                "prior_lease_id": None,
+                "prior_controller_instance_id": None,
+                "process_evidence_key": None,
+                "quarantined_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "activity_lease": None,
+        }
+        save_registry(git_repo, worktree.lifecycle.empty_registry(entries=[entry]))
+        args = argparse.Namespace(
+            change_id="recovery",
+            agent_id=None,
+            owner="new-owner",
+            lease_id="new-lease",
+            controller_instance_id="new-controller",
+            session_id="new-session",
+            reason="operator adoption",
+            actor="operator",
+            ttl_seconds=1800,
+            durability_remote=None,
+            durability_ref=None,
+            confirm_terminated=True,
+            force=True,
+            json_output=True,
+        )
+        real_lock = worktree.lifecycle.registry_lock
+        exclusive = False
+        events: list[str] = []
+
+        @contextlib.contextmanager
+        def tracked_lock(*lock_args: object, **lock_kwargs: object):
+            nonlocal exclusive
+            with real_lock(*lock_args, **lock_kwargs):
+                prior = exclusive
+                exclusive = bool(lock_kwargs.get("exclusive"))
+                if exclusive:
+                    events.append("exclusive-enter")
+                try:
+                    yield
+                finally:
+                    exclusive = prior
+
+        monkeypatch.setattr(worktree.lifecycle, "registry_lock", tracked_lock)
+
+        def process_token(_pid: int) -> str:
+            assert not exclusive
+            events.append("process-token")
+            return "precomputed-token"
+
+        monkeypatch.setattr(worktree.lifecycle, "_process_start_token", process_token)
+        real_subprocess_run = worktree.subprocess.run
+
+        def guarded_subprocess(*run_args: object, **run_kwargs: object):
+            assert not exclusive
+            return real_subprocess_run(*run_args, **run_kwargs)
+
+        monkeypatch.setattr(worktree.subprocess, "run", guarded_subprocess)
+        with _chdir(git_repo):
+            assert worktree.cmd_recovery_adopt(args) == 0
+        assert events.count("process-token") == 1
+        assert events.index("process-token") < events.index("exclusive-enter")
+        evidence = worktree.lifecycle.read_process_evidence(
+            git_repo,
+            change_id="recovery",
+            agent_id=None,
+            entry_generation="generation",
+            lease_id="new-lease",
+            owner="new-owner",
+            controller_instance_id="new-controller",
+        )
+        assert evidence["process_start_token"] == "precomputed-token"
+
+    @pytest.mark.parametrize("same_lease", [True, False], ids=["same-lease", "distinct-lease"])
+    def test_concurrent_force_adopt_winner_exclusively_owns_its_evidence(
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        same_lease: bool,
+    ) -> None:
+        entry = {
+            "change_id": "recovery",
+            "agent_id": None,
+            "branch": "openspec/recovery",
+            "worktree_path": str(git_repo / "missing"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "entry_generation": "generation",
+            "setup_id": None,
+            "durability_target": None,
+            "retained": False,
+            "retention_reason": None,
+            "recovery_required": True,
+            "recovery_reason": "legacy work",
+            "recovery_context": {
+                "source": "legacy-adoption",
+                "prior_owner": None,
+                "prior_lease_id": None,
+                "prior_controller_instance_id": None,
+                "process_evidence_key": None,
+                "quarantined_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "activity_lease": None,
+        }
+        save_registry(git_repo, worktree.lifecycle.empty_registry(entries=[entry]))
+
+        def adopt_args(owner: str, lease_id: str, controller: str) -> argparse.Namespace:
+            return argparse.Namespace(
+                change_id="recovery",
+                agent_id=None,
+                owner=owner,
+                lease_id=lease_id,
+                controller_instance_id=controller,
+                session_id=f"session-{owner}",
+                reason="operator adoption",
+                actor="operator",
+                ttl_seconds=1800,
+                durability_remote=None,
+                durability_ref=None,
+                confirm_terminated=True,
+                force=True,
+                json_output=True,
+            )
+
+        args_a = adopt_args("owner-a", "shared-lease", "controller-a")
+        args_b = adopt_args("owner-b", "shared-lease" if same_lease else "lease-b", "controller-b")
+        monkeypatch.setattr(worktree.lifecycle, "_process_start_token", lambda _pid: "token")
+        real_lock = worktree.lifecycle.registry_lock
+        lock_state = threading.local()
+
+        @contextlib.contextmanager
+        def tracked_lock(*args: object, **kwargs: object):
+            with real_lock(*args, **kwargs):
+                prior = getattr(lock_state, "exclusive", False)
+                lock_state.exclusive = bool(kwargs.get("exclusive"))
+                try:
+                    yield
+                finally:
+                    lock_state.exclusive = prior
+
+        monkeypatch.setattr(worktree.lifecycle, "registry_lock", tracked_lock)
+        real_write = worktree.lifecycle.write_process_evidence
+        a_written = threading.Event()
+        b_written = threading.Event()
+        a_published = threading.Event()
+
+        def ordered_write(*args: object, **kwargs: object):
+            owner = str(kwargs["owner"])
+            kwargs.setdefault("process_start_token", f"token-{owner}")
+            result = real_write(*args, **kwargs)
+            if owner == "owner-a":
+                a_written.set()
+                if not getattr(lock_state, "exclusive", False):
+                    assert b_written.wait(5)
+            elif not getattr(lock_state, "exclusive", False):
+                b_written.set()
+                assert a_published.wait(5)
+            return result
+
+        monkeypatch.setattr(worktree.lifecycle, "write_process_evidence", ordered_write)
+        results: dict[str, object] = {}
+
+        def run_adoption(name: str, args: argparse.Namespace) -> None:
+            try:
+                results[name] = worktree.cmd_recovery_adopt(args)
+            except worktree.lifecycle.LifecycleError as exc:
+                results[name] = exc
+            finally:
+                if name == "a":
+                    a_published.set()
+
+        thread_a = threading.Thread(target=run_adoption, args=("a", args_a))
+        thread_b = threading.Thread(target=run_adoption, args=("b", args_b))
+        with _chdir(git_repo):
+            thread_a.start()
+            assert a_written.wait(5)
+            thread_b.start()
+            thread_a.join(5)
+            thread_b.join(5)
+        assert not thread_a.is_alive()
+        assert not thread_b.is_alive()
+        assert results["a"] == 0
+        assert isinstance(results["b"], worktree.lifecycle.LifecycleError)
+        assert not b_written.is_set()
+
+        registry = load_registry(git_repo)
+        adopted = find_entry(registry, "recovery")
+        assert adopted is not None
+        assert adopted["activity_lease"]["owner"] == "owner-a"
+        assert adopted["activity_lease"]["controller_instance_id"] == "controller-a"
+        evidence = worktree.lifecycle.read_process_evidence(
+            git_repo,
+            change_id="recovery",
+            agent_id=None,
+            entry_generation="generation",
+            lease_id="shared-lease",
+            owner="owner-a",
+            controller_instance_id="controller-a",
+        )
+        assert evidence["owner"] == "owner-a"
+        assert evidence["controller_instance_id"] == "controller-a"
+        if not same_lease:
+            loser_evidence = worktree.lifecycle.evidence_path(
+                git_repo, "recovery", None, "generation", "lease-b"
+            )
+            assert not loser_evidence.exists()
+
 
 class TestParseDurationHours:
     def test_hours(self) -> None:
@@ -967,6 +1484,7 @@ class TestParseDurationHours:
 
 
 # --- Helpers ---
+
 
 class _chdir:
     """Context manager to temporarily change directory."""
