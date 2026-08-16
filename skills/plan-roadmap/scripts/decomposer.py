@@ -44,6 +44,11 @@ from models import (  # type: ignore[import-untyped]
 # Heading pattern: captures level (number of #) and text
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
 
+#: Statuses in which an item has *ceded* its change_id rather than claiming it.
+#: `skipped` and `superseded` are how a roadmap hands a change to another
+#: roadmap's item, so the duplicate-change_id check must not count them.
+_CEDED_STATUSES = frozenset({ItemStatus.SKIPPED, ItemStatus.SUPERSEDED})
+
 
 # ---------------------------------------------------------------------------
 # Proposal readiness (pre-generation)
@@ -303,11 +308,20 @@ def validate_cross_roadmap(repo_root: Path) -> list[str]:
     #    intra-roadmap case is checked here rather than in validate_roadmap
     #    because both cases have the same cause and the same fix, and a
     #    per-roadmap check would report the cross-roadmap case twice.
+    #
+    #    An item in a ceded state does NOT claim its change_id: `skipped` and
+    #    `superseded` are precisely how a roadmap hands ownership to another
+    #    roadmap's item, so counting them would make ceding impossible and leave
+    #    the duplicate permanently unresolvable. (Found in practice: the
+    #    repo-improvement roadmap skipped four router changes to cede them to
+    #    dispatch-governance, and this check still reported the collision.)
     change_owners: dict[str, list[str]] = {}
     for roadmap_id, roadmap in sorted(roadmaps.items()):
         seen_here: dict[str, str] = {}
         for item in roadmap.items:
             if not item.change_id:
+                continue
+            if item.status in _CEDED_STATUSES:
                 continue
             if item.change_id in seen_here:
                 errors.append(
