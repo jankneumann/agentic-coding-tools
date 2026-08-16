@@ -10,15 +10,15 @@ info:
   title: "agent-coordinator: Agent profiles"
   version: 1.0.0
   description: >-
-    Calling agent's profile projection. Spec lines 324-359, 2025 (HTTP-12).
+    Calling agent's profile projection. Spec lines 293-328, 1994 (HTTP-12).
 paths:
   /profiles/me:
     get:
       operationId: getMyProfile
       summary: Get the calling agent's profile
       description: >-
-        Spec 2025 (HTTP-12): returns the calling agent's profile. Spec
-        326-333: profiles define allowed operations, trust level, and
+        Spec 1994 (HTTP-12): returns the calling agent's profile. Spec
+        295-302: profiles define allowed operations, trust level, and
         resource limits, assignable per agent_id or agent_type.
       security:
         - coordinatorApiKey: []
@@ -27,7 +27,7 @@ paths:
           - agent-coordinator.complete-http-api-coverage
           - agent-coordinator.agent-profiles
       responses:
-        "200": {description: Calling agent's profile (spec 326-333)}
+        "200": {description: Calling agent's profile (spec 295-302)}
         "401": {description: Missing or invalid X-API-Key}
 components:
   securitySchemes:

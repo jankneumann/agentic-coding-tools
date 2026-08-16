@@ -11,17 +11,17 @@ info:
   version: 1.0.0
   description: >-
     Task claiming, completion, submission, and unclaimed reads. Spec lines
-    145-176, 972-994, 1981-1987 (HTTP-7).
+    114-145, 941-963, 1950-1956 (HTTP-7).
 paths:
   /work/claim:
     post:
       operationId: claimWork
       summary: Atomically claim the highest-priority eligible task
       description: >-
-        Spec 1984 (HTTP-7): atomically claims the highest-priority eligible
-        task. Spec 154-157: returns task_id, task_type, task_description, and
-        input_data on success. Spec 159-161: with no eligible tasks returns
-        success false with reason no_tasks_available. Spec 173-175: tasks with
+        Spec 1953 (HTTP-7): atomically claims the highest-priority eligible
+        task. Spec 123-126: returns task_id, task_type, task_description, and
+        input_data on success. Spec 128-130: with no eligible tasks returns
+        success false with reason no_tasks_available. Spec 142-144: tasks with
         unmet dependencies are never returned.
       security:
         - coordinatorApiKey: []
@@ -38,15 +38,15 @@ paths:
               properties:
                 task_types: {type: array, items: {type: string}}
       responses:
-        "200": {description: Claimed task or no_tasks_available (spec 154-161)}
+        "200": {description: Claimed task or no_tasks_available (spec 123-130)}
         "401": {description: Missing or invalid X-API-Key}
   /work/complete:
     post:
       operationId: completeWork
       summary: Mark a claimed task completed or failed
       description: >-
-        Spec 1985 (HTTP-7): marks a claimed task completed or failed.
-        Spec 163-166: returns success with status completed, and dependent
+        Spec 1954 (HTTP-7): marks a claimed task completed or failed.
+        Spec 132-135: returns success with status completed, and dependent
         tasks become unblocked if applicable.
       security:
         - coordinatorApiKey: []
@@ -67,14 +67,14 @@ paths:
                 result: {type: object}
                 error_message: {type: string}
       responses:
-        "200": {description: Completion recorded, dependents unblocked (spec 164-166)}
+        "200": {description: Completion recorded, dependents unblocked (spec 133-135)}
         "401": {description: Missing or invalid X-API-Key}
   /work/submit:
     post:
       operationId: submitWork
       summary: Create a new task in the queue
       description: >-
-        Spec 1986 (HTTP-7): creates a new task in the queue. Spec 168-170:
+        Spec 1955 (HTTP-7): creates a new task in the queue. Spec 137-139:
         returns success with the new task_id.
       security:
         - coordinatorApiKey: []
@@ -96,15 +96,15 @@ paths:
                 priority: {type: integer}
                 depends_on: {type: array, items: {type: string}}
       responses:
-        "200": {description: Task created with its task_id (spec 169-170)}
+        "200": {description: Task created with its task_id (spec 138-139)}
         "401": {description: Missing or invalid X-API-Key}
   /work/get:
     post:
       operationId: getWork
       summary: Read a task's current state without claiming it
       description: >-
-        Spec 1987 (HTTP-7): returns a task's current state by task_id without
-        claiming it. Spec 974-978 (Task Read API): the response includes
+        Spec 1956 (HTTP-7): returns a task's current state by task_id without
+        claiming it. Spec 943-947 (Task Read API): the response includes
         task_id, task_type, status, input_data, result, error_message,
         priority, created_at, and completed_at, and reading never changes
         status or ownership.
@@ -124,9 +124,9 @@ paths:
               properties:
                 task_id: {type: string}
       responses:
-        "200": {description: Task state without claiming (spec 974-978)}
+        "200": {description: Task state without claiming (spec 943-947)}
         "401": {description: Missing or invalid X-API-Key}
-        "404": {description: Unknown task_id (spec 986-988)}
+        "404": {description: Unknown task_id (spec 955-957)}
 components:
   securitySchemes:
     coordinatorApiKey:

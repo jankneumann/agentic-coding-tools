@@ -11,14 +11,14 @@ info:
   version: 1.0.0
   description: >-
     Cedar policy authorization checks and policy-text validation. Spec lines
-    2029-2035 (HTTP-13).
+    1998-2004 (HTTP-13).
 paths:
   /policy/check:
     post:
       operationId: checkPolicy
       summary: Check whether an operation is authorized
       description: >-
-        Spec 2032 (HTTP-13): reports whether an operation is authorized by
+        Spec 2001 (HTTP-13): reports whether an operation is authorized by
         the policy engine.
       security:
         - coordinatorApiKey: []
@@ -31,14 +31,14 @@ paths:
           application/json:
             schema: {type: object}
       responses:
-        "200": {description: Authorization decision (spec 2032)}
+        "200": {description: Authorization decision (spec 2001)}
         "401": {description: Missing or invalid X-API-Key}
   /policy/validate:
     post:
       operationId: validatePolicy
       summary: Validate Cedar policy text
       description: >-
-        Spec 2033 (HTTP-13): validates Cedar policy text against the schema.
+        Spec 2002 (HTTP-13): validates Cedar policy text against the schema.
       security:
         - coordinatorApiKey: []
       x-traceability:
@@ -54,7 +54,7 @@ paths:
               properties:
                 policy_text: {type: string}
       responses:
-        "200": {description: Validation result (spec 2033)}
+        "200": {description: Validation result (spec 2002)}
         "401": {description: Missing or invalid X-API-Key}
 components:
   securitySchemes:

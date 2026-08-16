@@ -10,7 +10,7 @@ info:
   title: "agent-coordinator: Audit trail"
   version: 1.0.0
   description: >-
-    Append-only audit-trail queries. Spec lines 506-530, 2026 (HTTP-12);
+    Append-only audit-trail queries. Spec lines 475-499, 1995 (HTTP-12);
     coordinator-kanban-viz spec 113-150.
 paths:
   /audit:
@@ -18,8 +18,8 @@ paths:
       operationId: queryAudit
       summary: Query audit-trail entries
       description: >-
-        Spec 2026 (HTTP-12): returns audit-trail entries with optional since,
-        change_id, and limit filters. Spec 508-513: every coordination
+        Spec 1995 (HTTP-12): returns audit-trail entries with optional since,
+        change_id, and limit filters. Spec 477-482: every coordination
         operation is logged append-only with timestamp, agent_id, operation,
         and result. coordinator-kanban-viz spec 117: the kanban UI polls this
         endpoint with the same filters as its SSE fallback.
@@ -44,7 +44,7 @@ paths:
           required: false
           schema: {type: integer}
       responses:
-        "200": {description: Matching audit entries (spec 2026)}
+        "200": {description: Matching audit entries (spec 1995)}
         "401": {description: Missing or invalid X-API-Key}
 components:
   securitySchemes:

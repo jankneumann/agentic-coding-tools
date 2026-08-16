@@ -11,7 +11,7 @@ info:
   title: "agent-coordinator: Handoff documents"
   version: 1.0.0
   description: >-
-    Session-continuity handoff persistence and retrieval. Spec lines 557-575,
+    Session-continuity handoff persistence and retrieval. Spec lines 526-544,
     1415-1419, 2027 (HTTP-12).
 paths:
   /handoffs/write:
@@ -19,9 +19,9 @@ paths:
       operationId: writeHandoff
       summary: Write a handoff document
       description: >-
-        Spec 1417-1419: a handoff document written with list fields has the
+        Spec 1386-1388: a handoff document written with list fields has the
         lists correctly serialized as JSONB, and reading the handoff returns
-        all fields intact. Spec 568-571: writing a handoff returns success
+        all fields intact. Spec 537-540: writing a handoff returns success
         with a handoff_id and the document is persisted for future sessions.
       security:
         - coordinatorApiKey: []
@@ -34,14 +34,14 @@ paths:
           application/json:
             schema: {type: object}
       responses:
-        "200": {description: Handoff persisted with list fields intact (spec 1418-1419)}
+        "200": {description: Handoff persisted with list fields intact (spec 1387-1388)}
   /handoffs/read:
     post:
       operationId: readHandoff
       summary: Read previous handoff documents
       description: >-
-        Spec 2027 (HTTP-12): returns previous handoff documents for session
-        continuity. Spec 572-575: returns the most recent handoff documents
+        Spec 1996 (HTTP-12): returns previous handoff documents for session
+        continuity. Spec 541-544: returns the most recent handoff documents
         matching the criteria, ordered by creation time descending.
       security:
         - coordinatorApiKey: []
@@ -59,7 +59,7 @@ paths:
                 agent_name: {type: string}
                 limit: {type: integer}
       responses:
-        "200": {description: Most recent matching handoffs, newest first (spec 573-575)}
+        "200": {description: Most recent matching handoffs, newest first (spec 542-544)}
         "401": {description: Missing or invalid X-API-Key}
 components:
   securitySchemes:

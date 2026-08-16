@@ -10,7 +10,7 @@ info:
   title: "agent-coordinator: Destructive-operation guardrails"
   version: 1.0.0
   description: >-
-    Destructive-pattern checks for agent operations. Spec lines 431-476,
+    Destructive-pattern checks for agent operations. Spec lines 400-445,
     2024 (HTTP-12).
 paths:
   /guardrails/check:
@@ -18,8 +18,8 @@ paths:
       operationId: checkGuardrails
       summary: Check an operation for destructive patterns
       description: >-
-        Spec 2024 (HTTP-12): checks an operation for destructive patterns.
-        Spec 433-438: destructive operations are blocked by default for cloud
+        Spec 1993 (HTTP-12): checks an operation for destructive patterns.
+        Spec 402-407: destructive operations are blocked by default for cloud
         agents and every violation is logged to the audit trail.
       security:
         - coordinatorApiKey: []
@@ -38,7 +38,7 @@ paths:
                 operation_text: {type: string}
                 file_paths: {type: array, items: {type: string}}
       responses:
-        "200": {description: Guardrail decision with any matched patterns (spec 433-438)}
+        "200": {description: Guardrail decision with any matched patterns (spec 402-407)}
         "401": {description: Missing or invalid X-API-Key}
 components:
   securitySchemes:
