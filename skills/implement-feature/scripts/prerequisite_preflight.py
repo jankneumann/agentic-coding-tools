@@ -1,0 +1,514 @@
+#!/usr/bin/env python3
+"""Resolve and verify authoritative prerequisite pull-request evidence."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable, Sequence
+
+import yaml
+from jsonschema import Draft202012Validator
+
+
+OID_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+FORBIDDEN_SHA_KEYS = {
+    "merge_sha",
+    "merge_commit",
+    "authoritative_merge_sha",
+    "fetched_base_tip_sha",
+    "verified_head_sha",
+    "implementation_diff_base_sha",
+}
+
+
+class PreflightError(RuntimeError):
+    """Raised when prerequisite evidence cannot be proven authoritatively."""
+
+
+Runner = Callable[..., subprocess.CompletedProcess[str]]
+
+
+def _default_runner(
+    argv: Sequence[str], *, cwd: Path, check: bool = True
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            list(argv), cwd=cwd, check=check, capture_output=True, text=True
+        )
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or "command failed").strip()
+        raise PreflightError(f"{' '.join(argv)}: {detail}") from exc
+
+
+def _command(
+    runner: Runner, argv: Sequence[str], repo_root: Path, *, check: bool = True
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return runner(tuple(argv), cwd=repo_root, check=check)
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or "command failed").strip()
+        raise PreflightError(f"{' '.join(argv)}: {detail}") from exc
+
+
+def _json_command(runner: Runner, argv: Sequence[str], repo_root: Path) -> Any:
+    completed = _command(runner, argv, repo_root)
+    try:
+        return json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise PreflightError(f"{' '.join(argv)} returned invalid JSON") from exc
+
+
+def _git_output(runner: Runner, repo_root: Path, *args: str) -> str:
+    return _command(runner, ("git", *args), repo_root).stdout.strip()
+
+
+def _git_optional(runner: Runner, repo_root: Path, *args: str) -> str | None:
+    completed = _command(runner, ("git", *args), repo_root, check=False)
+    return completed.stdout.strip() if completed.returncode == 0 else None
+
+
+def _require_oid(value: Any, label: str) -> str:
+    if not isinstance(value, str) or OID_RE.fullmatch(value) is None:
+        raise PreflightError(
+            f"{label} is not a 40- or 64-character lowercase Git object id"
+        )
+    return value
+
+
+def _load_requirements(path: Path) -> dict[str, Any]:
+    try:
+        data = yaml.safe_load(path.read_text())
+    except (OSError, yaml.YAMLError) as exc:
+        raise PreflightError(f"cannot read requirements: {exc}") from exc
+    if not isinstance(data, dict):
+        raise PreflightError("requirements must be a mapping")
+
+    for scope in (data, *data.get("prerequisites", [])):
+        if not isinstance(scope, dict):
+            raise PreflightError("each prerequisite must be a mapping")
+        supplied = sorted(FORBIDDEN_SHA_KEYS.intersection(scope))
+        if supplied:
+            raise PreflightError(
+                f"caller-supplied SHA fields are forbidden: {', '.join(supplied)}"
+            )
+
+    prerequisites = data.get("prerequisites")
+    if not isinstance(prerequisites, list) or not prerequisites:
+        raise PreflightError("requirements contain no prerequisites")
+    return data
+
+
+def _schema_for(requirements_path: Path) -> dict[str, Any]:
+    path = requirements_path.parent / "schemas" / "baseline-gates.schema.json"
+    try:
+        schema = json.loads(path.read_text())
+        Draft202012Validator.check_schema(schema)
+    except (OSError, json.JSONDecodeError, Exception) as exc:
+        raise PreflightError(f"cannot load baseline evidence schema {path}: {exc}") from exc
+    return schema
+
+
+def _repository_context(
+    requirements: dict[str, Any], repo_root: Path, runner: Runner
+) -> tuple[str, str, str]:
+    if requirements.get("repository") != "current":
+        raise PreflightError("only repository: current is supported")
+    repo = _json_command(
+        runner,
+        ("gh", "repo", "view", "--json", "nameWithOwner,defaultBranchRef"),
+        repo_root,
+    )
+    repository = repo.get("nameWithOwner")
+    default_branch = (repo.get("defaultBranchRef") or {}).get("name")
+    if not repository or not default_branch:
+        raise PreflightError(
+            "GitHub did not return the current repository and default branch"
+        )
+
+    if requirements.get("base_ref") != "configured-default":
+        raise PreflightError("only base_ref: configured-default is supported")
+    if requirements.get("remote_name") != "configured-default":
+        raise PreflightError("only remote_name: configured-default is supported")
+
+    branch = _git_output(runner, repo_root, "branch", "--show-current")
+    remote = _git_optional(runner, repo_root, "config", "--get", "remote.pushDefault")
+    if not remote:
+        remote = _git_optional(
+            runner, repo_root, "config", "--get", f"branch.{branch}.remote"
+        )
+    remote = remote or "origin"
+    remote_url = _git_output(runner, repo_root, "remote", "get-url", remote)
+    normalized_url = remote_url.removesuffix(".git").replace(":", "/")
+    if not normalized_url.lower().endswith(f"/{repository}".lower()):
+        raise PreflightError(
+            f"configured remote {remote!r} points outside current repository {repository}"
+        )
+    return repository, default_branch, remote
+
+
+def _surface_matches(assertion: str, files: set[str]) -> bool:
+    if assertion == "file-tier merge-plan schema and executor":
+        has_schema = any(path.endswith("/merge-plan.schema.json") for path in files)
+        has_executor = any(
+            path.startswith("skills/merge-pull-requests/scripts/")
+            and ("plan" in Path(path).stem or "execute" in Path(path).stem)
+            for path in files
+        )
+        return has_schema and has_executor
+    if assertion == "selected ephemeral validation worktree":
+        return any(
+            path.startswith("skills/validate-feature/") and "worktree" in path.lower()
+            for path in files
+        )
+    raise PreflightError(f"unknown required surface assertion: {assertion}")
+
+
+def _is_ancestor(
+    runner: Runner, repo_root: Path, ancestor: str, descendant: str
+) -> bool:
+    result = _command(
+        runner,
+        ("git", "merge-base", "--is-ancestor", ancestor, descendant),
+        repo_root,
+        check=False,
+    )
+    if result.returncode not in (0, 1):
+        raise PreflightError(
+            "git merge-base failed while checking prerequisite ancestry"
+        )
+    return result.returncode == 0
+
+
+def _resolve_prerequisite(
+    config: dict[str, Any],
+    *,
+    repository: str,
+    base_ref: str,
+    remote: str,
+    base_tip: str,
+    feature_head: str,
+    repo_root: Path,
+    runner: Runner,
+    verified_at: str,
+) -> dict[str, Any]:
+    head_ref = config.get("expected_head_ref")
+    change_id = config.get("change_id")
+    assertion = config.get("required_surface")
+    if not all(
+        isinstance(value, str) and value
+        for value in (head_ref, change_id, assertion)
+    ):
+        raise PreflightError(
+            "prerequisite identity and surface fields must be non-empty strings"
+        )
+
+    prs = _json_command(
+        runner,
+        (
+            "gh",
+            "pr",
+            "list",
+            "--repo",
+            repository,
+            "--state",
+            "all",
+            "--head",
+            head_ref,
+            "--json",
+            "number,url,headRefName,headRepository,baseRefName,state,mergedAt,mergeCommit",
+        ),
+        repo_root,
+    )
+    if not isinstance(prs, list) or len(prs) != 1:
+        count = len(prs) if isinstance(prs, list) else "invalid"
+        raise PreflightError(
+            f"{change_id}: expected exactly one pull request, found {count}"
+        )
+    pr = prs[0]
+    if (
+        pr.get("state") != "MERGED"
+        or not pr.get("mergedAt")
+        or not pr.get("mergeCommit")
+    ):
+        raise PreflightError(f"{change_id}: pull request is not merged")
+    head_repository = (pr.get("headRepository") or {}).get("nameWithOwner")
+    if head_repository != repository:
+        raise PreflightError(
+            f"{change_id}: head repository {head_repository!r} is not {repository!r}"
+        )
+    if pr.get("headRefName") != head_ref:
+        raise PreflightError(
+            f"{change_id}: authoritative head ref does not match {head_ref}"
+        )
+    if pr.get("baseRefName") != base_ref:
+        raise PreflightError(
+            f"{change_id}: pull request base {pr.get('baseRefName')!r} is not {base_ref!r}"
+        )
+
+    merge_sha = _require_oid(
+        (pr.get("mergeCommit") or {}).get("oid"), "merge object id"
+    )
+    details = _json_command(
+        runner,
+        (
+            "gh",
+            "pr",
+            "view",
+            str(pr["number"]),
+            "--repo",
+            repository,
+            "--json",
+            "files",
+        ),
+        repo_root,
+    )
+    files = {
+        item.get("path")
+        for item in details.get("files", [])
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    }
+    if not _surface_matches(assertion, files):
+        raise PreflightError(
+            f"{change_id}: required surface was not changed by the merged PR"
+        )
+    if not _is_ancestor(runner, repo_root, merge_sha, base_tip):
+        raise PreflightError(
+            f"{change_id}: merge SHA is not ancestral to fetched base"
+        )
+    if not _is_ancestor(runner, repo_root, merge_sha, feature_head):
+        raise PreflightError(
+            f"{change_id}: merge SHA is not ancestral to feature HEAD"
+        )
+
+    return {
+        "change_id": change_id,
+        "repository": repository,
+        "remote_name": remote,
+        "configured_base_ref": base_ref,
+        "pr_number": pr["number"],
+        "pr_url": pr["url"],
+        "head_ref": head_ref,
+        "base_ref": pr["baseRefName"],
+        "merged_at": pr["mergedAt"],
+        "authoritative_merge_sha": merge_sha,
+        "fetched_base_tip_sha": base_tip,
+        "verified_head_sha": feature_head,
+        "surface_assertion": assertion,
+        "verified_at": verified_at,
+    }
+
+
+def _resolve(
+    requirements: dict[str, Any], repo_root: Path, runner: Runner
+) -> dict[str, Any]:
+    repository, base_ref, remote = _repository_context(
+        requirements, repo_root, runner
+    )
+    _command(runner, ("git", "fetch", remote, base_ref), repo_root)
+    base_tip = _require_oid(
+        _git_output(runner, repo_root, "rev-parse", "FETCH_HEAD"),
+        "fetched base object id",
+    )
+    feature_head = _require_oid(
+        _git_output(runner, repo_root, "rev-parse", "HEAD"),
+        "feature HEAD object id",
+    )
+    verified_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    resolved = [
+        _resolve_prerequisite(
+            config,
+            repository=repository,
+            base_ref=base_ref,
+            remote=remote,
+            base_tip=base_tip,
+            feature_head=feature_head,
+            repo_root=repo_root,
+            runner=runner,
+            verified_at=verified_at,
+        )
+        for config in requirements["prerequisites"]
+    ]
+    return {
+        "schema_version": 1,
+        "repository": repository,
+        "implementation_diff_base_sha": base_tip,
+        "verified_at": verified_at,
+        "prerequisites": resolved,
+    }
+
+
+def _validate_evidence(
+    evidence: dict[str, Any], schema: dict[str, Any]
+) -> None:
+    errors = sorted(
+        Draft202012Validator(schema).iter_errors(evidence),
+        key=lambda error: list(error.path),
+    )
+    if errors:
+        first = errors[0]
+        location = ".".join(str(part) for part in first.path) or "<root>"
+        raise PreflightError(
+            f"baseline evidence is not schema-valid at {location}: {first.message}"
+        )
+
+
+def _verify_existing(
+    evidence: dict[str, Any],
+    requirements: dict[str, Any],
+    repo_root: Path,
+    runner: Runner,
+    schema: dict[str, Any],
+) -> dict[str, Any]:
+    _validate_evidence(evidence, schema)
+    current = _resolve(requirements, repo_root, runner)
+    if evidence.get("repository") != current["repository"]:
+        raise PreflightError(
+            "baseline evidence belongs to a different repository"
+        )
+    current_by_change = {
+        item["change_id"]: item for item in current["prerequisites"]
+    }
+    immutable = (
+        "repository",
+        "remote_name",
+        "configured_base_ref",
+        "pr_number",
+        "pr_url",
+        "head_ref",
+        "base_ref",
+        "merged_at",
+        "authoritative_merge_sha",
+        "surface_assertion",
+    )
+    for stored in evidence["prerequisites"]:
+        fresh = current_by_change.get(stored["change_id"])
+        if fresh is None or any(stored[key] != fresh[key] for key in immutable):
+            raise PreflightError(
+                f"{stored['change_id']}: authoritative PR metadata changed"
+            )
+        for key in (
+            "fetched_base_tip_sha",
+            "verified_head_sha",
+            "authoritative_merge_sha",
+        ):
+            _require_oid(stored[key], f"stored {key}")
+        if not _is_ancestor(
+            runner,
+            repo_root,
+            stored["fetched_base_tip_sha"],
+            fresh["fetched_base_tip_sha"],
+        ):
+            raise PreflightError(
+                f"{stored['change_id']}: stored base is not ancestral to fetched base"
+            )
+        if not _is_ancestor(
+            runner,
+            repo_root,
+            stored["verified_head_sha"],
+            fresh["verified_head_sha"],
+        ):
+            raise PreflightError(
+                f"{stored['change_id']}: stored feature HEAD is not ancestral to current HEAD"
+            )
+    _require_oid(
+        evidence["implementation_diff_base_sha"],
+        "implementation diff base object id",
+    )
+    if not _is_ancestor(
+        runner,
+        repo_root,
+        evidence["implementation_diff_base_sha"],
+        current["implementation_diff_base_sha"],
+    ):
+        raise PreflightError(
+            "implementation diff base is not ancestral to fetched base"
+        )
+    return evidence
+
+
+def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(payload, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        try:
+            directory_fd = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        except OSError:
+            pass
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def run_preflight(
+    requirements_path: Path,
+    output_path: Path,
+    repo_root: Path,
+    *,
+    runner: Runner = _default_runner,
+    verify_only: bool = False,
+) -> dict[str, Any]:
+    requirements_path = Path(requirements_path)
+    output_path = Path(output_path)
+    repo_root = Path(repo_root)
+    requirements = _load_requirements(requirements_path)
+    schema = _schema_for(requirements_path)
+    if verify_only:
+        try:
+            evidence = json.loads(output_path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise PreflightError(
+                f"cannot read baseline evidence: {exc}"
+            ) from exc
+        return _verify_existing(
+            evidence, requirements, repo_root, runner, schema
+        )
+
+    evidence = _resolve(requirements, repo_root, runner)
+    _validate_evidence(evidence, schema)
+    _atomic_write_json(output_path, evidence)
+    return evidence
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--requirements", required=True, type=Path)
+    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--repo-root", type=Path, default=Path.cwd())
+    parser.add_argument("--verify-only", action="store_true")
+    args = parser.parse_args(argv)
+    try:
+        evidence = run_preflight(
+            args.requirements,
+            args.output,
+            args.repo_root,
+            verify_only=args.verify_only,
+        )
+    except PreflightError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(evidence, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
