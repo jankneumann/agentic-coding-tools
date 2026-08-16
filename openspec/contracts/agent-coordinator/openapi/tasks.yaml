@@ -1,0 +1,76 @@
+# agent-coordinator tasks contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Task reads"
+  version: 1.0.0
+  description: >-
+    Read-only task state endpoints. Spec lines 974-978, 1955-1962.
+# NOTE (operator-flagged during 5.1 authoring): the spec names two read
+# endpoints for task state — GET /api/v1/tasks/{task_id} (line 976, the
+# get_task tool's HTTP binding) and GET /work/task/{task_id} (line 1957).
+# Whether these are one operation under two paths is not decided here; both
+# are contracted as the spec names both. Resolving the duplication is a
+# finding for task 5.3, not silently mergeable in a contract (D1).
+paths:
+  /api/v1/tasks/{task_id}:
+    get:
+      operationId: getTask
+      summary: Read a task's current state without claiming it
+      description: >-
+        Spec 974-978: HTTP binding of the get_task(task_id) tool. The response
+        includes task_id, task_type, status, input_data, result,
+        error_message, priority, created_at, and completed_at. Reading a task
+        does not change its status or ownership.
+      security:
+        - coordinatorApiKey: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Task state (spec 977)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task_id: {type: string}
+                  task_type: {type: string}
+                  status: {type: string}
+                  input_data: {type: object}
+                  result: {type: object}
+                  error_message: {type: [string, "null"]}
+                  priority: {type: integer}
+                  created_at: {type: string}
+                  completed_at: {type: [string, "null"]}
+  /work/task/{task_id}:
+    get:
+      operationId: getWorkTask
+      summary: Return a specific task's details
+      description: >-
+        Spec 1957: returns a specific task's details. Spec 1961-1962: a
+        non-existent task_id returns 404.
+      security:
+        - coordinatorApiKey: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Task details (spec 1957)}
+        "404": {description: Unknown task_id (spec 1961-1962)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

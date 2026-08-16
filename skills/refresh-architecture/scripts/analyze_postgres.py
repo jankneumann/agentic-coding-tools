@@ -820,8 +820,9 @@ class SchemaParser:
         ]
         widest = sorted(
             [{"table": t.name, "column_count": len(t.columns)} for t in self.tables.values()],
-            key=lambda x: x["column_count"],
-            reverse=True,
+            # Table name breaks column-count ties so the cut at 10 selects the
+            # same tables on every run (issue #362).
+            key=lambda x: (-x["column_count"], x["table"]),
         )[:10]
 
         summary = {
@@ -1056,8 +1057,9 @@ def _query_live_db(dsn: str | None = None) -> dict[str, Any]:
         ]
         widest = sorted(
             [{"table": t["name"], "column_count": len(t["columns"])} for t in tables_out],
-            key=lambda x: x["column_count"],
-            reverse=True,
+            # Table name breaks column-count ties so the cut at 10 selects the
+            # same tables on every run (issue #362).
+            key=lambda x: (-x["column_count"], x["table"]),
         )[:10]
 
         return {

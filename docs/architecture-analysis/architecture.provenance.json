@@ -1,104 +1,121 @@
 {
   "artifacts": [
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "15b45a023b9baf7cfee6226ae995a8c55ec9818ed30b4e56cfc4ac5942483dfc",
-      "size_bytes": 1007829
+      "sha256": "943705d069dbb520884644c39c918880c8b3b302c4a799de5e667c7dd9b987e4",
+      "size_bytes": 1074679
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "c03c3bdc8d9ff38e6004ff1bcf1b3c79470813c7ccedcd5439e1c7e1ae8d4913",
-      "size_bytes": 871821
+      "sha256": "74421dd4ba72c20d1794b32490e0d92037762737d9d78bbec50716a4690535e1",
+      "size_bytes": 883735
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "99a8cd297eb6865cdbd2c806739309101c5e33d31bc16a21a53531ae8e47bd24",
-      "size_bytes": 55028
+      "sha256": "7a3a2a99936e6bcb58429531b731946abf59c401a32333b6872f5d32dbab8815",
+      "size_bytes": 55365
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "d3f3304cd1b622e967643eea948446e2e703e1f07bf462da2e2b61faa7141d87",
-      "size_bytes": 22448
+      "sha256": "8612224a3ed7362311a255cc6f8e922fce78570cbc9a3f2c4b3a30dbf2eaf335",
+      "size_bytes": 22444
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/comment_insights.json",
       "required": false,
-      "sha256": "c90d60f45b14862f5da1895707bc23e1e7004b50c0dca46784d5bfbb2d023145",
-      "size_bytes": 3870
+      "sha256": "d0ed828b5b2a4a01d882c8fe6fedcc07ada142e780cc5ad63a9d5756899bc51f",
+      "size_bytes": 19913
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "b5fcdebb3b804a63c42c9122ca504e788ab9c219e543b298c8da7b4eb98f9474",
-      "size_bytes": 507875
+      "sha256": "222ea9838ebbb2107424aebb2dcd9fe950fa1bb3be3c92babb1ff5d268aec128",
+      "size_bytes": 518509
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/pattern_insights.json",
       "required": false,
-      "sha256": "b5f8d95e23afb5f31278f81e2222901027b0cddacd0fbc1da3f5a6fe016088db",
-      "size_bytes": 2052
+      "sha256": "2fe1bfe2424608b458f44d7f85dcb30cd4d564c296c254b95a55b515c4302555",
+      "size_bytes": 4005
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/postgres_analysis.json",
       "required": false,
-      "sha256": "e60ba4525a43988e70edb45575349028bca00d5cf6470d61fc68c8f9147c0fa4",
-      "size_bytes": 73423
+      "sha256": "d150a71545d9624b718ce5c2867fc6fa8ee5c5cced2d9f3d93baaf135374c177",
+      "size_bytes": 89582
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/python_analysis.json",
       "required": false,
-      "sha256": "b626c2a19b6d5f5cdbe23c70d614643ebbb6f740b640db2ebea1ebb5a150d58b",
-      "size_bytes": 960234
+      "sha256": "476dc423c808dd758f022a231053907ac7272f20fa6518d3487f965ec19ade68",
+      "size_bytes": 958227
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/treesitter_enrichment.json",
       "required": false,
-      "sha256": "6905fcc60966d4d2e991f1006f3fd4e19f3907d3c50bb664f164ab2b067d2c73",
-      "size_bytes": 185783
+      "sha256": "be311335074f5945ad28abca0e48f12da47e12ccef4ca00d98c6479b3d787d45",
+      "size_bytes": 1169841
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/ts_analysis.json",
       "required": false,
       "sha256": "57a21ae55604889d9c87901b3fe77c8b4bf7594f6d454d8aa7a3f69ae33f02e3",
       "size_bytes": 61354
     },
     {
+      "carried_over": true,
       "path": "docs/architecture-analysis/views/.gitkeep",
       "required": false,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "size_bytes": 0
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/views/backend_components.mmd",
       "required": false,
-      "sha256": "21c50746f8a856ff3764b91d096f6ba6167bf424de5fc993e9f4be2bef9de163",
-      "size_bytes": 12993
+      "sha256": "46441eebedc1ae1ea9e1d4fd0b94cc2db60be3e76e8f0e1c17260f584400c4c0",
+      "size_bytes": 12888
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/views/containers.mmd",
       "required": false,
-      "sha256": "b3ae059b950f7c2ebca93b6f8376acdffb02a67878f8b0c692c5447c787451de",
-      "size_bytes": 86
+      "sha256": "7751ed53cf2e4b4529a8d22fd8b9f2f2ae81af085c82608960d9be26c0274eae",
+      "size_bytes": 122
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/views/db_erd.mmd",
       "required": false,
-      "sha256": "d9e229bdcffab17ffa9c022779390956346d9a9f3d0de92c42d3672bf8581aec",
-      "size_bytes": 8691
+      "sha256": "933c13d45ef6b433997be3b78851c1ae80438f0b3ce3505b43a632fc8d30ee38",
+      "size_bytes": 8976
     },
     {
+      "carried_over": false,
       "path": "docs/architecture-analysis/views/frontend_components.mmd",
       "required": false,
-      "sha256": "01f76d9fa260195ae27b887cbc0c7e98ca4ca9ca2ec6905b4fc78a3beea1dac9",
-      "size_bytes": 52
+      "sha256": "36a5497b4d301fe424d0dada885bec1850698dc290e3fd70db25c93687b3a12b",
+      "size_bytes": 144
     }
   ],
-  "generated_at": "2026-08-13T08:24:44+00:00",
-  "input_fingerprint": "99dfbeef08b361fa725b8066058c2adc3abe4a5025821c0f8f381bbeaf9b54bf",
+  "generated_at": "2026-08-16T12:29:04+00:00",
+  "input_enumeration": "git",
+  "input_fingerprint": "ed44e9a03efac386bc45a981daa3c847e8b219be68aeaafce007a512da16ad70",
   "input_roots": [
     "agent-coordinator/database/migrations",
     "agent-coordinator/src",
@@ -114,11 +131,11 @@
   ],
   "producer": {
     "producer_id": "architecture",
-    "producer_version": "1.0.0"
+    "producer_version": "1.2.0"
   },
-  "repository_id": "agentic-coding-tools",
+  "repository_id": "cleanup",
   "schema_version": 1,
-  "source_revision": "689848f82e024285cc67c2ae4a17a62118d06964",
+  "source_revision": "0fa2e47967514a45fc0b648e2065953c04e54953",
   "validation": {
     "error_count": 0,
     "status": "passed",

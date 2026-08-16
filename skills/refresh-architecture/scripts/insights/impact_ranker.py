@@ -80,7 +80,9 @@ def compute_high_impact_nodes(
                 "dependent_count": len(visited),
             })
 
-    high_impact.sort(key=lambda x: x["dependent_count"], reverse=True)
+    # Node id breaks count ties, so the ranking is a function of the graph and
+    # not of the order nodes happened to be enumerated in (issue #362).
+    high_impact.sort(key=lambda x: (-x["dependent_count"], x["id"]))
     return high_impact
 
 

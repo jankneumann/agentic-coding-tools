@@ -1,36 +1,153 @@
 {
-  "generated_at": "2026-03-06T01:24:31.142764+00:00",
+  "generated_at": "2026-08-16T12:29:04+00:00",
   "summary": {
-    "total_comments": 265,
-    "total_with_markers": 1,
+    "total_comments": 2266,
+    "total_with_markers": 16,
     "marker_totals": {
-      "WARN": 1
+      "NOTE": 4,
+      "WARN": 3,
+      "BUG": 2,
+      "WARNING": 3,
+      "DEPRECATED": 3,
+      "TODO": 1
     },
-    "total_graph_nodes": 718,
-    "documented_nodes": 61,
-    "documentation_coverage": 0.085
+    "total_graph_nodes": 1928,
+    "documented_nodes": 312,
+    "documentation_coverage": 0.162
   },
   "marker_hotspots": [
+    {
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "total_markers": 3,
+      "markers": {
+        "DEPRECATED": 2,
+        "WARN": 1
+      }
+    },
+    {
+      "file": "kanban-viz/src/__tests__/e2e.integration.test.tsx",
+      "total_markers": 2,
+      "markers": {
+        "WARNING": 1,
+        "NOTE": 1
+      }
+    },
+    {
+      "file": "agents_config.py",
+      "total_markers": 1,
+      "markers": {
+        "NOTE": 1
+      }
+    },
+    {
+      "file": "coordination_api.py",
+      "total_markers": 1,
+      "markers": {
+        "NOTE": 1
+      }
+    },
     {
       "file": "guardrails.py",
       "total_markers": 1,
       "markers": {
         "WARN": 1
       }
+    },
+    {
+      "file": "kanban-viz/src/__tests__/SyncPointBanner.test.tsx",
+      "total_markers": 1,
+      "markers": {
+        "BUG": 1
+      }
+    },
+    {
+      "file": "kanban-viz/src/__tests__/fixtures.ts",
+      "total_markers": 1,
+      "markers": {
+        "DEPRECATED": 1
+      }
+    },
+    {
+      "file": "kanban-viz/src/components/PRCardView.tsx",
+      "total_markers": 1,
+      "markers": {
+        "WARNING": 1
+      }
+    },
+    {
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "total_markers": 1,
+      "markers": {
+        "BUG": 1
+      }
+    },
+    {
+      "file": "kanban-viz/src/components/__tests__/SourceSwimlanes.test.tsx",
+      "total_markers": 1,
+      "markers": {
+        "WARNING": 1
+      }
+    },
+    {
+      "file": "kanban-viz/src/lib/__tests__/derive-issue-repo.test.ts",
+      "total_markers": 1,
+      "markers": {
+        "WARN": 1
+      }
+    },
+    {
+      "file": "kanban_viz_files.py",
+      "total_markers": 1,
+      "markers": {
+        "TODO": 1
+      }
+    },
+    {
+      "file": "langfuse_middleware.py",
+      "total_markers": 1,
+      "markers": {
+        "NOTE": 1
+      }
     }
   ],
   "node_marker_map": {
+    "py:coordination_api.create_coordination_api": {
+      "comment_count": 103,
+      "markers": [
+        "NOTE"
+      ]
+    },
     "py:guardrails.GuardrailPattern": {
       "comment_count": 1,
       "markers": [
         "WARN"
+      ]
+    },
+    "ts:kanban-viz/src/components/PRCardView": {
+      "comment_count": 1,
+      "markers": [
+        "WARNING"
+      ]
+    },
+    "ts:SyncPointBanner": {
+      "comment_count": 29,
+      "markers": [
+        "BUG"
       ]
     }
   },
   "file_summaries": [
     {
       "file": "agents_config.py",
-      "total_comments": 20,
+      "total_comments": 124,
+      "with_markers": 1,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "approval.py",
+      "total_comments": 2,
       "with_markers": 0,
       "languages": [
         "python"
@@ -46,7 +163,39 @@
     },
     {
       "file": "audit.py",
-      "total_comments": 2,
+      "total_comments": 7,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "audit_triage.py",
+      "total_comments": 9,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "cloudflare_access.py",
+      "total_comments": 14,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "code_search_authorization.py",
+      "total_comments": 3,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "code_search_runtime.py",
+      "total_comments": 4,
       "with_markers": 0,
       "languages": [
         "python"
@@ -54,7 +203,7 @@
     },
     {
       "file": "config.py",
-      "total_comments": 17,
+      "total_comments": 28,
       "with_markers": 0,
       "languages": [
         "python"
@@ -62,7 +211,15 @@
     },
     {
       "file": "coordination_api.py",
-      "total_comments": 37,
+      "total_comments": 214,
+      "with_markers": 1,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "coordination_cli.py",
+      "total_comments": 35,
       "with_markers": 0,
       "languages": [
         "python"
@@ -70,7 +227,7 @@
     },
     {
       "file": "coordination_mcp.py",
-      "total_comments": 47,
+      "total_comments": 116,
       "with_markers": 0,
       "languages": [
         "python"
@@ -86,7 +243,7 @@
     },
     {
       "file": "db_postgres.py",
-      "total_comments": 5,
+      "total_comments": 8,
       "with_markers": 0,
       "languages": [
         "python"
@@ -94,7 +251,39 @@
     },
     {
       "file": "discovery.py",
-      "total_comments": 1,
+      "total_comments": 6,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "docker_manager.py",
+      "total_comments": 11,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "event_bus.py",
+      "total_comments": 14,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "event_stream.py",
+      "total_comments": 40,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "feature_flags.py",
+      "total_comments": 26,
       "with_markers": 0,
       "languages": [
         "python"
@@ -109,6 +298,14 @@
       ]
     },
     {
+      "file": "git_adapter.py",
+      "total_comments": 40,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
       "file": "github_coordination.py",
       "total_comments": 10,
       "with_markers": 0,
@@ -117,8 +314,24 @@
       ]
     },
     {
+      "file": "github_openspec_fetcher.py",
+      "total_comments": 31,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "github_prs_api.py",
+      "total_comments": 18,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
       "file": "guardrails.py",
-      "total_comments": 9,
+      "total_comments": 16,
       "with_markers": 1,
       "languages": [
         "python"
@@ -126,7 +339,407 @@
     },
     {
       "file": "handoffs.py",
+      "total_comments": 2,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "help_service.py",
+      "total_comments": 6,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "http_proxy.py",
+      "total_comments": 69,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "issue_service.py",
+      "total_comments": 23,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/App.tsx",
+      "total_comments": 20,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/App.test.tsx",
+      "total_comments": 13,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/Board.test.tsx",
+      "total_comments": 22,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/SaveViewButton.test.tsx",
+      "total_comments": 11,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/SavedViews.test.ts",
+      "total_comments": 10,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/SyncPointBanner.test.tsx",
+      "total_comments": 33,
+      "with_markers": 1,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/VendorSwimlanes.test.tsx",
+      "total_comments": 20,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/e2e.integration.test.tsx",
+      "total_comments": 137,
+      "with_markers": 2,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/fixtures.ts",
+      "total_comments": 3,
+      "with_markers": 1,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/runtime.test.ts",
+      "total_comments": 4,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/useCoordinator.test.tsx",
+      "total_comments": 32,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/Board.tsx",
+      "total_comments": 13,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/Card.tsx",
+      "total_comments": 11,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "total_comments": 9,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/Column.tsx",
+      "total_comments": 4,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
       "total_comments": 1,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "total_comments": 5,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/PRCardView.tsx",
+      "total_comments": 11,
+      "with_markers": 1,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "total_comments": 8,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/ProposalCardView.tsx",
+      "total_comments": 7,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "total_comments": 4,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "total_comments": 8,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "total_comments": 13,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "total_comments": 24,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "total_comments": 31,
+      "with_markers": 1,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "total_comments": 9,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/__tests__/ClusterBadge.test.tsx",
+      "total_comments": 8,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/__tests__/HiddenReposToggle.test.tsx",
+      "total_comments": 5,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/__tests__/PROriginFilter.test.tsx",
+      "total_comments": 11,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/__tests__/RefreshButton.test.tsx",
+      "total_comments": 1,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/__tests__/RepoBadge.test.tsx",
+      "total_comments": 7,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/components/__tests__/SourceSwimlanes.test.tsx",
+      "total_comments": 16,
+      "with_markers": 1,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/hooks/__tests__/useBoardCards.test.ts",
+      "total_comments": 34,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "total_comments": 50,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "total_comments": 34,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/lib/__tests__/cluster-key.test.ts",
+      "total_comments": 26,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/lib/__tests__/column-mapping.test.ts",
+      "total_comments": 8,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/lib/__tests__/derive-issue-repo.test.ts",
+      "total_comments": 1,
+      "with_markers": 1,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "total_comments": 37,
+      "with_markers": 3,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "total_comments": 5,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "total_comments": 2,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "total_comments": 7,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/vite-env.d.ts",
+      "total_comments": 1,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/vite.config.ts",
+      "total_comments": 1,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban_viz_files.py",
+      "total_comments": 25,
+      "with_markers": 1,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "langfuse_middleware.py",
+      "total_comments": 4,
+      "with_markers": 1,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "langfuse_tracing.py",
+      "total_comments": 10,
       "with_markers": 0,
       "languages": [
         "python"
@@ -134,7 +747,7 @@
     },
     {
       "file": "locks.py",
-      "total_comments": 12,
+      "total_comments": 24,
       "with_markers": 0,
       "languages": [
         "python"
@@ -150,7 +763,63 @@
     },
     {
       "file": "merge_queue.py",
-      "total_comments": 7,
+      "total_comments": 15,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "merge_train.py",
+      "total_comments": 107,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "merge_train_service.py",
+      "total_comments": 29,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "merge_train_types.py",
+      "total_comments": 48,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "migrations.py",
+      "total_comments": 11,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "model_routing/exploration.py",
+      "total_comments": 4,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "model_routing/feedback.py",
+      "total_comments": 16,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "model_routing/resolver.py",
+      "total_comments": 17,
       "with_markers": 0,
       "languages": [
         "python"
@@ -165,8 +834,72 @@
       ]
     },
     {
-      "file": "policy_engine.py",
+      "file": "notifications/gmail.py",
+      "total_comments": 16,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "notifications/notifier.py",
       "total_comments": 13,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "notifications/relay.py",
+      "total_comments": 10,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "notifications/telegram.py",
+      "total_comments": 5,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "notifications/templates.py",
+      "total_comments": 1,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "openspec_proposals_api.py",
+      "total_comments": 48,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "openspec_sources.py",
+      "total_comments": 41,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "policy_engine.py",
+      "total_comments": 22,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "policy_sync.py",
+      "total_comments": 7,
       "with_markers": 0,
       "languages": [
         "python"
@@ -182,7 +915,7 @@
     },
     {
       "file": "profile_loader.py",
-      "total_comments": 29,
+      "total_comments": 32,
       "with_markers": 0,
       "languages": [
         "python"
@@ -197,6 +930,46 @@
       ]
     },
     {
+      "file": "refresh_rpc_client.py",
+      "total_comments": 31,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "risk_scorer.py",
+      "total_comments": 6,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "sse_log_redaction.py",
+      "total_comments": 8,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "status.py",
+      "total_comments": 4,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "sync_points.py",
+      "total_comments": 9,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
       "file": "teams.py",
       "total_comments": 7,
       "with_markers": 0,
@@ -205,8 +978,24 @@
       ]
     },
     {
+      "file": "telemetry.py",
+      "total_comments": 24,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "watchdog.py",
+      "total_comments": 17,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
       "file": "work_queue.py",
-      "total_comments": 7,
+      "total_comments": 21,
       "with_markers": 0,
       "languages": [
         "python"

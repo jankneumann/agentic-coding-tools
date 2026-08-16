@@ -1,0 +1,60 @@
+# agent-coordinator help contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Capability help"
+  version: 1.0.0
+  description: >-
+    Unauthenticated capability overview and topic guides. Spec lines 2062-2087.
+paths:
+  /help:
+    get:
+      operationId: getHelpOverview
+      summary: Capability overview
+      description: >-
+        Spec 2064-2068: returns a structured overview of all capability
+        groups; each group includes topic, summary, and tools_count; the
+        overview includes a usage hint and a version field matching the
+        coordinator version. Spec 2085-2087: available without X-API-Key —
+        MUST NOT return 401.
+      responses:
+        "200":
+          description: Capability overview (spec 2065-2068)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        topic: {type: string}
+                        summary: {type: string}
+                        tools_count: {type: integer}
+                  usage: {type: string}
+                  version: {type: string}
+  /help/{topic}:
+    get:
+      operationId: getHelpTopic
+      summary: Detailed topic guide
+      description: >-
+        Spec 2072-2074: returns a detailed guide with topic, summary,
+        description, tools, workflow, best_practices, examples (each with
+        description and code), and related_topics. Spec 2078-2081: unknown
+        topic returns 404 with the list of available topic names. Spec
+        2085-2087: no authentication required.
+      parameters:
+        - name: topic
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Topic guide (spec 2073-2074)}
+        "404": {description: Unknown topic, includes available topic names (spec 2078-2081)}
