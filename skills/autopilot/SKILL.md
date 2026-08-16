@@ -94,6 +94,13 @@ fi
 
 Pass `cli_review_enabled` to `run_loop()`. When False, PLAN_ITERATE and IMPL_ITERATE still run (self-review is always valuable), but PLAN_REVIEW and IMPL_REVIEW are skipped.
 
+After each review round, check the round's `review-manifest.json` for vendors
+with `error_class` of `vendor_unavailable` or `auth_required`. Drop those
+vendors from subsequent rounds instead of re-dispatching them — the failure is
+account-scoped (billing, credentials), so a stricter-format re-prompt cannot
+fix it and only burns a dispatch per round (issue #383). Record the drop in
+`vendor_availability` so convergence accounting stays honest.
+
 Run the entry gate:
 ```python
 from complexity_gate import assess_complexity

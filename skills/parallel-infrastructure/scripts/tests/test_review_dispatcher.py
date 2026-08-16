@@ -7,6 +7,8 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from review_dispatcher import (
     CliConfig,
     CliVendorAdapter,
@@ -29,6 +31,7 @@ def _cli_config(
     model_flag: str = "-m",
     model: str | None = None,
     model_fallbacks: list[str] | None = None,
+    api_key_env: str = "",
 ) -> CliConfig:
     return CliConfig(
         command=command,
@@ -39,6 +42,7 @@ def _cli_config(
         model_flag=model_flag,
         model=model,
         model_fallbacks=model_fallbacks or [],
+        api_key_env=api_key_env,
     )
 
 
@@ -92,6 +96,26 @@ class TestErrorClassification:
     def test_auth_takes_priority_over_capacity(self) -> None:
         # If both patterns match, auth should win (checked first)
         assert classify_error("401 rate limit") == ErrorClass.AUTH
+
+    def test_unavailable_402(self) -> None:
+        assert classify_error("Provider returned HTTP 402") == ErrorClass.UNAVAILABLE
+
+    def test_unavailable_insufficient_credits(self) -> None:
+        # The OpenRouter 402 body pi leaks to stdout (issue #383)
+        body = json.dumps({"error": {
+            "message": "Insufficient credits. Add more using "
+                       "https://openrouter.ai/settings/credits",
+            "code": 402,
+        }})
+        assert classify_error(body) == ErrorClass.UNAVAILABLE
+
+    def test_unavailable_takes_priority_over_capacity(self) -> None:
+        # A billing body mentioning limits must not be mistaken for a 429
+        text = "402 Payment Required: purchase credits to raise your rate limit"
+        assert classify_error(text) == ErrorClass.UNAVAILABLE
+
+    def test_402_inside_larger_number_is_not_billing(self) -> None:
+        assert classify_error("processed 8,402 items with errors") == ErrorClass.UNKNOWN
 
 
 # ---------------------------------------------------------------------------
@@ -196,6 +220,24 @@ class TestCanDispatch:
         adapter = _adapter()
         assert adapter.can_dispatch("nonexistent_mode") is False
 
+    @patch("shutil.which", return_value="/usr/bin/pi")
+    def test_declared_credential_unset_fails_closed(
+        self, _mock: MagicMock, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A binary on PATH whose declared credential env var is unset cannot
+        serve a request and must not count as available (issue #383)."""
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        adapter = _adapter(api_key_env="OPENROUTER_API_KEY")
+        assert adapter.can_dispatch("review") is False
+
+    @patch("shutil.which", return_value="/usr/bin/pi")
+    def test_declared_credential_set_is_available(
+        self, _mock: MagicMock, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
+        adapter = _adapter(api_key_env="OPENROUTER_API_KEY")
+        assert adapter.can_dispatch("review") is True
+
 
 # ---------------------------------------------------------------------------
 # Dispatch with mocked subprocess
@@ -276,6 +318,55 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
         assert "Invalid JSON" in (result.error or "")
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_invalid_json_error_carries_stdout_excerpt(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """The raw output must never be silently discarded — the error string
+        carries an excerpt so operators can see what the vendor actually said
+        (the 'dispatcher loses raw' pathology, issue #383)."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="Not valid JSON at all", stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert "Not valid JSON at all" in (result.error or "")
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_pi_exit_zero_with_402_body_on_stdout(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """pi exits 0 with the provider's 402 body on stdout (issue #383):
+        classified vendor_unavailable, no fallback burn, raw text preserved."""
+        body = json.dumps({"error": {
+            "message": "Insufficient credits. Add more using "
+                       "https://openrouter.ai/settings/credits",
+            "code": 402,
+        }})
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=body, stderr="",
+        )
+        adapter = _adapter(model_fallbacks=["fallback-model"])
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is False
+        assert result.error_class == ErrorClass.UNAVAILABLE
+        assert result.models_attempted == ["(default)"]  # account-scoped: no fallback
+        assert "Insufficient credits" in (result.error or "")
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_unavailable_nonzero_exit_no_fallback(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="",
+            stderr="402 Payment Required: insufficient credits",
+        )
+        adapter = _adapter(model_fallbacks=["o3"])
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is False
+        assert result.error_class == ErrorClass.UNAVAILABLE
+        assert result.models_attempted == ["(default)"]
 
     @patch("review_dispatcher.subprocess.run")
     def test_json_embedded_in_text(self, mock_run: MagicMock, tmp_path: Path) -> None:
@@ -413,6 +504,23 @@ class TestOrchestrator:
         # it must be immediately preceded by the flag.
         assert cmd[cmd.index("--prompt") + 1] == "REVIEW THIS"
         assert cmd[-2] == "--prompt"
+
+    def test_from_config_dict_propagates_api_key_env(self) -> None:
+        """cli.api_key_env must survive from_config_dict so availability
+        checks can fail closed on a missing credential (issue #383)."""
+        cfg = {"agents": [{
+            "agent_id": "pi-local",
+            "type": "pi",
+            "cli": {
+                "command": "pi",
+                "model_flag": "--model",
+                "model": "moonshotai/kimi-k3",
+                "api_key_env": "OPENROUTER_API_KEY",
+                "dispatch_modes": {"review": {"args": ["-p"]}},
+            },
+        }]}
+        orch = ReviewOrchestrator.from_config_dict(cfg)
+        assert orch.adapters["pi-local"].cli_config.api_key_env == "OPENROUTER_API_KEY"
 
     def test_discover_reviewers(self) -> None:
         adapters = {
@@ -752,6 +860,24 @@ class TestThreeTierSelection:
         assert len(reviewers) == 1
         assert reviewers[0].dispatch_tier == "sdk"
         assert reviewers[0].agent_id == "codex-remote"
+
+    def test_cli_skipped_when_declared_credential_unset(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Tier-1 selection must not report a vendor whose CLI is on PATH but
+        whose declared credential is unset (issue #383: 5/5 available while pi
+        could not serve a single request)."""
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        cli_adapters = {
+            "pi-local": _adapter(
+                "pi-local", "pi", command="pi",
+                api_key_env="OPENROUTER_API_KEY",
+            ),
+        }
+        orch = ReviewOrchestrator(cli_adapters, {})
+        with patch("shutil.which", return_value="/usr/bin/pi"):
+            reviewers = orch.discover_reviewers()
+        assert reviewers == []
 
     def test_skip_when_nothing_available(self) -> None:
         """When neither CLI nor SDK is available, vendor is skipped."""

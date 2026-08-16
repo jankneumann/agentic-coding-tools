@@ -401,6 +401,11 @@ AGENTS_SCHEMA: dict[str, Any] = {
                             # value, never stdin — design.md E7). The dispatching
                             # adapter appends [prompt_via_flag, prompt].
                             "prompt_via_flag": {"type": "string", "minLength": 1},
+                            # Env var the CLI needs to serve a request (e.g. pi
+                            # resolves OPENROUTER_API_KEY from the subprocess
+                            # env). Availability checks treat the binary as
+                            # unavailable when the var is unset (issue #383).
+                            "api_key_env": {"type": "string", "minLength": 1},
                         },
                         "additionalProperties": False,
                     },
@@ -462,6 +467,10 @@ class CliConfig:
     # positional. Antigravity needs this: its prompt is the value of
     # ``--prompt``/``--print`` and stdin is ignored (design.md E7).
     prompt_via_flag: str = ""
+    # Env var the CLI resolves its provider credential from (pi:
+    # OPENROUTER_API_KEY). A present binary with this var unset cannot serve
+    # a request, so availability checks fail closed on it (issue #383).
+    api_key_env: str = ""
 
 
 @dataclass
@@ -698,6 +707,7 @@ def load_agents_config(
                 model_fallbacks=raw_cli.get("model_fallbacks", []),
                 prompt_via_stdin=raw_cli.get("prompt_via_stdin", False),
                 prompt_via_flag=raw_cli.get("prompt_via_flag", ""),
+                api_key_env=raw_cli.get("api_key_env", ""),
             )
 
         sdk_config: SdkConfig | None = None
@@ -967,6 +977,7 @@ def get_dispatch_configs(
                 "model_fallbacks": entry.cli.model_fallbacks,
                 "prompt_via_stdin": entry.cli.prompt_via_stdin,
                 "prompt_via_flag": entry.cli.prompt_via_flag,
+                "api_key_env": entry.cli.api_key_env,
             }
         agents_out.append({
             "agent_id": entry.name,
