@@ -10,9 +10,11 @@ host-assisted invariant enforced for ``autopilot-roadmap``.
 The two idempotency mechanisms live here, because a scheduled cycle fires on
 whatever tree it finds — including an unchanged one:
 
-* **Cycle fingerprint** — a digest over git HEAD, the active change-ids, and every
-  ``(roadmap_id, item_id, status, change_id)`` tuple. No wall clock and no mtime,
-  so the same tree always fingerprints the same and a re-run is detectable.
+* **Cycle fingerprint** — a digest over the tracked tree content (excluding this
+  skill's own ledger surface, so recording a cycle never changes the fingerprint),
+  the active change-ids, and every ``(roadmap_id, item_id, status, change_id)``
+  tuple. No wall clock and no mtime, so the same tree always fingerprints the
+  same and a re-run is detectable.
 * **Stub keys** — a stable identity per candidate-work stub, so a stub already
   surfaced by an earlier cycle (or already tracked as a change or roadmap item) is
   suppressed instead of re-proposed.
@@ -22,7 +24,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
+import posixpath
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -30,15 +34,34 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 _RUNTIME = Path(__file__).resolve().parents[2] / "roadmap-runtime" / "scripts"
-if str(_RUNTIME) not in sys.path:  # pragma: no cover - import wiring
-    sys.path.insert(0, str(_RUNTIME))
 
-from models import (  # type: ignore[import-untyped]  # noqa: E402
-    ItemStatus,
-    Roadmap,
-    completed_external_refs,
-    load_all_roadmaps,
-)
+
+def _load_runtime_models():
+    """Load roadmap-runtime's models under a collision-proof module name.
+
+    Several skill trees ship a module literally named ``models`` and load it via
+    ``sys.path`` insertion; whichever test collects first wins ``sys.modules``
+    and every later bare ``import models`` silently gets the wrong file. Loading
+    by explicit path under a unique name makes this module independent of
+    collection order. models.py is self-contained (stdlib + yaml), so file-based
+    loading is safe.
+    """
+    name = "supervise_roadmap_runtime_models"
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, _RUNTIME / "models.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_models = _load_runtime_models()
+ItemStatus = _models.ItemStatus
+Roadmap = _models.Roadmap
+completed_external_refs = _models.completed_external_refs
+load_all_roadmaps = _models.load_all_roadmaps
 
 #: Tracked so a rehydrated session on another machine inherits what has already
 #: been surfaced. The supervisor is a rehydratable role, not a resident process.
@@ -68,19 +91,33 @@ _FORBIDDEN_WRITE_SUFFIXES = ("/specs/",)
 # --------------------------------------------------------------------------- #
 # Git / repository facts
 # --------------------------------------------------------------------------- #
-def _git_head(repo_root: Path) -> str:
-    """Current HEAD sha, or "" when this is not a git checkout.
+def _tree_listing(repo_root: Path) -> str:
+    """Blob digest + path for every tracked file at HEAD, minus this skill's own
+    ledger surface, or "" when this is not a git checkout with commits.
 
-    The return code is checked because ``git rev-parse HEAD`` in a repository with
-    no commits echoes the literal string ``HEAD`` and exits non-zero.
+    Deliberately NOT the HEAD commit sha. The ledger under ``openspec/supervise/``
+    is tracked, so recording a cycle and committing it advances HEAD; a fingerprint
+    over the commit sha would therefore differ on every cycle-after-a-cycle and the
+    unchanged-tree early exit could never fire once a recorded ledger was pushed.
+    Hashing the tree *content* excluding ``openspec/supervise/`` makes a
+    ledger-only commit invisible to the fingerprint while any real change — source,
+    roadmap, change directory — still lands in it.
     """
     completed = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+        ["git", "-C", str(repo_root), "ls-tree", "-r", "HEAD"],
         capture_output=True,
         text=True,
         check=False,
     )
-    return completed.stdout.strip() if completed.returncode == 0 else ""
+    if completed.returncode != 0:
+        return ""
+    lines = [
+        line
+        for line in completed.stdout.splitlines()
+        # ls-tree format: "<mode> <type> <object>\t<path>"
+        if "\t" in line and not line.split("\t", 1)[1].startswith("openspec/supervise/")
+    ]
+    return "\n".join(sorted(lines))
 
 
 def active_change_ids(repo_root: Path) -> set[str]:
@@ -113,9 +150,14 @@ def compute_fingerprint(repo_root: Path) -> str:
     a timestamp. Two cycles over an unchanged tree therefore produce the same
     fingerprint, which is what lets a scheduled re-run detect that it has nothing
     new to do rather than re-proposing the same work.
+
+    The ledger surface is excluded from the tree component (see
+    :func:`_tree_listing`), so the record-commit-push of cycle N does not make
+    cycle N+1 look like a changed tree.
     """
     roadmaps = load_all_roadmaps(repo_root)
-    parts: list[str] = [f"head:{_git_head(repo_root)}"]
+    tree = _tree_listing(repo_root)
+    parts: list[str] = [f"tree:{hashlib.sha256(tree.encode('utf-8')).hexdigest()}"]
     parts += [f"change:{cid}" for cid in sorted(active_change_ids(repo_root))]
     parts += [
         f"item:{roadmap_id}:{item.item_id}:{item.status.value}:{item.change_id or ''}"
@@ -217,13 +259,28 @@ def load_ledger(repo_root: Path) -> dict[str, Any]:
     worst case is one cycle re-proposing work, which the operator sees and can
     dismiss. Failing the cycle outright would be the more damaging outcome.
     """
+    empty = {
+        "schema_version": LEDGER_SCHEMA_VERSION,
+        "last_fingerprint": None,
+        "seen_keys": [],
+    }
     path = repo_root / LEDGER_PATH
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {"schema_version": LEDGER_SCHEMA_VERSION, "last_fingerprint": None, "seen_keys": []}
+        return dict(empty)
     if not isinstance(data, dict):
-        return {"schema_version": LEDGER_SCHEMA_VERSION, "last_fingerprint": None, "seen_keys": []}
+        return dict(empty)
+    # Shape-validate the fields this module consumes; a wrong-typed value is as
+    # malformed as bad JSON. Without this, seen_keys="change:x" would be iterated
+    # character-by-character by dedupe and permanently exploded into one-character
+    # keys by record_cycle's set() merge — degradation to garbage, not to empty.
+    keys = data.get("seen_keys")
+    if not (isinstance(keys, list) and all(isinstance(k, str) for k in keys)):
+        data["seen_keys"] = []
+    fingerprint = data.get("last_fingerprint")
+    if fingerprint is not None and not isinstance(fingerprint, str):
+        data["last_fingerprint"] = None
     data.setdefault("schema_version", LEDGER_SCHEMA_VERSION)
     data.setdefault("last_fingerprint", None)
     data.setdefault("seen_keys", [])
@@ -274,16 +331,12 @@ def ready_across_roadmaps(repo_root: Path) -> dict[str, list[dict[str, Any]]]:
     external_done = completed_external_refs(repo_root)
     out: dict[str, list[dict[str, Any]]] = {}
     for roadmap_id, roadmap in sorted(roadmaps.items()):
-        completed = {
-            i.item_id for i in roadmap.items if i.status is ItemStatus.COMPLETED
-        }
-        ready = [
-            item
-            for item in roadmap.items
-            if item.status in (ItemStatus.APPROVED, ItemStatus.IN_PROGRESS)
-            and all(dep in completed for dep in item.depends_on)
-            and all(ref in external_done for ref in item.external_depends_on)
-        ]
+        # Delegate to the shared admission rule rather than hand-rolling a copy.
+        # The first draft of this function WAS such a copy, and it had already
+        # drifted: it admitted items carrying a superseded_by edge, which both
+        # Roadmap.ready_items and the orchestrator exclude — the digest would
+        # have listed work another roadmap's item owns as "Ready now".
+        ready = roadmap.ready_items(external_done, include_in_progress=True)
         ready.sort(key=lambda i: (i.priority, i.item_id))
         out[roadmap_id] = [
             {
@@ -307,9 +360,22 @@ def classify_write(path: str) -> str:
     The supervisor archetype is ``write_capable: false``; this makes that structural
     rather than aspirational. Coordination artifacts are allowed; source code, specs,
     and everything outside the coordination surface are a worker's job.
+
+    Paths are normalized before the prefix check, because the check is only as
+    strong as its canonical form: the first draft used ``lstrip("./")`` (a
+    character strip, not a prefix strip) and no ``..`` resolution, so both
+    ``../openspec/roadmaps/x.yaml`` and
+    ``openspec/roadmaps/../../agent-coordinator/src/x.py`` classified as allowed
+    — a traversal that defeats the entire audit. Anything absolute, or escaping
+    the repository root after normalization, is forbidden outright.
     """
-    normalized = path.lstrip("./")
-    if any(suffix in f"/{normalized}" for suffix in _FORBIDDEN_WRITE_SUFFIXES):
+    candidate = path.strip()
+    if not candidate or candidate.startswith(("/", "\\")) or ":" in candidate.split("/", 1)[0]:
+        return "forbidden"
+    normalized = posixpath.normpath(candidate.replace("\\", "/"))
+    if normalized == "." or normalized == ".." or normalized.startswith("../"):
+        return "forbidden"
+    if any(suffix in f"/{normalized}/" for suffix in _FORBIDDEN_WRITE_SUFFIXES):
         return "forbidden"
     return (
         "allowed"

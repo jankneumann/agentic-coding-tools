@@ -169,10 +169,12 @@ policy (ri-18: subscription+local → subscription+cloud → metered).
 A scheduled cycle fires on whatever tree it finds, including an unchanged one. Two
 mechanisms keep a re-run from duplicating work:
 
-1. **Cycle fingerprint.** A deterministic digest over git HEAD, active change-ids, and
-   every `(roadmap_id, item_id, status, change_id)` tuple. No wall clock, no mtime — the
-   same tree always fingerprints the same. When it matches the last ledger entry, `cycle`
-   reports the prior digest and exits without re-sensing (override with `--force`).
+1. **Cycle fingerprint.** A deterministic digest over the tracked tree content
+   (excluding `openspec/supervise/` itself, so committing the ledger never changes the
+   fingerprint), active change-ids, and every `(roadmap_id, item_id, status, change_id)`
+   tuple. No wall clock, no mtime — the same tree always fingerprints the same. When it
+   matches the last ledger entry, `cycle` reports the prior digest and exits without
+   re-sensing (override with `--force`).
 2. **Stub keys.** Every candidate stub has a stable key — its `suggested_change_id`, or a
    digest of `(provenance.source_artifact, sorted finding_ids)`. A stub is suppressed when
    its key was already recorded by a previous cycle, or names a change that already exists
