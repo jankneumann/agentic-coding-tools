@@ -40,7 +40,7 @@ The canonical single-feature flow. Operator drives each gate; orchestrators chai
 | ★ `parallel-review-plan` | Independent plan review producing structured findings per `review-findings.schema.json` | `/parallel-review-plan <change-id>` |
 | ★ `implement-feature` | Execute approved proposal: TDD-first, per-package work, content-invariant tests, scope discipline | `/implement-feature <change-id>` |
 | ★ `iterate-on-implementation` | Iteratively refine a feature after implementation, before merge | `/iterate-on-implementation <change-id>` |
-| ★ `parallel-review-implementation` | Per-package implementation review (5-axis: correctness/readability/architecture/security/performance; 5-severity prefixes) | `/parallel-review-implementation <change-id>` |
+| ★ `parallel-review-implementation` | Per-package implementation review (8-axis: correctness/readability/architecture/security/performance/observability/resilience/compatibility; 5-severity prefixes) | `/parallel-review-implementation <change-id>` |
 | ★ `validate-feature` | Deploy locally, run security scans + behavioral tests, check CI/CD, verify spec compliance | `/validate-feature <change-id>` |
 | ★ `prototype-feature` | Dispatch N parallel variant agents to produce competing working skeletons from an approved proposal, score them via cheap validation, pick a winner | `/prototype-feature <change-id>` |
 | ★ `cleanup-feature` | Merge approved PR, archive proposal, staged rollout (5%→25%→50%→100% with rollback triggers), pre-launch checklist. `--post-merge` for PRs already landed by `/merge-pull-requests`. | `/cleanup-feature <change-id>` |
