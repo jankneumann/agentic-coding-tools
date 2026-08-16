@@ -645,3 +645,41 @@ class TestJsonSchemaValidation:
         for finding in result["findings"]:
             assert finding["axis"] in axis_values
             assert finding["severity"] in severity_values
+
+
+class TestSeverityPrefix:
+    """`parallel-review-implementation` requires every finding's description to
+    begin with the marker matching its `severity`, and treats prose that
+    disagrees with the enum as a red flag. The linters emit both, so the two
+    must agree by construction."""
+
+    _PREFIX = {"critical": "Critical:", "nit": "Nit:", "optional": "Optional:", "fyi": "FYI:"}
+
+    def test_every_finding_description_carries_its_severity_prefix(self) -> None:
+        import subprocess
+        import sys as _sys
+
+        result = subprocess.run(
+            [_sys.executable, str(_SCRIPTS_DIR / "run_architecture_linters.py"),
+             "--target", str(_SCRIPTS_DIR.parents[1])],
+            capture_output=True, text=True, check=False,
+        )
+        payload = result.stdout[result.stdout.index("{"):result.stdout.rindex("}") + 1]
+        findings = json.loads(payload)["findings"]
+        assert findings, "expected the linters to produce findings to check"
+
+        for finding in findings:
+            expected = self._PREFIX.get(finding["severity"])
+            if expected is None:
+                continue
+            assert finding["description"].startswith(expected), (
+                f"finding {finding['id']} has severity {finding['severity']!r} but its "
+                f"description starts {finding['description'][:40]!r}"
+            )
+
+    def test_prefixing_is_idempotent(self) -> None:
+        from linters.severity import prefix_description
+
+        once = prefix_description("file is too long", "critical")
+        assert once == "Critical: file is too long"
+        assert prefix_description(once, "critical") == once, "double-prefixing"
