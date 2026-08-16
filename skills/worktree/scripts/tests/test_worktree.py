@@ -104,11 +104,11 @@ class TestWorktreePath:
 class TestWorktreePathWithAgentId:
     def test_with_agent_id(self, tmp_path: Path) -> None:
         result = worktree_path(tmp_path, "change", agent_id="w1")
-        assert result == tmp_path / ".git-worktrees" / "change--w1"
+        assert result == tmp_path / ".git-worktrees" / "change" / "w1"
 
     def test_with_agent_id_and_prefix(self, tmp_path: Path) -> None:
         result = worktree_path(tmp_path, "change", agent_id="w1", prefix="fix")
-        assert result == tmp_path / ".git-worktrees" / "fix" / "change--w1"
+        assert result == tmp_path / ".git-worktrees" / "fix" / "change" / "w1"
 
     def test_without_agent_id_backward_compat(self, tmp_path: Path) -> None:
         result = worktree_path(tmp_path, "change")

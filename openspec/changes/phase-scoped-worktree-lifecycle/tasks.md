@@ -28,36 +28,36 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
 
 ## 1. Registry and activity-guard contract
 
-- [x] 1.1 (M) Write registry identity and controller-fencing tests covering the exact triple across acquire/resume/renew/assert/release/teardown and JSON output, wrong-controller conflicts, generation-bound evidence keys, intentional cross-entry lease-id collisions, locking, retention, corruption, and isolation
+- [ ] 1.1 (M) Write registry identity and controller-fencing tests covering the exact triple across acquire/resume/renew/assert/release/teardown and JSON output, wrong-controller conflicts, generation-bound evidence keys, intentional cross-entry lease-id collisions, locking, retention, corruption, and isolation
   **Spec scenarios**: `worktree` — Owner acquires and renews the default lease; Wrong ownership component cannot renew or release a live lease; Duplicate live controller cannot reuse the same fence; Automatic commands and results carry the exact fence; Matching release is idempotent; Fresh automatic setup publishes through a durable reservation; Setup crash boundaries reconcile exact side effects; Provisioning reservation blocks sync points; Durability target binds remote identity and fetched ref; AC-08; Process evidence is collision-safe across entries; AC-09; AC-11; Concurrent lifecycle updates preserve both owners' records; Corrupt registry blocks safety decisions without rewrite; Lease mutations short-circuit under harness isolation
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/schemas/worktree-process-evidence.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D1-D6
   **Dependencies**: None
   **Files**: `skills/worktree/scripts/tests/test_worktree.py`, `skills/worktree/scripts/tests/test_environment_aware.py`, `skills/shared/tests/test_worktree_lifecycle.py`, `skills/tests/worktree/test_setup_prototype.py`, `skills/tests/worktree/fixtures/**`
 
-- [x] 1.2 (M) Implement the portable locked schema-v2 interpreter, controller-bound core lease operations, collision-safe process evidence, retention, and source/install import boundary
+- [ ] 1.2 (M) Implement the portable locked schema-v2 interpreter, controller-bound core lease operations, collision-safe process evidence, retention, and source/install import boundary
   **Dependencies**: 1.1
   **Files**: `skills/shared/worktree_lifecycle.py`, `skills/worktree/scripts/worktree.py`, `skills/worktree/SKILL.md`
 
-- [x] 1.3 (M) Write fixed reservation TTL/expiry, exact completed-setup replay, crash reconciliation, side-effect-preserving setup recovery, lease-free safe teardown, separately confirmed force-teardown, deterministic legacy generation/null-controller release, null-target bind, generic-GC exclusion, teardown-before-release, recovery audit, and generation-bound evidence tests covering every side-effect boundary and exact-triple conflict
+- [ ] 1.3 (M) Write fixed reservation TTL/expiry, exact completed-setup replay, crash reconciliation, side-effect-preserving setup recovery, lease-free safe teardown, separately confirmed force-teardown, deterministic legacy generation/null-controller release, null-target bind, generic-GC exclusion, teardown-before-release, recovery audit, and generation-bound evidence tests covering every side-effect boundary and exact-triple conflict
   **Spec scenarios**: `worktree` — Pre-existing unleased state is not silently adopted; Expired takeover quarantines live or unknown process evidence; Clean durable expired takeover uses a new fence; PID reuse is stale rather than live evidence; Successful finalization tears down before lease release; Unsafe teardown quarantines and clears in one transaction; Teardown reconciles a crash after Git removal; Bulk owner release quarantines preserved checkouts; Explicit recovery adoption populates a complete manual lease; Force-adopt audit survives recovery clearing and teardown; Legacy setup remains compatible but is not ordinarily adoptable; Expired setup reservation is reconciled explicitly; Exact published setup replay survives response loss; Unleased quarantine is disposed safely; Automatic teardown has no force mode
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`, `contracts/schemas/worktree-process-evidence.schema.json`, `contracts/cli/worktree-lifecycle.yaml`
   **Design decisions**: D2-D8
   **Dependencies**: 1.2
   **Files**: `skills/worktree/scripts/tests/test_worktree.py`, `skills/shared/tests/test_worktree_lifecycle.py`, `skills/tests/worktree/test_setup_prototype.py`, `skills/tests/worktree/fixtures/**`
 
-- [x] 1.4 (M) Implement bounded staged setup reservations, exact completed-setup receipts, side-effect-preserving setup reconciliation, safe lease-free recovery teardown, separately named audited force-teardown, deterministic legacy generation and null-controller release, generation-fenced null-target bind, exact-old/new resume fencing, generic autopilot-envelope GC exclusion, compatibility setup path, and teardown-or-quarantine finalization
+- [ ] 1.4 (M) Implement bounded staged setup reservations, exact completed-setup receipts, side-effect-preserving setup reconciliation, safe lease-free recovery teardown, separately named audited force-teardown, deterministic legacy generation and null-controller release, generation-fenced null-target bind, exact-old/new resume fencing, generic autopilot-envelope GC exclusion, compatibility setup path, and teardown-or-quarantine finalization
   **Dependencies**: 1.3
   **Files**: `skills/shared/worktree_lifecycle.py`, `skills/worktree/scripts/worktree.py`, `skills/worktree/SKILL.md`
 
-- [x] 1.5 (S) Write active-agent guard tests for live, released, expired, retained, legacy, malformed, corrupt entries, plus all unfinished setup reservations as indeterminate non-activity blockers with expired reservations explicitly marked recovery-required
+- [ ] 1.5 (S) Write active-agent guard tests for live, released, expired, retained, legacy, malformed, corrupt entries, plus all unfinished setup reservations as indeterminate non-activity blockers with expired reservations explicitly marked recovery-required
   **Spec scenarios**: `worktree` — AC-08, AC-09, AC-11, Corrupt registry blocks safety decisions without rewrite; `coordinator-kanban-viz` — AC-02; Unfinished reservation blocks sync points without appearing active
   **Contracts**: `contracts/schemas/worktree-registry-v2.schema.json`
   **Design decisions**: D1-D6
   **Dependencies**: 1.2
   **Files**: `skills/shared/tests/test_active_agents.py`
 
-- [x] 1.6 (S) Make the local active-agent guard report current activity separately while conservatively blocking sync points on current activity or any unfinished reservation and labeling expired reservations for explicit reconciliation
+- [ ] 1.6 (S) Make the local active-agent guard report current activity separately while conservatively blocking sync points on current activity or any unfinished reservation and labeling expired reservations for explicit reconciliation
   **Dependencies**: 1.4, 1.5
   **Files**: `skills/shared/active_agents.py`
 

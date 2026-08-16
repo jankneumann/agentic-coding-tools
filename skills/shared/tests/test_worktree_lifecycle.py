@@ -371,3 +371,83 @@ def test_remote_url_canonicalization_strips_only_credentials() -> None:
         lifecycle.canonicalize_remote_url("git@example.test:Org/Repo.git")
         == "example.test:Org/Repo.git"
     )
+
+
+def test_competing_setup_id_cannot_claim_same_identity(tmp_path: Path) -> None:
+    lifecycle.write_registry(tmp_path, lifecycle.empty_registry())
+    target = {
+        "remote_name": "origin",
+        "remote_url_hash_algorithm": "git-remote-url-v1",
+        "canonical_remote_url_sha256": "a" * 64,
+        "ref_name": "refs/remotes/origin/x",
+    }
+    intent = {
+        "owner": "o",
+        "lease_id": "l",
+        "controller_instance_id": "c",
+        "session_id": None,
+        "phase": "P",
+        "reason": "r",
+        "lifecycle_mode": "standalone",
+        "ttl_seconds": 1800,
+    }
+    lifecycle.reserve_setup(
+        tmp_path,
+        setup_id="one",
+        change_id="x",
+        agent_id=None,
+        branch="b",
+        worktree_path="/x",
+        entry_generation="g1",
+        durability_target=target,
+        lease_intent=intent,
+        now=NOW,
+    )
+    with pytest.raises(lifecycle.FenceConflict):
+        lifecycle.reserve_setup(
+            tmp_path,
+            setup_id="two",
+            change_id="x",
+            agent_id=None,
+            branch="b",
+            worktree_path="/x",
+            entry_generation="g2",
+            durability_target=target,
+            lease_intent={**intent, "lease_id": "l2"},
+            now=NOW,
+        )
+
+
+def test_writer_rejects_unknown_fields_and_invalid_targets(tmp_path: Path) -> None:
+    with pytest.raises(lifecycle.RegistryCorrupt):
+        lifecycle.write_registry(
+            tmp_path, lifecycle.empty_registry(entries=[_v2_entry(extra="no")])
+        )
+    with pytest.raises(lifecycle.RegistryCorrupt):
+        lifecycle.write_registry(
+            tmp_path,
+            lifecycle.empty_registry(
+                entries=[_v2_entry(durability_target={"remote_name": "origin"})]
+            ),
+        )
+
+
+def test_bulk_release_ignores_checkout_already_removed(tmp_path: Path) -> None:
+    lease = lifecycle.new_lease(
+        owner="o",
+        lease_id="l",
+        controller_instance_id="c",
+        session_id="s",
+        phase="P",
+        reason="r",
+        mode="standalone",
+        now=NOW,
+    )
+    lifecycle.write_registry(
+        tmp_path,
+        lifecycle.empty_registry(
+            entries=[_v2_entry(worktree_path=str(tmp_path / "missing"), activity_lease=lease)]
+        ),
+    )
+    assert lifecycle.release_matching(tmp_path, session_id="s", now=NOW) == []
+    assert lifecycle.read_registry(tmp_path)["entries"][0]["activity_lease"] == lease

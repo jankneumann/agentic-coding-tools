@@ -326,10 +326,12 @@ def worktree_path(
     if prefix:
         base = base / prefix
 
-    if agent_id:
+    if sibling and agent_id:
         return base / f"{change_id}--{agent_id}"
 
     base = base / change_id
+    if agent_id:
+        base = base / agent_id
     return base
 
 
@@ -651,7 +653,9 @@ def cmd_setup(args: argparse.Namespace) -> int:
     # agents use. The prototype namespace lives only in the branch name.
     # `sibling=True` opts agent worktrees into a peer path next to the change
     # dir; see worktree_path() docstring for the rationale.
-    wt_path = worktree_path(main_repo, change_id, agent_id, prefix, sibling=sibling)
+    wt_path = worktree_path(
+        main_repo, change_id, agent_id, prefix, sibling=sibling or agent_id is not None
+    )
 
     # Check if already in the target worktree
     try:
@@ -869,7 +873,9 @@ def cmd_teardown(args: argparse.Namespace) -> int:
     sibling: bool = bool(getattr(args, "sibling", False))
     force = False
 
-    wt_path = worktree_path(main_repo, change_id, agent_id, prefix, sibling=sibling)
+    wt_path = worktree_path(
+        main_repo, change_id, agent_id, prefix, sibling=sibling or agent_id is not None
+    )
 
     # Tolerate setups that created the worktree in the OPPOSITE layout.
     # Without this, an operator who set up nested but tears down with
@@ -882,7 +888,7 @@ def cmd_teardown(args: argparse.Namespace) -> int:
             change_id,
             agent_id,
             prefix,
-            sibling=not sibling,
+            sibling=False,
         )
         if alt_path.is_dir():
             wt_path = alt_path
@@ -1516,27 +1522,33 @@ def cmd_setup_and_acquire(args: argparse.Namespace) -> int:
     change_id = args.change_id
     agent_id = args.agent_id
     branch = resolve_branch(change_id, agent_id)
-    wt_path = worktree_path(main_repo, change_id, agent_id)
-    target = _durability_target(main_repo, args.durability_remote, args.durability_ref)
-    assert target is not None
-    run_git("fetch", args.durability_remote, cwd=str(main_repo))
-    observed_tip = run_git("rev-parse", target["ref_name"], cwd=str(main_repo))
+    wt_path = worktree_path(main_repo, change_id, agent_id, sibling=agent_id is not None)
     registry = lifecycle.read_registry(main_repo)
     completed = lifecycle.find_entry(registry, change_id, agent_id)
-    if completed is not None:
+    if completed is not None and completed.get("setup_id") == args.setup_id:
+        stored = completed.get("durability_target") or {}
+        if (
+            stored.get("remote_name") != args.durability_remote
+            or stored.get("ref_name") != args.durability_ref
+        ):
+            raise lifecycle.FenceConflict("completed setup durability identity differs")
         replay = lifecycle.completed_setup_replay(
             main_repo,
             setup_id=args.setup_id,
             change_id=change_id,
             agent_id=agent_id,
             entry_generation=completed["entry_generation"],
-            durability_target=target,
+            durability_target=completed["durability_target"],
             owner=args.owner,
             lease_id=args.lease_id,
             controller_instance_id=args.controller_instance_id,
         )
         _emit({**replay, "acquired": True}, json_output=args.json_output)
         return 0
+    target = _durability_target(main_repo, args.durability_remote, args.durability_ref)
+    assert target is not None
+    run_git("fetch", args.durability_remote, cwd=str(main_repo))
+    observed_tip = run_git("rev-parse", target["ref_name"], cwd=str(main_repo))
     reservation = lifecycle.find_reservation(registry, args.setup_id)
     generation = reservation["entry_generation"] if reservation else uuid.uuid4().hex
     intent = {
@@ -2048,6 +2060,13 @@ def cmd_recovery_adopt(args: argparse.Namespace) -> int:
         established = _durability_target(main_repo, args.durability_remote, args.durability_ref)
         if established is None and not args.force:
             raise lifecycle.RecoveryRequired("normal adoption requires a durability target")
+        if established is not None:
+            run_git("fetch", established["remote_name"], cwd=str(main_repo))
+            observed_tip = run_git("rev-parse", established["ref_name"], cwd=str(main_repo))
+            if not _head_is_durable(entry, observed_tip):
+                raise lifecycle.RecoveryRequired(
+                    "checkout HEAD is not reachable from durability target"
+                )
     elif args.durability_remote or args.durability_ref:
         raise lifecycle.FenceConflict("existing durability target cannot be replaced")
     when = lifecycle.utc_now()
@@ -2472,6 +2491,22 @@ def cmd_recovery_teardown(args: argparse.Namespace) -> int:
         entry = lifecycle.find_entry(registry, args.change_id, args.agent_id)
         if entry is None or entry["entry_generation"] != args.entry_generation:
             raise lifecycle.FenceConflict("entry changed during recovery teardown")
+        if entry.get("activity_lease") != observed.get("activity_lease"):
+            raise lifecycle.FenceConflict("lease changed during recovery teardown")
+        if entry.get("recovery_required") != observed.get("recovery_required") or entry.get(
+            "durability_target"
+        ) != observed.get("durability_target"):
+            raise lifecycle.FenceConflict("recovery state changed during teardown")
+        if not args.force and path.is_dir():
+            current_tip = run_git(
+                "rev-parse", entry["durability_target"]["ref_name"], cwd=str(main_repo)
+            )
+            if (
+                current_tip != tip
+                or not _checkout_is_clean(entry)
+                or not _head_is_durable(entry, current_tip)
+            ):
+                raise lifecycle.FenceConflict("teardown safety observation changed")
         if path.is_dir():
             git_args = ["worktree", "remove"]
             if args.force:

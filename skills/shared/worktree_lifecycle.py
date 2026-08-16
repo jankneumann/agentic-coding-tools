@@ -234,6 +234,14 @@ def _require_nonempty(obj: dict[str, Any], names: tuple[str, ...], label: str) -
 
 
 def _validate_v2(data: dict[str, Any]) -> None:
+    if set(data) - {
+        "schema_version",
+        "entries",
+        "setup_reservations",
+        "recovery_audit",
+        "extensions",
+    }:
+        raise RegistryCorrupt("registry contains unknown fields")
     if data.get("schema_version") != 2:
         raise RegistryCorrupt("schema_version must equal 2")
     for name in ("entries", "setup_reservations", "recovery_audit"):
@@ -249,6 +257,32 @@ def _validate_v2(data: dict[str, Any]) -> None:
             ("change_id", "branch", "worktree_path", "created_at", "entry_generation"),
             "entry",
         )
+        allowed = {
+            "change_id",
+            "agent_id",
+            "branch",
+            "worktree_path",
+            "created_at",
+            "entry_generation",
+            "setup_id",
+            "durability_target",
+            "last_heartbeat",
+            "retained",
+            "retention_reason",
+            "recovery_required",
+            "recovery_reason",
+            "recovery_context",
+            "activity_lease",
+            "extensions",
+        }
+        if set(entry) - allowed or parse_timestamp(entry["created_at"]) is None:
+            raise RegistryCorrupt("entry fields do not match schema")
+        if not isinstance(entry.get("retained"), bool) or not isinstance(
+            entry.get("recovery_required"), bool
+        ):
+            raise RegistryCorrupt("entry flags must be booleans")
+        if entry.get("durability_target") is not None:
+            _validate_target(entry["durability_target"])
         key = (entry["change_id"], entry.get("agent_id"))
         if key in keys:
             raise RegistryCorrupt(f"duplicate registry entry {key!r}")
@@ -274,6 +308,21 @@ def _validate_v2(data: dict[str, Any]) -> None:
             not entry["recovery_reason"] or not isinstance(entry["recovery_context"], dict)
         ):
             raise RegistryCorrupt("recovery entry requires reason and context")
+        if entry["recovery_required"]:
+            context = entry["recovery_context"]
+            if (
+                set(context)
+                != {
+                    "source",
+                    "prior_owner",
+                    "prior_lease_id",
+                    "prior_controller_instance_id",
+                    "process_evidence_key",
+                    "quarantined_at",
+                }
+                or parse_timestamp(context.get("quarantined_at")) is None
+            ):
+                raise RegistryCorrupt("recovery context does not match schema")
         if not entry["recovery_required"] and (
             entry["recovery_reason"] is not None or entry["recovery_context"] is not None
         ):
@@ -299,6 +348,24 @@ def _validate_v2(data: dict[str, Any]) -> None:
             ),
             "reservation",
         )
+        allowed = {
+            "setup_id",
+            "change_id",
+            "agent_id",
+            "branch",
+            "worktree_path",
+            "entry_generation",
+            "durability_target",
+            "lease_intent",
+            "state",
+            "created_at",
+            "updated_at",
+            "ttl_seconds",
+            "expires_at",
+        }
+        if set(reservation) != allowed:
+            raise RegistryCorrupt("reservation fields do not match schema")
+        _validate_target(reservation["durability_target"])
         if reservation["setup_id"] in setup_ids:
             raise RegistryCorrupt("duplicate setup id")
         setup_ids.add(reservation["setup_id"])
@@ -320,9 +387,55 @@ def _validate_v2(data: dict[str, Any]) -> None:
         if event["event_id"] in audit_ids:
             raise RegistryCorrupt("duplicate recovery audit event id")
         audit_ids.add(event["event_id"])
+        if (
+            event.get("event") not in {"force-adopted", "setup-reconciled", "recovery-torn-down"}
+            or event.get("termination_confirmed") is not True
+            or parse_timestamp(event.get("recorded_at")) is None
+        ):
+            raise RegistryCorrupt("recovery audit event does not match schema")
+
+
+def _validate_target(target: object) -> None:
+    fields = {"remote_name", "remote_url_hash_algorithm", "canonical_remote_url_sha256", "ref_name"}
+    if not isinstance(target, dict) or set(target) != fields:
+        raise RegistryCorrupt("durability target fields do not match schema")
+    remote, digest, ref = (
+        target["remote_name"],
+        target["canonical_remote_url_sha256"],
+        target["ref_name"],
+    )
+    if (
+        not isinstance(remote, str)
+        or not remote
+        or target["remote_url_hash_algorithm"] != "git-remote-url-v1"
+    ):
+        raise RegistryCorrupt("invalid durability target remote")
+    if (
+        not isinstance(digest, str)
+        or len(digest) != 64
+        or any(c not in "0123456789abcdef" for c in digest)
+    ):
+        raise RegistryCorrupt("invalid durability target digest")
+    if not isinstance(ref, str) or not ref.startswith(f"refs/remotes/{remote}/"):
+        raise RegistryCorrupt("durability target remote/ref mismatch")
 
 
 def _validate_lease(lease: dict[str, Any]) -> None:
+    allowed = {
+        "owner",
+        "lease_id",
+        "controller_instance_id",
+        "session_id",
+        "phase",
+        "reason",
+        "lifecycle_mode",
+        "acquired_at",
+        "last_heartbeat",
+        "expires_at",
+        "ttl_seconds",
+    }
+    if set(lease) != allowed:
+        raise RegistryCorrupt("lease fields do not match schema")
     _require_nonempty(
         lease,
         (
@@ -734,6 +847,8 @@ def release_matching(
             )
             if not matches:
                 continue
+            if not Path(entry["worktree_path"]).exists():
+                continue
             source = "owner-release" if owner is not None else "session-release"
             _quarantine(
                 entry, source=source, reason=f"{source}-recovery", now=when, clear_lease=True
@@ -823,6 +938,11 @@ def reserve_setup(
             if parse_timestamp(existing["expires_at"]) < when:
                 raise RecoveryRequired("setup reservation expired; reconcile explicitly")
             return copy.deepcopy(existing)
+        for other in registry["setup_reservations"]:
+            if (other["change_id"], other.get("agent_id")) == (change_id, agent_id) or other[
+                "worktree_path"
+            ] == worktree_path:
+                raise FenceConflict("another setup reservation owns this entry identity or path")
         if find_entry(registry, change_id, agent_id) is not None:
             raise RecoveryRequired("registry entry already exists")
         registry["setup_reservations"].append(candidate)

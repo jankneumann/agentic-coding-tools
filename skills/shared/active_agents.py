@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
@@ -65,6 +66,15 @@ class GuardInspection:
 def _main_root(root: Path) -> Path:
     """Resolve a linked-worktree path to the repository that owns the registry."""
     candidate = root.resolve()
+    result = subprocess.run(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        cwd=str(candidate),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return Path(result.stdout.strip()).resolve().parent
     git_file = candidate / ".git"
     if git_file.is_file():
         try:

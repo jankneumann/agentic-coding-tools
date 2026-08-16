@@ -49,6 +49,17 @@ def _entry(
 
 
 class TestCheckNoActiveAgents:
+    def test_main_root_uses_git_common_dir_from_nested_worktree_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        nested = tmp_path / "worktree" / "src" / "nested"
+        nested.mkdir(parents=True)
+        common = tmp_path / "main" / ".git"
+        common.mkdir(parents=True)
+        completed = aa.subprocess.CompletedProcess([], 0, str(common) + "\n", "")
+        monkeypatch.setattr(aa.subprocess, "run", lambda *a, **k: completed)
+        assert aa._main_root(nested) == common.parent
+
     def test_no_registry_means_clear(self, tmp_path: Path) -> None:
         clear, active = aa.check_no_active_agents(repo_root=tmp_path)
         assert clear is True
