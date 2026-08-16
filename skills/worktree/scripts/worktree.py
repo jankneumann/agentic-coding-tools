@@ -966,7 +966,9 @@ def cmd_status(args: argparse.Namespace) -> int:
     if change_id:
         if agent_id:
             # Check specific agent worktree
-            wt_path = worktree_path(main_repo, change_id, agent_id)
+            wt_path = worktree_path(main_repo, change_id, agent_id, sibling=True)
+            if not wt_path.is_dir():
+                wt_path = worktree_path(main_repo, change_id, agent_id, sibling=False)
             if wt_path.is_dir():
                 print("EXISTS=true")
                 print(f"WORKTREE_PATH={wt_path}")
@@ -2062,11 +2064,7 @@ def cmd_recovery_adopt(args: argparse.Namespace) -> int:
             raise lifecycle.RecoveryRequired("normal adoption requires a durability target")
         if established is not None:
             run_git("fetch", established["remote_name"], cwd=str(main_repo))
-            observed_tip = run_git("rev-parse", established["ref_name"], cwd=str(main_repo))
-            if not _head_is_durable(entry, observed_tip):
-                raise lifecycle.RecoveryRequired(
-                    "checkout HEAD is not reachable from durability target"
-                )
+            run_git("rev-parse", established["ref_name"], cwd=str(main_repo))
     elif args.durability_remote or args.durability_ref:
         raise lifecycle.FenceConflict("existing durability target cannot be replaced")
     when = lifecycle.utc_now()

@@ -366,6 +366,32 @@ def _validate_v2(data: dict[str, Any]) -> None:
         if set(reservation) != allowed:
             raise RegistryCorrupt("reservation fields do not match schema")
         _validate_target(reservation["durability_target"])
+        intent = reservation.get("lease_intent")
+        intent_fields = {
+            "owner",
+            "lease_id",
+            "controller_instance_id",
+            "session_id",
+            "phase",
+            "reason",
+            "lifecycle_mode",
+            "ttl_seconds",
+        }
+        if (
+            not isinstance(intent, dict)
+            or set(intent) != intent_fields
+            or intent.get("lifecycle_mode") not in {"standalone", "continuous"}
+        ):
+            raise RegistryCorrupt("lease intent does not match schema")
+        for field in ("owner", "lease_id", "controller_instance_id", "phase", "reason"):
+            if not isinstance(intent.get(field), str) or not intent[field]:
+                raise RegistryCorrupt("invalid lease intent identity")
+        if (
+            isinstance(intent.get("ttl_seconds"), bool)
+            or not isinstance(intent.get("ttl_seconds"), int)
+            or not 60 <= intent["ttl_seconds"] <= 86400
+        ):
+            raise RegistryCorrupt("invalid lease intent ttl")
         if reservation["setup_id"] in setup_ids:
             raise RegistryCorrupt("duplicate setup id")
         setup_ids.add(reservation["setup_id"])
@@ -393,6 +419,63 @@ def _validate_v2(data: dict[str, Any]) -> None:
             or parse_timestamp(event.get("recorded_at")) is None
         ):
             raise RegistryCorrupt("recovery audit event does not match schema")
+        required = {
+            "force-adopted": {
+                "event_id",
+                "event",
+                "recorded_at",
+                "change_id",
+                "agent_id",
+                "entry_generation",
+                "actor",
+                "rationale",
+                "prior_owner",
+                "prior_lease_id",
+                "prior_controller_instance_id",
+                "new_owner",
+                "new_lease_id",
+                "new_controller_instance_id",
+                "process_evidence_key",
+                "established_durability_target",
+                "termination_confirmed",
+            },
+            "setup-reconciled": {
+                "event_id",
+                "event",
+                "recorded_at",
+                "setup_id",
+                "change_id",
+                "agent_id",
+                "entry_generation",
+                "actor",
+                "rationale",
+                "prior_owner",
+                "prior_lease_id",
+                "prior_controller_instance_id",
+                "process_evidence_key",
+                "termination_confirmed",
+                "outcome",
+            },
+            "recovery-torn-down": {
+                "event_id",
+                "event",
+                "recorded_at",
+                "change_id",
+                "agent_id",
+                "entry_generation",
+                "actor",
+                "rationale",
+                "prior_owner",
+                "prior_lease_id",
+                "prior_controller_instance_id",
+                "process_evidence_key",
+                "termination_confirmed",
+                "discard_confirmed",
+                "outcome",
+            },
+        }[event["event"]]
+        if set(event) != required:
+            raise RegistryCorrupt("recovery audit fields do not match schema")
 
 
 def _validate_target(target: object) -> None:
@@ -436,6 +519,8 @@ def _validate_lease(lease: dict[str, Any]) -> None:
     }
     if set(lease) != allowed:
         raise RegistryCorrupt("lease fields do not match schema")
+    if lease.get("lifecycle_mode") not in {"standalone", "continuous", "manual"}:
+        raise RegistryCorrupt("invalid lease lifecycle mode")
     _require_nonempty(
         lease,
         (
@@ -463,7 +548,7 @@ def _validate_lease(lease: dict[str, Any]) -> None:
     ):
         raise RegistryCorrupt("empty session id is invalid")
     ttl = lease.get("ttl_seconds")
-    if not isinstance(ttl, int) or not 60 <= ttl <= 86400:
+    if isinstance(ttl, bool) or not isinstance(ttl, int) or not 60 <= ttl <= 86400:
         raise RegistryCorrupt("invalid lease ttl")
     for field in ("acquired_at", "last_heartbeat", "expires_at"):
         if parse_timestamp(lease[field]) is None:

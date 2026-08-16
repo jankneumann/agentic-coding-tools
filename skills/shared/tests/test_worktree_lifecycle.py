@@ -423,6 +423,32 @@ def test_writer_rejects_unknown_fields_and_invalid_targets(tmp_path: Path) -> No
         lifecycle.write_registry(
             tmp_path, lifecycle.empty_registry(entries=[_v2_entry(extra="no")])
         )
+    lease = lifecycle.new_lease(
+        owner="o",
+        lease_id="l",
+        controller_instance_id="c",
+        session_id=None,
+        phase="P",
+        reason="r",
+        mode="standalone",
+        now=NOW,
+    )
+    lease["lifecycle_mode"] = "bogus"
+    with pytest.raises(lifecycle.RegistryCorrupt):
+        lifecycle.write_registry(
+            tmp_path, lifecycle.empty_registry(entries=[_v2_entry(activity_lease=lease)])
+        )
+    malformed = lifecycle.empty_registry()
+    malformed["recovery_audit"] = [
+        {
+            "event_id": "e",
+            "event": "force-adopted",
+            "recorded_at": NOW.isoformat(),
+            "termination_confirmed": True,
+        }
+    ]
+    with pytest.raises(lifecycle.RegistryCorrupt):
+        lifecycle.write_registry(tmp_path, malformed)
     with pytest.raises(lifecycle.RegistryCorrupt):
         lifecycle.write_registry(
             tmp_path,
