@@ -97,6 +97,7 @@ class FakeRunner:
     def __init__(self) -> None:
         self.mode = "ok"
         self.calls: list[tuple[str, ...]] = []
+        self.gate_parents: list[str] | None = None
 
     @staticmethod
     def _done(argv: tuple[str, ...], stdout: str = "", returncode: int = 0):
@@ -168,6 +169,10 @@ class FakeRunner:
             return self._done(args, f"{self.base_tip}\n")
         if args[:3] == ("git", "rev-parse", "HEAD"):
             return self._done(args, f"{self.head}\n")
+        if args[:3] == ("git", "cat-file", "-p"):
+            parents = self.gate_parents if self.gate_parents is not None else ["f" * 40]
+            parent_lines = "".join(f"parent {parent}\n" for parent in parents)
+            return self._done(args, f"tree {'1' * 40}\n{parent_lines}\nfixture gate\n")
         if args[:3] == ("git", "merge-base", "--is-ancestor"):
             if self.mode == "non_ancestral" and args[3] == self.merge_shas[1]:
                 return self._done(args, returncode=1)
@@ -465,6 +470,43 @@ def test_verify_only_rejects_changed_required_surfaces_at_gate_head(
     committed.mode = "invalid_surface_content"
 
     with pytest.raises(preflight.PreflightError, match="cannot parse"):
+        preflight.verify_evidence_bytes(
+            _write_requirements(tmp_path),
+            json.dumps(evidence).encode(),
+            tmp_path,
+            runner=committed,
+            expected_feature_head=committed.head,
+        )
+
+
+def test_verify_only_rejects_an_older_generation_ancestor_than_gate_parent(
+    preflight, tmp_path: Path
+) -> None:
+    generation = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, generation)
+    for prerequisite in evidence["prerequisites"]:
+        prerequisite["verified_head_sha"] = generation.base_tip
+    committed = FakeRunner()
+    committed.head = "c" * 40
+
+    with pytest.raises(preflight.PreflightError, match="exact parent"):
+        preflight.verify_evidence_bytes(
+            _write_requirements(tmp_path),
+            json.dumps(evidence).encode(),
+            tmp_path,
+            runner=committed,
+            expected_feature_head=committed.head,
+        )
+
+
+def test_verify_only_rejects_a_merge_gate_commit(preflight, tmp_path: Path) -> None:
+    generation = FakeRunner()
+    evidence, _ = _run(preflight, tmp_path, generation)
+    committed = FakeRunner()
+    committed.head = "c" * 40
+    committed.gate_parents = [generation.head, "a" * 40]
+
+    with pytest.raises(preflight.PreflightError, match="non-merge"):
         preflight.verify_evidence_bytes(
             _write_requirements(tmp_path),
             json.dumps(evidence).encode(),

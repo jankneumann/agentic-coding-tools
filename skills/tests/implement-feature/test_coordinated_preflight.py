@@ -96,6 +96,35 @@ class AdvanceOnSecondReleaseLock(RecordingLock):
                 self.current_head[0] = "c" * 40
 
 
+def _ready_gated_scheduler(
+    *,
+    current_head: list[str] | None = None,
+    lock: RecordingLock | None = None,
+) -> DAGScheduler:
+    scheduler = DAGScheduler(
+        WORK_PACKAGES,
+        ROOT,
+        runtime_revision=EVIDENCE_COMMIT,
+    )
+    assert scheduler.preflight()["valid"]
+    current_head = current_head or [EVIDENCE_COMMIT]
+    lock = lock or RecordingLock()
+    scheduler.complete_feature_head_gate(
+        "wp-baseline-preflight",
+        expected_feature_head=EVIDENCE_COMMIT,
+        resolve_feature_head=lambda: current_head[0],
+        read_revision_file=lambda _revision, path: (
+            scheduler.runtime_sources[path]
+            if path in scheduler.runtime_sources
+            else b"committed-evidence"
+        ),
+        verify_evidence=lambda _payload, _head: None,
+        branch_lock=lock.acquire,
+    )
+    scheduler.mark_completed("wp-registry")
+    return scheduler
+
+
 def test_barrier_uses_committed_evidence_bytes_and_records_exact_head(
     tmp_path: Path,
 ) -> None:
@@ -291,9 +320,20 @@ def test_dependent_dispatch_carries_the_exact_verified_feature_base() -> None:
     scheduler.mark_completed("wp-registry")
 
     published: list[dict] = []
-    scheduler.dispatch_with_handoff("wp-pr-delivery", published.append)
+    dispatch_keys: list[str] = []
+
+    def publish(submission: dict, dispatch_key: str) -> tuple[str, str]:
+        published.append(submission)
+        dispatch_keys.append(dispatch_key)
+        return dispatch_key, "task-123"
+
+    task_id = scheduler.dispatch_with_handoff("wp-pr-delivery", publish)
     submission = published[0]
     assert submission["input_data"]["package"]["minimum_base_sha"] == EVIDENCE_COMMIT
+    assert submission["input_data"]["package"]["dispatch_idempotency_key"] == dispatch_keys[0]
+    assert task_id == "task-123"
+    assert scheduler.package_statuses["wp-pr-delivery"].state.value == "submitted"
+    assert scheduler.package_statuses["wp-pr-delivery"].task_id == task_id
 
 
 def test_dispatch_reverifies_committed_evidence_immediately_before_publication() -> None:
@@ -323,7 +363,12 @@ def test_dispatch_reverifies_committed_evidence_immediately_before_publication()
     scheduler.mark_completed("wp-registry")
 
     published: list[dict] = []
-    scheduler.dispatch_with_handoff("wp-pr-delivery", published.append)
+
+    def publish(submission: dict, dispatch_key: str) -> tuple[str, str]:
+        published.append(submission)
+        return dispatch_key, "task-123"
+
+    scheduler.dispatch_with_handoff("wp-pr-delivery", publish)
     submission = published[0]
 
     assert submission["input_data"]["package"]["minimum_base_sha"] == EVIDENCE_COMMIT
@@ -356,7 +401,10 @@ def test_dispatch_rejects_stale_gate_completion_after_feature_head_advances() ->
 
     published: list[dict] = []
     with pytest.raises(FeatureHeadBarrierError, match="differs"):
-        scheduler.dispatch_with_handoff("wp-pr-delivery", published.append)
+        scheduler.dispatch_with_handoff(
+            "wp-pr-delivery",
+            lambda _submission, dispatch_key: (dispatch_key, "task-123"),
+        )
     assert published == []
 
 
@@ -387,17 +435,94 @@ def test_gated_dispatch_handoff_is_atomic_with_reverification_and_lock_release()
     assert "wp-pr-delivery" not in {
         submission["package_id"] for submission in scheduler.submissions
     }
+    with pytest.raises(FeatureHeadGateError, match="atomic dispatch handoff"):
+        scheduler.submission_for_dispatch("wp-pr-delivery")
 
-    def publish(submission: dict) -> None:
+    def publish(submission: dict, dispatch_key: str) -> tuple[str, str]:
         assert lock.held
         assert current_head[0] == EVIDENCE_COMMIT
         assert submission["input_data"]["package"]["minimum_base_sha"] == current_head[0]
         published.append(submission)
+        return dispatch_key, "task-123"
 
     result = scheduler.dispatch_with_handoff("wp-pr-delivery", publish)
 
-    assert result is None
+    assert result == "task-123"
     assert len(published) == 1
+    assert scheduler.package_statuses["wp-pr-delivery"].state.value == "submitted"
+    assert scheduler.package_statuses["wp-pr-delivery"].task_id == result
     assert current_head[0] == "c" * 40
-    with pytest.raises(FeatureHeadGateError, match="atomic dispatch handoff"):
-        scheduler.submission_for_dispatch("wp-pr-delivery")
+
+
+def test_dispatch_failure_before_publication_leaves_package_pending() -> None:
+    scheduler = _ready_gated_scheduler()
+
+    def fail_before_publication(_submission: dict, _dispatch_key: str) -> tuple[str, str]:
+        raise RuntimeError("queue unavailable")
+
+    with pytest.raises(RuntimeError, match="queue unavailable"):
+        scheduler.dispatch_with_handoff("wp-pr-delivery", fail_before_publication)
+
+    status = scheduler.package_statuses["wp-pr-delivery"]
+    assert status.state.value == "pending"
+    assert status.task_id is None
+    assert status.dispatch_key
+
+
+def test_response_loss_retry_reuses_dispatch_key_and_external_task() -> None:
+    scheduler = _ready_gated_scheduler()
+    external_tasks: dict[str, str] = {}
+    observed_keys: list[str] = []
+    attempts = 0
+
+    def idempotent_publish(_submission: dict, dispatch_key: str) -> tuple[str, str]:
+        nonlocal attempts
+        attempts += 1
+        observed_keys.append(dispatch_key)
+        task_id = external_tasks.setdefault(dispatch_key, "task-durable")
+        if attempts == 1:
+            raise TimeoutError("response lost after publication")
+        return dispatch_key, task_id
+
+    with pytest.raises(TimeoutError, match="response lost"):
+        scheduler.dispatch_with_handoff("wp-pr-delivery", idempotent_publish)
+    assert scheduler.package_statuses["wp-pr-delivery"].state.value == "pending"
+
+    task_id = scheduler.dispatch_with_handoff("wp-pr-delivery", idempotent_publish)
+
+    assert task_id == "task-durable"
+    assert observed_keys[0] == observed_keys[1]
+    assert external_tasks == {observed_keys[0]: task_id}
+    status = scheduler.package_statuses["wp-pr-delivery"]
+    assert status.state.value == "submitted"
+    assert status.task_id == task_id
+    assert status.dispatch_key == observed_keys[0]
+
+
+def test_reentrant_gate_verification_from_dispatch_callback_fails_fast() -> None:
+    scheduler = _ready_gated_scheduler()
+
+    def reenter_gate(_submission: dict, dispatch_key: str) -> tuple[str, str]:
+        scheduler.required_base_for("wp-pr-delivery")
+        return dispatch_key, "unreachable-task"
+
+    with pytest.raises(FeatureHeadBarrierError, match="reentrant"):
+        scheduler.dispatch_with_handoff("wp-pr-delivery", reenter_gate)
+
+    status = scheduler.package_statuses["wp-pr-delivery"]
+    assert status.state.value == "pending"
+    assert status.task_id is None
+
+
+def test_dispatch_rejects_a_receipt_for_a_different_idempotency_key() -> None:
+    scheduler = _ready_gated_scheduler()
+
+    with pytest.raises(FeatureHeadGateError, match="receipt.*dispatch key"):
+        scheduler.dispatch_with_handoff(
+            "wp-pr-delivery",
+            lambda _submission, _dispatch_key: ("wrong-key", "task-123"),
+        )
+
+    status = scheduler.package_statuses["wp-pr-delivery"]
+    assert status.state.value == "pending"
+    assert status.task_id is None

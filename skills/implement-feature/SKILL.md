@@ -425,7 +425,9 @@ or a package title cannot opt into this path. For that shared root package:
 5. At generation revision A, generate live evidence whose per-prerequisite
    `verified_head_sha` values all attest that exact A revision. Commit those
    immutable evidence bytes to distinct gate revision B, then reload or
-   reinstantiate once more from B and bind `runtime_revision` to B's SHA.
+   reinstantiate once more from B and bind `runtime_revision` to B's SHA. B
+   must be a non-merge commit whose sole parent is exactly A; an older ancestor,
+   root commit, or merge commit fails closed.
 6. Under the feature-branch lock, call
    `complete_feature_head_gate()` with expected gate revision B and a
    revision reader backed by `git show <sha>:<path>`. The gate proves the loaded
@@ -435,11 +437,18 @@ or a package title cannot opt into this path. For that shared root package:
    required surfaces at both A and B. The barrier alone records B as the
    dependent base; evidence cannot self-reference B. Any mismatch loses the CAS
    and leaves the package incomplete.
-7. For each now-ready gated dependent, call `dispatch_with_handoff()` with the
-   queue-publication or worktree-creation callback. The scheduler reverifies B,
-   adds `minimum_base_sha`, and invokes that callback before releasing the same
-   branch lock. `submission_for_dispatch()` fails closed for gated descendants;
-   never return or dispatch a gated payload after unlocking.
+7. For each now-ready gated dependent, call `dispatch_with_handoff()` with an
+   idempotent queue-publication or worktree-creation callback. The scheduler
+   derives and stores a deterministic dispatch key, reverifies B, adds both the
+   key and `minimum_base_sha`, then invokes the callback before releasing the
+   same branch lock. The callback MUST use that key idempotently and return a
+   `(dispatch_key, external_task_id)` receipt. The scheduler verifies the echoed
+   key and non-empty task ID and records `SUBMITTED` before unlock. On response
+   loss, retry with the same callback/key so the external system returns the
+   same task instead of creating a duplicate. Callback failure leaves the
+   package pending; reentrant gate verification fails fast.
+   `submission_for_dispatch()` fails closed for gated descendants; never return
+   or dispatch a gated payload after unlocking.
 
 Evidence generated before step 4 does not satisfy the gate. An unverified gate,
 failed evidence check, runtime/commit byte mismatch, or changed HEAD keeps all

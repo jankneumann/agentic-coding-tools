@@ -62,6 +62,7 @@ class FeatureHeadCompletionBarrier:
         self.verify_evidence = verify_evidence
         self.branch_lock = branch_lock
         self.minimum_dependent_base: str | None = None
+        self._handoff_in_progress = False
 
     def verify_and_record(
         self,
@@ -69,6 +70,10 @@ class FeatureHeadCompletionBarrier:
         expected_feature_head: str,
     ) -> str:
         """Verify evidence under lock and record the unchanged exact HEAD."""
+        if self._handoff_in_progress:
+            raise FeatureHeadBarrierError(
+                "reentrant feature-HEAD verification during atomic handoff"
+            )
         self._validate_runtime_binding(expected_feature_head)
         with self.branch_lock():
             observed = self._verify_locked(expected_feature_head)
@@ -117,16 +122,24 @@ class FeatureHeadCompletionBarrier:
 
     def handoff_recorded_head(
         self,
-        handoff: Callable[[str], None],
-    ) -> None:
+        handoff: Callable[[str], str],
+    ) -> str:
         """Reverify and publish/create the dependent while still holding the lock."""
+        if self._handoff_in_progress:
+            raise FeatureHeadBarrierError(
+                "reentrant feature-HEAD handoff would reacquire the branch lock"
+            )
         if self.minimum_dependent_base is None:
             raise FeatureHeadBarrierError("feature-HEAD gate has no recorded completion")
         expected_feature_head = self.minimum_dependent_base
-        self._validate_runtime_binding(expected_feature_head)
-        with self.branch_lock():
-            observed = self._verify_locked(expected_feature_head)
-            handoff(observed)
+        self._handoff_in_progress = True
+        try:
+            self._validate_runtime_binding(expected_feature_head)
+            with self.branch_lock():
+                observed = self._verify_locked(expected_feature_head)
+                return handoff(observed)
+        finally:
+            self._handoff_in_progress = False
 
 
 class ReviewDisposition(str, Enum):

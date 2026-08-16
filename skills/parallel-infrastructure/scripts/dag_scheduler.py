@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import sys
 from collections import defaultdict, deque
@@ -43,6 +44,9 @@ from validate_work_packages import (
 )
 
 from integration_orchestrator import FeatureHeadCompletionBarrier
+
+
+DispatchReceipt = tuple[str, str]
 
 
 class FeatureHeadGateError(RuntimeError):
@@ -118,6 +122,7 @@ class PackageStatus:
     package_id: str
     state: PackageState = PackageState.PENDING
     task_id: str | None = None
+    dispatch_key: str | None = None
     attempt: int = 0
     depends_on: list[str] = field(default_factory=list)
     error: str | None = None
@@ -277,6 +282,7 @@ class DAGScheduler:
         self.execution_gates: dict[str, dict[str, Any]] = {}
         self.verified_feature_heads: dict[str, str] = {}
         self._completed_feature_head_barriers: dict[str, FeatureHeadCompletionBarrier] = {}
+        self._dispatch_handoffs_in_progress: set[str] = set()
 
     def preflight(self) -> dict[str, Any]:
         """Execute the full Phase A preflight sequence.
@@ -559,14 +565,22 @@ class DAGScheduler:
     def dispatch_with_handoff(
         self,
         package_id: str,
-        handoff: Callable[[dict[str, Any]], None],
-    ) -> None:
-        """Publish or create a dependent atomically under its gate's branch lock."""
+        handoff: Callable[[dict[str, Any], str], DispatchReceipt],
+    ) -> str:
+        """Idempotently publish a task and record it before releasing the gate lock."""
+        if package_id in self._dispatch_handoffs_in_progress:
+            raise FeatureHeadGateError(
+                f"reentrant atomic dispatch handoff for {package_id} is forbidden"
+            )
         submission = self._ready_submission(package_id)
         gated_ancestors = self._gated_ancestors(package_id)
         if not gated_ancestors:
-            handoff(submission)
-            return
+            return self._publish_and_record(
+                package_id,
+                submission,
+                verified_head=None,
+                handoff=handoff,
+            )
         if len(gated_ancestors) != 1:
             raise FeatureHeadGateError(
                 f"{package_id} has multiple feature-HEAD gates; atomic handoff is undefined"
@@ -577,15 +591,65 @@ class DAGScheduler:
         if recorded is None or barrier is None:
             raise FeatureHeadGateError(f"feature-HEAD gate {dependency} is not verified")
 
-        def publish(verified_head: str) -> None:
+        def publish(verified_head: str) -> str:
             if verified_head != recorded:
                 raise FeatureHeadGateError(
                     f"feature-HEAD gate {dependency} changed its verified base"
                 )
-            submission["input_data"]["package"]["minimum_base_sha"] = verified_head
-            handoff(submission)
+            return self._publish_and_record(
+                package_id,
+                submission,
+                verified_head=verified_head,
+                handoff=handoff,
+            )
 
-        barrier.handoff_recorded_head(publish)
+        self._dispatch_handoffs_in_progress.add(package_id)
+        try:
+            return barrier.handoff_recorded_head(publish)
+        finally:
+            self._dispatch_handoffs_in_progress.remove(package_id)
+
+    def _publish_and_record(
+        self,
+        package_id: str,
+        submission: dict[str, Any],
+        *,
+        verified_head: str | None,
+        handoff: Callable[[dict[str, Any], str], DispatchReceipt],
+    ) -> str:
+        status = self.package_statuses[package_id]
+        feature_id = str(self.data.get("feature", {}).get("id", ""))
+        key_material = "\0".join((feature_id, package_id, verified_head or "ungated"))
+        dispatch_key = f"dispatch-{hashlib.sha256(key_material.encode()).hexdigest()}"
+        if status.dispatch_key not in (None, dispatch_key):
+            raise FeatureHeadGateError(f"{package_id} dispatch idempotency key changed")
+        status.dispatch_key = dispatch_key
+        package_input = submission["input_data"]["package"]
+        package_input["dispatch_idempotency_key"] = dispatch_key
+        if verified_head is not None:
+            package_input["minimum_base_sha"] = verified_head
+
+        receipt = handoff(submission, dispatch_key)
+        if not isinstance(receipt, tuple) or len(receipt) != 2:
+            raise FeatureHeadGateError(
+                f"{package_id} handoff must return (dispatch_key, external_task_id)"
+            )
+        returned_key, task_id = receipt
+        if returned_key != dispatch_key:
+            raise FeatureHeadGateError(
+                f"{package_id} handoff receipt does not match its dispatch key"
+            )
+        if not isinstance(task_id, str) or not task_id.strip():
+            raise FeatureHeadGateError(
+                f"{package_id} handoff must return a non-empty external task ID"
+            )
+        if status.task_id not in (None, task_id):
+            raise FeatureHeadGateError(
+                f"{package_id} idempotent dispatch key returned a different task ID"
+            )
+        status.task_id = task_id
+        status.state = PackageState.SUBMITTED
+        return task_id
 
     def mark_failed(self, package_id: str, error: str) -> None:
         """Mark a package as failed."""

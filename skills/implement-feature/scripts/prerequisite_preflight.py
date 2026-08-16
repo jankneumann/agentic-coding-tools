@@ -418,9 +418,24 @@ def _verify_existing(
     )
     if generation_commit.returncode != 0:
         raise PreflightError("stored feature HEAD is not an available generation commit")
-    if not _is_ancestor(runner, repo_root, generation_head, expected_feature_head):
+    gate_commit = _command(
+        runner,
+        ("git", "cat-file", "-p", expected_feature_head),
+        repo_root,
+    ).stdout
+    gate_lines = gate_commit.splitlines()
+    if not gate_lines or not gate_lines[0].startswith("tree "):
+        raise PreflightError("committed evidence gate is not a commit object")
+    gate_parents = [
+        line.removeprefix("parent ") for line in gate_lines if line.startswith("parent ")
+    ]
+    if len(gate_parents) != 1:
         raise PreflightError(
-            "baseline evidence generation revision is not ancestral to the committed gate HEAD"
+            "committed evidence gate must be a non-merge commit with exactly one parent"
+        )
+    if gate_parents[0] != generation_head:
+        raise PreflightError(
+            "baseline evidence generation revision is not the exact parent of the gate commit"
         )
 
     # Resolve again at the committed gate HEAD. This independently verifies
