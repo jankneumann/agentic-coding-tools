@@ -4,21 +4,21 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
 
 ## 0. Executable prerequisite preflight
 
-- [x] 0.1 (S) Write mocked repository/PR/Git tests that fail closed for absent, open, duplicate, wrong-repository, wrong-base, caller-supplied-SHA, non-ancestral, missing-surface, and 41-63-character invalid Git object-id prerequisite evidence
+- [ ] 0.1 (S) Write mocked repository/PR/Git tests that fail closed for absent, open, duplicate, wrong-repository, wrong-base, caller-supplied-SHA, non-ancestral, missing-surface, and 41-63-character invalid Git object-id prerequisite evidence
   **Contracts**: `contracts/prerequisites.yaml`, `contracts/schemas/baseline-gates.schema.json`
   **Dependencies**: None
   **Files**: `skills/tests/implement-feature/test_prerequisite_preflight.py`
 
-- [x] 0.2 (S) Implement the prerequisite resolver that obtains authoritative merged PR metadata, fetches the configured remote/base, proves ancestry to fetched base plus feature HEAD, validates named surfaces, records the implementation diff base, and atomically writes schema-valid evidence
+- [ ] 0.2 (S) Implement the prerequisite resolver that obtains authoritative merged PR metadata, fetches the configured remote/base, proves ancestry to fetched base plus feature HEAD, validates named surfaces, records the implementation diff base, and atomically writes schema-valid evidence
   **Dependencies**: 0.1
   **Files**: `skills/implement-feature/scripts/prerequisite_preflight.py`
 
-- [x] 0.3 Write coordinated-execution regression coverage for the exact `contracts/prerequisites.yaml#execution_gate` declaration, proving the scheduler refuses completion until evidence is integrated and reverified on feature HEAD and every dependent worktree uses that recorded HEAD as its minimum base
+- [ ] 0.3 Write coordinated-execution regression coverage for the exact `contracts/prerequisites.yaml#execution_gate` declaration, proving the scheduler refuses completion until evidence is integrated and reverified on feature HEAD and every dependent worktree uses that recorded HEAD as its minimum base
   **Dependencies**: 0.2
   **Spec scenarios**: `skill-workflow` — Verified preflight commit is the dependent worktree base
   **Files**: `skills/tests/implement-feature/test_coordinated_preflight.py`, `skills/parallel-infrastructure/scripts/tests/test_dag_scheduler.py`
 
-- [x] 0.4 Implement the generic feature-HEAD completion barrier, then commit it and explicitly reload or reinstate the scheduler and integration orchestrator from that feature commit before this run attempts live preflight or dependent dispatch
+- [ ] 0.4 Implement the generic feature-HEAD completion barrier, then commit it and explicitly reload or reinstate the scheduler and integration orchestrator from that feature commit before this run attempts live preflight or dependent dispatch
   **Dependencies**: 0.3
   **Files**: `skills/implement-feature/SKILL.md`, `skills/parallel-infrastructure/scripts/dag_scheduler.py`, `skills/parallel-infrastructure/scripts/integration_orchestrator.py`
 
