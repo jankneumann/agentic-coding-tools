@@ -1768,6 +1768,30 @@ def cmd_lease_release_matching(args: argparse.Namespace) -> int:
 
 
 def cmd_lease_status(args: argparse.Namespace) -> int:
+    profile = detect(agent_id=getattr(args, "agent_id", None))
+    if profile.isolation_provided:
+        root = run_git("rev-parse", "--show-toplevel", cwd=os.getcwd())
+        branch = run_git("branch", "--show-current", cwd=os.getcwd())
+        _emit(
+            {
+                "schema_version": 2,
+                "inspected_at": lifecycle.utc_now().isoformat(),
+                "entries": [
+                    {
+                        "change_id": args.change_id,
+                        "agent_id": args.agent_id,
+                        "branch": branch,
+                        "worktree_path": root,
+                        "active": False,
+                        "activity_lease": None,
+                        "repository_owned": False,
+                        "isolation_provided": True,
+                    }
+                ],
+            },
+            json_output=args.json_output,
+        )
+        return 0
     main_repo = resolve_main_repo(os.getcwd())
     inspected = lifecycle.utc_now()
     registry = lifecycle.read_registry(main_repo)
@@ -1816,6 +1840,32 @@ def cmd_retention(args: argparse.Namespace) -> int:
 
 
 def cmd_inspect(args: argparse.Namespace) -> int:
+    profile = detect(agent_id=getattr(args, "agent_id", None))
+    if profile.isolation_provided:
+        root = run_git("rev-parse", "--show-toplevel", cwd=os.getcwd())
+        branch = run_git("branch", "--show-current", cwd=os.getcwd())
+        _emit(
+            {
+                "schema_version": 2,
+                "inspected_at": lifecycle.utc_now().isoformat(),
+                "entries": [
+                    {
+                        "change_id": None,
+                        "agent_id": None,
+                        "branch": branch,
+                        "worktree_path": root,
+                        "active": False,
+                        "activity_lease": None,
+                        "repository_owned": False,
+                        "isolation_provided": True,
+                    }
+                ],
+                "setup_reservations": [],
+                "recovery_audit": [],
+            },
+            json_output=args.json_output,
+        )
+        return 0
     main_repo = resolve_main_repo(os.getcwd())
     registry = lifecycle.read_registry(main_repo)
     now = lifecycle.utc_now()

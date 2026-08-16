@@ -275,6 +275,31 @@ class TestWriteOpsShortCircuit:
         assert list(git_repo.iterdir()) == before
 
 
+class TestReadOnlyIsolationInspection:
+    @pytest.mark.parametrize("handler", [worktree.cmd_lease_status, worktree.cmd_inspect])
+    def test_read_only_inspection_describes_harness_checkout_without_claiming_a_lease(
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        handler: object,
+    ) -> None:
+        monkeypatch.chdir(git_repo)
+        monkeypatch.setenv("AGENT_EXECUTION_ENV", "cloud")
+        args = worktree.argparse.Namespace(
+            change_id="change" if handler is worktree.cmd_lease_status else None,
+            agent_id=None,
+            include_expired=False,
+            json_output=True,
+        )
+        assert handler(args) == 0  # type: ignore[operator]
+        payload = worktree.json.loads(capsys.readouterr().out)
+        assert payload["entries"][0]["worktree_path"] == str(git_repo)
+        assert payload["entries"][0]["active"] is False
+        assert payload["entries"][0]["activity_lease"] is None
+        assert payload["entries"][0]["repository_owned"] is False
+
+
 class TestLocalBackwardCompat:
     """With AGENT_EXECUTION_ENV=local, behavior is unchanged from pre-change."""
 
