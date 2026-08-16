@@ -83,19 +83,19 @@ Scenario references use document order within each delta spec:
 
 ## Phase 4 — Coverage ratchet (wp-coverage)
 
-- [ ] 4.1 Write ratchet script tests — decrease fails, tolerance respected, improvement message [M]
+- [x] 4.1 Write ratchet script tests — decrease fails, tolerance respected, improvement message [M]
   **Spec scenarios**: fitness-functions.12 (fails on decrease), fitness-functions.13 (baseline updates)
   **Contracts**: contracts/coverage-baseline.schema.json
   **Design decisions**: D5
   **Dependencies**: None
-- [ ] 4.2 Add coverage ratchet script with seeded coverage-baseline.json [S]
+- [x] 4.2 Add coverage ratchet script with seeded coverage-baseline.json [S]
   **Design decisions**: D5
   **Dependencies**: 4.1
-- [ ] 4.3 Add non-required coverage-ratchet job to ci.yml additively [S]
+- [x] 4.3 Add non-required coverage-ratchet job to ci.yml additively [S]
   **Spec scenarios**: fitness-functions.11 (CI reports coverage)
   **Design decisions**: D5
   **Dependencies**: 4.2
-- [ ] 4.4 Document ratchet promotion command in session-completion guide [XS]
+- [x] 4.4 Document ratchet promotion command in session-completion guide [XS]
   **Design decisions**: D5
   **Dependencies**: 4.3
 - [ ] Checkpoint: run tests, review diff, verify scope

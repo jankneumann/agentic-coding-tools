@@ -140,6 +140,64 @@ jobs:
           echo "::error::Deterministic context drift. The stale artifacts and their remediation commands are listed above. Reproduce locally with 'make context-drift-gate'."
           exit 1
 
+  # Coverage no-decrease ratchet (introduce-fitness-function-gates, design D5).
+  #
+  # Deliberately its own job rather than a `--cov` flag bolted onto `test` and
+  # `test-infra-skills`: those two are required contexts, and coupling a fresh
+  # ratchet to them would make the very first noisy measurement block merges.
+  # This job starts NON-REQUIRED — it runs on every PR and reports, but branch
+  # protection does not list it. The promotion command lives next to the
+  # context-drift-gate note in docs/guides/session-completion.md.
+  #
+  # A ratchet, not an absolute bar: an arbitrary threshold penalises legacy
+  # code, while a no-decrease check with a 0.5pp tolerance measures drift.
+  # Baseline percentages and their exact producing commands live in
+  # coverage-baseline.json at the repo root.
+  #
+  # pytest-cov is injected with `uv run --with` rather than added to either
+  # pyproject: coverage is a CI-only concern here, and neither package's
+  # dependency set should grow for it.
+  coverage-ratchet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install coordinator dependencies
+        working-directory: agent-coordinator
+        run: uv sync --all-extras
+
+      - name: Install skills dependencies
+        working-directory: skills
+        run: uv sync --all-extras
+
+      - name: Measure coordinator coverage
+        # Same marker exclusion as the `test` job above, so the measured tree is
+        # the tree CI actually exercises on a PR.
+        working-directory: agent-coordinator
+        run: |
+          uv run --with pytest-cov pytest -m "not e2e and not integration" -q \
+            --cov=src --cov-report=term --cov-report=xml:coverage.xml
+
+      - name: Measure skills coverage
+        working-directory: skills
+        run: |
+          uv run --with pytest-cov pytest -q \
+            --cov=. --cov-report=term --cov-report=xml:coverage.xml
+
+      - name: Coverage ratchet
+        run: |
+          agent-coordinator/.venv/bin/python scripts/coverage_ratchet.py \
+            --coverage-xml agent-coordinator=agent-coordinator/coverage.xml \
+            --coverage-xml skills=skills/coverage.xml
+
   # Static contract check: does every local package imported from src/
   # have a matching COPY statement in the Dockerfile runtime stage?
   # Catches the class of bug where a lazy import references a directory
