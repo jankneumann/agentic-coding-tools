@@ -131,10 +131,7 @@ class IntegrationOrchestrator:
     @property
     def implementation_packages(self) -> list[str]:
         """Package IDs excluding wp-integration."""
-        return [
-            pid for pid in self.packages
-            if self.packages[pid].get("task_type") != "integrate"
-        ]
+        return [pid for pid in self.packages if self.packages[pid].get("task_type") != "integrate"]
 
     @property
     def integration_package_id(self) -> str | None:
@@ -144,9 +141,7 @@ class IntegrationOrchestrator:
                 return pid
         return None
 
-    def record_package_result(
-        self, package_id: str, result: dict[str, Any]
-    ) -> None:
+    def record_package_result(self, package_id: str, result: dict[str, Any]) -> None:
         """Record a completed package's work-queue result."""
         self._results[package_id] = result
 
@@ -168,9 +163,7 @@ class IntegrationOrchestrator:
         # Always update legacy storage (gate uses this as primary)
         self._review_findings[package_id] = findings
 
-    def record_consensus(
-        self, package_id: str, consensus: dict[str, Any]
-    ) -> None:
+    def record_consensus(self, package_id: str, consensus: dict[str, Any]) -> None:
         """Record a multi-vendor consensus report for a package.
 
         Args:
@@ -249,19 +242,23 @@ class IntegrationOrchestrator:
                 for finding in findings.get("findings", []):
                     disposition = finding.get("disposition", "")
                     if disposition == ReviewDisposition.FIX.value:
-                        blocking.append({
-                            "package_id": pid,
-                            "finding_id": str(finding.get("id", "")),
-                            "description": finding.get("description", ""),
-                            "disposition": disposition,
-                        })
+                        blocking.append(
+                            {
+                                "package_id": pid,
+                                "finding_id": str(finding.get("id", "")),
+                                "description": finding.get("description", ""),
+                                "disposition": disposition,
+                            }
+                        )
                     elif disposition == ReviewDisposition.ESCALATE.value:
-                        escalations.append({
-                            "package_id": pid,
-                            "finding_id": str(finding.get("id", "")),
-                            "description": finding.get("description", ""),
-                            "disposition": disposition,
-                        })
+                        escalations.append(
+                            {
+                                "package_id": pid,
+                                "finding_id": str(finding.get("id", "")),
+                                "description": finding.get("description", ""),
+                                "disposition": disposition,
+                            }
+                        )
 
         if escalations:
             return {
@@ -356,8 +353,12 @@ class IntegrationOrchestrator:
         if self._integration_result:
             integration = {
                 "status": self._integration_result.get("status", "unknown"),
-                "verification_passed": self._integration_result.get("verification", {}).get("passed"),
-                "merge_commit": self._integration_result.get("git", {}).get("head", {}).get("commit"),
+                "verification_passed": self._integration_result.get("verification", {}).get(
+                    "passed"
+                ),
+                "merge_commit": self._integration_result.get("git", {})
+                .get("head", {})
+                .get("commit"),
             }
 
         return {

@@ -74,13 +74,9 @@ def load_execution_gate(pointer: str, base_dir: Path) -> dict[str, Any]:
     }
     for key, value in expected.items():
         if declaration.get(key) != value:
-            raise FeatureHeadGateError(
-                f"execution gate {key} must be {value!r}"
-            )
+            raise FeatureHeadGateError(f"execution gate {key} must be {value!r}")
     if not declaration.get("package_id") or not declaration.get("evidence_path"):
-        raise FeatureHeadGateError(
-            "execution gate requires package_id and evidence_path"
-        )
+        raise FeatureHeadGateError("execution gate requires package_id and evidence_path")
     bootstrap = declaration.get("bootstrap")
     if not isinstance(bootstrap, dict):
         raise FeatureHeadGateError("execution gate requires bootstrap metadata")
@@ -88,13 +84,9 @@ def load_execution_gate(pointer: str, base_dir: Path) -> dict[str, Any]:
         bootstrap.get("scheduler_runtime_requirement")
         != "fresh-process-or-instance-after-barrier-commit"
     ):
-        raise FeatureHeadGateError(
-            "execution gate must require a fresh scheduler runtime"
-        )
+        raise FeatureHeadGateError("execution gate must require a fresh scheduler runtime")
     if bootstrap.get("pre_reload_evidence_satisfies_gate") is not False:
-        raise FeatureHeadGateError(
-            "execution gate must reject pre-reload evidence"
-        )
+        raise FeatureHeadGateError("execution gate must reject pre-reload evidence")
     return declaration
 
 
@@ -159,9 +151,7 @@ def compute_topo_order(packages: list[dict[str, Any]]) -> list[str]:
     return order
 
 
-def validate_contracts_exist(
-    data: dict[str, Any], base_dir: Path
-) -> list[str]:
+def validate_contracts_exist(data: dict[str, Any], base_dir: Path) -> list[str]:
     """Check that all declared contract files exist on disk.
 
     Returns list of missing file paths.
@@ -234,12 +224,8 @@ def prepare_task_submissions(
             "priority": pkg.get("priority", defaults.get("priority", 5)),
             "input_data": context,
             "depends_on_packages": list(pkg.get("depends_on", [])),
-            "timeout_minutes": pkg.get(
-                "timeout_minutes", defaults.get("timeout_minutes", 60)
-            ),
-            "retry_budget": pkg.get(
-                "retry_budget", defaults.get("retry_budget", 1)
-            ),
+            "timeout_minutes": pkg.get("timeout_minutes", defaults.get("timeout_minutes", 60)),
+            "retry_budget": pkg.get("retry_budget", defaults.get("retry_budget", 1)),
         }
         submissions.append(submission)
 
@@ -300,9 +286,7 @@ class DAGScheduler:
         result["checks"]["contracts"] = a2
         if not a2["passed"]:
             result["valid"] = False
-            result["errors"].extend(
-                [f"Missing contract: {f}" for f in a2.get("missing", [])]
-            )
+            result["errors"].extend([f"Missing contract: {f}" for f in a2.get("missing", [])])
             return result
 
         # A3: Compute DAG order
@@ -440,10 +424,7 @@ class DAGScheduler:
 
     def mark_completed(self, package_id: str) -> None:
         """Mark a package as completed and check for newly ready packages."""
-        if (
-            package_id in self.execution_gates
-            and package_id not in self.verified_feature_heads
-        ):
+        if package_id in self.execution_gates and package_id not in self.verified_feature_heads:
             raise FeatureHeadGateError(
                 f"{package_id} has a feature-HEAD barrier; use complete_feature_head_gate"
             )
@@ -480,10 +461,7 @@ class DAGScheduler:
 
     def required_base_for(self, package_id: str) -> str | None:
         """Return the exact verified base inherited from all gated ancestors."""
-        package_map = {
-            package["package_id"]: package
-            for package in self.data.get("packages", [])
-        }
+        package_map = {package["package_id"]: package for package in self.data.get("packages", [])}
         if package_id not in package_map:
             raise FeatureHeadGateError(f"unknown package {package_id}")
         pending = list(package_map[package_id].get("depends_on", []))
@@ -497,15 +475,11 @@ class DAGScheduler:
             if dependency in self.execution_gates:
                 recorded = self.verified_feature_heads.get(dependency)
                 if recorded is None:
-                    raise FeatureHeadGateError(
-                        f"feature-HEAD gate {dependency} is not verified"
-                    )
+                    raise FeatureHeadGateError(f"feature-HEAD gate {dependency} is not verified")
                 bases.add(recorded)
             pending.extend(package_map.get(dependency, {}).get("depends_on", []))
         if len(bases) > 1:
-            raise FeatureHeadGateError(
-                f"{package_id} inherits conflicting verified feature bases"
-            )
+            raise FeatureHeadGateError(f"{package_id} inherits conflicting verified feature bases")
         return next(iter(bases), None)
 
     def submission_for_dispatch(self, package_id: str) -> dict[str, Any]:
@@ -518,21 +492,13 @@ class DAGScheduler:
         if status is None:
             raise FeatureHeadGateError(f"unknown package {package_id}")
         if package_id not in self.get_ready_packages():
-            raise FeatureHeadGateError(
-                f"{package_id} is not ready; dependencies remain incomplete"
-            )
+            raise FeatureHeadGateError(f"{package_id} is not ready; dependencies remain incomplete")
         submission = next(
-            (
-                item
-                for item in self.submissions
-                if item["package_id"] == package_id
-            ),
+            (item for item in self.submissions if item["package_id"] == package_id),
             None,
         )
         if submission is None:
-            raise FeatureHeadGateError(
-                f"no prepared submission exists for {package_id}"
-            )
+            raise FeatureHeadGateError(f"no prepared submission exists for {package_id}")
         fenced = copy.deepcopy(submission)
         required_base = self.required_base_for(package_id)
         if required_base is not None:

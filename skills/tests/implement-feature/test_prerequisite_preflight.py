@@ -113,7 +113,12 @@ class FakeRunner:
             return self._done(args, "openspec/phase-scoped-worktree-lifecycle\n")
         if args[:4] == ("git", "config", "--get", "remote.pushDefault"):
             return self._done(args, "", 1)
-        if args[:4] == ("git", "config", "--get", "branch.openspec/phase-scoped-worktree-lifecycle.remote"):
+        if args[:4] == (
+            "git",
+            "config",
+            "--get",
+            "branch.openspec/phase-scoped-worktree-lifecycle.remote",
+        ):
             return self._done(args, f"{self.remote}\n")
         if args[:3] == ("git", "remote", "get-url"):
             return self._done(args, f"git@github.com:{self.repository}.git\n")

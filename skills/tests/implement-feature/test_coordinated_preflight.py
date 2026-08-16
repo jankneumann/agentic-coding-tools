@@ -25,8 +25,7 @@ from integration_orchestrator import (
 CHANGE = ROOT / "openspec/changes/phase-scoped-worktree-lifecycle"
 WORK_PACKAGES = CHANGE / "work-packages.yaml"
 POINTER = (
-    "openspec/changes/phase-scoped-worktree-lifecycle/"
-    "contracts/prerequisites.yaml#execution_gate"
+    "openspec/changes/phase-scoped-worktree-lifecycle/contracts/prerequisites.yaml#execution_gate"
 )
 BARRIER_COMMIT = "a" * 40
 EVIDENCE_COMMIT = "b" * 40
@@ -35,9 +34,7 @@ EVIDENCE_COMMIT = "b" * 40
 def test_exact_machine_declaration_controls_the_preflight_package() -> None:
     package_data = yaml.safe_load(WORK_PACKAGES.read_text())
     package = next(
-        item
-        for item in package_data["packages"]
-        if item["package_id"] == "wp-baseline-preflight"
+        item for item in package_data["packages"] if item["package_id"] == "wp-baseline-preflight"
     )
 
     assert package["inputs"]["execution_gate_pointer"] == POINTER
@@ -83,10 +80,13 @@ def test_barrier_reverifies_evidence_under_lock_and_records_exact_head() -> None
         branch_lock=lock.acquire,
     )
 
-    assert barrier.verify_and_record(
-        expected_feature_head=EVIDENCE_COMMIT,
-        runtime_revision=BARRIER_COMMIT,
-    ) == EVIDENCE_COMMIT
+    assert (
+        barrier.verify_and_record(
+            expected_feature_head=EVIDENCE_COMMIT,
+            runtime_revision=BARRIER_COMMIT,
+        )
+        == EVIDENCE_COMMIT
+    )
     assert barrier.minimum_dependent_base == EVIDENCE_COMMIT
     assert observed == [(ROOT / declaration["evidence_path"], EVIDENCE_COMMIT)]
     assert lock.entries == 1
@@ -187,7 +187,4 @@ def test_dependent_dispatch_carries_the_exact_verified_feature_base() -> None:
     scheduler.mark_completed("wp-registry")
 
     submission = scheduler.submission_for_dispatch("wp-pr-delivery")
-    assert (
-        submission["input_data"]["package"]["minimum_base_sha"]
-        == EVIDENCE_COMMIT
-    )
+    assert submission["input_data"]["package"]["minimum_base_sha"] == EVIDENCE_COMMIT

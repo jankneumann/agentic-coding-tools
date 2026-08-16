@@ -144,7 +144,9 @@ def sample_yaml(tmp_path: Path, diamond_dag: list[dict[str, Any]]) -> Path:
     # Create the contract file so contract validation passes
     contract_dir = tmp_path / "contracts" / "openapi"
     contract_dir.mkdir(parents=True)
-    (contract_dir / "v1.yaml").write_text("openapi: 3.1.0\ninfo:\n  title: Test\n  version: 1.0.0\npaths: {}")
+    (contract_dir / "v1.yaml").write_text(
+        "openapi: 3.1.0\ninfo:\n  title: Test\n  version: 1.0.0\npaths: {}"
+    )
     return yaml_path
 
 
@@ -264,17 +266,13 @@ class TestBuildContextSlice:
 
 
 class TestPrepareTaskSubmissions:
-    def test_submission_count_matches_packages(
-        self, diamond_dag: list[dict[str, Any]]
-    ) -> None:
+    def test_submission_count_matches_packages(self, diamond_dag: list[dict[str, Any]]) -> None:
         data = _make_work_packages_data(diamond_dag)
         order = compute_topo_order(diamond_dag)
         subs = prepare_task_submissions(data, order)
         assert len(subs) == 4
 
-    def test_submission_order_matches_topo(
-        self, diamond_dag: list[dict[str, Any]]
-    ) -> None:
+    def test_submission_order_matches_topo(self, diamond_dag: list[dict[str, Any]]) -> None:
         data = _make_work_packages_data(diamond_dag)
         order = compute_topo_order(diamond_dag)
         subs = prepare_task_submissions(data, order)
@@ -282,9 +280,7 @@ class TestPrepareTaskSubmissions:
         assert sub_ids[0] == "wp-contracts"
         assert sub_ids[-1] == "wp-integration"
 
-    def test_submission_has_required_fields(
-        self, diamond_dag: list[dict[str, Any]]
-    ) -> None:
+    def test_submission_has_required_fields(self, diamond_dag: list[dict[str, Any]]) -> None:
         data = _make_work_packages_data(diamond_dag)
         order = compute_topo_order(diamond_dag)
         subs = prepare_task_submissions(data, order)
@@ -298,9 +294,7 @@ class TestPrepareTaskSubmissions:
             assert "timeout_minutes" in sub
             assert "retry_budget" in sub
 
-    def test_submission_depends_on_tracks_packages(
-        self, diamond_dag: list[dict[str, Any]]
-    ) -> None:
+    def test_submission_depends_on_tracks_packages(self, diamond_dag: list[dict[str, Any]]) -> None:
         data = _make_work_packages_data(diamond_dag)
         order = compute_topo_order(diamond_dag)
         subs = prepare_task_submissions(data, order)
@@ -427,9 +421,7 @@ class TestDAGSchedulerStateManagement:
         assert summary["all_done"] is True
         assert summary["counts"]["completed"] == 4
 
-    def test_non_barrier_packages_retain_legacy_completion_api(
-        self, sample_yaml: Path
-    ) -> None:
+    def test_non_barrier_packages_retain_legacy_completion_api(self, sample_yaml: Path) -> None:
         scheduler = self._setup_scheduler(sample_yaml)
         scheduler.mark_completed("wp-contracts")
         assert scheduler.package_statuses["wp-contracts"].state == PackageState.COMPLETED
@@ -443,7 +435,14 @@ class TestCLI:
         import subprocess
 
         result = subprocess.run(
-            [sys.executable, "-m", "dag_scheduler", str(sample_yaml), "--base-dir", str(sample_yaml.parent)],
+            [
+                sys.executable,
+                "-m",
+                "dag_scheduler",
+                str(sample_yaml),
+                "--base-dir",
+                str(sample_yaml.parent),
+            ],
             capture_output=True,
             text=True,
             cwd=str(Path(__file__).resolve().parent.parent),
