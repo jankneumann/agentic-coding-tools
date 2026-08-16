@@ -131,6 +131,13 @@
     "setup-coordinator": [
       "coordination-bridge"
     ],
+    "supervise": [
+      "plan-roadmap",
+      "prioritize-proposals",
+      "roadmap-runtime",
+      "shared",
+      "worktree"
+    ],
     "update-specs": [
       "shared"
     ],
@@ -327,6 +334,9 @@
       "distribution": "portable"
     },
     "supabase-postgres-best-practices": {
+      "distribution": "portable"
+    },
+    "supervise": {
       "distribution": "portable"
     },
     "tech-debt-analysis": {
