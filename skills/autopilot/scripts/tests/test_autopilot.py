@@ -695,22 +695,36 @@ def test_smoke_local_rejects_claude_alias_override() -> None:
     assert "Claude alias" in proc.stderr
 
 
-def test_smoke_local_real_mode_reports_fallback_when_unconfigured() -> None:
-    """Real mode with no endpoint reports the degradation, it does not hang."""
+def test_smoke_local_uses_a_trust_boundary_permitted_phase() -> None:
+    """`local` drives INIT/runner, not IMPLEMENT/implementer (trust boundary D3)."""
+    proc = _run_smoke("--provider", "local", "--dry-run", "--json")
+
+    assert proc.returncode == 0, proc.stderr
+    body = json.loads(proc.stdout)
+    assert body["payload"]["phase"] == "INIT"
+    assert body["payload"]["archetype"] in {
+        "runner",
+        "analyst",
+        "documenter",
+        "validator",
+    }
+
+
+def test_smoke_local_real_mode_refuses_an_unresolved_archetype() -> None:
+    """A resolver refusal is a hard smoke failure — never a dispatch anyway."""
     started = time.monotonic()
     proc = _run_smoke("--provider", "local", "--json")
     elapsed = time.monotonic() - started
 
     assert elapsed < 60
     assert proc.returncode != 0
-    body = json.loads(proc.stdout)
-    assert body["result"]["dispatch_tier"] == "fallback"
-    assert body["result"]["outcome"] == "failed"
-    assert any("local" in w for w in body["result"]["warnings"])
+    assert proc.stdout.strip() == "", "no dispatch result may be produced"
+    assert "trust boundary" in proc.stderr
+    assert "No dispatch attempted" in proc.stderr
 
 
-def test_smoke_local_real_mode_unreachable_endpoint_degrades() -> None:
-    """A configured-but-dead endpoint degrades to fallback within the probe budget."""
+def test_smoke_local_real_mode_unreachable_endpoint_refuses_before_dispatch() -> None:
+    """Even with an endpoint configured, an unconfirmed archetype stops the run."""
     started = time.monotonic()
     proc = _run_smoke(
         "--provider",
@@ -722,8 +736,45 @@ def test_smoke_local_real_mode_unreachable_endpoint_degrades() -> None:
 
     assert elapsed < 60
     assert proc.returncode != 0
-    body = json.loads(proc.stdout)
+    assert "trust boundary" in proc.stderr
+    assert "No dispatch attempted" in proc.stderr
+
+
+def test_smoke_local_real_mode_reports_fallback_for_a_dead_endpoint(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """With the resolver confirming a permitted archetype, a dead endpoint
+    degrades to the structured fallback instead of hanging (spec: local smoke)."""
+    sys.path.insert(0, str(_REPO_ROOT / "skills" / "session-log" / "scripts"))
+    import phase_agent
+    import provider_dispatch
+    import smoke_provider_dispatch
+
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://127.0.0.1:9/v1")
+    monkeypatch.setattr(
+        phase_agent.coordination_bridge,
+        "try_resolve_archetype_for_phase",
+        lambda *a, **k: {
+            "archetype": "runner",
+            "model": "qwen3-coder-30b-a3b",
+            "system_prompt": "You are a focused runner.",
+        },
+    )
+    provider_dispatch.reset_local_adapter_state()
+
+    started = time.monotonic()
+    exit_code = smoke_provider_dispatch.main(["--provider", "local", "--json"])
+    elapsed = time.monotonic() - started
+    provider_dispatch.reset_local_adapter_state()
+
+    assert elapsed < 60
+    assert exit_code == 1
+    body = json.loads(capsys.readouterr().out)
+    assert body["payload"]["phase"] == "INIT"
+    assert body["payload"]["archetype"] == "runner"
+    assert body["payload"]["model"] == "qwen3-coder-30b-a3b"
     assert body["result"]["dispatch_tier"] == "fallback"
+    assert body["result"]["outcome"] == "failed"
     assert any("local" in w for w in body["result"]["warnings"])
 
 

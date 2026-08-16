@@ -30,13 +30,38 @@
 
 ## Review Findings Summary
 
+Independent same-vendor review (C3 fallback: no non-claude vendor CLIs in this
+container; vendor-diversity waived with the degradation reported). Verdict
+request-changes -> all critical/major fixed -> re-verified green.
+
 | Finding ID | Package | Type | Criticality | Disposition | Resolution |
 |------------|---------|------|-------------|-------------|------------|
+| F-01 | wp-dispatch | spec-violation | critical | fixed | Smoke uses INIT/runner inside the boundary; resolver refusal is a hard exit-2 failure, no fallback dispatch |
+| F-02 | wp-dispatch | defense-in-depth | major | fixed | Adapter allowlist check before any request; absent/refused archetype degrades to structured fallback (dry-run mirrors) |
+| F-03 | wp-dispatch | liveness | major | fixed | Probe cache TTL 30s (monotonic) + invalidation on connection-error dispatch failures |
+| F-04 | wp-dispatch | robustness | major | fixed | Wall-clock deadlines via bounded worker (probe 3s, dispatch 300s); semaphore acquire timeout with fallback; slot freed in finally |
+| F-05 | wp-coordinator | contract | major | fixed | Served map strips local entries to canonical tierEntry form; schema-validation tests over default and loaded maps |
+| F-06 | wp-coordinator | contract | major | fixed | OpenAPI 403 delta added to contracts/openapi/v1.yaml; README no-HTTP-change claim corrected |
+| F-07 | wp-dispatch | security | minor | fixed | Base URL scheme restricted to http/https |
+| F-08 | wp-dispatch | security | minor | fixed | 10 MB response byte budget, fails closed |
+| F-09 | wp-dispatch | concurrency | minor | fixed | Cap read once per process; no semaphore swap |
+| F-10 | wp-dispatch | concurrency | minor | fixed | Cold probe single-flight behind lock |
+| F-11 | wp-dispatch | documentation | minor | fixed | Docstring + docs state cap is per-process, not host-level |
+| F-12 | wp-dispatch | security | minor | fixed | Warnings carry exception class name only; full text at debug |
+| F-13 | wp-coordinator | spec-gap | minor | fixed | Local frontier->premium degradation records a reason (falls through to best-defined-tier branch) |
+| F-14 | wp-dispatch | spec-violation | minor | fixed | Unresolved model degrades to fallback; no 'default' substitution |
+| F-15 | wp-dispatch | operator-ux | minor | deferred | Follow-up filed: bridge should surface 403 trust-boundary distinctly from transport failure (cross-cutting shared resolution path) |
+| F-16 | wp-coordinator | validation | minor | fixed | Review dates parsed with date.fromisoformat (regex AND parse); impossible dates rejected |
+| F-17 | wp-coordinator | code-clarity | info | fixed | Comment documents jsonschema-first ordering; check guards direct callers |
+| F-18 | wp-coordinator | churn | info | fixed | Schema description em-dash restored; diff scoped to enum addition |
+| F-19 | wp-coordinator | test-coverage | info | fixed | Contract tests cover local tier rules, strict cloud shapes, unknown providers, and runtime map validation |
+| F-20 | wp-dispatch | validation | info | fixed | Concurrency cap clamped to 64 with warning |
 
 ## Coverage Summary
 
 - **Requirements traced**: 11/11
 - **Tests mapped**: 11 requirements have at least one test
 - **Evidence collected**: 11/11 requirements have pass/fail evidence (gates at 06a8951: coordinator 2202 passed + mypy --strict + ruff; skills 2368 passed + ruff; openspec --strict valid)
+- **Review findings**: 20 (1 critical, 5 major, 10 minor, 4 info) — 19 fixed, 1 deferred (F-15 follow-up)
 - **Gaps identified**: live-service smoke skipped (no Docker daemon in cloud container; soft gate); 7 pre-existing e2e failures in skills/tests/autopilot/test_phase_{dispatch,archetype}_e2e.py confirmed on baseline before this change
 - **Deferred items**: ---

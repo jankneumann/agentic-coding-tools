@@ -41,28 +41,89 @@ _FALLBACK_MODELS = {
 _DEFAULT_FALLBACK_MODEL = "default"
 _SUPPORTED_PROVIDERS = ["claude_code", "codex", "antigravity", "grok", "pi", "local"]
 
+_LOCAL_PROVIDER = "local"
+_DEFAULT_SMOKE_PHASE = "IMPLEMENT"
+# `local` sits behind the resolver's archetype trust boundary (OpenSpec
+# add-local-model-provider-tier, D3): only archetypes whose output is cheap to
+# discard or verified downstream may be served locally. IMPLEMENT resolves to
+# `implementer`, which the resolver refuses — so the smoke drives INIT (which
+# maps to `runner`) for `local` instead of building a payload that can only ever
+# be refused, or worse, dispatched behind the resolver's back.
+_LOCAL_SMOKE_PHASE = "INIT"
+_LOCAL_TRUSTED_ARCHETYPES = frozenset({"runner", "analyst", "documenter", "validator"})
+# Offline dry-run fixture: no resolver, no dispatch, so the smoke declares the
+# phase's static archetype from archetypes.yaml (INIT -> runner) alongside the
+# fallback model. Real mode never uses it — see _build_payload.
+_LOCAL_DRY_RUN_ARCHETYPE = "runner"
+
 
 class ProviderModelMappingError(ValueError):
     """Raised when a provider is paired with a Claude-only model alias."""
 
 
-def _build_payload(provider: str, model_override: str | None) -> PhaseDispatchPayload:
+class LocalTrustBoundaryError(RuntimeError):
+    """Raised when a real-mode `local` smoke cannot prove a permitted archetype.
+
+    The resolver is the single decision point for the `local` trust boundary. If
+    it refuses the pairing (or is unreachable, which is indistinguishable from a
+    refusal at this layer), the smoke fails here: it must not fall through to a
+    hardcoded model and dispatch to the endpoint anyway.
+    """
+
+
+def _smoke_phase(provider: str) -> str:
+    return _LOCAL_SMOKE_PHASE if provider == _LOCAL_PROVIDER else _DEFAULT_SMOKE_PHASE
+
+
+def _build_payload(
+    provider: str,
+    model_override: str | None,
+    *,
+    dry_run: bool = False,
+) -> PhaseDispatchPayload:
     if provider != "claude_code" and model_override in _CLAUDE_ALIASES:
         raise ProviderModelMappingError(provider, model_override or "")
 
+    phase = _smoke_phase(provider)
     state = {
         "loc_estimate": 25,
         "write_allow": ["skills/autopilot/**"],
         "dependencies": [],
     }
     options = phase_agent._build_options(  # noqa: SLF001 - canonical public bridge path
-        "IMPLEMENT", state, provider=provider
+        phase, state, provider=provider
     )
-    model = (
-        model_override
-        or options.get("model")
-        or _FALLBACK_MODELS.get(provider, _DEFAULT_FALLBACK_MODEL)
-    )
+    archetype = state.get("_resolved_archetype")
+
+    if provider == _LOCAL_PROVIDER:
+        if dry_run:
+            # Offline fixture; nothing leaves the process.
+            archetype = archetype or _LOCAL_DRY_RUN_ARCHETYPE
+        elif not archetype:
+            raise LocalTrustBoundaryError(
+                f"the resolver returned no archetype for phase {phase} under "
+                f"provider 'local' (refusal or coordinator unavailable); "
+                f"permitted archetypes: {', '.join(sorted(_LOCAL_TRUSTED_ARCHETYPES))}. "
+                "No dispatch attempted."
+            )
+        if archetype not in _LOCAL_TRUSTED_ARCHETYPES:
+            raise LocalTrustBoundaryError(
+                f"archetype {archetype!r} (phase {phase}) is outside the 'local' "
+                f"provider trust boundary; permitted archetypes: "
+                f"{', '.join(sorted(_LOCAL_TRUSTED_ARCHETYPES))}. No dispatch attempted."
+            )
+
+    model = model_override or options.get("model")
+    if not model:
+        if provider == _LOCAL_PROVIDER and not dry_run:
+            # Unreachable in practice (a resolved archetype carries a model), but
+            # the invariant is explicit: real local mode never ships a hardcoded
+            # model to the endpoint.
+            raise LocalTrustBoundaryError(
+                f"the resolver returned no model for phase {phase} under provider "
+                "'local'. No dispatch attempted."
+            )
+        model = _FALLBACK_MODELS.get(provider, _DEFAULT_FALLBACK_MODEL)
     if provider != "claude_code" and model in _CLAUDE_ALIASES:
         raise ProviderModelMappingError(provider, model)
 
@@ -73,8 +134,8 @@ def _build_payload(provider: str, model_override: str | None) -> PhaseDispatchPa
         summary="dry-run provider dispatch smoke",
     )
     prompt = phase_agent._build_prompt(  # noqa: SLF001 - smoke uses canonical helper
-        "IMPLEMENT",
-        {"change_id": "vendor-neutral-autopilot-smoke", "current_phase": "IMPLEMENT"},
+        phase,
+        {"change_id": "vendor-neutral-autopilot-smoke", "current_phase": phase},
         incoming,
         artifacts_manifest=["openspec/changes/vendor-neutral-autopilot/design.md"],
     )
@@ -85,13 +146,13 @@ def _build_payload(provider: str, model_override: str | None) -> PhaseDispatchPa
     return PhaseDispatchPayload(
         schema_version=1,
         change_id="vendor-neutral-autopilot-smoke",
-        phase="IMPLEMENT",
+        phase=phase,
         provider=provider,
-        archetype=state.get("_resolved_archetype"),
+        archetype=archetype,
         model=model,
         prompt=prompt,
         system_prompt=system_prompt,
-        isolation="worktree",
+        isolation=options.get("isolation"),
         expected_outcomes=["complete", "failed"],
     )
 
@@ -104,10 +165,13 @@ def main(argv: list[str] | None = None) -> int:
         choices=_SUPPORTED_PROVIDERS,
         help=(
             "Provider selector, restricted to the supported roster. `local` "
-            "dispatches over the OpenAI-compatible protocol to "
-            "LOCAL_INFERENCE_BASE_URL in real mode; with that variable unset or "
-            "the endpoint unreachable the run reports the structured fallback "
-            "degradation instead of hanging."
+            "runs the INIT phase (archetype `runner`) to stay inside the local "
+            "provider trust boundary, and dispatches over the OpenAI-compatible "
+            "protocol to LOCAL_INFERENCE_BASE_URL in real mode; with that "
+            "variable unset or the endpoint unreachable the run reports the "
+            "structured fallback degradation instead of hanging. A real-mode run "
+            "whose archetype the resolver will not confirm fails without "
+            "dispatching."
         ),
     )
     parser.add_argument("--model", help="Optional model override for negative smoke tests")
@@ -116,9 +180,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        payload = _build_payload(args.provider, args.model)
+        payload = _build_payload(args.provider, args.model, dry_run=args.dry_run)
     except ProviderModelMappingError as exc:
         print(f"Provider model mapping error: Claude alias or missing mapping: {exc}", file=sys.stderr)
+        return 2
+    except LocalTrustBoundaryError as exc:
+        print(f"Local provider trust boundary error: {exc}", file=sys.stderr)
         return 2
 
     result = dispatch_phase(payload, dry_run=args.dry_run)

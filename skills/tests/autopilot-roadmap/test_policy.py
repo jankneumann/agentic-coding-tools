@@ -344,3 +344,23 @@ class TestLocalEndpointGate:
         )
 
         assert decision.to_vendor == "codex"
+
+    def test_probe_is_reconsulted_every_evaluation(self):
+        """A transient failure must not blackhole `local` for the process."""
+        import policy as policy_mod
+
+        verdicts = iter([False, True])
+        policy_mod.set_local_endpoint_probe(lambda: next(verdicts))
+
+        def _decide():
+            return evaluate_policy(
+                policy=Policy(
+                    default_action=PolicyAction.SWITCH, preferred_vendor="local"
+                ),
+                vendor_limit=VendorLimit(vendor="claude", reason="rate limit"),
+                available_vendors=["local", "codex"],
+                switch_attempts=0,
+            )
+
+        assert _decide().to_vendor == "codex"
+        assert _decide().to_vendor == "local"

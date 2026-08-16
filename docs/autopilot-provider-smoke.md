@@ -40,11 +40,13 @@ skills/.venv/bin/python skills/autopilot/scripts/smoke_provider_dispatch.py \
 
 Real mode requires `LOCAL_INFERENCE_BASE_URL` (the base URL includes the API
 version prefix, e.g. `http://gx10.local:8080/v1`; optional
-`LOCAL_INFERENCE_API_KEY`, `LOCAL_INFERENCE_MAX_CONCURRENCY` default 4). With
-the endpoint unset or unreachable, the smoke reports the structured `fallback`
-degradation as its outcome instead of hanging — that result is the expected
-"provider inert" state, not a smoke failure. Note that `local` resolution is
-restricted by the archetype trust boundary (`runner`, `analyst`, `documenter`,
-`validator` only), so coordinator-backed resolution of the smoke's IMPLEMENT
-payload is refused by design; the smoke uses its offline fallback model map in
-that case.
+`LOCAL_INFERENCE_API_KEY`, `LOCAL_INFERENCE_MAX_CONCURRENCY` default 4,
+clamped to 64). To stay inside the archetype trust boundary (`runner`,
+`analyst`, `documenter`, `validator` only), the `local` smoke builds an INIT
+phase payload (archetype `runner`) rather than IMPLEMENT. Real mode requires a
+resolver-confirmed permitted archetype and exits 2 without dispatching
+otherwise; with the archetype confirmed and the endpoint unset or unreachable,
+it reports the structured `fallback` degradation as its outcome instead of
+hanging — the expected "provider inert" state, not a smoke failure. The
+dispatch adapter independently refuses non-permitted archetypes
+(defence-in-depth), and its concurrency cap is per-process, not host-level.

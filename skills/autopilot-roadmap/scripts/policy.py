@@ -161,6 +161,11 @@ def _local_endpoint_available() -> bool:
     Falls back to ``provider_dispatch.local_endpoint_available`` (the adapter that
     owns the probe). Any failure to consult the probe is read as *unavailable* —
     the engine never switches onto an endpoint it cannot verify.
+
+    The verdict is re-consulted on every evaluation and is never memoized here:
+    the adapter's own verdict is TTL'd (and invalidated on a dispatch connection
+    error), so an endpoint that recovers becomes selectable again, and one that
+    dies stops being selected — neither state is pinned for the process lifetime.
     """
     probe = _local_endpoint_probe
     if probe is None:

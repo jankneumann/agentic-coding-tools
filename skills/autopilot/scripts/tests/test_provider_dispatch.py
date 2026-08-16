@@ -211,8 +211,8 @@ def test_local_endpoint_available_reflects_probe(
     assert local_endpoint_available() is True
 
 
-def test_probe_runs_once_per_process(monkeypatch: pytest.MonkeyPatch) -> None:
-    """One health probe per process; the result is cached until reset."""
+def test_probe_is_cached_within_its_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Repeat dispatches inside the TTL share one health probe."""
     monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
     calls: list[str] = []
 
@@ -237,6 +237,395 @@ def test_probe_runs_once_per_process(monkeypatch: pytest.MonkeyPatch) -> None:
     provider_dispatch.reset_local_adapter_state()
     assert local_endpoint_available() is True
     assert len(calls) == 2
+
+
+def test_probe_verdict_expires_after_the_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The verdict is a cache, not a fact: it must not outlive its TTL."""
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    monkeypatch.setattr(provider_dispatch, "_LOCAL_PROBE_TTL_SECONDS", 0.05)
+    calls: list[str] = []
+
+    def _probe(url: str, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+        calls.append(url)
+        return {"data": []}
+
+    monkeypatch.setattr(provider_dispatch, "_http_get_json", _probe)
+
+    assert local_endpoint_available() is True
+    assert local_endpoint_available() is True
+    assert len(calls) == 1
+
+    time.sleep(0.06)
+    assert local_endpoint_available() is True
+    assert len(calls) == 2
+
+
+def test_transient_probe_failure_does_not_blackhole_local(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One bad probe must not pin `local` unavailable for the whole process."""
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    monkeypatch.setattr(provider_dispatch, "_LOCAL_PROBE_TTL_SECONDS", 0.05)
+    attempts = {"n": 0}
+
+    def _probe(url: str, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise OSError("transient connection reset")
+        return {"data": []}
+
+    monkeypatch.setattr(provider_dispatch, "_http_get_json", _probe)
+
+    assert local_endpoint_available() is False
+    time.sleep(0.06)
+    assert local_endpoint_available() is True
+
+
+def test_dispatch_connection_error_invalidates_the_probe_verdict(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A dead-after-probe endpoint must not keep passing as reachable."""
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    probes = {"n": 0}
+
+    def _probe(url: str, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+        probes["n"] += 1
+        if probes["n"] == 1:
+            return {"data": []}
+        raise OSError("endpoint died")
+
+    monkeypatch.setattr(provider_dispatch, "_http_get_json", _probe)
+
+    def _post_fails(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(provider_dispatch, "_http_post_json", _post_fails)
+
+    first = dispatch_phase(_payload())
+    assert first.dispatch_tier == "fallback"
+    assert probes["n"] == 1
+
+    # The cached "reachable" verdict was dropped by the connection error, so the
+    # next caller re-probes (and now sees the endpoint is gone).
+    assert local_endpoint_available() is False
+    assert probes["n"] == 2
+
+
+def test_cold_probe_is_single_flight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Concurrent cold callers collapse onto one probe request."""
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    calls: list[str] = []
+    calls_lock = threading.Lock()
+    release = threading.Event()
+
+    def _probe(url: str, headers: dict[str, str], timeout: float) -> dict[str, Any]:
+        with calls_lock:
+            calls.append(url)
+        release.wait(2.0)
+        return {"data": []}
+
+    monkeypatch.setattr(provider_dispatch, "_http_get_json", _probe)
+
+    verdicts: list[bool] = []
+    verdicts_lock = threading.Lock()
+
+    def _worker() -> None:
+        verdict = local_endpoint_available()
+        with verdicts_lock:
+            verdicts.append(verdict)
+
+    threads = [threading.Thread(target=_worker) for _ in range(5)]
+    for thread in threads:
+        thread.start()
+    time.sleep(0.1)
+    release.set()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert all(not t.is_alive() for t in threads)
+    assert verdicts == [True] * 5
+    assert len(calls) == 1, f"cold probe fanned out: {len(calls)} requests"
+
+
+# ---------------------------------------------------------------------------
+# Endpoint URL validation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "raw", ["file:///etc/passwd", "ftp://gx10.local/v1", "gx10.local:8080/v1"]
+)
+def test_non_http_base_url_is_rejected_without_probing(
+    monkeypatch: pytest.MonkeyPatch, raw: str
+) -> None:
+    """A non-http(s) endpoint is a misconfiguration, not something to call."""
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", raw)
+
+    def _boom(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise AssertionError("network layer must not be called")
+
+    monkeypatch.setattr(provider_dispatch, "_http_get_json", _boom)
+    monkeypatch.setattr(provider_dispatch, "_http_post_json", _boom)
+
+    assert local_endpoint_available() is False
+
+    result = dispatch_phase(_payload())
+    assert result.dispatch_tier == "fallback"
+    assert any("http://" in w for w in result.warnings)
+
+
+def test_https_base_url_is_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "https://gx10.local:8443/v1")
+    monkeypatch.setattr(
+        provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
+    )
+
+    assert local_endpoint_available() is True
+
+
+# ---------------------------------------------------------------------------
+# Archetype trust boundary (defence in depth for the resolver's D3 gate)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "archetype", ["implementer", "architect", "reviewer", "gatekeeper", "", None]
+)
+def test_untrusted_archetype_never_reaches_the_endpoint(
+    monkeypatch: pytest.MonkeyPatch, archetype: str | None
+) -> None:
+    """No dispatch is attempted for an archetype outside the trust boundary."""
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+
+    def _boom(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise AssertionError("trust-boundary payload must not touch the network")
+
+    monkeypatch.setattr(provider_dispatch, "_http_get_json", _boom)
+    monkeypatch.setattr(provider_dispatch, "_http_post_json", _boom)
+
+    result = dispatch_phase(_payload(archetype=archetype, phase="IMPLEMENT"))
+
+    assert result.dispatch_tier == "fallback"
+    assert result.outcome == "failed"
+    assert any("trust boundary" in w for w in result.warnings)
+    assert any("local" in w for w in result.warnings)
+
+
+@pytest.mark.parametrize("archetype", ["runner", "analyst", "documenter", "validator"])
+def test_trusted_archetypes_dispatch(
+    monkeypatch: pytest.MonkeyPatch, archetype: str
+) -> None:
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    monkeypatch.setattr(
+        provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
+    )
+    monkeypatch.setattr(
+        provider_dispatch, "_http_post_json", lambda *a, **k: _chat_response("done")
+    )
+
+    result = dispatch_phase(_payload(archetype=archetype))
+
+    assert result.outcome == "complete"
+    assert result.dispatch_tier == "harness"
+
+
+def test_untrusted_archetype_also_fails_the_dry_run() -> None:
+    """Dry run models the real decision path instead of reporting a false pass."""
+    result = dispatch_phase(_payload(archetype="implementer"), dry_run=True)
+
+    assert result.outcome == "failed"
+    assert result.dispatch_tier == "dry_run"
+    assert result.handoff_id == "dry-run:local:IMPLEMENT:trust-boundary"
+    assert any("trust boundary" in w for w in result.warnings)
+
+
+def test_trust_boundary_does_not_gate_other_providers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rule 4: the allowlist is inert for every pre-existing provider."""
+    result = dispatch_phase(
+        _payload(provider="codex", model="gpt-5.5", archetype="implementer"),
+        dry_run=True,
+    )
+
+    assert result.outcome == "complete"
+    assert result.dispatch_tier == "dry_run"
+
+
+# ---------------------------------------------------------------------------
+# Unresolved model
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("model", [None, ""])
+def test_unresolved_model_degrades_instead_of_sending_a_placeholder(
+    monkeypatch: pytest.MonkeyPatch, model: str | None
+) -> None:
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+
+    def _boom(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise AssertionError("a payload without a model must not be dispatched")
+
+    monkeypatch.setattr(provider_dispatch, "_http_get_json", _boom)
+    monkeypatch.setattr(provider_dispatch, "_http_post_json", _boom)
+
+    result = dispatch_phase(_payload(model=model))
+
+    assert result.dispatch_tier == "fallback"
+    assert result.outcome == "failed"
+    assert any("no model resolved" in w for w in result.warnings)
+
+
+# ---------------------------------------------------------------------------
+# Wall-clock deadlines and response budget
+# ---------------------------------------------------------------------------
+
+
+def test_trickling_endpoint_hits_the_dispatch_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A byte-trickling endpoint must not park the phase past the deadline."""
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    monkeypatch.setattr(provider_dispatch, "_LOCAL_DISPATCH_TIMEOUT_SECONDS", 0.2)
+    monkeypatch.setattr(
+        provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
+    )
+
+    stop = threading.Event()
+
+    def _trickle(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        stop.wait(30)  # never returns within the deadline
+        return _chat_response("too late")
+
+    monkeypatch.setattr(provider_dispatch, "_http_post_json", _trickle)
+
+    started = time.monotonic()
+    result = dispatch_phase(_payload())
+    elapsed = time.monotonic() - started
+    stop.set()
+
+    assert elapsed < 5.0
+    assert result.dispatch_tier == "fallback"
+    assert result.outcome == "failed"
+    assert any("LocalDeadlineExceeded" in w for w in result.warnings)
+
+
+def test_trickling_endpoint_frees_its_concurrency_slot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stuck dispatch must not hold a semaphore slot forever."""
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    monkeypatch.setenv("LOCAL_INFERENCE_MAX_CONCURRENCY", "1")
+    monkeypatch.setattr(provider_dispatch, "_LOCAL_DISPATCH_TIMEOUT_SECONDS", 0.2)
+    monkeypatch.setattr(
+        provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
+    )
+
+    stop = threading.Event()
+    calls = {"n": 0}
+
+    def _post(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            stop.wait(30)
+            return _chat_response("too late")
+        return _chat_response("done")
+
+    monkeypatch.setattr(provider_dispatch, "_http_post_json", _post)
+
+    assert dispatch_phase(_payload()).dispatch_tier == "fallback"
+    second = dispatch_phase(_payload())
+    stop.set()
+
+    assert second.outcome == "complete", "the wedged dispatch kept its slot"
+
+
+def test_gate_timeout_degrades_to_the_structured_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    monkeypatch.setattr(provider_dispatch, "_LOCAL_GATE_ACQUIRE_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(
+        provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
+    )
+    monkeypatch.setattr(
+        provider_dispatch, "_http_post_json", lambda *a, **k: _chat_response("done")
+    )
+
+    # Warm the gate, then take its only slot so the dispatcher cannot get one.
+    monkeypatch.setenv("LOCAL_INFERENCE_MAX_CONCURRENCY", "1")
+    gate = provider_dispatch._local_gate()
+    assert gate.acquire(timeout=1) is True
+    try:
+        result = dispatch_phase(_payload())
+    finally:
+        gate.release()
+
+    assert result.dispatch_tier == "fallback"
+    assert result.outcome == "failed"
+    assert any("LocalGateTimeout" in w for w in result.warnings)
+
+
+def test_oversized_response_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The byte budget is enforced by the transport, not the caller."""
+
+    class _FakeResponse:
+        def read(self, amount: int | None = None) -> bytes:
+            assert amount is not None
+            return b"x" * amount
+
+        def __enter__(self) -> "_FakeResponse":
+            return self
+
+        def __exit__(self, *exc: Any) -> None:
+            return None
+
+    monkeypatch.setattr(
+        provider_dispatch.urllib.request, "urlopen", lambda *a, **k: _FakeResponse()
+    )
+
+    with pytest.raises(provider_dispatch.LocalResponseTooLarge):
+        provider_dispatch._http_get_json("http://gx10.local:8080/v1/models", {}, 1.0)
+
+
+def test_oversized_dispatch_response_degrades_to_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    monkeypatch.setattr(
+        provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
+    )
+
+    def _too_big(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise provider_dispatch.LocalResponseTooLarge("too big")
+
+    monkeypatch.setattr(provider_dispatch, "_http_post_json", _too_big)
+
+    result = dispatch_phase(_payload())
+
+    assert result.dispatch_tier == "fallback"
+    assert result.outcome == "failed"
+    assert any("LocalResponseTooLarge" in w for w in result.warnings)
+
+
+def test_dispatch_warning_carries_only_the_exception_class(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Endpoint-controlled text stays out of the user-visible warning."""
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    monkeypatch.setattr(
+        provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
+    )
+
+    def _post_fails(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise OSError("<script>alert(1)</script> secret-token leaked here")
+
+    monkeypatch.setattr(provider_dispatch, "_http_post_json", _post_fails)
+
+    result = dispatch_phase(_payload())
+
+    assert any("OSError" in w for w in result.warnings)
+    assert not any("secret-token" in w for w in result.warnings)
 
 
 # ---------------------------------------------------------------------------
@@ -454,3 +843,22 @@ def test_invalid_concurrency_values_fall_back_to_default(
 ) -> None:
     monkeypatch.setenv("LOCAL_INFERENCE_MAX_CONCURRENCY", raw)
     assert provider_dispatch._local_max_concurrency() == 4
+
+
+def test_absurd_concurrency_value_is_clamped(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LOCAL_INFERENCE_MAX_CONCURRENCY", "100000")
+    assert provider_dispatch._local_max_concurrency() == 64
+
+
+def test_concurrency_cap_is_read_once_per_process(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Re-reading the cap per dispatch would swap the gate and over-admit."""
+    monkeypatch.setenv("LOCAL_INFERENCE_MAX_CONCURRENCY", "2")
+    gate = provider_dispatch._local_gate()
+
+    monkeypatch.setenv("LOCAL_INFERENCE_MAX_CONCURRENCY", "8")
+    assert provider_dispatch._local_gate() is gate
+
+    provider_dispatch.reset_local_adapter_state()
+    assert provider_dispatch._local_gate() is not gate

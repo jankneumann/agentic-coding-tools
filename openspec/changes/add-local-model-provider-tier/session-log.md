@@ -37,3 +37,47 @@
 ### Context
 Planned the local model provider tier for GX10-hosted dispatch: a sixth first-class provider following the pi precedent, with the MoE-first hardware-matching rule and archetype trust boundary encoded as enforced config. Tier: coordinated; Gate 1 selected Approach 1 (first-class provider).
 
+---
+
+## Phase: Implementation (2026-08-16)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Defense-in-depth trust boundary in the adapter** `architectural: skill-workflow` — Review F-02: resolver-only enforcement is defeated when the coordinator is unreachable; the local dispatch path now refuses absent/non-permitted archetypes itself
+2. **Probe cache TTL 30s + connection-error invalidation** `architectural: skill-workflow` — Review F-03: a permanent verdict cannot express liveness; policy engine re-consults each evaluation
+3. **Served model map strips local roster metadata** `architectural: agent-archetypes` — Review F-05: hardware metadata is load-time validation input, not part of the canonical ProviderModelMap contract
+4. **Smoke path uses INIT/runner for local** `architectural: skill-workflow` — Review F-01 (critical): the IMPLEMENT payload violated the trust boundary the change itself introduces; refusals are now hard smoke failures
+5. **403 refusal declared as OpenAPI delta** `architectural: agent-archetypes` — Review F-06: new response shape is a contract change and must be declared in this change's contracts
+
+### Alternatives Considered
+- Extend provider-model-map schema to admit extended roster entries: rejected because Metadata would leak into every map consumer; stripping at normalization keeps the served contract stable
+- Multi-vendor review convergence: rejected because No non-claude vendor CLIs configured in this cloud container; fell back to independent same-vendor review and reported the degradation
+
+### Trade-offs
+- Accepted Per-process concurrency cap over Host-level cross-process cap because Documented limitation (F-11); host-level protection needs a coordinator lease, deferred with the adaptive-router work
+- Accepted Caller-supplied runner bypasses the adapter boundary check over Gating injected runners too because Reviewer scoped F-02 to the built-in path; resolver remains the primary gate and injected runners are the provider-harness escape hatch
+
+### Open Questions
+- [ ] F-15 follow-up: coordination_bridge should surface 403 trust-boundary refusals distinctly from transport failures instead of the generic non-200 warning
+- [ ] skills/pyproject.toml testpaths omits autopilot/scripts/tests and tests/autopilot-roadmap, so CI never runs them (pre-existing; both green when run explicitly)
+- [ ] token_budget_check.py provider roster omits local (pre-existing roster duplication)
+
+### Completed Work
+- wp-contracts: roster-entry contract validated and frozen (+ OpenAPI 403 delta in review round)
+- wp-coordinator: local roster with hardware-matching validation, trust boundary with audited 403 refusals, byte-identical regression guard (2208 coordinator tests green, mypy --strict, ruff)
+- wp-dispatch: OpenAI-compatible adapter with probe TTL, wall-clock deadlines, concurrency cap, defense-in-depth allowlist; policy-engine gate; smoke selector (2368 skills tests green, ruff)
+- wp-integration: operator docs, provider-model-map schema delta, full quality gates, review round with 19/20 findings fixed
+
+### Next Steps
+- validate-feature deferred phases (deploy/smoke/security/e2e) at merge time — Docker unavailable in this container (soft-gate skip recorded)
+- File the F-15 bridge follow-up as a coordinator issue
+
+### Relevant Files
+- `skills/autopilot/scripts/provider_dispatch.py` — local adapter with boundary check, probe, deadlines, cap
+- `agent-coordinator/src/agents_config.py` — roster validation, trust boundary, served-map normalization
+- `openspec/changes/add-local-model-provider-tier/change-context.md` — traceability matrix + 20 review findings with dispositions
+
+### Context
+Implemented the local provider tier across four work packages in the coordinated tier (cloud variant: single checkout, file-scope isolation, parallel implementer sub-agents). Independent review (same-vendor fallback) returned request-changes with 20 findings; all critical/major and 18 of 20 total were fixed in a second round, one deferred as a follow-up.
+

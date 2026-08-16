@@ -99,9 +99,9 @@
   **Dependencies**: 4.2
   **Files**: docs/autopilot-phase-archetype-resolution.md, docs/autopilot-provider-smoke.md
 
-- [ ] 4.4 Run full quality gates (pytest, mypy --strict, ruff) across
+- [x] 4.4 Run full quality gates (pytest, mypy --strict, ruff) across
   agent-coordinator and skills venvs; fix fallout (S)
   **Dependencies**: 4.3
   **Files**: (no new files)
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
