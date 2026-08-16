@@ -567,7 +567,13 @@ def run_gate(
     impact = run_context_impact(
         repo_root, list(changed_files), rules=rules, runner=context_impact_runner
     )
-    report = render_report(repo_root, refresh, impact, revision=revision)
+    report = render_report(
+        repo_root,
+        refresh,
+        impact,
+        revision=revision,
+        tree=describe_tree(repo_root, base, fallback_head=revision),
+    )
     return GateResult(report=report, exit_code=report["exit_code"])
 
 
@@ -577,6 +583,7 @@ def render_report(
     impact: ContextImpactOutcome,
     *,
     revision: str | None = None,
+    tree: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Render the gate report, joining every result with its canonical owner.
 
@@ -655,6 +662,9 @@ def render_report(
     return {
         "schema_version": GATE_SCHEMA_VERSION,
         "source_revision": revision or _resolve_revision(repository),
+        "tree": tree
+        if tree is not None
+        else describe_tree(repository, fallback_head=revision),
         "outcome": outcome,
         "exit_code": exit_code,
         "blocking_drift": blocking,
@@ -686,6 +696,63 @@ def _resolve_revision(repository: Path) -> str:
     return revision
 
 
+def _git_lines(repository: Path, *args: str) -> str | None:
+    completed = subprocess.run(
+        ["git", "-C", str(repository), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return completed.stdout.strip() if completed.returncode == 0 else None
+
+
+def describe_tree(
+    repository: Path,
+    base: str = DEFAULT_BASE,
+    *,
+    fallback_head: str | None = None,
+) -> dict[str, Any]:
+    """Name the tree this verdict applies to (issue #385).
+
+    A gate verdict is only comparable across environments when both graded the
+    same tree. The green-local/red-CI split behind issue #385 was two runs
+    grading *different* trees — a local checkout dozens of commits behind the
+    revision CI tested — with nothing in either report saying so. This block
+    records HEAD, whether uncommitted changes (including untracked files, which
+    producers do see) are part of the graded tree, and how far HEAD sits from
+    the base branch's upstream tip when one is locally known. Read-only: no
+    fetch, no network — ``base_upstream`` is null when ``origin/<base>`` has no
+    local ref, and the counts are only as current as the last fetch.
+
+    ``fallback_head`` keeps the seam usable outside a git checkout (the CLI
+    test harness grades synthetic trees with an explicit revision); a real
+    repository never needs it.
+    """
+    head = _git_lines(repository, "rev-parse", "HEAD") or fallback_head
+    if not head:
+        raise GateError("could not resolve HEAD; pass an explicit full-SHA revision")
+    status = _git_lines(repository, "status", "--porcelain")
+    upstream = f"origin/{base}"
+    behind: int | None = None
+    ahead: int | None = None
+    if _git_lines(repository, "rev-parse", "--verify", "--quiet", upstream) is None:
+        upstream_ref: str | None = None
+    else:
+        upstream_ref = upstream
+        behind_raw = _git_lines(repository, "rev-list", "--count", f"HEAD..{upstream}")
+        ahead_raw = _git_lines(repository, "rev-list", "--count", f"{upstream}..HEAD")
+        behind = int(behind_raw) if behind_raw and behind_raw.isdigit() else None
+        ahead = int(ahead_raw) if ahead_raw and ahead_raw.isdigit() else None
+    return {
+        "head": head,
+        "dirty": bool(status),
+        "base": base,
+        "base_upstream": upstream_ref,
+        "commits_behind_base_upstream": behind,
+        "commits_ahead_of_base_upstream": ahead,
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Human rendering
 # --------------------------------------------------------------------------- #
@@ -700,6 +767,22 @@ def render_text(report: dict[str, Any]) -> str:
         f"context drift gate: {report['outcome']} (exit {report['exit_code']}) "
         f"at {report['source_revision'][:12]}"
     ]
+    tree = report.get("tree")
+    if tree:
+        state = "uncommitted changes" if tree["dirty"] else "clean"
+        described = f"  tree: {tree['head'][:12]} ({state})"
+        behind = tree.get("commits_behind_base_upstream")
+        if tree.get("base_upstream") and behind:
+            described += f", {behind} commit(s) behind {tree['base_upstream']}"
+        lines.append(described)
+        if tree["dirty"] or behind:
+            # The verdict is correct for this tree; it is only the comparison
+            # to a run elsewhere (CI at the pushed tip) that is invalid.
+            lines.append(
+                "  [WARN] verdict applies to this exact tree — a run at "
+                f"{tree.get('base_upstream') or 'the pushed revision'} may grade "
+                "different content (issue #385)"
+            )
     for group, label in (
         ("blocking_drift", "BLOCKING"),
         ("informational_drift", "informational"),
@@ -758,6 +841,7 @@ __all__ = [
     "GateError",
     "GateResult",
     "architecture_freshness",
+    "describe_tree",
     "owner_by_producer_id",
     "provenance_state",
     "render_report",
