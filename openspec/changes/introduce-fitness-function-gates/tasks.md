@@ -6,11 +6,11 @@ Scenario references use document order within each delta spec:
 
 ## Phase 1 — Findings schema, consensus axis (wp-schema)
 
-- [ ] 1.1 Update schema tests to the 8-axis enum with a three-copy identity assertion [S]
+- [x] 1.1 Update schema tests to the 8-axis enum with a three-copy identity assertion [S]
   **Spec scenarios**: skill-workflow.2 (NFR axes accepted), skill-workflow.5 (copies identical)
   **Contracts**: contracts/review-findings-axis.md
   **Dependencies**: None
-- [ ] 1.2 Extend the axis enum in all three schema copies [S]
+- [x] 1.2 Extend the axis enum in all three schema copies [S]
   **Spec scenarios**: skill-workflow.1, skill-workflow.3, skill-workflow.4
   **Design decisions**: D2
   **Dependencies**: 1.1
