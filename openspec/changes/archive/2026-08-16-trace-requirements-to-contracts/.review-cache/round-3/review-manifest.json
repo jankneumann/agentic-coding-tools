@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "change_id": "trace-requirements-to-contracts",
+  "review_type": "implementation",
+  "created_at": "2026-08-15T20:56:58Z",
+  "target": "trace-requirements-to-contracts",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": null,
+      "elapsed_seconds": 91.10671454202384,
+      "error": null,
+      "error_class": null,
+      "strict_redispatch": false
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "(default)",
+      "models_attempted": null,
+      "elapsed_seconds": 685.3625387081411,
+      "error": null,
+      "error_class": null,
+      "strict_redispatch": false
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.5",
+      "models_attempted": null,
+      "elapsed_seconds": 263.2120100418106,
+      "error": null,
+      "error_class": null,
+      "strict_redispatch": false
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": null,
+      "elapsed_seconds": 521.1916190830525,
+      "error": null,
+      "error_class": null,
+      "strict_redispatch": false
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "qwen/qwen3-coder",
+      "models_attempted": null,
+      "elapsed_seconds": 2.576673125149682,
+      "error": "Invalid JSON output",
+      "error_class": null,
+      "strict_redispatch": false
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 4,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-implementation.json",
+      "finding_count": 0
+    },
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 3
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-implementation.json",
+      "finding_count": 0
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-implementation.json",
+      "finding_count": 0
+    }
+  ]
+}
