@@ -1,34 +1,84 @@
-# agent-coordinator policies contract (task 5.1, trace-requirements-to-contracts).
+# agent-coordinator policies contract (task 5.1, trace-requirements-to-contracts;
+# corrected and opted in by the issue #377 attribution change).
 #
 # AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
 # the running application (D1; app.openapi() describing itself would verify a
 # copy against itself). Operation descriptions cite spec line provenance as of
-# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
-# forward enforcement begins only when this document opts in (task 5.2).
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+#
+# The original document contracted POST /policies/write-operations/rollback
+# with a `version` query parameter — a shape the application never served (a
+# round-1 reviewer demonstrated 422). The spec scenario and this document now
+# describe the served shape: policy name in the path, version in the body.
 openapi: 3.1.0
 info:
   title: "agent-coordinator: Policy management"
   version: 1.0.0
   description: >-
-    Cedar policy rollback. Spec lines 1300-1304.
+    Cedar policy version history and rollback. Spec lines 1286-1310,
+    2029-2035 (HTTP-13).
 paths:
-  /policies/write-operations/rollback:
-    post:
-      operationId: rollbackWriteOperationsPolicy
-      summary: Roll back the write-operations policy to a prior version
+  /policies/{policy_name}/versions:
+    get:
+      operationId: listPolicyVersions
+      summary: List a policy's version history
       description: >-
-        Spec 1302-1304: retrieves the named version from
-        cedar_policies_history and updates cedar_policies with the historical
-        policy_text.
+        Spec 2034 (HTTP-13): lists the named policy's version history.
+        Spec 1290-1292: history records include policy_id, version number,
+        policy_text, changed_by, changed_at, and change_type.
       security:
         - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.policy-version-history
       parameters:
-        - name: version
-          in: query
+        - name: policy_name
+          in: path
           required: true
-          schema: {type: integer}
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, default: 20}
       responses:
-        "200": {description: Policy rolled back to the requested version (spec 1303-1304)}
+        "200": {description: Version history for the named policy (spec 1290-1292)}
+        "401": {description: Missing or invalid X-API-Key}
+  /policies/{policy_name}/rollback:
+    post:
+      operationId: rollbackPolicy
+      summary: Roll a policy back to a prior version
+      description: >-
+        Spec 1301-1305: retrieves the requested version from
+        cedar_policies_history, updates cedar_policies with the historical
+        policy_text, records a new history entry, and logs the rollback in the
+        audit trail. Spec 2035 (HTTP-13): the version is given in the JSON
+        request body.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.policy-version-history
+      parameters:
+        - name: policy_name
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version: {type: integer}
+      responses:
+        "200": {description: Policy rolled back to the requested version (spec 1302-1305)}
+        "401": {description: Missing or invalid X-API-Key}
+        "404": {description: Unknown policy or version}
 components:
   securitySchemes:
     coordinatorApiKey:

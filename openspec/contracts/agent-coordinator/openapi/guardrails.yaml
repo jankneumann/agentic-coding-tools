@@ -1,0 +1,48 @@
+# agent-coordinator guardrails contract (issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Destructive-operation guardrails"
+  version: 1.0.0
+  description: >-
+    Destructive-pattern checks for agent operations. Spec lines 431-476,
+    2024 (HTTP-12).
+paths:
+  /guardrails/check:
+    post:
+      operationId: checkGuardrails
+      summary: Check an operation for destructive patterns
+      description: >-
+        Spec 2024 (HTTP-12): checks an operation for destructive patterns.
+        Spec 433-438: destructive operations are blocked by default for cloud
+        agents and every violation is logged to the audit trail.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.destructive-operation-guardrails
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_text]
+              properties:
+                operation_text: {type: string}
+                file_paths: {type: array, items: {type: string}}
+      responses:
+        "200": {description: Guardrail decision with any matched patterns (spec 433-438)}
+        "401": {description: Missing or invalid X-API-Key}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

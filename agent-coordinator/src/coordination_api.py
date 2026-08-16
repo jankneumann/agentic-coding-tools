@@ -864,11 +864,12 @@ def create_coordination_api() -> FastAPI:
             "reason": result.reason,
         }
 
-    @app.get("/locks/status/{file_path:path}")
-    async def check_lock_status(file_path: str) -> dict[str, Any]:
+    @app.get("/locks/status/{path:path}")
+    async def check_lock_status(path: str) -> dict[str, Any]:
         """Check lock status for a file. Read-only, no API key required."""
         from .locks import get_lock_service
 
+        file_path = path
         locks = await get_lock_service().check(file_paths=[file_path])
         if not locks:
             return {"locked": False, "file_path": file_path}
@@ -3071,9 +3072,9 @@ def create_coordination_api() -> FastAPI:
 
         return updated.to_dict()
 
-    @app.delete("/locks/{file_path:path}")
+    @app.delete("/locks/{path:path}")
     async def force_release_lock(
-        file_path: str,
+        path: str,
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Force-release a lock regardless of holder (destructive-write).
@@ -3084,6 +3085,7 @@ def create_coordination_api() -> FastAPI:
         from .audit import get_audit_service
         from .locks import get_lock_service
 
+        file_path = path
         agent_id = principal.get("agent_id") or get_config().agent.agent_id
         result = await get_lock_service().force_release(file_path, agent_id=agent_id)
 

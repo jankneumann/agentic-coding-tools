@@ -1,31 +1,37 @@
-# agent-coordinator search contract (task 5.1, trace-requirements-to-contracts).
+# agent-coordinator search contract (task 5.1, trace-requirements-to-contracts;
+# extended and opted in by the issue #377 attribution change).
 #
 # AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
 # the running application (D1; app.openapi() describing itself would verify a
 # copy against itself). Operation descriptions cite spec line provenance as of
-# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
-# forward enforcement begins only when this document opts in (task 5.2).
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
 openapi: 3.1.0
 info:
   title: "agent-coordinator: Semantic code search"
   version: 1.0.0
   description: >-
-    Fail-closed semantic code retrieval. Spec lines 2929-2935, 2979-2983.
+    Fail-closed semantic code retrieval and availability status. Spec lines
+    3006-3020, 3054-3076, 2054-2057 (HTTP-17).
 paths:
   /search/code:
     post:
       operationId: searchCode
       summary: Semantic code retrieval over one exact repository revision
       description: >-
-        Spec 2930-2935: one typed service exposed on the MCP search_code tool
+        Spec 3008-3016: one typed service exposed on the MCP search_code tool
         and this authenticated endpoint; both require query, repository slug,
         exact source revision, namespace, and authoritative scope; non-main
         namespaces additionally require an exact index ID; limit, offset,
         language, and caller path filters are bounded optional narrowings.
-        Spec 2979-2981: while CODE_SEARCH_ENABLED is off this endpoint
+        Spec 3057-3060: while CODE_SEARCH_ENABLED is off this endpoint
         returns 404.
       security:
         - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.code-search-dual-surface-exposure
+          - agent-coordinator.code-search-feature-flag
       requestBody:
         required: true
         content:
@@ -45,8 +51,25 @@ paths:
                 language: {type: string}
                 path_filters: {type: array, items: {type: string}}
       responses:
-        "200": {description: Ready result or structured fail-closed operational state (spec 2930-2935)}
-        "404": {description: CODE_SEARCH_ENABLED is off (spec 2979-2981)}
+        "200": {description: Ready result or structured fail-closed operational state (spec 3008-3016)}
+        "404": {description: CODE_SEARCH_ENABLED is off (spec 3057-3060)}
+  /search/code/status:
+    get:
+      operationId: getCodeSearchStatus
+      summary: Report code-search availability
+      description: >-
+        Spec 2057 (HTTP-17): reports code-search availability, returning a
+        disabled envelope when CODE_SEARCH_ENABLED is off and a sanitized
+        unavailability envelope when the registry is unreachable.
+        Spec 3031-3040 (code-search direct read): the status check never
+        mutates or repairs coordination state.
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.code-search-is-a-direct-read
+          - agent-coordinator.code-search-feature-flag
+      responses:
+        "200": {description: Availability status envelope (spec 2057)}
 components:
   securitySchemes:
     coordinatorApiKey:

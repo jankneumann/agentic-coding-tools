@@ -1268,7 +1268,7 @@ The system SHALL maintain a complete version history of all Cedar policy changes
 - **AND** the `policy_version` column on `cedar_policies` increments
 
 #### Scenario: Policy rollback to previous version
-- **WHEN** operator calls `POST /policies/write-operations/rollback?version=3`
+- **WHEN** operator calls `POST /policies/write-operations/rollback` with body `{"version": 3}`
 - **THEN** system retrieves version 3 from `cedar_policies_history`
 - **AND** updates `cedar_policies` with the historical policy_text
 - **AND** creates a new history entry recording the rollback
@@ -1946,6 +1946,84 @@ The coordination HTTP API SHALL expose endpoints for all MCP tools, enabling ful
 
 - WHEN GET /approvals/{request_id} is called with a non-existent request_id
 - THEN the endpoint SHALL return 404 Not Found
+
+#### Scenario: Work queue endpoints available (HTTP-7)
+
+- WHEN the HTTP API is running
+- THEN POST /work/claim SHALL atomically claim the highest-priority eligible task (requires API key)
+- AND POST /work/complete SHALL mark a claimed task completed or failed (requires API key)
+- AND POST /work/submit SHALL create a new task in the queue (requires API key)
+- AND POST /work/get SHALL return a task's current state by `task_id` without claiming it (requires API key)
+
+#### Scenario: Lock write endpoints available (HTTP-8)
+
+- WHEN the HTTP API is running
+- THEN POST /locks/release SHALL release a lock held by the calling agent (requires API key)
+- AND DELETE /locks/{path} SHALL force-release a lock regardless of holder (requires API key), emitting an audit entry regardless of outcome
+
+#### Scenario: Feature registry endpoints available (HTTP-9)
+
+- WHEN the HTTP API is running
+- THEN POST /features/register SHALL register a feature with its resource claims (requires API key)
+- AND POST /features/deregister SHALL deregister a completed or cancelled feature (requires API key)
+- AND GET /features/{feature_id} SHALL return a single feature's details
+- AND POST /features/conflicts SHALL analyze resource conflicts between a candidate feature and active features (requires API key)
+
+#### Scenario: Merge queue endpoints available (HTTP-10)
+
+- WHEN the HTTP API is running
+- THEN POST /merge-queue/enqueue SHALL add a registered feature to the merge queue (requires API key)
+- AND GET /merge-queue/next SHALL return the highest-priority feature ready to merge
+- AND POST /merge-queue/merged/{feature_id} SHALL mark a feature merged and deregister it (requires API key)
+- AND DELETE /merge-queue/{feature_id} SHALL remove a feature from the queue without merging (requires API key)
+
+#### Scenario: Merge train endpoints available (HTTP-11)
+
+- WHEN the HTTP API is running
+- THEN POST /merge-train/compose SHALL compose a speculative merge train from the queue (requires API key)
+- AND POST /merge-train/eject SHALL eject a feature from its train (requires API key)
+- AND GET /merge-train/status/{train_id} SHALL return every entry belonging to the train, an empty list meaning the train is no longer active
+- AND POST /merge-train/report-result SHALL record a speculative CI verification result (requires API key)
+- AND POST /merge-train/affected-tests SHALL return the test subset for a set of changed files, or `full_suite_required: true` when the dependency graph is missing or stale (requires API key)
+- AND GET /merge-train/metrics SHALL return aggregated merge-throughput metrics from the audit log
+
+#### Scenario: Guardrail, profile, audit, and handoff endpoints available (HTTP-12)
+
+- WHEN the HTTP API is running
+- THEN POST /guardrails/check SHALL check an operation for destructive patterns (requires API key)
+- AND GET /profiles/me SHALL return the calling agent's profile (requires API key)
+- AND GET /audit SHALL return audit-trail entries with optional `since`, `change_id`, and `limit` filters (requires API key)
+- AND POST /handoffs/read SHALL return previous handoff documents for session continuity (requires API key)
+
+#### Scenario: Policy endpoints available (HTTP-13)
+
+- WHEN the HTTP API is running
+- THEN POST /policy/check SHALL report whether an operation is authorized by the policy engine (requires API key)
+- AND POST /policy/validate SHALL validate Cedar policy text against the schema (requires API key)
+- AND GET /policies/{policy_name}/versions SHALL list the named policy's version history (requires API key)
+- AND POST /policies/{policy_name}/rollback SHALL roll the named policy back to the version given in the JSON request body (requires API key)
+
+#### Scenario: Notification endpoints available (HTTP-14)
+
+- WHEN the HTTP API is running
+- THEN POST /notifications/test SHALL send a test notification through all configured channels (requires API key)
+- AND GET /notifications/status SHALL return channel health and configuration status
+
+#### Scenario: Dispatch config discovery endpoint available (HTTP-15)
+
+- WHEN the HTTP API is running
+- THEN GET /agents/dispatch-configs SHALL return CLI dispatch configurations for agents with `cli` sections, without requiring authentication
+
+#### Scenario: Container runtime probes available (HTTP-16)
+
+- WHEN the HTTP API is running
+- THEN GET /live SHALL return 200 without touching any dependency
+- AND GET /ready SHALL verify required dependencies and return success only when they are reachable
+
+#### Scenario: Code search status endpoint available (HTTP-17)
+
+- WHEN the HTTP API is running
+- THEN GET /search/code/status SHALL report code-search availability, returning a disabled envelope when `CODE_SEARCH_ENABLED` is off and a sanitized unavailability envelope when the registry is unreachable
 
 ### Requirement: MCP Resources in Proxy Mode
 
