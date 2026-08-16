@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-15T20:49:27+00:00  
-Git SHA: `0cdebb78706c375803aafd525214f4abdc420b86`
+Generated: 2026-08-16T12:29:04+00:00  
+Git SHA: `0fa2e47967514a45fc0b648e2065953c04e54953`
 
 ## System Overview
 
@@ -13,14 +13,14 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1980 |
+| Total nodes | 1928 |
 | Total edges | 1160 |
 | Python modules | 102 |
 | Functions | 1104 (431 async) |
 | Classes | 242 |
 | Mcp Endpoints | 96 |
 | DB tables | 29 |
-| Python nodes | 1432 |
+| Python nodes | 1380 |
 | Sql nodes | 458 |
 | Typescript nodes | 90 |
 
@@ -469,7 +469,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1287 independent groups** identified. The largest interconnected group has 528 modules; 1590 modules are leaf nodes (safe to modify in isolation).
+**1235 independent groups** identified. The largest interconnected group has 528 modules; 1538 modules are leaf nodes (safe to modify in isolation).
 
 **38 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -497,9 +497,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1590)
+### Leaf Modules (1538)
 
-1590 modules have no dependents — changes are fully isolated. 1265 of the 1287 groups are singletons.
+1538 modules have no dependents — changes are fully isolated. 1213 of the 1235 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -509,7 +509,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1432 nodes)"]
+    Backend["Backend (1380 nodes)"]
     Database["Database (458 nodes)"]
     Frontend["Frontend (90 nodes)"]
 ```
@@ -590,7 +590,6 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (10 symbols)"]
     telemetry["telemetry (20 symbols)"]
-    tests__test_architecture["tests.test_architecture (52 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]

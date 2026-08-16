@@ -4,49 +4,49 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "8cf0e4c2a5a40db2346f14740a38c5ed782cafd8ec8b3f111d994239d527f99e",
+      "sha256": "943705d069dbb520884644c39c918880c8b3b302c4a799de5e667c7dd9b987e4",
       "size_bytes": 1074679
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "7d42683265cef2d5332bb0a160d2981421ceda8a89ce9d6bcace7962ffb22e04",
-      "size_bytes": 906196
+      "sha256": "74421dd4ba72c20d1794b32490e0d92037762737d9d78bbec50716a4690535e1",
+      "size_bytes": 883735
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "41a6f18b0be220a27aab79a058eefd98289d20c574a36125c970f8a9288187ee",
-      "size_bytes": 55434
+      "sha256": "7a3a2a99936e6bcb58429531b731946abf59c401a32333b6872f5d32dbab8815",
+      "size_bytes": 55365
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "638f06afaa1e13151f7ffc2772d38a3d16ced277a07ea6495b5dd4f2e01a3d2a",
-      "size_bytes": 22494
+      "sha256": "8612224a3ed7362311a255cc6f8e922fce78570cbc9a3f2c4b3a30dbf2eaf335",
+      "size_bytes": 22444
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/comment_insights.json",
       "required": false,
-      "sha256": "8809805d57912aa9ed47f969bdfbee1e60271b92c0c59460a4d8609c0496d279",
+      "sha256": "d0ed828b5b2a4a01d882c8fe6fedcc07ada142e780cc5ad63a9d5756899bc51f",
       "size_bytes": 19913
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "53f55e4b6b1593df65d85f508cb1cc6d64fe11ec914c8d0423bdfc7b24cd30eb",
-      "size_bytes": 540943
+      "sha256": "222ea9838ebbb2107424aebb2dcd9fe950fa1bb3be3c92babb1ff5d268aec128",
+      "size_bytes": 518509
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/pattern_insights.json",
       "required": false,
-      "sha256": "1bf6af1e819576ad44a76c52d855d322a2c7ecb61f285aed185f4ac36378c6c4",
+      "sha256": "2fe1bfe2424608b458f44d7f85dcb30cd4d564c296c254b95a55b515c4302555",
       "size_bytes": 4005
     },
     {
@@ -67,7 +67,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/treesitter_enrichment.json",
       "required": false,
-      "sha256": "50fdc656979acb99ffcbc816f846ecee3181e393d22334f014213488e4591c7e",
+      "sha256": "be311335074f5945ad28abca0e48f12da47e12ccef4ca00d98c6479b3d787d45",
       "size_bytes": 1169841
     },
     {
@@ -88,14 +88,14 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/views/backend_components.mmd",
       "required": false,
-      "sha256": "67217ba71cbf7dace8b719c9a25890c711a596635f44f63ccdac23c563a9dcab",
-      "size_bytes": 12957
+      "sha256": "46441eebedc1ae1ea9e1d4fd0b94cc2db60be3e76e8f0e1c17260f584400c4c0",
+      "size_bytes": 12888
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/views/containers.mmd",
       "required": false,
-      "sha256": "74b889523421a73a5d969639b3f5cff774d5ea6d2e91f2873abf3ad78f28c7f3",
+      "sha256": "7751ed53cf2e4b4529a8d22fd8b9f2f2ae81af085c82608960d9be26c0274eae",
       "size_bytes": 122
     },
     {
@@ -113,7 +113,7 @@
       "size_bytes": 144
     }
   ],
-  "generated_at": "2026-08-15T20:49:27+00:00",
+  "generated_at": "2026-08-16T12:29:04+00:00",
   "input_enumeration": "git",
   "input_fingerprint": "ed44e9a03efac386bc45a981daa3c847e8b219be68aeaafce007a512da16ad70",
   "input_roots": [
@@ -133,9 +133,9 @@
     "producer_id": "architecture",
     "producer_version": "1.2.0"
   },
-  "repository_id": "agentic-coding-tools",
+  "repository_id": "cleanup",
   "schema_version": 1,
-  "source_revision": "0cdebb78706c375803aafd525214f4abdc420b86",
+  "source_revision": "0fa2e47967514a45fc0b648e2065953c04e54953",
   "validation": {
     "error_count": 0,
     "status": "passed",

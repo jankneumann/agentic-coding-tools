@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-08-15T20:49:27+00:00",
-  "git_sha": "0cdebb78706c375803aafd525214f4abdc420b86",
+  "generated_at": "2026-08-16T12:29:04+00:00",
+  "git_sha": "0fa2e47967514a45fc0b648e2065953c04e54953",
   "stats": {
-    "total_nodes": 1980,
+    "total_nodes": 1928,
     "total_edges": 1160,
     "by_language": {
-      "python": 1432,
+      "python": 1380,
       "typescript": 90,
       "sql": 458
     },
@@ -18,9 +18,7 @@
       "column": 312,
       "index": 71,
       "stored_function": 37,
-      "trigger": 9,
-      "test_class": 7,
-      "test_function": 45
+      "trigger": 9
     },
     "entrypoint_count": 96
   },

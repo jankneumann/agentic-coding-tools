@@ -94,3 +94,29 @@ Reviewed commits 89365ffe..HEAD (Track A citations/exclusions, Track B coordinat
 ### Context
 Ran validate-feature semantics against the tree under validation. Deploy/Smoke/Security/E2E/Gen-Eval skipped (tooling+CI change, no service under test). Spec-compliance CRITICAL gates: 7.0b requirement-to-contract traceability (this change's own new gate, run --scope change --change trace-requirements-to-contracts from TRACE_ROOT) PASSES (18 operations cite 14 requirements, no touched-scope violations). 7.0 task-checkbox-drift gate FAILS (3 unchecked: Phase 4 checkpoint, human task 5.7c, Final checkpoint) -- two of the three require human action and were intentionally left untouched per this run's scope. Architecture linters surfaced 2 high-severity, real, CI-breaking findings: the new skills/cite-requirements/ skill hardcodes a canonical skills/ runtime path instead of the installed-skill-base convention (dependency_direction.py exits 1, and the same check runs unguarded in ci.yml's test-infra-skills job). All test suites (packages/gen-eval 1213 passed, skills/ 2392 passed), ruff, and openspec validate --strict (34/34) are green. Overall: FAIL, on the task-drift gate (human-gated) and the cite-requirements path defect (agent-fixable).
 
+
+---
+
+## Phase: Cleanup (2026-08-16)
+
+**Agent**: claude_code (orchestrator) | **Session**: 5bcdcd5d autopilot resume
+
+### Decisions
+1. **Merge strategy: merge commit, not rebase** — GitHub refused rebase-merge ("This branch can't be rebased") because the branch carries six merge commits (two origin/main syncs, four agent-branch merges). Squash would flatten 20+ intentional conventional commits; a merge commit preserves the history the rebase convention exists to protect.
+2. **Pre-merge gate: operator-authorized --force override** — smoke/security/e2e phases were recorded skipped-with-reason by VALIDATE (tooling + CI-wiring change, no deployable service surface). Evidence basis: suites green (gen-eval 1213, skills 2392), traceability gates exit 0, CI 16/16 including the sweep job's first live blocking run at 93359116.
+3. **No task migration** — tasks.md has zero unchecked items; 5.7c and both checkpoints were operator-signed on 2026-08-15.
+4. **Staged rollout: N/A** — no service, no traffic, no feature flag. The change's runtime effect is CI-side (the sweep job) and validation-side (7.0b gate); both were exercised live pre-merge. Kill-switch equivalent: revert the ci.yml job or delete a traceability block (both single-commit reversals).
+5. **Contracts promotion verified pre-archive** — change-local schemas differ from promoted copies only in the $id rewrite the promotion procedure prescribes.
+
+### Alternatives Considered
+- Squash merge: rejected — flattens design-intent history for blame/bisect.
+- Running Docker deploy/smoke/security/e2e before merge: rejected by operator — exercises a coordinator service this change does not modify.
+
+### Trade-offs
+- Accepted a merge commit over strict linear history because the branch's merge topology (agent child worktrees per repo convention) made rebase impossible.
+
+### Open Questions
+- [ ] Issues #377 (unattributed coordinator ops), #383 (pi vendor 402-exits-0), #385 (drift-gate warm/cold divergence) remain open as follow-ups.
+
+### Context
+PR #342 merged as 0fa2e479 after operator sign-off of 5.7c and gate override. Archive + spec-delta merge + decision-index regeneration land in one commit on main. Architecture artifacts refreshed via the staged provenance-writing target.
