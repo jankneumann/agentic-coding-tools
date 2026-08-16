@@ -1,0 +1,7 @@
+{
+  "change_id": "introduce-fitness-function-gates",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

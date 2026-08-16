@@ -7,25 +7,25 @@
 
 | Req ID | Spec Source | Description | Contract Ref | Design Decision | Files Changed | Test(s) | Evidence |
 |--------|------------|-------------|-------------|----------------|---------------|---------|----------|
-| skill-workflow.1 | specs/skill-workflow/spec.md | Findings schema SHALL encode an 8-axis categorization (adds observability, resilience, compatibility) | contracts/review-findings-axis.md | D2 | --- | test_review_findings_schema.py::test_axis_enum_values | --- |
-| skill-workflow.2 | specs/skill-workflow/spec.md | `axis` and `severity` SHALL remain required on every finding | contracts/review-findings-axis.md | D2 | --- | test_review_findings_schema.py::test_axis_and_severity_required | --- |
-| skill-workflow.3 | specs/skill-workflow/spec.md | All three schema copies SHALL carry an identical enum | contracts/review-findings-axis.md | D2 | --- | test_review_findings_schema.py::test_schema_copies_identical | --- |
-| fitness-functions.1 | specs/fitness-functions/spec.md | proposal.md/design.md templates SHALL provide an NFR section with attribute, metric, target, verifying phase | --- | D8 | --- | skills/tests/plan-feature/test_nfr_templates.py::test_proposal_template_has_nfr_section | --- |
-| fitness-functions.2 | specs/fitness-functions/spec.md | design.md SHALL map each declared NFR to its verifying fitness function | --- | D8 | --- | skills/tests/plan-feature/test_nfr_templates.py::test_design_template_has_fitness_mapping | --- |
-| fitness-functions.3 | specs/fitness-functions/spec.md | plan-feature discovery rubric SHALL include an NFR elicitation category | --- | D8 | --- | skills/tests/plan-feature/test_nfr_templates.py::test_rubric_has_nfr_category | --- |
-| fitness-functions.4 | specs/fitness-functions/spec.md | Consensus synthesizer SHALL parse, retain, and emit `axis` | contracts/review-findings-axis.md | D3 | --- | test_consensus_axis.py::test_axis_round_trips | --- |
-| fitness-functions.5 | specs/fitness-functions/spec.md | Cross-vendor matching SHALL use axis with file_path and line_range | contracts/review-findings-axis.md | D3 | --- | test_consensus_axis.py::test_different_axis_same_line_not_merged | --- |
-| fitness-functions.6 | specs/fitness-functions/spec.md | Architecture linters SHALL emit schema-valid findings including axis and severity | contracts/review-findings-axis.md | D2 | --- | test_linters.py::test_findings_validate_against_schema | --- |
-| fitness-functions.7 | specs/fitness-functions/spec.md | Linter test suite SHALL assert schema validity with jsonschema.validate | contracts/review-findings-axis.md | D2 | --- | test_linters.py::test_missing_required_field_fails | --- |
-| fitness-functions.8 | specs/fitness-functions/spec.md | Advisory mode SHALL report architecture findings without failing the gate | contracts/architecture-gates-config.md | D4 | --- | test_gate_logic_architecture.py::test_advisory_mode_does_not_block | --- |
-| fitness-functions.9 | specs/fitness-functions/spec.md | Blocking mode SHALL fail the hard gate on a new dependency cycle | contracts/architecture-gates-config.md | D4 | --- | test_gate_logic_architecture.py::test_blocking_mode_fails_on_new_cycle | --- |
-| fitness-functions.10 | specs/fitness-functions/spec.md | architecture.config.yaml SHALL carry populated severity_thresholds and gates.architecture.mode | contracts/architecture-gates-config.md | D4 | --- | test_gate_logic_architecture.py::test_config_thresholds_populated | --- |
-| fitness-functions.11 | specs/fitness-functions/spec.md | CI SHALL report line coverage per measured suite | contracts/coverage-baseline.schema.json | D5 | --- | scripts/tests/test_coverage_ratchet.py::test_reports_measured_coverage | --- |
-| fitness-functions.12 | specs/fitness-functions/spec.md | Ratchet SHALL fail when coverage drops beyond tolerance | contracts/coverage-baseline.schema.json | D5 | --- | scripts/tests/test_coverage_ratchet.py::test_fails_on_decrease | --- |
-| fitness-functions.13 | specs/fitness-functions/spec.md | Baseline SHALL update upward on improvement | contracts/coverage-baseline.schema.json | D5 | --- | scripts/tests/test_coverage_ratchet.py::test_baseline_updates_on_improvement | --- |
-| fitness-functions.14 | specs/fitness-functions/spec.md | Fail-open gates SHALL record DEGRADED status naming what was not checked | contracts/architecture-gates-config.md | D6 | --- | test_gate_logic_degraded.py::test_degraded_status_parsed | --- |
-| fitness-functions.15 | specs/fitness-functions/spec.md | Hard gate SHALL block on a DEGRADED required phase absent an override | contracts/architecture-gates-config.md | D6 | --- | test_gate_logic_degraded.py::test_hard_gate_blocks_on_degraded | --- |
-| fitness-functions.16 | specs/fitness-functions/spec.md | Override SHALL be explicit and logged in the gate summary | contracts/architecture-gates-config.md | D6 | --- | test_gate_logic_degraded.py::test_accept_degraded_override_logged | --- |
+| skill-workflow.1 | specs/skill-workflow/spec.md | Findings schema SHALL encode an 8-axis categorization (adds observability, resilience, compatibility) | contracts/review-findings-axis.md | D2 | openspec/schemas/review-findings.schema.json, agent-coordinator/agents.yaml | test_review_findings_schema.py::test_axis_enum_values | pass 31c059b |
+| skill-workflow.2 | specs/skill-workflow/spec.md | `axis` and `severity` SHALL remain required on every finding | contracts/review-findings-axis.md | D2 | openspec/schemas/review-findings.schema.json | test_review_findings_schema.py::test_axis_and_severity_required | pass 31c059b |
+| skill-workflow.3 | specs/skill-workflow/spec.md | All three schema copies SHALL carry an identical enum | contracts/review-findings-axis.md | D2 | install_assets mirror, agents.yaml | test_review_findings_schema.py::test_schema_copies_identical | pass 31c059b |
+| fitness-functions.1 | specs/fitness-functions/spec.md | proposal.md/design.md templates SHALL provide an NFR section with attribute, metric, target, verifying phase | --- | D8 | templates/proposal.md | skills/tests/plan-feature/test_nfr_templates.py::test_proposal_template_has_nfr_section | pass 31c059b |
+| fitness-functions.2 | specs/fitness-functions/spec.md | design.md SHALL map each declared NFR to its verifying fitness function | --- | D8 | templates/design.md | skills/tests/plan-feature/test_nfr_templates.py::test_design_template_has_fitness_mapping | pass 31c059b |
+| fitness-functions.3 | specs/fitness-functions/spec.md | plan-feature discovery rubric SHALL include an NFR elicitation category | --- | D8 | skills/plan-feature/SKILL.md | skills/tests/plan-feature/test_nfr_templates.py::test_rubric_has_nfr_category | pass 31c059b |
+| fitness-functions.4 | specs/fitness-functions/spec.md | Consensus synthesizer SHALL parse, retain, and emit `axis` | contracts/review-findings-axis.md | D3 | consensus_synthesizer.py | test_consensus_axis.py::test_axis_round_trips | pass 31c059b |
+| fitness-functions.5 | specs/fitness-functions/spec.md | Cross-vendor matching SHALL use axis with file_path and line_range | contracts/review-findings-axis.md | D3 | consensus_synthesizer.py | test_consensus_axis.py::test_different_axis_same_line_not_merged | pass 31c059b |
+| fitness-functions.6 | specs/fitness-functions/spec.md | Architecture linters SHALL emit schema-valid findings including axis and severity | contracts/review-findings-axis.md | D2 | linters/{dependency_direction,file_size,naming_conventions,severity}.py | test_linters.py::test_findings_validate_against_schema | pass 31c059b |
+| fitness-functions.7 | specs/fitness-functions/spec.md | Linter test suite SHALL assert schema validity with jsonschema.validate | contracts/review-findings-axis.md | D2 | scripts/tests/test_linters.py | test_linters.py::test_missing_required_field_fails | pass 31c059b |
+| fitness-functions.8 | specs/fitness-functions/spec.md | Advisory mode SHALL report architecture findings without failing the gate | contracts/architecture-gates-config.md | D4 | gate_logic.py, architecture.config.yaml | test_gate_logic_architecture.py::test_advisory_mode_does_not_block | pass 31c059b |
+| fitness-functions.9 | specs/fitness-functions/spec.md | Blocking mode SHALL fail the hard gate on a new dependency cycle | contracts/architecture-gates-config.md | D4 | gate_logic.py | test_gate_logic_architecture.py::test_blocking_mode_fails_on_new_cycle | pass 31c059b |
+| fitness-functions.10 | specs/fitness-functions/spec.md | architecture.config.yaml SHALL carry populated severity_thresholds and gates.architecture.mode | contracts/architecture-gates-config.md | D4 | architecture.config.yaml | test_gate_logic_architecture.py::test_config_thresholds_populated | pass 31c059b |
+| fitness-functions.11 | specs/fitness-functions/spec.md | CI SHALL report line coverage per measured suite | contracts/coverage-baseline.schema.json | D5 | .github/workflows/ci.yml | scripts/tests/test_coverage_ratchet.py::test_reports_measured_coverage | pass 31c059b |
+| fitness-functions.12 | specs/fitness-functions/spec.md | Ratchet SHALL fail when coverage drops beyond tolerance | contracts/coverage-baseline.schema.json | D5 | scripts/coverage_ratchet.py | scripts/tests/test_coverage_ratchet.py::test_fails_on_decrease | pass 31c059b |
+| fitness-functions.13 | specs/fitness-functions/spec.md | Baseline SHALL update upward on improvement | contracts/coverage-baseline.schema.json | D5 | scripts/coverage_ratchet.py, coverage-baseline.json | scripts/tests/test_coverage_ratchet.py::test_baseline_updates_on_improvement | pass 31c059b |
+| fitness-functions.14 | specs/fitness-functions/spec.md | Fail-open gates SHALL record DEGRADED status naming what was not checked | contracts/architecture-gates-config.md | D6 | gate_logic.py, autopilot.py, review_dispatcher.py, security-review/gate.py | test_gate_logic_degraded.py::test_degraded_status_parsed | pass 31c059b |
+| fitness-functions.15 | specs/fitness-functions/spec.md | Hard gate SHALL block on a DEGRADED required phase absent an override | contracts/architecture-gates-config.md | D6 | gate_logic.py | test_gate_logic_degraded.py::test_hard_gate_blocks_on_degraded | pass 31c059b |
+| fitness-functions.16 | specs/fitness-functions/spec.md | Override SHALL be explicit and logged in the gate summary | contracts/architecture-gates-config.md | D6 | gate_logic.py | test_gate_logic_degraded.py::test_accept_degraded_override_logged | pass 31c059b |
 
 ## Design Decision Trace
 
@@ -47,8 +47,8 @@
 
 ## Coverage Summary
 
-- **Requirements traced**: 0/19
+- **Requirements traced**: 19/19
 - **Tests mapped**: 19 requirements have at least one test planned
-- **Evidence collected**: 0/19 requirements have pass/fail evidence
-- **Gaps identified**: ---
-- **Deferred items**: ---
+- **Evidence collected**: 19/19 requirements have pass/fail evidence
+- **Gaps identified**: none
+- **Deferred items**: Docker-dependent phases (Deploy, Smoke, E2E, Logs) deferred to /cleanup-feature's merge-time gate

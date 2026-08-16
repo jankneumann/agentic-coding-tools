@@ -56,3 +56,46 @@ Planned fitness-function-driven development as a third feedback loop alongside s
 ### Context
 Gate 2 approved by user: proceed to implementation. Coordinator issues seeded from tasks.md (23 created). Gate 1 selection was Approach 1 (extend in place); both gates recorded per plan-feature verification item 6.
 
+---
+
+## Phase: Implementation (2026-08-16)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Gate thresholds live in their own namespace, not health.severity_thresholds** `architectural: fitness-functions` — health.severity_thresholds is read by architecture_report.py grading {error,warning,info}; the gate grades {critical,major,minor}. A category written in the wrong vocabulary resolves to min_level 0 and filters nothing -- a threshold that silently does nothing, which is the exact failure this change removes. Moved to gates.architecture.severity_thresholds with a fallback read and a test that fails if gate severities reappear under health.
+2. **Linter severity derives from the criticality already implied by exit codes** `architectural: fitness-functions` — run_architecture_linters.py already mapped criticality to an exit code; reusing that rule avoided inventing a second severity policy.
+3. **DEGRADED matched by a separate pattern, legacy regex left first and unchanged** `architectural: fitness-functions` — Guarantees no validation report that parsed one way before parses differently now.
+
+### Alternatives Considered
+- Leave gate thresholds under health.severity_thresholds: rejected because Works today only because category names happen to be disjoint; leaves a latent trap where a future entry silently filters nothing.
+- Fix the 33-error skills/ test collection collision encountered during the run: rejected because Pre-existing and outside every package's write_allow; filed as follow-up instead.
+
+### Trade-offs
+- Accepted Architecture gate ships advisory, blocking nothing yet over Immediate enforcement because 30 findings exist on this diff alone (5 critical); blocking immediately would fail in-flight changes on pre-existing debt. The flip is a one-line config change after 3 clean runs.
+- Accepted skills coverage baseline of 87.42% includes test files in the measured tree over A carefully scoped source-only measurement because skills/ has no single source package. Inflates the absolute number but not the drift signal, which is all a ratchet uses; CI measures the identical scope.
+
+### Open Questions
+- [ ] consensus-report.schema.json does not declare the new agreed_axis property -- reports still validate but the schema no longer fully describes the payload.
+- [ ] skills/pyproject.toml testpaths omits validate-feature/scripts/tests, autopilot/scripts/tests, security-review/tests and parallel-infrastructure/tests, so CI never runs them -- including the 124 gate tests added here.
+
+### Completed Work
+- wp-contracts: verified the three axis-enum copy sites; caught that agents.yaml:285 is the type enum (already carrying NFR values) versus the axis enum at 289.
+- wp-schema: 8-value axis enum across all three copies with a copy-identity test; consensus_synthesizer now parses, retains and matches on axis (61 tests).
+- wp-templates: NFR table in proposal template, Fitness Functions mapping in design template, discovery category 7 in plan-feature (10 tests).
+- wp-coverage: no-decrease ratchet, baseline seeded from real runs (coordinator 76.20%, skills 87.42%), additive non-required CI job (24 tests).
+- wp-gates: linters emit schema-valid findings, architecture gate ratchet, DEGRADED status with --accept-degraded override, four fail-open producers now report degradation (124 tests).
+
+### Next Steps
+- Docker-dependent phases (Deploy, Smoke, Security, E2E) run at merge time via /cleanup-feature.
+- After 3 clean advisory runs, flip gates.architecture.mode to blocking in a one-line PR recording date and rationale.
+
+### Relevant Files
+- `skills/validate-feature/scripts/gate_logic.py` — architecture ratchet + DEGRADED status
+- `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — axis-keyed consensus matching
+- `architecture.config.yaml` — gates.architecture section; one-line flip to blocking
+- `coverage-baseline.json` — measured coverage baseline for the ratchet
+
+### Context
+Implemented all five work packages of the fitness-function feedback loop via coordinated-tier dispatch. Architectural qualities are now captured as measurable targets at planning time, NFR findings survive cross-vendor consensus, architecture findings are gate-wired behind an advisory ratchet, coverage has a no-decrease baseline, and every fail-open gate reports DEGRADED. One deviation from plan: the gate's severity thresholds were moved out of health.severity_thresholds after implementation revealed a vocabulary collision with the architecture report.
+

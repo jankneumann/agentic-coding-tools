@@ -104,7 +104,7 @@ Scenario references use document order within each delta spec:
 
 - [x] 5.1 Run full test suites, openspec validate --strict, validate_flows against merged branch [S]
   **Dependencies**: Phases 1–4
-- [ ] 5.2 Run validate-feature spec plus evidence phases; confirm advisory architecture block renders in validation-report.md [S]
+- [x] 5.2 Run validate-feature spec plus evidence phases; confirm advisory architecture block renders in validation-report.md [S]
   **Spec scenarios**: fitness-functions.8
   **Dependencies**: 5.1
 - [x] Checkpoint: run tests, review diff, verify scope
