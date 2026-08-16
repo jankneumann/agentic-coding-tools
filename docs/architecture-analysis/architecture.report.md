@@ -2,27 +2,26 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-16T12:29:04+00:00  
-Git SHA: `0fa2e47967514a45fc0b648e2065953c04e54953`
+Generated: 2026-08-16T13:45:08+00:00  
+Git SHA: `56bc6ea3101901fcf2d577de88fe0b097cb6ece1`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **29 Postgres tables**. The codebase contains 1104 functions (431 async) and 242 classes.
+This is a **Python MCP server** with 75 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **29 Postgres tables**. The codebase contains 1064 functions (431 async) and 242 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1928 |
-| Total edges | 1160 |
-| Python modules | 102 |
-| Functions | 1104 (431 async) |
+| Total nodes | 1891 |
+| Total edges | 1162 |
+| Python modules | 75 |
+| Functions | 1064 (431 async) |
 | Classes | 242 |
 | Mcp Endpoints | 96 |
 | DB tables | 29 |
-| Python nodes | 1380 |
+| Python nodes | 1433 |
 | Sql nodes | 458 |
-| Typescript nodes | 90 |
 
 ## Module Responsibility Map
 
@@ -30,7 +29,7 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 
 | Module | Layer | Role | In / Out |
 |--------|-------|------|----------|
-| `agents_config` | Foundation | Load and validate ``agents.yaml``. | 8 / 4 |
+| `agents_config` | Foundation | Load and validate ``agents.yaml``. | 10 / 4 |
 | `approval` | Service | Parse a datetime value from various formats. | 14 / 2 |
 | `assurance` | Service | — | 0 / 0 |
 | `audit` | Foundation | Get the global audit service instance. | 46 / 6 |
@@ -99,7 +98,7 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 | `sse_log_redaction` | Service | Install the redaction filter on the named logger (idempotent). | 3 / 0 |
 | `status` | Service | Generate an 8-character URL-safe token. | 4 / 0 |
 | `sync_points` | Service | Return ``(clear, active_list)`` by reading the worktree registry. | 1 / 1 |
-| `teams` | Service | Get the global teams configuration. | 2 / 0 |
+| `teams` | Service | Get the global crew manifest (lazy singleton). | 2 / 2 |
 | `telemetry` | Foundation | Initialize OpenTelemetry providers based on environment configuration. | 21 / 0 |
 | `watchdog` | Service | Return the singleton WatchdogService. | 3 / 4 |
 | `work_queue` | Foundation | Get the global work queue service instance. | 17 / 33 |
@@ -276,29 +275,18 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2872 findings** across 5 categories:
+**2684 findings** across 4 categories:
 
-### Orphan — 1273
+### Orphan — 1186
 
-1273 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1186 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1268 more
-
-### Pattern Consistency — 39
-
-39 unclassified findings.
-
-- 'relativeTime' uses camelCase but most functions use snake_case
-- 'emitHighlight' uses camelCase but most functions use snake_case
-- 'useHighlightState' uses camelCase but most functions use snake_case
-- 'shortForm' uses camelCase but most functions use snake_case
-- 'loadFromStorage' uses camelCase but most functions use snake_case
-- ... and 34 more
+- ... and 1181 more
 
 ### Reachability — 96
 
@@ -313,16 +301,16 @@ Breakdown: 88 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 91 more
 
-### Test Coverage — 1368
+### Test Coverage — 1306
 
-1368 functions lack test references — consider adding tests for critical paths.
+1306 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1363 more
+- ... and 1301 more
 
 ### Disconnected Flow (expected) — 96
 
@@ -366,10 +354,10 @@ Breakdown: 88 info, 8 warning.
 | `feature_registry.get_feature_registry_service` | 19 | High — test `feature_registry` changes thoroughly (5 modules affected) |
 | `issue_service.get_issue_service` | 19 | High — test `issue_service` changes thoroughly (modules: coordination_api, coordination_mcp) |
 | `profile_loader.interpolate` | 17 | High — test `profile_loader` changes thoroughly (6 modules affected) |
+| `teams.CrewManifest.validate` | 17 | High — test `teams` changes thoroughly (6 modules affected) |
 | `audit` | 16 | High — test `audit` changes thoroughly (15 modules affected) |
 | `audit_triage` | 16 | High — test `audit_triage` changes thoroughly (15 modules affected) |
 | `profile_loader._load_secrets_file` | 16 | High — test `profile_loader` changes thoroughly (6 modules affected) |
-| `teams.TeamsConfig.validate` | 16 | High — test `teams` changes thoroughly (6 modules affected) |
 | `openspec_proposals_api._run_git` | 14 | High — test `openspec_proposals_api` changes thoroughly (modules: coordination_api, openspec_proposals_api, openspec_sources) |
 | `work_queue.get_work_queue_service` | 14 | High — test `work_queue` changes thoroughly (modules: coordination_api, coordination_cli, coordination_mcp) |
 | `locks.get_lock_service` | 13 | High — test `locks` changes thoroughly (modules: coordination_api, coordination_cli, coordination_mcp) |
@@ -383,9 +371,9 @@ Breakdown: 88 info, 8 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 431/1063 (41%) |
-| Docstring coverage | 756/1063 (71%) |
-| Dead code candidates | 497 |
+| Async ratio | 431/1064 (41%) |
+| Docstring coverage | 757/1064 (71%) |
+| Dead code candidates | 498 |
 
 ### Hot Functions
 
@@ -406,7 +394,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ### Dead Code Candidates
 
-497 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
+498 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
 
 - **agents_config** (9): `get_mcp_env`, `reset_agents_config`, `get_agent_isolation`, `get_phase_mapping`, `reset_archetypes_config`, `resolve_provider_model`, ... (+3)
 - **approval** (8): `db`, `submit_request`, `check_request`, `decide_request`, `expire_stale_requests`, `list_pending`, ... (+2)
@@ -460,7 +448,7 @@ Functions called by the most other functions — changes here have wide blast ra
 - **sse_log_redaction** (3): `filter`, `_scrub`, `redact_token`
 - **status** (1): `cleanup_expired_tokens`
 - **sync_points** (1): `get_sync_points_status`
-- **teams** (5): `from_dict`, `get_agent`, `get_agents_with_capability`, `get_teams_config`, `reset_teams_config`
+- **teams** (6): `from_dict`, `get_role`, `vendors_for`, `validate_against`, `get_crew_manifest`, `reset_crew_manifest`
 - **telemetry** (4): `set_attribute`, `set_status`, `record_exception`, `reset_telemetry`
 - **watchdog** (14): `db`, `running`, `start`, `stop`, `run_once`, `_loop`, ... (+8)
 - **work_queue** (10): `db`, `_resolve_trust_level`, `claim`, `complete`, `submit`, `get_pending`, ... (+4)
@@ -469,13 +457,13 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1235 independent groups** identified. The largest interconnected group has 528 modules; 1538 modules are leaf nodes (safe to modify in isolation).
+**1197 independent groups** identified. The largest interconnected group has 529 modules; 1501 modules are leaf nodes (safe to modify in isolation).
 
 **38 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
 ### Interconnected Groups
 
-**Group 0** (528 members spanning 54 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_runtime`
+**Group 0** (529 members spanning 54 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_runtime`
   ... and 46 more modules
 
 **Group 1** (54 members spanning 54 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_authorization`
@@ -497,9 +485,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1538)
+### Leaf Modules (1501)
 
-1538 modules have no dependents — changes are fully isolated. 1213 of the 1235 groups are singletons.
+1501 modules have no dependents — changes are fully isolated. 1175 of the 1197 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -509,9 +497,8 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1380 nodes)"]
+    Backend["Backend (1433 nodes)"]
     Database["Database (458 nodes)"]
-    Frontend["Frontend (90 nodes)"]
 ```
 
 ### Backend Components
@@ -588,8 +575,9 @@ flowchart TB
     sse_log_redaction["sse_log_redaction (6 symbols)"]
     status["status (6 symbols)"]
     sync_points["sync_points (5 symbols)"]
-    teams["teams (10 symbols)"]
+    teams["teams (11 symbols)"]
     telemetry["telemetry (20 symbols)"]
+    tests__test_architecture["tests.test_architecture (52 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
@@ -770,6 +758,7 @@ flowchart TB
     session_grants -->|"call"| approval
     session_grants -->|"call, import"| db
     sync_points -->|"call"| code_search_runtime
+    teams -->|"call"| agents_config
     watchdog -->|"call, import"| db
     watchdog -->|"call, import"| event_bus
     work_queue -->|"call, import"| agents_config
@@ -790,8 +779,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    kanban_h_viz_s_src["kanban-viz/src (89 symbols)"]
-    kanban_h_viz_s_vite__config__ts["kanban-viz/vite.config.ts (1 symbols)"]
+    empty["No TypeScript nodes found"]
 ```
 
 ### Database ERD

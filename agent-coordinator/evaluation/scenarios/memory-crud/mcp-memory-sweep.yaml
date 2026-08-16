@@ -1,10 +1,16 @@
 id: "mcp-memory-sweep"
 name: "MCP memory tool sweep"
-description: "Exercise all MCP memory tools: remember, recall, get_working_memory, update_working_memory, and learn_procedure"
+description: "Exercise the MCP memory tools: remember and recall"
 category: "memory-crud"
 priority: 3
 interfaces: ["mcp"]
 tags: ["memory", "mcp", "sweep"]
+
+# The working/procedural steps this sweep used to carry were removed with
+# ri-15: migration 031 dropped `memory_working` / `memory_procedural`, and the
+# `update_working_memory` / `get_working_memory` / `learn_procedure` tools no
+# longer exist on any interface. Episodic is the whole memory surface now, so
+# this sweep covers all of it.
 
 steps:
   - id: remember
@@ -27,31 +33,3 @@ steps:
       body:
         success: true
       not_empty: true
-
-  - id: update_working_memory
-    transport: mcp
-    tool: update_working_memory
-    params:
-      key: "mcp_sweep_key"
-      value: "test_val"
-    expect:
-      body:
-        success: true
-
-  - id: get_working_memory
-    transport: mcp
-    tool: get_working_memory
-    params:
-      key: "mcp_sweep_key"
-    expect:
-      not_empty: true
-
-  - id: learn_procedure
-    transport: mcp
-    tool: learn_procedure
-    params:
-      name: "mcp_sweep_proc"
-      steps: ["step1"]
-    expect:
-      body:
-        success: true

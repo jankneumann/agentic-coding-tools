@@ -5,7 +5,7 @@
 This is a **multi-agent coordination system** that enables AI coding agents (Claude Code, Codex, Antigravity, Grok, Pi) to collaborate safely on shared codebases. It provides:
 
 - **File locking** - Prevent merge conflicts when multiple agents edit files
-- **Persistent memory** - Three-layer cognitive architecture (episodic, working, procedural)
+- **Persistent memory** - Episodic memory for cross-session learning
 - **Work queue** - Task assignment, tracking, and dependency management
 - **Guardrails** - Detect and block destructive operations
 - **Agent profiles** - Trust levels and operation restrictions
@@ -179,9 +179,7 @@ All write endpoints require `X-API-Key` header.
 - `notification_tokens` - Short-lived reply tokens for email/messaging
 
 **Memory:**
-- `memory_episodic` - Past experiences
-- `memory_working` - Current context
-- `memory_procedural` - Learned skills
+- `memory_episodic` - Past experiences (the only wired memory layer)
 
 **Security:**
 - `operation_guardrails` - Destructive patterns

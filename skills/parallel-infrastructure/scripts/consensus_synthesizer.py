@@ -640,6 +640,96 @@ def format_vendor_counts(per_vendor_counts: dict[str, int]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Canonical schema validation for per-vendor findings files
+# ---------------------------------------------------------------------------
+
+def _schema_mod() -> Any:
+    """Return the ``review_findings_schema`` module, or ``None`` if absent."""
+    try:
+        import review_findings_schema  # type: ignore[import-untyped]
+
+        return review_findings_schema
+    except ImportError:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "review_findings_schema",
+            Path(__file__).parent / "review_findings_schema.py",
+        )
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(mod)  # type: ignore[union-attr]
+                return mod
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("review_findings_schema load failed: %s", exc)
+                return None
+        return None
+
+
+def _resolve_canonical_schema(schema_arg: str | None) -> dict[str, Any]:
+    """Load the canonical review-findings schema for per-vendor validation.
+
+    Uses an explicit ``--schema`` path when given, else the canonical file
+    discovered via the shared module.
+
+    Raises :class:`ConsensusInputError` when the schema cannot be loaded. This
+    used to return ``None`` and downgrade validation to a no-op, which meant an
+    unreadable ``--schema`` path or a missing canonical file produced a
+    consensus report that looked identically trustworthy to a validated one.
+    An unenforceable contract is a hard error, not a quiet pass.
+    """
+    if schema_arg:
+        try:
+            return json.loads(Path(schema_arg).read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConsensusInputError(
+                f"could not read --schema {schema_arg}: {exc}"
+            ) from exc
+    mod = _schema_mod()
+    if mod is None:
+        raise ConsensusInputError(
+            "review_findings_schema module could not be loaded, so per-vendor "
+            "findings cannot be validated against the canonical schema"
+        )
+    try:
+        return mod.load_schema()
+    except Exception as exc:  # noqa: BLE001 — re-raised with context
+        raise ConsensusInputError(
+            f"could not load the canonical review-findings schema: {exc}"
+        ) from exc
+
+
+def _validate_vendor_document(
+    data: dict[str, Any], path: Path, schema: dict[str, Any]
+) -> None:
+    """Validate a per-vendor findings document, raising loudly on drift.
+
+    Raises :class:`ConsensusInputError` when the document violates the
+    canonical review-findings schema, and equally when the check cannot run
+    because ``jsonschema`` is missing — "could not verify" must never be
+    reported as "verified".
+    """
+    try:
+        import jsonschema  # type: ignore[import-untyped]
+    except ImportError as exc:
+        raise ConsensusInputError(
+            "the 'jsonschema' package is required to validate per-vendor "
+            f"findings against the canonical schema but is not importable "
+            f"(while reading {path})"
+        ) from exc
+    validator = jsonschema.Draft202012Validator(schema)
+    errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
+    if errors:
+        first = errors[0]
+        location = "/".join(str(p) for p in first.absolute_path) or "<root>"
+        raise ConsensusInputError(
+            f"{path}: review-findings schema violation: {first.message} "
+            f"(at {location})"
+        )
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
@@ -700,6 +790,11 @@ def main() -> int:
                 continue
             findings_paths.append(path)
 
+    # Resolve the canonical schema once; every per-vendor file is validated
+    # against it so a drifted finding (missing required field / wrong enum)
+    # fails loudly here rather than passing silently into consensus.
+    canonical_schema = _resolve_canonical_schema(args.schema)
+
     for p in findings_paths:
         if not p.exists():
             print(f"Warning: {p} not found, skipping", file=sys.stderr)
@@ -709,6 +804,7 @@ def main() -> int:
             ))
             continue
         data = json.loads(p.read_text())
+        _validate_vendor_document(data, p, canonical_schema)
         # findings-claude.json -> "claude" (drop the "findings-" prefix)
         default_vendor = p.stem
         if default_vendor.startswith("findings-"):

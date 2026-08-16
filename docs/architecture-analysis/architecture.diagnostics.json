@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-16T12:29:04+00:00",
+  "generated_at": "2026-08-16T13:45:08+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -1737,7 +1737,7 @@
       "message": "Function 'PollConfig' has no corresponding test references",
       "node_id": "py:agents_config.PollConfig",
       "file": "agents_config.py",
-      "line": 413,
+      "line": 421,
       "suggestion": "Add tests that reference 'PollConfig' (e.g., test_PollConfig or import it in a test file)"
     },
     {
@@ -1746,7 +1746,7 @@
       "message": "Function 'ModeConfig' has no corresponding test references",
       "node_id": "py:agents_config.ModeConfig",
       "file": "agents_config.py",
-      "line": 431,
+      "line": 439,
       "suggestion": "Add tests that reference 'ModeConfig' (e.g., test_ModeConfig or import it in a test file)"
     },
     {
@@ -1755,7 +1755,7 @@
       "message": "Function 'CliConfig' has no corresponding test references",
       "node_id": "py:agents_config.CliConfig",
       "file": "agents_config.py",
-      "line": 440,
+      "line": 448,
       "suggestion": "Add tests that reference 'CliConfig' (e.g., test_CliConfig or import it in a test file)"
     },
     {
@@ -1764,7 +1764,7 @@
       "message": "Function 'SdkConfig' has no corresponding test references",
       "node_id": "py:agents_config.SdkConfig",
       "file": "agents_config.py",
-      "line": 460,
+      "line": 468,
       "suggestion": "Add tests that reference 'SdkConfig' (e.g., test_SdkConfig or import it in a test file)"
     },
     {
@@ -1773,7 +1773,7 @@
       "message": "Function 'AgentEntry' has no corresponding test references",
       "node_id": "py:agents_config.AgentEntry",
       "file": "agents_config.py",
-      "line": 477,
+      "line": 485,
       "suggestion": "Add tests that reference 'AgentEntry' (e.g., test_AgentEntry or import it in a test file)"
     },
     {
@@ -1782,7 +1782,7 @@
       "message": "Function 'EscalationConfig' has no corresponding test references",
       "node_id": "py:agents_config.EscalationConfig",
       "file": "agents_config.py",
-      "line": 500,
+      "line": 508,
       "suggestion": "Add tests that reference 'EscalationConfig' (e.g., test_EscalationConfig or import it in a test file)"
     },
     {
@@ -1791,7 +1791,7 @@
       "message": "Function 'ArchetypeConfig' has no corresponding test references",
       "node_id": "py:agents_config.ArchetypeConfig",
       "file": "agents_config.py",
-      "line": 514,
+      "line": 522,
       "suggestion": "Add tests that reference 'ArchetypeConfig' (e.g., test_ArchetypeConfig or import it in a test file)"
     },
     {
@@ -1800,7 +1800,7 @@
       "message": "Function 'PhaseMappingEntry' has no corresponding test references",
       "node_id": "py:agents_config.PhaseMappingEntry",
       "file": "agents_config.py",
-      "line": 529,
+      "line": 537,
       "suggestion": "Add tests that reference 'PhaseMappingEntry' (e.g., test_PhaseMappingEntry or import it in a test file)"
     },
     {
@@ -1809,7 +1809,7 @@
       "message": "Function 'ModelSpec' has no corresponding test references",
       "node_id": "py:agents_config.ModelSpec",
       "file": "agents_config.py",
-      "line": 543,
+      "line": 551,
       "suggestion": "Add tests that reference 'ModelSpec' (e.g., test_ModelSpec or import it in a test file)"
     },
     {
@@ -1818,7 +1818,7 @@
       "message": "Function 'ResolvedArchetype' has no corresponding test references",
       "node_id": "py:agents_config.ResolvedArchetype",
       "file": "agents_config.py",
-      "line": 557,
+      "line": 565,
       "suggestion": "Add tests that reference 'ResolvedArchetype' (e.g., test_ResolvedArchetype or import it in a test file)"
     },
     {
@@ -1827,7 +1827,7 @@
       "message": "Function 'ProviderModelMappingError' has no corresponding test references",
       "node_id": "py:agents_config.ProviderModelMappingError",
       "file": "agents_config.py",
-      "line": 573,
+      "line": 581,
       "suggestion": "Add tests that reference 'ProviderModelMappingError' (e.g., test_ProviderModelMappingError or import it in a test file)"
     },
     {
@@ -1836,7 +1836,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:agents_config.ProviderModelMappingError.__init__",
       "file": "agents_config.py",
-      "line": 576,
+      "line": 584,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -1845,7 +1845,7 @@
       "message": "Function '_default_agents_path' has no corresponding test references",
       "node_id": "py:agents_config._default_agents_path",
       "file": "agents_config.py",
-      "line": 597,
+      "line": 605,
       "suggestion": "Add tests that reference '_default_agents_path' (e.g., test__default_agents_path or import it in a test file)"
     },
     {
@@ -1854,7 +1854,7 @@
       "message": "Function '_default_secrets_path' has no corresponding test references",
       "node_id": "py:agents_config._default_secrets_path",
       "file": "agents_config.py",
-      "line": 601,
+      "line": 609,
       "suggestion": "Add tests that reference '_default_secrets_path' (e.g., test__default_secrets_path or import it in a test file)"
     },
     {
@@ -1863,7 +1863,7 @@
       "message": "Function 'load_agents_config' has no corresponding test references",
       "node_id": "py:agents_config.load_agents_config",
       "file": "agents_config.py",
-      "line": 605,
+      "line": 613,
       "suggestion": "Add tests that reference 'load_agents_config' (e.g., test_load_agents_config or import it in a test file)"
     },
     {
@@ -1872,7 +1872,7 @@
       "message": "Function '_parse_mode' has no corresponding test references",
       "node_id": "py:agents_config.load_agents_config._parse_mode",
       "file": "agents_config.py",
-      "line": 658,
+      "line": 666,
       "suggestion": "Add tests that reference '_parse_mode' (e.g., test__parse_mode or import it in a test file)"
     },
     {
@@ -1881,7 +1881,7 @@
       "message": "Function '_resolve_api_key_from_openbao' has no corresponding test references",
       "node_id": "py:agents_config._resolve_api_key_from_openbao",
       "file": "agents_config.py",
-      "line": 732,
+      "line": 740,
       "suggestion": "Add tests that reference '_resolve_api_key_from_openbao' (e.g., test__resolve_api_key_from_openbao or import it in a test file)"
     },
     {
@@ -1890,7 +1890,7 @@
       "message": "Function 'get_api_key_identities' has no corresponding test references",
       "node_id": "py:agents_config.get_api_key_identities",
       "file": "agents_config.py",
-      "line": 783,
+      "line": 791,
       "suggestion": "Add tests that reference 'get_api_key_identities' (e.g., test_get_api_key_identities or import it in a test file)"
     },
     {
@@ -1899,7 +1899,7 @@
       "message": "Function 'get_mcp_env' has no corresponding test references",
       "node_id": "py:agents_config.get_mcp_env",
       "file": "agents_config.py",
-      "line": 840,
+      "line": 848,
       "suggestion": "Add tests that reference 'get_mcp_env' (e.g., test_get_mcp_env or import it in a test file)"
     },
     {
@@ -1908,7 +1908,7 @@
       "message": "Function 'get_agents_config' has no corresponding test references",
       "node_id": "py:agents_config.get_agents_config",
       "file": "agents_config.py",
-      "line": 878,
+      "line": 886,
       "suggestion": "Add tests that reference 'get_agents_config' (e.g., test_get_agents_config or import it in a test file)"
     },
     {
@@ -1917,7 +1917,7 @@
       "message": "Function 'get_agent_config' has no corresponding test references",
       "node_id": "py:agents_config.get_agent_config",
       "file": "agents_config.py",
-      "line": 894,
+      "line": 902,
       "suggestion": "Add tests that reference 'get_agent_config' (e.g., test_get_agent_config or import it in a test file)"
     },
     {
@@ -1926,7 +1926,7 @@
       "message": "Function 'reset_agents_config' has no corresponding test references",
       "node_id": "py:agents_config.reset_agents_config",
       "file": "agents_config.py",
-      "line": 902,
+      "line": 910,
       "suggestion": "Add tests that reference 'reset_agents_config' (e.g., test_reset_agents_config or import it in a test file)"
     },
     {
@@ -1935,7 +1935,7 @@
       "message": "Function 'get_dispatch_configs' has no corresponding test references",
       "node_id": "py:agents_config.get_dispatch_configs",
       "file": "agents_config.py",
-      "line": 912,
+      "line": 920,
       "suggestion": "Add tests that reference 'get_dispatch_configs' (e.g., test_get_dispatch_configs or import it in a test file)"
     },
     {
@@ -1944,7 +1944,7 @@
       "message": "Function 'get_agent_isolation' has no corresponding test references",
       "node_id": "py:agents_config.get_agent_isolation",
       "file": "agents_config.py",
-      "line": 979,
+      "line": 987,
       "suggestion": "Add tests that reference 'get_agent_isolation' (e.g., test_get_agent_isolation or import it in a test file)"
     },
     {
@@ -1953,7 +1953,7 @@
       "message": "Function '_default_archetypes_path' has no corresponding test references",
       "node_id": "py:agents_config._default_archetypes_path",
       "file": "agents_config.py",
-      "line": 995,
+      "line": 1003,
       "suggestion": "Add tests that reference '_default_archetypes_path' (e.g., test__default_archetypes_path or import it in a test file)"
     },
     {
@@ -1962,7 +1962,7 @@
       "message": "Function 'load_archetypes_config' has no corresponding test references",
       "node_id": "py:agents_config.load_archetypes_config",
       "file": "agents_config.py",
-      "line": 999,
+      "line": 1007,
       "suggestion": "Add tests that reference 'load_archetypes_config' (e.g., test_load_archetypes_config or import it in a test file)"
     },
     {
@@ -1971,7 +1971,7 @@
       "message": "Function 'get_archetype' has no corresponding test references",
       "node_id": "py:agents_config.get_archetype",
       "file": "agents_config.py",
-      "line": 1083,
+      "line": 1104,
       "suggestion": "Add tests that reference 'get_archetype' (e.g., test_get_archetype or import it in a test file)"
     },
     {
@@ -1980,7 +1980,7 @@
       "message": "Function 'get_phase_mapping' has no corresponding test references",
       "node_id": "py:agents_config.get_phase_mapping",
       "file": "agents_config.py",
-      "line": 1097,
+      "line": 1118,
       "suggestion": "Add tests that reference 'get_phase_mapping' (e.g., test_get_phase_mapping or import it in a test file)"
     },
     {
@@ -1989,7 +1989,7 @@
       "message": "Function 'reset_archetypes_config' has no corresponding test references",
       "node_id": "py:agents_config.reset_archetypes_config",
       "file": "agents_config.py",
-      "line": 1109,
+      "line": 1130,
       "suggestion": "Add tests that reference 'reset_archetypes_config' (e.g., test_reset_archetypes_config or import it in a test file)"
     },
     {
@@ -1998,7 +1998,7 @@
       "message": "Function '_normalize_provider_model_map' has no corresponding test references",
       "node_id": "py:agents_config._normalize_provider_model_map",
       "file": "agents_config.py",
-      "line": 1117,
+      "line": 1138,
       "suggestion": "Add tests that reference '_normalize_provider_model_map' (e.g., test__normalize_provider_model_map or import it in a test file)"
     },
     {
@@ -2007,7 +2007,7 @@
       "message": "Function 'get_provider_model_map' has no corresponding test references",
       "node_id": "py:agents_config.get_provider_model_map",
       "file": "agents_config.py",
-      "line": 1144,
+      "line": 1165,
       "suggestion": "Add tests that reference 'get_provider_model_map' (e.g., test_get_provider_model_map or import it in a test file)"
     },
     {
@@ -2016,7 +2016,7 @@
       "message": "Function '_tier_entry_to_spec' has no corresponding test references",
       "node_id": "py:agents_config._tier_entry_to_spec",
       "file": "agents_config.py",
-      "line": 1151,
+      "line": 1172,
       "suggestion": "Add tests that reference '_tier_entry_to_spec' (e.g., test__tier_entry_to_spec or import it in a test file)"
     },
     {
@@ -2025,7 +2025,7 @@
       "message": "Function 'resolve_provider_model_spec' has no corresponding test references",
       "node_id": "py:agents_config.resolve_provider_model_spec",
       "file": "agents_config.py",
-      "line": 1166,
+      "line": 1187,
       "suggestion": "Add tests that reference 'resolve_provider_model_spec' (e.g., test_resolve_provider_model_spec or import it in a test file)"
     },
     {
@@ -2034,7 +2034,7 @@
       "message": "Function 'resolve_provider_model' has no corresponding test references",
       "node_id": "py:agents_config.resolve_provider_model",
       "file": "agents_config.py",
-      "line": 1219,
+      "line": 1240,
       "suggestion": "Add tests that reference 'resolve_provider_model' (e.g., test_resolve_provider_model or import it in a test file)"
     },
     {
@@ -2043,7 +2043,7 @@
       "message": "Function 'compose_prompt' has no corresponding test references",
       "node_id": "py:agents_config.compose_prompt",
       "file": "agents_config.py",
-      "line": 1239,
+      "line": 1260,
       "suggestion": "Add tests that reference 'compose_prompt' (e.g., test_compose_prompt or import it in a test file)"
     },
     {
@@ -2052,7 +2052,7 @@
       "message": "Function '_unique_dir_prefixes' has no corresponding test references",
       "node_id": "py:agents_config._unique_dir_prefixes",
       "file": "agents_config.py",
-      "line": 1255,
+      "line": 1276,
       "suggestion": "Add tests that reference '_unique_dir_prefixes' (e.g., test__unique_dir_prefixes or import it in a test file)"
     },
     {
@@ -2061,7 +2061,7 @@
       "message": "Function 'resolve_model' has no corresponding test references",
       "node_id": "py:agents_config.resolve_model",
       "file": "agents_config.py",
-      "line": 1274,
+      "line": 1295,
       "suggestion": "Add tests that reference 'resolve_model' (e.g., test_resolve_model or import it in a test file)"
     },
     {
@@ -2070,7 +2070,7 @@
       "message": "Function '_resolve_model_spec' has no corresponding test references",
       "node_id": "py:agents_config._resolve_model_spec",
       "file": "agents_config.py",
-      "line": 1313,
+      "line": 1334,
       "suggestion": "Add tests that reference '_resolve_model_spec' (e.g., test__resolve_model_spec or import it in a test file)"
     },
     {
@@ -2079,7 +2079,7 @@
       "message": "Function '_finalize' has no corresponding test references",
       "node_id": "py:agents_config._resolve_model_spec._finalize",
       "file": "agents_config.py",
-      "line": 1322,
+      "line": 1343,
       "suggestion": "Add tests that reference '_finalize' (e.g., test__finalize or import it in a test file)"
     },
     {
@@ -2088,7 +2088,7 @@
       "message": "Function 'resolve_archetype_for_phase' has no corresponding test references",
       "node_id": "py:agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line": 1379,
+      "line": 1400,
       "suggestion": "Add tests that reference 'resolve_archetype_for_phase' (e.g., test_resolve_archetype_for_phase or import it in a test file)"
     },
     {
@@ -9195,573 +9195,6 @@
     {
       "severity": "warning",
       "category": "test_coverage",
-      "message": "Function 'App' has no corresponding test references",
-      "node_id": "ts:App",
-      "file": "kanban-viz/src/App.tsx",
-      "line": 14,
-      "suggestion": "Add tests that reference 'App' (e.g., test_App or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'Board' has no corresponding test references",
-      "node_id": "ts:Board",
-      "file": "kanban-viz/src/components/Board.tsx",
-      "line": 24,
-      "suggestion": "Add tests that reference 'Board' (e.g., test_Board or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'relativeTime' has no corresponding test references",
-      "node_id": "ts:relativeTime",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "line": 28,
-      "suggestion": "Add tests that reference 'relativeTime' (e.g., test_relativeTime or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'Card' has no corresponding test references",
-      "node_id": "ts:Card",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "line": 41,
-      "suggestion": "Add tests that reference 'Card' (e.g., test_Card or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'emitHighlight' has no corresponding test references",
-      "node_id": "ts:emitHighlight",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 22,
-      "suggestion": "Add tests that reference 'emitHighlight' (e.g., test_emitHighlight or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'useHighlightState' has no corresponding test references",
-      "node_id": "ts:useHighlightState",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 32,
-      "suggestion": "Add tests that reference 'useHighlightState' (e.g., test_useHighlightState or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'ClusterBadge' has no corresponding test references",
-      "node_id": "ts:ClusterBadge",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 72,
-      "suggestion": "Add tests that reference 'ClusterBadge' (e.g., test_ClusterBadge or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'ClusterBadgeInner' has no corresponding test references",
-      "node_id": "ts:ClusterBadgeInner",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 81,
-      "suggestion": "Add tests that reference 'ClusterBadgeInner' (e.g., test_ClusterBadgeInner or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'ClusterHighlightWrapper' has no corresponding test references",
-      "node_id": "ts:ClusterHighlightWrapper",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 130,
-      "suggestion": "Add tests that reference 'ClusterHighlightWrapper' (e.g., test_ClusterHighlightWrapper or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'Column' has no corresponding test references",
-      "node_id": "ts:Column",
-      "file": "kanban-viz/src/components/Column.tsx",
-      "line": 25,
-      "suggestion": "Add tests that reference 'Column' (e.g., test_Column or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'ConsentPrompt' has no corresponding test references",
-      "node_id": "ts:ConsentPrompt",
-      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
-      "line": 12,
-      "suggestion": "Add tests that reference 'ConsentPrompt' (e.g., test_ConsentPrompt or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'shortForm' has no corresponding test references",
-      "node_id": "ts:shortForm",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "line": 16,
-      "suggestion": "Add tests that reference 'shortForm' (e.g., test_shortForm or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'HiddenReposToggle' has no corresponding test references",
-      "node_id": "ts:HiddenReposToggle",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "line": 30,
-      "suggestion": "Add tests that reference 'HiddenReposToggle' (e.g., test_HiddenReposToggle or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'PRCardView' has no corresponding test references",
-      "node_id": "ts:PRCardView",
-      "file": "kanban-viz/src/components/PRCardView.tsx",
-      "line": 75,
-      "suggestion": "Add tests that reference 'PRCardView' (e.g., test_PRCardView or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'loadFromStorage' has no corresponding test references",
-      "node_id": "ts:loadFromStorage",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 28,
-      "suggestion": "Add tests that reference 'loadFromStorage' (e.g., test_loadFromStorage or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'saveToStorage' has no corresponding test references",
-      "node_id": "ts:saveToStorage",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 45,
-      "suggestion": "Add tests that reference 'saveToStorage' (e.g., test_saveToStorage or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'PROriginFilter' has no corresponding test references",
-      "node_id": "ts:PROriginFilter",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 69,
-      "suggestion": "Add tests that reference 'PROriginFilter' (e.g., test_PROriginFilter or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'filterByOrigin' has no corresponding test references",
-      "node_id": "ts:filterByOrigin",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 137,
-      "suggestion": "Add tests that reference 'filterByOrigin' (e.g., test_filterByOrigin or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'ProposalCardView' has no corresponding test references",
-      "node_id": "ts:ProposalCardView",
-      "file": "kanban-viz/src/components/ProposalCardView.tsx",
-      "line": 22,
-      "suggestion": "Add tests that reference 'ProposalCardView' (e.g., test_ProposalCardView or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'RefreshButton' has no corresponding test references",
-      "node_id": "ts:RefreshButton",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "line": 30,
-      "suggestion": "Add tests that reference 'RefreshButton' (e.g., test_RefreshButton or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'formatRelative' has no corresponding test references",
-      "node_id": "ts:formatRelative",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "line": 134,
-      "suggestion": "Add tests that reference 'formatRelative' (e.g., test_formatRelative or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'hashString' has no corresponding test references",
-      "node_id": "ts:hashString",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "line": 22,
-      "suggestion": "Add tests that reference 'hashString' (e.g., test_hashString or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'repoToColor' has no corresponding test references",
-      "node_id": "ts:repoToColor",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "line": 33,
-      "suggestion": "Add tests that reference 'repoToColor' (e.g., test_repoToColor or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'RepoBadge' has no corresponding test references",
-      "node_id": "ts:RepoBadge",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "line": 53,
-      "suggestion": "Add tests that reference 'RepoBadge' (e.g., test_RepoBadge or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'slugify' has no corresponding test references",
-      "node_id": "ts:slugify",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "line": 43,
-      "suggestion": "Add tests that reference 'slugify' (e.g., test_slugify or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'SaveViewButton' has no corresponding test references",
-      "node_id": "ts:SaveViewButton",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "line": 53,
-      "suggestion": "Add tests that reference 'SaveViewButton' (e.g., test_SaveViewButton or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'bucketIssues' has no corresponding test references",
-      "node_id": "ts:bucketIssues",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 70,
-      "suggestion": "Add tests that reference 'bucketIssues' (e.g., test_bucketIssues or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'bucketPRs' has no corresponding test references",
-      "node_id": "ts:bucketPRs",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 79,
-      "suggestion": "Add tests that reference 'bucketPRs' (e.g., test_bucketPRs or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'bucketProposals' has no corresponding test references",
-      "node_id": "ts:bucketProposals",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 88,
-      "suggestion": "Add tests that reference 'bucketProposals' (e.g., test_bucketProposals or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'IssueSourceRow' has no corresponding test references",
-      "node_id": "ts:IssueSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 108,
-      "suggestion": "Add tests that reference 'IssueSourceRow' (e.g., test_IssueSourceRow or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'PRSourceRow' has no corresponding test references",
-      "node_id": "ts:PRSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 245,
-      "suggestion": "Add tests that reference 'PRSourceRow' (e.g., test_PRSourceRow or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'PartialResultChip' has no corresponding test references",
-      "node_id": "ts:PartialResultChip",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 393,
-      "suggestion": "Add tests that reference 'PartialResultChip' (e.g., test_PartialResultChip or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'ProposalSourceRow' has no corresponding test references",
-      "node_id": "ts:ProposalSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 442,
-      "suggestion": "Add tests that reference 'ProposalSourceRow' (e.g., test_ProposalSourceRow or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'SourceSwimlanes' has no corresponding test references",
-      "node_id": "ts:SourceSwimlanes",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 554,
-      "suggestion": "Add tests that reference 'SourceSwimlanes' (e.g., test_SourceSwimlanes or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'fetchSyncStatus' has no corresponding test references",
-      "node_id": "ts:fetchSyncStatus",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "line": 24,
-      "suggestion": "Add tests that reference 'fetchSyncStatus' (e.g., test_fetchSyncStatus or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'SyncPointBanner' has no corresponding test references",
-      "node_id": "ts:SyncPointBanner",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "line": 43,
-      "suggestion": "Add tests that reference 'SyncPointBanner' (e.g., test_SyncPointBanner or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'extractVendor' has no corresponding test references",
-      "node_id": "ts:extractVendor",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 29,
-      "suggestion": "Add tests that reference 'extractVendor' (e.g., test_extractVendor or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'groupByVendor' has no corresponding test references",
-      "node_id": "ts:groupByVendor",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 46,
-      "suggestion": "Add tests that reference 'groupByVendor' (e.g., test_groupByVendor or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'determineConsensus' has no corresponding test references",
-      "node_id": "ts:determineConsensus",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 60,
-      "suggestion": "Add tests that reference 'determineConsensus' (e.g., test_determineConsensus or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'VendorSwimlanes' has no corresponding test references",
-      "node_id": "ts:VendorSwimlanes",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 64,
-      "suggestion": "Add tests that reference 'VendorSwimlanes' (e.g., test_VendorSwimlanes or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'clusterBoardCards' has no corresponding test references",
-      "node_id": "ts:clusterBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 57,
-      "suggestion": "Add tests that reference 'clusterBoardCards' (e.g., test_clusterBoardCards or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'fetchPRs' has no corresponding test references",
-      "node_id": "ts:fetchPRs",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 179,
-      "suggestion": "Add tests that reference 'fetchPRs' (e.g., test_fetchPRs or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'fetchProposals' has no corresponding test references",
-      "node_id": "ts:fetchProposals",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 190,
-      "suggestion": "Add tests that reference 'fetchProposals' (e.g., test_fetchProposals or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'useBoardCards' has no corresponding test references",
-      "node_id": "ts:useBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 211,
-      "suggestion": "Add tests that reference 'useBoardCards' (e.g., test_useBoardCards or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'fetchIssuesForSingleChange' has no corresponding test references",
-      "node_id": "ts:fetchIssuesForSingleChange",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 64,
-      "suggestion": "Add tests that reference 'fetchIssuesForSingleChange' (e.g., test_fetchIssuesForSingleChange or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'fetchIssuesUnioned' has no corresponding test references",
-      "node_id": "ts:fetchIssuesUnioned",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 96,
-      "suggestion": "Add tests that reference 'fetchIssuesUnioned' (e.g., test_fetchIssuesUnioned or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'mintEventsToken' has no corresponding test references",
-      "node_id": "ts:mintEventsToken",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 114,
-      "suggestion": "Add tests that reference 'mintEventsToken' (e.g., test_mintEventsToken or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'useCoordinator' has no corresponding test references",
-      "node_id": "ts:useCoordinator",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 132,
-      "suggestion": "Add tests that reference 'useCoordinator' (e.g., test_useCoordinator or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'assertNever' has no corresponding test references",
-      "node_id": "ts:assertNever",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 208,
-      "suggestion": "Add tests that reference 'assertNever' (e.g., test_assertNever or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'issueStatusToColumn' has no corresponding test references",
-      "node_id": "ts:issueStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 218,
-      "suggestion": "Add tests that reference 'issueStatusToColumn' (e.g., test_issueStatusToColumn or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'prStatusToColumn' has no corresponding test references",
-      "node_id": "ts:prStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 236,
-      "suggestion": "Add tests that reference 'prStatusToColumn' (e.g., test_prStatusToColumn or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'proposalStatusToColumn' has no corresponding test references",
-      "node_id": "ts:proposalStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 250,
-      "suggestion": "Add tests that reference 'proposalStatusToColumn' (e.g., test_proposalStatusToColumn or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'toIssueCard' has no corresponding test references",
-      "node_id": "ts:toIssueCard",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 295,
-      "suggestion": "Add tests that reference 'toIssueCard' (e.g., test_toIssueCard or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'deriveIssueRepo' has no corresponding test references",
-      "node_id": "ts:deriveIssueRepo",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 336,
-      "suggestion": "Add tests that reference 'deriveIssueRepo' (e.g., test_deriveIssueRepo or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'getClusterKey' has no corresponding test references",
-      "node_id": "ts:getClusterKey",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 364,
-      "suggestion": "Add tests that reference 'getClusterKey' (e.g., test_getClusterKey or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'classify' has no corresponding test references",
-      "node_id": "ts:classify",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "line": 46,
-      "suggestion": "Add tests that reference 'classify' (e.g., test_classify or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'classifyOrDefault' has no corresponding test references",
-      "node_id": "ts:classifyOrDefault",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "line": 54,
-      "suggestion": "Add tests that reference 'classifyOrDefault' (e.g., test_classifyOrDefault or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'requiresConsent' has no corresponding test references",
-      "node_id": "ts:requiresConsent",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "line": 59,
-      "suggestion": "Add tests that reference 'requiresConsent' (e.g., test_requiresConsent or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'isTauri' has no corresponding test references",
-      "node_id": "ts:isTauri",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "line": 12,
-      "suggestion": "Add tests that reference 'isTauri' (e.g., test_isTauri or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'isBrowser' has no corresponding test references",
-      "node_id": "ts:isBrowser",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "line": 21,
-      "suggestion": "Add tests that reference 'isBrowser' (e.g., test_isBrowser or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'saveView' has no corresponding test references",
-      "node_id": "ts:saveView",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "line": 35,
-      "suggestion": "Add tests that reference 'saveView' (e.g., test_saveView or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'saveBrowser' has no corresponding test references",
-      "node_id": "ts:saveBrowser",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "line": 47,
-      "suggestion": "Add tests that reference 'saveBrowser' (e.g., test_saveBrowser or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
-      "message": "Function 'saveTauri' has no corresponding test references",
-      "node_id": "ts:saveTauri",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "line": 68,
-      "suggestion": "Add tests that reference 'saveTauri' (e.g., test_saveTauri or import it in a test file)"
-    },
-    {
-      "severity": "warning",
-      "category": "test_coverage",
       "message": "Function '_load_schema' has no corresponding test references",
       "node_id": "py:kanban_viz_files._load_schema",
       "file": "kanban_viz_files.py",
@@ -13407,83 +12840,92 @@
     {
       "severity": "warning",
       "category": "test_coverage",
-      "message": "Function 'AgentDefinition' has no corresponding test references",
-      "node_id": "py:teams.AgentDefinition",
+      "message": "Function 'RoleAssignment' has no corresponding test references",
+      "node_id": "py:teams.RoleAssignment",
       "file": "teams.py",
-      "line": 48,
-      "suggestion": "Add tests that reference 'AgentDefinition' (e.g., test_AgentDefinition or import it in a test file)"
+      "line": 72,
+      "suggestion": "Add tests that reference 'RoleAssignment' (e.g., test_RoleAssignment or import it in a test file)"
     },
     {
       "severity": "warning",
       "category": "test_coverage",
-      "message": "Function 'TeamsConfig' has no corresponding test references",
-      "node_id": "py:teams.TeamsConfig",
+      "message": "Function 'CrewManifest' has no corresponding test references",
+      "node_id": "py:teams.CrewManifest",
       "file": "teams.py",
-      "line": 58,
-      "suggestion": "Add tests that reference 'TeamsConfig' (e.g., test_TeamsConfig or import it in a test file)"
+      "line": 80,
+      "suggestion": "Add tests that reference 'CrewManifest' (e.g., test_CrewManifest or import it in a test file)"
     },
     {
       "severity": "warning",
       "category": "test_coverage",
       "message": "Function 'from_file' has no corresponding test references",
-      "node_id": "py:teams.TeamsConfig.from_file",
+      "node_id": "py:teams.CrewManifest.from_file",
       "file": "teams.py",
-      "line": 69,
+      "line": 95,
       "suggestion": "Add tests that reference 'from_file' (e.g., test_from_file or import it in a test file)"
     },
     {
       "severity": "warning",
       "category": "test_coverage",
       "message": "Function 'from_dict' has no corresponding test references",
-      "node_id": "py:teams.TeamsConfig.from_dict",
+      "node_id": "py:teams.CrewManifest.from_dict",
       "file": "teams.py",
-      "line": 93,
+      "line": 113,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
       "severity": "warning",
       "category": "test_coverage",
-      "message": "Function 'get_agent' has no corresponding test references",
-      "node_id": "py:teams.TeamsConfig.get_agent",
+      "message": "Function 'get_role' has no corresponding test references",
+      "node_id": "py:teams.CrewManifest.get_role",
       "file": "teams.py",
-      "line": 129,
-      "suggestion": "Add tests that reference 'get_agent' (e.g., test_get_agent or import it in a test file)"
+      "line": 145,
+      "suggestion": "Add tests that reference 'get_role' (e.g., test_get_role or import it in a test file)"
     },
     {
       "severity": "warning",
       "category": "test_coverage",
-      "message": "Function 'get_agents_with_capability' has no corresponding test references",
-      "node_id": "py:teams.TeamsConfig.get_agents_with_capability",
+      "message": "Function 'vendors_for' has no corresponding test references",
+      "node_id": "py:teams.CrewManifest.vendors_for",
       "file": "teams.py",
-      "line": 143,
-      "suggestion": "Add tests that reference 'get_agents_with_capability' (e.g., test_get_agents_with_capability or import it in a test file)"
+      "line": 152,
+      "suggestion": "Add tests that reference 'vendors_for' (e.g., test_vendors_for or import it in a test file)"
     },
     {
       "severity": "warning",
       "category": "test_coverage",
       "message": "Function 'validate' has no corresponding test references",
-      "node_id": "py:teams.TeamsConfig.validate",
+      "node_id": "py:teams.CrewManifest.validate",
       "file": "teams.py",
-      "line": 154,
+      "line": 160,
       "suggestion": "Add tests that reference 'validate' (e.g., test_validate or import it in a test file)"
     },
     {
       "severity": "warning",
       "category": "test_coverage",
-      "message": "Function 'get_teams_config' has no corresponding test references",
-      "node_id": "py:teams.get_teams_config",
+      "message": "Function 'validate_against' has no corresponding test references",
+      "node_id": "py:teams.CrewManifest.validate_against",
       "file": "teams.py",
-      "line": 180,
-      "suggestion": "Add tests that reference 'get_teams_config' (e.g., test_get_teams_config or import it in a test file)"
+      "line": 181,
+      "suggestion": "Add tests that reference 'validate_against' (e.g., test_validate_against or import it in a test file)"
     },
     {
       "severity": "warning",
       "category": "test_coverage",
-      "message": "Function 'reset_teams_config' has no corresponding test references",
-      "node_id": "py:teams.reset_teams_config",
+      "message": "Function 'get_crew_manifest' has no corresponding test references",
+      "node_id": "py:teams.get_crew_manifest",
       "file": "teams.py",
-      "line": 200,
-      "suggestion": "Add tests that reference 'reset_teams_config' (e.g., test_reset_teams_config or import it in a test file)"
+      "line": 240,
+      "suggestion": "Add tests that reference 'get_crew_manifest' (e.g., test_get_crew_manifest or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'reset_crew_manifest' has no corresponding test references",
+      "node_id": "py:teams.reset_crew_manifest",
+      "file": "teams.py",
+      "line": 304,
+      "suggestion": "Add tests that reference 'reset_crew_manifest' (e.g., test_reset_crew_manifest or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -14067,7 +13509,7 @@
       "message": "'PollConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.PollConfig",
       "file": "agents_config.py",
-      "line": 413,
+      "line": 421,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14076,7 +13518,7 @@
       "message": "'ModeConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ModeConfig",
       "file": "agents_config.py",
-      "line": 431,
+      "line": 439,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14085,7 +13527,7 @@
       "message": "'CliConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.CliConfig",
       "file": "agents_config.py",
-      "line": 440,
+      "line": 448,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14094,7 +13536,7 @@
       "message": "'SdkConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.SdkConfig",
       "file": "agents_config.py",
-      "line": 460,
+      "line": 468,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14103,7 +13545,7 @@
       "message": "'AgentEntry' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.AgentEntry",
       "file": "agents_config.py",
-      "line": 477,
+      "line": 485,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14112,7 +13554,7 @@
       "message": "'EscalationConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.EscalationConfig",
       "file": "agents_config.py",
-      "line": 500,
+      "line": 508,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14121,7 +13563,7 @@
       "message": "'ArchetypeConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ArchetypeConfig",
       "file": "agents_config.py",
-      "line": 514,
+      "line": 522,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14130,7 +13572,7 @@
       "message": "'PhaseMappingEntry' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.PhaseMappingEntry",
       "file": "agents_config.py",
-      "line": 529,
+      "line": 537,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14139,7 +13581,7 @@
       "message": "'ModelSpec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ModelSpec",
       "file": "agents_config.py",
-      "line": 543,
+      "line": 551,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14148,7 +13590,7 @@
       "message": "'ResolvedArchetype' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ResolvedArchetype",
       "file": "agents_config.py",
-      "line": 557,
+      "line": 565,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14157,7 +13599,7 @@
       "message": "'ProviderModelMappingError' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ProviderModelMappingError",
       "file": "agents_config.py",
-      "line": 573,
+      "line": 581,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14166,7 +13608,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ProviderModelMappingError.__init__",
       "file": "agents_config.py",
-      "line": 576,
+      "line": 584,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14175,7 +13617,7 @@
       "message": "'_resolve_api_key_from_openbao' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._resolve_api_key_from_openbao",
       "file": "agents_config.py",
-      "line": 732,
+      "line": 740,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14184,7 +13626,7 @@
       "message": "'get_api_key_identities' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_api_key_identities",
       "file": "agents_config.py",
-      "line": 783,
+      "line": 791,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14193,7 +13635,7 @@
       "message": "'get_mcp_env' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_mcp_env",
       "file": "agents_config.py",
-      "line": 840,
+      "line": 848,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14202,7 +13644,7 @@
       "message": "'get_agent_config' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_agent_config",
       "file": "agents_config.py",
-      "line": 894,
+      "line": 902,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14211,7 +13653,7 @@
       "message": "'reset_agents_config' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.reset_agents_config",
       "file": "agents_config.py",
-      "line": 902,
+      "line": 910,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14220,7 +13662,7 @@
       "message": "'get_agent_isolation' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_agent_isolation",
       "file": "agents_config.py",
-      "line": 979,
+      "line": 987,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14229,7 +13671,7 @@
       "message": "'_default_archetypes_path' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._default_archetypes_path",
       "file": "agents_config.py",
-      "line": 995,
+      "line": 1003,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14238,7 +13680,7 @@
       "message": "'load_archetypes_config' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.load_archetypes_config",
       "file": "agents_config.py",
-      "line": 999,
+      "line": 1007,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14247,7 +13689,7 @@
       "message": "'get_archetype' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_archetype",
       "file": "agents_config.py",
-      "line": 1083,
+      "line": 1104,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14256,7 +13698,7 @@
       "message": "'get_phase_mapping' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_phase_mapping",
       "file": "agents_config.py",
-      "line": 1097,
+      "line": 1118,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14265,7 +13707,7 @@
       "message": "'reset_archetypes_config' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.reset_archetypes_config",
       "file": "agents_config.py",
-      "line": 1109,
+      "line": 1130,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14274,7 +13716,7 @@
       "message": "'_normalize_provider_model_map' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._normalize_provider_model_map",
       "file": "agents_config.py",
-      "line": 1117,
+      "line": 1138,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14283,7 +13725,7 @@
       "message": "'get_provider_model_map' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_provider_model_map",
       "file": "agents_config.py",
-      "line": 1144,
+      "line": 1165,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14292,7 +13734,7 @@
       "message": "'_tier_entry_to_spec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._tier_entry_to_spec",
       "file": "agents_config.py",
-      "line": 1151,
+      "line": 1172,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14301,7 +13743,7 @@
       "message": "'resolve_provider_model_spec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_provider_model_spec",
       "file": "agents_config.py",
-      "line": 1166,
+      "line": 1187,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14310,7 +13752,7 @@
       "message": "'resolve_provider_model' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_provider_model",
       "file": "agents_config.py",
-      "line": 1219,
+      "line": 1240,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14319,7 +13761,7 @@
       "message": "'compose_prompt' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.compose_prompt",
       "file": "agents_config.py",
-      "line": 1239,
+      "line": 1260,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14328,7 +13770,7 @@
       "message": "'_unique_dir_prefixes' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._unique_dir_prefixes",
       "file": "agents_config.py",
-      "line": 1255,
+      "line": 1276,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14337,7 +13779,7 @@
       "message": "'resolve_model' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_model",
       "file": "agents_config.py",
-      "line": 1274,
+      "line": 1295,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14346,7 +13788,7 @@
       "message": "'_resolve_model_spec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._resolve_model_spec",
       "file": "agents_config.py",
-      "line": 1313,
+      "line": 1334,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14355,7 +13797,7 @@
       "message": "'_finalize' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._resolve_model_spec._finalize",
       "file": "agents_config.py",
-      "line": 1322,
+      "line": 1343,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14364,7 +13806,7 @@
       "message": "'resolve_archetype_for_phase' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line": 1379,
+      "line": 1400,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20391,798 +19833,6 @@
     {
       "severity": "warning",
       "category": "orphan",
-      "message": "'kanban-viz/src/App' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/App",
-      "file": "kanban-viz/src/App.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'App' is unreachable from any entrypoint or test",
-      "node_id": "ts:App",
-      "file": "kanban-viz/src/App.tsx",
-      "line": 14,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/Board' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/Board",
-      "file": "kanban-viz/src/components/Board.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'Board' is unreachable from any entrypoint or test",
-      "node_id": "ts:Board",
-      "file": "kanban-viz/src/components/Board.tsx",
-      "line": 24,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/Card' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/Card",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'relativeTime' is unreachable from any entrypoint or test",
-      "node_id": "ts:relativeTime",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "line": 28,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'Card' is unreachable from any entrypoint or test",
-      "node_id": "ts:Card",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "line": 41,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/ClusterBadge' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/ClusterBadge",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'emitHighlight' is unreachable from any entrypoint or test",
-      "node_id": "ts:emitHighlight",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 22,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'useHighlightState' is unreachable from any entrypoint or test",
-      "node_id": "ts:useHighlightState",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 32,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'ClusterBadge' is unreachable from any entrypoint or test",
-      "node_id": "ts:ClusterBadge",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 72,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'ClusterBadgeInner' is unreachable from any entrypoint or test",
-      "node_id": "ts:ClusterBadgeInner",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 81,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'ClusterHighlightWrapper' is unreachable from any entrypoint or test",
-      "node_id": "ts:ClusterHighlightWrapper",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 130,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/Column' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/Column",
-      "file": "kanban-viz/src/components/Column.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'Column' is unreachable from any entrypoint or test",
-      "node_id": "ts:Column",
-      "file": "kanban-viz/src/components/Column.tsx",
-      "line": 25,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/ConsentPrompt' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/ConsentPrompt",
-      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'ConsentPrompt' is unreachable from any entrypoint or test",
-      "node_id": "ts:ConsentPrompt",
-      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
-      "line": 12,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/HiddenReposToggle' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/HiddenReposToggle",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'shortForm' is unreachable from any entrypoint or test",
-      "node_id": "ts:shortForm",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "line": 16,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'HiddenReposToggle' is unreachable from any entrypoint or test",
-      "node_id": "ts:HiddenReposToggle",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "line": 30,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/PRCardView' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/PRCardView",
-      "file": "kanban-viz/src/components/PRCardView.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'PRCardView' is unreachable from any entrypoint or test",
-      "node_id": "ts:PRCardView",
-      "file": "kanban-viz/src/components/PRCardView.tsx",
-      "line": 75,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/PROriginFilter' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/PROriginFilter",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'loadFromStorage' is unreachable from any entrypoint or test",
-      "node_id": "ts:loadFromStorage",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 28,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'saveToStorage' is unreachable from any entrypoint or test",
-      "node_id": "ts:saveToStorage",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 45,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'PROriginFilter' is unreachable from any entrypoint or test",
-      "node_id": "ts:PROriginFilter",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 69,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'filterByOrigin' is unreachable from any entrypoint or test",
-      "node_id": "ts:filterByOrigin",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 137,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/ProposalCardView' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/ProposalCardView",
-      "file": "kanban-viz/src/components/ProposalCardView.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'ProposalCardView' is unreachable from any entrypoint or test",
-      "node_id": "ts:ProposalCardView",
-      "file": "kanban-viz/src/components/ProposalCardView.tsx",
-      "line": 22,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/RefreshButton' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/RefreshButton",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'RefreshButton' is unreachable from any entrypoint or test",
-      "node_id": "ts:RefreshButton",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "line": 30,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'formatRelative' is unreachable from any entrypoint or test",
-      "node_id": "ts:formatRelative",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "line": 134,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/RepoBadge' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/RepoBadge",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'hashString' is unreachable from any entrypoint or test",
-      "node_id": "ts:hashString",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "line": 22,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'repoToColor' is unreachable from any entrypoint or test",
-      "node_id": "ts:repoToColor",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "line": 33,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'RepoBadge' is unreachable from any entrypoint or test",
-      "node_id": "ts:RepoBadge",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "line": 53,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/SaveViewButton' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/SaveViewButton",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'slugify' is unreachable from any entrypoint or test",
-      "node_id": "ts:slugify",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "line": 43,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'SaveViewButton' is unreachable from any entrypoint or test",
-      "node_id": "ts:SaveViewButton",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "line": 53,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/SourceSwimlanes' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/SourceSwimlanes",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'bucketIssues' is unreachable from any entrypoint or test",
-      "node_id": "ts:bucketIssues",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 70,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'bucketPRs' is unreachable from any entrypoint or test",
-      "node_id": "ts:bucketPRs",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 79,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'bucketProposals' is unreachable from any entrypoint or test",
-      "node_id": "ts:bucketProposals",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 88,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'IssueSourceRow' is unreachable from any entrypoint or test",
-      "node_id": "ts:IssueSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 108,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'PRSourceRow' is unreachable from any entrypoint or test",
-      "node_id": "ts:PRSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 245,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'PartialResultChip' is unreachable from any entrypoint or test",
-      "node_id": "ts:PartialResultChip",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 393,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'ProposalSourceRow' is unreachable from any entrypoint or test",
-      "node_id": "ts:ProposalSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 442,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'SourceSwimlanes' is unreachable from any entrypoint or test",
-      "node_id": "ts:SourceSwimlanes",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 554,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/SyncPointBanner' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/SyncPointBanner",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'fetchSyncStatus' is unreachable from any entrypoint or test",
-      "node_id": "ts:fetchSyncStatus",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "line": 24,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'SyncPointBanner' is unreachable from any entrypoint or test",
-      "node_id": "ts:SyncPointBanner",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "line": 43,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/components/VendorSwimlanes' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/components/VendorSwimlanes",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'extractVendor' is unreachable from any entrypoint or test",
-      "node_id": "ts:extractVendor",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 29,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'groupByVendor' is unreachable from any entrypoint or test",
-      "node_id": "ts:groupByVendor",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 46,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'determineConsensus' is unreachable from any entrypoint or test",
-      "node_id": "ts:determineConsensus",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 60,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'VendorSwimlanes' is unreachable from any entrypoint or test",
-      "node_id": "ts:VendorSwimlanes",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 64,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/hooks/useBoardCards' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/hooks/useBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'clusterBoardCards' is unreachable from any entrypoint or test",
-      "node_id": "ts:clusterBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 57,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'fetchPRs' is unreachable from any entrypoint or test",
-      "node_id": "ts:fetchPRs",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 179,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'fetchProposals' is unreachable from any entrypoint or test",
-      "node_id": "ts:fetchProposals",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 190,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'useBoardCards' is unreachable from any entrypoint or test",
-      "node_id": "ts:useBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 211,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/hooks/useCoordinator' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/hooks/useCoordinator",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'fetchIssuesForSingleChange' is unreachable from any entrypoint or test",
-      "node_id": "ts:fetchIssuesForSingleChange",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 64,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'fetchIssuesUnioned' is unreachable from any entrypoint or test",
-      "node_id": "ts:fetchIssuesUnioned",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 96,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'mintEventsToken' is unreachable from any entrypoint or test",
-      "node_id": "ts:mintEventsToken",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 114,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'useCoordinator' is unreachable from any entrypoint or test",
-      "node_id": "ts:useCoordinator",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 132,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/lib/coordinator-types' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/lib/coordinator-types",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'assertNever' is unreachable from any entrypoint or test",
-      "node_id": "ts:assertNever",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 208,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'issueStatusToColumn' is unreachable from any entrypoint or test",
-      "node_id": "ts:issueStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 218,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'prStatusToColumn' is unreachable from any entrypoint or test",
-      "node_id": "ts:prStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 236,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'proposalStatusToColumn' is unreachable from any entrypoint or test",
-      "node_id": "ts:proposalStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 250,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'toIssueCard' is unreachable from any entrypoint or test",
-      "node_id": "ts:toIssueCard",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 295,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'deriveIssueRepo' is unreachable from any entrypoint or test",
-      "node_id": "ts:deriveIssueRepo",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 336,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'getClusterKey' is unreachable from any entrypoint or test",
-      "node_id": "ts:getClusterKey",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 364,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/lib/reversibility' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/lib/reversibility",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'classify' is unreachable from any entrypoint or test",
-      "node_id": "ts:classify",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "line": 46,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'classifyOrDefault' is unreachable from any entrypoint or test",
-      "node_id": "ts:classifyOrDefault",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "line": 54,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'requiresConsent' is unreachable from any entrypoint or test",
-      "node_id": "ts:requiresConsent",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "line": 59,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/lib/runtime' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/lib/runtime",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'isTauri' is unreachable from any entrypoint or test",
-      "node_id": "ts:isTauri",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "line": 12,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'isBrowser' is unreachable from any entrypoint or test",
-      "node_id": "ts:isBrowser",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "line": 21,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/lib/saveView' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/lib/saveView",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'saveView' is unreachable from any entrypoint or test",
-      "node_id": "ts:saveView",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "line": 35,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'saveBrowser' is unreachable from any entrypoint or test",
-      "node_id": "ts:saveBrowser",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "line": 47,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'saveTauri' is unreachable from any entrypoint or test",
-      "node_id": "ts:saveTauri",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "line": 68,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/main' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/main",
-      "file": "kanban-viz/src/main.tsx",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/src/vite-env.d' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/src/vite-env.d",
-      "file": "kanban-viz/src/vite-env.d.ts",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
-      "message": "'kanban-viz/vite.config' is unreachable from any entrypoint or test",
-      "node_id": "ts:kanban-viz/vite.config",
-      "file": "kanban-viz/vite.config.ts",
-      "line": 1,
-      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "warning",
-      "category": "orphan",
       "message": "'kanban_viz_files' is unreachable from any entrypoint or test",
       "node_id": "py:kanban_viz_files",
       "file": "kanban_viz_files.py",
@@ -24846,73 +23496,82 @@
     {
       "severity": "warning",
       "category": "orphan",
-      "message": "'AgentDefinition' is unreachable from any entrypoint or test",
-      "node_id": "py:teams.AgentDefinition",
+      "message": "'RoleAssignment' is unreachable from any entrypoint or test",
+      "node_id": "py:teams.RoleAssignment",
       "file": "teams.py",
-      "line": 48,
+      "line": 72,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
       "severity": "warning",
       "category": "orphan",
-      "message": "'TeamsConfig' is unreachable from any entrypoint or test",
-      "node_id": "py:teams.TeamsConfig",
+      "message": "'CrewManifest' is unreachable from any entrypoint or test",
+      "node_id": "py:teams.CrewManifest",
       "file": "teams.py",
-      "line": 58,
+      "line": 80,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
       "severity": "warning",
       "category": "orphan",
       "message": "'from_file' is unreachable from any entrypoint or test",
-      "node_id": "py:teams.TeamsConfig.from_file",
+      "node_id": "py:teams.CrewManifest.from_file",
       "file": "teams.py",
-      "line": 69,
+      "line": 95,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
       "severity": "warning",
       "category": "orphan",
       "message": "'from_dict' is unreachable from any entrypoint or test",
-      "node_id": "py:teams.TeamsConfig.from_dict",
+      "node_id": "py:teams.CrewManifest.from_dict",
       "file": "teams.py",
-      "line": 93,
+      "line": 113,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
       "severity": "warning",
       "category": "orphan",
-      "message": "'get_agent' is unreachable from any entrypoint or test",
-      "node_id": "py:teams.TeamsConfig.get_agent",
+      "message": "'get_role' is unreachable from any entrypoint or test",
+      "node_id": "py:teams.CrewManifest.get_role",
       "file": "teams.py",
-      "line": 129,
+      "line": 145,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
       "severity": "warning",
       "category": "orphan",
-      "message": "'get_agents_with_capability' is unreachable from any entrypoint or test",
-      "node_id": "py:teams.TeamsConfig.get_agents_with_capability",
+      "message": "'vendors_for' is unreachable from any entrypoint or test",
+      "node_id": "py:teams.CrewManifest.vendors_for",
       "file": "teams.py",
-      "line": 143,
+      "line": 152,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
       "severity": "warning",
       "category": "orphan",
-      "message": "'get_teams_config' is unreachable from any entrypoint or test",
-      "node_id": "py:teams.get_teams_config",
+      "message": "'validate_against' is unreachable from any entrypoint or test",
+      "node_id": "py:teams.CrewManifest.validate_against",
       "file": "teams.py",
-      "line": 180,
+      "line": 181,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
       "severity": "warning",
       "category": "orphan",
-      "message": "'reset_teams_config' is unreachable from any entrypoint or test",
-      "node_id": "py:teams.reset_teams_config",
+      "message": "'get_crew_manifest' is unreachable from any entrypoint or test",
+      "node_id": "py:teams.get_crew_manifest",
       "file": "teams.py",
-      "line": 200,
+      "line": 240,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'reset_crew_manifest' is unreachable from any entrypoint or test",
+      "node_id": "py:teams.reset_crew_manifest",
+      "file": "teams.py",
+      "line": 304,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25499,366 +24158,15 @@
       "file": "worktrees_view.py",
       "line": 41,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'relativeTime' uses camelCase but most functions use snake_case",
-      "node_id": "ts:relativeTime",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "line": 28,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'emitHighlight' uses camelCase but most functions use snake_case",
-      "node_id": "ts:emitHighlight",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 22,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'useHighlightState' uses camelCase but most functions use snake_case",
-      "node_id": "ts:useHighlightState",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "line": 32,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'shortForm' uses camelCase but most functions use snake_case",
-      "node_id": "ts:shortForm",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "line": 16,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'loadFromStorage' uses camelCase but most functions use snake_case",
-      "node_id": "ts:loadFromStorage",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 28,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'saveToStorage' uses camelCase but most functions use snake_case",
-      "node_id": "ts:saveToStorage",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 45,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'filterByOrigin' uses camelCase but most functions use snake_case",
-      "node_id": "ts:filterByOrigin",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "line": 137,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'formatRelative' uses camelCase but most functions use snake_case",
-      "node_id": "ts:formatRelative",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "line": 134,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'hashString' uses camelCase but most functions use snake_case",
-      "node_id": "ts:hashString",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "line": 22,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'repoToColor' uses camelCase but most functions use snake_case",
-      "node_id": "ts:repoToColor",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "line": 33,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'bucketIssues' uses camelCase but most functions use snake_case",
-      "node_id": "ts:bucketIssues",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 70,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'bucketPRs' uses camelCase but most functions use snake_case",
-      "node_id": "ts:bucketPRs",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 79,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'bucketProposals' uses camelCase but most functions use snake_case",
-      "node_id": "ts:bucketProposals",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "line": 88,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'fetchSyncStatus' uses camelCase but most functions use snake_case",
-      "node_id": "ts:fetchSyncStatus",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "line": 24,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'extractVendor' uses camelCase but most functions use snake_case",
-      "node_id": "ts:extractVendor",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 29,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'groupByVendor' uses camelCase but most functions use snake_case",
-      "node_id": "ts:groupByVendor",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 46,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'determineConsensus' uses camelCase but most functions use snake_case",
-      "node_id": "ts:determineConsensus",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "line": 60,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'clusterBoardCards' uses camelCase but most functions use snake_case",
-      "node_id": "ts:clusterBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 57,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'fetchPRs' uses camelCase but most functions use snake_case",
-      "node_id": "ts:fetchPRs",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 179,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'fetchProposals' uses camelCase but most functions use snake_case",
-      "node_id": "ts:fetchProposals",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 190,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'useBoardCards' uses camelCase but most functions use snake_case",
-      "node_id": "ts:useBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "line": 211,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'fetchIssuesForSingleChange' uses camelCase but most functions use snake_case",
-      "node_id": "ts:fetchIssuesForSingleChange",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 64,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'fetchIssuesUnioned' uses camelCase but most functions use snake_case",
-      "node_id": "ts:fetchIssuesUnioned",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 96,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'mintEventsToken' uses camelCase but most functions use snake_case",
-      "node_id": "ts:mintEventsToken",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 114,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'useCoordinator' uses camelCase but most functions use snake_case",
-      "node_id": "ts:useCoordinator",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "line": 132,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'assertNever' uses camelCase but most functions use snake_case",
-      "node_id": "ts:assertNever",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 208,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'issueStatusToColumn' uses camelCase but most functions use snake_case",
-      "node_id": "ts:issueStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 218,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'prStatusToColumn' uses camelCase but most functions use snake_case",
-      "node_id": "ts:prStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 236,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'proposalStatusToColumn' uses camelCase but most functions use snake_case",
-      "node_id": "ts:proposalStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 250,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'toIssueCard' uses camelCase but most functions use snake_case",
-      "node_id": "ts:toIssueCard",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 295,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'deriveIssueRepo' uses camelCase but most functions use snake_case",
-      "node_id": "ts:deriveIssueRepo",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 336,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'getClusterKey' uses camelCase but most functions use snake_case",
-      "node_id": "ts:getClusterKey",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "line": 364,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'classifyOrDefault' uses camelCase but most functions use snake_case",
-      "node_id": "ts:classifyOrDefault",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "line": 54,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'requiresConsent' uses camelCase but most functions use snake_case",
-      "node_id": "ts:requiresConsent",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "line": 59,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'isTauri' uses camelCase but most functions use snake_case",
-      "node_id": "ts:isTauri",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "line": 12,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'isBrowser' uses camelCase but most functions use snake_case",
-      "node_id": "ts:isBrowser",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "line": 21,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'saveView' uses camelCase but most functions use snake_case",
-      "node_id": "ts:saveView",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "line": 35,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'saveBrowser' uses camelCase but most functions use snake_case",
-      "node_id": "ts:saveBrowser",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "line": 47,
-      "suggestion": "Rename to follow snake_case convention"
-    },
-    {
-      "severity": "info",
-      "category": "pattern_consistency",
-      "message": "'saveTauri' uses camelCase but most functions use snake_case",
-      "node_id": "ts:saveTauri",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "line": 68,
-      "suggestion": "Rename to follow snake_case convention"
     }
   ],
   "summary": {
-    "total_findings": 2872,
+    "total_findings": 2684,
     "errors": 0,
-    "warnings": 2745,
-    "info": 127,
+    "warnings": 2596,
+    "info": 88,
     "entrypoints_checked": 96,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 1368
+    "flows_without_coverage": 1306
   }
 }

@@ -1,0 +1,32 @@
+[
+  {
+    "schema_version": 1,
+    "title": "Guard auth token refresh against clock skew",
+    "description": "Add a tolerance window when validating token expiry so requests near the boundary are not spuriously rejected.",
+    "rationale": "bug-scrub flagged three TODO markers and one intermittent test failure clustered on token expiry handling under load.",
+    "provenance": {
+      "source_artifact": "openspec/scrub/2026-08-10-120000-abc1234/report.json",
+      "finding_ids": ["marker-TODO-src/auth.py:42", "pytest-test_token_boundary"],
+      "generator": "bug-scrub"
+    },
+    "effort": "S",
+    "priority": 1,
+    "suggested_change_id": "update-auth-token-refresh",
+    "tags": ["reliability", "quick-win"]
+  },
+  {
+    "schema_version": 1,
+    "title": "Introduce a shared retry helper for coordinator HTTP calls",
+    "description": "Extract the ad-hoc retry loops in the coordinator bridge into one backoff helper.",
+    "rationale": "explore-feature surfaced this via the simplification and 10x lenses; duplicated retry logic appears in four call sites.",
+    "provenance": {
+      "source_artifact": "openspec/explore/opportunities.json",
+      "finding_ids": [],
+      "generator": "explore-feature"
+    },
+    "effort": "M",
+    "priority": 3,
+    "suggested_change_id": "refactor-coordinator-retry-helper",
+    "depends_on": ["update-auth-token-refresh"]
+  }
+]

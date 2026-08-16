@@ -1,28 +1,35 @@
 id: "http-memory-work-sweep"
 name: "HTTP memory and work queue endpoint sweep"
-description: "Exercise HTTP memory and work endpoints: POST /memory/working/update, POST /memory/working/get, GET /work/queue, POST /work/cancel"
+description: "Exercise HTTP memory and work endpoints: POST /memory/store, POST /memory/query, GET /work/queue, POST /work/cancel"
 category: "cross-interface"
 priority: 2
 interfaces: ["http"]
 tags: ["memory", "work-queue", "http", "sweep"]
 
+# The `/memory/working/update` and `/memory/working/get` steps were replaced
+# with the episodic store/query pair: ri-15 dropped the working-memory layer
+# (migration 031) and those routes no longer exist. Keeping the memory half of
+# this cross-interface sweep matters — dropping it outright would have quietly
+# narrowed the scenario to work-queue-only coverage.
+
 steps:
-  - id: working_update
+  - id: memory_store
     transport: http
     method: POST
-    endpoint: /memory/working/update
+    endpoint: /memory/store
     body:
-      key: "sweep_key"
-      value: "sweep_val"
+      event_type: "test"
+      summary: "http sweep memory"
+      tags: ["http-sweep"]
     expect:
       status: 200
 
-  - id: working_get
+  - id: memory_query
     transport: http
     method: POST
-    endpoint: /memory/working/get
+    endpoint: /memory/query
     body:
-      key: "sweep_key"
+      tags: ["http-sweep"]
     expect:
       status: 200
 

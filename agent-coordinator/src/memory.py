@@ -1,6 +1,6 @@
 """Memory service for Agent Coordinator.
 
-Provides episodic and procedural memory for cross-session learning.
+Provides episodic memory for cross-session learning.
 Memories are stored with relevance scoring and time-decay.
 
 Tag Conventions

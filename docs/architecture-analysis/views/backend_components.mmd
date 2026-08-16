@@ -69,8 +69,9 @@ flowchart TB
     sse_log_redaction["sse_log_redaction (6 symbols)"]
     status["status (6 symbols)"]
     sync_points["sync_points (5 symbols)"]
-    teams["teams (10 symbols)"]
+    teams["teams (11 symbols)"]
     telemetry["telemetry (20 symbols)"]
+    tests__test_architecture["tests.test_architecture (52 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
@@ -251,6 +252,7 @@ flowchart TB
     session_grants -->|"call"| approval
     session_grants -->|"call, import"| db
     sync_points -->|"call"| code_search_runtime
+    teams -->|"call"| agents_config
     watchdog -->|"call, import"| db
     watchdog -->|"call, import"| event_bus
     work_queue -->|"call, import"| agents_config

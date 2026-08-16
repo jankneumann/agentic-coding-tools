@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-08-16T12:29:04+00:00",
-  "git_sha": "0fa2e47967514a45fc0b648e2065953c04e54953",
+  "generated_at": "2026-08-16T13:45:08+00:00",
+  "git_sha": "56bc6ea3101901fcf2d577de88fe0b097cb6ece1",
   "stats": {
-    "total_nodes": 1928,
-    "total_edges": 1160,
+    "total_nodes": 1891,
+    "total_edges": 1162,
     "by_language": {
-      "python": 1380,
-      "typescript": 90,
+      "python": 1433,
       "sql": 458
     },
     "by_kind": {
-      "module": 102,
+      "module": 75,
       "class": 242,
-      "function": 1104,
-      "component": 22,
+      "function": 1064,
       "table": 29,
       "column": 312,
       "index": 71,
       "stored_function": 37,
-      "trigger": 9
+      "trigger": 9,
+      "test_class": 7,
+      "test_function": 45
     },
     "entrypoint_count": 96
   },
@@ -504,6 +504,10 @@
       "dependent_count": 17
     },
     {
+      "id": "py:teams.CrewManifest.validate",
+      "dependent_count": 17
+    },
+    {
       "id": "py:audit",
       "dependent_count": 16
     },
@@ -513,10 +517,6 @@
     },
     {
       "id": "py:profile_loader._load_secrets_file",
-      "dependent_count": 16
-    },
-    {
-      "id": "py:teams.TeamsConfig.validate",
       "dependent_count": 16
     },
     {
@@ -564,12 +564,12 @@
       "dependent_count": 11
     },
     {
-      "id": "py:merge_train_service.get_merge_train_service",
+      "id": "py:agents_config._normalize_provider_model_map",
       "dependent_count": 10
     },
     {
-      "id": "py:agents_config._normalize_provider_model_map",
-      "dependent_count": 9
+      "id": "py:merge_train_service.get_merge_train_service",
+      "dependent_count": 10
     },
     {
       "id": "py:github_openspec_fetcher._github_headers",
@@ -652,6 +652,10 @@
       "dependent_count": 7
     },
     {
+      "id": "py:agents_config.get_provider_model_map",
+      "dependent_count": 7
+    },
+    {
       "id": "py:approval._parse_dt",
       "dependent_count": 7
     },
@@ -701,10 +705,6 @@
     },
     {
       "id": "py:agents_config._tier_entry_to_spec",
-      "dependent_count": 6
-    },
-    {
-      "id": "py:agents_config.get_provider_model_map",
       "dependent_count": 6
     },
     {
