@@ -1,8 +1,10 @@
 """Tests for scripts/worktree.py."""
 
 import argparse
+import contextlib
 import os
 import subprocess
+import threading
 
 # Import the module under test
 import sys
@@ -1239,6 +1241,141 @@ class TestRecoveryCommands:
         assert adopted is not None
         assert adopted["recovery_required"] is False
         assert adopted["activity_lease"]["lease_id"] == "new-lease"
+
+    @pytest.mark.parametrize("same_lease", [True, False], ids=["same-lease", "distinct-lease"])
+    def test_concurrent_force_adopt_winner_exclusively_owns_its_evidence(
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        same_lease: bool,
+    ) -> None:
+        entry = {
+            "change_id": "recovery",
+            "agent_id": None,
+            "branch": "openspec/recovery",
+            "worktree_path": str(git_repo / "missing"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "entry_generation": "generation",
+            "setup_id": None,
+            "durability_target": None,
+            "retained": False,
+            "retention_reason": None,
+            "recovery_required": True,
+            "recovery_reason": "legacy work",
+            "recovery_context": {
+                "source": "legacy-adoption",
+                "prior_owner": None,
+                "prior_lease_id": None,
+                "prior_controller_instance_id": None,
+                "process_evidence_key": None,
+                "quarantined_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "activity_lease": None,
+        }
+        save_registry(git_repo, worktree.lifecycle.empty_registry(entries=[entry]))
+
+        def adopt_args(owner: str, lease_id: str, controller: str) -> argparse.Namespace:
+            return argparse.Namespace(
+                change_id="recovery",
+                agent_id=None,
+                owner=owner,
+                lease_id=lease_id,
+                controller_instance_id=controller,
+                session_id=f"session-{owner}",
+                reason="operator adoption",
+                actor="operator",
+                ttl_seconds=1800,
+                durability_remote=None,
+                durability_ref=None,
+                confirm_terminated=True,
+                force=True,
+                json_output=True,
+            )
+
+        args_a = adopt_args("owner-a", "shared-lease", "controller-a")
+        args_b = adopt_args("owner-b", "shared-lease" if same_lease else "lease-b", "controller-b")
+        real_lock = worktree.lifecycle.registry_lock
+        lock_state = threading.local()
+
+        @contextlib.contextmanager
+        def tracked_lock(*args: object, **kwargs: object):
+            with real_lock(*args, **kwargs):
+                prior = getattr(lock_state, "exclusive", False)
+                lock_state.exclusive = bool(kwargs.get("exclusive"))
+                try:
+                    yield
+                finally:
+                    lock_state.exclusive = prior
+
+        monkeypatch.setattr(worktree.lifecycle, "registry_lock", tracked_lock)
+        real_write = worktree.lifecycle.write_process_evidence
+        a_written = threading.Event()
+        b_written = threading.Event()
+        a_published = threading.Event()
+
+        def ordered_write(*args: object, **kwargs: object):
+            owner = str(kwargs["owner"])
+            result = real_write(
+                *args,
+                **kwargs,
+                process_start_token=f"token-{owner}",
+            )
+            if owner == "owner-a":
+                a_written.set()
+                if not getattr(lock_state, "exclusive", False):
+                    assert b_written.wait(5)
+            elif not getattr(lock_state, "exclusive", False):
+                b_written.set()
+                assert a_published.wait(5)
+            return result
+
+        monkeypatch.setattr(worktree.lifecycle, "write_process_evidence", ordered_write)
+        results: dict[str, object] = {}
+
+        def run_adoption(name: str, args: argparse.Namespace) -> None:
+            try:
+                results[name] = worktree.cmd_recovery_adopt(args)
+            except worktree.lifecycle.LifecycleError as exc:
+                results[name] = exc
+            finally:
+                if name == "a":
+                    a_published.set()
+
+        thread_a = threading.Thread(target=run_adoption, args=("a", args_a))
+        thread_b = threading.Thread(target=run_adoption, args=("b", args_b))
+        with _chdir(git_repo):
+            thread_a.start()
+            assert a_written.wait(5)
+            thread_b.start()
+            thread_a.join(5)
+            thread_b.join(5)
+        assert not thread_a.is_alive()
+        assert not thread_b.is_alive()
+        assert results["a"] == 0
+        assert isinstance(results["b"], worktree.lifecycle.LifecycleError)
+        assert not b_written.is_set()
+
+        registry = load_registry(git_repo)
+        adopted = find_entry(registry, "recovery")
+        assert adopted is not None
+        assert adopted["activity_lease"]["owner"] == "owner-a"
+        assert adopted["activity_lease"]["controller_instance_id"] == "controller-a"
+        evidence = worktree.lifecycle.read_process_evidence(
+            git_repo,
+            change_id="recovery",
+            agent_id=None,
+            entry_generation="generation",
+            lease_id="shared-lease",
+            owner="owner-a",
+            controller_instance_id="controller-a",
+        )
+        assert evidence["owner"] == "owner-a"
+        assert evidence["controller_instance_id"] == "controller-a"
+        if not same_lease:
+            loser_evidence = worktree.lifecycle.evidence_path(
+                git_repo, "recovery", None, "generation", "lease-b"
+            )
+            assert not loser_evidence.exists()
 
 
 class TestParseDurationHours:
