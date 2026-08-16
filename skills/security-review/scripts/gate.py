@@ -35,10 +35,13 @@ def evaluate_gate(
         if severity_rank(str(finding.get("severity", "info"))) >= threshold
     ]
 
+    degraded_names = ", ".join(sorted(set(degraded)))
+
     reasons: list[str] = []
     if degraded and not allow_degraded_pass:
         reasons.append(
-            "Scanner execution incomplete: " + ", ".join(sorted(set(degraded)))
+            f"DEGRADED — scanner execution incomplete: {degraded_names} "
+            f"NOT CHECKED (scanner unavailable or errored)"
         )
         if triggered:
             reasons.append(
@@ -63,8 +66,16 @@ def evaluate_gate(
         )
 
     if degraded and allow_degraded_pass:
+        # Fail-open path (OpenSpec introduce-fitness-function-gates, D6): the
+        # decision stays PASS so exit codes are unchanged, but the reason must
+        # say the coverage was incomplete — a scan that could not run is not a
+        # scan that found nothing. Callers record this phase as DEGRADED in
+        # validation-report.md rather than pass.
         reasons.append(
-            "Degraded execution allowed by policy; no threshold findings detected"
+            f"DEGRADED — {degraded_names} NOT CHECKED (scanner unavailable or "
+            f"errored); degraded execution allowed by policy "
+            f"(--allow-degraded-pass) and no threshold findings were detected "
+            f"by the scanners that did run"
         )
 
     return GateResult(

@@ -189,11 +189,19 @@ Dispatch protocol (3 steps — same provider-neutral path as other phases; read
      --outcome <outcome> --handoff-id <handoff_id>
    ```
 
-**Fallback (permissive)**: If `build-dispatch` returns `archetype: null` OR no
-dispatch adapter is available (headless CI, coordinator down), do NOT block —
-derive a permissive verdict from `state.gate_signals`: `proceed_with_review`
-when any risk signal (db migration, security, broad scope) is present,
-otherwise `proceed`. Record `phase_archetype = null` via `apply-outcome`.
+**Fallback (permissive, and DEGRADED)**: If `build-dispatch` returns
+`archetype: null` OR no dispatch adapter is available (headless CI, coordinator
+down), do NOT block — derive a permissive verdict from `state.gate_signals`:
+`proceed_with_review` when any risk signal (db migration, security, broad
+scope) is present, otherwise `proceed`. Record `phase_archetype = null` via
+`apply-outcome`.
+
+This path fails **open**, so it MUST be reported as such. `_phase_gatekeeper`
+appends a `DEGRADED` entry to `state.phase_history` (and echoes it to stderr)
+naming what was not checked and why — the risk/verifiability judgment did not
+happen; a signal-only verdict stood in for it. When the run writes a
+`validation-report.md`, carry that forward as a `DEGRADED` phase status with the
+same one-line reason: a gate that could not run is not a gate that passed.
 
 **If `proceed`**: transition to PLAN.
 **If `proceed_with_review`**: set `state.val_review_enabled = true`, transition to PLAN.
