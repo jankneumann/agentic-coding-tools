@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-16T13:45:08+00:00",
+  "generated_at": "2026-08-16T16:25:51+00:00",
   "python_patterns": {
     "assertions": {
       "count": 2,
@@ -130,17 +130,17 @@
     "total_except_issues": 132
   },
   "security": {
-    "total": 4,
+    "total": 5,
     "by_severity": {
-      "medium": 4
+      "medium": 5
     },
     "by_category": {
       "hardcoded_secret": {
-        "count": 4,
+        "count": 5,
         "severity": "medium",
         "files": {
           "config.py": 3,
-          "agents_config.py": 1
+          "agents_config.py": 2
         }
       }
     }
