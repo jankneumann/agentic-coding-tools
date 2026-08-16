@@ -93,7 +93,7 @@
   **Dependencies**: 4.1
   **Files**: skills/autopilot/scripts/smoke_provider_dispatch.py
 
-- [ ] 4.3 Update operator docs — provider roster mentions in
+- [x] 4.3 Update operator docs — provider roster mentions in
   `docs/autopilot-phase-archetype-resolution.md` and `docs/autopilot-provider-smoke.md`,
   GX10 endpoint setup pointer to the source evaluation (S)
   **Dependencies**: 4.2

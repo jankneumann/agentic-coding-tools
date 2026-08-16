@@ -72,6 +72,28 @@ restart the coordinator. No code changes required. The schema is validated
 on load (`schema_version: 2`); a `phase_mapping` entry referencing an
 undefined archetype raises `ValueError` at coordinator startup.
 
+## The `local` Provider
+
+The provider roster is `claude_code`, `codex`, `antigravity`, `grok`, `pi`,
+and `local` (a GX10-hosted OpenAI-compatible endpoint; see
+`docs/proposals/magnitude-local-model-harness.md` for the hardware analysis
+and `docs/autopilot-provider-smoke.md` for endpoint configuration). Two
+rules apply only to `local`, both enforced at coordinator startup or
+resolution time (change `add-local-model-provider-tier`):
+
+- **Hardware-matching validation**: `local` roster entries use an extended
+  form `{model, total_params_b, active_params_b, reviewed}` checked against
+  the `local_host_class` block (GB10 default: active ceiling 12B; dense
+  entries at or above 30B total rejected). Violations raise a structured
+  configuration error at startup.
+- **Archetype trust boundary**: resolution under provider `local` is
+  permitted only for `runner`, `analyst`, `documenter`, and `validator`
+  (an allowlist — `architect`, `reviewer`, `gatekeeper`, and `implementer`
+  are refused). The endpoint audits refusals with `success=False` and
+  returns 403. Tiers the `local` roster omits (`frontier`, `premium`)
+  degrade to its best defined tier, with the degradation recorded in the
+  resolution reasons.
+
 ## Operator Override
 
 Force specific models for specific phases via the
