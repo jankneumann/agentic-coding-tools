@@ -9,12 +9,13 @@ feature:
 # No HTTP surface is added; per repo convention for no-HTTP changes the primary
 # contract slot carries the canonical schema (local roster entry + host class).
 contracts:
-  revision: 1
+  revision: 2
   openapi:
     primary: "openspec/changes/add-local-model-provider-tier/contracts/local-roster-entry.schema.json"
     files:
       - "openspec/changes/add-local-model-provider-tier/contracts/local-roster-entry.schema.json"
       - "openspec/changes/add-local-model-provider-tier/contracts/README.md"
+      - "openspec/changes/add-local-model-provider-tier/contracts/openapi/v1.yaml"
 
 defaults:
   priority: 5

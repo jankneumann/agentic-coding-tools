@@ -2,11 +2,15 @@
 
 Contract sub-type evaluation (per plan-feature Step 7):
 
-- **OpenAPI**: Not applicable. No HTTP surface is added or modified —
-  `POST /archetypes/resolve_for_phase` keeps its existing request/response shape
-  (the trust-boundary refusal reuses the endpoint's existing structured
-  configuration-error response). Per repo convention for no-HTTP changes, the
-  primary contract slot in `work-packages.yaml` carries the canonical schema below.
+- **OpenAPI**: `openapi/v1.yaml` (delta). No endpoint is added and no request
+  shape changes; `POST /archetypes/resolve_for_phase` gains one **403** refusal
+  response for the `local` provider archetype trust boundary (design D3), with
+  detail fields `error`, `phase`, `provider`, `archetype`,
+  `permitted_archetypes`. The delta declares only that response — the endpoint's
+  baseline (request body, 200/400/401/404/500) is unchanged and lives in the
+  archived `add-per-phase-archetype-resolution` contract. The primary contract
+  slot in `work-packages.yaml` carries the canonical schema below, which remains
+  the coordination boundary for this change.
 - **Database**: Not applicable. No schema or data changes; configuration is YAML-only.
 - **Events**: Not applicable. No new event payloads; trust-boundary refusals use the
   existing audit-log operation record.

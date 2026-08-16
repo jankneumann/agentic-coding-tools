@@ -211,7 +211,7 @@ def test_supervisor_resolves_frontier_per_provider(_load_real_config: None) -> N
     supervisor = get_archetype(SUPERVISOR_ARCHETYPE)
     assert supervisor is not None
 
-    for provider in aliases:
+    for provider in _providers_permitting(SUPERVISOR_ARCHETYPE):
         tier = "frontier" if "frontier" in aliases[provider] else "premium"
         spec = resolve_provider_model_spec(supervisor.model, provider=provider)
         assert spec.model == _alias_model(provider, tier)

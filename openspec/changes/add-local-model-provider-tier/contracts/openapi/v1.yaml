@@ -1,0 +1,111 @@
+openapi: 3.1.0
+info:
+  title: Coordinator Phase Archetype Resolution API — local provider delta
+  version: 0.2.0
+  description: |
+    DELTA, not a full document. This declares only what
+    `add-local-model-provider-tier` changes on the coordinator's HTTP surface:
+    `POST /archetypes/resolve_for_phase` gains a **403** refusal response when
+    the requested archetype is outside the `local` provider trust boundary
+    (design D3).
+
+    The baseline for this endpoint — request body, 200/400/401/404/500
+    responses — is unchanged and lives in the archived change
+    `openspec/changes/archive/2026-05-03-add-per-phase-archetype-resolution/contracts/openapi/v1.yaml`.
+    Nothing else in this change adds or modifies an HTTP surface.
+
+servers:
+  - url: https://coord.rotkohl.ai
+    description: Cloud coordinator
+  - url: http://localhost:8081
+    description: Local coordinator
+
+paths:
+  /archetypes/resolve_for_phase:
+    post:
+      summary: Resolve an archetype for an autopilot phase (403 delta only)
+      description: |
+        MODIFIED: adds the 403 response below. When the request names
+        `provider: local` and the phase's archetype is not in the permitted set
+        (`runner`, `analyst`, `documenter`, `validator`), resolution is refused
+        in the resolver before any dispatch is attempted, and the refusal is
+        recorded on the audit path as operation `resolve_archetype_for_phase`
+        with `success=false`.
+
+        All other responses are unchanged from the baseline document.
+      operationId: resolveArchetypeForPhase
+      security:
+        - apiKey: []
+      responses:
+        "403":
+          description: |
+            ADDED. Refused by the `local` provider archetype trust boundary.
+            Never returned for any provider other than `local`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocalTrustBoundaryRefusal"
+              example:
+                detail:
+                  error: >-
+                    local provider trust boundary: archetype 'architect'
+                    (phase=PLAN) may not resolve to provider 'local'; permitted
+                    archetypes: analyst, documenter, runner, validator
+                  phase: PLAN
+                  provider: local
+                  archetype: architect
+                  permitted_archetypes:
+                    - analyst
+                    - documenter
+                    - runner
+                    - validator
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    LocalTrustBoundaryRefusal:
+      type: object
+      description: |
+        FastAPI's structured-error envelope: the coordinator raises
+        `HTTPException(status_code=403, detail=<object>)`, so the refusal body
+        is the object below nested under `detail`.
+      required: [detail]
+      additionalProperties: false
+      properties:
+        detail:
+          $ref: "#/components/schemas/LocalTrustBoundaryRefusalDetail"
+
+    LocalTrustBoundaryRefusalDetail:
+      type: object
+      required: [error, phase, provider, archetype, permitted_archetypes]
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+          description: >-
+            Human-readable refusal naming the trust boundary, the refused
+            archetype, and the permitted archetype list.
+        phase:
+          type: string
+          description: The autopilot phase from the request.
+        provider:
+          type: string
+          const: local
+          description: Always `local` — no other provider has a trust boundary.
+        archetype:
+          type: string
+          description: The archetype the phase mapped to, which was refused.
+        permitted_archetypes:
+          type: array
+          description: >-
+            Sorted allowlist of archetypes whose output is cheap to discard or
+            verified downstream, and which therefore may resolve to `local`.
+          items:
+            type: string
+          minItems: 1
+          uniqueItems: true

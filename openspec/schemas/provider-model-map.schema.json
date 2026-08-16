@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools.dev/schemas/provider-model-map.schema.json",
   "title": "ProviderModelMap",
-  "description": "Stable home for the provider model map contract. v2 adds the optional 'frontier' tier (providers MAY define it; resolution falls back to 'premium' when absent) and structured tier entries: a tier is either a bare model-id string or {model, thinking}, because thinking level is part of the model definition \u2014 tiers are tuned for cost per successful task, not cost per token. Tests must resolve this path, never a schema inside a change directory (change dirs move on archive).",
+  "description": "Stable home for the provider model map contract. v2 adds the optional 'frontier' tier (providers MAY define it; resolution falls back to 'premium' when absent) and structured tier entries: a tier is either a bare model-id string or {model, thinking}, because thinking level is part of the model definition — tiers are tuned for cost per successful task, not cost per token. Tests must resolve this path, never a schema inside a change directory (change dirs move on archive).",
   "type": "object",
   "additionalProperties": false,
   "required": [

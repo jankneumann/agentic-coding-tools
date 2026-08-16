@@ -1031,10 +1031,57 @@ class TestLocalRosterValidation:
         load_archetypes_config(_write_local_yaml(tmp_path))
         roster = get_provider_model_map()["providers"][LOCAL_PROVIDER]
 
-        assert roster["economy"]["model"] == "small-moe"
-        assert roster["economy"]["total_params_b"] == 30.5
-        assert roster["economy"]["active_params_b"] == 3.3
-        assert roster["economy"]["reviewed"] == "2026-08-16"
+        # The extended form loads, and the *served* map carries the contract's
+        # tierEntry shape (see test_served_local_roster_is_stripped_to_tier_entries).
+        assert _tier_model(roster["economy"]) == "small-moe"
+        assert _tier_model(roster["standard"]) == "big-moe"
+
+    def test_served_local_roster_is_stripped_to_tier_entries(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """Hardware metadata is load-time validation input, not served map data.
+
+        ``provider-model-map.schema.json`` admits only a bare model id or
+        ``{model, thinking}`` per tier, so ``total_params_b`` /
+        ``active_params_b`` / ``reviewed`` must not survive normalization.
+        """
+        from src.agents_config import (
+            LOCAL_PROVIDER,
+            get_provider_model_map,
+            load_archetypes_config,
+        )
+
+        load_archetypes_config(_write_local_yaml(tmp_path))
+        roster = get_provider_model_map()["providers"][LOCAL_PROVIDER]
+
+        for tier, entry in roster.items():
+            assert not isinstance(entry, dict) or set(entry) <= {"model", "thinking"}, (
+                f"local {tier} entry leaks non-contract fields: {entry!r}"
+            )
+
+    def test_served_map_conforms_to_canonical_provider_model_map_schema(
+        self, _clean_archetypes: None,
+    ) -> None:
+        """The runtime map is the contract's map (F-05).
+
+        Validates against the canonical schema at its stable home — never a copy
+        inside a change directory, which moves on archive.
+        """
+        import json as _json
+
+        from jsonschema import Draft202012Validator
+
+        from src.agents_config import get_provider_model_map, load_archetypes_config
+
+        schema_path = (
+            Path(__file__).resolve().parents[2]
+            / "openspec" / "schemas" / "provider-model-map.schema.json"
+        )
+        schema = _json.loads(schema_path.read_text())
+
+        load_archetypes_config(_REAL_ARCHETYPES_YAML)
+
+        Draft202012Validator(schema).validate(get_provider_model_map())
 
     def test_extended_entry_resolves_to_its_model_id(
         self, tmp_path: Path, _clean_archetypes: None,
@@ -1117,6 +1164,29 @@ class TestLocalRosterValidation:
 
         with pytest.raises(LocalRosterConfigError):
             load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+
+    @pytest.mark.parametrize(
+        "reviewed",
+        [
+            "2026-13-45",  # impossible month AND day
+            "2026-02-30",  # right shape, no such calendar date
+            "20260816",    # ISO basic form is not the signed YYYY-MM-DD shape
+        ],
+    )
+    def test_impossible_review_date_rejected(
+        self, tmp_path: Path, reviewed: str, _clean_archetypes: None,
+    ) -> None:
+        """A date-shaped string is not enough — it must be a real date (F-16)."""
+        from src.agents_config import LocalRosterConfigError, load_archetypes_config
+
+        def _mutate(raw: dict[str, Any]) -> None:
+            raw["model_aliases"]["local"]["economy"]["reviewed"] = reviewed
+
+        with pytest.raises(LocalRosterConfigError) as exc_info:
+            load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+
+        assert exc_info.value.rule == "operator-review-date"
+        assert exc_info.value.tier == "economy"
 
     def test_missing_parameter_metadata_rejected(
         self, tmp_path: Path, _clean_archetypes: None,
@@ -1224,6 +1294,34 @@ class TestLocalTierDegradation:
         assert resolved.model == "big-moe"
         assert any(
             "premium" in reason and "standard" in reason for reason in resolved.reasons
+        ), f"degradation not recorded in reasons: {resolved.reasons}"
+
+    def test_local_frontier_degrades_to_defined_premium_with_reason(
+        self, tmp_path: Path, _clean_archetypes: None,
+    ) -> None:
+        """F-13: the optional-tier (frontier->premium) path also records a reason.
+
+        A local roster that DOES define premium but not frontier used to take
+        the pre-existing optional-tier fallback and return silently, so the
+        degradation never reached the caller's reasons.
+        """
+        from src.agents_config import load_archetypes_config, resolve_archetype_for_phase
+
+        def _mutate(raw: dict[str, Any]) -> None:
+            raw["model_aliases"]["local"]["premium"] = {
+                "model": "mid-moe",
+                "total_params_b": 80,
+                "active_params_b": 4.5,
+                "reviewed": "2026-08-16",
+            }
+
+        load_archetypes_config(_write_local_yaml(tmp_path, _mutate))
+        # SUBMIT_PR -> analyst, whose tier is `frontier` (still absent).
+        resolved = resolve_archetype_for_phase("SUBMIT_PR", {}, provider="local")
+
+        assert resolved.model == "mid-moe"
+        assert any(
+            "frontier" in reason and "premium" in reason for reason in resolved.reasons
         ), f"degradation not recorded in reasons: {resolved.reasons}"
 
     def test_cloud_provider_frontier_fallback_is_silent(

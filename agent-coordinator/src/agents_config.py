@@ -11,7 +11,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -1890,6 +1890,10 @@ def _validate_local_roster(
             f"dense_params_limit_b; got {host_class!r}",
         )
 
+    # Defence in depth: on the load path jsonschema's `required` on
+    # _LOCAL_ROSTER_SCHEMA fires first, so this never triggers there. It guards
+    # direct callers of this function (tests, future programmatic loaders) that
+    # hand over a roster which never went through ARCHETYPES_SCHEMA.
     missing_tiers = [tier for tier in LOCAL_REQUIRED_TIERS if tier not in roster]
     if missing_tiers:
         raise LocalRosterConfigError(
@@ -1917,6 +1921,10 @@ def _validate_local_roster(
                     tier=tier,
                 )
 
+        # Two checks, because neither alone is sufficient: the regex pins the
+        # dashed YYYY-MM-DD shape (``date.fromisoformat`` also accepts the ISO
+        # basic form "20260816"), and parsing rejects date-shaped strings that
+        # are not real dates ("2026-13-45", "2026-02-30").
         reviewed = entry["reviewed"]
         if not isinstance(reviewed, str) or not _REVIEWED_DATE_RE.match(reviewed):
             raise LocalRosterConfigError(
@@ -1925,6 +1933,15 @@ def _validate_local_roster(
                 f"(quote it in YAML); got {reviewed!r}",
                 tier=tier,
             )
+        try:
+            date.fromisoformat(reviewed)
+        except ValueError as exc:
+            raise LocalRosterConfigError(
+                "operator-review-date",
+                f"'reviewed' must be an operator-signed YYYY-MM-DD date "
+                f"naming a real calendar day; got {reviewed!r}",
+                tier=tier,
+            ) from exc
 
         total = _as_positive_number(entry["total_params_b"])
         active = _as_positive_number(entry["active_params_b"])
@@ -2098,6 +2115,49 @@ def reset_archetypes_config() -> None:
     _provider_model_map = None
 
 
+def _served_local_roster(roster: Any) -> Any:
+    """Reduce a `local` roster to the tier-entry shape the contract serves.
+
+    ``archetypes.yaml`` carries hardware metadata (``total_params_b``,
+    ``active_params_b``, ``reviewed``) on every `local` entry so
+    :func:`_validate_local_roster` can enforce the MoE-first rule at startup.
+    That metadata is load-time *validation input*, not part of the provider
+    model map: ``openspec/schemas/provider-model-map.schema.json`` admits only
+    a bare model id or ``{model, thinking}`` per tier, so it is dropped here
+    rather than leaking into every consumer of the served map.
+    """
+    if not isinstance(roster, dict):
+        return roster
+    served: dict[str, Any] = {}
+    for tier, entry in roster.items():
+        if isinstance(entry, dict):
+            model = entry.get("model")
+            thinking = entry.get("thinking")
+            if isinstance(model, str) and model:
+                served[tier] = (
+                    {"model": model, "thinking": thinking}
+                    if isinstance(thinking, str) and thinking
+                    else model
+                )
+                continue
+        served[tier] = entry
+    return served
+
+
+def _with_served_local_roster(providers: dict[str, Any]) -> dict[str, Any]:
+    """Return *providers* with the `local` roster stripped to tier entries.
+
+    Every other provider passes through untouched — resolution output for
+    pre-existing providers must stay byte-identical (design D6).
+    """
+    if LOCAL_PROVIDER not in providers:
+        return providers
+    return {
+        **providers,
+        LOCAL_PROVIDER: _served_local_roster(providers[LOCAL_PROVIDER]),
+    }
+
+
 def _normalize_provider_model_map(raw_map: dict[str, Any] | None) -> dict[str, Any]:
     """Return a schema-shaped provider model map.
 
@@ -2108,20 +2168,23 @@ def _normalize_provider_model_map(raw_map: dict[str, Any] | None) -> dict[str, A
         return {
             "schema_version": DEFAULT_PROVIDER_MODEL_MAP["schema_version"],
             "tiers": list(DEFAULT_PROVIDER_MODEL_MAP["tiers"]),
-            "providers": {
+            "providers": _with_served_local_roster({
                 provider: dict(mapping)
                 for provider, mapping in DEFAULT_PROVIDER_MODEL_MAP["providers"].items()
-            },
+            }),
         }
     if "providers" in raw_map:
-        return raw_map
+        providers = raw_map.get("providers")
+        if not isinstance(providers, dict) or LOCAL_PROVIDER not in providers:
+            return raw_map
+        return {**raw_map, "providers": _with_served_local_roster(providers)}
     return {
         "schema_version": 2,
         "tiers": list(ALL_MODEL_TIERS),
-        "providers": {
+        "providers": _with_served_local_roster({
             provider: dict(mapping)
             for provider, mapping in raw_map.items()
-        },
+        }),
     }
 
 
@@ -2193,9 +2256,14 @@ def resolve_provider_model_spec(
         spec = _tier_entry_to_spec(provider_map.get(tier))
         if spec is not None:
             return spec
-        if tier in OPTIONAL_MODEL_TIERS:
+        if tier in OPTIONAL_MODEL_TIERS and provider != LOCAL_PROVIDER:
             # Optional tiers degrade gracefully: a provider without a
             # frontier model serves its premium model instead of failing.
+            # `local` is excluded on purpose: this path returns silently, and
+            # every local degradation must reach the caller's reasons. A local
+            # roster that defines premium but not frontier falls through to the
+            # best-defined-tier branch below, which resolves to the same
+            # premium entry *and* records why.
             fallback = _tier_entry_to_spec(provider_map.get("premium"))
             if fallback is not None:
                 logger.info(
