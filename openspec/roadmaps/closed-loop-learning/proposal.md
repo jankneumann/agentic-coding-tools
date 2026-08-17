@@ -6,7 +6,11 @@ harness evaluation (2026-08-17). Prior art: the Abacus agent
 (https://github.com/empero-org/abacus) — papercuts, memories/rethink,
 tethering, and hive maturity tiers. All mechanisms below are clean-room
 adaptations to this repo's coordinator-Postgres, multi-vendor architecture;
-no Abacus code is ported.
+no Abacus code is ported. Deliberate departure from the prior art: Abacus
+triggers lesson recall by exact-string tripwire matching; this epic replaces
+that trigger with semantic signal detection (a cheap classifier mapping
+diagnoses to a signal-type registry), keeping only the recall economics
+(strength decay, shrinking cooldowns, force-recall).
 -->
 
 ## Motivation
@@ -62,38 +66,64 @@ epic consumes the signal it produces.
 - The repo-improvement roadmap marks ri-12 delivered by this item (no
   duplicate implementation).
 
-### Capability: Tripwire lesson-recall pipeline
+### Capability: Semantic signal detection and lesson recall
 
-Extend the episodic-memory failure-lesson schema with *tripwires*: 1–6
-distinctive strings from the failure output, stored alongside the existing
-`failure_type:*` / `capability_gap:*` / `affected_skill:*` tags. A
-`PostToolUse` hook (per-harness adapter; Claude Code first) scans each tool
-result against the fleet's active tripwires and, on a match, injects the
-lesson as additional context at the point of failure — the one place the
-model is guaranteed to be looking. Recall is frequency-adaptive with
-parameters adopted from the Abacus prior art as starting values: minimum
-tripwire length 8 characters with a generic-phrase blocklist ("permission
-denied", "test failed", …), lesson strength decaying with a 14-day half-life,
-a recall cooldown shrinking from 4 hours toward 5 minutes as strength grows,
-and force-recall of the strongest lessons after two consecutive failed tool
-calls. Lessons are recorded by agents via the existing `remember` tool with
-the extended schema; a `papercut`-style convenience wrapper documents the
-shape. Storage is coordinator Postgres so recall is fleet-wide; a local file
+Recall failure lessons by *meaning*, not by string match. A coordinator-served
+**signal-type registry** extends the memory-conventions `failure_type:*`
+taxonomy: each signal type carries an associated **detection prompt**
+describing how that failure manifests. Lessons recorded via the existing
+`remember` tool are mapped to one or more signal types alongside the
+`capability_gap:*` / `affected_skill:*` tags. Detection runs in a
+`PostToolUse` hook (per-harness adapter; Claude Code first) in two stages: a
+deterministic **anomaly gate** decides *when* to classify — failed tool
+calls, nonzero exits, error-shaped output — and a cheap classifier
+(economy-tier / auxiliary model per the archetype vocabulary) then parses the
+recent trace and maps its diagnosis to signal types with a confidence score.
+The anomaly gate is purely a cost valve; it never decides *what* matched.
+Exact string matching is deliberately excluded as a recall mechanism: this
+repo has been bitten by its fragility before (the regex ID-matching
+`replanner` and stdout regex-scraping are both named "fragile" in the
+repo-improvement roadmap), and the same root cause routinely surfaces under
+different wording across vendors — the case string tripwires structurally
+cannot recall.
+
+On a confident, format-conforming verdict, the lessons mapped to the detected
+signal types are injected as additional context at the point of failure — the
+one place the model is guaranteed to be looking. The recall economics are
+adopted from the Abacus prior art unchanged, since they are independent of
+the trigger mechanism: lesson strength decays with a 14-day half-life, the
+recall cooldown shrinks from 4 hours toward 5 minutes as strength grows, and
+the strongest lessons are force-recalled after two consecutive failed tool
+calls. Cost is bounded structurally: detection prompts for all active signal
+types are batched into a single windowed classification call (never one call
+per lesson), verdicts are cached per session against a context fingerprint,
+and malformed or low-confidence verdicts are discarded with no steering power
+(the Abacus tether rule). The registry is versioned and updated through the
+flywheel: `improve-harness` may propose new signal types and detection-prompt
+refinements from clustered capability gaps, so the taxonomy itself learns.
+Storage is coordinator Postgres so recall is fleet-wide; a local file
 fallback follows the coordination-bridge degradation ladder.
 
 **Acceptance Outcomes:**
-- A lesson recorded with tripwires in one session is injected into a later
-  session (any vendor, any machine reaching the coordinator) when a tool
-  result matches the tripwire, subject to cooldown.
-- Tripwire validation rejects entries shorter than 8 characters or equal to a
-  blocklisted generic phrase; injection volume is bounded by the cooldown
-  schedule and a per-turn cap.
+- A lesson recorded from one failure is injected into a later session (any
+  vendor, any machine reaching the coordinator) when the same root cause
+  recurs under *different surface wording* — asserted by a gen-eval
+  paraphrase-recall scenario that exact string matching would fail.
+- Classifier invocations are anomaly-gated and batched: no classification on
+  clean tool results, one windowed call per detection event, economy-tier
+  model, with per-session detection cost attributed in usage accounting and
+  capped.
+- Malformed or low-confidence verdicts produce no injection; the gen-eval
+  scenario measures a false-positive injection rate below the configured
+  threshold.
 - Recall strength decays measurably: a lesson unencountered for four weeks
   drops below half its recorded strength and stops surfacing except on
-  force-recall.
-- A gen-eval scenario demonstrates the hook injecting a seeded lesson on a
-  reproduced failure, and enablement-by-default is gated on that evaluation
-  beating the no-injection baseline (per the semantic-context-injection norm).
+  force-recall; injection volume is bounded by the cooldown schedule and a
+  per-turn cap.
+- The signal-type registry with detection prompts is coordinator-served and
+  versioned; adding or refining a signal type requires no skill-code change.
+- Enablement-by-default is gated on the evaluation beating the no-injection
+  baseline (per the semantic-context-injection norm).
 
 ### Capability: Earned delegation tiers
 
@@ -134,8 +164,8 @@ unguarded. Add a `PreCompact` hook (Claude Code adapter; other harnesses
 degrade to Stop/SessionEnd hooks where PreCompact does not exist) that
 triggers a bounded reflection pass before compaction: one look back over the
 turn's actions with a restricted toolset — record to episodic memory, record
-a tripwire lesson, update the current handoff — writing durable knowledge or
-nothing. The reflection transcript itself is discarded; only the records
+a lesson mapped to a signal type, update the current handoff — writing
+durable knowledge or nothing. The reflection transcript itself is discarded; only the records
 persist. The pass is bounded (single dispatch, small step cap) and uses an
 economy-tier model per the archetype vocabulary, since it is a secondary
 call, not the main work.
@@ -203,8 +233,11 @@ scenario before default-on, per the repo's injection-evidence norm.
   bounded correction lifetimes) so learning mechanisms cannot become context
   pollution.
 - Memory writes must use the memory-conventions tag schema; this epic extends
-  that schema (tripwires) in one place and updates the guide, not per-skill
-  copies.
+  that schema in exactly one place (the signal-type registry with detection
+  prompts) and updates the guide, not per-skill copies.
+- Lesson recall shall not depend on exact string matching anywhere in the
+  detection path; deterministic checks are permitted only as cost gates
+  (deciding when to classify), never as match verdicts.
 
 ## Phases
 
@@ -214,7 +247,7 @@ scenario before default-on, per the repo's injection-evidence norm.
 
 ### Phase 2: Reactive recall and earned delegation
 
-- Tripwire lesson-recall pipeline
+- Semantic signal detection and lesson recall
 - Earned delegation tiers (feeds the ri-13 scorecard and the
   adaptive-model-router signal ledger)
 
