@@ -134,6 +134,29 @@ def test_verdicts_return_through_the_repo_question_tool(skill_text: str):
     )
 
 
+def test_verdict_batches_fit_the_question_tool(skill_prose: str):
+    """AskUserQuestion takes at most 4 questions per call; a batch must leave room
+    for the reasoning question in the same call, so 2-3 cards, never 4."""
+    assert "batches of 2-3 hypotheticals" in skill_prose
+    assert "batches of 2-4" not in skill_prose, (
+        "a 4-card batch plus the reasoning question exceeds the tool's 4-question cap"
+    )
+
+
+def test_remote_sessions_get_a_reachable_board(skill_prose: str):
+    """A container-local path is unreachable from the author's browser; remote
+    sessions must deliver the board file, not a bare path."""
+    assert "Remote session" in skill_prose
+    assert "unreachable" in skill_prose
+
+
+def test_external_targets_never_write_into_this_repo(skill_prose: str):
+    """Step 0 allows an external owner/repo target; its VISION.md must land in a
+    clone of the target, never in this repo's checkout or worktree."""
+    assert "clone of the *target*" in skill_prose
+    assert "they govern this repo only" in skill_prose
+
+
 def test_external_review_service_is_not_reintroduced(
     skill_instructions: str, template_text: str
 ):
