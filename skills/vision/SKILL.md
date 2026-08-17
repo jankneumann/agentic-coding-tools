@@ -112,17 +112,28 @@ is worse than no vision.
 
 ### Step 0b - Claim a work surface [mutating skill]
 
-This skill writes `VISION.md` and an answers file, so the launcher invariant applies:
-never mutate the shared checkout in local CLI execution.
+This skill writes `VISION.md` and an answers file. Where they land depends on the
+target resolved in Step 0:
 
-```bash
-python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup vision
-python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
-```
+- **Target is the current repo** (the default): the launcher invariant applies — never
+  mutate the shared checkout in local CLI execution.
 
-In cloud-harness environments both calls short-circuit to success — the container
-already provides isolation. Full rules: `docs/guides/worktree-management.md` in the
-consumer project.
+  ```bash
+  python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup vision
+  python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
+  ```
+
+  In cloud-harness environments both calls short-circuit to success — the container
+  already provides isolation. Full rules: `docs/guides/worktree-management.md` in the
+  consumer project.
+
+- **Target is an external `owner/repo`**: the write surface is a clone of the *target*,
+  never this repo's checkout or worktree. Clone the target, work there, and skip the
+  worktree/guard calls above — they govern this repo only. If the target clone is
+  read-only (no push access), still draft there and deliver the files to the author
+  instead of pushing.
+
+Everywhere below, "the work surface" means whichever of these Step 0b resolved.
 
 ### Step 1 - Learn the pattern
 
@@ -232,7 +243,7 @@ file cannot.
 #### 6a. Build the board
 
 Copy `<skill-base-dir>/assets/review-template.html` and `assets/review.css` next to each
-other in the worktree, then fill only the template's marked slots: `{{PROJECT}}`,
+other on the work surface, then fill only the template's marked slots: `{{PROJECT}}`,
 `{{RUN_NOTE}}`, `{{DRAFT_MARKDOWN}}` (the full latest VISION.md text), and the `CARDS`
 array — one object per hypothetical: `{ id, title, body, tests, why }`.
 
@@ -242,15 +253,22 @@ rewritten and no run gets restyled.
 
 #### 6b. Hand the board to the author
 
-Write the board to `VISION-review.html` in the worktree and give the author its path.
-Do not launch a server, install a package, or route the board through an external
-service; the file opens in a browser directly. The board's own verdict buttons record a
-local ledger the author can read back — treat that ledger as a convenience, never as the
-channel of record.
+Write the board to `VISION-review.html` on the work surface. Do not launch a server,
+install a package, or route the board through an external service. How the author
+reaches it depends on where this session runs:
+
+- **Local session**: give the author the path; the file opens in a browser directly.
+- **Remote session** (cloud harness, container): a container-local path is unreachable
+  from the author's browser, so a bare path is never the handoff. Deliver the file
+  through the host's file-delivery mechanism (send/attach it for inline rendering), or
+  commit it to the working branch and hand the author the hosted file link.
+
+The board's own verdict buttons record a local ledger the author can read back — treat
+that ledger as a convenience, never as the channel of record.
 
 #### 6c. Collect verdicts
 
-Ask through `AskUserQuestion`, in batches of 2-4 hypotheticals, one question per card:
+Ask through `AskUserQuestion`, in batches of 2-3 hypotheticals, one question per card:
 
 - **question**: the card's title plus a one-line restatement of the proposal.
 - **header**: the card id (`H-7`).
@@ -258,8 +276,11 @@ Ask through `AskUserQuestion`, in batches of 2-4 hypotheticals, one question per
   concrete consequence for the draft if chosen.
 - **multiSelect**: `false`.
 
-Then ask one open-ended follow-up per batch for the reasoning, since the reasoning — not
-the verdict — is what the vision gets rebuilt from.
+Include one open-ended reasoning question in the **same call** — the reasoning, not the
+verdict, is what the vision gets rebuilt from. The tool takes at most 4 questions per
+call, which is why a batch is 2-3 cards, never 4: the reasoning slot must always fit.
+Authors can also attach reasoning per card via each question's free-form "Other" path;
+harvest both.
 
 If `AskUserQuestion` is unavailable in the current runtime, present the batch as a
 numbered list in regular output and ask the author to respond inline, matching the
@@ -286,7 +307,8 @@ do not treat silence as approval.
 - The answers file is durable calibration material; keep `VISION-answers.md` next to the
   vision and commit both.
 - Commit and push per the consumer project's `docs/guides/git-conventions.md`; the work
-  is not complete until `git push` succeeds.
+  is not complete until `git push` succeeds. On a read-only external target (Step 0b),
+  delivery of the files to the author replaces the push — say which happened.
 
 ## Output template (from-scratch mode)
 
