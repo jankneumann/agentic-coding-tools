@@ -115,6 +115,10 @@ testpaths = [
     # deterministic text-manipulation core; resolution glue needs the gen-eval
     # venv and is exercised by use, not by this suite.
     "tests/cite-requirements",
+    # vision: content invariants plus the localization guards that keep the
+    # upstream-adapted evidence ladder and verdict channel from regressing on a
+    # future upstream sync.
+    "tests/vision",
     "expedite/scripts/tests",
 ]
 

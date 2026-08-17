@@ -1,0 +1,104 @@
+/* /vision review surface - black ink on white paper, in the manner of a well-set book.
+   Ship this file unchanged next to the generated board; the board only supplies content. */
+
+:root {
+  --ink: #191715;
+  --paper: #ffffff;
+  --mute: #6e6a64;
+  --hair: 1px solid #191715;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body.vr {
+  background: var(--paper);
+  color: var(--ink);
+  font: 17px/1.75 var(--serif);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* header */
+.vr-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+  padding: 20px 32px; border-bottom: 2px solid var(--ink);
+}
+.vr-title { font-size: 17px; font-weight: 600; font-variant-caps: small-caps; letter-spacing: .08em; }
+.vr-meta { font-size: 13.5px; font-style: italic; color: var(--mute); text-align: right; line-height: 1.5; }
+
+/* two panes clustered at the center: full draft left, card stack right */
+.vr-main {
+  display: grid; grid-template-columns: minmax(0, 60ch) minmax(0, 60ch);
+  justify-content: center; min-height: calc(100vh - 64px);
+}
+@media (max-width: 960px) { .vr-main { grid-template-columns: 1fr; } .vr-draft { border-right: none !important; border-bottom: var(--hair); } }
+
+/* the draft pane: the latest full VISION.md, always entirely present */
+.vr-draft { padding: 40px 44px; border-right: var(--hair); }
+.vr-label { display: block; font-size: 13.5px; font-style: italic; color: var(--mute); margin-bottom: 20px; }
+.vr-doc h1 { font-size: 34px; font-weight: 400; letter-spacing: .01em; margin: 0 0 22px; }
+.vr-doc h2 {
+  font-size: 16px; font-weight: 600; font-variant-caps: small-caps; letter-spacing: .07em;
+  margin: 30px 0 8px; padding-top: 16px; border-top: var(--hair);
+}
+.vr-doc p { margin: 10px 0; hanging-punctuation: first; }
+.vr-doc code { font-family: inherit; font-style: italic; }
+
+/* the stack pane */
+.vr-side { padding: 40px 32px; display: flex; flex-direction: column; gap: 20px; }
+.vr-progress {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 14px; font-variant-caps: small-caps; letter-spacing: .07em;
+}
+.vr-progress b { font-weight: 600; }
+
+.vr-stack { position: relative; min-height: 660px; }
+.vr-card {
+  position: absolute; inset: 0;
+  background: var(--paper); border: var(--hair);
+  padding: 26px 28px; display: flex; flex-direction: column; gap: 10px;
+  transition: transform .35s ease, opacity .35s ease;
+  overflow-y: auto;
+}
+/* the sheets peeking out behind the top card carry the whole depth illusion */
+.vr-card[data-depth="0"] { z-index: 3; }
+.vr-card[data-depth="1"] { transform: translate(9px, 9px); z-index: 2; pointer-events: none; }
+.vr-card[data-depth="2"] { transform: translate(18px, 18px); z-index: 1; pointer-events: none; }
+.vr-card.vr-gone { transform: translateX(-120%) rotate(-5deg); opacity: 0; pointer-events: none; }
+.vr-card[hidden] { display: none; }
+
+.vr-card-id { font-size: 13px; font-variant-caps: small-caps; letter-spacing: .1em; color: var(--mute); }
+.vr-card-title { font-size: 21px; font-weight: 600; margin: 0; line-height: 1.35; }
+.vr-card-body { font-size: 15.5px; margin: 0; }
+.vr-card-tests { font-size: 14px; font-style: italic; color: var(--mute); border-left: 2px solid var(--ink); padding-left: 12px; }
+
+/* the steelman, always in full view */
+.vr-why { margin: 2px 0 0; }
+.vr-why-label { display: block; font-size: 13px; font-variant-caps: small-caps; letter-spacing: .1em; color: var(--mute); margin-bottom: 2px; }
+.vr-why p { font-size: 14.5px; color: var(--ink); margin: 0; }
+
+/* verdict controls: quiet, bordered, ink fill when chosen */
+.vr-verdicts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.vr-verdicts button {
+  font: 14px var(--serif); font-variant-caps: small-caps; letter-spacing: .06em;
+  background: var(--paper); color: var(--ink); border: var(--hair);
+  padding: 8px 16px; cursor: pointer;
+}
+.vr-verdicts button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.vr-reason {
+  width: 100%; border: var(--hair); background: var(--paper); color: var(--ink);
+  font: 14.5px/1.6 var(--serif); padding: 10px 12px; resize: vertical; min-height: 58px;
+}
+.vr-reason::placeholder { color: var(--mute); font-style: italic; }
+.vr-commit {
+  font: 15px var(--serif); font-variant-caps: small-caps; letter-spacing: .08em;
+  background: var(--ink); color: var(--paper); border: var(--hair);
+  padding: 11px 16px; cursor: pointer; width: 100%;
+}
+.vr-commit:disabled { background: var(--paper); color: var(--mute); cursor: not-allowed; }
+
+/* done state + ledger of recorded verdicts */
+.vr-done { border: var(--hair); padding: 24px 28px; }
+.vr-done h2 { font-size: 15px; font-weight: 600; font-variant-caps: small-caps; letter-spacing: .08em; margin: 0 0 10px; }
+.vr-ledger { list-style: none; margin: 0; padding: 0; font-size: 14.5px; line-height: 2; }
+.vr-ledger b { font-variant-caps: small-caps; letter-spacing: .06em; font-weight: 600; }
