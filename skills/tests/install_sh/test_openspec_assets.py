@@ -111,6 +111,61 @@ def test_skill_openspec_assets_are_synced_to_target(tmp_path: Path) -> None:
     assert "openspec-assets  schema-owner" in result.stdout
 
 
+@pytest.mark.skipif(not _have_rsync(), reason="rsync not available in PATH")
+def test_repo_openspec_asset_takes_precedence_over_stale_skill_copy(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "source"
+    scripts_dir = repo_root / "skills"
+    scripts_dir.mkdir(parents=True)
+    skill_dir = _make_fixture_skill(scripts_dir, "schema-owner")
+    packaged_schema = (
+        skill_dir
+        / "install_assets"
+        / "openspec"
+        / "schemas"
+        / "schema-owner.schema.json"
+    )
+    packaged_schema.parent.mkdir(parents=True)
+    packaged_schema.write_text('{"version": "stale"}\n', encoding="utf-8")
+
+    canonical_schema = (
+        repo_root / "openspec" / "schemas" / "schema-owner.schema.json"
+    )
+    canonical_schema.parent.mkdir(parents=True)
+    canonical_schema.write_text('{"version": "current"}\n', encoding="utf-8")
+
+    install_copy = _copy_installer(scripts_dir)
+    install_target = tmp_path / "target"
+    install_target.mkdir()
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(install_copy),
+            "--target",
+            str(install_target),
+            "--mode",
+            "rsync",
+            "--deps",
+            "none",
+            "--python-tools",
+            "none",
+            "--openspec-cli",
+            "none",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+    assert result.returncode == 0, result.stderr
+    installed_schema = (
+        install_target / "openspec" / "schemas" / "schema-owner.schema.json"
+    )
+    assert installed_schema.read_text(encoding="utf-8") == '{"version": "current"}\n'
+
+
 def test_openspec_cli_required_fails_when_binary_is_missing(tmp_path: Path) -> None:
     scripts_dir = tmp_path / "fake_skills"
     scripts_dir.mkdir()

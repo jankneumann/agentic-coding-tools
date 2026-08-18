@@ -387,9 +387,25 @@ sync_skill_openspec_assets() {
       return 1
     fi
 
-    mkdir -p "$TARGET_ROOT/openspec"
-    rsync -a --checksum "$assets_dir/" "$TARGET_ROOT/openspec/"
-    files_seen=$((files_seen + $(find "$assets_dir" -type f | wc -l | tr -d ' ')))
+    while IFS= read -r asset_file; do
+      local rel_asset repo_asset source_asset target_asset
+      rel_asset="${asset_file#$assets_dir/}"
+      repo_asset="$SCRIPT_DIR/../openspec/$rel_asset"
+      source_asset="$asset_file"
+      target_asset="$TARGET_ROOT/openspec/$rel_asset"
+
+      # In a source checkout, the root OpenSpec tree is authoritative. Packaged
+      # install_assets remain the fallback for portable skill-only payloads.
+      if [[ -f "$repo_asset" ]]; then
+        source_asset="$repo_asset"
+      fi
+
+      mkdir -p "$(dirname "$target_asset")"
+      if [[ ! -e "$target_asset" || ! "$source_asset" -ef "$target_asset" ]]; then
+        rsync -a --checksum "$source_asset" "$target_asset"
+      fi
+      files_seen=$((files_seen + 1))
+    done < <(find "$assets_dir" -type f | sort)
     echo "  openspec-assets  $skill_name -> openspec/"
   done
 
