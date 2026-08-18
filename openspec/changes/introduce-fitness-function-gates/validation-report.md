@@ -1,8 +1,8 @@
 # Validation Report
 
-<!-- Date: 2026-08-16 01:00:27 UTC
-     Commit: 31c059b
-     Branch: claude/fitness-function-driven-dev-0f12co -->
+<!-- Date: 2026-08-18 UTC
+     Branch: claude/fitness-function-driven-dev-0f12co
+     Scope: rebased working tree for PR #375 -->
 
 ## Phase Results
 
@@ -11,54 +11,55 @@
 | Deploy | skip | Docker unavailable in this cloud harness; deferred to the merge-time gate in `/cleanup-feature` |
 | Smoke | skip | Deferred with Deploy (soft gate per implement-feature step 6.4) |
 | E2E | skip | Docker-dependent; deferred to the merge-time gate |
-| Architecture | warn | 30 findings (5 critical, 25 nit), all schema-valid. Advisory mode — reported, not blocking |
-| Spec Compliance | pass | 19/19 requirements traced with tests; see change-context.md |
+| Architecture | pass | Scoped flow validation found 0 findings across 69 changed files; architecture-diff reporting and degradation paths are covered by tests |
+| Spec Compliance | pass | 19/19 requirements traced with tests; strict OpenSpec validation passed 68/68 changes |
 | Logs | skip | No live service deployed in this run |
-| CI/CD | skip | Checks run on push; `coverage-ratchet` lands as a new non-required job |
+| CI/CD | pass | Local equivalents of the affected CI jobs passed |
 
 ## Deploy
 
 - **Status**: skipped
-- Docker is not available in this execution environment. Deploy, Smoke, E2E and Log
-  analysis are Docker-dependent and are deferred to `/cleanup-feature`'s merge-time
-  gate, which is where this repo runs them.
+- Docker is not available in this execution environment. Deploy, Smoke, E2E, and
+  log analysis are Docker-dependent and are deferred to `/cleanup-feature` merge-time
+  gate.
 
 ## Architecture
 
 - **Status**: pass
 - **Mode**: advisory (`gates.architecture.mode` in `architecture.config.yaml`)
 
-30 findings from the three architecture linters against `main...HEAD`: 5 at
-`critical` severity, 25 at `nit`. All 30 validate against
-`review-findings.schema.json` — before this change the linters omitted the required
-`axis` and `severity` fields, so every finding they produced was schema-invalid and
-the gap was untested.
-
-Advisory mode is the shipped default, so these findings are reported and do not fail
-the run: `resolve_required_phases()` returns exactly `Smoke Tests`, `Security`,
-`E2E Tests` — `Architecture` is absent. The flip to `blocking` is a one-line config
-change after 3 clean advisory runs (D4). None of the 5 critical findings is a new
-dependency cycle, which is the category that will block first.
+`validate_flows.py --diff main...HEAD` inspected 69 changed files and emitted 0
+findings. Focused regression tests also verify that validation runs the architecture
+diff producer, renders `summary.new_cycles` and individual cycle paths, preserves a
+hard architecture failure during aggregation, and reports an unavailable checker as
+`DEGRADED` rather than silently skipping it.
 
 ## Spec Compliance
 
 See [change-context.md](./change-context.md) for the full requirement traceability matrix.
 
 **Summary**: 19/19 requirements traced, each with at least one mapped test. 0 gaps,
-0 deferred.
+0 deferred. Strict OpenSpec validation passed all 68 repository changes.
 
-Suite results at 31c059b:
+Post-rebase suite results:
 
 | Suite | Result |
 |-------|--------|
-| `agent-coordinator` (e2e/integration deselected, as CI scopes it) | 2169 passed, 11 skipped |
-| `skills` (canonical, as CI runs it) | 2381 passed |
-| gate + linter suites | 124 passed |
-| `parallel-infrastructure` | 54 passed (no regression) |
-| `openspec validate --strict` | valid |
-| `validate_flows --diff main...HEAD` | 0 findings (87 files in scope) |
-| mypy | 21 errors — identical count to `main` |
-| ruff (this change's files) | 8 errors — identical count to `main` |
+| `agent-coordinator` (e2e/integration deselected, as CI scopes it) | 2333 passed, 11 skipped, 90 deselected |
+| `skills` (canonical, as CI runs it) | 2552 passed |
+| isolated in-skill suites | 1352 passed, 1 skipped |
+| coverage ratchet | pass — coordinator 76.76%, skills 85.82% |
+| `openspec validate --strict --all` | 68 passed, 0 failed |
+| `validate_flows --diff main...HEAD` | 0 findings (69 files in scope) |
+| context drift gate | fresh, 0 blocking drift |
+| mypy | success, 77 source files |
+| Ruff and dependency-direction checks | pass |
+| skill installation consistency | pass |
+
+The skills baseline was reset to 85.82% because this PR adds the first tests that
+import the existing `validate_flows.py` module, bringing that pre-existing file into
+the measured denominator. The explicit baseline-update command and its improvement-
+only behavior are covered by 24 ratchet contract tests.
 
 ## Log Analysis
 
@@ -67,10 +68,9 @@ Suite results at 31c059b:
 
 ## Result
 
-**PASS** — ready for `/cleanup-feature`, which runs the Docker-dependent phases
-(Deploy, Smoke, Security, E2E) at merge time.
+**PASS** — the non-Docker validation surface is green. Docker-dependent phases remain
+for `/cleanup-feature` at merge time.
 
-Note on the skipped phases: they are recorded as `skip` (intentionally not run in a
-Docker-less environment), not `DEGRADED`. The distinction is the one this change
-introduces — `DEGRADED` means a checker that should have run could not, and it blocks
-the pre-merge gate unless explicitly overridden. Nothing in this run was degraded.
+Skipped phases were intentionally not run because their runtime dependency is absent.
+By contrast, the implemented `DEGRADED` paths apply when a checker should run but is
+unavailable, and they block the pre-merge gate unless explicitly overridden.

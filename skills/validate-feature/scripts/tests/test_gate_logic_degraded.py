@@ -36,6 +36,28 @@ from gate_logic import (  # noqa: E402
 _GATE_LOGIC = _SCRIPTS_DIR / "gate_logic.py"
 
 
+def _validate_feature_skill() -> str:
+    return (_SCRIPTS_DIR.parent / "SKILL.md").read_text()
+
+
+def test_unavailable_e2e_checker_records_degraded() -> None:
+    skill = _validate_feature_skill()
+    branch = skill.split(
+        "elif [ \"$PLAYWRIGHT_AVAILABLE\" = false ]; then", 1
+    )[1]
+    branch = branch.split("else", 1)[0]
+    assert "E2E_RESULT=\"DEGRADED\"" in branch
+
+
+def test_unavailable_architecture_checker_records_degraded() -> None:
+    skill = _validate_feature_skill()
+    branch = skill.split(
+        "Architecture flow validation was NOT CHECKED", 1
+    )[1]
+    branch = branch.split("fi", 1)[0]
+    assert "FLOW_RESULT=\"DEGRADED\"" in branch
+
+
 def _report(tmp_path: Path, smoke: str = "pass", security: str = "pass",
             e2e: str = "pass") -> Path:
     report = tmp_path / "validation-report.md"

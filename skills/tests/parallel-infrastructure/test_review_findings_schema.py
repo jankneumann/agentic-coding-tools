@@ -1,5 +1,6 @@
 """Tests for the review-findings.schema.json axis/severity extension."""
 import json
+import sys
 from pathlib import Path
 
 import yaml
@@ -10,10 +11,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = REPO_ROOT / "openspec" / "schemas" / "review-findings.schema.json"
 SCHEMA = json.loads(SCHEMA_PATH.read_text())
 
-# The axis enum is duplicated in three places (canonical schema, the
-# install_assets mirror shipped with parallel-infrastructure, and the
-# hand-inlined --json-schema block in agent-coordinator/agents.yaml).
-# See contracts/review-findings-axis.md rule 1: drift is a test failure.
+# The canonical schema is mirrored in the install payload. agents.yaml carries
+# only a sentinel that review_dispatcher resolves from that canonical schema.
 MIRROR_SCHEMA_PATH = (
     REPO_ROOT
     / "skills"
@@ -24,6 +23,14 @@ MIRROR_SCHEMA_PATH = (
     / "review-findings.schema.json"
 )
 AGENTS_YAML_PATH = REPO_ROOT / "agent-coordinator" / "agents.yaml"
+SCRIPTS_DIR = REPO_ROOT / "skills" / "parallel-infrastructure" / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from review_findings_schema import (  # noqa: E402
+    GROK_SCHEMA_SENTINEL,
+    derive_output_schema,
+)
 
 AXIS_ENUM = [
     "correctness",
@@ -43,10 +50,10 @@ def _axis_enum_from_findings_schema(schema: dict) -> list:
     return items["properties"]["axis"]["enum"]
 
 
-def _inline_schemas_from_agents_yaml() -> list[dict]:
-    """Return every inlined --json-schema payload found in agents.yaml."""
+def _schema_args_from_agents_yaml() -> list[str]:
+    """Return every --json-schema argument found in agents.yaml."""
     config = yaml.safe_load(AGENTS_YAML_PATH.read_text())
-    found: list[dict] = []
+    found: list[str] = []
 
     def walk(node):
         if isinstance(node, dict):
@@ -55,7 +62,7 @@ def _inline_schemas_from_agents_yaml() -> list[dict]:
         elif isinstance(node, list):
             for i, item in enumerate(node):
                 if item == "--json-schema" and i + 1 < len(node):
-                    found.append(json.loads(node[i + 1]))
+                    found.append(node[i + 1])
                 walk(item)
 
     walk(config)
@@ -78,8 +85,8 @@ def test_axis_field_exists_with_8_enum_values():
     assert set(axis["enum"]) == set(AXIS_ENUM)
 
 
-def test_axis_enum_identical_across_all_three_copies():
-    """Canonical schema, install_assets mirror, and agents.yaml must agree."""
+def test_axis_enum_identical_across_canonical_mirror_and_derived_output():
+    """The mirror and runtime-derived Grok schema must agree with canonical."""
     canonical = _axis_enum_from_findings_schema(SCHEMA)
     assert canonical == AXIS_ENUM
 
@@ -88,21 +95,21 @@ def test_axis_enum_identical_across_all_three_copies():
         "install_assets mirror axis enum drifted from the canonical schema"
     )
 
-    inline_schemas = _inline_schemas_from_agents_yaml()
-    assert inline_schemas, "expected at least one inlined --json-schema in agents.yaml"
-    for inline in inline_schemas:
-        assert _axis_enum_from_findings_schema(inline) == canonical, (
-            "agents.yaml inline axis enum drifted from the canonical schema"
-        )
+    schema_args = _schema_args_from_agents_yaml()
+    assert schema_args, "expected a --json-schema argument in agents.yaml"
+    assert set(schema_args) == {GROK_SCHEMA_SENTINEL}
+
+    derived = derive_output_schema(SCHEMA)
+    assert _axis_enum_from_findings_schema(derived) == canonical
 
 
 def test_agents_yaml_type_enum_untouched():
-    """The `type` enum is separate from `axis` and must keep its own values."""
-    for inline in _inline_schemas_from_agents_yaml():
-        items = inline["properties"]["findings"]["items"]
-        type_enum = set(items["properties"]["type"]["enum"])
-        assert {"observability", "compatibility", "resilience"} <= type_enum
-        assert "readability" not in type_enum
+    """The type enum is separate from axis and must keep its own values."""
+    derived = derive_output_schema(SCHEMA)
+    items = derived["properties"]["findings"]["items"]
+    type_enum = set(items["properties"]["type"]["enum"])
+    assert {"observability", "compatibility", "resilience"} <= type_enum
+    assert "readability" not in type_enum
 
 
 def test_severity_field_exists_with_5_enum_values():

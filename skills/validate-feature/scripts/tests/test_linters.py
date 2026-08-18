@@ -655,18 +655,19 @@ class TestSeverityPrefix:
 
     _PREFIX = {"critical": "Critical:", "nit": "Nit:", "optional": "Optional:", "fyi": "FYI:"}
 
-    def test_every_finding_description_carries_its_severity_prefix(self) -> None:
-        import subprocess
-        import sys as _sys
+    def test_every_finding_description_carries_its_severity_prefix(
+        self, tmp_path: Path
+    ) -> None:
+        bad_file = tmp_path / "skills" / "bad_skill" / "scripts" / "huge-bad.py"
+        bad_file.parent.mkdir(parents=True)
+        lines = ["from agent_coordinator.src.locks import acquire_lock\n"]
+        lines += ["x = 1\n"] * 550
+        bad_file.write_text("".join(lines))
 
-        result = subprocess.run(
-            [_sys.executable, str(_SCRIPTS_DIR / "run_architecture_linters.py"),
-             "--target", str(_SCRIPTS_DIR.parents[1])],
-            capture_output=True, text=True, check=False,
-        )
-        payload = result.stdout[result.stdout.index("{"):result.stdout.rindex("}") + 1]
-        findings = json.loads(payload)["findings"]
-        assert findings, "expected the linters to produce findings to check"
+        findings = run_all_linters(
+            [str(bad_file)], config={"max_lines": 500}
+        )["findings"]
+        assert findings, "deterministic violating fixture must produce findings"
 
         for finding in findings:
             expected = self._PREFIX.get(finding["severity"])

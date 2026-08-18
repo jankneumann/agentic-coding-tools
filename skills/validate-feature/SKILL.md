@@ -421,6 +421,7 @@ python3 "<skill-base-dir>/scripts/gate_logic.py" openspec/changes/"$CHANGE_ID"/v
 # Skip if --skip-e2e flag was provided
 if [ "$SKIP_E2E" = true ]; then
   echo "SKIP: E2E phase skipped (--skip-e2e flag)"
+  E2E_RESULT="skip"
 else
   # Check if pytest-playwright is installed
   if python3 -c "import playwright" 2>/dev/null; then
@@ -434,10 +435,12 @@ else
 
   if [ -z "$E2E_DIR" ]; then
     echo "SKIP: No tests/e2e/ directory found. Skipping E2E phase."
+    E2E_RESULT="skip"
   elif [ "$PLAYWRIGHT_AVAILABLE" = false ]; then
-    echo "SKIP: pytest-playwright not installed. To install:"
+    echo "DEGRADED: E2E tests were NOT CHECKED because pytest-playwright is unavailable. To install:"
     echo "  pip install pytest-playwright"
     echo "  playwright install chromium"
+    E2E_RESULT="DEGRADED"
   else
     echo "Running E2E tests from $E2E_DIR..."
     pytest "$E2E_DIR" -v --tb=short 2>&1
@@ -472,20 +475,39 @@ python3 -c "import sys; sys.path.insert(0, '<skill-base-dir>/scripts'); \
   import gate_logic; print(gate_logic.architecture_mode())"
 ```
 
-Run architecture flow validation and structural linters against the changed files:
+Run the baseline architecture diff, flow validation, and structural linters
+against the changed files. The diff producer runs first so new dependency cycles
+exist as findings before gate_logic.architecture_status() evaluates the phase:
 
 ```bash
 # Get changed files relative to main
-CHANGED_FILES=$(git diff --name-only main...HEAD | tr '\n' ',')
+CHANGED_FILES=$(git diff --name-only main...HEAD | tr "\n" ",")
+
+# --- Sub-phase 0: Baseline graph diff (new-cycle producer) ---
+ARCH_BASE_SHA=$(git merge-base main HEAD)
+ARCH_DIFF="docs/architecture-analysis/architecture.diff.json"
+if [ -f Makefile ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
+  echo "Running architecture baseline diff against $ARCH_BASE_SHA..."
+  if make architecture && make architecture-diff BASE_SHA="$ARCH_BASE_SHA"; then
+    ARCH_NEW_CYCLES=$(python3 -c "import json; d=json.load(open(\"$ARCH_DIFF\")); print(d[\"summary\"][\"new_cycles\"])")
+    ARCH_DIFF_RESULT=$(python3 -c "import json,sys; sys.path.insert(0, \"<skill-base-dir>/scripts\"); import gate_logic; d=json.load(open(\"$ARCH_DIFF\")); findings=[{\"category\": \"new_cycle\", \"description\": \"New dependency cycle: \" + \" -> \".join(c)} for c in d[\"details\"][\"new_cycles\"]]; print(gate_logic.architecture_status(findings))")
+    echo "Architecture diff: $ARCH_NEW_CYCLES new cycle(s); gate status: $ARCH_DIFF_RESULT"
+  else
+    echo "DEGRADED: Architecture baseline diff was NOT CHECKED because the producer failed"
+    ARCH_DIFF_RESULT="DEGRADED"
+  fi
+else
+  echo "DEGRADED: Architecture baseline diff was NOT CHECKED because Makefile or graph artifacts are unavailable"
+  ARCH_DIFF_RESULT="DEGRADED"
+fi
 
 # --- Sub-phase 1: Flow validation (validate_flows.py) ---
 if [ -f "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
   echo "Running architecture flow validation on changed files..."
   # Scoped run: omit --output so the validator writes the scoped artifact
   # (architecture.diagnostics.scoped.json) rather than the committed full-scope
-  # architecture.diagnostics.json, which only refresh-architecture's full run
-  # should produce. Passing --output here would overwrite a full analysis with a
-  # narrow one, and the result still parses as valid diagnostics.
+  # architecture.diagnostics.json, which only refresh-architecture full run
+  # should produce.
   ARCH_DIAGNOSTICS="docs/architecture-analysis/architecture.diagnostics.scoped.json"
   python3 "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" \
     --graph docs/architecture-analysis/architecture.graph.json \
@@ -493,21 +515,21 @@ if [ -f "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" ] && [ -f
   ARCH_EXIT=$?
 
   if [ $ARCH_EXIT -eq 0 ]; then
-    ARCH_RESULT="pass"
-    ARCH_ERRORS=$(python3 -c "import json; d=json.load(open('$ARCH_DIAGNOSTICS')); print(d['summary']['errors'])" 2>/dev/null || echo 0)
-    ARCH_WARNINGS=$(python3 -c "import json; d=json.load(open('$ARCH_DIAGNOSTICS')); print(d['summary']['warnings'])" 2>/dev/null || echo 0)
+    FLOW_RESULT="pass"
+    ARCH_ERRORS=$(python3 -c "import json; d=json.load(open(\"$ARCH_DIAGNOSTICS\")); print(d[\"summary\"][\"errors\"])" 2>/dev/null || echo 0)
+    ARCH_WARNINGS=$(python3 -c "import json; d=json.load(open(\"$ARCH_DIAGNOSTICS\")); print(d[\"summary\"][\"warnings\"])" 2>/dev/null || echo 0)
     if [ "$ARCH_ERRORS" -gt 0 ]; then
-      ARCH_RESULT="fail"
+      FLOW_RESULT="fail"
     elif [ "$ARCH_WARNINGS" -gt 0 ]; then
-      ARCH_RESULT="warn"
+      FLOW_RESULT="warn"
     fi
   else
-    ARCH_RESULT="fail"
+    FLOW_RESULT="fail"
   fi
 else
-  echo "SKIP: Architecture flow validation not available (missing scripts or artifacts)"
-  echo "  Run 'make architecture' to generate architecture artifacts"
-  ARCH_RESULT="skip"
+  echo "DEGRADED: Architecture flow validation was NOT CHECKED (missing scripts or artifacts)"
+  echo "  Run make architecture to generate architecture artifacts"
+  FLOW_RESULT="DEGRADED"
 fi
 
 # --- Sub-phase 2: Structural linters (dependency direction, file-size, naming) ---
@@ -521,16 +543,30 @@ if [ $LINTER_EXIT -eq 0 ]; then
   LINTER_RESULT="pass"
 else
   LINTER_RESULT="fail"
-  # Merge linter findings into architecture phase result
-  if [ "$ARCH_RESULT" != "fail" ]; then
-    ARCH_RESULT="fail"
-  fi
 fi
 
 echo "Structural linters: $LINTER_RESULT"
+
+# Aggregate without allowing a later passing sub-phase to erase an earlier
+# failure or unavailable checker.
+ARCH_RESULT="pass"
+for SUBPHASE_RESULT in "$ARCH_DIFF_RESULT" "$FLOW_RESULT" "$LINTER_RESULT"; do
+  if [ "$SUBPHASE_RESULT" = "fail" ]; then
+    ARCH_RESULT="fail"
+  elif [ "$SUBPHASE_RESULT" = "DEGRADED" ] && [ "$ARCH_RESULT" != "fail" ]; then
+    ARCH_RESULT="DEGRADED"
+  elif [ "$SUBPHASE_RESULT" = "warn" ] && [ "$ARCH_RESULT" = "pass" ]; then
+    ARCH_RESULT="warn"
+  fi
+done
 ```
 
-Report architecture diagnostics including broken flows, missing test coverage, orphaned code, disconnected endpoints, dependency direction violations, oversized files, and naming convention issues. Structural linter findings are output in `review-findings.schema.json` format for integration with the consensus synthesizer.
+Render architecture.diff.json in validation-report.md before running the hard
+gate, including its summary.new_cycles count and every details.new_cycles path.
+Also report broken flows, missing test coverage, orphaned code, disconnected
+endpoints, dependency direction violations, oversized files, and naming convention
+issues. Structural linter findings are output in review-findings.schema.json format
+for integration with the consensus synthesizer.
 
 ### 7. Spec Compliance Phase (via Change Context)
 

@@ -83,8 +83,8 @@ Scenario references use document order within each delta spec:
 
 ## Phase 4 — Coverage ratchet (wp-coverage)
 
-- [x] 4.1 Write ratchet script tests — decrease fails, tolerance respected, improvement message [M]
-  **Spec scenarios**: fitness-functions.12 (fails on decrease), fitness-functions.13 (baseline updates)
+- [x] 4.1 Write ratchet script tests — decrease fails, tolerance respected, improvement message and explicit upward-only update [M]
+  **Spec scenarios**: fitness-functions.12 (fails on decrease), fitness-functions.13 (maintainer advances baseline)
   **Contracts**: contracts/coverage-baseline.schema.json
   **Design decisions**: D5
   **Dependencies**: None
