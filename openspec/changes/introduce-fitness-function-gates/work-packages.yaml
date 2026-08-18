@@ -77,7 +77,7 @@ packages:
       update the exact-match test to assert copy identity, add axis to
       consensus_synthesizer.py Finding/ConsensusFinding and matching keys, update
       axis tables in parallel-review SKILL.md files and impl_review_driver.py, and
-      mark validate-feature-findings-gate as superseded.
+      record validate-feature-findings-gate as superseded in this change.
     depends_on: [wp-contracts]
     priority: 2
     metadata:
@@ -102,7 +102,6 @@ packages:
         - "scripts/impl_review_driver.py"
         - "skills/tests/parallel-infrastructure/**"
         - "docs/skills-catalogue.md"
-        - "openspec/changes/validate-feature-findings-gate/proposal.md"
       read_allow:
         - "openspec/**"
         - "skills/**"

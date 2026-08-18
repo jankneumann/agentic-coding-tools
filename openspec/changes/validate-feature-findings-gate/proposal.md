@@ -1,13 +1,5 @@
 # Proposal: Findings-Model + Enforcement Gate for `validate-feature`
 
-> **SUPERSEDED — do not implement.** This proposal is superseded by
-> `introduce-fitness-function-gates`, which absorbs its intent: findings as
-> first-class data with an axis-keyed consensus model (D3), config-ratcheted
-> architecture and coverage gates that block rather than advise (D4/D6), and the
-> fitness-function axes (`observability`, `resilience`, `compatibility`) that this
-> proposal's enforcement tiers assumed. Its 0/31 tasks are deliberately not
-> migrated. The text below is retained only as historical design rationale.
-
 **Change ID**: validate-feature-findings-gate
 **Status**: Draft
 **Created**: 2026-06-26

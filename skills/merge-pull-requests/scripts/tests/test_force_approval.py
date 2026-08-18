@@ -15,10 +15,22 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 # Add scripts dir to path so we can import merge_pr
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import merge_pr as mp
+
+
+@pytest.fixture(autouse=True)
+def _named_checkout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep merge-gate tests independent of CI detached-HEAD checkouts."""
+    monkeypatch.setattr(
+        mp,
+        "capture_head",
+        lambda: {"branch": "main", "sha": "a" * 40},
+    )
 
 
 def _validation_response(

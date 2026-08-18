@@ -37,7 +37,7 @@
 | D4 | Immediate blocking risks failing in-flight changes on pre-existing findings | gates.architecture.mode advisory now, blocking flip after 3 clean runs | Mirrors context-drift-gate rollout precedent |
 | D5 | Absolute coverage threshold penalizes legacy code | Non-required CI job, stored baseline, no-decrease ratchet with tolerance | Measures drift rather than an arbitrary bar |
 | D6 | Fail-open gates are indistinguishable from passing ones | DEGRADED status in validation-report + gate_logic, --accept-degraded override | Rejected treating DEGRADED as failure everywhere (would incentivize deleting checks) |
-| D7 | validate-feature-findings-gate targets the same surface, untouched at 0/31 | Mark its proposal SUPERSEDED, do not migrate tasks | House precedent: add-update-documentation-skill |
+| D7 | validate-feature-findings-gate targets the same surface, untouched at 0/31 | Record supersession in this change only; do not migrate tasks or touch a second change directory | One-change-directory CI invariant |
 | D8 | Reviewers check NFRs against an implicit house standard | NFR section in proposal/design templates + rubric category 7 | Gives fitness functions a declared target to test against |
 
 ## Review Findings Summary
