@@ -929,6 +929,12 @@
           "type": "UNKNOWN",
           "nullable": true,
           "default": null
+        },
+        {
+          "name": "synced_from_registry_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -3711,7 +3717,7 @@
   ],
   "summary": {
     "total_tables": 27,
-    "total_columns": 293,
+    "total_columns": 294,
     "total_foreign_keys": 11,
     "total_indexes": 69,
     "most_referenced_tables": [
@@ -3751,7 +3757,7 @@
       },
       {
         "table": "public.agent_profiles",
-        "column_count": 16
+        "column_count": 17
       },
       {
         "table": "public.agent_sessions",

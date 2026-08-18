@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-08-18T21:37:45+00:00",
+  "generated_at": "2026-08-18T21:48:29+00:00",
   "summary": {
-    "total_comments": 2297,
-    "total_with_markers": 16,
+    "total_comments": 2431,
+    "total_with_markers": 20,
     "marker_totals": {
       "NOTE": 4,
-      "WARN": 3,
-      "BUG": 2,
-      "WARNING": 3,
+      "BUG": 4,
+      "WARNING": 4,
+      "WARN": 4,
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1871,
-    "documented_nodes": 267,
-    "documentation_coverage": 0.143
+    "total_graph_nodes": 1840,
+    "documented_nodes": 273,
+    "documentation_coverage": 0.148
   },
   "marker_hotspots": [
     {
@@ -25,24 +25,34 @@
       }
     },
     {
-      "file": "kanban-viz/src/__tests__/e2e.integration.test.tsx",
+      "file": "agents_config.py",
       "total_markers": 2,
       "markers": {
-        "WARNING": 1,
-        "NOTE": 1
+        "NOTE": 1,
+        "BUG": 1
       }
     },
     {
-      "file": "agents_config.py",
-      "total_markers": 1,
+      "file": "config.py",
+      "total_markers": 2,
       "markers": {
-        "NOTE": 1
+        "BUG": 1,
+        "WARNING": 1
       }
     },
     {
       "file": "coordination_api.py",
-      "total_markers": 1,
+      "total_markers": 2,
       "markers": {
+        "WARN": 1,
+        "NOTE": 1
+      }
+    },
+    {
+      "file": "kanban-viz/src/__tests__/e2e.integration.test.tsx",
+      "total_markers": 2,
+      "markers": {
+        "WARNING": 1,
         "NOTE": 1
       }
     },
@@ -111,6 +121,19 @@
     }
   ],
   "node_marker_map": {
+    "py:config.ApiConfig.from_env": {
+      "comment_count": 8,
+      "markers": [
+        "BUG",
+        "WARNING"
+      ]
+    },
+    "py:coordination_api.create_coordination_api.lifespan": {
+      "comment_count": 33,
+      "markers": [
+        "WARN"
+      ]
+    },
     "py:coordination_api.create_coordination_api": {
       "comment_count": 103,
       "markers": [
@@ -127,8 +150,8 @@
   "file_summaries": [
     {
       "file": "agents_config.py",
-      "total_comments": 142,
-      "with_markers": 1,
+      "total_comments": 232,
+      "with_markers": 2,
       "languages": [
         "python"
       ]
@@ -191,16 +214,16 @@
     },
     {
       "file": "config.py",
-      "total_comments": 28,
-      "with_markers": 0,
+      "total_comments": 35,
+      "with_markers": 2,
       "languages": [
         "python"
       ]
     },
     {
       "file": "coordination_api.py",
-      "total_comments": 214,
-      "with_markers": 1,
+      "total_comments": 230,
+      "with_markers": 2,
       "languages": [
         "python"
       ]
@@ -879,7 +902,7 @@
     },
     {
       "file": "policy_engine.py",
-      "total_comments": 22,
+      "total_comments": 33,
       "with_markers": 0,
       "languages": [
         "python"
@@ -968,6 +991,22 @@
     {
       "file": "telemetry.py",
       "total_comments": 24,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "trust_levels.py",
+      "total_comments": 5,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "trust_resolution.py",
+      "total_comments": 5,
       "with_markers": 0,
       "languages": [
         "python"

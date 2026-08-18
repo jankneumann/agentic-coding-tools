@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-18T21:37:45+00:00",
+  "generated_at": "2026-08-18T21:48:29+00:00",
   "python_patterns": {
     "assertions": {
       "count": 2,
@@ -13,11 +13,11 @@
       "files": {}
     },
     "broad_except": {
-      "count": 132,
+      "count": 131,
       "files": {
-        "coordination_api.py": 30,
-        "work_queue.py": 16,
-        "policy_engine.py": 10,
+        "coordination_api.py": 29,
+        "work_queue.py": 15,
+        "policy_engine.py": 9,
         "code_search_runtime.py": 7,
         "langfuse_tracing.py": 7,
         "coordination_mcp.py": 6,
@@ -29,10 +29,10 @@
         "discovery.py": 4,
         "github_openspec_fetcher.py": 3,
         "merge_queue.py": 3,
+        "agents_config.py": 2,
         "audit_triage.py": 2,
         "feature_registry.py": 2,
         "handoffs.py": 2,
-        "agents_config.py": 1,
         "audit.py": 1,
         "config.py": 1
       }
@@ -63,17 +63,17 @@
       }
     },
     "type_hints": {
-      "count": 1967,
+      "count": 2002,
       "files": {
-        "coordination_api.py": 182,
+        "coordination_api.py": 179,
         "coordination_mcp.py": 133,
         "http_proxy.py": 122,
+        "agents_config.py": 79,
         "policy_engine.py": 71,
         "code_search_runtime.py": 68,
         "merge_train.py": 67,
         "code_search_authorization.py": 66,
         "coordination_cli.py": 66,
-        "agents_config.py": 53,
         "code_search.py": 49,
         "db.py": 39,
         "merge_train_service.py": 39,
@@ -121,18 +121,19 @@
     }
   },
   "type_hint_coverage": {
-    "functions_with_return_type": 975,
-    "typed_parameters": 920
+    "functions_with_return_type": 987,
+    "typed_parameters": 942
   },
   "exception_handling": {
     "bare_except": 0,
-    "broad_except": 132,
-    "total_except_issues": 132
+    "broad_except": 131,
+    "total_except_issues": 131
   },
   "security": {
-    "total": 5,
+    "total": 10,
     "by_severity": {
-      "medium": 5
+      "medium": 5,
+      "high": 5
     },
     "by_category": {
       "hardcoded_secret": {
@@ -141,6 +142,13 @@
         "files": {
           "config.py": 3,
           "agents_config.py": 2
+        }
+      },
+      "sql_concatenation": {
+        "count": 5,
+        "severity": "high",
+        "files": {
+          "agents_config.py": 5
         }
       }
     }

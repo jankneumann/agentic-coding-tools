@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-08-18T21:37:45+00:00",
-      "git_sha": "deefc16cfc7dc18497d18f3140e58d33d3fe64a3",
+      "generated_at": "2026-08-18T21:48:29+00:00",
+      "git_sha": "6820198bb68e9642249e3c16e604c6efda8d9a32",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -949,6 +949,32 @@
       "signatures": {}
     },
     {
+      "id": "py:trust_levels",
+      "kind": "module",
+      "language": "python",
+      "name": "trust_levels",
+      "file": "trust_levels.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:trust_resolution",
+      "kind": "module",
+      "language": "python",
+      "name": "trust_resolution",
+      "file": "trust_resolution.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:watchdog",
       "kind": "module",
       "language": "python",
@@ -994,8 +1020,8 @@
       "name": "PollConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 426,
-        "end": 440
+        "start": 440,
+        "end": 454
       },
       "tags": [],
       "signatures": {}
@@ -1007,8 +1033,8 @@
       "name": "ModeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 444,
-        "end": 449
+        "start": 458,
+        "end": 463
       },
       "tags": [],
       "signatures": {}
@@ -1020,8 +1046,8 @@
       "name": "CliConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 453,
-        "end": 473
+        "start": 467,
+        "end": 487
       },
       "tags": [],
       "signatures": {}
@@ -1033,8 +1059,8 @@
       "name": "SdkConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 477,
-        "end": 490
+        "start": 491,
+        "end": 504
       },
       "tags": [],
       "signatures": {}
@@ -1046,8 +1072,8 @@
       "name": "AgentEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 494,
-        "end": 509
+        "start": 508,
+        "end": 523
       },
       "tags": [],
       "signatures": {}
@@ -1059,8 +1085,8 @@
       "name": "EscalationConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 517,
-        "end": 527
+        "start": 531,
+        "end": 541
       },
       "tags": [],
       "signatures": {}
@@ -1072,8 +1098,8 @@
       "name": "ArchetypeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 531,
-        "end": 542
+        "start": 545,
+        "end": 556
       },
       "tags": [],
       "signatures": {}
@@ -1085,8 +1111,8 @@
       "name": "PhaseMappingEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 546,
-        "end": 556
+        "start": 560,
+        "end": 570
       },
       "tags": [],
       "signatures": {}
@@ -1098,8 +1124,8 @@
       "name": "ModelSpec",
       "file": "agents_config.py",
       "span": {
-        "start": 560,
-        "end": 570
+        "start": 574,
+        "end": 584
       },
       "tags": [],
       "signatures": {}
@@ -1111,8 +1137,8 @@
       "name": "ResolvedArchetype",
       "file": "agents_config.py",
       "span": {
-        "start": 574,
-        "end": 587
+        "start": 588,
+        "end": 601
       },
       "tags": [],
       "signatures": {}
@@ -1124,8 +1150,47 @@
       "name": "ProviderModelMappingError",
       "file": "agents_config.py",
       "span": {
-        "start": 590,
-        "end": 607
+        "start": 604,
+        "end": 621
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.DuplicateApiKeyError",
+      "kind": "class",
+      "language": "python",
+      "name": "DuplicateApiKeyError",
+      "file": "agents_config.py",
+      "span": {
+        "start": 834,
+        "end": 849
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.ProfileSyncError",
+      "kind": "class",
+      "language": "python",
+      "name": "ProfileSyncError",
+      "file": "agents_config.py",
+      "span": {
+        "start": 982,
+        "end": 988
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.ProfileSyncResult",
+      "kind": "class",
+      "language": "python",
+      "name": "ProfileSyncResult",
+      "file": "agents_config.py",
+      "span": {
+        "start": 992,
+        "end": 1018
       },
       "tags": [],
       "signatures": {}
@@ -1749,7 +1814,7 @@
       "file": "config.py",
       "span": {
         "start": 165,
-        "end": 185
+        "end": 194
       },
       "tags": [],
       "signatures": {}
@@ -1761,8 +1826,8 @@
       "name": "AuditConfig",
       "file": "config.py",
       "span": {
-        "start": 189,
-        "end": 200
+        "start": 198,
+        "end": 209
       },
       "tags": [],
       "signatures": {}
@@ -1774,8 +1839,8 @@
       "name": "NetworkPolicyConfig",
       "file": "config.py",
       "span": {
-        "start": 204,
-        "end": 213
+        "start": 213,
+        "end": 222
       },
       "tags": [],
       "signatures": {}
@@ -1787,8 +1852,8 @@
       "name": "PolicyEngineConfig",
       "file": "config.py",
       "span": {
-        "start": 217,
-        "end": 237
+        "start": 226,
+        "end": 246
       },
       "tags": [],
       "signatures": {}
@@ -1800,8 +1865,8 @@
       "name": "OpenBaoConfig",
       "file": "config.py",
       "span": {
-        "start": 241,
-        "end": 319
+        "start": 250,
+        "end": 328
       },
       "tags": [],
       "signatures": {}
@@ -1813,8 +1878,8 @@
       "name": "ObservabilityConfig",
       "file": "config.py",
       "span": {
-        "start": 323,
-        "end": 336
+        "start": 332,
+        "end": 345
       },
       "tags": [],
       "signatures": {}
@@ -1826,8 +1891,8 @@
       "name": "LangfuseConfig",
       "file": "config.py",
       "span": {
-        "start": 340,
-        "end": 370
+        "start": 349,
+        "end": 379
       },
       "tags": [],
       "signatures": {}
@@ -1839,8 +1904,8 @@
       "name": "PortAllocatorConfig",
       "file": "config.py",
       "span": {
-        "start": 374,
-        "end": 389
+        "start": 383,
+        "end": 398
       },
       "tags": [],
       "signatures": {}
@@ -1852,8 +1917,8 @@
       "name": "ApiConfig",
       "file": "config.py",
       "span": {
-        "start": 393,
-        "end": 444
+        "start": 402,
+        "end": 461
       },
       "tags": [],
       "signatures": {}
@@ -1865,8 +1930,8 @@
       "name": "CloudflareAccessConfig",
       "file": "config.py",
       "span": {
-        "start": 448,
-        "end": 498
+        "start": 465,
+        "end": 515
       },
       "tags": [],
       "signatures": {}
@@ -1878,8 +1943,8 @@
       "name": "ApprovalConfig",
       "file": "config.py",
       "span": {
-        "start": 502,
-        "end": 521
+        "start": 519,
+        "end": 538
       },
       "tags": [],
       "signatures": {}
@@ -1891,8 +1956,8 @@
       "name": "PolicySyncConfig",
       "file": "config.py",
       "span": {
-        "start": 525,
-        "end": 543
+        "start": 542,
+        "end": 560
       },
       "tags": [],
       "signatures": {}
@@ -1904,8 +1969,8 @@
       "name": "RiskScoringConfig",
       "file": "config.py",
       "span": {
-        "start": 547,
-        "end": 570
+        "start": 564,
+        "end": 587
       },
       "tags": [],
       "signatures": {}
@@ -1917,8 +1982,8 @@
       "name": "SessionGrantsConfig",
       "file": "config.py",
       "span": {
-        "start": 574,
-        "end": 588
+        "start": 591,
+        "end": 605
       },
       "tags": [],
       "signatures": {}
@@ -1930,8 +1995,8 @@
       "name": "Config",
       "file": "config.py",
       "span": {
-        "start": 628,
-        "end": 716
+        "start": 645,
+        "end": 733
       },
       "tags": [],
       "signatures": {}
@@ -1943,8 +2008,8 @@
       "name": "_CodeSearchProblemError",
       "file": "coordination_api.py",
       "span": {
-        "start": 72,
-        "end": 78
+        "start": 82,
+        "end": 88
       },
       "tags": [],
       "signatures": {}
@@ -1956,8 +2021,8 @@
       "name": "LockAcquireRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 86,
-        "end": 92
+        "start": 96,
+        "end": 102
       },
       "tags": [],
       "signatures": {}
@@ -1969,8 +2034,8 @@
       "name": "LockReleaseRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 95,
-        "end": 97
+        "start": 105,
+        "end": 107
       },
       "tags": [],
       "signatures": {}
@@ -1982,8 +2047,8 @@
       "name": "MemoryStoreRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 100,
-        "end": 108
+        "start": 110,
+        "end": 118
       },
       "tags": [],
       "signatures": {}
@@ -1995,8 +2060,8 @@
       "name": "MemoryQueryRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 111,
-        "end": 115
+        "start": 121,
+        "end": 125
       },
       "tags": [],
       "signatures": {}
@@ -2008,8 +2073,8 @@
       "name": "WorkClaimRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 118,
-        "end": 121
+        "start": 128,
+        "end": 131
       },
       "tags": [],
       "signatures": {}
@@ -2021,8 +2086,8 @@
       "name": "WorkCompleteRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 124,
-        "end": 129
+        "start": 134,
+        "end": 139
       },
       "tags": [],
       "signatures": {}
@@ -2034,8 +2099,8 @@
       "name": "WorkSubmitRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 132,
-        "end": 138
+        "start": 142,
+        "end": 148
       },
       "tags": [],
       "signatures": {}
@@ -2047,8 +2112,8 @@
       "name": "WorkGetTaskRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 141,
-        "end": 142
+        "start": 151,
+        "end": 152
       },
       "tags": [],
       "signatures": {}
@@ -2060,8 +2125,8 @@
       "name": "IssueCreateRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 145,
-        "end": 153
+        "start": 155,
+        "end": 163
       },
       "tags": [],
       "signatures": {}
@@ -2073,8 +2138,8 @@
       "name": "IssueListRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 156,
-        "end": 162
+        "start": 166,
+        "end": 172
       },
       "tags": [],
       "signatures": {}
@@ -2086,8 +2151,8 @@
       "name": "IssueUpdateRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 165,
-        "end": 173
+        "start": 175,
+        "end": 183
       },
       "tags": [],
       "signatures": {}
@@ -2099,8 +2164,8 @@
       "name": "IssueCloseRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 176,
-        "end": 179
+        "start": 186,
+        "end": 189
       },
       "tags": [],
       "signatures": {}
@@ -2112,8 +2177,8 @@
       "name": "IssueCommentRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 182,
-        "end": 184
+        "start": 192,
+        "end": 194
       },
       "tags": [],
       "signatures": {}
@@ -2125,8 +2190,8 @@
       "name": "GuardrailsCheckRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 187,
-        "end": 189
+        "start": 197,
+        "end": 199
       },
       "tags": [],
       "signatures": {}
@@ -2138,8 +2203,8 @@
       "name": "AuditQueryParams",
       "file": "coordination_api.py",
       "span": {
-        "start": 192,
-        "end": 195
+        "start": 202,
+        "end": 205
       },
       "tags": [],
       "signatures": {}
@@ -2151,8 +2216,8 @@
       "name": "HandoffWriteRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 198,
-        "end": 207
+        "start": 208,
+        "end": 217
       },
       "tags": [],
       "signatures": {}
@@ -2164,8 +2229,8 @@
       "name": "HandoffReadRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 210,
-        "end": 212
+        "start": 220,
+        "end": 222
       },
       "tags": [],
       "signatures": {}
@@ -2177,8 +2242,8 @@
       "name": "PolicyCheckRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 215,
-        "end": 220
+        "start": 225,
+        "end": 230
       },
       "tags": [],
       "signatures": {}
@@ -2190,8 +2255,8 @@
       "name": "PolicyValidateRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 223,
-        "end": 224
+        "start": 233,
+        "end": 234
       },
       "tags": [],
       "signatures": {}
@@ -2203,8 +2268,8 @@
       "name": "PortAllocateRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 227,
-        "end": 228
+        "start": 237,
+        "end": 238
       },
       "tags": [],
       "signatures": {}
@@ -2216,8 +2281,8 @@
       "name": "PortReleaseRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 231,
-        "end": 232
+        "start": 241,
+        "end": 242
       },
       "tags": [],
       "signatures": {}
@@ -2229,8 +2294,8 @@
       "name": "ApprovalDecisionRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 235,
-        "end": 238
+        "start": 245,
+        "end": 248
       },
       "tags": [],
       "signatures": {}
@@ -2242,8 +2307,8 @@
       "name": "PolicyRollbackRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 241,
-        "end": 242
+        "start": 251,
+        "end": 252
       },
       "tags": [],
       "signatures": {}
@@ -2255,8 +2320,8 @@
       "name": "FeatureRegisterRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 245,
-        "end": 252
+        "start": 255,
+        "end": 262
       },
       "tags": [],
       "signatures": {}
@@ -2268,8 +2333,8 @@
       "name": "FeatureDeregisterRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 255,
-        "end": 257
+        "start": 265,
+        "end": 267
       },
       "tags": [],
       "signatures": {}
@@ -2281,8 +2346,8 @@
       "name": "FeatureConflictsRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 260,
-        "end": 262
+        "start": 270,
+        "end": 272
       },
       "tags": [],
       "signatures": {}
@@ -2294,8 +2359,8 @@
       "name": "StatusReportRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 265,
-        "end": 286
+        "start": 275,
+        "end": 296
       },
       "tags": [],
       "signatures": {}
@@ -2307,8 +2372,8 @@
       "name": "ResolveForPhaseRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 289,
-        "end": 308
+        "start": 299,
+        "end": 318
       },
       "tags": [],
       "signatures": {}
@@ -2320,8 +2385,8 @@
       "name": "MergeQueueEnqueueRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 311,
-        "end": 313
+        "start": 321,
+        "end": 323
       },
       "tags": [],
       "signatures": {}
@@ -2333,8 +2398,8 @@
       "name": "DiscoveryRegisterRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 316,
-        "end": 323
+        "start": 326,
+        "end": 333
       },
       "tags": [],
       "signatures": {}
@@ -2346,8 +2411,8 @@
       "name": "DiscoveryHeartbeatRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 326,
-        "end": 329
+        "start": 336,
+        "end": 339
       },
       "tags": [],
       "signatures": {}
@@ -2359,8 +2424,8 @@
       "name": "DiscoveryCleanupRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 332,
-        "end": 335
+        "start": 342,
+        "end": 345
       },
       "tags": [],
       "signatures": {}
@@ -2372,8 +2437,8 @@
       "name": "GenEvalValidateRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 338,
-        "end": 339
+        "start": 348,
+        "end": 349
       },
       "tags": [],
       "signatures": {}
@@ -2385,8 +2450,8 @@
       "name": "GenEvalCreateRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 342,
-        "end": 347
+        "start": 352,
+        "end": 357
       },
       "tags": [],
       "signatures": {}
@@ -2398,8 +2463,8 @@
       "name": "GenEvalRunRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 350,
-        "end": 353
+        "start": 360,
+        "end": 363
       },
       "tags": [],
       "signatures": {}
@@ -2411,8 +2476,8 @@
       "name": "IssueSearchRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 356,
-        "end": 360
+        "start": 366,
+        "end": 370
       },
       "tags": [],
       "signatures": {}
@@ -2424,8 +2489,8 @@
       "name": "IssueReadyRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 363,
-        "end": 367
+        "start": 373,
+        "end": 377
       },
       "tags": [],
       "signatures": {}
@@ -2437,8 +2502,8 @@
       "name": "PermissionRequestRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 370,
-        "end": 374
+        "start": 380,
+        "end": 384
       },
       "tags": [],
       "signatures": {}
@@ -2450,8 +2515,8 @@
       "name": "ApprovalSubmitRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 377,
-        "end": 383
+        "start": 387,
+        "end": 393
       },
       "tags": [],
       "signatures": {}
@@ -2463,8 +2528,8 @@
       "name": "MergeTrainEjectRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 386,
-        "end": 388
+        "start": 396,
+        "end": 398
       },
       "tags": [],
       "signatures": {}
@@ -2476,8 +2541,8 @@
       "name": "MergeTrainReportResultRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 391,
-        "end": 394
+        "start": 401,
+        "end": 404
       },
       "tags": [],
       "signatures": {}
@@ -2489,8 +2554,8 @@
       "name": "AffectedTestsRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 397,
-        "end": 398
+        "start": 407,
+        "end": 408
       },
       "tags": [],
       "signatures": {}
@@ -2502,8 +2567,8 @@
       "name": "EventsAuthRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 403,
-        "end": 405
+        "start": 413,
+        "end": 415
       },
       "tags": [],
       "signatures": {}
@@ -2515,8 +2580,8 @@
       "name": "PatchLabelsRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 408,
-        "end": 410
+        "start": 418,
+        "end": 420
       },
       "tags": [],
       "signatures": {}
@@ -2528,8 +2593,8 @@
       "name": "KickAgentRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 413,
-        "end": 424
+        "start": 423,
+        "end": 434
       },
       "tags": [],
       "signatures": {}
@@ -2541,8 +2606,8 @@
       "name": "SavedViewRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 427,
-        "end": 428
+        "start": 437,
+        "end": 438
       },
       "tags": [],
       "signatures": {}
@@ -2554,8 +2619,8 @@
       "name": "KanbanAuditRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 431,
-        "end": 433
+        "start": 441,
+        "end": 443
       },
       "tags": [],
       "signatures": {}
@@ -3763,8 +3828,8 @@
       "name": "PolicyDecision",
       "file": "policy_engine.py",
       "span": {
-        "start": 84,
-        "end": 98
+        "start": 85,
+        "end": 99
       },
       "tags": [],
       "signatures": {}
@@ -3776,8 +3841,8 @@
       "name": "ValidationResult",
       "file": "policy_engine.py",
       "span": {
-        "start": 102,
-        "end": 106
+        "start": 103,
+        "end": 107
       },
       "tags": [],
       "signatures": {}
@@ -3789,8 +3854,8 @@
       "name": "NativePolicyEngine",
       "file": "policy_engine.py",
       "span": {
-        "start": 109,
-        "end": 452
+        "start": 110,
+        "end": 472
       },
       "tags": [],
       "signatures": {}
@@ -3802,8 +3867,8 @@
       "name": "CedarPolicyEngine",
       "file": "policy_engine.py",
       "span": {
-        "start": 455,
-        "end": 922
+        "start": 475,
+        "end": 942
       },
       "tags": [],
       "signatures": {}
@@ -3907,7 +3972,7 @@
       "file": "profiles.py",
       "span": {
         "start": 91,
-        "end": 230
+        "end": 240
       },
       "tags": [],
       "signatures": {}
@@ -4069,6 +4134,32 @@
       "signatures": {}
     },
     {
+      "id": "py:trust_levels.TrustLevel",
+      "kind": "class",
+      "language": "python",
+      "name": "TrustLevel",
+      "file": "trust_levels.py",
+      "span": {
+        "start": 27,
+        "end": 38
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:trust_resolution.TrustResolutionError",
+      "kind": "class",
+      "language": "python",
+      "name": "TrustResolutionError",
+      "file": "trust_resolution.py",
+      "span": {
+        "start": 25,
+        "end": 45
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:watchdog.WatchdogService",
       "kind": "class",
       "language": "python",
@@ -4141,7 +4232,7 @@
       "file": "work_queue.py",
       "span": {
         "start": 198,
-        "end": 825
+        "end": 827
       },
       "tags": [],
       "signatures": {}
@@ -4153,8 +4244,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 593,
-        "end": 607
+        "start": 607,
+        "end": 621
       },
       "tags": [
         "dunder"
@@ -4168,8 +4259,8 @@
       "name": "_default_agents_path",
       "file": "agents_config.py",
       "span": {
-        "start": 614,
-        "end": 615
+        "start": 628,
+        "end": 629
       },
       "tags": [
         "private"
@@ -4183,8 +4274,8 @@
       "name": "_default_secrets_path",
       "file": "agents_config.py",
       "span": {
-        "start": 618,
-        "end": 619
+        "start": 632,
+        "end": 633
       },
       "tags": [
         "private"
@@ -4198,8 +4289,8 @@
       "name": "load_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 622,
-        "end": 743
+        "start": 636,
+        "end": 776
       },
       "tags": [
         "db_access"
@@ -4213,8 +4304,8 @@
       "name": "_parse_mode",
       "file": "agents_config.py",
       "span": {
-        "start": 675,
-        "end": 697
+        "start": 708,
+        "end": 730
       },
       "tags": [
         "private",
@@ -4229,12 +4320,27 @@
       "name": "_resolve_api_key_from_openbao",
       "file": "agents_config.py",
       "span": {
-        "start": 750,
-        "end": 798
+        "start": 783,
+        "end": 831
       },
       "tags": [
         "private",
         "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.DuplicateApiKeyError.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "agents_config.py",
+      "span": {
+        "start": 842,
+        "end": 849
+      },
+      "tags": [
+        "dunder"
       ],
       "signatures": {}
     },
@@ -4245,10 +4351,150 @@
       "name": "get_api_key_identities",
       "file": "agents_config.py",
       "span": {
-        "start": 801,
-        "end": 851
+        "start": 852,
+        "end": 900
       },
       "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.ProfileSyncResult.mutations",
+      "kind": "function",
+      "language": "python",
+      "name": "mutations",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1009,
+        "end": 1018
+      },
+      "tags": [
+        "property"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.derive_allowed_operations",
+      "kind": "function",
+      "language": "python",
+      "name": "derive_allowed_operations",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1021,
+        "end": 1050
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._is_unique_violation",
+      "kind": "function",
+      "language": "python",
+      "name": "_is_unique_violation",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1062,
+        "end": 1078
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._registry_sync_timestamp",
+      "kind": "function",
+      "language": "python",
+      "name": "_registry_sync_timestamp",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1081,
+        "end": 1088
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._desired_profile_row",
+      "kind": "function",
+      "language": "python",
+      "name": "_desired_profile_row",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1091,
+        "end": 1101
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._profile_drift",
+      "kind": "function",
+      "language": "python",
+      "name": "_profile_drift",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1104,
+        "end": 1119
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._emit_sync_audit",
+      "kind": "function",
+      "language": "python",
+      "name": "_emit_sync_audit",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1122,
+        "end": 1164
+      },
+      "tags": [
+        "async",
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._sync_assignments",
+      "kind": "function",
+      "language": "python",
+      "name": "_sync_assignments",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1167,
+        "end": 1333
+      },
+      "tags": [
+        "async",
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.sync_profiles",
+      "kind": "function",
+      "language": "python",
+      "name": "sync_profiles",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1336,
+        "end": 1562
+      },
+      "tags": [
+        "async",
         "db_access"
       ],
       "signatures": {}
@@ -4260,8 +4506,8 @@
       "name": "get_mcp_env",
       "file": "agents_config.py",
       "span": {
-        "start": 858,
-        "end": 886
+        "start": 1569,
+        "end": 1597
       },
       "tags": [
         "db_access"
@@ -4275,8 +4521,8 @@
       "name": "get_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 896,
-        "end": 909
+        "start": 1607,
+        "end": 1620
       },
       "tags": [],
       "signatures": {}
@@ -4288,8 +4534,8 @@
       "name": "get_agent_config",
       "file": "agents_config.py",
       "span": {
-        "start": 912,
-        "end": 917
+        "start": 1623,
+        "end": 1628
       },
       "tags": [],
       "signatures": {}
@@ -4301,8 +4547,8 @@
       "name": "reset_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 920,
-        "end": 923
+        "start": 1631,
+        "end": 1634
       },
       "tags": [],
       "signatures": {}
@@ -4314,8 +4560,8 @@
       "name": "get_dispatch_configs",
       "file": "agents_config.py",
       "span": {
-        "start": 930,
-        "end": 991
+        "start": 1641,
+        "end": 1702
       },
       "tags": [],
       "signatures": {}
@@ -4327,8 +4573,8 @@
       "name": "get_agent_isolation",
       "file": "agents_config.py",
       "span": {
-        "start": 998,
-        "end": 1007
+        "start": 1709,
+        "end": 1718
       },
       "tags": [],
       "signatures": {}
@@ -4340,8 +4586,8 @@
       "name": "_default_archetypes_path",
       "file": "agents_config.py",
       "span": {
-        "start": 1014,
-        "end": 1015
+        "start": 1725,
+        "end": 1726
       },
       "tags": [
         "private"
@@ -4355,8 +4601,8 @@
       "name": "load_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1018,
-        "end": 1107
+        "start": 1729,
+        "end": 1818
       },
       "tags": [
         "db_access"
@@ -4370,8 +4616,8 @@
       "name": "get_archetype",
       "file": "agents_config.py",
       "span": {
-        "start": 1115,
-        "end": 1126
+        "start": 1826,
+        "end": 1837
       },
       "tags": [
         "db_access"
@@ -4385,8 +4631,8 @@
       "name": "get_phase_mapping",
       "file": "agents_config.py",
       "span": {
-        "start": 1129,
-        "end": 1138
+        "start": 1840,
+        "end": 1849
       },
       "tags": [],
       "signatures": {}
@@ -4398,8 +4644,8 @@
       "name": "reset_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1141,
-        "end": 1146
+        "start": 1852,
+        "end": 1857
       },
       "tags": [],
       "signatures": {}
@@ -4411,8 +4657,8 @@
       "name": "_normalize_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 1149,
-        "end": 1173
+        "start": 1860,
+        "end": 1884
       },
       "tags": [
         "private"
@@ -4426,8 +4672,8 @@
       "name": "get_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 1176,
-        "end": 1180
+        "start": 1887,
+        "end": 1891
       },
       "tags": [],
       "signatures": {}
@@ -4439,8 +4685,8 @@
       "name": "_tier_entry_to_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1183,
-        "end": 1195
+        "start": 1894,
+        "end": 1906
       },
       "tags": [
         "private",
@@ -4455,8 +4701,8 @@
       "name": "resolve_provider_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1198,
-        "end": 1248
+        "start": 1909,
+        "end": 1959
       },
       "tags": [
         "db_access"
@@ -4470,8 +4716,8 @@
       "name": "resolve_provider_model",
       "file": "agents_config.py",
       "span": {
-        "start": 1251,
-        "end": 1264
+        "start": 1962,
+        "end": 1975
       },
       "tags": [],
       "signatures": {}
@@ -4483,8 +4729,8 @@
       "name": "compose_prompt",
       "file": "agents_config.py",
       "span": {
-        "start": 1271,
-        "end": 1280
+        "start": 1982,
+        "end": 1991
       },
       "tags": [],
       "signatures": {}
@@ -4496,8 +4742,8 @@
       "name": "_unique_dir_prefixes",
       "file": "agents_config.py",
       "span": {
-        "start": 1287,
-        "end": 1303
+        "start": 1998,
+        "end": 2014
       },
       "tags": [
         "private",
@@ -4512,8 +4758,8 @@
       "name": "resolve_model",
       "file": "agents_config.py",
       "span": {
-        "start": 1306,
-        "end": 1342
+        "start": 2017,
+        "end": 2053
       },
       "tags": [],
       "signatures": {}
@@ -4525,8 +4771,8 @@
       "name": "_resolve_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1345,
-        "end": 1403
+        "start": 2056,
+        "end": 2114
       },
       "tags": [
         "private",
@@ -4541,8 +4787,8 @@
       "name": "_finalize",
       "file": "agents_config.py",
       "span": {
-        "start": 1354,
-        "end": 1366
+        "start": 2065,
+        "end": 2077
       },
       "tags": [
         "private"
@@ -4556,8 +4802,8 @@
       "name": "resolve_archetype_for_phase",
       "file": "agents_config.py",
       "span": {
-        "start": 1411,
-        "end": 1497
+        "start": 2122,
+        "end": 2208
       },
       "tags": [],
       "signatures": {}
@@ -6602,8 +6848,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 173,
-        "end": 185
+        "start": 178,
+        "end": 194
       },
       "tags": [
         "classmethod",
@@ -6618,8 +6864,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 196,
-        "end": 200
+        "start": 205,
+        "end": 209
       },
       "tags": [
         "classmethod",
@@ -6634,8 +6880,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 210,
-        "end": 213
+        "start": 219,
+        "end": 222
       },
       "tags": [
         "classmethod",
@@ -6650,8 +6896,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 226,
-        "end": 237
+        "start": 235,
+        "end": 246
       },
       "tags": [
         "classmethod",
@@ -6666,8 +6912,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 263,
-        "end": 272
+        "start": 272,
+        "end": 281
       },
       "tags": [
         "classmethod",
@@ -6682,8 +6928,8 @@
       "name": "is_enabled",
       "file": "config.py",
       "span": {
-        "start": 274,
-        "end": 276
+        "start": 283,
+        "end": 285
       },
       "tags": [],
       "signatures": {}
@@ -6695,8 +6941,8 @@
       "name": "create_client",
       "file": "config.py",
       "span": {
-        "start": 278,
-        "end": 319
+        "start": 287,
+        "end": 328
       },
       "tags": [],
       "signatures": {}
@@ -6708,8 +6954,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 331,
-        "end": 336
+        "start": 340,
+        "end": 345
       },
       "tags": [
         "classmethod",
@@ -6724,8 +6970,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 360,
-        "end": 370
+        "start": 369,
+        "end": 379
       },
       "tags": [
         "classmethod",
@@ -6740,8 +6986,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 383,
-        "end": 389
+        "start": 392,
+        "end": 398
       },
       "tags": [
         "classmethod",
@@ -6756,8 +7002,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 405,
-        "end": 444
+        "start": 414,
+        "end": 461
       },
       "tags": [
         "classmethod",
@@ -6772,8 +7018,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 468,
-        "end": 498
+        "start": 485,
+        "end": 515
       },
       "tags": [
         "classmethod",
@@ -6788,8 +7034,8 @@
       "name": "_default_workdir_root",
       "file": "config.py",
       "span": {
-        "start": 591,
-        "end": 603
+        "start": 608,
+        "end": 620
       },
       "tags": [
         "private",
@@ -6804,8 +7050,8 @@
       "name": "resolve_workdir_path",
       "file": "config.py",
       "span": {
-        "start": 606,
-        "end": 624
+        "start": 623,
+        "end": 641
       },
       "tags": [],
       "signatures": {}
@@ -6817,8 +7063,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 667,
-        "end": 716
+        "start": 684,
+        "end": 733
       },
       "tags": [
         "classmethod",
@@ -6833,8 +7079,8 @@
       "name": "get_config",
       "file": "config.py",
       "span": {
-        "start": 723,
-        "end": 728
+        "start": 740,
+        "end": 745
       },
       "tags": [],
       "signatures": {}
@@ -6846,8 +7092,8 @@
       "name": "reset_config",
       "file": "config.py",
       "span": {
-        "start": 731,
-        "end": 734
+        "start": 748,
+        "end": 751
       },
       "tags": [],
       "signatures": {}
@@ -6859,8 +7105,8 @@
       "name": "__init__",
       "file": "coordination_api.py",
       "span": {
-        "start": 75,
-        "end": 78
+        "start": 85,
+        "end": 88
       },
       "tags": [
         "dunder"
@@ -6874,8 +7120,8 @@
       "name": "_extract_api_key",
       "file": "coordination_api.py",
       "span": {
-        "start": 441,
-        "end": 455
+        "start": 451,
+        "end": 465
       },
       "tags": [
         "private"
@@ -6889,8 +7135,8 @@
       "name": "_principal_for_api_key",
       "file": "coordination_api.py",
       "span": {
-        "start": 458,
-        "end": 468
+        "start": 468,
+        "end": 478
       },
       "tags": [
         "private",
@@ -6905,8 +7151,8 @@
       "name": "verify_api_key",
       "file": "coordination_api.py",
       "span": {
-        "start": 471,
-        "end": 490
+        "start": 481,
+        "end": 500
       },
       "tags": [
         "async"
@@ -6920,8 +7166,8 @@
       "name": "optional_api_key",
       "file": "coordination_api.py",
       "span": {
-        "start": 493,
-        "end": 502
+        "start": 503,
+        "end": 512
       },
       "tags": [
         "async"
@@ -6935,8 +7181,8 @@
       "name": "resolve_identity",
       "file": "coordination_api.py",
       "span": {
-        "start": 505,
-        "end": 532
+        "start": 515,
+        "end": 542
       },
       "tags": [
         "db_access"
@@ -6950,23 +7196,8 @@
       "name": "authorize_operation",
       "file": "coordination_api.py",
       "span": {
-        "start": 535,
-        "end": 553
-      },
-      "tags": [
-        "async"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:coordination_api.resolve_trust_level",
-      "kind": "function",
-      "language": "python",
-      "name": "resolve_trust_level",
-      "file": "coordination_api.py",
-      "span": {
-        "start": 556,
-        "end": 569
+        "start": 545,
+        "end": 563
       },
       "tags": [
         "async"
@@ -6980,8 +7211,8 @@
       "name": "create_coordination_api",
       "file": "coordination_api.py",
       "span": {
-        "start": 577,
-        "end": 3488
+        "start": 571,
+        "end": 3496
       },
       "tags": [
         "db_access"
@@ -6995,8 +7226,8 @@
       "name": "lifespan",
       "file": "coordination_api.py",
       "span": {
-        "start": 599,
-        "end": 714
+        "start": 593,
+        "end": 722
       },
       "tags": [
         "async",
@@ -7011,8 +7242,8 @@
       "name": "code_search_problem_handler",
       "file": "coordination_api.py",
       "span": {
-        "start": 724,
-        "end": 733
+        "start": 732,
+        "end": 741
       },
       "tags": [
         "async"
@@ -7026,8 +7257,8 @@
       "name": "request_validation_handler",
       "file": "coordination_api.py",
       "span": {
-        "start": 736,
-        "end": 746
+        "start": 744,
+        "end": 754
       },
       "tags": [
         "async"
@@ -7041,8 +7272,8 @@
       "name": "acquire_lock",
       "file": "coordination_api.py",
       "span": {
-        "start": 802,
-        "end": 836
+        "start": 810,
+        "end": 844
       },
       "tags": [
         "async",
@@ -7057,8 +7288,8 @@
       "name": "release_lock",
       "file": "coordination_api.py",
       "span": {
-        "start": 839,
-        "end": 865
+        "start": 847,
+        "end": 873
       },
       "tags": [
         "async",
@@ -7073,8 +7304,8 @@
       "name": "check_lock_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 868,
-        "end": 887
+        "start": 876,
+        "end": 895
       },
       "tags": [
         "async",
@@ -7089,8 +7320,8 @@
       "name": "store_memory",
       "file": "coordination_api.py",
       "span": {
-        "start": 894,
-        "end": 923
+        "start": 902,
+        "end": 931
       },
       "tags": [
         "async",
@@ -7105,8 +7336,8 @@
       "name": "query_memories",
       "file": "coordination_api.py",
       "span": {
-        "start": 926,
-        "end": 964
+        "start": 934,
+        "end": 972
       },
       "tags": [
         "async",
@@ -7122,8 +7353,8 @@
       "name": "claim_work",
       "file": "coordination_api.py",
       "span": {
-        "start": 971,
-        "end": 1002
+        "start": 979,
+        "end": 1010
       },
       "tags": [
         "async",
@@ -7138,8 +7369,8 @@
       "name": "complete_work",
       "file": "coordination_api.py",
       "span": {
-        "start": 1005,
-        "end": 1034
+        "start": 1013,
+        "end": 1042
       },
       "tags": [
         "async",
@@ -7154,8 +7385,8 @@
       "name": "submit_work",
       "file": "coordination_api.py",
       "span": {
-        "start": 1037,
-        "end": 1069
+        "start": 1045,
+        "end": 1077
       },
       "tags": [
         "async",
@@ -7170,8 +7401,8 @@
       "name": "get_task_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1072,
-        "end": 1112
+        "start": 1080,
+        "end": 1120
       },
       "tags": [
         "async",
@@ -7186,8 +7417,8 @@
       "name": "create_issue",
       "file": "coordination_api.py",
       "span": {
-        "start": 1119,
-        "end": 1150
+        "start": 1127,
+        "end": 1158
       },
       "tags": [
         "async",
@@ -7203,8 +7434,8 @@
       "name": "list_issues",
       "file": "coordination_api.py",
       "span": {
-        "start": 1153,
-        "end": 1177
+        "start": 1161,
+        "end": 1185
       },
       "tags": [
         "async",
@@ -7220,8 +7451,8 @@
       "name": "blocked_issues_early",
       "file": "coordination_api.py",
       "span": {
-        "start": 1180,
-        "end": 1194
+        "start": 1188,
+        "end": 1202
       },
       "tags": [
         "async",
@@ -7236,8 +7467,8 @@
       "name": "show_issue",
       "file": "coordination_api.py",
       "span": {
-        "start": 1197,
-        "end": 1211
+        "start": 1205,
+        "end": 1219
       },
       "tags": [
         "async",
@@ -7252,8 +7483,8 @@
       "name": "update_issue",
       "file": "coordination_api.py",
       "span": {
-        "start": 1214,
-        "end": 1243
+        "start": 1222,
+        "end": 1251
       },
       "tags": [
         "async",
@@ -7269,8 +7500,8 @@
       "name": "close_issue",
       "file": "coordination_api.py",
       "span": {
-        "start": 1246,
-        "end": 1275
+        "start": 1254,
+        "end": 1283
       },
       "tags": [
         "async",
@@ -7285,8 +7516,8 @@
       "name": "comment_issue",
       "file": "coordination_api.py",
       "span": {
-        "start": 1278,
-        "end": 1293
+        "start": 1286,
+        "end": 1301
       },
       "tags": [
         "async",
@@ -7301,8 +7532,8 @@
       "name": "check_guardrails",
       "file": "coordination_api.py",
       "span": {
-        "start": 1300,
-        "end": 1339
+        "start": 1308,
+        "end": 1347
       },
       "tags": [
         "async",
@@ -7317,8 +7548,8 @@
       "name": "get_my_profile",
       "file": "coordination_api.py",
       "span": {
-        "start": 1346,
-        "end": 1373
+        "start": 1354,
+        "end": 1381
       },
       "tags": [
         "async",
@@ -7333,8 +7564,8 @@
       "name": "get_agent_dispatch_configs",
       "file": "coordination_api.py",
       "span": {
-        "start": 1376,
-        "end": 1383
+        "start": 1384,
+        "end": 1391
       },
       "tags": [
         "async",
@@ -7349,8 +7580,8 @@
       "name": "query_audit",
       "file": "coordination_api.py",
       "span": {
-        "start": 1390,
-        "end": 1443
+        "start": 1398,
+        "end": 1451
       },
       "tags": [
         "async",
@@ -7366,8 +7597,8 @@
       "name": "write_handoff",
       "file": "coordination_api.py",
       "span": {
-        "start": 1450,
-        "end": 1476
+        "start": 1458,
+        "end": 1484
       },
       "tags": [
         "async",
@@ -7382,8 +7613,8 @@
       "name": "read_handoff",
       "file": "coordination_api.py",
       "span": {
-        "start": 1479,
-        "end": 1513
+        "start": 1487,
+        "end": 1521
       },
       "tags": [
         "async",
@@ -7399,8 +7630,8 @@
       "name": "check_policy",
       "file": "coordination_api.py",
       "span": {
-        "start": 1520,
-        "end": 1544
+        "start": 1528,
+        "end": 1552
       },
       "tags": [
         "async",
@@ -7415,8 +7646,8 @@
       "name": "validate_cedar_policy",
       "file": "coordination_api.py",
       "span": {
-        "start": 1547,
-        "end": 1571
+        "start": 1555,
+        "end": 1579
       },
       "tags": [
         "async",
@@ -7431,8 +7662,8 @@
       "name": "allocate_ports",
       "file": "coordination_api.py",
       "span": {
-        "start": 1578,
-        "end": 1597
+        "start": 1586,
+        "end": 1605
       },
       "tags": [
         "async",
@@ -7447,8 +7678,8 @@
       "name": "release_ports",
       "file": "coordination_api.py",
       "span": {
-        "start": 1600,
-        "end": 1606
+        "start": 1608,
+        "end": 1614
       },
       "tags": [
         "async",
@@ -7463,8 +7694,8 @@
       "name": "port_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 1609,
-        "end": 1625
+        "start": 1617,
+        "end": 1633
       },
       "tags": [
         "async",
@@ -7479,8 +7710,8 @@
       "name": "_approval_to_dict",
       "file": "coordination_api.py",
       "span": {
-        "start": 1631,
-        "end": 1646
+        "start": 1639,
+        "end": 1654
       },
       "tags": [
         "private"
@@ -7494,8 +7725,8 @@
       "name": "list_pending_approvals",
       "file": "coordination_api.py",
       "span": {
-        "start": 1649,
-        "end": 1657
+        "start": 1657,
+        "end": 1665
       },
       "tags": [
         "async",
@@ -7510,8 +7741,8 @@
       "name": "decide_approval",
       "file": "coordination_api.py",
       "span": {
-        "start": 1660,
-        "end": 1680
+        "start": 1668,
+        "end": 1688
       },
       "tags": [
         "async",
@@ -7527,8 +7758,8 @@
       "name": "list_policy_versions_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1687,
-        "end": 1697
+        "start": 1695,
+        "end": 1705
       },
       "tags": [
         "async",
@@ -7543,8 +7774,8 @@
       "name": "rollback_policy_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1700,
-        "end": 1712
+        "start": 1708,
+        "end": 1720
       },
       "tags": [
         "async",
@@ -7560,8 +7791,8 @@
       "name": "register_feature_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1719,
-        "end": 1750
+        "start": 1727,
+        "end": 1758
       },
       "tags": [
         "async",
@@ -7576,8 +7807,8 @@
       "name": "deregister_feature_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1753,
-        "end": 1777
+        "start": 1761,
+        "end": 1785
       },
       "tags": [
         "async",
@@ -7592,8 +7823,8 @@
       "name": "get_feature_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1780,
-        "end": 1801
+        "start": 1788,
+        "end": 1809
       },
       "tags": [
         "async",
@@ -7608,8 +7839,8 @@
       "name": "list_active_features_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1804,
-        "end": 1831
+        "start": 1812,
+        "end": 1839
       },
       "tags": [
         "async",
@@ -7624,8 +7855,8 @@
       "name": "analyze_feature_conflicts_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1834,
-        "end": 1851
+        "start": 1842,
+        "end": 1859
       },
       "tags": [
         "async",
@@ -7640,8 +7871,8 @@
       "name": "enqueue_merge_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1858,
-        "end": 1888
+        "start": 1866,
+        "end": 1896
       },
       "tags": [
         "async",
@@ -7656,8 +7887,8 @@
       "name": "get_merge_queue_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1891,
-        "end": 1917
+        "start": 1899,
+        "end": 1925
       },
       "tags": [
         "async",
@@ -7672,8 +7903,8 @@
       "name": "get_next_merge_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1920,
-        "end": 1938
+        "start": 1928,
+        "end": 1946
       },
       "tags": [
         "async",
@@ -7688,8 +7919,8 @@
       "name": "run_pre_merge_checks_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1941,
-        "end": 1963
+        "start": 1949,
+        "end": 1971
       },
       "tags": [
         "async",
@@ -7704,8 +7935,8 @@
       "name": "mark_merged_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1966,
-        "end": 1982
+        "start": 1974,
+        "end": 1990
       },
       "tags": [
         "async",
@@ -7720,8 +7951,8 @@
       "name": "remove_from_merge_queue_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 1985,
-        "end": 2001
+        "start": 1993,
+        "end": 2009
       },
       "tags": [
         "async",
@@ -7736,8 +7967,8 @@
       "name": "compose_train_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2008,
-        "end": 2059
+        "start": 2016,
+        "end": 2067
       },
       "tags": [
         "async",
@@ -7752,8 +7983,8 @@
       "name": "eject_from_train_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2062,
-        "end": 2108
+        "start": 2070,
+        "end": 2116
       },
       "tags": [
         "async",
@@ -7768,8 +7999,8 @@
       "name": "get_train_status_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2111,
-        "end": 2138
+        "start": 2119,
+        "end": 2146
       },
       "tags": [
         "async",
@@ -7784,8 +8015,8 @@
       "name": "report_spec_result_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2141,
-        "end": 2177
+        "start": 2149,
+        "end": 2185
       },
       "tags": [
         "async",
@@ -7800,8 +8031,8 @@
       "name": "affected_tests_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2180,
-        "end": 2196
+        "start": 2188,
+        "end": 2204
       },
       "tags": [
         "async",
@@ -7816,8 +8047,8 @@
       "name": "merge_train_metrics_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2203,
-        "end": 2232
+        "start": 2211,
+        "end": 2240
       },
       "tags": [
         "async",
@@ -7833,8 +8064,8 @@
       "name": "resolve_archetype_for_phase_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2239,
-        "end": 2309
+        "start": 2247,
+        "end": 2317
       },
       "tags": [
         "async",
@@ -7850,8 +8081,8 @@
       "name": "report_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 2316,
-        "end": 2402
+        "start": 2324,
+        "end": 2410
       },
       "tags": [
         "async",
@@ -7867,8 +8098,8 @@
       "name": "test_notification",
       "file": "coordination_api.py",
       "span": {
-        "start": 2409,
-        "end": 2443
+        "start": 2417,
+        "end": 2451
       },
       "tags": [
         "async",
@@ -7884,8 +8115,8 @@
       "name": "notifications_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 2446,
-        "end": 2456
+        "start": 2454,
+        "end": 2464
       },
       "tags": [
         "async",
@@ -7900,8 +8131,8 @@
       "name": "discovery_register",
       "file": "coordination_api.py",
       "span": {
-        "start": 2463,
-        "end": 2491
+        "start": 2471,
+        "end": 2499
       },
       "tags": [
         "async",
@@ -7916,8 +8147,8 @@
       "name": "discovery_agents",
       "file": "coordination_api.py",
       "span": {
-        "start": 2494,
-        "end": 2525
+        "start": 2502,
+        "end": 2533
       },
       "tags": [
         "async",
@@ -7932,8 +8163,8 @@
       "name": "discovery_heartbeat",
       "file": "coordination_api.py",
       "span": {
-        "start": 2528,
-        "end": 2552
+        "start": 2536,
+        "end": 2560
       },
       "tags": [
         "async",
@@ -7948,8 +8179,8 @@
       "name": "discovery_cleanup",
       "file": "coordination_api.py",
       "span": {
-        "start": 2555,
-        "end": 2585
+        "start": 2563,
+        "end": 2593
       },
       "tags": [
         "async",
@@ -7964,8 +8195,8 @@
       "name": "gen_eval_list_scenarios",
       "file": "coordination_api.py",
       "span": {
-        "start": 2592,
-        "end": 2617
+        "start": 2600,
+        "end": 2625
       },
       "tags": [
         "async",
@@ -7980,8 +8211,8 @@
       "name": "gen_eval_validate",
       "file": "coordination_api.py",
       "span": {
-        "start": 2620,
-        "end": 2641
+        "start": 2628,
+        "end": 2649
       },
       "tags": [
         "async",
@@ -7996,8 +8227,8 @@
       "name": "gen_eval_create",
       "file": "coordination_api.py",
       "span": {
-        "start": 2644,
-        "end": 2666
+        "start": 2652,
+        "end": 2674
       },
       "tags": [
         "async",
@@ -8012,8 +8243,8 @@
       "name": "gen_eval_run",
       "file": "coordination_api.py",
       "span": {
-        "start": 2669,
-        "end": 2692
+        "start": 2677,
+        "end": 2700
       },
       "tags": [
         "async",
@@ -8028,8 +8259,8 @@
       "name": "search_issues",
       "file": "coordination_api.py",
       "span": {
-        "start": 2699,
-        "end": 2712
+        "start": 2707,
+        "end": 2720
       },
       "tags": [
         "async",
@@ -8045,8 +8276,8 @@
       "name": "ready_issues",
       "file": "coordination_api.py",
       "span": {
-        "start": 2715,
-        "end": 2731
+        "start": 2723,
+        "end": 2739
       },
       "tags": [
         "async",
@@ -8062,8 +8293,8 @@
       "name": "request_permission_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2741,
-        "end": 2773
+        "start": 2749,
+        "end": 2781
       },
       "tags": [
         "async",
@@ -8078,8 +8309,8 @@
       "name": "request_approval_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2780,
-        "end": 2816
+        "start": 2788,
+        "end": 2824
       },
       "tags": [
         "async",
@@ -8094,8 +8325,8 @@
       "name": "check_approval_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2819,
-        "end": 2844
+        "start": 2827,
+        "end": 2852
       },
       "tags": [
         "async",
@@ -8110,8 +8341,8 @@
       "name": "_database_health",
       "file": "coordination_api.py",
       "span": {
-        "start": 2850,
-        "end": 2871
+        "start": 2858,
+        "end": 2879
       },
       "tags": [
         "async",
@@ -8126,8 +8357,8 @@
       "name": "help_overview",
       "file": "coordination_api.py",
       "span": {
-        "start": 2878,
-        "end": 2885
+        "start": 2886,
+        "end": 2893
       },
       "tags": [
         "async",
@@ -8142,8 +8373,8 @@
       "name": "help_topic",
       "file": "coordination_api.py",
       "span": {
-        "start": 2888,
-        "end": 2908
+        "start": 2896,
+        "end": 2916
       },
       "tags": [
         "async",
@@ -8158,8 +8389,8 @@
       "name": "get_sync_points_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 2915,
-        "end": 2925
+        "start": 2923,
+        "end": 2933
       },
       "tags": [
         "async",
@@ -8174,8 +8405,8 @@
       "name": "get_active_worktrees",
       "file": "coordination_api.py",
       "span": {
-        "start": 2928,
-        "end": 2937
+        "start": 2936,
+        "end": 2945
       },
       "tags": [
         "async",
@@ -8190,8 +8421,8 @@
       "name": "mint_events_token",
       "file": "coordination_api.py",
       "span": {
-        "start": 2940,
-        "end": 2970
+        "start": 2948,
+        "end": 2978
       },
       "tags": [
         "async",
@@ -8207,8 +8438,8 @@
       "name": "stream_work_events",
       "file": "coordination_api.py",
       "span": {
-        "start": 2973,
-        "end": 3021
+        "start": 2981,
+        "end": 3029
       },
       "tags": [
         "async",
@@ -8223,8 +8454,8 @@
       "name": "patch_issue_labels",
       "file": "coordination_api.py",
       "span": {
-        "start": 3024,
-        "end": 3073
+        "start": 3032,
+        "end": 3081
       },
       "tags": [
         "async",
@@ -8240,8 +8471,8 @@
       "name": "force_release_lock",
       "file": "coordination_api.py",
       "span": {
-        "start": 3076,
-        "end": 3110
+        "start": 3084,
+        "end": 3118
       },
       "tags": [
         "async",
@@ -8257,8 +8488,8 @@
       "name": "kick_agent",
       "file": "coordination_api.py",
       "span": {
-        "start": 3113,
-        "end": 3231
+        "start": 3121,
+        "end": 3239
       },
       "tags": [
         "async",
@@ -8274,8 +8505,8 @@
       "name": "put_saved_view",
       "file": "coordination_api.py",
       "span": {
-        "start": 3234,
-        "end": 3268
+        "start": 3242,
+        "end": 3276
       },
       "tags": [
         "async",
@@ -8291,8 +8522,8 @@
       "name": "post_kanban_audit",
       "file": "coordination_api.py",
       "span": {
-        "start": 3271,
-        "end": 3304
+        "start": 3279,
+        "end": 3312
       },
       "tags": [
         "async",
@@ -8308,8 +8539,8 @@
       "name": "live",
       "file": "coordination_api.py",
       "span": {
-        "start": 3307,
-        "end": 3309
+        "start": 3315,
+        "end": 3317
       },
       "tags": [
         "async",
@@ -8324,8 +8555,8 @@
       "name": "ready",
       "file": "coordination_api.py",
       "span": {
-        "start": 3312,
-        "end": 3321
+        "start": 3320,
+        "end": 3329
       },
       "tags": [
         "async",
@@ -8340,8 +8571,8 @@
       "name": "health",
       "file": "coordination_api.py",
       "span": {
-        "start": 3324,
-        "end": 3328
+        "start": 3332,
+        "end": 3336
       },
       "tags": [
         "async",
@@ -8356,8 +8587,8 @@
       "name": "github_prs",
       "file": "coordination_api.py",
       "span": {
-        "start": 3335,
-        "end": 3372
+        "start": 3343,
+        "end": 3380
       },
       "tags": [
         "async",
@@ -8372,8 +8603,8 @@
       "name": "openspec_proposals",
       "file": "coordination_api.py",
       "span": {
-        "start": 3375,
-        "end": 3417
+        "start": 3383,
+        "end": 3425
       },
       "tags": [
         "async",
@@ -8388,8 +8619,8 @@
       "name": "code_search_status_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 3421,
-        "end": 3439
+        "start": 3429,
+        "end": 3447
       },
       "tags": [
         "async",
@@ -8404,8 +8635,8 @@
       "name": "verify_code_search_principal",
       "file": "coordination_api.py",
       "span": {
-        "start": 3441,
-        "end": 3455
+        "start": 3449,
+        "end": 3463
       },
       "tags": [
         "async",
@@ -8420,8 +8651,8 @@
       "name": "search_code_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 3458,
-        "end": 3486
+        "start": 3466,
+        "end": 3494
       },
       "tags": [
         "async",
@@ -8436,8 +8667,8 @@
       "name": "main",
       "file": "coordination_api.py",
       "span": {
-        "start": 3496,
-        "end": 3525
+        "start": 3504,
+        "end": 3533
       },
       "tags": [],
       "signatures": {}
@@ -17349,8 +17580,8 @@
       "name": "_ensure_policy_instruments",
       "file": "policy_engine.py",
       "span": {
-        "start": 29,
-        "end": 53
+        "start": 30,
+        "end": 54
       },
       "tags": [
         "private"
@@ -17364,8 +17595,8 @@
       "name": "allow",
       "file": "policy_engine.py",
       "span": {
-        "start": 93,
-        "end": 94
+        "start": 94,
+        "end": 95
       },
       "tags": [
         "classmethod"
@@ -17379,8 +17610,8 @@
       "name": "deny",
       "file": "policy_engine.py",
       "span": {
-        "start": 97,
-        "end": 98
+        "start": 98,
+        "end": 99
       },
       "tags": [
         "classmethod"
@@ -17394,8 +17625,8 @@
       "name": "__init__",
       "file": "policy_engine.py",
       "span": {
-        "start": 116,
-        "end": 117
+        "start": 117,
+        "end": 118
       },
       "tags": [
         "dunder"
@@ -17409,8 +17640,8 @@
       "name": "db",
       "file": "policy_engine.py",
       "span": {
-        "start": 120,
-        "end": 123
+        "start": 121,
+        "end": 124
       },
       "tags": [
         "property"
@@ -17424,8 +17655,8 @@
       "name": "check_operation",
       "file": "policy_engine.py",
       "span": {
-        "start": 125,
-        "end": 164
+        "start": 126,
+        "end": 165
       },
       "tags": [
         "async",
@@ -17440,8 +17671,8 @@
       "name": "_do_check_operation",
       "file": "policy_engine.py",
       "span": {
-        "start": 166,
-        "end": 349
+        "start": 167,
+        "end": 369
       },
       "tags": [
         "async",
@@ -17457,8 +17688,8 @@
       "name": "check_network_access",
       "file": "policy_engine.py",
       "span": {
-        "start": 351,
-        "end": 372
+        "start": 371,
+        "end": 392
       },
       "tags": [
         "async"
@@ -17472,8 +17703,8 @@
       "name": "list_policy_versions",
       "file": "policy_engine.py",
       "span": {
-        "start": 374,
-        "end": 391
+        "start": 394,
+        "end": 411
       },
       "tags": [
         "async",
@@ -17488,8 +17719,8 @@
       "name": "rollback_policy",
       "file": "policy_engine.py",
       "span": {
-        "start": 393,
-        "end": 417
+        "start": 413,
+        "end": 437
       },
       "tags": [
         "async",
@@ -17504,8 +17735,8 @@
       "name": "_log_policy_decision",
       "file": "policy_engine.py",
       "span": {
-        "start": 419,
-        "end": 452
+        "start": 439,
+        "end": 472
       },
       "tags": [
         "async",
@@ -17520,8 +17751,8 @@
       "name": "__init__",
       "file": "policy_engine.py",
       "span": {
-        "start": 465,
-        "end": 478
+        "start": 485,
+        "end": 498
       },
       "tags": [
         "dunder"
@@ -17535,8 +17766,8 @@
       "name": "db",
       "file": "policy_engine.py",
       "span": {
-        "start": 481,
-        "end": 484
+        "start": 501,
+        "end": 504
       },
       "tags": [
         "property"
@@ -17550,8 +17781,8 @@
       "name": "_load_default_policies",
       "file": "policy_engine.py",
       "span": {
-        "start": 486,
-        "end": 498
+        "start": 506,
+        "end": 518
       },
       "tags": [
         "private"
@@ -17565,8 +17796,8 @@
       "name": "_load_schema",
       "file": "policy_engine.py",
       "span": {
-        "start": 500,
-        "end": 516
+        "start": 520,
+        "end": 536
       },
       "tags": [
         "private"
@@ -17580,8 +17811,8 @@
       "name": "_load_policies",
       "file": "policy_engine.py",
       "span": {
-        "start": 518,
-        "end": 571
+        "start": 538,
+        "end": 591
       },
       "tags": [
         "async",
@@ -17597,8 +17828,8 @@
       "name": "_build_entity",
       "file": "policy_engine.py",
       "span": {
-        "start": 573,
-        "end": 608
+        "start": 593,
+        "end": 628
       },
       "tags": [
         "private",
@@ -17613,8 +17844,8 @@
       "name": "_build_resource_entity",
       "file": "policy_engine.py",
       "span": {
-        "start": 610,
-        "end": 635
+        "start": 630,
+        "end": 655
       },
       "tags": [
         "private"
@@ -17628,8 +17859,8 @@
       "name": "_determine_resource_type",
       "file": "policy_engine.py",
       "span": {
-        "start": 637,
-        "end": 647
+        "start": 657,
+        "end": 667
       },
       "tags": [
         "private"
@@ -17643,8 +17874,8 @@
       "name": "check_operation",
       "file": "policy_engine.py",
       "span": {
-        "start": 649,
-        "end": 688
+        "start": 669,
+        "end": 708
       },
       "tags": [
         "async",
@@ -17659,8 +17890,8 @@
       "name": "_do_check_operation",
       "file": "policy_engine.py",
       "span": {
-        "start": 690,
-        "end": 777
+        "start": 710,
+        "end": 797
       },
       "tags": [
         "async",
@@ -17676,8 +17907,8 @@
       "name": "check_network_access",
       "file": "policy_engine.py",
       "span": {
-        "start": 779,
-        "end": 796
+        "start": 799,
+        "end": 816
       },
       "tags": [
         "async"
@@ -17691,8 +17922,8 @@
       "name": "validate_policy",
       "file": "policy_engine.py",
       "span": {
-        "start": 798,
-        "end": 817
+        "start": 818,
+        "end": 837
       },
       "tags": [],
       "signatures": {}
@@ -17704,8 +17935,8 @@
       "name": "list_policies",
       "file": "policy_engine.py",
       "span": {
-        "start": 819,
-        "end": 836
+        "start": 839,
+        "end": 856
       },
       "tags": [
         "async",
@@ -17720,8 +17951,8 @@
       "name": "invalidate_cache",
       "file": "policy_engine.py",
       "span": {
-        "start": 838,
-        "end": 841
+        "start": 858,
+        "end": 861
       },
       "tags": [],
       "signatures": {}
@@ -17733,8 +17964,8 @@
       "name": "list_policy_versions",
       "file": "policy_engine.py",
       "span": {
-        "start": 843,
-        "end": 860
+        "start": 863,
+        "end": 880
       },
       "tags": [
         "async",
@@ -17749,8 +17980,8 @@
       "name": "rollback_policy",
       "file": "policy_engine.py",
       "span": {
-        "start": 862,
-        "end": 887
+        "start": 882,
+        "end": 907
       },
       "tags": [
         "async",
@@ -17765,8 +17996,8 @@
       "name": "_log_policy_decision",
       "file": "policy_engine.py",
       "span": {
-        "start": 889,
-        "end": 922
+        "start": 909,
+        "end": 942
       },
       "tags": [
         "async",
@@ -17781,8 +18012,8 @@
       "name": "get_policy_engine",
       "file": "policy_engine.py",
       "span": {
-        "start": 929,
-        "end": 943
+        "start": 949,
+        "end": 963
       },
       "tags": [],
       "signatures": {}
@@ -17794,8 +18025,8 @@
       "name": "reset_policy_engine",
       "file": "policy_engine.py",
       "span": {
-        "start": 946,
-        "end": 949
+        "start": 966,
+        "end": 969
       },
       "tags": [],
       "signatures": {}
@@ -17807,8 +18038,8 @@
       "name": "reset_policy_instruments",
       "file": "policy_engine.py",
       "span": {
-        "start": 952,
-        "end": 955
+        "start": 972,
+        "end": 975
       },
       "tags": [],
       "signatures": {}
@@ -18422,14 +18653,27 @@
       "signatures": {}
     },
     {
+      "id": "py:profiles.ProfilesService.invalidate_cache",
+      "kind": "function",
+      "language": "python",
+      "name": "invalidate_cache",
+      "file": "profiles.py",
+      "span": {
+        "start": 104,
+        "end": 112
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:profiles.ProfilesService.get_profile",
       "kind": "function",
       "language": "python",
       "name": "get_profile",
       "file": "profiles.py",
       "span": {
-        "start": 104,
-        "end": 151
+        "start": 114,
+        "end": 161
       },
       "tags": [
         "async"
@@ -18443,8 +18687,8 @@
       "name": "check_operation",
       "file": "profiles.py",
       "span": {
-        "start": 153,
-        "end": 212
+        "start": 163,
+        "end": 222
       },
       "tags": [
         "async",
@@ -18459,8 +18703,8 @@
       "name": "_log_denial",
       "file": "profiles.py",
       "span": {
-        "start": 214,
-        "end": 230
+        "start": 224,
+        "end": 240
       },
       "tags": [
         "async",
@@ -18475,8 +18719,8 @@
       "name": "get_profiles_service",
       "file": "profiles.py",
       "span": {
-        "start": 237,
-        "end": 242
+        "start": 247,
+        "end": 252
       },
       "tags": [],
       "signatures": {}
@@ -19503,6 +19747,52 @@
       "signatures": {}
     },
     {
+      "id": "py:trust_resolution.TrustResolutionError.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "trust_resolution.py",
+      "span": {
+        "start": 33,
+        "end": 45
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:trust_resolution._audit_trust_resolution_failure",
+      "kind": "function",
+      "language": "python",
+      "name": "_audit_trust_resolution_failure",
+      "file": "trust_resolution.py",
+      "span": {
+        "start": 48,
+        "end": 71
+      },
+      "tags": [
+        "async",
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:trust_resolution.resolve_trust_level",
+      "kind": "function",
+      "language": "python",
+      "name": "resolve_trust_level",
+      "file": "trust_resolution.py",
+      "span": {
+        "start": 74,
+        "end": 155
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:watchdog.WatchdogService.__init__",
       "kind": "function",
       "language": "python",
@@ -19882,7 +20172,7 @@
       "file": "work_queue.py",
       "span": {
         "start": 210,
-        "end": 223
+        "end": 225
       },
       "tags": [
         "async",
@@ -19897,8 +20187,8 @@
       "name": "claim",
       "file": "work_queue.py",
       "span": {
-        "start": 225,
-        "end": 450
+        "start": 227,
+        "end": 452
       },
       "tags": [
         "async",
@@ -19913,8 +20203,8 @@
       "name": "complete",
       "file": "work_queue.py",
       "span": {
-        "start": 452,
-        "end": 601
+        "start": 454,
+        "end": 603
       },
       "tags": [
         "async"
@@ -19928,8 +20218,8 @@
       "name": "submit",
       "file": "work_queue.py",
       "span": {
-        "start": 603,
-        "end": 737
+        "start": 605,
+        "end": 739
       },
       "tags": [
         "async",
@@ -19944,8 +20234,8 @@
       "name": "get_pending",
       "file": "work_queue.py",
       "span": {
-        "start": 739,
-        "end": 761
+        "start": 741,
+        "end": 763
       },
       "tags": [
         "async",
@@ -19960,8 +20250,8 @@
       "name": "get_task",
       "file": "work_queue.py",
       "span": {
-        "start": 763,
-        "end": 773
+        "start": 765,
+        "end": 775
       },
       "tags": [
         "async",
@@ -19976,8 +20266,8 @@
       "name": "get_my_tasks",
       "file": "work_queue.py",
       "span": {
-        "start": 775,
-        "end": 797
+        "start": 777,
+        "end": 799
       },
       "tags": [
         "async",
@@ -19992,8 +20282,8 @@
       "name": "cancel_task_convention",
       "file": "work_queue.py",
       "span": {
-        "start": 799,
-        "end": 825
+        "start": 801,
+        "end": 827
       },
       "tags": [
         "async"
@@ -20007,8 +20297,8 @@
       "name": "get_work_queue_service",
       "file": "work_queue.py",
       "span": {
-        "start": 832,
-        "end": 837
+        "start": 834,
+        "end": 839
       },
       "tags": [],
       "signatures": {}
@@ -20020,8 +20310,8 @@
       "name": "reset_instruments",
       "file": "work_queue.py",
       "span": {
-        "start": 840,
-        "end": 843
+        "start": 842,
+        "end": 845
       },
       "tags": [],
       "signatures": {}
@@ -22252,6 +22542,21 @@
       "tags": [],
       "signatures": {
         "type": "UNKNOWN"
+      }
+    },
+    {
+      "id": "pg:public.public.agent_profiles.synced_from_registry_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "synced_from_registry_at",
+      "file": "007_agent_profiles.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
       }
     },
     {
@@ -26311,827 +26616,6 @@
       },
       "tags": [],
       "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestSchemaValidation",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 129,
-        "end": 213
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_well_formed_graph_passes",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 132,
-        "end": 135
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_missing_confidence_on_edges_fails",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 137,
-        "end": 155
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_invalid_node_id_pattern_fails",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 157,
-        "end": 181
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_edges_referencing_nonexistent_nodes",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 183,
-        "end": 201
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_entrypoint_referencing_nonexistent_node",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 203,
-        "end": 213
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestPythonAnalyzer",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 221,
-        "end": 392
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_analyze_directory_output_structure",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 278,
-        "end": 290
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_entry_point_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 292,
-        "end": 308
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_call_graph_extraction",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 310,
-        "end": 325
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_db_access_pattern_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 327,
-        "end": 337
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_dead_code_candidate_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 339,
-        "end": 346
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_syntax_error_handling",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 348,
-        "end": 358
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_include_exclude_filtering",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 360,
-        "end": 375
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_async_function_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 377,
-        "end": 383
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_class_extraction",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 385,
-        "end": 392
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestPostgresAnalyzer",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 400,
-        "end": 540
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_table_extraction",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 440,
-        "end": 462
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_fk_relationship_extraction",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 464,
-        "end": 488
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_index_extraction",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 490,
-        "end": 508
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_summary_statistics",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 510,
-        "end": 520
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_unparseable_sql_handling",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 522,
-        "end": 540
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestGraphCompiler",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 548,
-        "end": 753
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_compile_graph_produces_output",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 633,
-        "end": 644
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_node_id_normalization",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 646,
-        "end": 651
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_python_ingestion_creates_nodes_and_edges",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 653,
-        "end": 674
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_cross_language_backend_db_edges",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 676,
-        "end": 687
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_full_compilation_with_backend_db_linking",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 689,
-        "end": 708
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_summary_generation_adaptive_threshold",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 710,
-        "end": 724
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_deduplication_helpers",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 726,
-        "end": 743
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_validate_edges_drops_invalid",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 745,
-        "end": 753
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestFlowValidator",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 761,
-        "end": 890
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_reachability_check",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 764,
-        "end": 783
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_disconnected_flow_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 785,
-        "end": 804
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_orphan_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 806,
-        "end": 833
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_diagnostics_output_format",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 835,
-        "end": 854
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_entrypoint_no_downstream",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 856,
-        "end": 890
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestViewGenerator",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 898,
-        "end": 1043
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_view_files_are_generated",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 987,
-        "end": 1001
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_container_view_contents",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1003,
-        "end": 1010
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_db_erd_contains_table_nodes",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1012,
-        "end": 1017
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_backend_component_view",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1019,
-        "end": 1024
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_frontend_component_view",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1026,
-        "end": 1030
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_feature_slice_generation",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1032,
-        "end": 1043
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones",
-      "kind": "test_class",
-      "language": "python",
-      "name": "TestParallelZones",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1051,
-        "end": 1269
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_connected_component_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1149,
-        "end": 1173
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_leaf_module_identification",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1175,
-        "end": 1190
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_high_impact_module_detection",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1192,
-        "end": 1209
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_impact_radius",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1211,
-        "end": 1219
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_build_output_structure",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1221,
-        "end": 1240
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_union_find_components",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1242,
-        "end": 1251
-      },
-      "tags": [
-        "test"
-      ],
-      "signatures": {}
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli",
-      "kind": "test_function",
-      "language": "python",
-      "name": "test_main_cli",
-      "file": "tests/test_architecture/test_analysis.py",
-      "span": {
-        "start": 1253,
-        "end": 1269
-      },
-      "tags": [
-        "test",
-        "fixture_using"
-      ],
-      "signatures": {}
     }
   ],
   "edges": [
@@ -27190,6 +26674,104 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_resolve_api_key_from_openbao"
+    },
+    {
+      "from": "py:agents_config._desired_profile_row",
+      "to": "py:agents_config.derive_allowed_operations",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:derive_allowed_operations"
+    },
+    {
+      "from": "py:agents_config._sync_assignments",
+      "to": "py:agents_config._is_unique_violation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_is_unique_violation"
+    },
+    {
+      "from": "py:agents_config._sync_assignments",
+      "to": "py:agents_config._emit_sync_audit",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_emit_sync_audit"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:agents_config.load_agents_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:load_agents_config"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:db.get_db",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_db"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:agents_config._desired_profile_row",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_desired_profile_row"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:agents_config._registry_sync_timestamp",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_registry_sync_timestamp"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:agents_config._is_unique_violation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_is_unique_violation"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:agents_config._emit_sync_audit",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_emit_sync_audit"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:agents_config._profile_drift",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_profile_drift"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:agents_config._sync_assignments",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_sync_assignments"
+    },
+    {
+      "from": "py:agents_config.sync_profiles",
+      "to": "py:profiles.get_profiles_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_profiles_service"
     },
     {
       "from": "py:agents_config.get_mcp_env",
@@ -27829,20 +27411,6 @@
       "evidence": "ast:call:get_policy_engine"
     },
     {
-      "from": "py:coordination_api.resolve_trust_level",
-      "to": "py:profiles.get_profiles_service",
-      "type": "call",
-      "confidence": "high",
-      "evidence": "ast:call:get_profiles_service"
-    },
-    {
-      "from": "py:coordination_api.resolve_trust_level",
-      "to": "py:config.get_config",
-      "type": "call",
-      "confidence": "high",
-      "evidence": "ast:call:get_config"
-    },
-    {
       "from": "py:coordination_api.create_coordination_api",
       "to": "py:telemetry.init_telemetry",
       "type": "call",
@@ -27869,6 +27437,13 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:ensure_schema"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:agents_config.sync_profiles",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:sync_profiles"
     },
     {
       "from": "py:coordination_api.create_coordination_api",
@@ -28012,7 +27587,7 @@
     },
     {
       "from": "py:coordination_api.create_coordination_api",
-      "to": "py:coordination_api.resolve_trust_level",
+      "to": "py:trust_resolution.resolve_trust_level",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:resolve_trust_level"
@@ -28261,6 +27836,13 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:ensure_schema"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.lifespan",
+      "to": "py:agents_config.sync_profiles",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:sync_profiles"
     },
     {
       "from": "py:coordination_api.create_coordination_api.lifespan",
@@ -28565,7 +28147,7 @@
     },
     {
       "from": "py:coordination_api.create_coordination_api.check_guardrails",
-      "to": "py:coordination_api.resolve_trust_level",
+      "to": "py:trust_resolution.resolve_trust_level",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:resolve_trust_level"
@@ -28929,7 +28511,7 @@
     },
     {
       "from": "py:coordination_api.create_coordination_api.compose_train_endpoint",
-      "to": "py:coordination_api.resolve_trust_level",
+      "to": "py:trust_resolution.resolve_trust_level",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:resolve_trust_level"
@@ -28957,7 +28539,7 @@
     },
     {
       "from": "py:coordination_api.create_coordination_api.eject_from_train_endpoint",
-      "to": "py:coordination_api.resolve_trust_level",
+      "to": "py:trust_resolution.resolve_trust_level",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:resolve_trust_level"
@@ -33612,10 +33194,10 @@
     },
     {
       "from": "py:policy_engine.NativePolicyEngine._do_check_operation",
-      "to": "py:config.get_config",
+      "to": "py:trust_resolution.resolve_trust_level",
       "type": "call",
       "confidence": "high",
-      "evidence": "ast:call:get_config"
+      "evidence": "ast:call:resolve_trust_level"
     },
     {
       "from": "py:policy_engine.NativePolicyEngine.check_network_access",
@@ -33926,6 +33508,41 @@
       "evidence": "ast:call:_metrics_enabled"
     },
     {
+      "from": "py:trust_resolution._audit_trust_resolution_failure",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:trust_resolution.resolve_trust_level",
+      "to": "py:agents_config.get_agent_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_agent_config"
+    },
+    {
+      "from": "py:trust_resolution.resolve_trust_level",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:trust_resolution.resolve_trust_level",
+      "to": "py:profiles.get_profiles_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_profiles_service"
+    },
+    {
+      "from": "py:trust_resolution.resolve_trust_level",
+      "to": "py:trust_resolution._audit_trust_resolution_failure",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_audit_trust_resolution_failure"
+    },
+    {
       "from": "py:watchdog.WatchdogService.db",
       "to": "py:db.get_db",
       "type": "call",
@@ -33962,17 +33579,10 @@
     },
     {
       "from": "py:work_queue.WorkQueueService._resolve_trust_level",
-      "to": "py:profiles.get_profiles_service",
+      "to": "py:trust_resolution.resolve_trust_level",
       "type": "call",
       "confidence": "high",
-      "evidence": "ast:call:get_profiles_service"
-    },
-    {
-      "from": "py:work_queue.WorkQueueService._resolve_trust_level",
-      "to": "py:config.get_config",
-      "type": "call",
-      "confidence": "high",
-      "evidence": "ast:call:get_config"
+      "evidence": "ast:call:resolve_trust_level"
     },
     {
       "from": "py:work_queue.WorkQueueService.claim",
@@ -34228,14 +33838,14 @@
     },
     {
       "from": "py:coordination_api",
-      "to": "py:policy_engine",
+      "to": "py:trust_resolution",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
     },
     {
       "from": "py:coordination_api",
-      "to": "py:profiles",
+      "to": "py:policy_engine",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
@@ -34264,6 +33874,13 @@
     {
       "from": "py:coordination_api",
       "to": "py:migrations",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:coordination_api",
+      "to": "py:agents_config",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
@@ -34354,7 +33971,7 @@
     },
     {
       "from": "py:coordination_api",
-      "to": "py:agents_config",
+      "to": "py:profiles",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
@@ -35145,7 +34762,21 @@
     },
     {
       "from": "py:policy_engine",
+      "to": "py:trust_levels",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:policy_engine",
       "to": "py:profiles",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:policy_engine",
+      "to": "py:trust_resolution",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
@@ -35207,6 +34838,34 @@
       "evidence": "ast:import"
     },
     {
+      "from": "py:trust_resolution",
+      "to": "py:config",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:trust_resolution",
+      "to": "py:audit",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:trust_resolution",
+      "to": "py:agents_config",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:trust_resolution",
+      "to": "py:profiles",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
       "from": "py:watchdog",
       "to": "py:db",
       "type": "import",
@@ -35250,7 +34909,7 @@
     },
     {
       "from": "py:work_queue",
-      "to": "py:profiles",
+      "to": "py:trust_resolution",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
