@@ -146,7 +146,7 @@ ORDER BY created_at DESC
 LIMIT 50;
 ```
 
-**Revert the schema change** — migration `031_unified_trust_scale.sql` carries a paired down
+**Revert the schema change** — migration `032_unified_trust_scale.sql` carries a paired down
 block at the bottom of the file.
 
 ## Regenerating cloud configuration

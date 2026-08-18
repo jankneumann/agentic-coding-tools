@@ -20,7 +20,7 @@
   only real security signal in the run. See below.
 ✓ **Spec Compliance**: 7/7 requirements traced with evidence; task-drift gate PASS (0 unchecked
   boxes against 17 commits). Trust scale verified empirically across all three consumers
-  (module 0–4, `AGENTS_SCHEMA` 0–4, migration 031 CHECK 0–4) and the migration-022 merge-op
+  (module 0–4, `AGENTS_SCHEMA` 0–4, migration 032 CHECK 0–4) and the migration-022 merge-op
   boundary (`trust >= 3`) reproduced exactly for all seven registry agents.
 ⚠ **Architecture**: flow validation reported 0 findings but checked **0 entrypoints** — the
   changed files do not map to entrypoints in the graph. Nothing to check, not "verified".
@@ -42,7 +42,7 @@ Ten findings. Every claim spot-checked against source before acting; all verifie
 | 3 | MED | Two registry entries could share a `profile`; the second silently overwrote the first (an entry squatting `claude_code_local` at trust 4 promoted `claude-local` to ADMIN). |
 | 4 | MED | Insert-failure fallback retried *any* exception as an UPDATE; a zero-row UPDATE raises nothing, so RLS/FK failures reported phantom writes and emitted audit events for rows that do not exist. |
 | 6 | MED | `work_queue.py` carried a verbatim pre-change copy of the resolver, still failing open — denied 500 on the HTTP path, silently granted trust 2 on the queue path. |
-| 9 | LOW | `synced_from_registry_at` was never written, making migration 031's comment about operator forensics false. |
+| 9 | LOW | `synced_from_registry_at` was never written, making migration 032.s comment about operator forensics false. |
 | — | MED | A **third** fail-open resolver in `policy_engine.py`, found while fixing F6 and fixed in the same pass. Most dangerous of the three: its result feeds the suspension check, so a projection failure promoted a suspended agent (trust 0) to the default and un-suspended it. |
 
 **Filed as follow-ups** (coordinator issues, not fixed here):

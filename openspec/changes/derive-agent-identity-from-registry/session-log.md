@@ -61,7 +61,7 @@ Planned Phase 1 of the principal-credential-architecture roadmap: make agents.ya
 
 ### Open Questions
 - [ ] get_agent_profile() resolves ambiguously when two agents share an agent_type (claude_code_local vs claude_code_remote) — filed; needs a migration, relevant to pca-03/pca-04
-- [ ] migration 031 adds synced_from_registry_at but sync_profiles never writes it (asyncpg/Supabase type friction) — filed; wants a DEFAULT now() follow-up migration
+- [ ] migration 032 adds synced_from_registry_at but sync_profiles never writes it (asyncpg/Supabase type friction) — filed; wants a DEFAULT now() follow-up migration
 - [ ] First production boot will disable claude_code_reviewer and strands_local and create four profiles; verify against the live database before deploying
 
 ### Next Steps

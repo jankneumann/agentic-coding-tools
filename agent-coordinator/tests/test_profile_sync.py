@@ -1004,13 +1004,13 @@ class TestInsertFailureFallbackIsNarrow:
 
 
 # ---------------------------------------------------------------------------
-# synced_from_registry_at bookkeeping (migration 031)
+# synced_from_registry_at bookkeeping (migration 032)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 class TestSyncedFromRegistryAt:
-    """Migration 031's column has to actually be written.
+    """Migration 032.s column has to actually be written.
 
     Its COMMENT tells operators the column distinguishes registry-projected
     rows from hand-maintained ones. Nothing wrote it, so it was permanently
