@@ -1081,7 +1081,7 @@ def _is_unique_violation(exc: BaseException) -> bool:
 def _registry_sync_timestamp() -> str:
     """Value for ``agent_profiles.synced_from_registry_at`` on this write.
 
-    Migration 031 added the column so operators can tell registry-projected
+    Migration 032 added the column so operators can tell registry-projected
     rows from hand-maintained ones; it stays NULL unless the projection
     actually stamps it.
     """
@@ -1430,7 +1430,7 @@ async def sync_profiles(
         declared.add(name)
         current = existing.get(name)
 
-        # Stamp every projected write so migration 031's
+        # Stamp every projected write so migration 032.s
         # synced_from_registry_at column means what its comment claims.
         row_payload = {**desired, "synced_from_registry_at": _registry_sync_timestamp()}
         update_payload = {k: v for k, v in row_payload.items() if k != "name"}

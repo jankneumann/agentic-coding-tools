@@ -1,4 +1,4 @@
--- Migration 031: unified trust scale + registry-sync bookkeeping for agent_profiles.
+-- Migration 032: unified trust scale + registry-sync bookkeeping for agent_profiles.
 -- Dependencies: 007_agent_profiles.sql
 -- Change: derive-agent-identity-from-registry (design D4, D8)
 --
