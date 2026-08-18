@@ -16,6 +16,16 @@
 # via OpenBao at runtime (using `openbao_role_id`), falling back to the
 # environment variable named in `api_key_env`.
 #
+# The optional `api_key` field is the agent's *coordinator* credential — the
+# value it presents as `X-API-Key` when it talks to the HTTP API.  It is
+# unrelated to the vendor credential in `sdk.api_key_env` (that one buys model
+# tokens; this one buys a coordinator identity).  Every agent with an `api_key`
+# gets a `COORDINATION_API_KEY_IDENTITIES` row, regardless of transport: an
+# `mcp` agent still reaches the API through the session hooks
+# (`register_agent`, `report_status`, `precompact_handoff`) and through the
+# `http_proxy` fallback when the local DB is unreachable, and without its own
+# key those calls are either anonymous or borrow another agent's identity.
+#
 # The optional `archetypes` field declares which agent archetypes (defined in
 # archetypes.yaml) this agent can fulfill. When set, the coordinator work
 # queue filters claims by archetype compatibility — a task submitted with
@@ -60,6 +70,8 @@ agents:
     trust_level: 3
     transport: mcp
     isolation: worktree
+    api_key: "${CLAUDE_LOCAL_API_KEY}"
+    openbao_role_id: claude-code-local
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     # supervisor / gatekeeper are read-only adjudication roles and validator
     # owns the evidence run; teams.yaml rosters all three to claude_code only
@@ -147,6 +159,8 @@ agents:
     trust_level: 3
     transport: mcp
     isolation: worktree
+    api_key: "${CODEX_LOCAL_API_KEY}"
+    openbao_role_id: codex-local
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     # validator: teams.yaml rosters it to [claude_code, codex]. Keeping a second
     # vendor eligible is what lets vendor_diversity route the validator away
@@ -229,6 +243,8 @@ agents:
     trust_level: 3
     transport: mcp
     isolation: worktree
+    api_key: "${ANTIGRAVITY_LOCAL_API_KEY}"
+    openbao_role_id: antigravity-local
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
     description: Local Antigravity (agy) worker with full coordination access
@@ -275,6 +291,8 @@ agents:
     trust_level: 3
     transport: mcp
     isolation: worktree
+    api_key: "${GROK_LOCAL_API_KEY}"
+    openbao_role_id: grok-local
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
     description: Local Grok worker with full coordination access
@@ -317,6 +335,26 @@ agents:
       model_fallbacks: []
       prompt_via_stdin: true
 
+  grok-remote:
+    type: grok
+    profile: grok_remote
+    trust_level: 2
+    transport: http
+    isolation: sandbox
+    api_key: "${GROK_REMOTE_API_KEY}"
+    openbao_role_id: grok-cloud
+    capabilities: [lock, queue, memory, guardrails, handoff, feature_registry]
+    archetypes: [implementer, reviewer]
+    description: Remote Grok agent (runs on xAI infrastructure)
+    # No `cli` section on purpose. The local entry's flags above are the ones
+    # verified empirically in add-agy-grok-pi-harnesses (E2/E5/E6); the cloud
+    # dispatch shape — submit/poll commands, task-id pattern, terminal-state
+    # patterns — has NOT been probed the same way, and guessing it would
+    # reproduce the class of bug that change spent a phase fixing (a dispatch
+    # mode that fails at runtime while looking configured). This entry exists
+    # so the cloud harness has a coordinator identity and key; add `cli` once
+    # the submit/poll shape is confirmed against the real CLI.
+
   # ---------------------------------------------------------------------------
   # pi (OpenRouter models — reaches models outside the subscription harnesses,
   # e.g. Kimi 3, Qwen3-Coder). E3: resolves OPENROUTER_API_KEY from the
@@ -330,6 +368,8 @@ agents:
     trust_level: 3
     transport: mcp
     isolation: worktree
+    api_key: "${PI_LOCAL_API_KEY}"
+    openbao_role_id: pi-local
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
     description: Local pi worker (OpenRouter) with full coordination access

@@ -3,7 +3,7 @@
 
 Reads `.secrets.yaml` and `agents.yaml`, then populates OpenBao with:
 - KV v2 secrets from `.secrets.yaml`
-- AppRoles from `agents.yaml` (HTTP-transport agents only)
+- AppRoles from `agents.yaml` (every agent declaring an `api_key`)
 - Database secrets engine configuration (with --with-db-engine)
 
 Usage:
@@ -110,7 +110,15 @@ def seed_approles(
     token_ttl: int,
     dry_run: bool = False,
 ) -> None:
-    """Create AppRoles from agents.yaml for HTTP-transport agents."""
+    """Create AppRoles from agents.yaml for every agent with a coordinator key.
+
+    Keyed on ``api_key`` rather than ``transport == "http"``: an agent needs an
+    AppRole because it has a credential to resolve, and local (``mcp``) agents
+    present coordinator keys too — via the session hooks, via the ``http_proxy``
+    fallback, and in deployments where every harness talks to a hosted
+    coordinator. This mirrors ``get_api_key_identities()`` so the AppRole set
+    and the identity map cover the same agents.
+    """
     if not agents_path.is_file():
         print(f"WARNING: {agents_path} not found — skipping AppRole creation", file=sys.stderr)
         return
@@ -122,14 +130,14 @@ def seed_approles(
         print(f"WARNING: {agents_path} has no 'agents' section — skipping", file=sys.stderr)
         return
 
-    http_agents = [
+    keyed_agents = [
         (name, agent_data)
         for name, agent_data in data["agents"].items()
-        if agent_data.get("transport") == "http"
+        if agent_data.get("api_key")
     ]
 
-    if not http_agents:
-        print("No HTTP-transport agents found — skipping AppRole creation")
+    if not keyed_agents:
+        print("No agents declare an api_key — skipping AppRole creation")
         return
 
     # Policy granting read access to coordinator secrets (shared path for MVP)
@@ -138,7 +146,7 @@ def seed_approles(
 
     if dry_run:
         print(f"[DRY RUN] Would create policy '{policy_name}'")
-        for name, adata in http_agents:
+        for name, adata in keyed_agents:
             role_id = adata.get("openbao_role_id", name)
             print(f"[DRY RUN] Would create AppRole '{role_id}' (agent: {name})")
         return
@@ -153,7 +161,7 @@ def seed_approles(
         client.sys.enable_auth_method("approle")
         print("Enabled AppRole auth method")
 
-    for name, agent_data in http_agents:
+    for name, agent_data in keyed_agents:
         role_id = agent_data.get("openbao_role_id", name)
         client.auth.approle.create_or_update_approle(
             role_name=role_id,
