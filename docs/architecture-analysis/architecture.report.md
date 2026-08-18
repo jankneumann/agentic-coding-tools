@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-18T21:48:29+00:00  
-Git SHA: `6820198bb68e9642249e3c16e604c6efda8d9a32`
+Generated: 2026-08-18T22:23:29+00:00  
+Git SHA: `26ab704c4010da3a2118b5e2fdb53844ce83e362`
 
 ## System Overview
 
@@ -13,14 +13,14 @@ This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (8
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1840 |
+| Total nodes | 1892 |
 | Total edges | 1188 |
 | Python modules | 77 |
 | Functions | 1079 (435 async) |
 | Classes | 248 |
 | Mcp Endpoints | 96 |
 | DB tables | 27 |
-| Python nodes | 1404 |
+| Python nodes | 1456 |
 | Sql nodes | 436 |
 
 ## Module Responsibility Map
@@ -460,7 +460,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1135 independent groups** identified. The largest interconnected group has 538 modules; 1439 modules are leaf nodes (safe to modify in isolation).
+**1187 independent groups** identified. The largest interconnected group has 538 modules; 1491 modules are leaf nodes (safe to modify in isolation).
 
 **39 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -488,9 +488,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1439)
+### Leaf Modules (1491)
 
-1439 modules have no dependents — changes are fully isolated. 1113 of the 1135 groups are singletons.
+1491 modules have no dependents — changes are fully isolated. 1165 of the 1187 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -500,7 +500,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1404 nodes)"]
+    Backend["Backend (1456 nodes)"]
     Database["Database (436 nodes)"]
 ```
 
@@ -580,6 +580,7 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (14 symbols)"]
     telemetry["telemetry (20 symbols)"]
+    tests__test_architecture["tests.test_architecture (52 symbols)"]
     trust_levels["trust_levels (2 symbols)"]
     trust_resolution["trust_resolution (5 symbols)"]
     watchdog["watchdog (18 symbols)"]

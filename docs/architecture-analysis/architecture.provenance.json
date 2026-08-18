@@ -4,49 +4,49 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "fef62f580414b73db165b5e10096c6d4914cea2e2cb32562bcaa0c6135f6d640",
+      "sha256": "cd6c7823a69f47199257d64fe08d0b4d4c56491e0331628885577da7be5db036",
       "size_bytes": 1021442
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "b2e236fffc6091adc0bfca320280a9cf87e49a268b1fc93eb4399677294e7691",
-      "size_bytes": 860883
+      "sha256": "9b05311f119cc82d502c4f778bfae7b575181e31cbc7a07488cff165a9040e79",
+      "size_bytes": 883344
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "7c8767ca5551040ce7156f1c6ae4d17554d1f626ad3f2b8398f5d37f8710e965",
-      "size_bytes": 55075
+      "sha256": "d6ee9958599f2d95510f8ce24a79ab535a35c88cd2707443a7612dfbbdf7cf67",
+      "size_bytes": 55144
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "52e591a22ad0a5aa3cfba1386d98ea6361d46b22de3bcf02edd81de364cda074",
-      "size_bytes": 22898
+      "sha256": "4925d3551028c1b6156224387f9fb5df0443ce630229f066ce014eaeb0497198",
+      "size_bytes": 22948
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/comment_insights.json",
       "required": false,
-      "sha256": "a40bb63464f18b627c68bf6fdbbe2a9a05392914f065d4391abe40781abc2932",
+      "sha256": "463035c230110f71de1107b0a7ff8dc8d749a217de2e834cf9da3eac3282fcfe",
       "size_bytes": 20414
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "057efc8ca06343fe184806ed23cc64557aa32a2f6aa3be45cc159f682eec70c7",
-      "size_bytes": 494887
+      "sha256": "d2e84b7ff8b62138fbf37e14f28071b31ba95fcb51d99605920f3d932d4d543b",
+      "size_bytes": 517321
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/pattern_insights.json",
       "required": false,
-      "sha256": "d214f52ff005583901704b78ede0b8e093d54e5aa8bd7654696c01225e494ae3",
+      "sha256": "7e219bdc2cd31d20b7bb28b1eaf51a19f8b8ebde81fcb0b6b0499616f0240b1d",
       "size_bytes": 4169
     },
     {
@@ -67,7 +67,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/treesitter_enrichment.json",
       "required": false,
-      "sha256": "01d30ba77f1bc55456550e27fd6342eb5d863c10b79389c3e6b7682777391ce3",
+      "sha256": "915dc6be71bf25625695b70c45278fcc8075c63d3cffeebd2bd65522dfe81109",
       "size_bytes": 1225084
     },
     {
@@ -88,14 +88,14 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/views/backend_components.mmd",
       "required": false,
-      "sha256": "8ba34a37ea9426e994bfcb73d2ecbf807f8edc57672eee0c41dc75ce1b9b2f2a",
-      "size_bytes": 13533
+      "sha256": "5a98aafa3ab9726c97e43ff6adf2c000180eb57f434f3023dc7c49dab182ee59",
+      "size_bytes": 13602
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/views/containers.mmd",
       "required": false,
-      "sha256": "670e6d8073f599cdd005fef18a5321e61f5d3435a6a859e473b09e610483e629",
+      "sha256": "f07b9b55fe2459040b418a0a0d89b971471922bd4da709ec8817ed7220c7a8f1",
       "size_bytes": 86
     },
     {
@@ -113,7 +113,7 @@
       "size_bytes": 52
     }
   ],
-  "generated_at": "2026-08-18T21:48:29+00:00",
+  "generated_at": "2026-08-18T22:23:29+00:00",
   "input_enumeration": "git",
   "input_fingerprint": "b7ae55a05d27d58001a3dd0f1524839a300a213368d2c775889f6ecb1d2cdfc1",
   "input_roots": [
@@ -135,7 +135,7 @@
   },
   "repository_id": "agentic-coding-tools",
   "schema_version": 1,
-  "source_revision": "6820198bb68e9642249e3c16e604c6efda8d9a32",
+  "source_revision": "26ab704c4010da3a2118b5e2fdb53844ce83e362",
   "validation": {
     "error_count": 0,
     "status": "passed",
