@@ -9,9 +9,9 @@ Spec scenarios:
 
 Design decisions: D11.
 
-The ADDED case drives this change's own real delta
-(``openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md``)
-and the other-change-invisible case drives a real change directory
+The ADDED case uses an isolated delta so archiving the change that introduced
+this behavior cannot invalidate the fixture. The other-change-invisible case
+drives a real change directory
 (``add-coordinator-llm-gateway``, which adds a capability with no archived
 spec at all). REMOVED and RENAMED have no instance in the repository today,
 so they are constructed under ``tmp_path`` via the resolver's injectable
@@ -44,26 +44,25 @@ THIS_CHANGE = "trace-requirements-to-contracts"
 # ---------------------------------------------------------------------------
 
 
-def test_a_citation_to_this_changes_own_new_requirement_resolves() -> None:
-    resolver = RequirementResolver(SPECS_ROOT, CHANGES_ROOT)
-    req_id = requirement_id(
-        "gen-eval-framework", "Contracted operations cite the requirements they serve"
-    )
-    heading = resolver.resolve(req_id, change_id=THIS_CHANGE)
-    assert heading == "Contracted operations cite the requirements they serve"
+def test_a_citation_to_this_changes_own_new_requirement_resolves(tmp_path: Path) -> None:
+    specs_root, changes_root = _added_fixture(tmp_path)
+    resolver = RequirementResolver(specs_root, changes_root)
+    req_id = requirement_id("widget", "Added Feature")
+    assert resolver.resolve(req_id, change_id=THIS_CHANGE) == "Added Feature"
 
 
-def test_this_changes_new_requirement_does_not_resolve_without_the_change_id() -> None:
+def test_this_changes_new_requirement_does_not_resolve_without_the_change_id(
+    tmp_path: Path,
+) -> None:
     """The archive alone (no shadow) does not yet know about an unlanded requirement."""
-    resolver = RequirementResolver(SPECS_ROOT, CHANGES_ROOT)
-    req_id = requirement_id(
-        "gen-eval-framework", "Contracted operations cite the requirements they serve"
-    )
+    specs_root, changes_root = _added_fixture(tmp_path)
+    resolver = RequirementResolver(specs_root, changes_root)
+    req_id = requirement_id("widget", "Added Feature")
     with pytest.raises(UnresolvedRequirementError):
         resolver.resolve(req_id, change_id=None)
 
 
-def test_all_added_requirements_resolve_under_this_change() -> None:
+def test_all_added_requirements_resolve_under_this_change(tmp_path: Path) -> None:
     """Every ADDED heading in this change's own delta resolves.
 
     The count check is a deliberate trip-wire, not incidental: a parser
@@ -77,8 +76,9 @@ def test_all_added_requirements_resolve_under_this_change() -> None:
     A future ADDED requirement changes both sides of that comparison
     together, so this test cannot go stale the way the count literal did.
     """
-    resolver = RequirementResolver(SPECS_ROOT, CHANGES_ROOT)
-    delta_path = CHANGES_ROOT / THIS_CHANGE / "specs" / "gen-eval-framework" / "spec.md"
+    specs_root, changes_root = _added_fixture(tmp_path)
+    resolver = RequirementResolver(specs_root, changes_root)
+    delta_path = changes_root / THIS_CHANGE / "specs" / "widget" / "spec.md"
     from gen_eval.traceability import parse_requirement_headings  # noqa: PLC0415
 
     delta_text = delta_path.read_text(encoding="utf-8")
@@ -91,7 +91,7 @@ def test_all_added_requirements_resolve_under_this_change() -> None:
     )
     assert len(set(added_headings)) == len(added_headings), "no duplicate ADDED heading"
     for heading in added_headings:
-        req_id = requirement_id("gen-eval-framework", heading)
+        req_id = requirement_id("widget", heading)
         assert resolver.resolve(req_id, change_id=THIS_CHANGE) == heading
 
 
@@ -170,6 +170,14 @@ def _write_delta(
     target = changes_root / change_id / "specs" / capability / "spec.md"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("\n\n".join(parts) + "\n", encoding="utf-8")
+
+
+def _added_fixture(tmp_path: Path) -> tuple[Path, Path]:
+    specs_root = tmp_path / "specs"
+    changes_root = tmp_path / "changes"
+    _write_spec(specs_root, "widget", ["Archived Feature"])
+    _write_delta(changes_root, THIS_CHANGE, "widget", added=["Added Feature"])
+    return specs_root, changes_root
 
 
 def test_removing_a_requirement_breaks_operations_that_still_cite_it(tmp_path: Path) -> None:
