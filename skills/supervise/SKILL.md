@@ -32,8 +32,9 @@ and resolves at the `frontier` tier. That is not advisory:
   Implementation work is dispatched to a write-capable archetype in its own worktree.
 - The only writes a supervise run may perform are *coordination artifacts*: roadmaps,
   proposal/tasks scaffolds, priorities reports, the cycle ledger, and handoffs.
-  `scripts/cycle_state.py audit-writes` classifies any path and fails on a source-code
-  write, so the boundary is checkable rather than aspirational.
+  `scripts/cycle_state.py snapshot-writes` plus `audit-since` capture the checkout
+  before a verb and fail if that verb changes source code, so the boundary is
+  enforced without mistaking pre-existing operator edits for supervisor writes.
 - Judgment stays in the session. This skill's Python is deterministic plumbing only —
   see **Design principle** below.
 
@@ -68,6 +69,17 @@ python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 
 `--dry-run` is read-only and may run from the shared checkout.
 
+Before either verb does any work, capture its write baseline outside the repository:
+
+```bash
+SUPERVISE_WRITE_SNAPSHOT="$(mktemp)"
+python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+  snapshot-writes > "$SUPERVISE_WRITE_SNAPSHOT"
+```
+
+Keep that file until the verb's final write audit. A dry run takes the same snapshot:
+read-only is a checked outcome, not an exemption from the boundary.
+
 ---
 
 ## Verb: `intake`
@@ -83,7 +95,16 @@ Turn a natural-language request into tracked work, without the operator invoking
    work spanning several changes → write a proposal and hand it to `/plan-roadmap`.
 4. **Slot it.** Add the item to the appropriate roadmap with dependencies, including a
    typed `external_depends_on` (ri-17) when the prerequisite lives in another roadmap.
-5. **Report** what was created and what it is blocked on. Do not begin implementation.
+5. **Audit the verb's writes.** Before reporting success, run:
+
+   ```bash
+   python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+     audit-since --snapshot "$SUPERVISE_WRITE_SNAPSHOT"
+   ```
+
+   A non-zero exit is a stop-the-line violation: preserve the worktree and report the
+   forbidden paths. Do not claim intake completed.
+6. **Report** what was created and what it is blocked on. Do not begin implementation.
 
 ## Verb: `cycle`
 
@@ -102,11 +123,14 @@ Then compute the cross-roadmap picture:
 
 ```bash
 python3 "<skill-base-dir>/../plan-roadmap/scripts/decomposer.py" validate-repo
-python3 "<skill-base-dir>/scripts/cycle_state.py" ready --repo-root .
+python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . fingerprint
+python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . ready
 ```
 
 You must be able to state, before sensing: what is ready now, what is blocked and why,
-what is in flight.
+what is in flight. Inspect the fingerprint command's `unchanged` field before SENSE.
+When it is `true`, report the prior digest and stop unless the operator supplied
+`--force`. This gate applies to normal and dry-run cycles.
 
 ### 2. Sense
 
@@ -122,12 +146,19 @@ python3 "<skill-base-dir>/../prioritize-proposals/scripts/validate_candidate_wor
 If a generator is unavailable, **say so in the digest**. A silently skipped sensor
 makes an empty cycle indistinguishable from a healthy one.
 
+Despite their analytical purpose, those child skills persist reports. Under
+`--dry-run`, the supervisor **MUST NOT invoke** `/bug-scrub`, `/improve-harness`, or
+`/explore-feature`. Read already-existing reports and inspect repository state directly,
+keeping normalized stubs only in memory or in temporary files outside the repository.
+Mark a sensor `Degraded` when no current persisted report exists. This is the
+non-persisting sensor lane; it never refreshes artifacts during a dry run.
+
 ### 3. Dedupe
 
 Suppress stubs that name work already tracked or already surfaced by an earlier cycle:
 
 ```bash
-python3 "<skill-base-dir>/scripts/cycle_state.py" dedupe --repo-root . --stubs stubs.json
+python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . dedupe --stubs stubs.json
 ```
 
 This is what makes the cycle safe to schedule — see **Idempotency**.
@@ -137,6 +168,9 @@ This is what makes the cycle safe to schedule — see **Idempotency**.
 Run `/prioritize-proposals` over the surviving stubs plus active proposals and ready
 roadmap items. One ranked list, with per-item reasoning: dependency-readiness, value,
 effort, staleness, and live signals (recent failures, capability gaps).
+
+`/prioritize-proposals` also persists reports, so a `--dry-run` **MUST NOT invoke** it.
+Rank the in-memory inputs in the host session and print that ephemeral result instead.
 
 ### 5. Digest, then stop
 
@@ -151,6 +185,28 @@ Report to the operator, decision-first:
 
 Then **stop**. Do not create roadmaps, scaffold changes, dispatch implementers, push,
 or open PRs.
+
+Before stopping, enforce state and write boundaries in this order:
+
+1. For a normal cycle, write a temporary JSON array containing the stable keys of every
+   newly surfaced stub, then record the completed cycle:
+
+   ```bash
+   python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+     record --keys "$SUPERVISE_KEYS"
+   ```
+
+   Do not run `record` under `--dry-run`.
+2. For every cycle, including `--dry-run`, audit all repository changes made since the
+   entry snapshot:
+
+   ```bash
+   python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+     audit-since --snapshot "$SUPERVISE_WRITE_SNAPSHOT"
+   ```
+
+   A non-zero exit is a stop-the-line violation. Preserve the worktree and report the
+   forbidden paths instead of claiming the cycle completed.
 
 > **Why the gate sits here.** The operator approves a *roadmap*, not fifteen items:
 > one decision at roadmap altitude authorizes a DAG of work. Human attention goes to
@@ -169,12 +225,13 @@ policy (ri-18: subscription+local → subscription+cloud → metered).
 A scheduled cycle fires on whatever tree it finds, including an unchanged one. Two
 mechanisms keep a re-run from duplicating work:
 
-1. **Cycle fingerprint.** A deterministic digest over the tracked tree content
-   (excluding `openspec/supervise/` itself, so committing the ledger never changes the
-   fingerprint), active change-ids, and every `(roadmap_id, item_id, status, change_id)`
-   tuple. No wall clock, no mtime — the same tree always fingerprints the same. When it
-   matches the last ledger entry, `cycle` reports the prior digest and exits without
-   re-sensing (override with `--force`).
+1. **Cycle fingerprint.** A deterministic digest over committed tree content plus staged
+   and unstaged tracked changes (excluding only `openspec/supervise/cycle-ledger.json`,
+   so recording the ledger never changes the fingerprint), active change-ids, and every
+   `(roadmap_id, item_id, status, change_id)` tuple. No wall clock and no mtime — the
+   same repository state always fingerprints the same. When it matches the last ledger
+   entry, `cycle` reports the prior digest and exits without re-sensing (override with
+   `--force`).
 2. **Stub keys.** Every candidate stub has a stable key — its `suggested_change_id`, or a
    digest of `(provenance.source_artifact, sorted finding_ids)`. A stub is suppressed when
    its key was already recorded by a previous cycle, or names a change that already exists
