@@ -78,8 +78,10 @@ pre-existing findings); rejected: cycles-only forever (thresholds exist to grow)
 New `coverage-ratchet` job runs `pytest --cov` for `agent-coordinator` and `skills`
 suites, compares against `coverage-baseline.json` (repo root; per-suite line
 percentages, tolerance 0.5pp), fails on decrease, and prints the update command when
-coverage improves. Job starts non-required; promotion command documented next to the
-context-drift-gate note in `docs/guides/session-completion.md`. Rejected: absolute
+coverage improves. Baseline persistence is intentionally explicit: a maintainer runs
+the printed `--update` command and commits the resulting upward-only change; CI has no
+repository-write permission. Job starts non-required; promotion command documented next
+to the context-drift-gate note in `docs/guides/session-completion.md`. Rejected: absolute
 threshold (arbitrary bar penalizes legacy code); rejected: coverage in the existing
 `test` job (would couple ratchet failures to the required context immediately).
 

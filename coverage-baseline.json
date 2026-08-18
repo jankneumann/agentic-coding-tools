@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "tolerance_pp": 0.5,
-  "updated_at": "2026-08-16T00:52:00+00:00",
-  "updated_by": "introduce-fitness-function-gates wp-coverage (seeded from first measured run)",
+  "updated_at": "2026-08-18T23:07:59+00:00",
+  "updated_by": "PR #375 rebase: reset after validate-flows entered the measured skills set",
   "suites": {
     "agent-coordinator": {
-      "line_coverage_pct": 76.2,
+      "line_coverage_pct": 76.76,
       "command": "cd agent-coordinator && uv run --with pytest-cov pytest -m \"not e2e and not integration\" -q --cov=src --cov-report=term --cov-report=xml:coverage.xml"
     },
     "skills": {
-      "line_coverage_pct": 87.42,
+      "line_coverage_pct": 85.82,
       "command": "cd skills && uv run --with pytest-cov pytest -q --cov=. --cov-report=term --cov-report=xml:coverage.xml"
     }
   }

@@ -77,6 +77,15 @@ _PASSING_REQUIRED_PHASES = (
 )
 
 
+def test_validate_feature_produces_and_consumes_architecture_diff() -> None:
+    skill = (_repo_root() / "skills" / "validate-feature" / "SKILL.md").read_text()
+
+    assert "make architecture-diff BASE_SHA=\"$ARCH_BASE_SHA\"" in skill
+    assert "architecture.diff.json" in skill
+    assert "new_cycles" in skill
+    assert "architecture_status" in skill
+
+
 class TestConfigLoader:
     """The loader must keep architecture.config.yaml optional (Rule 4)."""
 

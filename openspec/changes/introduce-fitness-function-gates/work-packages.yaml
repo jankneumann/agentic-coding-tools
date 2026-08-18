@@ -140,8 +140,9 @@ packages:
     description: >-
       Tasks 3.1-3.4: add the Non-Functional Requirements section to the proposal.md
       template, the fitness-function mapping subsection to the design.md template,
-      and NFR elicitation category 7 to the plan-feature discovery rubric, with
-      template-contract tests first.
+      synchronize both changes to the plan-feature install assets, and add NFR
+      elicitation category 7 to the plan-feature discovery rubric, with
+      template-contract and canonical/install-asset identity tests first.
     depends_on: [wp-contracts]
     priority: 2
     metadata:
@@ -151,6 +152,8 @@ packages:
       files:
         - "openspec/schemas/feature-workflow/templates/proposal.md"
         - "openspec/schemas/feature-workflow/templates/design.md"
+        - "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/proposal.md"
+        - "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/design.md"
         - "skills/plan-feature/SKILL.md"
       keys:
         - "feature:nfr-template-capture:write"
@@ -182,6 +185,9 @@ packages:
             result_keys: ["template_tests_passed"]
     outputs:
       result_keys: ["template_tests_passed"]
+      artifacts:
+        - "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/proposal.md"
+        - "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/design.md"
 
   - package_id: wp-gates
     title: "Architecture gate ratchet, schema-valid linters, DEGRADED status"

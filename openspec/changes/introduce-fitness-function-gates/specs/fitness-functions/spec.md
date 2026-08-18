@@ -126,11 +126,14 @@ alongside the existing context-drift-gate promotion note.
 **THEN** the ratchet check SHALL exit non-zero
 **AND** the output SHALL name the suite, the baseline, and the measured value
 
-#### Scenario: Baseline updates on improvement
+#### Scenario: Maintainer advances baseline on improvement
 
 **WHEN** measured coverage on the default branch exceeds the stored baseline
-**THEN** the baseline SHALL be updated to the measured value so the ratchet only moves
-upward
+**THEN** the CI output SHALL print the exact `--update` command needed to persist the
+improved measurements
+**WHEN** a maintainer runs that command and commits the result
+**THEN** improved suite baselines SHALL be updated to the measured values
+**AND** no suite baseline SHALL move downward
 
 ### Requirement: Degraded Gate Transparency
 

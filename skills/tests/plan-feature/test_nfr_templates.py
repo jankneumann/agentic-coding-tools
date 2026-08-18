@@ -2,15 +2,25 @@
 
 Fitness-function-driven development needs an *objective, measurable* quality
 target recorded at planning time -- otherwise there is nothing to write a
-fitness function against. These tests pin the three places that capture it:
-the proposal template (declares the NFR), the design template (maps it to the
-check that verifies it), and the plan-feature discovery rubric (elicits it).
+fitness function against. These tests pin the canonical and distributed
+proposal/design templates plus the plan-feature discovery rubric that elicits
+the requirements.
 """
 import re
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _TEMPLATES = _REPO_ROOT / "openspec" / "schemas" / "feature-workflow" / "templates"
+_INSTALL_TEMPLATES = (
+    _REPO_ROOT
+    / "skills"
+    / "plan-feature"
+    / "install_assets"
+    / "openspec"
+    / "schemas"
+    / "feature-workflow"
+    / "templates"
+)
 _PROPOSAL_TEMPLATE = _TEMPLATES / "proposal.md"
 _DESIGN_TEMPLATE = _TEMPLATES / "design.md"
 _SKILL_MD = _REPO_ROOT / "skills" / "plan-feature" / "SKILL.md"
@@ -70,6 +80,16 @@ def test_design_template_has_fitness_mapping():
         "Fitness Functions subsection must allow an NFR to be explicitly deferred "
         "rather than silently unmapped"
     )
+
+
+def test_distributed_templates_match_canonical_templates():
+    for name in ("proposal.md", "design.md"):
+        canonical = (_TEMPLATES / name).read_text()
+        distributed = (_INSTALL_TEMPLATES / name).read_text()
+        assert distributed == canonical, (
+            f"plan-feature install asset {name} must match the canonical OpenSpec "
+            "template so installation cannot erase fitness-function guidance"
+        )
 
 
 def test_rubric_has_nfr_category():
