@@ -25,6 +25,7 @@ import pytest
 import yaml
 
 _SCRIPTS = Path(__file__).resolve().parents[2] / "supervise" / "scripts"
+_SKILL_MD = _SCRIPTS.parent / "SKILL.md"
 if str(_SCRIPTS) not in sys.path:  # pragma: no cover - import wiring
     sys.path.insert(0, str(_SCRIPTS))
 
@@ -37,8 +38,10 @@ from cycle_state import (  # noqa: E402
     dedupe_stubs,
     is_unchanged,
     load_ledger,
+    audit_since_snapshot,
     ready_across_roadmaps,
     record_cycle,
+    repository_snapshot,
     stub_key,
 )
 
@@ -162,6 +165,17 @@ class TestFingerprint:
         (repo / "src.py").write_text("VALUE = 1\n", encoding="utf-8")
         _git(repo, "add", "-A")
         _git(repo, "commit", "-m", "real change")
+        assert compute_fingerprint(repo) != before
+
+    def test_unstaged_tracked_change_changes_the_fingerprint(self, repo: Path) -> None:
+        before = compute_fingerprint(repo)
+        (repo / "README.md").write_text("unstaged\n", encoding="utf-8")
+        assert compute_fingerprint(repo) != before
+
+    def test_staged_tracked_change_changes_the_fingerprint(self, repo: Path) -> None:
+        before = compute_fingerprint(repo)
+        (repo / "README.md").write_text("staged\n", encoding="utf-8")
+        _git(repo, "add", "README.md")
         assert compute_fingerprint(repo) != before
 
 
@@ -386,6 +400,29 @@ class TestWriteBoundary:
     def test_a_clean_run_audits_empty(self) -> None:
         assert audit_writes(["openspec/supervise/cycle-ledger.json"]) == []
 
+    def test_audit_since_snapshot_detects_new_source_write(self, repo: Path) -> None:
+        before = repository_snapshot(repo)
+        (repo / "README.md").write_text("supervisor edit\n", encoding="utf-8")
+        assert audit_since_snapshot(repo, before) == ["README.md"]
+
+    def test_audit_since_snapshot_allows_new_coordination_write(self, repo: Path) -> None:
+        before = repository_snapshot(repo)
+        path = repo / "openspec" / "priorities" / "today" / "report.md"
+        path.parent.mkdir(parents=True)
+        path.write_text("ranked\n", encoding="utf-8")
+        assert audit_since_snapshot(repo, before) == []
+
+    def test_audit_since_snapshot_ignores_preexisting_unchanged_edit(self, repo: Path) -> None:
+        (repo / "README.md").write_text("operator edit\n", encoding="utf-8")
+        before = repository_snapshot(repo)
+        assert audit_since_snapshot(repo, before) == []
+
+    def test_audit_since_snapshot_detects_further_edit_to_dirty_file(self, repo: Path) -> None:
+        (repo / "README.md").write_text("operator edit\n", encoding="utf-8")
+        before = repository_snapshot(repo)
+        (repo / "README.md").write_text("supervisor edit\n", encoding="utf-8")
+        assert audit_since_snapshot(repo, before) == ["README.md"]
+
 
 # --------------------------------------------------------------------------- #
 # Collection-order independence
@@ -434,6 +471,22 @@ class TestHostAssistedInvariant:
             text = source.read_text(encoding="utf-8")
             for token in forbidden:
                 assert token not in text, f"{source}: reaches the network via {token}"
+
+
+class TestWorkflowContract:
+    def test_cycle_wires_fingerprint_record_and_write_audit(self) -> None:
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        assert "snapshot-writes" in text
+        assert "audit-since" in text
+        assert "--repo-root . fingerprint" in text
+        assert "record --keys \"$SUPERVISE_KEYS\"" in text
+
+    def test_dry_run_forbids_artifact_writing_child_skills(self) -> None:
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        assert "MUST NOT invoke" in text
+        assert "/bug-scrub" in text
+        assert "/explore-feature" in text
+        assert "/prioritize-proposals" in text
 
 
 # --------------------------------------------------------------------------- #

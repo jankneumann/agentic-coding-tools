@@ -92,16 +92,15 @@ _FORBIDDEN_WRITE_SUFFIXES = ("/specs/",)
 # Git / repository facts
 # --------------------------------------------------------------------------- #
 def _tree_listing(repo_root: Path) -> str:
-    """Blob digest + path for every tracked file at HEAD, minus this skill's own
-    ledger surface, or "" when this is not a git checkout with commits.
+    """Committed blobs plus staged/unstaged tracked changes, minus the ledger.
 
     Deliberately NOT the HEAD commit sha. The ledger under ``openspec/supervise/``
     is tracked, so recording a cycle and committing it advances HEAD; a fingerprint
     over the commit sha would therefore differ on every cycle-after-a-cycle and the
     unchanged-tree early exit could never fire once a recorded ledger was pushed.
-    Hashing the tree *content* excluding ``openspec/supervise/`` makes a
-    ledger-only commit invisible to the fingerprint while any real change — source,
-    roadmap, change directory — still lands in it.
+    Hashing the tree *content* and the binary-safe diff from HEAD, excluding only
+    :data:`LEDGER_PATH`, makes a ledger-only commit or edit invisible while any
+    real committed, staged, or unstaged tracked change still lands in it.
     """
     completed = subprocess.run(
         ["git", "-C", str(repo_root), "ls-tree", "-r", "HEAD"],
@@ -115,9 +114,27 @@ def _tree_listing(repo_root: Path) -> str:
         line
         for line in completed.stdout.splitlines()
         # ls-tree format: "<mode> <type> <object>\t<path>"
-        if "\t" in line and not line.split("\t", 1)[1].startswith("openspec/supervise/")
+        if "\t" in line and line.split("\t", 1)[1] != LEDGER_PATH
     ]
-    return "\n".join(sorted(lines))
+    worktree = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "diff",
+            "--binary",
+            "--no-ext-diff",
+            "HEAD",
+            "--",
+            ".",
+            f":(exclude){LEDGER_PATH}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    diff = worktree.stdout if worktree.returncode == 0 else ""
+    return "\n".join(sorted(lines)) + "\nworktree-diff:\n" + diff
 
 
 def active_change_ids(repo_root: Path) -> set[str]:
@@ -151,7 +168,7 @@ def compute_fingerprint(repo_root: Path) -> str:
     fingerprint, which is what lets a scheduled re-run detect that it has nothing
     new to do rather than re-proposing the same work.
 
-    The ledger surface is excluded from the tree component (see
+    The ledger file is excluded from the tree component (see
     :func:`_tree_listing`), so the record-commit-push of cycle N does not make
     cycle N+1 look like a changed tree.
     """
@@ -389,6 +406,87 @@ def audit_writes(paths: Iterable[str]) -> list[str]:
     return sorted(p for p in paths if classify_write(p) == "forbidden")
 
 
+def _changed_paths(repo_root: Path) -> dict[str, str]:
+    """Return porcelain status codes for every changed repository path."""
+    completed = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "status",
+            "--porcelain=v1",
+            "-z",
+            "--untracked-files=all",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return {}
+
+    records = completed.stdout.split(b"\0")
+    changed: dict[str, str] = {}
+    index = 0
+    while index < len(records):
+        record = records[index]
+        index += 1
+        if not record:
+            continue
+        text = record.decode("utf-8", errors="surrogateescape")
+        status = text[:2]
+        path = text[3:]
+        changed[path] = status
+        if "R" in status or "C" in status:
+            if index < len(records) and records[index]:
+                source = records[index].decode("utf-8", errors="surrogateescape")
+                changed[source] = status
+                index += 1
+    return changed
+
+
+def _path_state(repo_root: Path, path: str, status: str) -> str:
+    """Digest index, worktree, and file content state for one changed path."""
+    components = [f"status:{status}"]
+    for args in (
+        ["diff", "--binary", "--cached", "HEAD", "--", path],
+        ["diff", "--binary", "--", path],
+    ):
+        completed = subprocess.run(
+            ["git", "-C", str(repo_root), *args],
+            capture_output=True,
+            check=False,
+        )
+        components.append(completed.stdout.decode("utf-8", errors="surrogateescape"))
+
+    full_path = repo_root / path
+    if full_path.is_symlink():
+        components.append(f"symlink:{full_path.readlink()}")
+    elif full_path.is_file():
+        components.append("content:" + hashlib.sha256(full_path.read_bytes()).hexdigest())
+    else:
+        components.append("missing")
+    return hashlib.sha256("\n".join(components).encode("utf-8", errors="surrogateescape")).hexdigest()
+
+
+def repository_snapshot(repo_root: Path) -> dict[str, str]:
+    """Snapshot every currently changed path without modifying the checkout."""
+    return {
+        path: _path_state(repo_root, path, status)
+        for path, status in sorted(_changed_paths(repo_root).items())
+    }
+
+
+def audit_since_snapshot(repo_root: Path, before: dict[str, str]) -> list[str]:
+    """Audit paths whose repository state changed after *before* was captured."""
+    after = repository_snapshot(repo_root)
+    written = sorted(
+        path
+        for path in set(before) | set(after)
+        if before.get(path) != after.get(path)
+    )
+    return audit_writes(written)
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
@@ -433,6 +531,25 @@ def _cmd_audit_writes(args: argparse.Namespace) -> int:
     return 1 if violations else 0
 
 
+def _cmd_snapshot_writes(args: argparse.Namespace) -> int:
+    snapshot = repository_snapshot(Path(args.repo_root).resolve())
+    print(json.dumps(snapshot, indent=2, sort_keys=True))
+    return 0
+
+
+def _cmd_audit_since(args: argparse.Namespace) -> int:
+    repo = Path(args.repo_root).resolve()
+    before = json.loads(Path(args.snapshot).read_text(encoding="utf-8"))
+    if not isinstance(before, dict) or not all(
+        isinstance(path, str) and isinstance(state, str)
+        for path, state in before.items()
+    ):
+        raise ValueError("snapshot must be a JSON object mapping paths to state digests")
+    violations = audit_since_snapshot(repo, before)
+    print(json.dumps({"violations": violations}, indent=2))
+    return 1 if violations else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Deterministic supervise-cycle state.")
     parser.add_argument("--repo-root", default=".")
@@ -449,6 +566,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p_audit = sub.add_parser("audit-writes", help="Fail if any path is outside the coordination surface.")
     p_audit.add_argument("paths", nargs="*")
+    sub.add_parser("snapshot-writes", help="Print current changed-path state for a before/after audit.")
+    p_since = sub.add_parser("audit-since", help="Fail on forbidden writes made after a snapshot.")
+    p_since.add_argument("--snapshot", required=True)
 
     args = parser.parse_args(argv)
     return {
@@ -457,6 +577,8 @@ def main(argv: list[str] | None = None) -> int:
         "dedupe": _cmd_dedupe,
         "record": _cmd_record,
         "audit-writes": _cmd_audit_writes,
+        "snapshot-writes": _cmd_snapshot_writes,
+        "audit-since": _cmd_audit_since,
     }[args.command](args)
 
 
