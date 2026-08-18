@@ -446,6 +446,27 @@ class TestSyncProfiles:
             "trust_level": {"from": 2, "to": 3},
         }
 
+    async def test_updates_drifted_agent_type(self) -> None:
+        db = FakeDb(
+            [
+                _row(
+                    "grok_local",
+                    agent_type="legacy_grok",
+                    allowed_operations=derive_allowed_operations(["lock"], 3),
+                )
+            ]
+        )
+        audit = FakeAudit()
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        result = await sync_profiles(agents, db=db, audit=audit)
+
+        assert result.updated == ["grok_local"]
+        assert db.updates[0][1]["agent_type"] == "grok"
+        assert audit.payloads()[0]["changed_fields"] == {
+            "agent_type": {"from": "legacy_grok", "to": "grok"},
+        }
+
     async def test_reenables_disabled_registry_profile(self) -> None:
         db = FakeDb(
             [
