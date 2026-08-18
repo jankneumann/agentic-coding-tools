@@ -960,6 +960,7 @@ UNMANAGED_PROFILES: frozenset[str] = frozenset({"evaluator"})
 #: profile-sync audit contract). Everything else on the row — descriptions,
 #: resource limits, network policy — stays operator-owned.
 SYNC_TRACKED_FIELDS: tuple[str, ...] = (
+    "agent_type",
     "trust_level",
     "allowed_operations",
     "enabled",

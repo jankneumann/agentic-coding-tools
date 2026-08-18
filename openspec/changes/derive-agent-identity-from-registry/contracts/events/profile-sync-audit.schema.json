@@ -22,7 +22,7 @@
     },
     "changed_fields": {
       "type": "object",
-      "description": "Present for action=update: field -> {from, to} pairs limited to trust_level, allowed_operations, enabled",
+      "description": "Present for action=update: field -> {from, to} pairs limited to agent_type, trust_level, allowed_operations, enabled",
       "additionalProperties": {
         "type": "object",
         "required": ["from", "to"]
