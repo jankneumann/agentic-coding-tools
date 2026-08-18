@@ -52,7 +52,7 @@
     ],
     "next_steps": [
       "Gate 2 approval, then /implement-feature introduce-fitness-function-gates starting with wp-schema.",
-      "Mark validate-feature-findings-gate proposal SUPERSEDED early (task 1.6) so no one starts it in parallel."
+      "Record validate-feature-findings-gate as superseded in this proposal (task 1.6) so no one starts it in parallel."
     ],
     "relevant_files": [
       {

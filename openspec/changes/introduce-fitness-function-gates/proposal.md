@@ -139,8 +139,8 @@ known.
 - **CI**: `.github/workflows/ci.yml` — additive coverage job (three prior changes
   landed jobs in this file; edits must not clobber them).
 - **Config**: `architecture.config.yaml` (`severity_thresholds`, ratchet flag).
-- **Superseded**: `openspec/changes/validate-feature-findings-gate/` (marked in its
-  proposal; absorbed here).
+- **Superseded**: `validate-feature-findings-gate` (recorded here without touching
+  its change directory; absorbed by this proposal).
 - **Known conflicts to sequence around**: `add-product-management-skills` and
   `add-visual-plan-review` both plan edits to the same templates/SKILL.md (both at 0
   tasks; this change lands first).

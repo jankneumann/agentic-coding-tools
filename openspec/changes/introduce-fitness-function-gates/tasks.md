@@ -25,7 +25,7 @@ Scenario references use document order within each delta spec:
 - [x] 1.5 Update axis tables in parallel-review SKILL.md files, impl_review_driver prompt, skills catalogue [S]
   **Design decisions**: D2
   **Dependencies**: 1.2
-- [x] 1.6 Mark validate-feature-findings-gate proposal SUPERSEDED [XS]
+- [x] 1.6 Record validate-feature-findings-gate as superseded in this change [XS]
   **Design decisions**: D7
   **Dependencies**: None
 - [x] Checkpoint: run tests, review diff, verify scope

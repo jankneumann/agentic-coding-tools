@@ -13,7 +13,7 @@
 3. **Consensus matching gains axis as first-class field** `architectural: fitness-functions` — consensus_synthesizer.py silently drops axis, contradicting documented (axis, file_path, line_range) matching; fixing it is prerequisite for NFR findings to survive review.
 4. **Architecture gate is config-ratcheted: advisory now, blocking flip after 3 clean runs** `architectural: fitness-functions` — Immediate blocking risks failing in-flight changes on pre-existing findings; mirrors context-drift-gate rollout precedent. New dependency cycles are the first blocking check.
 5. **DEGRADED is a first-class gate status distinct from PASS** `architectural: fitness-functions` — GATEKEEPER fallback, sub-2-vendor review, and --allow-degraded-pass currently fail open indistinguishably from passing; hard gate blocks on DEGRADED required phases unless --accept-degraded is explicitly passed and logged.
-6. **Supersede validate-feature-findings-gate** `architectural: fitness-functions` — Untouched change (0/31 tasks) targeting the same gate/schema surface; marked superseded per add-update-documentation-skill precedent.
+6. **Supersede validate-feature-findings-gate** `architectural: fitness-functions` — Untouched change (0/31 tasks) targeting the same gate/schema surface; supersession is recorded in this active change to preserve one-change-directory CI ownership.
 
 ### Alternatives Considered
 - Declarative fitness-functions.yaml registry + generic runner (Approach 2): rejected because Abstraction before the underlying signals exist; XL effort; recorded as follow-up refactor.
@@ -31,7 +31,7 @@
 
 ### Next Steps
 - Gate 2 approval, then /implement-feature introduce-fitness-function-gates starting with wp-schema.
-- Mark validate-feature-findings-gate proposal SUPERSEDED early (task 1.6) so no one starts it in parallel.
+- Record validate-feature-findings-gate as superseded in this proposal (task 1.6) so no one starts it in parallel.
 
 ### Relevant Files
 - `openspec/changes/introduce-fitness-function-gates/proposal.md` — approved proposal with selected Approach 1

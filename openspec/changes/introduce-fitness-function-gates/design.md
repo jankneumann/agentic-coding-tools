@@ -96,11 +96,12 @@ path, security phase under `--allow-degraded-pass`, validate-feature phases whos
 checker binary/service is absent. Rejected: treating DEGRADED as failure everywhere
 (would make missing optional tooling block merges and incentivize deleting the check).
 
-### D7: Supersede `validate-feature-findings-gate` by marking, not deleting
+### D7: Record `validate-feature-findings-gate` as superseded here
 
-Its proposal gets a `**SUPERSEDED — do not implement**` header pointing here (house
-precedent: `add-update-documentation-skill`). Its 0/31 tasks are not migrated; the
-findings-gate intent is covered by D3/D4/D6.
+This active proposal records the supersession without editing the other change
+directory, preserving the CI invariant that a pull request owns exactly one OpenSpec
+change. Its 0/31 tasks are not migrated; the findings-gate intent is covered by
+D3/D4/D6.
 
 ### D8: NFR capture is a template contract, not free text
 

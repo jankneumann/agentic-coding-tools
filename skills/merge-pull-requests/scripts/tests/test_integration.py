@@ -154,7 +154,11 @@ class TestSoloDevBackwardCompatibility:
             "strategy": "squash",
         }
 
-        result = merge_pr(42, "squash")
+        with patch(
+            "merge_pr.capture_head",
+            return_value={"branch": "main", "sha": "a" * 40},
+        ):
+            result = merge_pr(42, "squash")
 
         assert result["success"] is True
         assert "post_merge" not in result
