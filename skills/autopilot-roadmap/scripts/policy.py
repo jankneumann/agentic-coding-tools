@@ -137,6 +137,75 @@ def _evaluate_wait(
     )
 
 
+# ---------------------------------------------------------------------------
+# Local-endpoint gate (OpenSpec add-local-model-provider-tier, D5)
+# ---------------------------------------------------------------------------
+
+_LOCAL_VENDOR = "local"
+
+# Optional probe override (vendor availability -> bool). Default None uses the
+# dispatch adapter's own probe; the hook exists so tests and alternate runtimes
+# can inject a verdict without importing the adapter.
+_local_endpoint_probe: "Callable[[], bool] | None" = None
+
+
+def set_local_endpoint_probe(fn: "Callable[[], bool] | None") -> None:
+    """Wire a local-endpoint availability probe. None restores the default."""
+    global _local_endpoint_probe
+    _local_endpoint_probe = fn
+
+
+def _local_endpoint_available() -> bool:
+    """Whether the `local` vendor's inference endpoint answered its health probe.
+
+    Falls back to ``provider_dispatch.local_endpoint_available`` (the adapter that
+    owns the probe). Any failure to consult the probe is read as *unavailable* —
+    the engine never switches onto an endpoint it cannot verify.
+
+    The verdict is re-consulted on every evaluation and is never memoized here:
+    the adapter's own verdict is TTL'd (and invalidated on a dispatch connection
+    error), so an endpoint that recovers becomes selectable again, and one that
+    dies stops being selected — neither state is pinned for the process lifetime.
+    """
+    probe = _local_endpoint_probe
+    if probe is None:
+        try:
+            _autopilot_dir = (
+                Path(__file__).resolve().parent.parent.parent / "autopilot" / "scripts"
+            )
+            if str(_autopilot_dir) not in sys.path:
+                sys.path.insert(0, str(_autopilot_dir))
+            from provider_dispatch import (  # type: ignore[import-untyped]
+                local_endpoint_available,
+            )
+        except ImportError:
+            return False
+        probe = local_endpoint_available
+
+    try:
+        return bool(probe())
+    except Exception:  # noqa: BLE001 — an unusable probe means "not a switch target"
+        return False
+
+
+def _selectable_alternates(alternates: list[str]) -> list[str]:
+    """Drop switch targets that are known-unreachable.
+
+    Only `local` is gated; every pre-existing vendor passes through untouched, so
+    a vendor universe without `local` (the current default in
+    ``autopilot-roadmap/scripts/orchestrator.py``) behaves exactly as before.
+    """
+    if _LOCAL_VENDOR not in alternates:
+        return alternates
+    if _local_endpoint_available():
+        return alternates
+    logger.info(
+        "policy.gate: excluding vendor=%s from switch targets (health probe failed)",
+        _LOCAL_VENDOR,
+    )
+    return [v for v in alternates if v != _LOCAL_VENDOR]
+
+
 def _evaluate_switch(
     policy: Policy,
     vendor_limit: VendorLimit,
@@ -145,6 +214,8 @@ def _evaluate_switch(
     switch_attempts: int,
 ) -> PolicyDecision:
     """Produce a switch or fail_closed decision."""
+    alternates = _selectable_alternates(alternates)
+
     if not alternates:
         logger.info(
             "policy.fail_closed: no alternates for vendor=%s", from_vendor,

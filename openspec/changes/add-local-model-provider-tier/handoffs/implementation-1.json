@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-16T12:06:33.034146+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented the local provider tier across four work packages in the coordinated tier (cloud variant: single checkout, file-scope isolation, parallel implementer sub-agents). Independent review (same-vendor fallback) returned request-changes with 20 findings; all critical/major and 18 of 20 total were fixed in a second round, one deferred as a follow-up.",
+    "completed_work": [
+      "wp-contracts: roster-entry contract validated and frozen (+ OpenAPI 403 delta in review round)",
+      "wp-coordinator: local roster with hardware-matching validation, trust boundary with audited 403 refusals, byte-identical regression guard (2208 coordinator tests green, mypy --strict, ruff)",
+      "wp-dispatch: OpenAI-compatible adapter with probe TTL, wall-clock deadlines, concurrency cap, defense-in-depth allowlist; policy-engine gate; smoke selector (2368 skills tests green, ruff)",
+      "wp-integration: operator docs, provider-model-map schema delta, full quality gates, review round with 19/20 findings fixed"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Defense-in-depth trust boundary in the adapter",
+        "rationale": "Review F-02: resolver-only enforcement is defeated when the coordinator is unreachable; the local dispatch path now refuses absent/non-permitted archetypes itself",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Probe cache TTL 30s + connection-error invalidation",
+        "rationale": "Review F-03: a permanent verdict cannot express liveness; policy engine re-consults each evaluation",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Served model map strips local roster metadata",
+        "rationale": "Review F-05: hardware metadata is load-time validation input, not part of the canonical ProviderModelMap contract",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Smoke path uses INIT/runner for local",
+        "rationale": "Review F-01 (critical): the IMPLEMENT payload violated the trust boundary the change itself introduces; refusals are now hard smoke failures",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "403 refusal declared as OpenAPI delta",
+        "rationale": "Review F-06: new response shape is a contract change and must be declared in this change's contracts",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "validate-feature deferred phases (deploy/smoke/security/e2e) at merge time \u2014 Docker unavailable in this container (soft-gate skip recorded)",
+      "File the F-15 bridge follow-up as a coordinator issue"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/autopilot/scripts/provider_dispatch.py",
+        "description": "local adapter with boundary check, probe, deadlines, cap"
+      },
+      {
+        "path": "agent-coordinator/src/agents_config.py",
+        "description": "roster validation, trust boundary, served-map normalization"
+      },
+      {
+        "path": "openspec/changes/add-local-model-provider-tier/change-context.md",
+        "description": "traceability matrix + 20 review findings with dispositions"
+      }
+    ]
+  }
+}
