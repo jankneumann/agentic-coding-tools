@@ -1,0 +1,332 @@
+schema_version: 1
+roadmap_id: closed-loop-learning
+source_proposal: openspec/roadmaps/closed-loop-learning/proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: ri-01
+  title: Schedule the learning flywheel pipeline
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Turn the existing collect-transcripts -> episodic memory -> improve-harness
+    -> proposal-stub pipeline into a recurring scheduled job (coordinator cron or
+    harness scheduled task behind the adapter seam) that runs transcript collection
+    and gap analysis weekly, files coordinator issues for capability gaps above a
+    frequency x severity threshold, and feeds candidate proposals into /prioritize-proposals.
+  rationale: The learning pipeline is built but hand-cranked; nothing schedules it,
+    so capability-gap signal accumulates unread. This delivers repo-improvement ri-12,
+    unblocks its ri-13 consumers, and is sequenced first because every other capability
+    in this epic consumes the signal it produces.
+  change_id: schedule-the-learning-flywheel-pipeline
+  acceptance_outcomes:
+  - A scheduled job runs the transcript-collection and gap-analysis pipeline at least
+    weekly with zero human invocation, and each run appears in the audit log.
+  - Capability gaps above the configured frequency x severity threshold automatically
+    produce a coordinator issue carrying the memory-conventions tag set.
+  - Improve-harness-generated candidates appear in the /prioritize-proposals queue
+    alongside feature work.
+  - The repo-improvement roadmap marks ri-12 as delivered by this item, with no duplicate
+    implementation.
+- item_id: ri-02
+  title: Build the coordinator signal-type registry
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on:
+  - ri-01
+  description: Add a versioned, coordinator-served signal-type registry in Postgres
+    that extends the memory-conventions failure_type taxonomy, where each signal type
+    carries a detection prompt describing how that failure manifests. Includes the
+    local file fallback per the coordination-bridge degradation ladder and updates
+    the memory-conventions guide (the single canonical schema statement, not per-skill
+    copies).
+  rationale: The registry is the shared substrate for semantic recall - lessons map
+    to signal types and the classifier maps diagnoses to them. Coordinator Postgres
+    storage is what makes recall fleet-wide, the strategic payoff over Abacus's per-process
+    JSON files.
+  change_id: build-the-coordinator-signal-type-registry
+  acceptance_outcomes:
+  - The coordinator serves a versioned signal-type registry where each entry pairs
+    a failure_type-style tag with a detection prompt, backed by Postgres with the
+    documented file-fallback ladder.
+  - Adding or refining a signal type is a registry data change requiring no skill-code
+    change.
+  - The memory-conventions guide is updated in exactly one canonical place to document
+    the signal-type extension, and the deleted memory_working/memory_procedural tables
+    are not reintroduced.
+  - Registry reads degrade to the file fallback (no-op, never block) when the coordinator
+    is unreachable.
+- item_id: ri-03
+  title: Map recorded lessons to signal types
+  status: candidate
+  priority: 1
+  effort: S
+  depends_on:
+  - ri-02
+  description: Extend the existing remember tool path so failure lessons are mapped
+    to one or more registry signal types alongside their capability_gap and affected_skill
+    tags, with recorded strength usable by the recall economics.
+  rationale: Recall by meaning requires lessons to be indexed by signal type at write
+    time; this wires the writer half so the detection hook has something to recall,
+    satisfying the writer-plus-automated-reader rule for the new state.
+  change_id: map-recorded-lessons-to-signal-types
+  acceptance_outcomes:
+  - A lesson recorded via the remember tool persists with at least one signal-type
+    mapping alongside its memory-conventions tags, stored in coordinator Postgres.
+  - Lessons mapped to a given signal type are queryable through the coordinator from
+    any machine reaching it.
+  - Writes use the memory-conventions tag schema unchanged except for the signal-type
+    extension.
+- item_id: ri-04
+  title: Add anomaly-gated semantic failure detection hook
+  status: candidate
+  priority: 1
+  effort: L
+  depends_on:
+  - ri-02
+  - ri-03
+  description: Implement a PostToolUse hook (Claude Code adapter first) with two stages,
+    a deterministic anomaly gate (failed tool calls, nonzero exits, error-shaped output)
+    that decides when to classify, and an economy-tier classifier that parses the
+    recent trace and maps its diagnosis to registry signal types with a confidence
+    score. Detection prompts for all active signal types are batched into one windowed
+    call, verdicts are cached per session against a context fingerprint, and cost
+    is attributed and capped.
+  rationale: This replaces Abacus's fragile exact-string tripwires with semantic detection,
+    the deliberate departure named in the proposal - the same root cause recurs under
+    different wording across vendors, and this repo has been bitten by string matching
+    before. The anomaly gate is purely a cost valve, never a match verdict.
+  change_id: add-anomaly-gated-semantic-failure-detection-hook
+  acceptance_outcomes:
+  - No classification occurs on clean tool results; the deterministic anomaly gate
+    alone decides when the classifier runs and never decides what matched.
+  - Each detection event issues exactly one windowed classification call batching
+    all active detection prompts to an economy-tier model, never one call per lesson.
+  - Verdicts are cached per session against a context fingerprint, and per-session
+    detection cost is attributed in usage accounting and capped.
+  - No exact string matching exists anywhere on the detection path, and malformed
+    or low-confidence verdicts are discarded with no steering power.
+  - The hook lands behind the per-harness adapter seam and degrades to a no-op (never
+    a block) when the coordinator or hook surface is unavailable, and no LLM SDK calls
+    appear inside skill scripts/.
+- item_id: ri-05
+  title: Inject recalled lessons with Abacus recall economics
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on:
+  - ri-04
+  description: On a confident, format-conforming verdict, inject the lessons mapped
+    to the detected signal types as context at the point of failure. Adopt the Abacus
+    recall economics unchanged, lesson strength decays with a 14-day half-life, recall
+    cooldown shrinks from 4 hours toward 5 minutes as strength grows, and the strongest
+    lessons are force-recalled after two consecutive failed tool calls, all under
+    a per-turn injection cap.
+  rationale: Injection at the point of failure is the one place the model is guaranteed
+    to be looking; the decay, cooldown, and force-recall economics bound injection
+    volume so recall cannot become context pollution, per the proposal's constraints.
+  change_id: inject-recalled-lessons-with-abacus-recall-economics
+  acceptance_outcomes:
+  - A confident verdict injects the mapped lessons at the point of failure; malformed
+    or low-confidence verdicts produce no injection.
+  - A lesson unencountered for four weeks measurably drops below half its recorded
+    strength and stops surfacing except on force-recall.
+  - Force-recall of the strongest lessons triggers after two consecutive failed tool
+    calls.
+  - Injection volume never exceeds the cooldown schedule or the per-turn cap in any
+    session.
+  - The mechanism ships off by default pending the ri-06 evaluation gate.
+- item_id: ri-06
+  title: Evaluate lesson recall and gate enablement
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-05
+  description: Add a gen-eval paraphrase-recall scenario asserting cross-session,
+    cross-vendor recall under different surface wording, measure the false-positive
+    injection rate against a configured threshold, and gate default-on enablement
+    on beating the no-injection baseline.
+  rationale: The semantic-context-injection norm requires any context-injecting mechanism
+    to be eval-gated off by default until it records a pass against baseline; the
+    paraphrase scenario also proves the semantic trigger succeeds where exact string
+    matching would fail.
+  change_id: evaluate-lesson-recall-and-gate-enablement
+  acceptance_outcomes:
+  - A gen-eval scenario shows a lesson recorded from one failure being injected in
+    a later session (different vendor or machine via the coordinator) when the same
+    root cause recurs under different surface wording that exact string matching would
+    miss.
+  - The measured false-positive injection rate is below the configured threshold.
+  - Default-on enablement is recorded only after the scenario beats the no-injection
+    baseline; until then the feature stays off by default.
+- item_id: ri-07
+  title: Evolve the signal-type registry through the flywheel
+  status: candidate
+  priority: 3
+  effort: S
+  depends_on:
+  - ri-01
+  - ri-02
+  description: Teach improve-harness to propose new signal types and detection-prompt
+    refinements from clustered capability gaps, versioning each registry update so
+    the taxonomy itself learns through the scheduled flywheel.
+  rationale: The proposal makes the registry a living taxonomy updated by the flywheel
+    rather than a static list, closing the loop between recorded capability gaps and
+    future detection coverage.
+  change_id: evolve-the-signal-type-registry-through-the-flywheel
+  acceptance_outcomes:
+  - A scheduled improve-harness run over clustered capability gaps emits proposed
+    signal-type additions or detection-prompt refinements as registry updates.
+  - Each accepted update produces a new registry version, and prior versions remain
+    auditable.
+  - Applying a proposed registry update requires no skill-code change.
+- item_id: ri-08
+  title: Compute earned maturity tiers from dispatch outcomes
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-01
+  description: Add a coordinator service that derives a maturity tier per (vendor
+    x archetype) from the dispatch ledger over a rolling window, using the Abacus
+    priors, leave probing after 3 clean runs, reach full trust after 12 clean runs
+    with under 30% worker failure rate, with failures paying the tier back down. Expose
+    the tier and its underlying outcome aggregates via a coordinator endpoint in the
+    shape the ri-13 routing scorecard specifies.
+  rationale: Replaces "confidence is configured" with "confidence is earned" from
+    recorded outcomes, and the aggregates it maintains are the same numbers the ri-13
+    scorecard and the add-adaptive-model-router signal ledger need, so this feeds
+    routing rather than competing with it.
+  change_id: compute-earned-maturity-tiers-from-dispatch-outcomes
+  acceptance_outcomes:
+  - The coordinator serves a maturity tier per (vendor x archetype) computed from
+    the dispatch ledger, with unit tests covering promotion thresholds and tier demotion
+    on failures.
+  - Outcome aggregates are queryable in the shape the ri-13 routing scorecard specifies,
+    and the adaptive-model-router change can consume them without schema translation.
+  - Tier computation parameters (clean-run thresholds, failure-rate ceiling, window)
+    are configuration, not code constants.
+- item_id: ri-09
+  title: Wire earned tiers into orchestrator dispatch
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-08
+  description: Inject the earned maturity tier as guidance into autopilot, implement-feature,
+    and plan-feature at dispatch time, probing tiers get low-risk separable sub-work
+    and scouts first, mature tiers get aggressive parallel fan-out, with earned tiers
+    only ever narrowing within the agents.yaml trust_level ceiling and TRUST_POSTURE.md
+    gates.
+  rationale: Tiers only change behavior if orchestrators consult them; this makes
+    delegation aggressiveness a number derived from outcomes while keeping statically
+    configured trust ceilings absolute, per the proposal's constraint.
+  change_id: wire-earned-tiers-into-orchestrator-dispatch
+  acceptance_outcomes:
+  - Orchestrator skills consult the tier endpoint at dispatch time, and fan-out behavior
+    differs observably between probing and mature tiers in a gen-eval scenario driven
+    by a synthetic ledger.
+  - No dispatch ever exceeds the configured trust_level or a TRUST_POSTURE.md gate
+    regardless of earned tier.
+  - SKILL.md contracts remain vendor-neutral, and dispatch proceeds under static configuration
+    (no-op degradation) when the tier endpoint is unreachable.
+- item_id: ri-10
+  title: Add compaction-edge reflection pass
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-03
+  description: Add a PreCompact hook in the Claude Code adapter that runs one bounded
+    reflection pass before context compaction, a single dispatched look back over
+    the turn's actions with a restricted toolset (record to episodic memory, record
+    a signal-type-mapped lesson, update the current handoff), using an economy-tier
+    model, writing durable records or nothing and discarding the reflection transcript
+    itself.
+  rationale: Phase-boundary handoffs guard phase edges but compaction destroys evidence
+    at context edges, which is currently unguarded; capturing knowledge right before
+    the verbatim context is summarized away closes that gap.
+  change_id: add-compaction-edge-reflection-pass
+  acceptance_outcomes:
+  - When compaction fires in a Claude Code session, a reflection pass runs first and
+    any records it writes land in episodic memory or the handoff store before the
+    verbatim context is summarized away.
+  - At most one reflection is dispatched per compaction, under a hard step cap, on
+    an economy-tier model, with only the restricted toolset available.
+  - The reflection transcript is discarded and only the written records persist.
+  - The pass degrades to a no-op (never a block) when the coordinator is unreachable.
+- item_id: ri-11
+  title: Extend reflection to harnesses without PreCompact
+  status: candidate
+  priority: 3
+  effort: S
+  depends_on:
+  - ri-10
+  description: Give harnesses lacking a PreCompact surface the same bounded reflection
+    at session end via their adapter's Stop or SessionEnd hooks, and document per-harness
+    coverage in the adapter matrix.
+  rationale: All harness integration must land behind the adapter seam with graceful
+    degradation; session-end reflection is the documented degradation path so knowledge
+    capture is fleet-wide, not Claude-only.
+  change_id: extend-reflection-to-harnesses-without-precompact
+  acceptance_outcomes:
+  - A harness without PreCompact runs the same bounded reflection at session end via
+    its adapter, writing to the same stores.
+  - The adapter matrix documents per-harness reflection coverage and the hook each
+    harness uses.
+  - Missing hook surfaces degrade to a no-op, never a block.
+- item_id: ri-12
+  title: Build flagged behavioral drift monitor
+  status: candidate
+  priority: 4
+  effort: L
+  depends_on:
+  - ri-05
+  - ri-09
+  description: Adapt Abacus tethering as an off-by-default drift check, derive an
+    intent snapshot at session start from the loaded handoff and active goal or change
+    proposal, then have a step-counting hook periodically compare recent user prompts,
+    assistant text, and tool-call names (never tool outputs) against the intent using
+    an economy-tier model, with a reserved window share for user prompts. An off-track
+    verdict injects a course correction for a bounded number of turns, surfaces it
+    visibly in the transcript, and records a failure_type:scope_violation candidate
+    to episodic memory.
+  rationale: Drift between stated intent and actual activity is otherwise caught only
+    by humans; the proposal sequences this last and behind a flag because it injects
+    steering context and must earn enablement through evaluation.
+  change_id: build-flagged-behavioral-drift-monitor
+  acceptance_outcomes:
+  - The check window never includes tool outputs and always reserves the configured
+    fixed share for user prompts, so a long build phase cannot flush them out.
+  - An off-track verdict produces a course correction injected for at most the bounded
+    number of subsequent turns, surfaced visibly in the transcript, and recorded to
+    episodic memory as a failure_type:scope_violation candidate.
+  - Per-check cost is bounded and attributed in usage accounting.
+  - The feature is off by default behind a flag and degrades to a no-op when the coordinator
+    or hook surface is unavailable.
+- item_id: ri-13
+  title: Evaluate drift check and gate enablement
+  status: candidate
+  priority: 4
+  effort: S
+  depends_on:
+  - ri-12
+  description: Add a gen-eval scenario with a seeded drifting session and an on-track
+    control session, and gate default-on enablement of the drift monitor on a recorded
+    pass against the no-drift-check baseline.
+  rationale: The repo's injection-evidence norm requires the drift check to beat a
+    baseline before default-on; the paired scenario proves both detection of real
+    drift and silence on on-track sessions.
+  change_id: evaluate-drift-check-and-gate-enablement
+  acceptance_outcomes:
+  - The seeded drifting session receives an off-track verdict and a bounded course
+    correction in the gen-eval scenario.
+  - The on-track control session receives no injection.
+  - Default-on enablement is recorded only after a pass against the no-drift-check
+    baseline; until then the flag stays off.
+updated_at: '2026-08-19T03:37:15.697074+00:00'
