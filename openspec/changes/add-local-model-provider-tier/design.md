@@ -36,9 +36,12 @@ assume local model supply exists. Source evaluation:
 - **D1 — `local` is a first-class provider** in `_SUPPORTED_PROVIDERS` and
   `model_aliases`, following the `pi` pattern (Gate 1 selection). Keeps local a distinct
   vendor for trust, routing, audit, and rate-limit policy.
-- **D2 — Adapter speaks OpenAI chat-completions** to `LOCAL_INFERENCE_BASE_URL`
-  (optional `LOCAL_INFERENCE_API_KEY`). No SDK dependency; reuse the repo's existing
-  HTTP client conventions. Serving stack behind the URL is out of scope.
+- **D2 — Adapter dispatches through the existing Pi coding-agent harness.** A
+  one-shot extension registers the distinct `local` provider against
+  `LOCAL_INFERENCE_BASE_URL` (optional `LOCAL_INFERENCE_API_KEY`) using Pi OpenAI
+  completions support. Pi supplies the file, command, edit, and handoff tool loop;
+  stdlib HTTP is used only for the bounded health probe. The serving stack behind
+  the URL is out of scope.
 - **D3 — Trust boundary enforced in the resolver**, not the caller:
   `resolve_archetype_for_phase` fails with a structured error (naming the permitted list
   `runner`, `analyst`, `documenter`, `validator`) when provider `local` pairs with
@@ -94,7 +97,8 @@ assume local model supply exists. Source evaluation:
 Config-and-code-only, no data migration. Rollout: land roster + validation + adapter
 with `LOCAL_INFERENCE_BASE_URL` unset — provider is inert (structured fallback), CI
 proves byte-identical resolution for other providers (D6). Operator enables by
-deploying a serving stack on the GX10 and setting the env vars; smoke path
+deploying a serving stack on the GX10, installing the `pi` CLI, and setting the
+env vars; smoke path
 (`local` selector, dry-run then real mode) verifies before any autopilot use.
 Rollback: unset the env vars (adapter degrades to fallback immediately); full removal
 is deleting the roster entry and provider constant — no persisted state.

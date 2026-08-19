@@ -1,14 +1,16 @@
 """Tests for the provider dispatch layer's `local` adapter.
 
-All tests stub the HTTP layer — no real network traffic is ever issued.
+All endpoint probes and agent-CLI runs are stubbed; no real traffic is issued.
 """
 
 from __future__ import annotations
 
+import json
 import sys
 import threading
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -60,12 +62,21 @@ def _payload(**overrides: Any) -> PhaseDispatchPayload:
     return PhaseDispatchPayload(**data)
 
 
-def _chat_response(content: str, model: str = "qwen3-coder-30b-a3b") -> dict[str, Any]:
-    return {
-        "id": "chatcmpl-1",
-        "model": model,
-        "choices": [{"index": 0, "message": {"role": "assistant", "content": content}}],
+def _harness_result(content: str, *, returncode: int = 0) -> SimpleNamespace:
+    event = {
+        "type": "message_end",
+        "message": {
+            "role": "assistant",
+            "content": [{"type": "text", "text": content}],
+        },
     }
+    return SimpleNamespace(returncode=returncode, stdout=json.dumps(event), stderr="")
+
+
+def _harness_success(handoff_id: str = "handoff-42") -> SimpleNamespace:
+    return _harness_result(
+        json.dumps({"outcome": "complete", "handoff_id": handoff_id})
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -89,6 +100,49 @@ def test_existing_providers_still_fall_back_without_a_runner() -> None:
     assert result.outcome == "failed"
     assert result.handoff_id == "fallback:codex:IMPLEMENT"
     assert any("adapter unavailable" in w for w in result.warnings)
+
+
+
+def test_local_dispatch_uses_tool_capable_agent_harness(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A model-only chat response must never masquerade as an agent run."""
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    monkeypatch.setattr(
+        provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
+    )
+
+    captured: list[PhaseDispatchPayload] = []
+
+    def _run(payload: PhaseDispatchPayload) -> SimpleNamespace:
+        captured.append(payload)
+        final = {
+            "type": "message_end",
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "{\"outcome\":\"complete\",\"handoff_id\":\"handoff-42\"}",
+                    }
+                ],
+            },
+        }
+        events = [{"type": "start"}, final]
+        return SimpleNamespace(
+            returncode=0,
+            stdout="\n".join(json.dumps(event) for event in events),
+            stderr="",
+        )
+
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _run)
+
+    result = dispatch_phase(_payload())
+
+    assert captured == [_payload()]
+    assert result.outcome == "complete"
+    assert result.handoff_id == "handoff-42"
+    assert result.dispatch_tier == "harness"
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +172,7 @@ def test_unset_base_url_never_touches_the_network(
         raise AssertionError("network layer must not be called")
 
     monkeypatch.setattr(provider_dispatch, "_http_get_json", _boom)
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _boom)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _boom)
 
     result = dispatch_phase(_payload())
 
@@ -139,7 +193,7 @@ def test_failing_health_probe_degrades_to_fallback(
     monkeypatch.setattr(provider_dispatch, "_http_get_json", _probe_fails)
     monkeypatch.setattr(
         provider_dispatch,
-        "_http_post_json",
+        "_run_local_agent_cli",
         lambda *a, **k: posted.append("post") or {},
     )
 
@@ -182,7 +236,7 @@ def test_dispatch_error_degrades_instead_of_raising(
     def _post_fails(*args: Any, **kwargs: Any) -> dict[str, Any]:
         raise OSError("connection reset")
 
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _post_fails)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _post_fails)
 
     result = dispatch_phase(_payload())
 
@@ -223,8 +277,8 @@ def test_probe_is_cached_within_its_ttl(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(provider_dispatch, "_http_get_json", _probe)
     monkeypatch.setattr(
         provider_dispatch,
-        "_http_post_json",
-        lambda *a, **k: _chat_response("done"),
+        "_run_local_agent_cli",
+        lambda *a, **k: _harness_success(),
     )
 
     dispatch_phase(_payload())
@@ -299,7 +353,7 @@ def test_dispatch_connection_error_invalidates_the_probe_verdict(
     def _post_fails(*args: Any, **kwargs: Any) -> dict[str, Any]:
         raise OSError("connection refused")
 
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _post_fails)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _post_fails)
 
     first = dispatch_phase(_payload())
     assert first.dispatch_tier == "fallback"
@@ -365,7 +419,7 @@ def test_non_http_base_url_is_rejected_without_probing(
         raise AssertionError("network layer must not be called")
 
     monkeypatch.setattr(provider_dispatch, "_http_get_json", _boom)
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _boom)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _boom)
 
     assert local_endpoint_available() is False
 
@@ -401,7 +455,7 @@ def test_untrusted_archetype_never_reaches_the_endpoint(
         raise AssertionError("trust-boundary payload must not touch the network")
 
     monkeypatch.setattr(provider_dispatch, "_http_get_json", _boom)
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _boom)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _boom)
 
     result = dispatch_phase(_payload(archetype=archetype, phase="IMPLEMENT"))
 
@@ -420,7 +474,7 @@ def test_trusted_archetypes_dispatch(
         provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
     )
     monkeypatch.setattr(
-        provider_dispatch, "_http_post_json", lambda *a, **k: _chat_response("done")
+        provider_dispatch, "_run_local_agent_cli", lambda *a, **k: _harness_success()
     )
 
     result = dispatch_phase(_payload(archetype=archetype))
@@ -467,7 +521,7 @@ def test_unresolved_model_degrades_instead_of_sending_a_placeholder(
         raise AssertionError("a payload without a model must not be dispatched")
 
     monkeypatch.setattr(provider_dispatch, "_http_get_json", _boom)
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _boom)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _boom)
 
     result = dispatch_phase(_payload(model=model))
 
@@ -481,63 +535,54 @@ def test_unresolved_model_degrades_instead_of_sending_a_placeholder(
 # ---------------------------------------------------------------------------
 
 
-def test_trickling_endpoint_hits_the_dispatch_deadline(
+def test_harness_timeout_hits_the_dispatch_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A byte-trickling endpoint must not park the phase past the deadline."""
+    """A timed-out agent CLI must not park the phase past the deadline."""
     monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
     monkeypatch.setattr(provider_dispatch, "_LOCAL_DISPATCH_TIMEOUT_SECONDS", 0.2)
     monkeypatch.setattr(
         provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
     )
 
-    stop = threading.Event()
+    def _timeout(payload: PhaseDispatchPayload) -> SimpleNamespace:
+        raise provider_dispatch.subprocess.TimeoutExpired(cmd="pi", timeout=0.2)
 
-    def _trickle(*args: Any, **kwargs: Any) -> dict[str, Any]:
-        stop.wait(30)  # never returns within the deadline
-        return _chat_response("too late")
-
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _trickle)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _timeout)
 
     started = time.monotonic()
     result = dispatch_phase(_payload())
     elapsed = time.monotonic() - started
-    stop.set()
 
     assert elapsed < 5.0
     assert result.dispatch_tier == "fallback"
     assert result.outcome == "failed"
-    assert any("LocalDeadlineExceeded" in w for w in result.warnings)
+    assert any("TimeoutExpired" in warning for warning in result.warnings)
 
 
-def test_trickling_endpoint_frees_its_concurrency_slot(
+def test_harness_timeout_frees_its_concurrency_slot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A stuck dispatch must not hold a semaphore slot forever."""
+    """A timed-out agent CLI must release its semaphore slot."""
     monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
     monkeypatch.setenv("LOCAL_INFERENCE_MAX_CONCURRENCY", "1")
-    monkeypatch.setattr(provider_dispatch, "_LOCAL_DISPATCH_TIMEOUT_SECONDS", 0.2)
     monkeypatch.setattr(
         provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
     )
-
-    stop = threading.Event()
     calls = {"n": 0}
 
-    def _post(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    def _run(payload: PhaseDispatchPayload) -> SimpleNamespace:
         calls["n"] += 1
         if calls["n"] == 1:
-            stop.wait(30)
-            return _chat_response("too late")
-        return _chat_response("done")
+            raise provider_dispatch.subprocess.TimeoutExpired(cmd="pi", timeout=0.2)
+        return _harness_success()
 
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _post)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _run)
 
     assert dispatch_phase(_payload()).dispatch_tier == "fallback"
     second = dispatch_phase(_payload())
-    stop.set()
 
-    assert second.outcome == "complete", "the wedged dispatch kept its slot"
+    assert second.outcome == "complete", "the timed-out harness kept its slot"
 
 
 def test_gate_timeout_degrades_to_the_structured_fallback(
@@ -549,7 +594,7 @@ def test_gate_timeout_degrades_to_the_structured_fallback(
         provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
     )
     monkeypatch.setattr(
-        provider_dispatch, "_http_post_json", lambda *a, **k: _chat_response("done")
+        provider_dispatch, "_run_local_agent_cli", lambda *a, **k: _harness_success()
     )
 
     # Warm the gate, then take its only slot so the dispatcher cannot get one.
@@ -599,7 +644,7 @@ def test_oversized_dispatch_response_degrades_to_fallback(
     def _too_big(*args: Any, **kwargs: Any) -> dict[str, Any]:
         raise provider_dispatch.LocalResponseTooLarge("too big")
 
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _too_big)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _too_big)
 
     result = dispatch_phase(_payload())
 
@@ -620,7 +665,7 @@ def test_dispatch_warning_carries_only_the_exception_class(
     def _post_fails(*args: Any, **kwargs: Any) -> dict[str, Any]:
         raise OSError("<script>alert(1)</script> secret-token leaked here")
 
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _post_fails)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _post_fails)
 
     result = dispatch_phase(_payload())
 
@@ -629,11 +674,11 @@ def test_dispatch_warning_carries_only_the_exception_class(
 
 
 # ---------------------------------------------------------------------------
-# Configured endpoint dispatches over the OpenAI-compatible wire protocol
+# Configured endpoint dispatches through the Pi agent harness
 # ---------------------------------------------------------------------------
 
 
-def test_reachable_endpoint_dispatches_and_normalizes(
+def test_reachable_endpoint_dispatches_through_pi_and_normalizes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1/")
@@ -641,19 +686,14 @@ def test_reachable_endpoint_dispatches_and_normalizes(
     monkeypatch.setattr(
         provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
     )
-
     captured: dict[str, Any] = {}
 
-    def _post(
-        url: str, headers: dict[str, str], body: dict[str, Any], timeout: float
-    ) -> dict[str, Any]:
-        captured["url"] = url
-        captured["headers"] = headers
-        captured["body"] = body
-        captured["timeout"] = timeout
-        return _chat_response('{"outcome": "complete", "handoff_id": "handoff-42"}')
+    def _run(command: list[str], **kwargs: Any) -> SimpleNamespace:
+        captured["command"] = command
+        captured["kwargs"] = kwargs
+        return _harness_success()
 
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _post)
+    monkeypatch.setattr(provider_dispatch.subprocess, "run", _run)
 
     result = dispatch_phase(_payload())
 
@@ -664,20 +704,24 @@ def test_reachable_endpoint_dispatches_and_normalizes(
     assert result.dispatch_tier == "harness"
     assert result.warnings == []
 
-    assert captured["url"] == "http://gx10.local:8080/v1/chat/completions"
-    assert captured["headers"]["Authorization"] == "Bearer secret-token"
-    assert captured["headers"]["Content-Type"] == "application/json"
-    assert captured["body"]["model"] == "qwen3-coder-30b-a3b"
-    assert captured["body"]["messages"][0] == {
-        "role": "system",
-        "content": "You are a focused runner.",
-    }
-    assert captured["body"]["messages"][-1] == {"role": "user", "content": "do work"}
-    assert isinstance(captured["timeout"], (int, float))
-    assert captured["timeout"] > 0
+    command = captured["command"]
+    kwargs = captured["kwargs"]
+    assert command[0] == "pi"
+    assert command[1:3] == ["-p", "--provider"]
+    assert command[3] == "local"
+    assert command[command.index("--model") + 1] == "qwen3-coder-30b-a3b"
+    assert "--mode" in command and "json" in command
+    assert "--extension" in command
+    assert "secret-token" not in command
+    assert kwargs["env"]["LOCAL_INFERENCE_BASE_URL"].endswith("/v1/")
+    assert kwargs["env"]["LOCAL_INFERENCE_API_KEY"] == "secret-token"
+    assert "You are a focused runner." in command[-1]
+    assert "do work" in command[-1]
+    assert "handoff_id" in command[-1]
+    assert kwargs["timeout"] > 0
 
 
-def test_no_api_key_sends_no_authorization_header(
+def test_no_api_key_is_added_to_the_harness_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
@@ -686,20 +730,19 @@ def test_no_api_key_sends_no_authorization_header(
     )
     captured: dict[str, Any] = {}
 
-    def _post(
-        url: str, headers: dict[str, str], body: dict[str, Any], timeout: float
-    ) -> dict[str, Any]:
-        captured["headers"] = headers
-        return _chat_response("done")
+    def _run(command: list[str], **kwargs: Any) -> SimpleNamespace:
+        captured["env"] = kwargs["env"]
+        return _harness_success()
 
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _post)
+    monkeypatch.setattr(provider_dispatch.subprocess, "run", _run)
 
-    dispatch_phase(_payload())
+    result = dispatch_phase(_payload())
 
-    assert "Authorization" not in captured["headers"]
+    assert result.outcome == "complete"
+    assert "LOCAL_INFERENCE_API_KEY" not in captured["env"]
 
 
-def test_plain_text_response_normalizes_to_complete(
+def test_plain_text_harness_response_fails_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
@@ -708,19 +751,45 @@ def test_plain_text_response_normalizes_to_complete(
     )
     monkeypatch.setattr(
         provider_dispatch,
-        "_http_post_json",
-        lambda *a, **k: _chat_response("finished the runner phase"),
+        "_run_local_agent_cli",
+        lambda payload: _harness_result("finished the runner phase"),
     )
 
     result = dispatch_phase(_payload())
 
-    assert result.outcome == "complete"
-    assert result.handoff_id  # synthesized by normalize_dispatch_result
+    assert result.outcome == "failed"
     assert result.dispatch_tier == "harness"
-    assert result.model_used == "qwen3-coder-30b-a3b"
+    assert any("explicit outcome" in warning for warning in result.warnings)
 
 
-def test_empty_response_content_is_a_failed_outcome(
+@pytest.mark.parametrize(
+    "content",
+    [
+        "{\"outcome\":\"complete\"}",
+        "{\"outcome\":\"complete\",\"handoff_id\":\"\"}",
+        "{\"outcome\":\"complete\",\"handoff_id\":\"   \"}",
+    ],
+)
+def test_harness_cannot_complete_without_a_real_handoff(
+    monkeypatch: pytest.MonkeyPatch, content: str
+) -> None:
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
+    monkeypatch.setattr(
+        provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
+    )
+    monkeypatch.setattr(
+        provider_dispatch,
+        "_run_local_agent_cli",
+        lambda payload: _harness_result(content),
+    )
+
+    result = dispatch_phase(_payload())
+
+    assert result.outcome == "failed"
+    assert any("real handoff_id" in warning for warning in result.warnings)
+
+
+def test_empty_harness_response_is_a_failed_outcome(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://gx10.local:8080/v1")
@@ -728,7 +797,9 @@ def test_empty_response_content_is_a_failed_outcome(
         provider_dispatch, "_http_get_json", lambda *a, **k: {"data": []}
     )
     monkeypatch.setattr(
-        provider_dispatch, "_http_post_json", lambda *a, **k: {"choices": []}
+        provider_dispatch,
+        "_run_local_agent_cli",
+        lambda payload: SimpleNamespace(returncode=0, stdout="", stderr=""),
     )
 
     result = dispatch_phase(_payload())
@@ -743,7 +814,7 @@ def test_explicit_runner_still_wins_over_the_builtin_adapter(
     """A caller-supplied runner is used even for provider `local`."""
     monkeypatch.setattr(
         provider_dispatch,
-        "_http_post_json",
+        "_run_local_agent_cli",
         lambda *a, **k: pytest.fail("built-in adapter must not run"),
     )
 
@@ -804,9 +875,9 @@ def test_concurrency_cap_queues_excess_dispatches(
         time.sleep(0.05)
         with lock:
             state["in_flight"] -= 1
-        return _chat_response("done")
+        return _harness_success()
 
-    monkeypatch.setattr(provider_dispatch, "_http_post_json", _post)
+    monkeypatch.setattr(provider_dispatch, "_run_local_agent_cli", _post)
 
     # Warm the probe so probing does not serialize the workers.
     assert local_endpoint_available() is True

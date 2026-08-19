@@ -95,6 +95,8 @@ packages:
       files:
         - "agent-coordinator/archetypes.yaml"
         - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/tests/test_coordination_api.py"
       keys:
         - "feature:add-local-model-provider-tier:coordinator"
       ttl_minutes: 120
@@ -117,7 +119,7 @@ packages:
       steps:
         - name: "Coordinator unit tests pass"
           kind: command
-          command: "agent-coordinator/.venv/bin/pytest agent-coordinator/tests/test_agents_config.py -q"
+          command: "agent-coordinator/.venv/bin/pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_coordination_api.py -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -139,8 +141,9 @@ packages:
     task_type: implementation
     description: |
       Tasks 3.1–4.2: add `local` to _SUPPORTED_PROVIDERS; implement the
-      OpenAI-compatible adapter runner with LOCAL_INFERENCE_BASE_URL/API_KEY/
-      MAX_CONCURRENCY, session health probe, and queueing cap per D2/D5; expose
+      Pi coding-agent harness runner plus one-shot OpenAI-compatible provider
+      extension with LOCAL_INFERENCE_BASE_URL/API_KEY/MAX_CONCURRENCY, session
+      health probe, explicit handoff validation, and queueing cap per D2/D5; expose
       probe status to the roadmap policy engine; extend smoke_provider_dispatch
       with the `local` selector. TDD: tests 3.1/4.1 precede implementations
       3.2/3.3/4.2.
@@ -152,6 +155,7 @@ packages:
     locks:
       files:
         - "skills/autopilot/scripts/provider_dispatch.py"
+        - "skills/autopilot/scripts/pi_local_provider.ts"
         - "skills/autopilot/scripts/smoke_provider_dispatch.py"
         - "skills/autopilot-roadmap/scripts/policy.py"
       keys:

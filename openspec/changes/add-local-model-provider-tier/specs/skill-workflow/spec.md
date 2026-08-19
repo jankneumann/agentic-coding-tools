@@ -4,20 +4,21 @@
 
 ### Requirement: Local Provider Dispatch Adapter
 
-The provider dispatch layer SHALL support a `local` provider whose adapter speaks the OpenAI-compatible wire protocol to a configured endpoint. The adapter SHALL:
+The provider dispatch layer SHALL support a `local` provider whose adapter launches the existing Pi coding-agent harness. A one-shot Pi extension SHALL register the distinct `local` provider against the configured OpenAI-compatible endpoint so the model operates through a real file, command, edit, and handoff tool loop. The adapter SHALL:
 
 - Read the endpoint from `LOCAL_INFERENCE_BASE_URL` and an optional `LOCAL_INFERENCE_API_KEY`.
 - Probe endpoint health before the first dispatch of a session and surface probe failure as adapter unavailability, not a dispatch error.
 - Enforce a configured concurrency cap (`LOCAL_INFERENCE_MAX_CONCURRENCY`) on simultaneous local dispatches; requests beyond the cap SHALL queue rather than error.
-- Normalize results through the same `(outcome, handoff_id)` contract as every other provider adapter.
+- Require an explicit real `handoff_id` from the agent harness and normalize it through the same `(outcome, handoff_id)` contract as every other provider adapter; plain model text MUST NOT count as a completed phase.
 
 When the endpoint is unconfigured or unreachable, dispatch SHALL degrade to the existing structured `fallback` result with a warning naming the `local` provider, and the calling skill layer SHALL continue through its documented fallback path. The adapter MUST NOT block a phase indefinitely on a dead endpoint.
 
 #### Scenario: Configured endpoint dispatches successfully
 
 - **WHEN** a `runner` phase dispatches under provider `local` with `LOCAL_INFERENCE_BASE_URL` set and the health probe passing
-- **THEN** the adapter SHALL send the phase payload to the endpoint using the OpenAI-compatible protocol
-- **AND** the result SHALL normalize to `(outcome, handoff_id)` with `dispatch_tier` recording a harness dispatch
+- **THEN** the adapter SHALL launch Pi headlessly with the local endpoint registered as its `local` provider
+- **AND** Pi SHALL retain its coding-agent tools so the phase can inspect files, run commands, make permitted changes, and write a durable handoff
+- **AND** only an explicit `(outcome, handoff_id)` from the final agent message SHALL normalize with `dispatch_tier` recording a harness dispatch
 - **AND** `model_used` SHALL be the roster model identifier
 
 #### Scenario: Unreachable endpoint degrades to fallback

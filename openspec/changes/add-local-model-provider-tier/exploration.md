@@ -9,8 +9,8 @@ local models are cost-effective and failure is caught downstream.
 Record and operationalize the idea from `docs/proposals/magnitude-local-model-harness.md`:
 the always-on host (ASUS Ascent GX10, NVIDIA GB10) should serve local models to the
 existing dispatch stack for low-tier archetype work. The evaluation established that
-(a) this does not require adopting a new agent harness — an OpenAI-compatible endpoint
-behind the existing provider pattern suffices — and (b) model selection on GB10-class
+(a) this does not require building a new agent harness — the existing Pi coding-agent
+harness can register the OpenAI-compatible endpoint and retain its tool loop — and (b) model selection on GB10-class
 hardware is **bandwidth-bound, not capacity-bound**: ~273 GB/s LPDDR5x means dense
 models crawl (~10 t/s at 32B) while sparse MoE models with small active-parameter
 counts run an order of magnitude faster (~89 t/s for Qwen3-30B-A3B-class). The roster

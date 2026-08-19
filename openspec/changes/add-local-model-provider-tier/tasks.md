@@ -52,22 +52,23 @@
 
 ## 3. Skills-side dispatch adapter
 
-- [x] 3.1 Write tests for the `local` dispatch adapter — provider accepted in
+- [x] 3.1 Write tests for the `local` dispatch adapter and Pi harness — provider accepted in
   `_SUPPORTED_PROVIDERS`; unset/unreachable endpoint yields structured `fallback`
   result naming `local`; health-probe failure marks adapter unavailable without
-  hanging; concurrency cap queues excess dispatches; results normalize to
-  `(outcome, handoff_id)` (M)
+  hanging; concurrency cap queues excess dispatches; Pi retains the coding-agent
+  tool loop; plain text fails closed; only explicit `(outcome, handoff_id)` succeeds (M)
   **Spec scenarios**: skill-workflow.1 (configured dispatch succeeds), skill-workflow.2
   (unreachable endpoint degrades), skill-workflow.3 (concurrency cap respected)
   **Design decisions**: D2, D5
   **Dependencies**: None
   **Files**: skills/autopilot/scripts/tests/test_provider_dispatch.py
 
-- [x] 3.2 Add `local` to `_SUPPORTED_PROVIDERS`; implement the OpenAI-compatible
-  adapter runner with `LOCAL_INFERENCE_BASE_URL` / `LOCAL_INFERENCE_API_KEY` /
+- [x] 3.2 Add `local` to `_SUPPORTED_PROVIDERS`; implement the Pi agent-harness
+  runner and one-shot OpenAI-compatible provider extension with
+  `LOCAL_INFERENCE_BASE_URL` / `LOCAL_INFERENCE_API_KEY` /
   `LOCAL_INFERENCE_MAX_CONCURRENCY`, session health probe, and queueing cap (M)
   **Dependencies**: 3.1
-  **Files**: skills/autopilot/scripts/provider_dispatch.py
+  **Files**: skills/autopilot/scripts/provider_dispatch.py, skills/autopilot/scripts/pi_local_provider.ts
 
 - [x] 3.3 Expose probe status so the roadmap policy engine cannot switch to a dead
   local endpoint (S)

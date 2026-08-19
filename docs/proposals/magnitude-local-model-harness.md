@@ -27,8 +27,8 @@ inference engine is **unproven on the GX10's hardware**. Two findings drive this
 The immediately useful takeaway is architectural, not product: magnitude validates the
 pattern of a **local OpenAI-compatible inference server + tiered model presets**, which
 this repo can adopt today with mature servers (llama.cpp `llama-server`, vLLM, or Ollama
-— all CUDA-proven on GB10-class hardware) behind the existing `pi`-style
-OpenAI-compatible provider path. Magnitude then becomes a candidate *replacement* for
+— all CUDA-proven on GB10-class hardware) behind the existing Pi coding-agent harness via its
+OpenAI-compatible custom-provider path. Magnitude then becomes a candidate *replacement* for
 that serving layer once CUDA lands, and a candidate *provider* once headless invocation
 exists.
 

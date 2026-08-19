@@ -28,11 +28,15 @@ Contract sub-type evaluation (per plan-feature Step 7):
 
 ## Adapter environment contract (informational)
 
-The dispatch adapter's configuration surface (design D2/D5), enforced by tests in
+The Pi-backed dispatch adapter configuration surface (design D2/D5), enforced by tests in
 `skills/autopilot/scripts/tests/`:
 
 | Variable | Required | Default | Meaning |
 |---|---|---|---|
 | `LOCAL_INFERENCE_BASE_URL` | yes (to enable) | unset → provider inert | OpenAI-compatible endpoint base URL |
 | `LOCAL_INFERENCE_API_KEY` | no | unset | Bearer token if the endpoint requires one |
-| `LOCAL_INFERENCE_MAX_CONCURRENCY` | no | 4 | Simultaneous local dispatches; excess queues |
+| `LOCAL_INFERENCE_MAX_CONCURRENCY` | no | 4 | Simultaneous Pi agent runs; excess queues |
+
+Real dispatch also requires the `pi` CLI on `PATH`. The bundled one-shot extension
+registers these values as a Pi `local` provider without changing operator-global Pi
+configuration. Plain model text is rejected; completion requires an explicit handoff id.

@@ -9,8 +9,9 @@ adaptive model router's success criterion is "local models absorb a meaningful s
 economy-tier traffic", and the task router defines a location axis with nothing local to
 route to. Yet no provider in `_SUPPORTED_PROVIDERS` can reach a local endpoint. The
 evaluation in `docs/proposals/magnitude-local-model-harness.md` closed the harness
-question (no new agent harness needed; an OpenAI-compatible endpoint behind the existing
-provider pattern suffices) and surfaced the non-obvious hardware constraint this change
+question (no new harness needs to be built; the existing Pi coding-agent harness can
+register an OpenAI-compatible endpoint while retaining its tools) and surfaced the
+non-obvious hardware constraint this change
 must encode: on GB10-class machines, model choice is **bandwidth-bound, not
 capacity-bound** (~273 GB/s LPDDR5x; dense 32B ≈ 10 t/s vs ~89 t/s for a 30B-total/3B-active
 MoE), so the roster must be selected by architecture — small-active-parameter MoE — not by
@@ -21,8 +22,10 @@ requirements; individual model names are rotating roster entries.
 ## What Changes
 
 - **ADD** `local` provider to `skills/autopilot/scripts/provider_dispatch.py::_SUPPORTED_PROVIDERS`
-  with an adapter runner speaking the OpenAI wire protocol to a configured base URL
-  (`LOCAL_INFERENCE_BASE_URL`, optional key), degrading to the existing structured
+  with an adapter runner that launches Pi headlessly and registers a configured
+  OpenAI-compatible base URL (`LOCAL_INFERENCE_BASE_URL`, optional key) through a
+  one-shot extension, retaining coding tools and requiring a real handoff; degrading
+  to the existing structured
   `fallback` result when unset or unreachable.
 - **ADD** `local` roster to `agent-coordinator/archetypes.yaml::model_aliases`, kept in
   sync with `DEFAULT_PROVIDER_MODEL_MAP`. Initial shape: `economy` = small MoE
@@ -47,8 +50,8 @@ requirements; individual model names are rotating roster entries.
 
 ### Approach 1: `local` as a first-class provider (roster in archetypes.yaml, adapter in provider_dispatch)
 
-Follow the `pi` precedent exactly: OpenAI-compatible slugs per tier, provider entry,
-dispatch adapter.
+Follow the `pi` precedent: OpenAI-compatible slugs per tier and a distinct provider
+entry, dispatched through the existing Pi coding-agent harness.
 
 - Pros: smallest delta; reuses tier-degradation, roster-sync, and fallback machinery
   already tested for five providers; immediately routable by the task router and
@@ -103,6 +106,7 @@ the adaptive router assumes.
 - **Specs**: `agent-archetypes` (roster rule + trust-boundary requirements, ADDED);
   `agent-coordinator` (provider roster validation touchpoint, MODIFIED).
 - **Code**: `skills/autopilot/scripts/provider_dispatch.py`,
+  `skills/autopilot/scripts/pi_local_provider.ts`,
   `agent-coordinator/archetypes.yaml`, `agent-coordinator/src/agents_config.py`
   (`DEFAULT_PROVIDER_MODEL_MAP`), adapter env-var surface, tests deriving expectations
   from `archetypes.yaml`.

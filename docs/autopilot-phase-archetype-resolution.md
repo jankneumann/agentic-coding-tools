@@ -75,7 +75,8 @@ undefined archetype raises `ValueError` at coordinator startup.
 ## The `local` Provider
 
 The provider roster is `claude_code`, `codex`, `antigravity`, `grok`, `pi`,
-and `local` (a GX10-hosted OpenAI-compatible endpoint; see
+and `local` (a Pi coding-agent harness backed by a GX10-hosted
+OpenAI-compatible endpoint; see
 `docs/proposals/magnitude-local-model-harness.md` for the hardware analysis
 and `docs/autopilot-provider-smoke.md` for endpoint configuration). Two
 rules apply only to `local`, both enforced at coordinator startup or

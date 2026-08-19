@@ -18,6 +18,39 @@ Provider-aware resolution SHALL cover exactly the supported roster: `claude_code
 
 The `local` provider roster SHALL define at minimum the `standard` and `economy` tiers. Tiers omitted by the `local` roster SHALL resolve through the existing graceful-degradation rule (an omitted tier resolves to the provider's best defined tier). Resolution output for providers other than `local` SHALL be byte-identical to resolution output before this change.
 
+#### Scenario: Archetype resolves for Codex provider
+
+- **WHEN** `architect` resolves under provider `codex`
+- **THEN** the logical role SHALL remain `architect`
+- **AND** the dispatch model SHALL be a Codex model ID from provider mapping
+- **AND** the raw Claude alias `opus` SHALL NOT be dispatched to Codex unless explicitly configured as a Codex model alias
+
+#### Scenario: Archetype resolves for antigravity provider
+
+- **WHEN** `reviewer` resolves under provider `antigravity`
+- **THEN** the logical role SHALL remain `reviewer`
+- **AND** the dispatch model SHALL be an antigravity model ID from provider mapping
+
+#### Scenario: Archetype resolves for grok provider
+
+- **WHEN** `reviewer` resolves under provider `grok`
+- **THEN** the logical role SHALL remain `reviewer`
+- **AND** the dispatch model SHALL be a grok model ID from provider mapping
+
+#### Scenario: Archetype resolves for pi provider
+
+- **WHEN** `implementer` resolves under provider `pi`
+- **THEN** the logical role SHALL remain `implementer`
+- **AND** the dispatch model SHALL be an OpenRouter model slug from provider mapping
+
+#### Scenario: Archetype resolves for Gemini provider
+
+- **WHEN** archetype resolution is requested under provider `gemini`
+- **THEN** resolution SHALL fail with a structured configuration error naming `gemini` as unsupported (the gemini provider harness is retired)
+- **AND** the error SHALL list the supported roster
+- **AND** no dispatch SHALL be attempted
+
+
 #### Scenario: Archetype resolves for local provider
 
 - **WHEN** `runner` resolves under provider `local`

@@ -14,12 +14,14 @@ import hashlib
 import json
 import logging
 import os
+import subprocess
 import threading
 import time
 import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable
+from pathlib import Path
+from typing import Any, Callable, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +79,10 @@ _CLAUDE_ALIASES = {"opus", "sonnet", "haiku", "fable"}
 
 # --- local provider adapter (OpenSpec add-local-model-provider-tier, D2/D5) ---
 #
-# `local` speaks the OpenAI chat-completions wire protocol to an operator-run
-# endpoint (llama-server / vLLM / Ollama on the always-on host). No SDK: stdlib
-# urllib only, matching parallel-infrastructure/scripts/openai_compat_adapter.py.
+# `local` launches the existing Pi coding-agent harness with its normal file and
+# command tools. A one-shot Pi extension registers the distinct `local` provider
+# against the operator-run OpenAI-compatible endpoint (llama-server / vLLM /
+# Ollama); stdlib urllib remains only for the bounded health probe.
 #
 # Environment contract:
 #   LOCAL_INFERENCE_BASE_URL       required to enable; http:// or https:// only;
@@ -104,7 +107,7 @@ _LOCAL_ALLOWED_SCHEMES = ("http", "https")
 # Short by design: a dead endpoint must surface as adapter unavailability in
 # seconds, never as a stalled phase.
 _LOCAL_PROBE_TIMEOUT_SECONDS = 3.0
-# Bounded per-dispatch ceiling (mirrors openai_compat_adapter's default).
+# Bounded wall-clock ceiling for the headless Pi agent process.
 _LOCAL_DISPATCH_TIMEOUT_SECONDS = 300
 # Upper bound on time spent queued behind the concurrency cap. Queueing is
 # required by the spec (excess dispatches queue, they are never dropped), but it
@@ -118,6 +121,7 @@ _LOCAL_PROBE_TTL_SECONDS = 30.0
 # Responses are JSON handoffs, not model weights: anything past this budget is a
 # misbehaving endpoint and fails closed to the structured fallback.
 _LOCAL_MAX_RESPONSE_BYTES = 10 * 1024 * 1024
+_LOCAL_PI_EXTENSION = Path(__file__).with_name("pi_local_provider.ts")
 # Defence in depth for the resolver-side trust boundary (design D3). The
 # coordinator is the single decision point, but a payload can reach this adapter
 # from any client; an archetype outside this allowlist never reaches the wire.
@@ -129,7 +133,7 @@ class LocalAdapterError(RuntimeError):
 
 
 class LocalDeadlineExceeded(LocalAdapterError, TimeoutError):
-    """A probe or dispatch blew its wall-clock deadline."""
+    """The HTTP health probe exceeded its wall-clock deadline."""
 
 
 class LocalGateTimeout(LocalAdapterError, TimeoutError):
@@ -166,7 +170,11 @@ def invalidate_local_probe_cache() -> None:
         _local_probe_cache = None
 
 
-def _read_capped(resp: Any) -> bytes:
+class _ReadableResponse(Protocol):
+    def read(self, amount: int = -1) -> bytes: ...
+
+
+def _read_capped(resp: _ReadableResponse) -> bytes:
     """Read at most :data:`_LOCAL_MAX_RESPONSE_BYTES` from *resp*, else fail."""
     chunk = resp.read(_LOCAL_MAX_RESPONSE_BYTES + 1)
     if len(chunk) > _LOCAL_MAX_RESPONSE_BYTES:
@@ -177,20 +185,13 @@ def _read_capped(resp: Any) -> bytes:
 
 
 def _http_get_json(url: str, headers: dict[str, str], timeout: float) -> dict[str, Any]:
-    """Real HTTP GET transport (stdlib urllib). Stubbed out in unit tests."""
+    """Real HTTP GET transport used only by the bounded health probe."""
     req = urllib.request.Request(url, headers=headers, method="GET")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (operator-set URL)
-        return json.loads(_read_capped(resp).decode("utf-8"))
-
-
-def _http_post_json(
-    url: str, headers: dict[str, str], body: dict[str, Any], timeout: float
-) -> dict[str, Any]:
-    """Real HTTP POST transport (stdlib urllib). Stubbed out in unit tests."""
-    data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (operator-set URL)
-        return json.loads(_read_capped(resp).decode("utf-8"))
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+        parsed: Any = json.loads(_read_capped(resp).decode("utf-8"))
+    if not isinstance(parsed, dict):
+        raise LocalAdapterError("local health probe returned a non-object body")
+    return parsed
 
 
 def _call_with_deadline(fn: Callable[[], Any], deadline_seconds: float) -> Any:
@@ -411,86 +412,147 @@ def _fallback_result(
     )
 
 
-def _local_chat_request(payload: PhaseDispatchPayload) -> dict[str, Any]:
-    messages: list[dict[str, str]] = []
-    if payload.system_prompt:
-        messages.append({"role": "system", "content": payload.system_prompt})
-    messages.append({"role": "user", "content": payload.prompt})
-    # payload.model is guaranteed non-empty here: _dispatch_local refuses an
-    # unresolved model rather than inventing a placeholder slug.
-    return {
-        "model": payload.model,
-        "messages": messages,
-        "temperature": 0,
-    }
+def _local_harness_prompt(payload: PhaseDispatchPayload) -> str:
+    """Build the phase prompt consumed by the tool-capable Pi agent harness."""
+    expected = ", ".join(payload.expected_outcomes) or "complete, failed"
+    result_contract = json.dumps(
+        {
+            "outcome": f"<one of: {expected}>",
+            "handoff_id": "<real handoff id>",
+        },
+        separators=(",", ":"),
+    )
+    sections = [
+        payload.system_prompt or "You are a focused phase agent.",
+        payload.prompt,
+        (
+            "Use the coding-agent tools to inspect files, run commands, and make "
+            "only the changes required by this phase. A text-only answer is not a "
+            "completed phase. Before finishing, write a durable handoff through the "
+            "configured coordinator handoff capability (or its documented local "
+            "fallback). Your final assistant message must be only this JSON shape: "
+            f"{result_contract}. Never invent or omit the handoff id."
+        ),
+    ]
+    return (chr(10) * 2).join(sections)
 
 
-def _local_message_content(response: dict[str, Any]) -> str | None:
-    """Pull assistant text out of an OpenAI-compatible chat response."""
-    choices = response.get("choices") or []
-    if not choices:
+def _run_local_agent_cli(
+    payload: PhaseDispatchPayload,
+) -> subprocess.CompletedProcess[str]:
+    """Run Pi headlessly with the local endpoint registered as a provider."""
+    if not _LOCAL_PI_EXTENSION.is_file():
+        raise LocalAdapterError("local Pi provider extension is missing")
+    env = os.environ.copy()
+    env["LOCAL_INFERENCE_MODEL"] = payload.model or ""
+    command = [
+        "pi",
+        "-p",
+        "--provider",
+        "local",
+        "--model",
+        payload.model or "",
+        "--mode",
+        "json",
+        "--approve",
+        "--no-session",
+        "--extension",
+        str(_LOCAL_PI_EXTENSION),
+        _local_harness_prompt(payload),
+    ]
+    return subprocess.run(  # noqa: S603 -- fixed executable and list-form args
+        command,
+        capture_output=True,
+        text=True,
+        timeout=_LOCAL_DISPATCH_TIMEOUT_SECONDS,
+        env=env,
+        check=False,
+    )
+
+
+def _assistant_text(message: Any) -> str | None:
+    """Extract assistant text from a Pi JSON-mode message payload."""
+    if not isinstance(message, dict) or message.get("role") != "assistant":
         return None
-    message = choices[0].get("message") or {}
     content = message.get("content")
-    return content if isinstance(content, str) and content else None
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = [
+            part["text"]
+            for part in content
+            if isinstance(part, dict) and isinstance(part.get("text"), str)
+        ]
+        return chr(10).join(parts) if parts else None
+    return None
+
+
+def _parse_local_harness_output(stdout: str) -> dict[str, Any] | None:
+    """Return the last explicit outcome and handoff id from Pi NDJSON."""
+    last_text: str | None = None
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        text = _assistant_text(event.get("message"))
+        if text:
+            last_text = text
+    if last_text is None:
+        return None
+    try:
+        parsed = json.loads(last_text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    outcome = parsed.get("outcome")
+    handoff_id = parsed.get("handoff_id")
+    if (
+        not isinstance(outcome, str)
+        or not outcome.strip()
+        or not isinstance(handoff_id, str)
+        or not handoff_id.strip()
+    ):
+        return None
+    return parsed
 
 
 def _local_runner(payload: PhaseDispatchPayload) -> dict[str, Any]:
-    """Built-in adapter runner: one capped OpenAI chat-completions dispatch.
-
-    Returns a dict in the shape :func:`normalize_dispatch_result` consumes.
-    ``model_used`` is intentionally left out so the roster model identifier from
-    the payload is what gets recorded.
-    """
-    base_url = _local_base_url()
+    """Run one capped tool-capable agent session against the local endpoint."""
     gate = _local_gate()
     if not gate.acquire(timeout=_LOCAL_GATE_ACQUIRE_TIMEOUT_SECONDS):
         raise LocalGateTimeout(
             f"no local dispatch slot within {_LOCAL_GATE_ACQUIRE_TIMEOUT_SECONDS}s"
         )
     try:
-        response = _call_with_deadline(
-            lambda: _http_post_json(
-                f"{base_url}/chat/completions",
-                _local_headers(),
-                _local_chat_request(payload),
-                _LOCAL_DISPATCH_TIMEOUT_SECONDS,
-            ),
-            _LOCAL_DISPATCH_TIMEOUT_SECONDS,
-        )
+        completed = _run_local_agent_cli(payload)
     finally:
         gate.release()
 
-    if not isinstance(response, dict):
+    if completed.returncode != 0:
         return {
             "outcome": "failed",
-            "warnings": ["local adapter received a non-object response body"],
+            "warnings": ["local agent harness exited non-zero"],
         }
-
-    content = _local_message_content(response)
-    if content is None:
+    if len(completed.stdout.encode("utf-8")) > _LOCAL_MAX_RESPONSE_BYTES:
+        raise LocalResponseTooLarge("local agent harness output exceeded byte budget")
+    result = _parse_local_harness_output(completed.stdout)
+    if result is None:
         return {
             "outcome": "failed",
-            "warnings": ["local adapter received an empty response body"],
+            "warnings": [
+                "local agent harness returned no explicit outcome and real handoff_id"
+            ],
         }
-
-    # Phases that answer with the structured handoff JSON get it honored;
-    # anything else counts as a completed dispatch and normalize_dispatch_result
-    # synthesizes the handoff id.
-    try:
-        parsed = json.loads(content)
-    except (TypeError, ValueError):
-        parsed = None
-    if isinstance(parsed, dict):
-        result: dict[str, Any] = {}
-        if isinstance(parsed.get("outcome"), str) and parsed["outcome"]:
-            result["outcome"] = parsed["outcome"]
-        if isinstance(parsed.get("handoff_id"), str) and parsed["handoff_id"]:
-            result["handoff_id"] = parsed["handoff_id"]
-        if result:
-            result.setdefault("outcome", "complete")
-            return result
-    return {"outcome": "complete"}
+    if payload.expected_outcomes and result["outcome"] not in payload.expected_outcomes:
+        return {
+            "outcome": "failed",
+            "warnings": ["local agent harness returned an unexpected outcome"],
+        }
+    return result
 
 
 def _local_trust_boundary_warning(payload: PhaseDispatchPayload) -> str | None:

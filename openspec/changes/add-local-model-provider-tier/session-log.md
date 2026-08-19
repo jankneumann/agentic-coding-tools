@@ -66,7 +66,7 @@ Planned the local model provider tier for GX10-hosted dispatch: a sixth first-cl
 ### Completed Work
 - wp-contracts: roster-entry contract validated and frozen (+ OpenAPI 403 delta in review round)
 - wp-coordinator: local roster with hardware-matching validation, trust boundary with audited 403 refusals, byte-identical regression guard (2208 coordinator tests green, mypy --strict, ruff)
-- wp-dispatch: OpenAI-compatible adapter with probe TTL, wall-clock deadlines, concurrency cap, defense-in-depth allowlist; policy-engine gate; smoke selector (2368 skills tests green, ruff)
+- wp-dispatch: Pi-backed OpenAI-compatible adapter with probe TTL, wall-clock deadlines, concurrency cap, explicit handoff validation, defense-in-depth allowlist; policy-engine gate; smoke selector (2368 skills tests green, ruff)
 - wp-integration: operator docs, provider-model-map schema delta, full quality gates, review round with 19/20 findings fixed
 
 ### Next Steps
@@ -81,3 +81,35 @@ Planned the local model provider tier for GX10-hosted dispatch: a sixth first-cl
 ### Context
 Implemented the local provider tier across four work packages in the coordinated tier (cloud variant: single checkout, file-scope isolation, parallel implementer sub-agents). Independent review (same-vendor fallback) returned request-changes with 20 findings; all critical/major and 18 of 20 total were fixed in a second round, one deferred as a follow-up.
 
+
+
+---
+
+## Phase: GitHub Review Remediation (2026-08-19)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Use Pi as the local execution boundary** `architectural: skill-workflow` — A raw chat-completions response cannot inspect files, run commands, edit, or write a real handoff. The adapter now launches the existing Pi coding-agent harness with a one-shot custom-provider extension.
+2. **Fail closed on the final handoff contract** `correctness: skill-workflow` — Plain text and missing, empty, or whitespace-only handoff ids produce a failed harness result; no successful synthetic handoff is permitted.
+3. **Pin trust refusal at the HTTP boundary** `verification: agent-archetypes` — The API test asserts the structured 403 plus a `success=False` audit event, and the coordinator work package locks and verifies the route and test.
+
+### Relevant Files
+- `skills/autopilot/scripts/provider_dispatch.py` — headless Pi dispatch, NDJSON parsing, explicit handoff validation
+- `skills/autopilot/scripts/pi_local_provider.ts` — one-shot OpenAI-compatible Pi provider registration
+- `agent-coordinator/tests/test_coordination_api.py` — 403 and audit integration coverage
+- `openspec/changes/add-local-model-provider-tier/design.md` — corrected D2 execution boundary
+
+
+### Completed Work
+- Replaced direct model HTTP dispatch with the tool-capable Pi agent harness.
+- Added fail-closed tests for plain text and missing, empty, or whitespace-only handoff ids.
+- Added the HTTP 403 and failed-audit integration test and corrected work-package locks.
+- Preserved five inherited scenarios in the modified archetype requirement so archive cannot silently drop them.
+
+### Validation
+- 197 focused skills tests passed.
+- 119 coordinator and API tests passed (one upstream Starlette deprecation warning).
+- Ruff and strict mypy passed on changed Python code.
+- Work-package validation and `openspec validate add-local-model-provider-tier --strict` passed.
+- The Pi extension passed Node 22 TypeScript syntax checking.
