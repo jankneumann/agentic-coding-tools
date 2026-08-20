@@ -5,6 +5,7 @@ Audit entries are append-only — the database enforces immutability via trigger
 """
 
 import asyncio
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -12,6 +13,8 @@ from typing import Any
 
 from .config import get_config
 from .db import DatabaseClient, get_db
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -74,6 +77,13 @@ class AuditService:
 
     def __init__(self, db: DatabaseClient | None = None):
         self._db = db
+        #: Strong references to in-flight fire-and-forget insert tasks.
+        #:
+        #: ``asyncio`` keeps only a *weak* reference to a task, so a bare
+        #: ``create_task(...)`` whose result nobody holds may be garbage
+        #: collected before it runs. Holding the task until it completes is the
+        #: documented way to make fire-and-forget actually fire.
+        self._pending: set[asyncio.Task[AuditResult]] = set()
 
     @property
     def db(self) -> DatabaseClient:
@@ -142,18 +152,50 @@ class AuditService:
             pass
 
         if config.audit.async_logging:
-            # Fire-and-forget: don't block the caller
-            asyncio.create_task(self._insert_audit_entry(data))
+            # Fire-and-forget: don't block the caller. `success=True` here means
+            # "accepted for writing", not "written" — the insert has not run yet.
+            task = asyncio.create_task(self._insert_audit_entry(data))
+            self._pending.add(task)
+            task.add_done_callback(self._pending.discard)
             return AuditResult(success=True)
         else:
             return await self._insert_audit_entry(data)
 
+    async def drain(self, timeout: float = 5.0) -> None:
+        """Wait for in-flight fire-and-forget audit inserts to finish.
+
+        Callers that need the trail to exist before they continue — startup
+        projections, shutdown, and tests — await this. Without it a short-lived
+        process can exit before the loop ever runs the queued inserts, which is
+        indistinguishable from the writes failing.
+        """
+        if not self._pending:
+            return
+        await asyncio.wait(set(self._pending), timeout=timeout)
+
     async def _insert_audit_entry(self, data: dict[str, Any]) -> AuditResult:
-        """Insert an audit entry into the database."""
+        """Insert an audit entry into the database.
+
+        Failures are logged rather than only returned. On the fire-and-forget
+        path nobody awaits the result, so a returned-but-unread error is the
+        same as no error at all — which is exactly how the audit trail came to
+        record nothing at all on the PostgreSQL backend for every operation:
+        ``log_operation`` built a payload containing ``delegated_from``, a
+        column ``audit_log`` did not have until migration 033, so every insert
+        raised, the exception was swallowed here, the failed result was
+        discarded by the caller, and callers were told ``success=True``.
+        """
         try:
             row = await self.db.insert("audit_log", data)
             return AuditResult(success=True, entry_id=str(row.get("id", "")))
         except Exception as e:
+            logger.error(
+                "Audit write failed for operation %r — the audit trail is "
+                "incomplete: %s",
+                data.get("operation"),
+                e,
+                exc_info=True,
+            )
             return AuditResult(success=False, error=str(e))
 
     async def query(
