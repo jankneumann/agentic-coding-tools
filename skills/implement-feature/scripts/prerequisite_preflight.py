@@ -20,6 +20,7 @@ from jsonschema import Draft202012Validator
 
 
 OID_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+PR_CANDIDATE_LIMIT = 1000
 FORBIDDEN_SHA_KEYS = {
     "merge_sha",
     "merge_commit",
@@ -297,6 +298,8 @@ def _resolve_prerequisite(
             "all",
             "--head",
             head_ref,
+            "--limit",
+            str(PR_CANDIDATE_LIMIT),
             "--json",
             "number,url,headRefName,headRepository,baseRefName,state,mergedAt,mergeCommit",
         ),
@@ -304,6 +307,11 @@ def _resolve_prerequisite(
     )
     if not isinstance(prs, list):
         raise PreflightError(f"{change_id}: pull request query returned invalid metadata")
+    if len(prs) >= PR_CANDIDATE_LIMIT:
+        raise PreflightError(
+            f"{change_id}: candidate query reached safety limit {PR_CANDIDATE_LIMIT}; "
+            "cannot prove exhaustive pull-request enumeration"
+        )
 
     candidate_assessments: list[dict[str, Any]] = []
     qualified: list[tuple[dict[str, Any], str]] = []

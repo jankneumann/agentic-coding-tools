@@ -163,6 +163,33 @@ class FakeRunner:
                     "mergeCommit": {"oid": self.merge_shas[3]},
                 }
                 return self._done(args, json.dumps([pr, implementation]))
+            if (
+                self.mode
+                in {
+                    "qualified_beyond_default_page",
+                    "candidate_limit_saturated",
+                }
+                and number == 1
+            ):
+                proposal_candidates = [
+                    {
+                        **pr,
+                        "number": candidate_number,
+                        "url": (f"https://github.com/{self.repository}/pull/{candidate_number}"),
+                    }
+                    for candidate_number in range(10, 1010)
+                ]
+                candidates = proposal_candidates
+                if self.mode == "qualified_beyond_default_page":
+                    implementation = {
+                        **pr,
+                        "number": 3,
+                        "url": f"https://github.com/{self.repository}/pull/3",
+                        "mergeCommit": {"oid": self.merge_shas[3]},
+                    }
+                    candidates = proposal_candidates[:30] + [implementation]
+                limit = int(args[args.index("--limit") + 1]) if "--limit" in args else 30
+                return self._done(args, json.dumps(candidates[:limit]))
             if self.mode == "multiple_surface_qualified" and number == 1:
                 successor = {
                     **pr,
@@ -208,7 +235,13 @@ class FakeRunner:
                 return self._done(args, returncode=0 if revision in known_commits else 1)
             revision, path = object_spec.split(":", 1)
             if (
-                self.mode in {"missing_surface", "proposal_then_implementation"}
+                self.mode
+                in {
+                    "missing_surface",
+                    "proposal_then_implementation",
+                    "qualified_beyond_default_page",
+                    "candidate_limit_saturated",
+                }
                 and revision == self.merge_shas[1]
                 and path == "skills/build_plan.py"
             ):
@@ -348,6 +381,27 @@ def test_multiple_surface_qualified_candidates_fail_closed(preflight, tmp_path: 
         preflight.PreflightError,
         match=r"found 2.*qualified PRs: #1, #4",
     ):
+        _run(preflight, tmp_path, runner)
+
+
+def test_candidate_beyond_default_first_page_is_qualified(preflight, tmp_path: Path) -> None:
+    runner = FakeRunner()
+    runner.mode = "qualified_beyond_default_page"
+
+    evidence, _ = _run(preflight, tmp_path, runner)
+
+    selected = evidence["prerequisites"][0]
+    assert selected["pr_number"] == 3
+    assert len(selected["candidate_assessments"]) == 31
+
+
+def test_candidate_query_fails_closed_when_safety_limit_is_saturated(
+    preflight, tmp_path: Path
+) -> None:
+    runner = FakeRunner()
+    runner.mode = "candidate_limit_saturated"
+
+    with pytest.raises(preflight.PreflightError, match="candidate query reached safety limit"):
         _run(preflight, tmp_path, runner)
 
 
