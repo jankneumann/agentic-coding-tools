@@ -26,6 +26,8 @@ Deploy the feature locally with DEBUG logging, run security scans and behavioral
 - `--skip-ci` — skip the CI/CD status check
 - `--skip-security` — skip the Security Scan phase
 - `--phase <name>[,<name>]` — run only specified phases (e.g., `--phase smoke,security`)
+- `--ephemeral` — run write-capable validation steps in a disposable detached worktree
+- `--include-dirty` — with `--ephemeral`, materialize staged, unstaged, and untracked source state instead of refusing a dirty checkout
 
 Valid phase names: `deploy`, `smoke`, `gen-eval`, `security`, `e2e`, `architecture`, `spec`, `logs`, `ci`
 
@@ -72,6 +74,8 @@ python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 
 Read-only CI status checks may inspect from the shared checkout, but any report
 or evidence file must be written in a worktree so it lands on the PR branch.
+`--ephemeral` adds a disposable validation checkout inside this managed feature
+worktree boundary; it never makes the shared checkout writable.
 
 ## Steps
 
@@ -110,6 +114,8 @@ Parse flags from `$ARGUMENTS`:
 - `--skip-ci` → set SKIP_CI=true
 - `--skip-security` → set SKIP_SECURITY=true
 - `--phase <names>` → set PHASES to comma-separated list; only run those phases
+- `--ephemeral` → set EPHEMERAL=true
+- `--include-dirty` → set INCLUDE_DIRTY=true; reject it unless EPHEMERAL=true
 
 If `--phase` is provided, only the listed phases execute. If `--phase` includes phases other than `deploy`, assume services are already running (skip deploy and teardown).
 
@@ -151,6 +157,51 @@ fi
 ```
 
 If not on the feature branch, check out `$FEATURE_BRANCH` (which honors `OPENSPEC_BRANCH_OVERRIDE`). If no implementation commits exist, abort with guidance.
+
+### 2.25. Enter Ephemeral Validation Scope (Optional)
+
+When `EPHEMERAL=true`, wrap Steps 2.5 through 14 with the canonical
+`validation_worktree()` context manager before their first write. The source is
+the current feature checkout, not `PROJECT_ROOT` (which may resolve to the main
+repository from inside a managed worktree):
+
+```python
+import os
+import sys
+from pathlib import Path
+
+skill_dir = Path("<skill-base-dir>").resolve()
+sys.path.insert(0, str(skill_dir / "scripts"))
+from validation_worktree import validation_worktree
+
+source_checkout = Path.cwd()
+with validation_worktree(
+    source_checkout,
+    CHANGE_ID,
+    include_dirty=INCLUDE_DIRTY,
+) as validation:
+    os.chdir(validation.path)
+    # Execute Steps 2.5 through 14 here. All temporary artifacts stay in
+    # validation.path. The context manager persists only the report/findings.
+```
+
+The provider/CLI adapter may equivalently wrap an executable validation driver:
+
+```bash
+INCLUDE_DIRTY_FLAG=""
+[ "$INCLUDE_DIRTY" = "true" ] && INCLUDE_DIRTY_FLAG="--include-dirty"
+python3 "<skill-base-dir>/scripts/validation_worktree.py" \
+  --change-id "$CHANGE_ID" $INCLUDE_DIRTY_FLAG -- \
+  <validation-driver-command>
+```
+
+On a dirty checkout, omit `--include-dirty` to fail closed or pass it explicitly
+to reproduce the exact index, working-tree, and untracked state. The helper
+records `VALIDATION_VALIDATED_COMMIT` and `VALIDATION_VALIDATED_TREE`, copies only
+`validation-report.md` and `validation-findings.json` back to the feature
+checkout, and removes the scratch worktree in a `finally` block. Under a cloud
+harness whose environment profile already provides isolation, it logs a
+downgrade and runs in place.
 
 ### 2.5. Prepare Validation Artifacts
 
@@ -913,7 +964,8 @@ Write the validation report to the OpenSpec change directory:
 ```bash
 REPORT_FILE="$OPENSPEC_PATH/changes/$CHANGE_ID/validation-report.md"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-COMMIT_SHA=$(git rev-parse --short HEAD)
+COMMIT_SHA="${VALIDATION_VALIDATED_COMMIT:-$(git rev-parse HEAD)}"
+VALIDATED_TREE="${VALIDATION_VALIDATED_TREE:-$(git rev-parse HEAD^{tree})}"
 
 # Write report (overwrites previous)
 cat > "$REPORT_FILE" << EOF
@@ -921,6 +973,7 @@ cat > "$REPORT_FILE" << EOF
 
 **Date**: $TIMESTAMP
 **Commit**: $COMMIT_SHA
+**Validated tree**: $VALIDATED_TREE
 **Branch**: $FEATURE_BRANCH
 
 ## Phase Results

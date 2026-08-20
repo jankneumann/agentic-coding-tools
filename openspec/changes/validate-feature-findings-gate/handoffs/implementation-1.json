@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-20T01:16:46.079376+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented the residual ephemeral validation-worktree prerequisite after confirming the original findings/gate/triage proposal was superseded. The helper isolates clean or explicitly materialized dirty state, persists only durable validation artifacts, and preserves current fitness-function semantics.",
+    "completed_work": [
+      "residual OpenSpec scope",
+      "validation_worktree.py",
+      "lifecycle tests",
+      "canonical skill wiring",
+      "runtime mirror generation"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Narrow to residual Phase 3",
+        "rationale": "introduce-fitness-function-gates explicitly superseded phases 1, 2, and 4 at 0/31 tasks; phase-scoped-worktree-lifecycle requires only the selected validation worktree.",
+        "capability": "validate-feature-ephemeral",
+        "supersedes": null
+      },
+      {
+        "title": "Record exact commit and tree",
+        "rationale": "A commit alone cannot identify an include-dirty run, so both source HEAD and the materialized Git tree are durable evidence.",
+        "capability": "validate-feature-ephemeral",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Validate the residual change and open a pull request without merging."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/validate-feature/scripts/validation_worktree.py",
+        "description": "Disposable validation checkout lifecycle"
+      },
+      {
+        "path": "skills/tests/validate-feature/test_validation_worktree.py",
+        "description": "Behavioral lifecycle coverage"
+      },
+      {
+        "path": "skills/validate-feature/SKILL.md",
+        "description": "Ephemeral flag wiring"
+      }
+    ]
+  }
+}
