@@ -25,7 +25,7 @@ CI_STATE_MAP = {
 
 
 def _lookup(records: dict[int, dict[str, Any]], pr_number: int) -> dict[str, Any]:
-    return records.get(pr_number, records.get(str(pr_number), {}))  # type: ignore[arg-type]
+    return records.get(pr_number, {})
 
 
 def _ci_state(pr: dict[str, Any]) -> str:
@@ -69,7 +69,7 @@ def _derive_dependencies(
     changed_files: dict[int, set[str]],
 ) -> dict[int, list[int]]:
     numbers = [int(pr["number"]) for pr in prs]
-    dependencies = {number: set() for number in numbers}
+    dependencies: dict[int, set[int]] = {number: set() for number in numbers}
     branch_to_pr = {
         str(pr.get("branch", "")): int(pr["number"])
         for pr in prs
