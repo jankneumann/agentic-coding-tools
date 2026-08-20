@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Core contract and graph operations for durable merge plans."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from jsonschema import Draft202012Validator, FormatChecker
+
+
+SCHEMA_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "contracts"
+    / "merge-plan.schema.json"
+)
+
+
+class MergePlanValidationError(ValueError):
+    """Raised when a merge plan violates its schema or DAG invariants."""
+
+
+def _schema_error_message(error: Any) -> str:
+    location = ".".join(str(part) for part in error.absolute_path)
+    if location:
+        return f"{location}: {error.message}"
+    return error.message
+
+
+def _validate_schema(plan: dict[str, Any]) -> None:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    errors = sorted(validator.iter_errors(plan), key=lambda item: list(item.path))
+    if errors:
+        raise MergePlanValidationError(_schema_error_message(errors[0]))
+
+
+def _validate_dag(plan: dict[str, Any]) -> None:
+    nodes = plan["nodes"]
+    numbers = [node["pr"] for node in nodes]
+    if len(numbers) != len(set(numbers)):
+        raise MergePlanValidationError("duplicate PR nodes are not allowed")
+
+    known = set(numbers)
+    dependencies: dict[int, list[int]] = {}
+    for node in nodes:
+        pr_number = node["pr"]
+        depends_on = node["definition"]["depends_on"]
+        if pr_number in depends_on:
+            raise MergePlanValidationError(
+                f"PR #{pr_number} cannot depend on itself",
+            )
+        unknown = sorted(set(depends_on) - known)
+        if unknown:
+            raise MergePlanValidationError(
+                f"PR #{pr_number} depends on unknown PR #{unknown[0]}",
+            )
+        dependencies[pr_number] = depends_on
+
+    visiting: set[int] = set()
+    visited: set[int] = set()
+
+    def visit(pr_number: int) -> None:
+        if pr_number in visiting:
+            raise MergePlanValidationError("dependency cycle detected")
+        if pr_number in visited:
+            return
+        visiting.add(pr_number)
+        for dependency in dependencies[pr_number]:
+            visit(dependency)
+        visiting.remove(pr_number)
+        visited.add(pr_number)
+
+    for number in numbers:
+        visit(number)
+
+
+def validate_plan(plan: dict[str, Any]) -> None:
+    """Validate the shipped JSON contract and producer-enforced DAG rules."""
+
+    _validate_schema(plan)
+    _validate_dag(plan)
