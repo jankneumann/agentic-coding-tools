@@ -182,11 +182,15 @@ identity-bound expected pending-to-removed CAS is authorized.
 ### Implementation prerequisite evidence
 
 `prerequisites.yaml` names the exact overlapping changes and expected surfaces.
-The preflight resolver obtains merged PR and merge SHA from authoritative
-repository metadata, verifies the configured base ref, fetches it, proves the
-merge SHA ancestral to both fetched base and feature HEAD, checks the named
-surface, and atomically writes a schema-valid `baseline-gates.json`. It also
-records the implementation diff base used by changed-file quality gates.
+The preflight resolver queries every PR for the exact expected head ref and
+requires exactly one surface-qualified merged candidate. Qualification checks
+the authoritative repository, base, head, merged SHA, ancestry to fetched base
+and feature HEAD, and every typed surface at the merge revision. Historical
+proposal-only candidates are ignored with their rejection reasons retained in
+the schema-valid `baseline-gates.json`; zero or multiple qualified candidates
+fail closed. The chosen surface is then reverified at feature HEAD before the
+evidence is written atomically. The evidence also records the implementation
+diff base used by changed-file quality gates.
 The preflight package runs in the managed shared feature worktree. Its declared
 feature-HEAD completion barrier revalidates evidence under the branch lock,
 records that exact HEAD as the minimum base for every dependent worktree, and

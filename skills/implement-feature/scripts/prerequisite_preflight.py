@@ -168,15 +168,8 @@ def _validate_surface_content(
         ) from exc
 
 
-def _verify_required_surface(
-    surface: Any,
-    *,
-    change_id: str,
-    merge_sha: str,
-    feature_head: str,
-    repo_root: Path,
-    runner: Runner,
-) -> str:
+def _required_surface_files(surface: Any, *, change_id: str) -> tuple[str, list[dict[str, str]]]:
+    """Validate and return one prerequisite's declared surface."""
     if not isinstance(surface, dict) or not isinstance(surface.get("id"), str):
         raise PreflightError(f"{change_id}: required surface must have an id")
     files = surface.get("files")
@@ -192,41 +185,73 @@ def _verify_required_surface(
     paths = [item.get("path") for item in files if isinstance(item, dict)]
     if len(paths) != len(files) or len(paths) != len(set(paths)):
         raise PreflightError(f"{change_id}: required surface paths must be unique")
+    for item in files:
+        path = item.get("path")
+        kind = item.get("kind")
+        if (
+            not isinstance(path, str)
+            or not path
+            or kind
+            not in (
+                "python",
+                "json-schema",
+            )
+        ):
+            raise PreflightError(f"{change_id}: invalid required surface file declaration")
+    return surface["id"], files
 
+
+def _verify_surface_at_revision(
+    surface: Any,
+    *,
+    change_id: str,
+    revision: str,
+    repo_root: Path,
+    runner: Runner,
+) -> str:
+    surface_id, files = _required_surface_files(surface, change_id=change_id)
+    for item in files:
+        path = item["path"]
+        kind = item["kind"]
+        object_spec = f"{revision}:{path}"
+        present = _command(
+            runner,
+            ("git", "cat-file", "-e", object_spec),
+            repo_root,
+            check=False,
+        )
+        if present.returncode != 0:
+            raise PreflightError(f"{change_id}: required surface {path} is absent at {revision}")
+        content = _command(runner, ("git", "show", object_spec), repo_root).stdout
+        _validate_surface_content(
+            change_id=change_id,
+            path=path,
+            kind=kind,
+            revision=revision,
+            content=content,
+        )
+    return surface_id
+
+
+def _verify_required_surface(
+    surface: Any,
+    *,
+    change_id: str,
+    merge_sha: str,
+    feature_head: str,
+    repo_root: Path,
+    runner: Runner,
+) -> str:
+    surface_id = _required_surface_files(surface, change_id=change_id)[0]
     for revision in (merge_sha, feature_head):
-        for item in files:
-            path = item.get("path")
-            kind = item.get("kind")
-            if (
-                not isinstance(path, str)
-                or not path
-                or kind
-                not in (
-                    "python",
-                    "json-schema",
-                )
-            ):
-                raise PreflightError(f"{change_id}: invalid required surface file declaration")
-            object_spec = f"{revision}:{path}"
-            present = _command(
-                runner,
-                ("git", "cat-file", "-e", object_spec),
-                repo_root,
-                check=False,
-            )
-            if present.returncode != 0:
-                raise PreflightError(
-                    f"{change_id}: required surface {path} is absent at {revision}"
-                )
-            content = _command(runner, ("git", "show", object_spec), repo_root).stdout
-            _validate_surface_content(
-                change_id=change_id,
-                path=path,
-                kind=kind,
-                revision=revision,
-                content=content,
-            )
-    return surface["id"]
+        _verify_surface_at_revision(
+            surface,
+            change_id=change_id,
+            revision=revision,
+            repo_root=repo_root,
+            runner=runner,
+        )
+    return surface_id
 
 
 def _is_ancestor(runner: Runner, repo_root: Path, ancestor: str, descendant: str) -> bool:
@@ -258,6 +283,7 @@ def _resolve_prerequisite(
     surface = config.get("required_surface")
     if not all(isinstance(value, str) and value for value in (head_ref, change_id)):
         raise PreflightError("prerequisite identity fields must be non-empty strings")
+    _required_surface_files(surface, change_id=change_id)
 
     prs = _json_command(
         runner,
@@ -276,29 +302,81 @@ def _resolve_prerequisite(
         ),
         repo_root,
     )
-    if not isinstance(prs, list) or len(prs) != 1:
-        count = len(prs) if isinstance(prs, list) else "invalid"
-        raise PreflightError(f"{change_id}: expected exactly one pull request, found {count}")
-    pr = prs[0]
-    if pr.get("state") != "MERGED" or not pr.get("mergedAt") or not pr.get("mergeCommit"):
-        raise PreflightError(f"{change_id}: pull request is not merged")
-    head_repository = (pr.get("headRepository") or {}).get("nameWithOwner")
-    if head_repository != repository:
-        raise PreflightError(
-            f"{change_id}: head repository {head_repository!r} is not {repository!r}"
+    if not isinstance(prs, list):
+        raise PreflightError(f"{change_id}: pull request query returned invalid metadata")
+
+    candidate_assessments: list[dict[str, Any]] = []
+    qualified: list[tuple[dict[str, Any], str]] = []
+    for pr in prs:
+        reasons: list[str] = []
+        merge_sha: str | None = None
+        if not isinstance(pr, dict):
+            pr = {}
+            reasons.append("candidate metadata is not an object")
+        if pr.get("state") != "MERGED" or not pr.get("mergedAt") or not pr.get("mergeCommit"):
+            reasons.append("pull request is not merged with authoritative merge metadata")
+        head_repository = (pr.get("headRepository") or {}).get("nameWithOwner")
+        if head_repository != repository:
+            reasons.append(f"head repository {head_repository!r} is not {repository!r}")
+        if pr.get("headRefName") != head_ref:
+            reasons.append(f"authoritative head ref does not match {head_ref}")
+        if pr.get("baseRefName") != base_ref:
+            reasons.append(f"pull request base {pr.get('baseRefName')!r} is not {base_ref!r}")
+        if not reasons:
+            try:
+                merge_sha = _require_oid(
+                    (pr.get("mergeCommit") or {}).get("oid"), "merge object id"
+                )
+            except PreflightError as exc:
+                reasons.append(str(exc))
+        if merge_sha is not None:
+            if not _is_ancestor(runner, repo_root, merge_sha, base_tip):
+                reasons.append("merge SHA is not ancestral to fetched base")
+            if not _is_ancestor(runner, repo_root, merge_sha, feature_head):
+                reasons.append("merge SHA is not ancestral to feature HEAD")
+        if merge_sha is not None and not reasons:
+            try:
+                _verify_surface_at_revision(
+                    surface,
+                    change_id=change_id,
+                    revision=merge_sha,
+                    repo_root=repo_root,
+                    runner=runner,
+                )
+            except PreflightError as exc:
+                prefix = f"{change_id}: "
+                detail = str(exc)
+                reasons.append(detail.removeprefix(prefix))
+
+        assessment = {
+            "pr_number": pr.get("number") if isinstance(pr.get("number"), int) else None,
+            "pr_url": pr.get("url") if isinstance(pr.get("url"), str) else None,
+            "qualified": not reasons,
+            "rejection_reasons": reasons,
+        }
+        candidate_assessments.append(assessment)
+        if not reasons and merge_sha is not None:
+            qualified.append((pr, merge_sha))
+
+    if len(qualified) != 1:
+        qualified_numbers = (
+            ", ".join(f"#{pr.get('number')}" for pr, _merge_sha in qualified) or "none"
         )
-    if pr.get("headRefName") != head_ref:
-        raise PreflightError(f"{change_id}: authoritative head ref does not match {head_ref}")
-    if pr.get("baseRefName") != base_ref:
+        rejected = (
+            "; ".join(
+                f"PR #{item['pr_number']}: {', '.join(item['rejection_reasons'])}"
+                for item in candidate_assessments
+                if not item["qualified"]
+            )
+            or "none"
+        )
         raise PreflightError(
-            f"{change_id}: pull request base {pr.get('baseRefName')!r} is not {base_ref!r}"
+            f"{change_id}: expected exactly one surface-qualified merged pull request, "
+            f"found {len(qualified)}; qualified PRs: {qualified_numbers}; "
+            f"rejected candidates: {rejected}"
         )
 
-    merge_sha = _require_oid((pr.get("mergeCommit") or {}).get("oid"), "merge object id")
-    if not _is_ancestor(runner, repo_root, merge_sha, base_tip):
-        raise PreflightError(f"{change_id}: merge SHA is not ancestral to fetched base")
-    if not _is_ancestor(runner, repo_root, merge_sha, feature_head):
-        raise PreflightError(f"{change_id}: merge SHA is not ancestral to feature HEAD")
+    pr, merge_sha = qualified[0]
     surface_id = _verify_required_surface(
         surface,
         change_id=change_id,
@@ -322,6 +400,7 @@ def _resolve_prerequisite(
         "fetched_base_tip_sha": base_tip,
         "verified_head_sha": feature_head,
         "surface_assertion": surface_id,
+        "candidate_assessments": candidate_assessments,
         "verified_at": verified_at,
     }
 
@@ -462,6 +541,7 @@ def _verify_existing(
         "merged_at",
         "authoritative_merge_sha",
         "surface_assertion",
+        "candidate_assessments",
     )
     for stored in evidence["prerequisites"]:
         fresh = current_by_change.get(stored["change_id"])

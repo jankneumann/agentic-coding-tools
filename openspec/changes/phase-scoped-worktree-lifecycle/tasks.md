@@ -4,12 +4,12 @@ All tasks use test-first ordering. Sizes describe one focused agent session; no 
 
 ## 0. Executable prerequisite preflight
 
-- [x] 0.1 (S) Write mocked repository/PR/Git tests that fail closed for absent, open, duplicate, wrong-repository, wrong-base, caller-supplied-SHA, non-ancestral, missing-surface, and 41-63-character invalid Git object-id prerequisite evidence
+- [x] 0.1 (S) Write mocked repository/PR/Git tests that fail closed for absent, open, wrong-repository, wrong-base, caller-supplied-SHA, non-ancestral, missing-surface, multiple surface-qualified successors, and 41-63-character invalid Git object-id evidence, while accepting one implementation successor after a proposal-only PR
   **Contracts**: `contracts/prerequisites.yaml`, `contracts/schemas/baseline-gates.schema.json`
   **Dependencies**: None
   **Files**: `skills/tests/implement-feature/test_prerequisite_preflight.py`
 
-- [x] 0.2 (S) Implement the prerequisite resolver that obtains authoritative merged PR metadata, fetches the configured remote/base, proves ancestry to fetched base plus feature HEAD, validates named surfaces, records the implementation diff base, and atomically writes schema-valid evidence
+- [x] 0.2 (S) Implement the prerequisite resolver that evaluates all exact-head PRs, selects exactly one repository/base/head/merge/ancestry/surface-qualified candidate, records rejected-candidate reasons plus the implementation diff base, reverifies the chosen surface at feature HEAD, and atomically writes schema-valid evidence
   **Dependencies**: 0.1
   **Files**: `skills/implement-feature/scripts/prerequisite_preflight.py`
 

@@ -92,7 +92,7 @@ class FakeRunner:
     remote = "origin"
     head = "f" * 40
     base_tip = "e" * 40
-    merge_shas = {1: "a" * 40, 2: "b" * 40}
+    merge_shas = {1: "a" * 40, 2: "b" * 40, 3: "c" * 40, 4: "d" * 40}
 
     def __init__(self) -> None:
         self.mode = "ok"
@@ -155,6 +155,22 @@ class FakeRunner:
                 return self._done(args, "[]")
             if self.mode == "duplicate" and number == 1:
                 return self._done(args, json.dumps([pr, {**pr, "number": 99}]))
+            if self.mode == "proposal_then_implementation" and number == 1:
+                implementation = {
+                    **pr,
+                    "number": 3,
+                    "url": f"https://github.com/{self.repository}/pull/3",
+                    "mergeCommit": {"oid": self.merge_shas[3]},
+                }
+                return self._done(args, json.dumps([pr, implementation]))
+            if self.mode == "multiple_surface_qualified" and number == 1:
+                successor = {
+                    **pr,
+                    "number": 4,
+                    "url": f"https://github.com/{self.repository}/pull/4",
+                    "mergeCommit": {"oid": self.merge_shas[4]},
+                }
+                return self._done(args, json.dumps([pr, successor]))
             if self.mode == "open" and number == 1:
                 pr.update(state="OPEN", mergedAt=None, mergeCommit=None)
             if self.mode == "wrong_repository" and number == 1:
@@ -192,7 +208,7 @@ class FakeRunner:
                 return self._done(args, returncode=0 if revision in known_commits else 1)
             revision, path = object_spec.split(":", 1)
             if (
-                self.mode == "missing_surface"
+                self.mode in {"missing_surface", "proposal_then_implementation"}
                 and revision == self.merge_shas[1]
                 and path == "skills/build_plan.py"
             ):
@@ -280,6 +296,59 @@ def test_success_uses_authoritative_metadata_and_atomically_writes_schema_valid_
     assert f"{runner.merge_shas[1]}:skills/build_plan.py" in surface_checks
     assert f"{runner.head}:skills/build_plan.py" in surface_checks
     assert not any(call[:3] == ("gh", "pr", "view") for call in runner.calls)
+
+
+def test_proposal_only_pr_is_ignored_when_one_implementation_successor_qualifies(
+    preflight, tmp_path: Path
+) -> None:
+    runner = FakeRunner()
+    runner.mode = "proposal_then_implementation"
+
+    evidence, _ = _run(preflight, tmp_path, runner)
+
+    selected = evidence["prerequisites"][0]
+    assert selected["pr_number"] == 3
+    assert selected["authoritative_merge_sha"] == runner.merge_shas[3]
+    assert selected["candidate_assessments"] == [
+        {
+            "pr_number": 1,
+            "pr_url": f"https://github.com/{runner.repository}/pull/1",
+            "qualified": False,
+            "rejection_reasons": [
+                f"required surface skills/build_plan.py is absent at {runner.merge_shas[1]}"
+            ],
+        },
+        {
+            "pr_number": 3,
+            "pr_url": f"https://github.com/{runner.repository}/pull/3",
+            "qualified": True,
+            "rejection_reasons": [],
+        },
+    ]
+
+
+def test_no_surface_qualified_candidate_fails_closed_with_auditable_reasons(
+    preflight, tmp_path: Path
+) -> None:
+    runner = FakeRunner()
+    runner.mode = "missing_surface"
+
+    with pytest.raises(
+        preflight.PreflightError,
+        match=r"found 0.*PR #1.*required surface skills/build_plan\.py is absent",
+    ):
+        _run(preflight, tmp_path, runner)
+
+
+def test_multiple_surface_qualified_candidates_fail_closed(preflight, tmp_path: Path) -> None:
+    runner = FakeRunner()
+    runner.mode = "multiple_surface_qualified"
+
+    with pytest.raises(
+        preflight.PreflightError,
+        match=r"found 2.*qualified PRs: #1, #4",
+    ):
+        _run(preflight, tmp_path, runner)
 
 
 def test_failure_preserves_existing_output(preflight, tmp_path: Path) -> None:

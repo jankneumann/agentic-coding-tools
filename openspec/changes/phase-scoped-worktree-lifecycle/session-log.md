@@ -277,3 +277,20 @@ Revision 6 remediates the exported multi-vendor review: bounded setup recovery, 
 
 ### Context
 Both implementation roots are reviewed and green, but the live authoritative gate fails closed. The feature branch is preserved at a pushed checkpoint with no dependent package worktrees created.
+
+---
+
+## Phase: Prerequisite Successor Resolution Fix (2026-08-19)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Select by implementation surface, not head-ref history cardinality** `architectural: skill-workflow` — Evaluate every exact-head PR and authorize only one candidate that passes repository/base/head, merged-SHA, dual-ancestry, and merge-revision surface checks.
+2. **Retain rejected-candidate reasons in gate evidence** `architectural: skill-workflow` — Proposal-only PRs remain auditable without preventing a later same-head implementation PR from satisfying the prerequisite.
+3. **Keep successor ambiguity fail-closed** `architectural: skill-workflow` — Zero or multiple surface-qualified merged candidates cannot authorize dependent dispatch.
+
+### Completed Work
+- Added red-first regressions for proposal-only plus implementation successor success, no qualified candidate, and multiple qualified candidates.
+- Refactored prerequisite resolution to qualify all exact-head PRs and then reverify the uniquely selected surface at feature HEAD.
+- Extended baseline-gate evidence with schema-validated candidate assessments and updated the executable contract wording.
+- Kept task 0.5 open; no dependent package was resumed, dispatched, or merged.

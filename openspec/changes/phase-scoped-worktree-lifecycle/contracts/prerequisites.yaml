@@ -58,10 +58,10 @@ prerequisites:
     blocks: [wp-phase-lifecycle]
 
 verification:
-  - Resolve exactly one merged pull request for the expected head ref in the current repository.
+  - Query all pull requests for the exact expected head ref and require exactly one surface-qualified merged candidate in the current repository; ignore proposal-only historical candidates while retaining their rejection reasons in evidence, and fail closed for zero or multiple qualified candidates.
   - Read merge SHA and base ref from authoritative pull-request metadata; caller-supplied SHAs are forbidden.
-  - Fetch the configured remote/base and prove the merge SHA ancestral to both fetched base tip and feature HEAD.
-  - Verify every exact required-surface file as a non-deleted blob at both the authoritative merge SHA and feature HEAD; parse Python and JSON Schema kinds before atomically writing schema-valid baseline-gates.json.
+  - Fetch the configured remote/base and qualify each candidate only when its repository, base, head, merged state, authoritative merge SHA, and ancestry to both fetched base tip and feature HEAD are valid.
+  - Qualify a candidate only when every exact required-surface file is a non-deleted, parseable blob at its authoritative merge SHA; reverify the chosen candidate's Python and JSON Schema surfaces at feature HEAD before atomically writing schema-valid baseline-gates.json.
   - Run the preflight package in the existing managed shared feature worktree without creating or switching checkout; commit the barrier implementation and reload or reinstantiate the scheduler before generating live evidence.
   - Under the feature-branch lock, reverify evidence with that fresh scheduler runtime and record exact feature HEAD before marking the package complete.
   - Create each dependent worktree only from that recorded feature HEAD; a changed HEAD requires locked re-verification and a new recorded base.
