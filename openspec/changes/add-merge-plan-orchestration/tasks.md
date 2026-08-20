@@ -27,6 +27,7 @@ final section.
   **Spec scenarios**: merge-infrastructure "Rendered projection matches the authoritative JSON"
   **Design decisions**: D3 (file is a projection)
   **Dependencies**: 1.1
+  **Also cover**: live CI/staleness/comment/blocking-reason fidelity and interrupted JSON/Markdown bundle recovery
 - [x] 2.2 Implement the `merge-plan.md` renderer as a pure projection of `merge-plan.json`
   **Dependencies**: 2.1
 
@@ -47,6 +48,7 @@ final section.
   **Spec scenarios**: merge-pull-requests "Executing one node updates the plan and flags downstream nodes", "Gated node halts for human decision", "Execution respects the security-check backstop"
   **Design decisions**: D5 (merge serialisation), D6 (human gates), D9 (canonical paths)
   **Dependencies**: 1.1
+  **Also cover**: mirror invocation, active-agent sync-point blocking, OpenSpec non-bypass, fresh staleness recomputation, durable claim/replay reconciliation, final-save failure, and eligible vendor-review fail-closed behavior
 - [x] 4.2 Implement `--execute --pr <n>` in the skill entrypoint: load plan, re-check live PR/CI, refresh if stale, run `vendor_review.py` when eligible, merge via `merge_pr.py` respecting gates, write `outcome` back
   **Dependencies**: 4.1, 1.2, 3.2
 - [x] 4.3 On successful merge, flag downstream nodes (`needs_revalidation=true`) and recompute mergeability before executing a flagged node

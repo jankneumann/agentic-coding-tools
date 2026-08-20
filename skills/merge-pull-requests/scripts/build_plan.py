@@ -35,15 +35,24 @@ def _ci_state(pr: dict[str, Any]) -> str:
     return CI_STATE_MAP.get(raw, "unknown")
 
 
-def _default_gates(pr: dict[str, Any], auto_executable: bool) -> list[str]:
-    supplied = pr.get("gates")
-    if supplied is not None:
-        return list(supplied)
+def _execution_policy(pr: dict[str, Any], origin: str) -> tuple[bool, list[str]]:
+    """Derive a safe execution policy instead of trusting caller flags."""
+
+    supplied = list(pr.get("gates") or [])
+    if origin == "openspec":
+        gates = ["proposal_acceptance"]
+        gates.extend(gate for gate in supplied if gate != "proposal_acceptance")
+        return False, gates
+
+    requested_auto = pr.get("auto_executable")
+    auto_executable = (
+        origin in AUTO_EXECUTABLE_ORIGINS
+        and requested_auto is not False
+        and not supplied
+    )
     if auto_executable:
-        return []
-    if pr.get("origin") == "openspec":
-        return ["proposal_acceptance"]
-    return ["required_review"]
+        return True, []
+    return False, supplied or ["required_review"]
 
 
 def _has_dependency_path(
@@ -127,9 +136,7 @@ def build_plan(
         origin = str(pr.get("origin", "other"))
         staleness = _lookup(staleness_by_pr, number)
         comments = _lookup(comments_by_pr, number)
-        auto_executable = bool(
-            pr.get("auto_executable", origin in AUTO_EXECUTABLE_ORIGINS),
-        )
+        auto_executable, gates = _execution_policy(pr, origin)
         nodes.append(
             {
                 "pr": number,
@@ -141,7 +148,7 @@ def build_plan(
                 "auto_executable": auto_executable,
                 "definition": {
                     "depends_on": dependencies[number],
-                    "gates": _default_gates(pr, auto_executable),
+                    "gates": gates,
                     "changed_files": sorted(changed_files[number]),
                 },
                 "state": {
@@ -185,15 +192,46 @@ def write_plan(plan: dict[str, Any], destination: Path) -> None:
     temporary.replace(destination)
 
 
+def _replace_bundle_member(source: Path, destination: Path) -> None:
+    """Replace one prepared bundle member; split out for fault injection."""
+
+    source.replace(destination)
+
+
+def write_plan_bundle(plan: dict[str, Any], destination: Path) -> Path:
+    """Persist JSON plus Markdown with JSON as the recoverable commit marker.
+
+    Two filesystem paths cannot be renamed atomically as a pair.  Prepare both,
+    publish the projection first, and publish the authoritative JSON last.  A
+    crash between renames can leave only the projection ahead; ``FilePlanStore``
+    repairs that projection from the authoritative JSON on its next load.
+    """
+
+    from render_plan import render_plan
+
+    validate_plan(plan)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    projection = destination.with_suffix(".md")
+    json_temporary = destination.with_suffix(destination.suffix + ".tmp")
+    markdown_temporary = projection.with_suffix(projection.suffix + ".tmp")
+    json_temporary.write_text(
+        json.dumps(plan, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    try:
+        markdown_temporary.write_text(render_plan(plan), encoding="utf-8")
+        _replace_bundle_member(markdown_temporary, projection)
+        _replace_bundle_member(json_temporary, destination)
+    finally:
+        json_temporary.unlink(missing_ok=True)
+        markdown_temporary.unlink(missing_ok=True)
+    return projection
+
+
 def emit_plan(plan: dict[str, Any], destination: Path) -> Path:
     """Persist the authoritative JSON and its human-readable projection."""
 
-    from render_plan import write_projection
-
-    write_plan(plan, destination)
-    projection = destination.with_suffix(".md")
-    write_projection(plan, projection)
-    return projection
+    return write_plan_bundle(plan, destination)
 
 
 def _load_records(path: Path, *, key: str) -> dict[int, dict[str, Any]]:

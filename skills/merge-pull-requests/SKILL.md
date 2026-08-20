@@ -22,7 +22,9 @@ Discover, triage, and merge open pull requests from multiple sources. Handles Op
 - Interactive analysis/triage: optional `--dry-run` (report only, no mutations).
 - Fresh-context plan execution: `--execute <merge-plan.json> --pr <number>`, with
   optional `--approve-gate` only after the operator explicitly approves that node's
-  surfaced human gates.
+  surfaced human gates, and optional `--claim-id <stable-attempt-id>` only when
+  resuming the same recorded attempt. OpenSpec proposal-acceptance gates cannot be
+  released by `--approve-gate`.
 
 ## Script Location
 
@@ -108,7 +110,9 @@ The command validates and writes both authoritative `merge-plan.json` and its
 pure `merge-plan.md` projection. The plan records definition fields (topology,
 strategies, and gates) separately from live execution state. File-overlap and
 stacked-base relationships become dependency edges; the Markdown projection
-surfaces those edges.
+surfaces those edges plus live CI, staleness, comment, and blocking state. JSON
+is the commit marker for the two-file bundle; loading the file store repairs a
+missing or interrupted Markdown projection from authoritative JSON.
 
 To process one PR with a clean context, start a new session and provide only the
 plan plus the target number:
@@ -118,16 +122,21 @@ python3 "<skill-base-dir>/scripts/execute_plan.py" \
   --execute merge-plan.json --pr 42
 ```
 
-Execution re-checks live PR and CI state, refreshes stale or invalidated nodes,
-runs eligible vendor review, and delegates the actual merge to the existing
-`merge_pr.py` safety path. A successful merge persists `outcome=merged` and
+Execution runs the active-agent sync-point guard, re-checks live PR, CI, and
+staleness state, refreshes stale or invalidated nodes, runs eligible vendor
+review, and delegates the actual merge to the existing `merge_pr.py` safety
+path. Eligible review fails closed on dispatch error or a missing verdict. Before
+refresh/review/merge side effects it persists `outcome=in_progress` and a claim;
+a retry reconciles live merged/closed state and refuses an unowned in-flight
+claim rather than replaying the merge. A successful merge persists `outcome=merged` and
 sets `needs_revalidation=true` on every transitive dependant. The next executor
 refreshes and re-checks any flagged node before it may merge.
 
 Human gates are fail-closed. If `auto_executable` is false or the plan carries a
 gate, the command stops and prints the gate. Only after explicit operator
 approval may the operator re-run the same command with `--approve-gate`. That
-flag never bypasses required security checks or GitHub's merge protections.
+flag never bypasses OpenSpec proposal acceptance, required security checks, or
+GitHub's merge protections.
 
 When unresolved comments are found, execution records their summary in the
 plan and returns hand-off commands for `iterate-on-implementation` and
@@ -140,8 +149,8 @@ Phase 1 uses `merge-plan.json` as the authority when coordinator queue
 capabilities are unavailable. Coordinator-backed live plan state is an explicit
 Phase-2 `NotImplementedError` seam; do not imply multi-host safety until that
 follow-on lands. Plan-driven helpers resolve through canonical
-`skills/merge-pull-requests/scripts`, never `.claude/skills` or another runtime
-mirror.
+`skills/merge-pull-requests/scripts` from the repository root, never
+`.agents/skills`, `.claude/skills`, or another runtime mirror.
 
 ## Steps
 
@@ -368,7 +377,10 @@ refuses to merge while the checkout is on a detached HEAD
 
 If vendor review produces **blocking findings** (confirmed issues with disposition=fix), recommend the operator skip or address the issues before merging.
 
-If vendor CLIs are unavailable or all vendors fail, proceed without vendor review and note the gap.
+In interactive triage, if vendor CLIs are unavailable or all vendors fail,
+proceed without vendor review and note the gap. Plan-driven execution is stricter:
+when its eligibility decision requires review, an unavailable dispatcher, all
+failed vendors, or a missing consensus verdict blocks the node.
 
 ### 9.5. Merge-Time Validation Gate for OpenSpec PRs
 

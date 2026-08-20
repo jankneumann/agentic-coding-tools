@@ -95,3 +95,9 @@ packages:
         - openspec_valid
       artifacts:
         - "openspec/changes/add-merge-plan-orchestration/change-context.md"
+        - "openspec/changes/add-merge-plan-orchestration/context-checkpoints/wp-main.json"
+        - "openspec/changes/add-merge-plan-orchestration/session-log.md"
+        - "openspec/changes/add-merge-plan-orchestration/handoffs/implementation-1.json"
+        - "openspec/changes/add-merge-plan-orchestration/architecture-impact.md"
+        - "openspec/changes/add-merge-plan-orchestration/security-review-report.md"
+        - "openspec/changes/add-merge-plan-orchestration/validation-report.md"

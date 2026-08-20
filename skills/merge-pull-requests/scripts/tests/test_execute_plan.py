@@ -6,6 +6,7 @@ import copy
 import sys
 from pathlib import Path
 
+import pytest
 
 SCRIPTS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS))
@@ -36,13 +37,19 @@ def passing_status(**overrides) -> dict:
 
 def dependencies(**overrides) -> ExecutionDependencies:
     values = {
+        "guard_sync_point": lambda _root: {"allowed": True},
         "get_live_status": lambda _pr: passing_status(),
+        "check_staleness": lambda _pr, _origin: {"staleness": "fresh"},
         "refresh_branch": lambda _pr: {"success": True},
         "analyze_comments": lambda _pr: {
             "unresolved_count": 0,
             "unresolved_threads": [],
         },
         "review_vendor": lambda _pr, _origin, _comments: {
+            "eligibility": {"eligible": True, "reason": "needs_review"},
+            "dispatched": True,
+            "vendors": [{"success": True, "vendor": "reviewer"}],
+            "error": None,
             "consensus": {"summary": {"blocking_count": 0}},
         },
         "merge": lambda _pr, _strategy: {"success": True, "status": "merged"},
@@ -66,15 +73,15 @@ def test_successful_execution_updates_outcome_and_flags_transitive_downstream(
     third["title"] = "Third"
     third["definition"]["depends_on"] = [11]
     plan["nodes"].append(third)
+    plan["nodes"][0]["state"]["outcome"] = "merged"
     path = persisted_plan(tmp_path, plan)
 
-    result = execute_node(path, 10, approve_gate=True, dependencies=dependencies())
+    result = execute_node(path, 11, dependencies=dependencies(), claim_id="run-1")
 
     updated = FilePlanStore(path).load()
     states = {node["pr"]: node["state"] for node in updated["nodes"]}
     assert result["outcome"] == "merged"
-    assert states[10]["outcome"] == "merged"
-    assert states[11]["needs_revalidation"] is True
+    assert states[11]["outcome"] == "merged"
     assert states[12]["needs_revalidation"] is True
 
 
@@ -114,8 +121,22 @@ def test_human_gate_halts_without_explicit_approval(tmp_path: Path) -> None:
 
     assert result["outcome"] == "pending"
     assert result["action"] == "human_gate"
-    assert "proposal_acceptance" not in result["gates"]
-    assert "requires_human_approval" in result["gates"]
+    assert "proposal_acceptance" in result["gates"]
+
+
+def test_openspec_gate_cannot_be_bypassed_by_generic_approval(tmp_path: Path) -> None:
+    path = persisted_plan(tmp_path)
+
+    result = execute_node(
+        path,
+        10,
+        approve_gate=True,
+        dependencies=dependencies(),
+    )
+
+    assert result["action"] == "human_gate"
+    assert result["outcome"] == "pending"
+    assert result["override_allowed"] is False
 
 
 def test_failing_security_check_preserves_pending_outcome(tmp_path: Path) -> None:
@@ -174,3 +195,230 @@ def test_executor_resolves_helpers_from_canonical_skill_tree() -> None:
     assert resolved.parts[-3:] == ("skills", "merge-pull-requests", "scripts")
     assert ".claude" not in resolved.parts
     assert ".agents" not in resolved.parts
+
+
+def test_mirror_invocation_resolves_repository_canonical_skill_tree(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    canonical = repo / "skills" / "merge-pull-requests" / "scripts"
+    mirror = repo / ".agents" / "skills" / "merge-pull-requests" / "scripts"
+    canonical.mkdir(parents=True)
+    mirror.mkdir(parents=True)
+    (repo / ".git").write_text("gitdir: elsewhere", encoding="utf-8")
+
+    resolved = canonical_scripts_dir(mirror / "execute_plan.py")
+
+    assert resolved == canonical
+
+
+def test_sync_point_guard_blocks_before_live_checks_or_merge(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    path = persisted_plan(tmp_path, plan)
+    calls: list[str] = []
+
+    result = execute_node(
+        path,
+        11,
+        dependencies=dependencies(
+            guard_sync_point=lambda _root: {
+                "allowed": False,
+                "reason": "active agents hold worktrees",
+            },
+            get_live_status=lambda _pr: calls.append("live") or passing_status(),
+            merge=lambda _pr, _strategy: calls.append("merge") or {"success": True},
+        ),
+    )
+
+    assert result["action"] == "sync_point_blocked"
+    assert calls == []
+
+
+def test_each_execution_recomputes_live_staleness_before_refresh(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    path = persisted_plan(tmp_path, plan)
+    calls = {"staleness": 0, "refresh": 0}
+
+    def stale(_pr: int, _origin: str) -> dict:
+        calls["staleness"] += 1
+        return {"staleness": "stale" if calls["staleness"] == 1 else "fresh"}
+
+    result = execute_node(
+        path,
+        11,
+        claim_id="run-stale",
+        dependencies=dependencies(
+            check_staleness=stale,
+            refresh_branch=lambda _pr: calls.__setitem__("refresh", 1) or {"success": True},
+        ),
+    )
+
+    assert result["action"] == "merged"
+    assert calls == {"staleness": 2, "refresh": 1}
+
+
+def test_claim_is_persisted_before_refresh_review_and_merge(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    plan["nodes"][1]["state"]["needs_revalidation"] = True
+    path = persisted_plan(tmp_path, plan)
+
+    def assert_claimed(_pr: int) -> dict:
+        state = FilePlanStore(path).load()["nodes"][1]["state"]
+        assert state["outcome"] == "in_progress"
+        assert state["claimed_by"] == "run-claim"
+        return {"success": True}
+
+    execute_node(
+        path,
+        11,
+        claim_id="run-claim",
+        dependencies=dependencies(refresh_branch=assert_claimed),
+    )
+
+
+def test_replay_of_open_in_progress_claim_is_rejected(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    plan["nodes"][1]["state"].update(outcome="in_progress", claimed_by="old-run")
+    path = persisted_plan(tmp_path, plan)
+    calls: list[str] = []
+
+    result = execute_node(
+        path,
+        11,
+        claim_id="new-run",
+        dependencies=dependencies(
+            review_vendor=lambda *_args: calls.append("review") or {},
+            merge=lambda *_args: calls.append("merge") or {},
+        ),
+    )
+
+    assert result["action"] == "execution_in_progress"
+    assert result["claimed_by"] == "old-run"
+    assert calls == []
+
+
+def test_retry_reconciles_merged_live_state_without_merging_again(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    plan["nodes"][1]["state"].update(outcome="in_progress", claimed_by="old-run")
+    path = persisted_plan(tmp_path, plan)
+    calls: list[str] = []
+
+    result = execute_node(
+        path,
+        11,
+        claim_id="new-run",
+        dependencies=dependencies(
+            get_live_status=lambda _pr: passing_status(state="MERGED", merged=True),
+            merge=lambda *_args: calls.append("merge") or {},
+        ),
+    )
+
+    assert result["action"] == "reconciled"
+    assert result["outcome"] == "merged"
+    assert calls == []
+    assert FilePlanStore(path).load()["nodes"][1]["state"]["claimed_by"] is None
+
+
+def test_crash_after_remote_merge_is_reconciled_on_retry(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    path = persisted_plan(tmp_path, plan)
+
+    def crash_after_merge(_pr: int, _strategy: str) -> dict:
+        raise RuntimeError("process crashed after GitHub accepted merge")
+
+    with pytest.raises(RuntimeError, match="process crashed"):
+        execute_node(
+            path,
+            11,
+            claim_id="crashed-run",
+            dependencies=dependencies(merge=crash_after_merge),
+        )
+    assert FilePlanStore(path).load()["nodes"][1]["state"]["outcome"] == "in_progress"
+
+    result = execute_node(
+        path,
+        11,
+        claim_id="retry-run",
+        dependencies=dependencies(
+            get_live_status=lambda _pr: passing_status(state="MERGED", merged=True),
+        ),
+    )
+    assert result["action"] == "reconciled"
+
+
+def test_vendor_review_eligible_without_verdict_blocks(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    path = persisted_plan(tmp_path, plan)
+
+    result = execute_node(
+        path,
+        11,
+        dependencies=dependencies(
+            review_vendor=lambda *_args: {
+                "eligibility": {"eligible": True, "reason": "needs_review"},
+                "dispatched": False,
+                "vendors": [],
+                "consensus": None,
+                "error": "review vendor unavailable",
+            },
+        ),
+    )
+
+    assert result["action"] == "vendor_review_gate"
+    assert "unavailable" in result["reason"]
+    assert result["outcome"] == "pending"
+
+
+def test_final_save_failure_leaves_reconcilable_in_progress_claim(
+    tmp_path: Path,
+) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    path = persisted_plan(tmp_path, plan)
+
+    class FailFinalSaveStore(FilePlanStore):
+        def __init__(self, plan_path: Path) -> None:
+            super().__init__(plan_path)
+            self.saves = 0
+
+        def save(self, pending: dict) -> None:
+            self.saves += 1
+            if self.saves == 2:
+                raise OSError("final plan save failed")
+            super().save(pending)
+
+    merge_calls: list[int] = []
+    with pytest.raises(OSError, match="final plan save failed"):
+        execute_node(
+            path,
+            11,
+            claim_id="save-failure-run",
+            store=FailFinalSaveStore(path),
+            dependencies=dependencies(
+                merge=lambda pr, _strategy: merge_calls.append(pr)
+                or {"success": True, "status": "merged"},
+            ),
+        )
+
+    persisted = FilePlanStore(path).load()["nodes"][1]["state"]
+    assert persisted["outcome"] == "in_progress"
+    assert persisted["claimed_by"] == "save-failure-run"
+    assert merge_calls == [11]
+
+    result = execute_node(
+        path,
+        11,
+        claim_id="reconcile-save-failure",
+        dependencies=dependencies(
+            get_live_status=lambda _pr: passing_status(state="MERGED", merged=True),
+            merge=lambda *_args: pytest.fail("reconciliation must not merge again"),
+        ),
+    )
+    assert result["action"] == "reconciled"

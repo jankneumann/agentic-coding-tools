@@ -19,6 +19,10 @@ The plan has two parts with different lifecycles:
   in-flight claims, dynamically-inserted blocker nodes, vendor-review verdicts. Hot,
   concurrently-mutated.
 
+In the file tier, `in_progress` plus `claimed_by` is also the crash boundary. It is
+persisted before refresh, review dispatch, or merge. A retry reconciles terminal GitHub
+state, resumes only the same claim, and otherwise refuses to replay an in-flight attempt.
+
 These are stored differently (D3). Conflating them in one flat file is what breaks
 multi-host dispatch.
 
@@ -62,6 +66,9 @@ Each node carries `auto_executable: true|false` and optional `gate` markers
 admin-merging past a failing gate are human decisions — the orchestrator stops and asks.
 The existing auto-mode classifier remains the independent backstop that refuses merging
 past a failing security check even if a plan says `auto_executable`.
+The semantic contract rejects contradictory gate/auto declarations. OpenSpec nodes are
+always non-auto-executable, always carry `proposal_acceptance`, and are never released by
+the executor's generic approval flag.
 
 ### D7 — Living plan: execution may amend the definition
 
@@ -80,9 +87,9 @@ automation needs worktree-isolated dispatch, a separate change.
 
 ### D9 — Executors use canonical `skills/...` paths
 
-Plan-driven execution invokes helper scripts via canonical `skills/merge-pull-requests/...`
-paths, never the `.claude/skills` mirror — that mirror is now gitignored and can vanish
-mid-run (it did this session, after the mirror-untracking PR merged).
+Plan-driven execution resolves the repository root first and invokes helper scripts via
+canonical `skills/merge-pull-requests/...` paths, never an `.agents/skills`,
+`.claude/skills`, or other runtime mirror — mirrors are generated and can vanish mid-run.
 
 ### D10 — Auth scoping is a Phase-2 requirement, not an afterthought
 
@@ -103,6 +110,9 @@ the required scope explicitly rather than discovering the gap at runtime.
 
 - Two storage tiers to keep coherent — mitigated by making the file a pure projection of
   the same schema the coordinator serves.
+- JSON and Markdown cannot be renamed atomically as a pair — mitigated by preparing both,
+  publishing JSON last as the commit marker, and repairing Markdown from authoritative
+  JSON on load after an interrupted write.
 - The DAG's file-overlap edges are heuristic (path intersection) and may over- or
   under-connect; execution's downstream re-validation (D2) is the safety net that catches
   a missed edge before a bad merge.
