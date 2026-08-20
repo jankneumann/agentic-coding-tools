@@ -47,6 +47,8 @@ packages:
         - "skills/merge-pull-requests/**"
         - "skills/tests/merge-pull-requests/**"
         - "openspec/changes/add-merge-plan-orchestration/**"
+        - "docs/decisions/merge-infrastructure.md"
+        - "docs/decisions/merge-pull-requests.md"
       read_allow:
         - "skills/**"
         - "openspec/changes/add-merge-plan-orchestration/**"
@@ -56,6 +58,7 @@ packages:
       surfaces:
         - apis
         - capabilities
+        - decisions
         - documentation
         - semantic_code
     worktree:
@@ -102,3 +105,5 @@ packages:
         - "openspec/changes/add-merge-plan-orchestration/architecture-impact.md"
         - "openspec/changes/add-merge-plan-orchestration/security-review-report.md"
         - "openspec/changes/add-merge-plan-orchestration/validation-report.md"
+        - "docs/decisions/merge-infrastructure.md"
+        - "docs/decisions/merge-pull-requests.md"

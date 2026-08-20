@@ -125,6 +125,7 @@
     "surfaces": [
       "apis",
       "capabilities",
+      "decisions",
       "documentation",
       "semantic_code"
     ]
@@ -241,35 +242,15 @@
       ]
     },
     {
-      "artifacts": [
-        {
-          "change": "modified",
-          "path": "docs/decisions/merge-infrastructure.md",
-          "sha256": "888a1f4b2b07973f3edbcc4bd219735df99160ef93610a7ce70a100137040f5a"
-        },
-        {
-          "change": "modified",
-          "path": "docs/decisions/merge-pull-requests.md",
-          "sha256": "5491c4c916f62bb1083220ef5f8aa00cbc87a79d852d5e65aa859acb93d2a130"
-        }
-      ],
-      "fallback": {
-        "kind": "custom",
-        "reason": "Check mode compared rendered output in memory and performed no checkout write."
-      },
+      "artifacts": [],
       "producer_id": "decisions.timeline",
       "producer_version": "1.0.0",
-      "remediation": [
-        {
-          "command": "make decisions",
-          "summary": "Regenerate the decision index."
-        }
-      ],
-      "status": "degraded",
+      "remediation": [],
+      "status": "fresh",
       "validations": [
         {
-          "status": "failed",
-          "summary": "docs/decisions is stale",
+          "status": "passed",
+          "summary": "docs/decisions is current",
           "validation_id": "decisions"
         }
       ]
@@ -378,7 +359,7 @@
         {
           "change": "modified",
           "path": "openspec/specs/merge-pull-requests/spec.md",
-          "sha256": "6f7d0907996a0eb5396d5398c04e9e8aad4d167c6302e72719b8f61af8ef8e3a"
+          "sha256": "a74929815f939fdd5d24272fbf914cb4fbedd141ff68574fb03a7955d9efb1a3"
         },
         {
           "change": "added",
@@ -756,8 +737,8 @@
     "indexed_revision": null,
     "operation_id": null,
     "registry_record_id": null,
-    "requested_revision": "7121b70616e55631861ae53e69b23ed1a19840a3",
+    "requested_revision": "1857e876d9f290677142fdafd87befaf4e8e9575",
     "status": "not-configured"
   },
-  "source_revision": "7121b70616e55631861ae53e69b23ed1a19840a3"
+  "source_revision": "1857e876d9f290677142fdafd87befaf4e8e9575"
 }
