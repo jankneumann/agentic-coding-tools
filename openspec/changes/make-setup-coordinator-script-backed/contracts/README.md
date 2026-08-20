@@ -34,3 +34,24 @@ a remediation instruction for a command that does not exist.
 `checked_validity` is `const: false`. Presence detection never verifies that a
 credential is valid or unexpired, and the contract states this rather than
 leaving consumers to assume otherwise.
+
+`config_artifact`, `config_present`, and `remediation` are **required** (with
+nullable types) rather than optional. This is deliberate: JSON Schema's
+`if/then` over `properties` is vacuously satisfied when a key is absent, so the
+`unknown ⇒ all three are null` constraint — the one the section above calls
+load-bearing — would not bite at all if a producer simply omitted the fields. A
+constraint that can be escaped by omission is not a constraint.
+
+For the same reason there is a `config_missing` branch alongside the `ready`
+and `cli_missing` ones: it pins `cli_on_path: true`, a non-empty
+`config_artifact`, and `config_present: false`, so the state that *does* emit a
+login instruction can only be reached when a declared artifact was actually
+checked and actually absent.
+
+## What the schema cannot express
+
+`summary.total` must equal `len(vendors)`, and each `summary` counter must equal
+the number of vendors in that state. JSON Schema cannot state a cross-field
+cardinality relation, so this is asserted in the test suite instead. The same
+applies to "at most one entry per vendor key" (design decision D1b) — the
+schema constrains each item, not the collection.

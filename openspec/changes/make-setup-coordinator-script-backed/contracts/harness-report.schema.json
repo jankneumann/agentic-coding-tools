@@ -56,7 +56,17 @@
     "VendorReport": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["vendor", "agent_id", "agent_type", "cli_command", "cli_on_path", "state"],
+      "required": [
+        "vendor",
+        "agent_id",
+        "agent_type",
+        "cli_command",
+        "cli_on_path",
+        "config_artifact",
+        "config_present",
+        "state",
+        "remediation"
+      ],
       "properties": {
         "vendor": {
           "type": "string",
@@ -116,6 +126,16 @@
         {
           "if": { "properties": { "state": { "const": "cli_missing" } }, "required": ["state"] },
           "then": { "properties": { "cli_on_path": { "const": false } } }
+        },
+        {
+          "if": { "properties": { "state": { "const": "config_missing" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "cli_on_path": { "const": true },
+              "config_artifact": { "type": "string", "minLength": 1 },
+              "config_present": { "const": false }
+            }
+          }
         }
       ]
     }
