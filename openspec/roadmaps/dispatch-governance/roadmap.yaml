@@ -205,3 +205,43 @@ items:
   - Missing runtime or unsupported platform degrades to unsandboxed dispatch with a
     warning and an audit event
   - Adding a second runtime backend requires only a new renderer function
+- item_id: dg-08
+  title: Egress gateway rendering and request-time secret boundary
+  change_id: add-egress-gateway-boundary
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - dg-03
+  - dg-07
+  description: Add render_iron_proxy_config() beside dg-07's srt renderer, turning
+    the coordinator's network policy into an iron-proxy configuration (default-deny
+    domain allowlist, header allowlist, structured audit log) so egress policy stays
+    authored once. In postures whose dg-03 network dimension reports real interception
+    (self-managed containers, the Sentinel fleet, an OpenShell netns later), dispatch
+    egress routes through a per-boundary iron-proxy and the sandbox network policy
+    admits only the gateway address. The gateway carries pca-04's credential scope
+    to its conclusion - the subprocess env holds proxy tokens, and iron-proxy swaps
+    in real vendor keys at egress. Explicitly not deployed DNS-only on the local uid
+    (same-uid workloads can bypass the resolver, so a gateway there simulates containment)
+    and not deployed inside the managed cloud harness, whose platform proxy already
+    terminates TLS and owns the allowlist.
+  rationale: dg-07's srt backend can only allow or deny a connection; it cannot
+    inspect headers or MCP tool calls, and it leaves real vendor keys in the sandbox
+    env - the primary threat this epic names is a prompt-injected agent reading
+    exactly those. An egress gateway with boundary-side secret injection removes
+    the secret from the sandbox entirely and enforces content-level policy, which
+    is the machine-level containment TRUST_POSTURE.md gate-flipping is waiting on.
+    Placing it behind the render_* seam keeps it an addition per dg-07's own
+    acceptance outcome rather than a parallel policy system.
+  acceptance_outcomes:
+  - The coordinator's network policy renders to iron-proxy configuration through the
+    same export path dg-07 uses; no allowlist is hand-authored in gateway config
+  - In a gateway posture a dispatched agent's only reachable destination is the gateway;
+    a denied domain is blocked at the proxy with a structured audit event naming the
+    matched policy
+  - A dispatched subprocess in a gateway posture holds proxy tokens only; the real
+    vendor key is attached at egress and never appears in the sandbox env (integration
+    test)
+  - Local-uid and managed-cloud postures skip gateway deployment with an audit event
+    recording why, rather than deploying a bypassable proxy
