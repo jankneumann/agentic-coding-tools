@@ -39,7 +39,10 @@ items:
   effort: M
   depends_on: []
   description: Sandbox-by-infrastructure (ephemeral containers + E2B), read-only mounts,
-    hard-rule injection.
+    hard-rule injection. Candidate egress backend for the container lane is a per-fleet
+    iron-proxy rendered from coordinator network policy via dispatch-governance dg-08,
+    which adds per-request audit and keeps vendor keys out of role sandboxes; E2B-native
+    egress controls remain the alternative where the E2B lane is used.
   acceptance_outcomes:
   - Elevated agent cannot reach hosts outside allowlist
   - Writes to target/config/sandbox fail (read-only)
