@@ -7,7 +7,9 @@ from src.db import DatabaseClient, SupabaseClient, create_db_client, reset_db
 
 try:
     from src.db_postgres import (
+        DirectPostgresClient,
         _coerce_filter_value,
+        _serialize_for_asyncpg,
         _validate_identifier,
         _validate_select_clause,
     )
@@ -133,3 +135,115 @@ class TestPostgresFilterParsing:
 
         with pytest.raises(ValueError, match="Unsafe identifier"):
             _validate_select_clause("id, task_type; DROP TABLE work_queue")
+
+    def test_coerce_filter_value_iso_datetime(self):
+        """ISO timestamps in filters must become datetime for asyncpg."""
+        from datetime import datetime
+
+        val = _coerce_filter_value("2026-08-19T12:34:56.789123+00:00")
+        assert isinstance(val, datetime)
+        assert val.tzinfo is not None
+
+    def test_coerce_filter_value_leaves_non_timestamp_strings(self):
+        assert _coerce_filter_value("completed") == "completed"
+        assert _coerce_filter_value("2026-08-19") == "2026-08-19"
+
+
+@pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
+class TestSerializeForAsyncpg:
+    """Services write ISO timestamp strings (PostgREST JSON contract).
+
+    asyncpg rejects those strings for TIMESTAMPTZ columns with
+    DataError: invalid input for query argument $N. The postgres
+    adapter must coerce them to datetime before binding.
+    """
+
+    def test_iso_timestamp_becomes_datetime(self):
+        from datetime import datetime
+
+        # datetime.now(UTC).isoformat() — the issue_close payload shape
+        raw = "2026-08-19T12:34:56.789123+00:00"
+        out = _serialize_for_asyncpg(raw)
+        assert isinstance(out, datetime)
+        assert out.isoformat() == raw
+
+    def test_zulu_timestamp_becomes_datetime(self):
+        from datetime import datetime
+
+        out = _serialize_for_asyncpg("2026-08-19T12:34:56Z")
+        assert isinstance(out, datetime)
+        assert out.utcoffset() is not None
+
+    def test_plain_strings_pass_through(self):
+        assert _serialize_for_asyncpg("completed") == "completed"
+        assert _serialize_for_asyncpg("Done in PR #42") == "Done in PR #42"
+
+    def test_dicts_still_json_encoded(self):
+        import json
+
+        out = _serialize_for_asyncpg({"body": "hello"})
+        assert out == json.dumps({"body": "hello"})
+
+    def test_datetime_objects_pass_through(self):
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC)
+        assert _serialize_for_asyncpg(now) is now
+
+
+@pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
+class TestPostgresUpdateTimestampBinding:
+    """Prove-it: issue_close's UPDATE binds datetime, not ISO strings.
+
+    Reproduction of DataError: invalid input for query argument $2 —
+    $1 is status, $2 is completed_at. Without coercion asyncpg rejects
+    the ISO string against TIMESTAMPTZ.
+    """
+
+    @pytest.mark.asyncio
+    async def test_update_binds_iso_timestamps_as_datetime(self):
+        from datetime import datetime
+        from uuid import uuid4
+
+        captured: dict = {}
+
+        class FakeConn:
+            async def fetch(self, query, *args):
+                captured["query"] = query
+                captured["args"] = args
+                return []
+
+        class FakeAcquire:
+            async def __aenter__(self):
+                return FakeConn()
+
+            async def __aexit__(self, *exc):
+                return None
+
+        class FakePool:
+            def acquire(self):
+                return FakeAcquire()
+
+        client = DirectPostgresClient()
+        client._pool = FakePool()  # type: ignore[assignment]
+
+        issue_id = uuid4()
+        await client.update(
+            "work_queue",
+            match={"id": issue_id},
+            data={
+                "status": "completed",
+                "completed_at": "2026-08-19T12:34:56.789123+00:00",
+                "closed_at": "2026-08-19T12:34:56.789123+00:00",
+            },
+        )
+
+        args = captured["args"]
+        # $1 status, $2 completed_at, $3 closed_at, $4 match id
+        assert args[0] == "completed"
+        assert isinstance(args[1], datetime), (
+            "completed_at ($2) must be datetime, not ISO string — "
+            f"got {type(args[1]).__name__}"
+        )
+        assert isinstance(args[2], datetime)
+        assert args[3] == issue_id
