@@ -1,0 +1,53 @@
+{
+  "blocking_findings": [],
+  "change_id": "make-setup-coordinator-script-backed",
+  "cli_review_enabled": true,
+  "current_phase": "PLAN",
+  "error": null,
+  "escalation_reason": null,
+  "findings_trend": [],
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": false,
+    "has_security_signal": false,
+    "has_specs": false,
+    "has_tasks": false,
+    "has_work_packages": false,
+    "package_count": 0,
+    "total_loc_estimate": null
+  },
+  "gate_verdict": "proceed_with_review",
+  "handoff_ids": [],
+  "implementation_strategy": {},
+  "iteration": 0,
+  "last_handoff_id": null,
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "phase_archetype": "architect",
+  "phase_history": [
+    {
+      "at": "2026-08-19T23:54:37.054130+00:00",
+      "note": "handoff write refused by coordinator (403 local-profile key gap); verdict recorded via in-process gatekeeper semantics",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    }
+  ],
+  "phase_started_at": "2026-08-19T23:54:37.054256+00:00",
+  "previous_phase": null,
+  "schema_version": 4,
+  "started_at": "2026-08-19T23:48:31.626717+00:00",
+  "total_iterations": 0,
+  "val_review_enabled": true,
+  "vendor_availability": {
+    "antigravity": true,
+    "claude_code": true,
+    "codex": true,
+    "grok": true,
+    "pi": false
+  }
+}

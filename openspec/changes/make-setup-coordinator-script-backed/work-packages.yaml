@@ -1,0 +1,227 @@
+schema_version: 1
+
+feature:
+  id: make-setup-coordinator-script-backed
+  title: "Make setup-coordinator script-backed"
+  plan_revision: 1
+  created_by: autopilot
+
+# No HTTP surface. The canonical machine-readable contract is the `--json`
+# output of the new entrypoint, so the contract slot carries that schema --
+# the same convention add-deterministic-context-drift-gates used for its gate
+# report schema.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json"
+    files:
+      - "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+# Decomposition note: every task in phases 1-3 writes the SAME file
+# (scripts/setup_coordinator.py), because approach 1 is deliberately a single
+# entrypoint. Splitting those phases into parallel packages would violate the
+# non-overlapping write_allow rule, so they are one package. wp-integration is
+# split out because it touches a disjoint file set and depends on the entrypoint
+# existing. The two packages are sequential by dependency, not parallel.
+packages:
+  - package_id: wp-core
+    title: "Entrypoint, detection, settings writer, and test suite"
+    task_type: implementation
+    description: |
+      Tasks 1.1-3.6. Create the script-backed entrypoint and its suite.
+
+      Test-first throughout. Each settings-writer test must FAIL against the
+      behavior that ships today in SKILL.md:211-232 -- a test that passes on the
+      unmodified tree is decoration, not a gate.
+
+      Two of the four defects need constructed fixtures rather than the repo's
+      own files. The live .claude/settings.local.json has only an `allow` list
+      and no `deny` key, so the deny-list false positive is LATENT: asserting
+      against the real file would pass vacuously. Build the deny case in
+      tmp_path. Same for detection -- fake PATH and a temp HOME; never read the
+      operator's real `~` (design decision D7).
+
+      Detection calls vendor_health.check_all_vendors() UNMODIFIED. That module
+      is owned by the vendor-ux spec across 8 requirements and carries an
+      explicit no-probe constraint at lines 99-101; touching it would require a
+      second delta spec and reopen that decision (D1).
+
+      The atomic write comes from project-context-runtime's atomic.py, imported
+      by flat module name after a sys.path insert -- NOT via the package facade,
+      which test_cross_process.py:82-84 asserts does not re-export it (D2).
+      Guard the import with an inline fallback per the refresh-architecture
+      precedent.
+
+      Task 1.2 registers the suite in testpaths and must be verified by
+      observing collection, not by assuming: an unregistered test directory
+      fails open and is indistinguishable from a suite with zero tests. The
+      pyproject comment records two prior incidents of exactly this.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/setup-coordinator/scripts/setup_coordinator.py"
+        - "skills/pyproject.toml"
+      keys:
+        - "feature:setup-coordinator:entrypoint"
+      ttl_minutes: 120
+      reason: "Create the setup-coordinator script entrypoint and its test suite"
+    scope:
+      write_allow:
+        - "skills/setup-coordinator/scripts/**"
+        - "skills/tests/setup-coordinator/**"
+        - "skills/pyproject.toml"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: setup-coordinator-core
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "New suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/setup-coordinator/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["setup_coordinator_tests_pass"]
+        - name: "Suite is actually collected by the repo pytest config"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest --collect-only -q tests/setup-coordinator 2>&1 | tail -3"
+          evidence:
+            artifacts: []
+            result_keys: ["suite_registered"]
+        - name: "Entrypoint --json output validates against the contract"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import json,subprocess;from jsonschema import Draft202012Validator as V;s=json.load(open('openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json'));d=json.loads(subprocess.run(['python3','skills/setup-coordinator/scripts/setup_coordinator.py','detect-harnesses','--json'],capture_output=True,text=True).stdout);V(s).validate(d)\""
+          evidence:
+            artifacts: []
+            result_keys: ["json_matches_contract"]
+        - name: "ruff clean at the locked version"
+          kind: command
+          command: "cd skills && uv run ruff check ."
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+    metadata:
+      loc_estimate: 520
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "setup_coordinator_tests_pass"
+        - "suite_registered"
+        - "json_matches_contract"
+        - "ruff_clean"
+
+  - package_id: wp-integration
+    title: "Manifest registration, SKILL.md rewrite, and payload gates"
+    task_type: implementation
+    description: |
+      Tasks 4.1-4.7. Wire the entrypoint into the skill payload and cut SKILL.md
+      from 359 lines to the 120-150 target.
+
+      cross_skill_dependencies["setup-coordinator"] currently reads
+      ["coordination-bridge"] and must gain parallel-infrastructure and
+      project-context-runtime. Note this key lives at the TOP LEVEL of
+      install-manifest.json, not inside the per-skill entry -- the per-skill
+      objects only carry distribution/prerequisites/reason.
+
+      SKILL.md keeps its knowledge content: the transport-model table, the
+      when-to-use-HTTP guidance, and the troubleshooting list are model-facing
+      knowledge a script cannot carry (D4). What goes is the improvised glue --
+      every bash fragment becomes a script invocation.
+
+      No runtime-mirror work is required. `git ls-files` returns zero entries
+      under .claude/skills/ and .agents/skills/; they are untracked rsync
+      targets regenerated by install.sh.
+
+      test_skill_md.py must import from `skill_invariants`, NOT from `conftest`
+      -- the shared conftest docstring explicitly warns it is not safe to import
+      normally.
+    role: implementer
+    priority: 2
+    depends_on:
+      - wp-core
+    locks:
+      files:
+        - "skills/setup-coordinator/SKILL.md"
+        - "skills/install-manifest.json"
+      keys:
+        - "feature:setup-coordinator:manifest"
+      ttl_minutes: 60
+      reason: "Register the entrypoint and rewrite the skill narration"
+    scope:
+      write_allow:
+        - "skills/setup-coordinator/SKILL.md"
+        - "skills/install-manifest.json"
+        - "skills/tests/setup-coordinator/test_skill_md.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces:
+        - "documentation"
+    worktree:
+      name: setup-coordinator-integration
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Standalone payload check"
+          kind: command
+          command: "bash skills/install.sh --check"
+          evidence:
+            artifacts: []
+            result_keys: ["payload_valid"]
+        - name: "Install manifest validates"
+          kind: command
+          command: "skills/.venv/bin/python skills/shared/validate_install_manifest.py"
+          evidence:
+            artifacts: []
+            result_keys: ["manifest_valid"]
+        - name: "No agent-coordinator import from the skills tree"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-feature/scripts/linters/dependency_direction.py --skills-root ."
+          evidence:
+            artifacts: []
+            result_keys: ["dependency_direction_clean"]
+        - name: "SKILL.md within the 120-150 line target"
+          kind: command
+          command: "test $(grep -c '' skills/setup-coordinator/SKILL.md) -le 150 && test $(grep -c '' skills/setup-coordinator/SKILL.md) -ge 100"
+          evidence:
+            artifacts: []
+            result_keys: ["skill_md_size"]
+    metadata:
+      loc_estimate: 180
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys:
+        - "payload_valid"
+        - "manifest_valid"
+        - "dependency_direction_clean"
+        - "skill_md_size"
