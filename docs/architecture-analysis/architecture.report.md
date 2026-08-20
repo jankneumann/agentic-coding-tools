@@ -2,26 +2,26 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-18T22:23:29+00:00  
-Git SHA: `26ab704c4010da3a2118b5e2fdb53844ce83e362`
+Generated: 2026-08-20T13:17:10+00:00  
+Git SHA: `fcd158d140524f04b04299a30839019936fd8ff9`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1079 functions (435 async) and 248 classes.
+This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1082 functions (437 async) and 248 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1892 |
-| Total edges | 1188 |
+| Total nodes | 1896 |
+| Total edges | 1189 |
 | Python modules | 77 |
-| Functions | 1079 (435 async) |
+| Functions | 1082 (437 async) |
 | Classes | 248 |
 | Mcp Endpoints | 96 |
 | DB tables | 27 |
-| Python nodes | 1456 |
-| Sql nodes | 436 |
+| Python nodes | 1459 |
+| Sql nodes | 437 |
 
 ## Module Responsibility Map
 
@@ -278,18 +278,18 @@ This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (8
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2726 findings** across 4 categories:
+**2732 findings** across 4 categories:
 
-### Orphan — 1207
+### Orphan — 1210
 
-1207 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1210 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1202 more
+- ... and 1205 more
 
 ### Reachability — 96
 
@@ -304,16 +304,16 @@ Breakdown: 88 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 91 more
 
-### Test Coverage — 1327
+### Test Coverage — 1330
 
-1327 functions lack test references — consider adding tests for critical paths.
+1330 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1322 more
+- ... and 1325 more
 
 ### Disconnected Flow (expected) — 96
 
@@ -330,7 +330,7 @@ Breakdown: 88 info, 8 warning.
 
 *Data sources: [high_impact_nodes.json](high_impact_nodes.json), [parallel_zones.json](parallel_zones.json)*
 
-113 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
+114 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
 
 | Node | Dependents | Risk |
 |------|------------|------|
@@ -364,7 +364,7 @@ Breakdown: 88 info, 8 warning.
 | `feature_registry.get_feature_registry_service` | 19 | High — test `feature_registry` changes thoroughly (5 modules affected) |
 | `issue_service.get_issue_service` | 19 | High — test `issue_service` changes thoroughly (modules: coordination_api, coordination_mcp) |
 | `audit` | 17 | High — test `audit` changes thoroughly (16 modules affected) |
-| ... | | 83 more |
+| ... | | 84 more |
 
 ## Code Health Indicators
 
@@ -374,9 +374,9 @@ Breakdown: 88 info, 8 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 435/1079 (40%) |
-| Docstring coverage | 770/1079 (71%) |
-| Dead code candidates | 502 |
+| Async ratio | 437/1082 (40%) |
+| Docstring coverage | 773/1082 (71%) |
+| Dead code candidates | 504 |
 
 ### Hot Functions
 
@@ -397,11 +397,11 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ### Dead Code Candidates
 
-502 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
+504 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
 
 - **agents_config** (10): `mutations`, `get_mcp_env`, `reset_agents_config`, `get_agent_isolation`, `get_phase_mapping`, `reset_archetypes_config`, ... (+4)
 - **approval** (8): `db`, `submit_request`, `check_request`, `decide_request`, `expire_stale_requests`, `list_pending`, ... (+2)
-- **audit** (6): `from_dict`, `db`, `log_operation`, `_insert_audit_entry`, `query`, `timed`
+- **audit** (7): `from_dict`, `db`, `log_operation`, `drain`, `_insert_audit_entry`, `query`, ... (+1)
 - **audit_triage** (5): `push`, `drain_all`, `load_prompt`, `drain_and_classify`, `reset_triage_buffer`
 - **cloudflare_access** (4): `_signing_key`, `verify`, `_is_exempt`, `_deny`
 - **code_search** (14): `validate_main_key`, `validate_patterns`, `validate_reference`, `validate_languages`, `validate_paths`, `require_non_main_index`, ... (+8)
@@ -454,19 +454,19 @@ Functions called by the most other functions — changes here have wide blast ra
 - **teams** (8): `can_claim`, `from_dict`, `get_role`, `vendors_for`, `validate_against`, `_claimability_errors`, ... (+2)
 - **telemetry** (4): `set_attribute`, `set_status`, `record_exception`, `reset_telemetry`
 - **watchdog** (14): `db`, `running`, `start`, `stop`, `run_once`, `_loop`, ... (+8)
-- **work_queue** (10): `db`, `_resolve_trust_level`, `claim`, `complete`, `submit`, `get_pending`, ... (+4)
+- **work_queue** (11): `db`, `_resolve_trust_level`, `_release_claimed_task`, `claim`, `complete`, `submit`, ... (+5)
 
 ## Parallel Modification Zones
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1187 independent groups** identified. The largest interconnected group has 538 modules; 1491 modules are leaf nodes (safe to modify in isolation).
+**1190 independent groups** identified. The largest interconnected group has 539 modules; 1494 modules are leaf nodes (safe to modify in isolation).
 
 **39 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
 ### Interconnected Groups
 
-**Group 0** (538 members spanning 55 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_runtime`
+**Group 0** (539 members spanning 55 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_runtime`
   ... and 47 more modules
 
 **Group 1** (56 members spanning 56 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_authorization`
@@ -488,9 +488,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1491)
+### Leaf Modules (1494)
 
-1491 modules have no dependents — changes are fully isolated. 1165 of the 1187 groups are singletons.
+1494 modules have no dependents — changes are fully isolated. 1168 of the 1190 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -500,8 +500,8 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1456 nodes)"]
-    Database["Database (436 nodes)"]
+    Backend["Backend (1459 nodes)"]
+    Database["Database (437 nodes)"]
 ```
 
 ### Backend Components
@@ -512,7 +512,7 @@ flowchart TB
     agents_config["agents_config (54 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
-    audit["audit (17 symbols)"]
+    audit["audit (18 symbols)"]
     audit_triage["audit_triage (11 symbols)"]
     axi_output["axi_output (4 symbols)"]
     cloudflare_access["cloudflare_access (12 symbols)"]
@@ -551,7 +551,7 @@ flowchart TB
     merge_train_service["merge_train_service (29 symbols)"]
     merge_train_types["merge_train_types (14 symbols)"]
     merge_watcher["merge_watcher (8 symbols)"]
-    migrations["migrations (5 symbols)"]
+    migrations["migrations (6 symbols)"]
     model_routing____init__["model_routing.__init__ (1 symbols)"]
     model_routing__exploration["model_routing.exploration (5 symbols)"]
     model_routing__feedback["model_routing.feedback (8 symbols)"]
@@ -584,7 +584,7 @@ flowchart TB
     trust_levels["trust_levels (2 symbols)"]
     trust_resolution["trust_resolution (5 symbols)"]
     watchdog["watchdog (18 symbols)"]
-    work_queue["work_queue (24 symbols)"]
+    work_queue["work_queue (25 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
     agents_config -->|"call"| audit
     agents_config -->|"call"| config
@@ -866,6 +866,7 @@ erDiagram
         TEXT agent_id
         TEXT agent_type
         TIMESTAMPTZ created_at
+        TEXT delegated_from
         INT duration_ms
         UNKNOWN enable
         TEXT error_message

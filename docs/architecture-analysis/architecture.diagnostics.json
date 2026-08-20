@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-18T22:23:29+00:00",
+  "generated_at": "2026-08-20T13:17:10+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -1971,7 +1971,7 @@
       "message": "Function '_desired_profile_row' has no corresponding test references",
       "node_id": "py:agents_config._desired_profile_row",
       "file": "agents_config.py",
-      "line": 1091,
+      "line": 1105,
       "suggestion": "Add tests that reference '_desired_profile_row' (e.g., test__desired_profile_row or import it in a test file)"
     },
     {
@@ -1980,7 +1980,7 @@
       "message": "Function '_profile_drift' has no corresponding test references",
       "node_id": "py:agents_config._profile_drift",
       "file": "agents_config.py",
-      "line": 1104,
+      "line": 1118,
       "suggestion": "Add tests that reference '_profile_drift' (e.g., test__profile_drift or import it in a test file)"
     },
     {
@@ -1989,7 +1989,7 @@
       "message": "Function '_emit_sync_audit' has no corresponding test references",
       "node_id": "py:agents_config._emit_sync_audit",
       "file": "agents_config.py",
-      "line": 1122,
+      "line": 1136,
       "suggestion": "Add tests that reference '_emit_sync_audit' (e.g., test__emit_sync_audit or import it in a test file)"
     },
     {
@@ -1998,7 +1998,7 @@
       "message": "Function '_sync_assignments' has no corresponding test references",
       "node_id": "py:agents_config._sync_assignments",
       "file": "agents_config.py",
-      "line": 1167,
+      "line": 1181,
       "suggestion": "Add tests that reference '_sync_assignments' (e.g., test__sync_assignments or import it in a test file)"
     },
     {
@@ -2007,7 +2007,7 @@
       "message": "Function 'sync_profiles' has no corresponding test references",
       "node_id": "py:agents_config.sync_profiles",
       "file": "agents_config.py",
-      "line": 1336,
+      "line": 1350,
       "suggestion": "Add tests that reference 'sync_profiles' (e.g., test_sync_profiles or import it in a test file)"
     },
     {
@@ -2016,7 +2016,7 @@
       "message": "Function 'get_mcp_env' has no corresponding test references",
       "node_id": "py:agents_config.get_mcp_env",
       "file": "agents_config.py",
-      "line": 1569,
+      "line": 1583,
       "suggestion": "Add tests that reference 'get_mcp_env' (e.g., test_get_mcp_env or import it in a test file)"
     },
     {
@@ -2025,7 +2025,7 @@
       "message": "Function 'get_agents_config' has no corresponding test references",
       "node_id": "py:agents_config.get_agents_config",
       "file": "agents_config.py",
-      "line": 1607,
+      "line": 1621,
       "suggestion": "Add tests that reference 'get_agents_config' (e.g., test_get_agents_config or import it in a test file)"
     },
     {
@@ -2034,7 +2034,7 @@
       "message": "Function 'get_agent_config' has no corresponding test references",
       "node_id": "py:agents_config.get_agent_config",
       "file": "agents_config.py",
-      "line": 1623,
+      "line": 1637,
       "suggestion": "Add tests that reference 'get_agent_config' (e.g., test_get_agent_config or import it in a test file)"
     },
     {
@@ -2043,7 +2043,7 @@
       "message": "Function 'reset_agents_config' has no corresponding test references",
       "node_id": "py:agents_config.reset_agents_config",
       "file": "agents_config.py",
-      "line": 1631,
+      "line": 1645,
       "suggestion": "Add tests that reference 'reset_agents_config' (e.g., test_reset_agents_config or import it in a test file)"
     },
     {
@@ -2052,7 +2052,7 @@
       "message": "Function 'get_dispatch_configs' has no corresponding test references",
       "node_id": "py:agents_config.get_dispatch_configs",
       "file": "agents_config.py",
-      "line": 1641,
+      "line": 1655,
       "suggestion": "Add tests that reference 'get_dispatch_configs' (e.g., test_get_dispatch_configs or import it in a test file)"
     },
     {
@@ -2061,7 +2061,7 @@
       "message": "Function 'get_agent_isolation' has no corresponding test references",
       "node_id": "py:agents_config.get_agent_isolation",
       "file": "agents_config.py",
-      "line": 1709,
+      "line": 1723,
       "suggestion": "Add tests that reference 'get_agent_isolation' (e.g., test_get_agent_isolation or import it in a test file)"
     },
     {
@@ -2070,7 +2070,7 @@
       "message": "Function '_default_archetypes_path' has no corresponding test references",
       "node_id": "py:agents_config._default_archetypes_path",
       "file": "agents_config.py",
-      "line": 1725,
+      "line": 1739,
       "suggestion": "Add tests that reference '_default_archetypes_path' (e.g., test__default_archetypes_path or import it in a test file)"
     },
     {
@@ -2079,7 +2079,7 @@
       "message": "Function 'load_archetypes_config' has no corresponding test references",
       "node_id": "py:agents_config.load_archetypes_config",
       "file": "agents_config.py",
-      "line": 1729,
+      "line": 1743,
       "suggestion": "Add tests that reference 'load_archetypes_config' (e.g., test_load_archetypes_config or import it in a test file)"
     },
     {
@@ -2088,7 +2088,7 @@
       "message": "Function 'get_archetype' has no corresponding test references",
       "node_id": "py:agents_config.get_archetype",
       "file": "agents_config.py",
-      "line": 1826,
+      "line": 1840,
       "suggestion": "Add tests that reference 'get_archetype' (e.g., test_get_archetype or import it in a test file)"
     },
     {
@@ -2097,7 +2097,7 @@
       "message": "Function 'get_phase_mapping' has no corresponding test references",
       "node_id": "py:agents_config.get_phase_mapping",
       "file": "agents_config.py",
-      "line": 1840,
+      "line": 1854,
       "suggestion": "Add tests that reference 'get_phase_mapping' (e.g., test_get_phase_mapping or import it in a test file)"
     },
     {
@@ -2106,7 +2106,7 @@
       "message": "Function 'reset_archetypes_config' has no corresponding test references",
       "node_id": "py:agents_config.reset_archetypes_config",
       "file": "agents_config.py",
-      "line": 1852,
+      "line": 1866,
       "suggestion": "Add tests that reference 'reset_archetypes_config' (e.g., test_reset_archetypes_config or import it in a test file)"
     },
     {
@@ -2115,7 +2115,7 @@
       "message": "Function '_normalize_provider_model_map' has no corresponding test references",
       "node_id": "py:agents_config._normalize_provider_model_map",
       "file": "agents_config.py",
-      "line": 1860,
+      "line": 1874,
       "suggestion": "Add tests that reference '_normalize_provider_model_map' (e.g., test__normalize_provider_model_map or import it in a test file)"
     },
     {
@@ -2124,7 +2124,7 @@
       "message": "Function 'get_provider_model_map' has no corresponding test references",
       "node_id": "py:agents_config.get_provider_model_map",
       "file": "agents_config.py",
-      "line": 1887,
+      "line": 1901,
       "suggestion": "Add tests that reference 'get_provider_model_map' (e.g., test_get_provider_model_map or import it in a test file)"
     },
     {
@@ -2133,7 +2133,7 @@
       "message": "Function '_tier_entry_to_spec' has no corresponding test references",
       "node_id": "py:agents_config._tier_entry_to_spec",
       "file": "agents_config.py",
-      "line": 1894,
+      "line": 1908,
       "suggestion": "Add tests that reference '_tier_entry_to_spec' (e.g., test__tier_entry_to_spec or import it in a test file)"
     },
     {
@@ -2142,7 +2142,7 @@
       "message": "Function 'resolve_provider_model_spec' has no corresponding test references",
       "node_id": "py:agents_config.resolve_provider_model_spec",
       "file": "agents_config.py",
-      "line": 1909,
+      "line": 1923,
       "suggestion": "Add tests that reference 'resolve_provider_model_spec' (e.g., test_resolve_provider_model_spec or import it in a test file)"
     },
     {
@@ -2151,7 +2151,7 @@
       "message": "Function 'resolve_provider_model' has no corresponding test references",
       "node_id": "py:agents_config.resolve_provider_model",
       "file": "agents_config.py",
-      "line": 1962,
+      "line": 1976,
       "suggestion": "Add tests that reference 'resolve_provider_model' (e.g., test_resolve_provider_model or import it in a test file)"
     },
     {
@@ -2160,7 +2160,7 @@
       "message": "Function 'compose_prompt' has no corresponding test references",
       "node_id": "py:agents_config.compose_prompt",
       "file": "agents_config.py",
-      "line": 1982,
+      "line": 1996,
       "suggestion": "Add tests that reference 'compose_prompt' (e.g., test_compose_prompt or import it in a test file)"
     },
     {
@@ -2169,7 +2169,7 @@
       "message": "Function '_unique_dir_prefixes' has no corresponding test references",
       "node_id": "py:agents_config._unique_dir_prefixes",
       "file": "agents_config.py",
-      "line": 1998,
+      "line": 2012,
       "suggestion": "Add tests that reference '_unique_dir_prefixes' (e.g., test__unique_dir_prefixes or import it in a test file)"
     },
     {
@@ -2178,7 +2178,7 @@
       "message": "Function 'resolve_model' has no corresponding test references",
       "node_id": "py:agents_config.resolve_model",
       "file": "agents_config.py",
-      "line": 2017,
+      "line": 2031,
       "suggestion": "Add tests that reference 'resolve_model' (e.g., test_resolve_model or import it in a test file)"
     },
     {
@@ -2187,7 +2187,7 @@
       "message": "Function '_resolve_model_spec' has no corresponding test references",
       "node_id": "py:agents_config._resolve_model_spec",
       "file": "agents_config.py",
-      "line": 2056,
+      "line": 2070,
       "suggestion": "Add tests that reference '_resolve_model_spec' (e.g., test__resolve_model_spec or import it in a test file)"
     },
     {
@@ -2196,7 +2196,7 @@
       "message": "Function '_finalize' has no corresponding test references",
       "node_id": "py:agents_config._resolve_model_spec._finalize",
       "file": "agents_config.py",
-      "line": 2065,
+      "line": 2079,
       "suggestion": "Add tests that reference '_finalize' (e.g., test__finalize or import it in a test file)"
     },
     {
@@ -2205,7 +2205,7 @@
       "message": "Function 'resolve_archetype_for_phase' has no corresponding test references",
       "node_id": "py:agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line": 2122,
+      "line": 2136,
       "suggestion": "Add tests that reference 'resolve_archetype_for_phase' (e.g., test_resolve_archetype_for_phase or import it in a test file)"
     },
     {
@@ -2331,7 +2331,7 @@
       "message": "Function 'AuditEntry' has no corresponding test references",
       "node_id": "py:audit.AuditEntry",
       "file": "audit.py",
-      "line": 18,
+      "line": 21,
       "suggestion": "Add tests that reference 'AuditEntry' (e.g., test_AuditEntry or import it in a test file)"
     },
     {
@@ -2340,7 +2340,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:audit.AuditEntry.from_dict",
       "file": "audit.py",
-      "line": 34,
+      "line": 37,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -2349,7 +2349,7 @@
       "message": "Function 'AuditResult' has no corresponding test references",
       "node_id": "py:audit.AuditResult",
       "file": "audit.py",
-      "line": 56,
+      "line": 59,
       "suggestion": "Add tests that reference 'AuditResult' (e.g., test_AuditResult or import it in a test file)"
     },
     {
@@ -2358,7 +2358,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:audit.AuditResult.from_dict",
       "file": "audit.py",
-      "line": 64,
+      "line": 67,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -2367,7 +2367,7 @@
       "message": "Function 'AuditService' has no corresponding test references",
       "node_id": "py:audit.AuditService",
       "file": "audit.py",
-      "line": 72,
+      "line": 75,
       "suggestion": "Add tests that reference 'AuditService' (e.g., test_AuditService or import it in a test file)"
     },
     {
@@ -2376,7 +2376,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:audit.AuditService.__init__",
       "file": "audit.py",
-      "line": 75,
+      "line": 78,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -2385,7 +2385,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:audit.AuditService.db",
       "file": "audit.py",
-      "line": 79,
+      "line": 89,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -2394,8 +2394,17 @@
       "message": "Function 'log_operation' has no corresponding test references",
       "node_id": "py:audit.AuditService.log_operation",
       "file": "audit.py",
-      "line": 84,
+      "line": 94,
       "suggestion": "Add tests that reference 'log_operation' (e.g., test_log_operation or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'drain' has no corresponding test references",
+      "node_id": "py:audit.AuditService.drain",
+      "file": "audit.py",
+      "line": 164,
+      "suggestion": "Add tests that reference 'drain' (e.g., test_drain or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -2403,7 +2412,7 @@
       "message": "Function '_insert_audit_entry' has no corresponding test references",
       "node_id": "py:audit.AuditService._insert_audit_entry",
       "file": "audit.py",
-      "line": 151,
+      "line": 176,
       "suggestion": "Add tests that reference '_insert_audit_entry' (e.g., test__insert_audit_entry or import it in a test file)"
     },
     {
@@ -2412,7 +2421,7 @@
       "message": "Function 'query' has no corresponding test references",
       "node_id": "py:audit.AuditService.query",
       "file": "audit.py",
-      "line": 159,
+      "line": 201,
       "suggestion": "Add tests that reference 'query' (e.g., test_query or import it in a test file)"
     },
     {
@@ -2421,7 +2430,7 @@
       "message": "Function 'timed' has no corresponding test references",
       "node_id": "py:audit.AuditService.timed",
       "file": "audit.py",
-      "line": 201,
+      "line": 243,
       "suggestion": "Add tests that reference 'timed' (e.g., test_timed or import it in a test file)"
     },
     {
@@ -2430,7 +2439,7 @@
       "message": "Function 'AuditTimer' has no corresponding test references",
       "node_id": "py:audit.AuditTimer",
       "file": "audit.py",
-      "line": 206,
+      "line": 248,
       "suggestion": "Add tests that reference 'AuditTimer' (e.g., test_AuditTimer or import it in a test file)"
     },
     {
@@ -2439,7 +2448,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:audit.AuditTimer.__init__",
       "file": "audit.py",
-      "line": 209,
+      "line": 251,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -2448,7 +2457,7 @@
       "message": "Function '__aenter__' has no corresponding test references",
       "node_id": "py:audit.AuditTimer.__aenter__",
       "file": "audit.py",
-      "line": 214,
+      "line": 256,
       "suggestion": "Add tests that reference '__aenter__' (e.g., test___aenter__ or import it in a test file)"
     },
     {
@@ -2457,7 +2466,7 @@
       "message": "Function '__aexit__' has no corresponding test references",
       "node_id": "py:audit.AuditTimer.__aexit__",
       "file": "audit.py",
-      "line": 218,
+      "line": 260,
       "suggestion": "Add tests that reference '__aexit__' (e.g., test___aexit__ or import it in a test file)"
     },
     {
@@ -2466,7 +2475,7 @@
       "message": "Function 'get_audit_service' has no corresponding test references",
       "node_id": "py:audit.get_audit_service",
       "file": "audit.py",
-      "line": 237,
+      "line": 279,
       "suggestion": "Add tests that reference 'get_audit_service' (e.g., test_get_audit_service or import it in a test file)"
     },
     {
@@ -10626,10 +10635,19 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function '_is_already_applied_error' has no corresponding test references",
+      "node_id": "py:migrations._is_already_applied_error",
+      "file": "migrations.py",
+      "line": 65,
+      "suggestion": "Add tests that reference '_is_already_applied_error' (e.g., test__is_already_applied_error or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'run_migrations' has no corresponding test references",
       "node_id": "py:migrations.run_migrations",
       "file": "migrations.py",
-      "line": 55,
+      "line": 90,
       "suggestion": "Add tests that reference 'run_migrations' (e.g., test_run_migrations or import it in a test file)"
     },
     {
@@ -10638,7 +10656,7 @@
       "message": "Function 'ensure_schema' has no corresponding test references",
       "node_id": "py:migrations.ensure_schema",
       "file": "migrations.py",
-      "line": 146,
+      "line": 182,
       "suggestion": "Add tests that reference 'ensure_schema' (e.g., test_ensure_schema or import it in a test file)"
     },
     {
@@ -11808,7 +11826,7 @@
       "message": "Function 'list_policy_versions' has no corresponding test references",
       "node_id": "py:policy_engine.NativePolicyEngine.list_policy_versions",
       "file": "policy_engine.py",
-      "line": 394,
+      "line": 408,
       "suggestion": "Add tests that reference 'list_policy_versions' (e.g., test_list_policy_versions or import it in a test file)"
     },
     {
@@ -11817,7 +11835,7 @@
       "message": "Function 'rollback_policy' has no corresponding test references",
       "node_id": "py:policy_engine.NativePolicyEngine.rollback_policy",
       "file": "policy_engine.py",
-      "line": 413,
+      "line": 427,
       "suggestion": "Add tests that reference 'rollback_policy' (e.g., test_rollback_policy or import it in a test file)"
     },
     {
@@ -11826,7 +11844,7 @@
       "message": "Function '_log_policy_decision' has no corresponding test references",
       "node_id": "py:policy_engine.NativePolicyEngine._log_policy_decision",
       "file": "policy_engine.py",
-      "line": 439,
+      "line": 453,
       "suggestion": "Add tests that reference '_log_policy_decision' (e.g., test__log_policy_decision or import it in a test file)"
     },
     {
@@ -11835,7 +11853,7 @@
       "message": "Function 'CedarPolicyEngine' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine",
       "file": "policy_engine.py",
-      "line": 475,
+      "line": 489,
       "suggestion": "Add tests that reference 'CedarPolicyEngine' (e.g., test_CedarPolicyEngine or import it in a test file)"
     },
     {
@@ -11844,7 +11862,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.__init__",
       "file": "policy_engine.py",
-      "line": 485,
+      "line": 499,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -11853,7 +11871,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.db",
       "file": "policy_engine.py",
-      "line": 501,
+      "line": 515,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -11862,7 +11880,7 @@
       "message": "Function '_load_default_policies' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_default_policies",
       "file": "policy_engine.py",
-      "line": 506,
+      "line": 520,
       "suggestion": "Add tests that reference '_load_default_policies' (e.g., test__load_default_policies or import it in a test file)"
     },
     {
@@ -11871,7 +11889,7 @@
       "message": "Function '_load_schema' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_schema",
       "file": "policy_engine.py",
-      "line": 520,
+      "line": 534,
       "suggestion": "Add tests that reference '_load_schema' (e.g., test__load_schema or import it in a test file)"
     },
     {
@@ -11880,7 +11898,7 @@
       "message": "Function '_load_policies' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_policies",
       "file": "policy_engine.py",
-      "line": 538,
+      "line": 552,
       "suggestion": "Add tests that reference '_load_policies' (e.g., test__load_policies or import it in a test file)"
     },
     {
@@ -11889,7 +11907,7 @@
       "message": "Function '_build_entity' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._build_entity",
       "file": "policy_engine.py",
-      "line": 593,
+      "line": 607,
       "suggestion": "Add tests that reference '_build_entity' (e.g., test__build_entity or import it in a test file)"
     },
     {
@@ -11898,7 +11916,7 @@
       "message": "Function '_build_resource_entity' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._build_resource_entity",
       "file": "policy_engine.py",
-      "line": 630,
+      "line": 644,
       "suggestion": "Add tests that reference '_build_resource_entity' (e.g., test__build_resource_entity or import it in a test file)"
     },
     {
@@ -11907,7 +11925,7 @@
       "message": "Function '_determine_resource_type' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._determine_resource_type",
       "file": "policy_engine.py",
-      "line": 657,
+      "line": 671,
       "suggestion": "Add tests that reference '_determine_resource_type' (e.g., test__determine_resource_type or import it in a test file)"
     },
     {
@@ -11916,7 +11934,7 @@
       "message": "Function 'check_operation' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.check_operation",
       "file": "policy_engine.py",
-      "line": 669,
+      "line": 683,
       "suggestion": "Add tests that reference 'check_operation' (e.g., test_check_operation or import it in a test file)"
     },
     {
@@ -11925,7 +11943,7 @@
       "message": "Function '_do_check_operation' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._do_check_operation",
       "file": "policy_engine.py",
-      "line": 710,
+      "line": 724,
       "suggestion": "Add tests that reference '_do_check_operation' (e.g., test__do_check_operation or import it in a test file)"
     },
     {
@@ -11934,7 +11952,7 @@
       "message": "Function 'check_network_access' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.check_network_access",
       "file": "policy_engine.py",
-      "line": 799,
+      "line": 813,
       "suggestion": "Add tests that reference 'check_network_access' (e.g., test_check_network_access or import it in a test file)"
     },
     {
@@ -11943,7 +11961,7 @@
       "message": "Function 'validate_policy' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.validate_policy",
       "file": "policy_engine.py",
-      "line": 818,
+      "line": 832,
       "suggestion": "Add tests that reference 'validate_policy' (e.g., test_validate_policy or import it in a test file)"
     },
     {
@@ -11952,7 +11970,7 @@
       "message": "Function 'list_policies' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.list_policies",
       "file": "policy_engine.py",
-      "line": 839,
+      "line": 853,
       "suggestion": "Add tests that reference 'list_policies' (e.g., test_list_policies or import it in a test file)"
     },
     {
@@ -11961,7 +11979,7 @@
       "message": "Function 'invalidate_cache' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.invalidate_cache",
       "file": "policy_engine.py",
-      "line": 858,
+      "line": 872,
       "suggestion": "Add tests that reference 'invalidate_cache' (e.g., test_invalidate_cache or import it in a test file)"
     },
     {
@@ -11970,7 +11988,7 @@
       "message": "Function 'list_policy_versions' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.list_policy_versions",
       "file": "policy_engine.py",
-      "line": 863,
+      "line": 877,
       "suggestion": "Add tests that reference 'list_policy_versions' (e.g., test_list_policy_versions or import it in a test file)"
     },
     {
@@ -11979,7 +11997,7 @@
       "message": "Function 'rollback_policy' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.rollback_policy",
       "file": "policy_engine.py",
-      "line": 882,
+      "line": 896,
       "suggestion": "Add tests that reference 'rollback_policy' (e.g., test_rollback_policy or import it in a test file)"
     },
     {
@@ -11988,7 +12006,7 @@
       "message": "Function '_log_policy_decision' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._log_policy_decision",
       "file": "policy_engine.py",
-      "line": 909,
+      "line": 923,
       "suggestion": "Add tests that reference '_log_policy_decision' (e.g., test__log_policy_decision or import it in a test file)"
     },
     {
@@ -11997,7 +12015,7 @@
       "message": "Function 'get_policy_engine' has no corresponding test references",
       "node_id": "py:policy_engine.get_policy_engine",
       "file": "policy_engine.py",
-      "line": 949,
+      "line": 963,
       "suggestion": "Add tests that reference 'get_policy_engine' (e.g., test_get_policy_engine or import it in a test file)"
     },
     {
@@ -12006,7 +12024,7 @@
       "message": "Function 'reset_policy_engine' has no corresponding test references",
       "node_id": "py:policy_engine.reset_policy_engine",
       "file": "policy_engine.py",
-      "line": 966,
+      "line": 980,
       "suggestion": "Add tests that reference 'reset_policy_engine' (e.g., test_reset_policy_engine or import it in a test file)"
     },
     {
@@ -12015,7 +12033,7 @@
       "message": "Function 'reset_policy_instruments' has no corresponding test references",
       "node_id": "py:policy_engine.reset_policy_instruments",
       "file": "policy_engine.py",
-      "line": 972,
+      "line": 986,
       "suggestion": "Add tests that reference 'reset_policy_instruments' (e.g., test_reset_policy_instruments or import it in a test file)"
     },
     {
@@ -12411,7 +12429,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:profiles.ProfileResult.from_dict",
       "file": "profiles.py",
-      "line": 63,
+      "line": 74,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -12420,7 +12438,7 @@
       "message": "Function 'OperationCheck' has no corresponding test references",
       "node_id": "py:profiles.OperationCheck",
       "file": "profiles.py",
-      "line": 77,
+      "line": 88,
       "suggestion": "Add tests that reference 'OperationCheck' (e.g., test_OperationCheck or import it in a test file)"
     },
     {
@@ -12429,7 +12447,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:profiles.OperationCheck.from_dict",
       "file": "profiles.py",
-      "line": 84,
+      "line": 95,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -12438,7 +12456,7 @@
       "message": "Function 'ProfilesService' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService",
       "file": "profiles.py",
-      "line": 91,
+      "line": 102,
       "suggestion": "Add tests that reference 'ProfilesService' (e.g., test_ProfilesService or import it in a test file)"
     },
     {
@@ -12447,7 +12465,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService.__init__",
       "file": "profiles.py",
-      "line": 94,
+      "line": 105,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -12456,7 +12474,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService.db",
       "file": "profiles.py",
-      "line": 99,
+      "line": 122,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -12465,7 +12483,7 @@
       "message": "Function 'invalidate_cache' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService.invalidate_cache",
       "file": "profiles.py",
-      "line": 104,
+      "line": 127,
       "suggestion": "Add tests that reference 'invalidate_cache' (e.g., test_invalidate_cache or import it in a test file)"
     },
     {
@@ -12474,7 +12492,7 @@
       "message": "Function 'get_profile' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService.get_profile",
       "file": "profiles.py",
-      "line": 114,
+      "line": 137,
       "suggestion": "Add tests that reference 'get_profile' (e.g., test_get_profile or import it in a test file)"
     },
     {
@@ -12483,7 +12501,7 @@
       "message": "Function 'check_operation' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService.check_operation",
       "file": "profiles.py",
-      "line": 163,
+      "line": 193,
       "suggestion": "Add tests that reference 'check_operation' (e.g., test_check_operation or import it in a test file)"
     },
     {
@@ -12492,7 +12510,7 @@
       "message": "Function '_log_denial' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService._log_denial",
       "file": "profiles.py",
-      "line": 224,
+      "line": 254,
       "suggestion": "Add tests that reference '_log_denial' (e.g., test__log_denial or import it in a test file)"
     },
     {
@@ -12501,7 +12519,7 @@
       "message": "Function 'get_profiles_service' has no corresponding test references",
       "node_id": "py:profiles.get_profiles_service",
       "file": "profiles.py",
-      "line": 247,
+      "line": 277,
       "suggestion": "Add tests that reference 'get_profiles_service' (e.g., test_get_profiles_service or import it in a test file)"
     },
     {
@@ -13257,7 +13275,7 @@
       "message": "Function 'TrustResolutionError' has no corresponding test references",
       "node_id": "py:trust_resolution.TrustResolutionError",
       "file": "trust_resolution.py",
-      "line": 25,
+      "line": 34,
       "suggestion": "Add tests that reference 'TrustResolutionError' (e.g., test_TrustResolutionError or import it in a test file)"
     },
     {
@@ -13266,7 +13284,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:trust_resolution.TrustResolutionError.__init__",
       "file": "trust_resolution.py",
-      "line": 33,
+      "line": 42,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -13275,7 +13293,7 @@
       "message": "Function '_audit_trust_resolution_failure' has no corresponding test references",
       "node_id": "py:trust_resolution._audit_trust_resolution_failure",
       "file": "trust_resolution.py",
-      "line": 48,
+      "line": 57,
       "suggestion": "Add tests that reference '_audit_trust_resolution_failure' (e.g., test__audit_trust_resolution_failure or import it in a test file)"
     },
     {
@@ -13284,7 +13302,7 @@
       "message": "Function 'resolve_trust_level' has no corresponding test references",
       "node_id": "py:trust_resolution.resolve_trust_level",
       "file": "trust_resolution.py",
-      "line": 74,
+      "line": 83,
       "suggestion": "Add tests that reference 'resolve_trust_level' (e.g., test_resolve_trust_level or import it in a test file)"
     },
     {
@@ -13569,10 +13587,19 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function '_release_claimed_task' has no corresponding test references",
+      "node_id": "py:work_queue.WorkQueueService._release_claimed_task",
+      "file": "work_queue.py",
+      "line": 240,
+      "suggestion": "Add tests that reference '_release_claimed_task' (e.g., test__release_claimed_task or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'claim' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.claim",
       "file": "work_queue.py",
-      "line": 227,
+      "line": 269,
       "suggestion": "Add tests that reference 'claim' (e.g., test_claim or import it in a test file)"
     },
     {
@@ -13581,7 +13608,7 @@
       "message": "Function 'complete' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.complete",
       "file": "work_queue.py",
-      "line": 454,
+      "line": 498,
       "suggestion": "Add tests that reference 'complete' (e.g., test_complete or import it in a test file)"
     },
     {
@@ -13590,7 +13617,7 @@
       "message": "Function 'submit' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.submit",
       "file": "work_queue.py",
-      "line": 605,
+      "line": 656,
       "suggestion": "Add tests that reference 'submit' (e.g., test_submit or import it in a test file)"
     },
     {
@@ -13599,7 +13626,7 @@
       "message": "Function 'get_pending' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.get_pending",
       "file": "work_queue.py",
-      "line": 741,
+      "line": 799,
       "suggestion": "Add tests that reference 'get_pending' (e.g., test_get_pending or import it in a test file)"
     },
     {
@@ -13608,7 +13635,7 @@
       "message": "Function 'get_task' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.get_task",
       "file": "work_queue.py",
-      "line": 765,
+      "line": 823,
       "suggestion": "Add tests that reference 'get_task' (e.g., test_get_task or import it in a test file)"
     },
     {
@@ -13617,7 +13644,7 @@
       "message": "Function 'get_my_tasks' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.get_my_tasks",
       "file": "work_queue.py",
-      "line": 777,
+      "line": 835,
       "suggestion": "Add tests that reference 'get_my_tasks' (e.g., test_get_my_tasks or import it in a test file)"
     },
     {
@@ -13626,7 +13653,7 @@
       "message": "Function 'cancel_task_convention' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.cancel_task_convention",
       "file": "work_queue.py",
-      "line": 801,
+      "line": 859,
       "suggestion": "Add tests that reference 'cancel_task_convention' (e.g., test_cancel_task_convention or import it in a test file)"
     },
     {
@@ -13635,7 +13662,7 @@
       "message": "Function 'get_work_queue_service' has no corresponding test references",
       "node_id": "py:work_queue.get_work_queue_service",
       "file": "work_queue.py",
-      "line": 834,
+      "line": 892,
       "suggestion": "Add tests that reference 'get_work_queue_service' (e.g., test_get_work_queue_service or import it in a test file)"
     },
     {
@@ -13644,7 +13671,7 @@
       "message": "Function 'reset_instruments' has no corresponding test references",
       "node_id": "py:work_queue.reset_instruments",
       "file": "work_queue.py",
-      "line": 842,
+      "line": 900,
       "suggestion": "Add tests that reference 'reset_instruments' (e.g., test_reset_instruments or import it in a test file)"
     },
     {
@@ -13896,7 +13923,7 @@
       "message": "'_desired_profile_row' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._desired_profile_row",
       "file": "agents_config.py",
-      "line": 1091,
+      "line": 1105,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13905,7 +13932,7 @@
       "message": "'_profile_drift' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._profile_drift",
       "file": "agents_config.py",
-      "line": 1104,
+      "line": 1118,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13914,7 +13941,7 @@
       "message": "'_emit_sync_audit' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._emit_sync_audit",
       "file": "agents_config.py",
-      "line": 1122,
+      "line": 1136,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13923,7 +13950,7 @@
       "message": "'_sync_assignments' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._sync_assignments",
       "file": "agents_config.py",
-      "line": 1167,
+      "line": 1181,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13932,7 +13959,7 @@
       "message": "'sync_profiles' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.sync_profiles",
       "file": "agents_config.py",
-      "line": 1336,
+      "line": 1350,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13941,7 +13968,7 @@
       "message": "'get_mcp_env' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_mcp_env",
       "file": "agents_config.py",
-      "line": 1569,
+      "line": 1583,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13950,7 +13977,7 @@
       "message": "'reset_agents_config' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.reset_agents_config",
       "file": "agents_config.py",
-      "line": 1631,
+      "line": 1645,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13959,7 +13986,7 @@
       "message": "'get_agent_isolation' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_agent_isolation",
       "file": "agents_config.py",
-      "line": 1709,
+      "line": 1723,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13968,7 +13995,7 @@
       "message": "'_default_archetypes_path' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._default_archetypes_path",
       "file": "agents_config.py",
-      "line": 1725,
+      "line": 1739,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13977,7 +14004,7 @@
       "message": "'load_archetypes_config' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.load_archetypes_config",
       "file": "agents_config.py",
-      "line": 1729,
+      "line": 1743,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13986,7 +14013,7 @@
       "message": "'get_archetype' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_archetype",
       "file": "agents_config.py",
-      "line": 1826,
+      "line": 1840,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -13995,7 +14022,7 @@
       "message": "'get_phase_mapping' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_phase_mapping",
       "file": "agents_config.py",
-      "line": 1840,
+      "line": 1854,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14004,7 +14031,7 @@
       "message": "'reset_archetypes_config' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.reset_archetypes_config",
       "file": "agents_config.py",
-      "line": 1852,
+      "line": 1866,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14013,7 +14040,7 @@
       "message": "'_normalize_provider_model_map' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._normalize_provider_model_map",
       "file": "agents_config.py",
-      "line": 1860,
+      "line": 1874,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14022,7 +14049,7 @@
       "message": "'get_provider_model_map' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_provider_model_map",
       "file": "agents_config.py",
-      "line": 1887,
+      "line": 1901,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14031,7 +14058,7 @@
       "message": "'_tier_entry_to_spec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._tier_entry_to_spec",
       "file": "agents_config.py",
-      "line": 1894,
+      "line": 1908,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14040,7 +14067,7 @@
       "message": "'resolve_provider_model_spec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_provider_model_spec",
       "file": "agents_config.py",
-      "line": 1909,
+      "line": 1923,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14049,7 +14076,7 @@
       "message": "'resolve_provider_model' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_provider_model",
       "file": "agents_config.py",
-      "line": 1962,
+      "line": 1976,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14058,7 +14085,7 @@
       "message": "'compose_prompt' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.compose_prompt",
       "file": "agents_config.py",
-      "line": 1982,
+      "line": 1996,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14067,7 +14094,7 @@
       "message": "'_unique_dir_prefixes' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._unique_dir_prefixes",
       "file": "agents_config.py",
-      "line": 1998,
+      "line": 2012,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14076,7 +14103,7 @@
       "message": "'resolve_model' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_model",
       "file": "agents_config.py",
-      "line": 2017,
+      "line": 2031,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14085,7 +14112,7 @@
       "message": "'_resolve_model_spec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._resolve_model_spec",
       "file": "agents_config.py",
-      "line": 2056,
+      "line": 2070,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14094,7 +14121,7 @@
       "message": "'_finalize' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._resolve_model_spec._finalize",
       "file": "agents_config.py",
-      "line": 2065,
+      "line": 2079,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14103,7 +14130,7 @@
       "message": "'resolve_archetype_for_phase' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line": 2122,
+      "line": 2136,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14247,7 +14274,7 @@
       "message": "'AuditEntry' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditEntry",
       "file": "audit.py",
-      "line": 18,
+      "line": 21,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14256,7 +14283,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditEntry.from_dict",
       "file": "audit.py",
-      "line": 34,
+      "line": 37,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14265,7 +14292,7 @@
       "message": "'AuditResult' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditResult",
       "file": "audit.py",
-      "line": 56,
+      "line": 59,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14274,7 +14301,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditResult.from_dict",
       "file": "audit.py",
-      "line": 64,
+      "line": 67,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14283,7 +14310,7 @@
       "message": "'AuditService' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService",
       "file": "audit.py",
-      "line": 72,
+      "line": 75,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14292,7 +14319,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService.__init__",
       "file": "audit.py",
-      "line": 75,
+      "line": 78,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14301,7 +14328,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService.db",
       "file": "audit.py",
-      "line": 79,
+      "line": 89,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14310,7 +14337,16 @@
       "message": "'log_operation' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService.log_operation",
       "file": "audit.py",
-      "line": 84,
+      "line": 94,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'drain' is unreachable from any entrypoint or test",
+      "node_id": "py:audit.AuditService.drain",
+      "file": "audit.py",
+      "line": 164,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14319,7 +14355,7 @@
       "message": "'_insert_audit_entry' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService._insert_audit_entry",
       "file": "audit.py",
-      "line": 151,
+      "line": 176,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14328,7 +14364,7 @@
       "message": "'query' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService.query",
       "file": "audit.py",
-      "line": 159,
+      "line": 201,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14337,7 +14373,7 @@
       "message": "'timed' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService.timed",
       "file": "audit.py",
-      "line": 201,
+      "line": 243,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14346,7 +14382,7 @@
       "message": "'AuditTimer' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditTimer",
       "file": "audit.py",
-      "line": 206,
+      "line": 248,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14355,7 +14391,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditTimer.__init__",
       "file": "audit.py",
-      "line": 209,
+      "line": 251,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14364,7 +14400,7 @@
       "message": "'__aenter__' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditTimer.__aenter__",
       "file": "audit.py",
-      "line": 214,
+      "line": 256,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14373,7 +14409,7 @@
       "message": "'__aexit__' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditTimer.__aexit__",
       "file": "audit.py",
-      "line": 218,
+      "line": 260,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -21462,10 +21498,19 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'_is_already_applied_error' is unreachable from any entrypoint or test",
+      "node_id": "py:migrations._is_already_applied_error",
+      "file": "migrations.py",
+      "line": 65,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'run_migrations' is unreachable from any entrypoint or test",
       "node_id": "py:migrations.run_migrations",
       "file": "migrations.py",
-      "line": 55,
+      "line": 90,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -21474,7 +21519,7 @@
       "message": "'ensure_schema' is unreachable from any entrypoint or test",
       "node_id": "py:migrations.ensure_schema",
       "file": "migrations.py",
-      "line": 146,
+      "line": 182,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22617,7 +22662,7 @@
       "message": "'list_policy_versions' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.NativePolicyEngine.list_policy_versions",
       "file": "policy_engine.py",
-      "line": 394,
+      "line": 408,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22626,7 +22671,7 @@
       "message": "'rollback_policy' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.NativePolicyEngine.rollback_policy",
       "file": "policy_engine.py",
-      "line": 413,
+      "line": 427,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22635,7 +22680,7 @@
       "message": "'_log_policy_decision' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.NativePolicyEngine._log_policy_decision",
       "file": "policy_engine.py",
-      "line": 439,
+      "line": 453,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22644,7 +22689,7 @@
       "message": "'CedarPolicyEngine' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine",
       "file": "policy_engine.py",
-      "line": 475,
+      "line": 489,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22653,7 +22698,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.__init__",
       "file": "policy_engine.py",
-      "line": 485,
+      "line": 499,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22662,7 +22707,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.db",
       "file": "policy_engine.py",
-      "line": 501,
+      "line": 515,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22671,7 +22716,7 @@
       "message": "'_load_default_policies' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_default_policies",
       "file": "policy_engine.py",
-      "line": 506,
+      "line": 520,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22680,7 +22725,7 @@
       "message": "'_load_schema' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_schema",
       "file": "policy_engine.py",
-      "line": 520,
+      "line": 534,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22689,7 +22734,7 @@
       "message": "'_load_policies' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_policies",
       "file": "policy_engine.py",
-      "line": 538,
+      "line": 552,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22698,7 +22743,7 @@
       "message": "'_build_entity' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._build_entity",
       "file": "policy_engine.py",
-      "line": 593,
+      "line": 607,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22707,7 +22752,7 @@
       "message": "'_build_resource_entity' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._build_resource_entity",
       "file": "policy_engine.py",
-      "line": 630,
+      "line": 644,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22716,7 +22761,7 @@
       "message": "'_determine_resource_type' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._determine_resource_type",
       "file": "policy_engine.py",
-      "line": 657,
+      "line": 671,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22725,7 +22770,7 @@
       "message": "'check_operation' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.check_operation",
       "file": "policy_engine.py",
-      "line": 669,
+      "line": 683,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22734,7 +22779,7 @@
       "message": "'_do_check_operation' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._do_check_operation",
       "file": "policy_engine.py",
-      "line": 710,
+      "line": 724,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22743,7 +22788,7 @@
       "message": "'check_network_access' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.check_network_access",
       "file": "policy_engine.py",
-      "line": 799,
+      "line": 813,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22752,7 +22797,7 @@
       "message": "'validate_policy' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.validate_policy",
       "file": "policy_engine.py",
-      "line": 818,
+      "line": 832,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22761,7 +22806,7 @@
       "message": "'list_policies' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.list_policies",
       "file": "policy_engine.py",
-      "line": 839,
+      "line": 853,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22770,7 +22815,7 @@
       "message": "'invalidate_cache' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.invalidate_cache",
       "file": "policy_engine.py",
-      "line": 858,
+      "line": 872,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22779,7 +22824,7 @@
       "message": "'list_policy_versions' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.list_policy_versions",
       "file": "policy_engine.py",
-      "line": 863,
+      "line": 877,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22788,7 +22833,7 @@
       "message": "'rollback_policy' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.rollback_policy",
       "file": "policy_engine.py",
-      "line": 882,
+      "line": 896,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22797,7 +22842,7 @@
       "message": "'_log_policy_decision' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._log_policy_decision",
       "file": "policy_engine.py",
-      "line": 909,
+      "line": 923,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22806,7 +22851,7 @@
       "message": "'reset_policy_engine' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.reset_policy_engine",
       "file": "policy_engine.py",
-      "line": 966,
+      "line": 980,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22815,7 +22860,7 @@
       "message": "'reset_policy_instruments' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.reset_policy_instruments",
       "file": "policy_engine.py",
-      "line": 972,
+      "line": 986,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23220,7 +23265,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfileResult.from_dict",
       "file": "profiles.py",
-      "line": 63,
+      "line": 74,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23229,7 +23274,7 @@
       "message": "'OperationCheck' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.OperationCheck",
       "file": "profiles.py",
-      "line": 77,
+      "line": 88,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23238,7 +23283,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.OperationCheck.from_dict",
       "file": "profiles.py",
-      "line": 84,
+      "line": 95,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23247,7 +23292,7 @@
       "message": "'ProfilesService' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService",
       "file": "profiles.py",
-      "line": 91,
+      "line": 102,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23256,7 +23301,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService.__init__",
       "file": "profiles.py",
-      "line": 94,
+      "line": 105,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23265,7 +23310,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService.db",
       "file": "profiles.py",
-      "line": 99,
+      "line": 122,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23274,7 +23319,7 @@
       "message": "'invalidate_cache' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService.invalidate_cache",
       "file": "profiles.py",
-      "line": 104,
+      "line": 127,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23283,7 +23328,7 @@
       "message": "'get_profile' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService.get_profile",
       "file": "profiles.py",
-      "line": 114,
+      "line": 137,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23292,7 +23337,7 @@
       "message": "'check_operation' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService.check_operation",
       "file": "profiles.py",
-      "line": 163,
+      "line": 193,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23301,7 +23346,7 @@
       "message": "'_log_denial' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService._log_denial",
       "file": "profiles.py",
-      "line": 224,
+      "line": 254,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24120,7 +24165,7 @@
       "message": "'TrustResolutionError' is unreachable from any entrypoint or test",
       "node_id": "py:trust_resolution.TrustResolutionError",
       "file": "trust_resolution.py",
-      "line": 25,
+      "line": 34,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24129,7 +24174,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:trust_resolution.TrustResolutionError.__init__",
       "file": "trust_resolution.py",
-      "line": 33,
+      "line": 42,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24432,10 +24477,19 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'_release_claimed_task' is unreachable from any entrypoint or test",
+      "node_id": "py:work_queue.WorkQueueService._release_claimed_task",
+      "file": "work_queue.py",
+      "line": 240,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'claim' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.claim",
       "file": "work_queue.py",
-      "line": 227,
+      "line": 269,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24444,7 +24498,7 @@
       "message": "'complete' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.complete",
       "file": "work_queue.py",
-      "line": 454,
+      "line": 498,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24453,7 +24507,7 @@
       "message": "'submit' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.submit",
       "file": "work_queue.py",
-      "line": 605,
+      "line": 656,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24462,7 +24516,7 @@
       "message": "'get_pending' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.get_pending",
       "file": "work_queue.py",
-      "line": 741,
+      "line": 799,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24471,7 +24525,7 @@
       "message": "'get_task' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.get_task",
       "file": "work_queue.py",
-      "line": 765,
+      "line": 823,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24480,7 +24534,7 @@
       "message": "'get_my_tasks' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.get_my_tasks",
       "file": "work_queue.py",
-      "line": 777,
+      "line": 835,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24489,7 +24543,7 @@
       "message": "'cancel_task_convention' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.cancel_task_convention",
       "file": "work_queue.py",
-      "line": 801,
+      "line": 859,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24498,7 +24552,7 @@
       "message": "'reset_instruments' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.reset_instruments",
       "file": "work_queue.py",
-      "line": 842,
+      "line": 900,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24539,12 +24593,12 @@
     }
   ],
   "summary": {
-    "total_findings": 2726,
+    "total_findings": 2732,
     "errors": 0,
-    "warnings": 2638,
+    "warnings": 2644,
     "info": 88,
     "entrypoints_checked": 96,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 1327
+    "flows_without_coverage": 1330
   }
 }

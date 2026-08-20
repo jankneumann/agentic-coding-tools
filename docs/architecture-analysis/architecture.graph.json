@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-08-18T22:23:29+00:00",
-      "git_sha": "26ab704c4010da3a2118b5e2fdb53844ce83e362",
+      "generated_at": "2026-08-20T13:17:10+00:00",
+      "git_sha": "fcd158d140524f04b04299a30839019936fd8ff9",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -1228,8 +1228,8 @@
       "name": "AuditEntry",
       "file": "audit.py",
       "span": {
-        "start": 18,
-        "end": 52
+        "start": 21,
+        "end": 55
       },
       "tags": [],
       "signatures": {}
@@ -1241,8 +1241,8 @@
       "name": "AuditResult",
       "file": "audit.py",
       "span": {
-        "start": 56,
-        "end": 69
+        "start": 59,
+        "end": 72
       },
       "tags": [],
       "signatures": {}
@@ -1254,8 +1254,8 @@
       "name": "AuditService",
       "file": "audit.py",
       "span": {
-        "start": 72,
-        "end": 203
+        "start": 75,
+        "end": 245
       },
       "tags": [],
       "signatures": {}
@@ -1267,8 +1267,8 @@
       "name": "AuditTimer",
       "file": "audit.py",
       "span": {
-        "start": 206,
-        "end": 230
+        "start": 248,
+        "end": 272
       },
       "tags": [],
       "signatures": {}
@@ -3855,7 +3855,7 @@
       "file": "policy_engine.py",
       "span": {
         "start": 110,
-        "end": 472
+        "end": 486
       },
       "tags": [],
       "signatures": {}
@@ -3867,8 +3867,8 @@
       "name": "CedarPolicyEngine",
       "file": "policy_engine.py",
       "span": {
-        "start": 475,
-        "end": 942
+        "start": 489,
+        "end": 956
       },
       "tags": [],
       "signatures": {}
@@ -3946,7 +3946,7 @@
       "file": "profiles.py",
       "span": {
         "start": 53,
-        "end": 73
+        "end": 84
       },
       "tags": [],
       "signatures": {}
@@ -3958,8 +3958,8 @@
       "name": "OperationCheck",
       "file": "profiles.py",
       "span": {
-        "start": 77,
-        "end": 88
+        "start": 88,
+        "end": 99
       },
       "tags": [],
       "signatures": {}
@@ -3971,8 +3971,8 @@
       "name": "ProfilesService",
       "file": "profiles.py",
       "span": {
-        "start": 91,
-        "end": 240
+        "start": 102,
+        "end": 270
       },
       "tags": [],
       "signatures": {}
@@ -4153,8 +4153,8 @@
       "name": "TrustResolutionError",
       "file": "trust_resolution.py",
       "span": {
-        "start": 25,
-        "end": 45
+        "start": 34,
+        "end": 54
       },
       "tags": [],
       "signatures": {}
@@ -4232,7 +4232,7 @@
       "file": "work_queue.py",
       "span": {
         "start": 198,
-        "end": 827
+        "end": 885
       },
       "tags": [],
       "signatures": {}
@@ -4412,7 +4412,7 @@
       "file": "agents_config.py",
       "span": {
         "start": 1081,
-        "end": 1088
+        "end": 1102
       },
       "tags": [
         "private"
@@ -4426,8 +4426,8 @@
       "name": "_desired_profile_row",
       "file": "agents_config.py",
       "span": {
-        "start": 1091,
-        "end": 1101
+        "start": 1105,
+        "end": 1115
       },
       "tags": [
         "private"
@@ -4441,8 +4441,8 @@
       "name": "_profile_drift",
       "file": "agents_config.py",
       "span": {
-        "start": 1104,
-        "end": 1119
+        "start": 1118,
+        "end": 1133
       },
       "tags": [
         "private",
@@ -4457,8 +4457,8 @@
       "name": "_emit_sync_audit",
       "file": "agents_config.py",
       "span": {
-        "start": 1122,
-        "end": 1164
+        "start": 1136,
+        "end": 1178
       },
       "tags": [
         "async",
@@ -4473,8 +4473,8 @@
       "name": "_sync_assignments",
       "file": "agents_config.py",
       "span": {
-        "start": 1167,
-        "end": 1333
+        "start": 1181,
+        "end": 1347
       },
       "tags": [
         "async",
@@ -4490,8 +4490,8 @@
       "name": "sync_profiles",
       "file": "agents_config.py",
       "span": {
-        "start": 1336,
-        "end": 1562
+        "start": 1350,
+        "end": 1576
       },
       "tags": [
         "async",
@@ -4506,8 +4506,8 @@
       "name": "get_mcp_env",
       "file": "agents_config.py",
       "span": {
-        "start": 1569,
-        "end": 1597
+        "start": 1583,
+        "end": 1611
       },
       "tags": [
         "db_access"
@@ -4521,8 +4521,8 @@
       "name": "get_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1607,
-        "end": 1620
+        "start": 1621,
+        "end": 1634
       },
       "tags": [],
       "signatures": {}
@@ -4534,8 +4534,8 @@
       "name": "get_agent_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1623,
-        "end": 1628
+        "start": 1637,
+        "end": 1642
       },
       "tags": [],
       "signatures": {}
@@ -4547,8 +4547,8 @@
       "name": "reset_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1631,
-        "end": 1634
+        "start": 1645,
+        "end": 1648
       },
       "tags": [],
       "signatures": {}
@@ -4560,8 +4560,8 @@
       "name": "get_dispatch_configs",
       "file": "agents_config.py",
       "span": {
-        "start": 1641,
-        "end": 1702
+        "start": 1655,
+        "end": 1716
       },
       "tags": [],
       "signatures": {}
@@ -4573,8 +4573,8 @@
       "name": "get_agent_isolation",
       "file": "agents_config.py",
       "span": {
-        "start": 1709,
-        "end": 1718
+        "start": 1723,
+        "end": 1732
       },
       "tags": [],
       "signatures": {}
@@ -4586,8 +4586,8 @@
       "name": "_default_archetypes_path",
       "file": "agents_config.py",
       "span": {
-        "start": 1725,
-        "end": 1726
+        "start": 1739,
+        "end": 1740
       },
       "tags": [
         "private"
@@ -4601,8 +4601,8 @@
       "name": "load_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1729,
-        "end": 1818
+        "start": 1743,
+        "end": 1832
       },
       "tags": [
         "db_access"
@@ -4616,8 +4616,8 @@
       "name": "get_archetype",
       "file": "agents_config.py",
       "span": {
-        "start": 1826,
-        "end": 1837
+        "start": 1840,
+        "end": 1851
       },
       "tags": [
         "db_access"
@@ -4631,8 +4631,8 @@
       "name": "get_phase_mapping",
       "file": "agents_config.py",
       "span": {
-        "start": 1840,
-        "end": 1849
+        "start": 1854,
+        "end": 1863
       },
       "tags": [],
       "signatures": {}
@@ -4644,8 +4644,8 @@
       "name": "reset_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1852,
-        "end": 1857
+        "start": 1866,
+        "end": 1871
       },
       "tags": [],
       "signatures": {}
@@ -4657,8 +4657,8 @@
       "name": "_normalize_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 1860,
-        "end": 1884
+        "start": 1874,
+        "end": 1898
       },
       "tags": [
         "private"
@@ -4672,8 +4672,8 @@
       "name": "get_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 1887,
-        "end": 1891
+        "start": 1901,
+        "end": 1905
       },
       "tags": [],
       "signatures": {}
@@ -4685,8 +4685,8 @@
       "name": "_tier_entry_to_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1894,
-        "end": 1906
+        "start": 1908,
+        "end": 1920
       },
       "tags": [
         "private",
@@ -4701,8 +4701,8 @@
       "name": "resolve_provider_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1909,
-        "end": 1959
+        "start": 1923,
+        "end": 1973
       },
       "tags": [
         "db_access"
@@ -4716,8 +4716,8 @@
       "name": "resolve_provider_model",
       "file": "agents_config.py",
       "span": {
-        "start": 1962,
-        "end": 1975
+        "start": 1976,
+        "end": 1989
       },
       "tags": [],
       "signatures": {}
@@ -4729,8 +4729,8 @@
       "name": "compose_prompt",
       "file": "agents_config.py",
       "span": {
-        "start": 1982,
-        "end": 1991
+        "start": 1996,
+        "end": 2005
       },
       "tags": [],
       "signatures": {}
@@ -4742,8 +4742,8 @@
       "name": "_unique_dir_prefixes",
       "file": "agents_config.py",
       "span": {
-        "start": 1998,
-        "end": 2014
+        "start": 2012,
+        "end": 2028
       },
       "tags": [
         "private",
@@ -4758,8 +4758,8 @@
       "name": "resolve_model",
       "file": "agents_config.py",
       "span": {
-        "start": 2017,
-        "end": 2053
+        "start": 2031,
+        "end": 2067
       },
       "tags": [],
       "signatures": {}
@@ -4771,8 +4771,8 @@
       "name": "_resolve_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2056,
-        "end": 2114
+        "start": 2070,
+        "end": 2128
       },
       "tags": [
         "private",
@@ -4787,8 +4787,8 @@
       "name": "_finalize",
       "file": "agents_config.py",
       "span": {
-        "start": 2065,
-        "end": 2077
+        "start": 2079,
+        "end": 2091
       },
       "tags": [
         "private"
@@ -4802,8 +4802,8 @@
       "name": "resolve_archetype_for_phase",
       "file": "agents_config.py",
       "span": {
-        "start": 2122,
-        "end": 2208
+        "start": 2136,
+        "end": 2222
       },
       "tags": [],
       "signatures": {}
@@ -4982,8 +4982,8 @@
       "name": "from_dict",
       "file": "audit.py",
       "span": {
-        "start": 34,
-        "end": 52
+        "start": 37,
+        "end": 55
       },
       "tags": [
         "classmethod",
@@ -4998,8 +4998,8 @@
       "name": "from_dict",
       "file": "audit.py",
       "span": {
-        "start": 64,
-        "end": 69
+        "start": 67,
+        "end": 72
       },
       "tags": [
         "classmethod",
@@ -5014,8 +5014,8 @@
       "name": "__init__",
       "file": "audit.py",
       "span": {
-        "start": 75,
-        "end": 76
+        "start": 78,
+        "end": 86
       },
       "tags": [
         "dunder"
@@ -5029,8 +5029,8 @@
       "name": "db",
       "file": "audit.py",
       "span": {
-        "start": 79,
-        "end": 82
+        "start": 89,
+        "end": 92
       },
       "tags": [
         "property"
@@ -5044,8 +5044,24 @@
       "name": "log_operation",
       "file": "audit.py",
       "span": {
-        "start": 84,
-        "end": 149
+        "start": 94,
+        "end": 162
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:audit.AuditService.drain",
+      "kind": "function",
+      "language": "python",
+      "name": "drain",
+      "file": "audit.py",
+      "span": {
+        "start": 164,
+        "end": 174
       },
       "tags": [
         "async"
@@ -5059,8 +5075,8 @@
       "name": "_insert_audit_entry",
       "file": "audit.py",
       "span": {
-        "start": 151,
-        "end": 157
+        "start": 176,
+        "end": 199
       },
       "tags": [
         "async",
@@ -5076,8 +5092,8 @@
       "name": "query",
       "file": "audit.py",
       "span": {
-        "start": 159,
-        "end": 199
+        "start": 201,
+        "end": 241
       },
       "tags": [
         "async",
@@ -5092,8 +5108,8 @@
       "name": "timed",
       "file": "audit.py",
       "span": {
-        "start": 201,
-        "end": 203
+        "start": 243,
+        "end": 245
       },
       "tags": [],
       "signatures": {}
@@ -5105,8 +5121,8 @@
       "name": "__init__",
       "file": "audit.py",
       "span": {
-        "start": 209,
-        "end": 212
+        "start": 251,
+        "end": 254
       },
       "tags": [
         "dunder"
@@ -5120,8 +5136,8 @@
       "name": "__aenter__",
       "file": "audit.py",
       "span": {
-        "start": 214,
-        "end": 216
+        "start": 256,
+        "end": 258
       },
       "tags": [
         "async",
@@ -5136,8 +5152,8 @@
       "name": "__aexit__",
       "file": "audit.py",
       "span": {
-        "start": 218,
-        "end": 230
+        "start": 260,
+        "end": 272
       },
       "tags": [
         "async",
@@ -5152,8 +5168,8 @@
       "name": "get_audit_service",
       "file": "audit.py",
       "span": {
-        "start": 237,
-        "end": 242
+        "start": 279,
+        "end": 284
       },
       "tags": [],
       "signatures": {}
@@ -16090,14 +16106,29 @@
       "signatures": {}
     },
     {
+      "id": "py:migrations._is_already_applied_error",
+      "kind": "function",
+      "language": "python",
+      "name": "_is_already_applied_error",
+      "file": "migrations.py",
+      "span": {
+        "start": 65,
+        "end": 87
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:migrations.run_migrations",
       "kind": "function",
       "language": "python",
       "name": "run_migrations",
       "file": "migrations.py",
       "span": {
-        "start": 55,
-        "end": 143
+        "start": 90,
+        "end": 179
       },
       "tags": [
         "async",
@@ -16112,8 +16143,8 @@
       "name": "ensure_schema",
       "file": "migrations.py",
       "span": {
-        "start": 146,
-        "end": 171
+        "start": 182,
+        "end": 207
       },
       "tags": [
         "async",
@@ -17689,7 +17720,7 @@
       "file": "policy_engine.py",
       "span": {
         "start": 371,
-        "end": 392
+        "end": 406
       },
       "tags": [
         "async"
@@ -17703,8 +17734,8 @@
       "name": "list_policy_versions",
       "file": "policy_engine.py",
       "span": {
-        "start": 394,
-        "end": 411
+        "start": 408,
+        "end": 425
       },
       "tags": [
         "async",
@@ -17719,8 +17750,8 @@
       "name": "rollback_policy",
       "file": "policy_engine.py",
       "span": {
-        "start": 413,
-        "end": 437
+        "start": 427,
+        "end": 451
       },
       "tags": [
         "async",
@@ -17735,8 +17766,8 @@
       "name": "_log_policy_decision",
       "file": "policy_engine.py",
       "span": {
-        "start": 439,
-        "end": 472
+        "start": 453,
+        "end": 486
       },
       "tags": [
         "async",
@@ -17751,8 +17782,8 @@
       "name": "__init__",
       "file": "policy_engine.py",
       "span": {
-        "start": 485,
-        "end": 498
+        "start": 499,
+        "end": 512
       },
       "tags": [
         "dunder"
@@ -17766,8 +17797,8 @@
       "name": "db",
       "file": "policy_engine.py",
       "span": {
-        "start": 501,
-        "end": 504
+        "start": 515,
+        "end": 518
       },
       "tags": [
         "property"
@@ -17781,8 +17812,8 @@
       "name": "_load_default_policies",
       "file": "policy_engine.py",
       "span": {
-        "start": 506,
-        "end": 518
+        "start": 520,
+        "end": 532
       },
       "tags": [
         "private"
@@ -17796,8 +17827,8 @@
       "name": "_load_schema",
       "file": "policy_engine.py",
       "span": {
-        "start": 520,
-        "end": 536
+        "start": 534,
+        "end": 550
       },
       "tags": [
         "private"
@@ -17811,8 +17842,8 @@
       "name": "_load_policies",
       "file": "policy_engine.py",
       "span": {
-        "start": 538,
-        "end": 591
+        "start": 552,
+        "end": 605
       },
       "tags": [
         "async",
@@ -17828,8 +17859,8 @@
       "name": "_build_entity",
       "file": "policy_engine.py",
       "span": {
-        "start": 593,
-        "end": 628
+        "start": 607,
+        "end": 642
       },
       "tags": [
         "private",
@@ -17844,8 +17875,8 @@
       "name": "_build_resource_entity",
       "file": "policy_engine.py",
       "span": {
-        "start": 630,
-        "end": 655
+        "start": 644,
+        "end": 669
       },
       "tags": [
         "private"
@@ -17859,8 +17890,8 @@
       "name": "_determine_resource_type",
       "file": "policy_engine.py",
       "span": {
-        "start": 657,
-        "end": 667
+        "start": 671,
+        "end": 681
       },
       "tags": [
         "private"
@@ -17874,8 +17905,8 @@
       "name": "check_operation",
       "file": "policy_engine.py",
       "span": {
-        "start": 669,
-        "end": 708
+        "start": 683,
+        "end": 722
       },
       "tags": [
         "async",
@@ -17890,8 +17921,8 @@
       "name": "_do_check_operation",
       "file": "policy_engine.py",
       "span": {
-        "start": 710,
-        "end": 797
+        "start": 724,
+        "end": 811
       },
       "tags": [
         "async",
@@ -17907,8 +17938,8 @@
       "name": "check_network_access",
       "file": "policy_engine.py",
       "span": {
-        "start": 799,
-        "end": 816
+        "start": 813,
+        "end": 830
       },
       "tags": [
         "async"
@@ -17922,8 +17953,8 @@
       "name": "validate_policy",
       "file": "policy_engine.py",
       "span": {
-        "start": 818,
-        "end": 837
+        "start": 832,
+        "end": 851
       },
       "tags": [],
       "signatures": {}
@@ -17935,8 +17966,8 @@
       "name": "list_policies",
       "file": "policy_engine.py",
       "span": {
-        "start": 839,
-        "end": 856
+        "start": 853,
+        "end": 870
       },
       "tags": [
         "async",
@@ -17951,8 +17982,8 @@
       "name": "invalidate_cache",
       "file": "policy_engine.py",
       "span": {
-        "start": 858,
-        "end": 861
+        "start": 872,
+        "end": 875
       },
       "tags": [],
       "signatures": {}
@@ -17964,8 +17995,8 @@
       "name": "list_policy_versions",
       "file": "policy_engine.py",
       "span": {
-        "start": 863,
-        "end": 880
+        "start": 877,
+        "end": 894
       },
       "tags": [
         "async",
@@ -17980,8 +18011,8 @@
       "name": "rollback_policy",
       "file": "policy_engine.py",
       "span": {
-        "start": 882,
-        "end": 907
+        "start": 896,
+        "end": 921
       },
       "tags": [
         "async",
@@ -17996,8 +18027,8 @@
       "name": "_log_policy_decision",
       "file": "policy_engine.py",
       "span": {
-        "start": 909,
-        "end": 942
+        "start": 923,
+        "end": 956
       },
       "tags": [
         "async",
@@ -18012,8 +18043,8 @@
       "name": "get_policy_engine",
       "file": "policy_engine.py",
       "span": {
-        "start": 949,
-        "end": 963
+        "start": 963,
+        "end": 977
       },
       "tags": [],
       "signatures": {}
@@ -18025,8 +18056,8 @@
       "name": "reset_policy_engine",
       "file": "policy_engine.py",
       "span": {
-        "start": 966,
-        "end": 969
+        "start": 980,
+        "end": 983
       },
       "tags": [],
       "signatures": {}
@@ -18038,8 +18069,8 @@
       "name": "reset_policy_instruments",
       "file": "policy_engine.py",
       "span": {
-        "start": 972,
-        "end": 975
+        "start": 986,
+        "end": 989
       },
       "tags": [],
       "signatures": {}
@@ -18597,8 +18628,8 @@
       "name": "from_dict",
       "file": "profiles.py",
       "span": {
-        "start": 63,
-        "end": 73
+        "start": 74,
+        "end": 84
       },
       "tags": [
         "classmethod",
@@ -18613,8 +18644,8 @@
       "name": "from_dict",
       "file": "profiles.py",
       "span": {
-        "start": 84,
-        "end": 88
+        "start": 95,
+        "end": 99
       },
       "tags": [
         "classmethod",
@@ -18629,8 +18660,8 @@
       "name": "__init__",
       "file": "profiles.py",
       "span": {
-        "start": 94,
-        "end": 96
+        "start": 105,
+        "end": 119
       },
       "tags": [
         "dunder"
@@ -18644,8 +18675,8 @@
       "name": "db",
       "file": "profiles.py",
       "span": {
-        "start": 99,
-        "end": 102
+        "start": 122,
+        "end": 125
       },
       "tags": [
         "property"
@@ -18659,8 +18690,8 @@
       "name": "invalidate_cache",
       "file": "profiles.py",
       "span": {
-        "start": 104,
-        "end": 112
+        "start": 127,
+        "end": 135
       },
       "tags": [],
       "signatures": {}
@@ -18672,8 +18703,8 @@
       "name": "get_profile",
       "file": "profiles.py",
       "span": {
-        "start": 114,
-        "end": 161
+        "start": 137,
+        "end": 191
       },
       "tags": [
         "async"
@@ -18687,8 +18718,8 @@
       "name": "check_operation",
       "file": "profiles.py",
       "span": {
-        "start": 163,
-        "end": 222
+        "start": 193,
+        "end": 252
       },
       "tags": [
         "async",
@@ -18703,8 +18734,8 @@
       "name": "_log_denial",
       "file": "profiles.py",
       "span": {
-        "start": 224,
-        "end": 240
+        "start": 254,
+        "end": 270
       },
       "tags": [
         "async",
@@ -18719,8 +18750,8 @@
       "name": "get_profiles_service",
       "file": "profiles.py",
       "span": {
-        "start": 247,
-        "end": 252
+        "start": 277,
+        "end": 282
       },
       "tags": [],
       "signatures": {}
@@ -19753,8 +19784,8 @@
       "name": "__init__",
       "file": "trust_resolution.py",
       "span": {
-        "start": 33,
-        "end": 45
+        "start": 42,
+        "end": 54
       },
       "tags": [
         "dunder"
@@ -19768,8 +19799,8 @@
       "name": "_audit_trust_resolution_failure",
       "file": "trust_resolution.py",
       "span": {
-        "start": 48,
-        "end": 71
+        "start": 57,
+        "end": 80
       },
       "tags": [
         "async",
@@ -19784,8 +19815,8 @@
       "name": "resolve_trust_level",
       "file": "trust_resolution.py",
       "span": {
-        "start": 74,
-        "end": 155
+        "start": 83,
+        "end": 164
       },
       "tags": [
         "async"
@@ -20172,7 +20203,23 @@
       "file": "work_queue.py",
       "span": {
         "start": 210,
-        "end": 225
+        "end": 238
+      },
+      "tags": [
+        "async",
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:work_queue.WorkQueueService._release_claimed_task",
+      "kind": "function",
+      "language": "python",
+      "name": "_release_claimed_task",
+      "file": "work_queue.py",
+      "span": {
+        "start": 240,
+        "end": 267
       },
       "tags": [
         "async",
@@ -20187,8 +20234,8 @@
       "name": "claim",
       "file": "work_queue.py",
       "span": {
-        "start": 227,
-        "end": 452
+        "start": 269,
+        "end": 496
       },
       "tags": [
         "async",
@@ -20203,8 +20250,8 @@
       "name": "complete",
       "file": "work_queue.py",
       "span": {
-        "start": 454,
-        "end": 603
+        "start": 498,
+        "end": 654
       },
       "tags": [
         "async"
@@ -20218,8 +20265,8 @@
       "name": "submit",
       "file": "work_queue.py",
       "span": {
-        "start": 605,
-        "end": 739
+        "start": 656,
+        "end": 797
       },
       "tags": [
         "async",
@@ -20234,8 +20281,8 @@
       "name": "get_pending",
       "file": "work_queue.py",
       "span": {
-        "start": 741,
-        "end": 763
+        "start": 799,
+        "end": 821
       },
       "tags": [
         "async",
@@ -20250,8 +20297,8 @@
       "name": "get_task",
       "file": "work_queue.py",
       "span": {
-        "start": 765,
-        "end": 775
+        "start": 823,
+        "end": 833
       },
       "tags": [
         "async",
@@ -20266,8 +20313,8 @@
       "name": "get_my_tasks",
       "file": "work_queue.py",
       "span": {
-        "start": 777,
-        "end": 799
+        "start": 835,
+        "end": 857
       },
       "tags": [
         "async",
@@ -20282,8 +20329,8 @@
       "name": "cancel_task_convention",
       "file": "work_queue.py",
       "span": {
-        "start": 801,
-        "end": 827
+        "start": 859,
+        "end": 885
       },
       "tags": [
         "async"
@@ -20297,8 +20344,8 @@
       "name": "get_work_queue_service",
       "file": "work_queue.py",
       "span": {
-        "start": 834,
-        "end": 839
+        "start": 892,
+        "end": 897
       },
       "tags": [],
       "signatures": {}
@@ -20310,8 +20357,8 @@
       "name": "reset_instruments",
       "file": "work_queue.py",
       "span": {
-        "start": 842,
-        "end": 845
+        "start": 900,
+        "end": 903
       },
       "tags": [],
       "signatures": {}
@@ -22838,6 +22885,21 @@
       "tags": [],
       "signatures": {
         "type": "UNKNOWN"
+      }
+    },
+    {
+      "id": "pg:public.public.audit_log.delegated_from",
+      "kind": "column",
+      "language": "sql",
+      "name": "delegated_from",
+      "file": "008_audit_log.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
       }
     },
     {
@@ -26026,8 +26088,8 @@
       "name": "auth.role",
       "file": "000_bootstrap.sql",
       "span": {
-        "start": 31,
-        "end": 31
+        "start": 47,
+        "end": 47
       },
       "tags": [],
       "signatures": {}
@@ -33445,6 +33507,13 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_checksum"
+    },
+    {
+      "from": "py:migrations.run_migrations",
+      "to": "py:migrations._is_already_applied_error",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_is_already_applied_error"
     },
     {
       "from": "py:migrations.ensure_schema",

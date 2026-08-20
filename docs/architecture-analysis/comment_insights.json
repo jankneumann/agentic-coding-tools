@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-18T22:23:29+00:00",
+  "generated_at": "2026-08-20T13:17:10+00:00",
   "summary": {
-    "total_comments": 2431,
+    "total_comments": 2483,
     "total_with_markers": 20,
     "marker_totals": {
       "NOTE": 4,
@@ -11,9 +11,9 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1892,
-    "documented_nodes": 273,
-    "documentation_coverage": 0.144
+    "total_graph_nodes": 1896,
+    "documented_nodes": 275,
+    "documentation_coverage": 0.145
   },
   "marker_hotspots": [
     {
@@ -174,7 +174,7 @@
     },
     {
       "file": "audit.py",
-      "total_comments": 7,
+      "total_comments": 14,
       "with_markers": 0,
       "languages": [
         "python"
@@ -806,7 +806,7 @@
     },
     {
       "file": "migrations.py",
-      "total_comments": 11,
+      "total_comments": 17,
       "with_markers": 0,
       "languages": [
         "python"
@@ -934,7 +934,7 @@
     },
     {
       "file": "profiles.py",
-      "total_comments": 8,
+      "total_comments": 23,
       "with_markers": 0,
       "languages": [
         "python"
@@ -1006,7 +1006,7 @@
     },
     {
       "file": "trust_resolution.py",
-      "total_comments": 5,
+      "total_comments": 14,
       "with_markers": 0,
       "languages": [
         "python"
@@ -1022,7 +1022,7 @@
     },
     {
       "file": "work_queue.py",
-      "total_comments": 21,
+      "total_comments": 36,
       "with_markers": 0,
       "languages": [
         "python"
