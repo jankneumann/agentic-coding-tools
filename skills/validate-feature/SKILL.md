@@ -26,6 +26,8 @@ Deploy the feature locally with DEBUG logging, run security scans and behavioral
 - `--skip-ci` — skip the CI/CD status check
 - `--skip-security` — skip the Security Scan phase
 - `--phase <name>[,<name>]` — run only specified phases (e.g., `--phase smoke,security`)
+- `--ephemeral` — run write-capable validation steps in a disposable detached worktree
+- `--include-dirty` — with `--ephemeral`, materialize staged, unstaged, and untracked source state instead of refusing a dirty checkout
 
 Valid phase names: `deploy`, `smoke`, `gen-eval`, `security`, `e2e`, `architecture`, `spec`, `logs`, `ci`
 
@@ -72,6 +74,8 @@ python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 
 Read-only CI status checks may inspect from the shared checkout, but any report
 or evidence file must be written in a worktree so it lands on the PR branch.
+`--ephemeral` adds a disposable validation checkout inside this managed feature
+worktree boundary; it never makes the shared checkout writable.
 
 ## Steps
 
@@ -110,6 +114,8 @@ Parse flags from `$ARGUMENTS`:
 - `--skip-ci` → set SKIP_CI=true
 - `--skip-security` → set SKIP_SECURITY=true
 - `--phase <names>` → set PHASES to comma-separated list; only run those phases
+- `--ephemeral` → set EPHEMERAL=true
+- `--include-dirty` → set INCLUDE_DIRTY=true; reject it unless EPHEMERAL=true
 
 If `--phase` is provided, only the listed phases execute. If `--phase` includes phases other than `deploy`, assume services are already running (skip deploy and teardown).
 
@@ -151,6 +157,81 @@ fi
 ```
 
 If not on the feature branch, check out `$FEATURE_BRANCH` (which honors `OPENSPEC_BRANCH_OVERRIDE`). If no implementation commits exist, abort with guidance.
+
+### 2.25. Enter Ephemeral Validation Scope (Optional)
+
+When `EPHEMERAL=true`, enter the canonical prepare/finalize lifecycle before
+Step 2.5. The source is the current feature checkout, not the previously
+resolved `PROJECT_ROOT` (which may name the main repository from inside a
+managed worktree). This is an executable shell boundary: Steps 2.5 through 12
+run from `VALIDATION_PATH`; Step 12.5 copies the durable allowlist back and
+removes the scratch checkout; Steps 13 and 14 then run from `VALIDATION_SOURCE`
+so PR comments, the session log, and its handoff are durable.
+
+```bash
+VALIDATION_HELPER="<skill-base-dir>/scripts/validation_worktree.py"
+VALIDATION_STATE_FILE=$(mktemp "${TMPDIR:-/tmp}/validate-feature-state.XXXXXX")
+INCLUDE_DIRTY_FLAG=""
+[ "$INCLUDE_DIRTY" = "true" ] && INCLUDE_DIRTY_FLAG="--include-dirty"
+
+if VALIDATION_PREPARE_OUTPUT=$(python3 "$VALIDATION_HELPER" prepare \
+    --source "$PWD" \
+    --change-id "$CHANGE_ID" \
+    --state-file "$VALIDATION_STATE_FILE" \
+    $INCLUDE_DIRTY_FLAG \
+    ); then
+  validation_json_field() {
+    printf '%s' "$VALIDATION_PREPARE_OUTPUT" | \
+      python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]], end="")' "$1"
+  }
+  if VALIDATION_SOURCE=$(validation_json_field source) && \
+      VALIDATION_PATH=$(validation_json_field path) && \
+      VALIDATION_VALIDATED_COMMIT=$(validation_json_field validated_commit) && \
+      VALIDATION_VALIDATED_TREE=$(validation_json_field validated_tree); then
+    export VALIDATION_SOURCE VALIDATION_PATH
+    export VALIDATION_VALIDATED_COMMIT VALIDATION_VALIDATED_TREE
+  else
+    VALIDATION_PARSE_STATUS=$?
+    python3 "$VALIDATION_HELPER" finalize --state-file "$VALIDATION_STATE_FILE" || true
+    rm -f -- "$VALIDATION_STATE_FILE"
+    echo "ERROR: could not parse ephemeral validation state" >&2
+    exit "$VALIDATION_PARSE_STATUS"
+  fi
+else
+  VALIDATION_PREPARE_STATUS=$?
+  rm -f -- "$VALIDATION_STATE_FILE"
+  echo "ERROR: could not prepare ephemeral validation" >&2
+  exit "$VALIDATION_PREPARE_STATUS"
+fi
+
+finalize_ephemeral_validation() {
+  validation_status="${1:-$?}"
+  validation_cleanup_status=0
+  trap - EXIT INT TERM
+  cd "$VALIDATION_SOURCE" || validation_cleanup_status=$?
+  python3 "$VALIDATION_HELPER" finalize --state-file "$VALIDATION_STATE_FILE" || \
+    validation_cleanup_status=$?
+  if [ "$validation_status" -eq 0 ]; then
+    validation_status=$validation_cleanup_status
+  fi
+  return "$validation_status"
+}
+trap 'finalize_ephemeral_validation $?' EXIT
+trap 'finalize_ephemeral_validation 130; exit 130' INT
+trap 'finalize_ephemeral_validation 143; exit 143' TERM
+
+cd "$VALIDATION_PATH"
+PROJECT_ROOT="$VALIDATION_PATH"
+OPENSPEC_PATH="$VALIDATION_PATH/openspec"
+```
+
+On a dirty checkout, omit `--include-dirty` to fail closed or pass it explicitly
+to reproduce the exact index, working-tree, and untracked state. The helper
+records `VALIDATION_VALIDATED_COMMIT` and `VALIDATION_VALIDATED_TREE`, copies only
+`validation-report.md`, `validation-findings.json`, and `architecture-impact.md`
+back to the feature checkout, and removes the scratch worktree even when an
+earlier step exits. Under a cloud harness whose environment profile already
+provides isolation, it logs a downgrade and runs in place.
 
 ### 2.5. Prepare Validation Artifacts
 
@@ -913,7 +994,8 @@ Write the validation report to the OpenSpec change directory:
 ```bash
 REPORT_FILE="$OPENSPEC_PATH/changes/$CHANGE_ID/validation-report.md"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-COMMIT_SHA=$(git rev-parse --short HEAD)
+COMMIT_SHA="${VALIDATION_VALIDATED_COMMIT:-$(git rev-parse HEAD)}"
+VALIDATED_TREE="${VALIDATION_VALIDATED_TREE:-$(git rev-parse HEAD^{tree})}"
 
 # Write report (overwrites previous)
 cat > "$REPORT_FILE" << EOF
@@ -921,6 +1003,7 @@ cat > "$REPORT_FILE" << EOF
 
 **Date**: $TIMESTAMP
 **Commit**: $COMMIT_SHA
+**Validated tree**: $VALIDATED_TREE
 **Branch**: $FEATURE_BRANCH
 
 ## Phase Results
@@ -934,6 +1017,22 @@ EOF
 
 echo "Report written to: $REPORT_FILE"
 ```
+
+### 12.5. Finalize Ephemeral Validation Scope
+
+When `EPHEMERAL=true`, finalize before any durable source-checkout bookkeeping.
+This atomically copies only newly produced or changed allowlisted artifacts,
+removes the disposable worktree, and clears the failure trap:
+
+```bash
+finalize_ephemeral_validation
+PROJECT_ROOT="$VALIDATION_SOURCE"
+OPENSPEC_PATH="$VALIDATION_SOURCE/openspec"
+```
+
+Steps 13 and 14 now operate in `VALIDATION_SOURCE`. In particular,
+`PhaseRecord.write_both()` writes `session-log.md` and the validation handoff
+after scratch teardown, so neither durable bookkeeping artifact is discarded.
 
 ### 13. PR Comment
 
