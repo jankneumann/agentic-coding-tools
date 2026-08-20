@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-08-20 — add-merge-plan-orchestration
+
+### Phase: Implementation
+
+**Keep the file tier authoritative in Phase 1** — The approved proposal requires offline operation and the coordinator-backed system of record is a separately scoped Phase-2 capability.
+
+- Status: `active`
+- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D1)
+
+---
+
 ## 2026-07-12 — add-merge-plan-orchestration
 
 ### Phase: Plan
