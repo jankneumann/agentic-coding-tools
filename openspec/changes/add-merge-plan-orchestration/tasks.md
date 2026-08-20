@@ -43,21 +43,21 @@ final section.
 
 ## 4. Plan-driven single-PR execution
 
-- [ ] 4.1 Write tests for `--execute <plan> --pr <n>`: live re-check, gate halt, security-backstop deferral, outcome write-back
+- [x] 4.1 Write tests for `--execute <plan> --pr <n>`: live re-check, gate halt, security-backstop deferral, outcome write-back
   **Spec scenarios**: merge-pull-requests "Executing one node updates the plan and flags downstream nodes", "Gated node halts for human decision", "Execution respects the security-check backstop"
   **Design decisions**: D5 (merge serialisation), D6 (human gates), D9 (canonical paths)
   **Dependencies**: 1.1
-- [ ] 4.2 Implement `--execute --pr <n>` in the skill entrypoint: load plan, re-check live PR/CI, refresh if stale, run `vendor_review.py` when eligible, merge via `merge_pr.py` respecting gates, write `outcome` back
+- [x] 4.2 Implement `--execute --pr <n>` in the skill entrypoint: load plan, re-check live PR/CI, refresh if stale, run `vendor_review.py` when eligible, merge via `merge_pr.py` respecting gates, write `outcome` back
   **Dependencies**: 4.1, 1.2, 3.2
-- [ ] 4.3 On successful merge, flag downstream nodes (`needs_revalidation=true`) and recompute mergeability before executing a flagged node
+- [x] 4.3 On successful merge, flag downstream nodes (`needs_revalidation=true`) and recompute mergeability before executing a flagged node
   **Spec scenarios**: merge-pull-requests "Executing one node updates the plan and flags downstream nodes"
   **Design decisions**: D2
   **Dependencies**: 4.2
-- [ ] 4.4 Enforce canonical `skills/...` helper paths in the executor (no `.claude/skills` mirror dependence)
+- [x] 4.4 Enforce canonical `skills/...` helper paths in the executor (no `.claude/skills` mirror dependence)
   **Design decisions**: D9
   **Dependencies**: 4.2
 
-- [ ] 4.5 Checkpoint: run tests, review diff, verify scope
+- [x] 4.5 Checkpoint: run tests, review diff, verify scope
 
 ## 5. Living-plan amendment + comment-addressing seam
 
