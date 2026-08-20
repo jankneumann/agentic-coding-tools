@@ -4,9 +4,13 @@
 from __future__ import annotations
 
 import copy
+import fcntl
+import hashlib
 import json
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Iterator, Protocol
 
 from build_plan import write_plan_bundle
 from merge_backend import _get_coordinator_status
@@ -18,6 +22,11 @@ class PlanStore(Protocol):
     def load(self) -> dict[str, Any]: ...
     def save(self, plan: dict[str, Any]) -> None: ...
     def update_state(self, pr_number: int, **changes: Any) -> dict[str, Any]: ...
+    def claim_node(
+        self,
+        pr_number: int,
+        claim_id: str,
+    ) -> tuple[dict[str, Any], bool]: ...
 
 
 class FilePlanStore:
@@ -29,6 +38,24 @@ class FilePlanStore:
     @property
     def projection_path(self) -> Path:
         return self.path.with_suffix(".md")
+
+    @property
+    def claim_lock_path(self) -> Path:
+        identity = hashlib.sha256(str(self.path.resolve()).encode()).hexdigest()
+        lock_dir = Path(tempfile.gettempdir()) / "merge-plan-claim-locks"
+        lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        return lock_dir / f"{identity}.lock"
+
+    @contextmanager
+    def _claim_lock(self) -> Iterator[None]:
+        """Serialize file-tier claims without leaving artifacts in the repo."""
+
+        with self.claim_lock_path.open("a", encoding="utf-8") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     def load(self) -> dict[str, Any]:
         plan = json.loads(self.path.read_text(encoding="utf-8"))
@@ -64,6 +91,32 @@ class FilePlanStore:
         self.save(plan)
         return plan
 
+    def claim_node(
+        self,
+        pr_number: int,
+        claim_id: str,
+    ) -> tuple[dict[str, Any], bool]:
+        """Atomically claim one pending node across same-host executors."""
+
+        with self._claim_lock():
+            plan = self.load()
+            node = next(
+                (candidate for candidate in plan["nodes"] if candidate["pr"] == pr_number),
+                None,
+            )
+            if node is None:
+                raise KeyError(f"PR #{pr_number} is not present in the merge plan")
+            state = node["state"]
+            if state["outcome"] == "in_progress":
+                return plan, state.get("claimed_by") == claim_id
+            if state["outcome"] != "pending":
+                return plan, False
+            state["outcome"] = "in_progress"
+            state["claimed_by"] = claim_id
+            state["blocking_reason"] = None
+            self.save(plan)
+            return plan, True
+
 
 class CoordinatorPlanStore:
     """Explicit seam for the deferred coordinator system-of-record tier."""
@@ -82,6 +135,14 @@ class CoordinatorPlanStore:
         self._deferred()
 
     def update_state(self, pr_number: int, **changes: Any) -> dict[str, Any]:
+        self._deferred()
+        raise AssertionError("unreachable")
+
+    def claim_node(
+        self,
+        pr_number: int,
+        claim_id: str,
+    ) -> tuple[dict[str, Any], bool]:
         self._deferred()
         raise AssertionError("unreachable")
 

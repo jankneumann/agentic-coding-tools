@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import sys
+import threading
 from pathlib import Path
 from unittest.mock import patch
 
@@ -74,3 +75,32 @@ def test_load_repairs_a_missing_or_stale_projection(tmp_path: Path) -> None:
     repaired = path.with_suffix(".md").read_text(encoding="utf-8")
     assert repaired.startswith("# Merge Plan")
     assert "stale projection" not in repaired
+
+
+def test_file_store_claim_is_atomic_across_same_host_contenders(tmp_path: Path) -> None:
+    path = tmp_path / "merge-plan.json"
+    FilePlanStore(path).save(valid_plan())
+    barrier = threading.Barrier(3)
+    results: list[tuple[str, bool]] = []
+
+    def contend(claim_id: str) -> None:
+        barrier.wait()
+        _plan, acquired = FilePlanStore(path).claim_node(10, claim_id)
+        results.append((claim_id, acquired))
+
+    contenders = [
+        threading.Thread(target=contend, args=("claim-a",)),
+        threading.Thread(target=contend, args=("claim-b",)),
+    ]
+    for contender in contenders:
+        contender.start()
+    barrier.wait()
+    for contender in contenders:
+        contender.join(timeout=5)
+
+    assert not any(contender.is_alive() for contender in contenders)
+    assert sorted(acquired for _claim, acquired in results) == [False, True]
+    winner = next(claim for claim, acquired in results if acquired)
+    state = FilePlanStore(path).load()["nodes"][0]["state"]
+    assert state["outcome"] == "in_progress"
+    assert state["claimed_by"] == winner
