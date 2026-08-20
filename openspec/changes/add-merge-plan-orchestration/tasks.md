@@ -23,11 +23,11 @@ final section.
 
 ## 2. Rendered projection
 
-- [ ] 2.1 Write tests for the `merge-plan.md` renderer (fidelity + non-mutation)
+- [x] 2.1 Write tests for the `merge-plan.md` renderer (fidelity + non-mutation)
   **Spec scenarios**: merge-infrastructure "Rendered projection matches the authoritative JSON"
   **Design decisions**: D3 (file is a projection)
   **Dependencies**: 1.1
-- [ ] 2.2 Implement the `merge-plan.md` renderer as a pure projection of `merge-plan.json`
+- [x] 2.2 Implement the `merge-plan.md` renderer as a pure projection of `merge-plan.json`
   **Dependencies**: 2.1
 
 ## 3. Storage tier selection (file authoritative)
