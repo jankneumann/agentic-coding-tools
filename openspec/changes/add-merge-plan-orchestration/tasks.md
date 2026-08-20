@@ -32,14 +32,14 @@ final section.
 
 ## 3. Storage tier selection (file authoritative)
 
-- [ ] 3.1 Write tests for tier selection degrading to the file when no coordinator is available
+- [x] 3.1 Write tests for tier selection degrading to the file when no coordinator is available
   **Spec scenarios**: merge-infrastructure "File tier is authoritative when no coordinator is available"
   **Design decisions**: D3 (reuse merge_backend detection ladder)
   **Dependencies**: 1.1
-- [ ] 3.2 Wire plan storage to `merge_backend.py` detection so file tier is authoritative absent a coordinator; stub the coordinator tier as an explicit `NotImplemented` Phase-2 seam
+- [x] 3.2 Wire plan storage to `merge_backend.py` detection so file tier is authoritative absent a coordinator; stub the coordinator tier as an explicit `NotImplemented` Phase-2 seam
   **Dependencies**: 3.1
 
-- [ ] 3.3 Checkpoint: run tests, review diff, verify scope
+- [x] 3.3 Checkpoint: run tests, review diff, verify scope
 
 ## 4. Plan-driven single-PR execution
 
